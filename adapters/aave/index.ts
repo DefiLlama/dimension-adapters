@@ -4,7 +4,7 @@ import { request, gql } from "graphql-request";
 import { IGraphUrls } from "../helpers/graphs.type";
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
-import { V1Reserve, V2Reserve, V3Reserve } from "./helpers/aave"
+import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 
 const poolIDs = {
   V1: '0x24a42fd28c976a61df5d00d0599c34c4f90748c8',
