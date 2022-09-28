@@ -6,7 +6,7 @@ on:
   repository_dispatch:
     
 jobs:
-  deploy:
+  ts-check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
