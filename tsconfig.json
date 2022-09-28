@@ -6,7 +6,7 @@
   },
   "compilerOptions": {
     "target": "es2019",
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
@@ -14,13 +14,13 @@
     "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "noEmit": false,
+    "noEmit": true,
     "jsx": "preserve",
-    "allowJs": true,
+    "allowJs": false,
     "noImplicitThis": false,
     "noUnusedLocals": false,
     "noUnusedParameters": true,
-    "lib": ["ES2019", "DOM"]
+    "lib": ["ES2019"]
   },
-  "include": ["src"]
+  "include": ["src/*"],
 }

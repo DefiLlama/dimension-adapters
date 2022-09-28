@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: npm run update-submodules
+    - run: yarn run update-submodules
     - name: Get Node.js
       uses: actions/setup-node@v1
       with:
         node-version: '16'
     - run: npm ci
     - name: Checking adapters
-      run: npm run ts-check
+      run: yarn run ts-check
     - name: Checking cli
-      run: npm run ts-check-cli
+      run: yarn run ts-check-cli
