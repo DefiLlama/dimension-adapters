@@ -1,5 +1,5 @@
 import { getDexChainFeesRaw, getDexChainFees } from "../helpers/getUniSubgraphFees";
-import { FeeAdapter } from "../utils/adapters.type";
+import { FeeAdapter } from "../adapters.type";
 import volumeAdapter from "@defillama/adapters/volumes/adapters/quickswap";
 import { POLYGON } from "@defillama/adapters/volumes/helper/chains";
 import { Chain } from "@defillama/sdk/build/general";

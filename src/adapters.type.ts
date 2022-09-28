@@ -1,4 +1,5 @@
-import { ChainBlocks } from "@defillama/adapters/volumes/dexVolume.type"
+import { ChainBlocks } from "@defillama/adapters/volumes/dexVolume.type";
+
 
 export type FetchResult = {
   block?: number;

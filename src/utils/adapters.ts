@@ -1,7 +1,5 @@
 import feeAdaptors from "../adapters";
-import { FeeAdapter } from "./adapters.type";
-import data from "./protocols/data";
-import chains from "./protocols/chains";
+import { FeeAdapter } from "../adapters.type";
 import { Chain } from "./constants";
 import { Protocol, ChainObject } from "./protocols/types";
 import { sluggifyString } from "./sluggify";

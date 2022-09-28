@@ -1,4 +1,4 @@
-import { BaseAdapter, FeeAdapter } from "../utils/adapters.type";
+import { BaseAdapter, FeeAdapter } from "../adapters.type";
 import volumeAdapter from "@defillama/adapters/volumes/adapters/raydium";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 

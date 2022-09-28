@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../utils/adapters.type";
+import { FeeAdapter } from "../adapters.type";
 import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"

@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../utils/adapters.type";
+import { FeeAdapter } from "../adapters.type";
 import { ETHEREUM } from "@defillama/adapters/volumes/helper/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";

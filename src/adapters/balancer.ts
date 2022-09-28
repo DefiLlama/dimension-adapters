@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../utils/adapters.type";
+import { FeeAdapter } from "../adapters.type";
 import { ARBITRUM, ETHEREUM, POLYGON } from "@defillama/adapters/volumes/helper/chains";
 import { getStartTimestamp } from "@defillama/adapters/volumes/helper/getStartTimestamp";
 import { request, gql } from "graphql-request";

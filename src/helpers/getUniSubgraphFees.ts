@@ -17,7 +17,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "@defillama/adapters/volumes/helper/getUniSubgraphVolume";
-import { BaseAdapter, BreakdownAdapter } from "../utils/adapters.type";
+import { BaseAdapter, BreakdownAdapter } from "../adapters.type";
 import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type";
 
 // To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities
