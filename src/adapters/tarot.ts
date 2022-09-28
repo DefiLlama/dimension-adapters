@@ -1,6 +1,6 @@
 import { FeeAdapter } from "../utils/adapters.type";
 import { BSC, FANTOM, OPTIMISM } from "../helpers/chains";
-import { fetchURL } from "@defillama/adapters/projects/helper/utils";
+import { fetchURL } from "../utils";
 import { CHAIN } from "@defillama/adapters/volumes/helper/chains";
 
 const yieldPool = "https://yields.llama.fi/pools";

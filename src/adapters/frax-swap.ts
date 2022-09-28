@@ -1,7 +1,7 @@
 import { CHAIN } from "@defillama/adapters/volumes/helper/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { IGraphUrls } from "../helpers/graphs.type";
-import { fetchURL } from "@defillama/adapters/projects/helper/utils";
+import { fetchURL } from "../utils";
 import { FeeAdapter } from "../utils/adapters.type";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 

@@ -1,9 +1,9 @@
-import { FeeAdapter } from "../utils/adapters.type";
-import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../helpers/chains";
+import { FeeAdapter } from "../../utils/adapters.type";
+import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
-import { Chain } from "../utils/constants";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
+import { IGraphUrls } from "../../helpers/graphs.type";
+import { Chain } from "../../utils/constants";
+import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 
 const poolIDs = {

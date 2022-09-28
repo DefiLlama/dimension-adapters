@@ -2,8 +2,7 @@ import { FeeAdapter } from "../utils/adapters.type";
 import { ETHEREUM } from "../helpers/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";
-import { fetchURL } from "@defillama/adapters/projects/helper/utils";
-import axios from "axios";
+import { fetchURL } from "../utils";
 import { getPrices } from "../utils/prices";
 import BigNumber from "bignumber.js";
 
