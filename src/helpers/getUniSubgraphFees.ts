@@ -9,7 +9,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
-import { getBlock } from "./getBlock";
+import { getBlock } from "@defillama/adapters/volumes/helper/getBlock";
 import {
   getUniqStartOfTodayTimestamp,
   DEFAULT_TOTAL_VOLUME_FACTORY,
