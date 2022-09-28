@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "update-submodules": "git submodule update --remote --merge",
-    "test": "npm run update-submodules && ts-node cli/test-fees.ts"
+    "test": "npm run update-submodules && ts-node cli/test-fees.ts",
+    "ts-check": "tsc --project tsconfig.json --noEmit",
+    "ts-check-cli": "tsc --project tsconfig.cli.json --noEmit"
   },
   "repository": {
     "type": "git",

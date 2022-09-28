@@ -1,0 +1,23 @@
+name: Check ts
+
+on:
+  push:
+    branches: [ master ]
+  repository_dispatch:
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: git submodule update --init --recursive
+    - name: Get Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '16'
+    - run: npm ci
+    - run: cd DefiLlama-Adapters && git checkout main && git pull
+    - name: Checking adapters
+      run: npm run ts-check
+    - name: Checking cli
+      run: npm run ts-check-cli
