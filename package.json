@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "ts-node "
+    "update-submodules": "git submodule update --remote --merge",
+    "test": "npm run update-submodules && ts-node cli/test-fees.ts"
   },
   "repository": {
     "type": "git",
