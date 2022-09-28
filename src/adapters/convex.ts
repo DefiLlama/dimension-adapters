@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../utils/adapters.type";
 import { ETHEREUM } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
@@ -11,7 +11,7 @@ const endpoints = {
     "https://api.thegraph.com/subgraphs/name/mukulmeena/convex",
 };
 
-const graph = (graphUrls: IGraphUrls) => {
+const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
         const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)

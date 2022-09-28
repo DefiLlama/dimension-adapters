@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../utils/adapters.type";
 import { ARBITRUM, AVAX } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
@@ -10,7 +10,7 @@ const endpoints = {
   [AVAX]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-stats"
 }
 
-const graphs = (graphUrls: IGraphUrls) => {
+const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)

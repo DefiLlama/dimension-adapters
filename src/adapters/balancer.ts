@@ -2,7 +2,7 @@ import { FeeAdapter } from "../utils/adapters.type";
 import { ARBITRUM, ETHEREUM, POLYGON } from "@defillama/adapters/volumes/helper/chains";
 import { getStartTimestamp } from "@defillama/adapters/volumes/helper/getStartTimestamp";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getBlock } from "@defillama/adapters/volumes/helper/getBlock";
 import { ChainBlocks } from "@defillama/adapters/volumes/dexVolume.type";
@@ -23,7 +23,7 @@ const v2Endpoints = {
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-polygon-v2",
 };
 
-const v1Graphs = (graphUrls: IGraphUrls) => {
+const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number, chainBlocks: ChainBlocks) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -33,7 +33,7 @@ const v1Graphs = (graphUrls: IGraphUrls) => {
       const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
       const graphQuery = gql
-      `{
+        `{
         today: balancer(id: "1", block: { number: ${todaysBlock} }) {
           totalSwapFee
         }
@@ -56,14 +56,14 @@ const v1Graphs = (graphUrls: IGraphUrls) => {
   };
 };
 
-const v2Graphs = (graphUrls: IGraphUrls) => {
+const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
       const dayId = Math.floor(startTimestamp / 86400)
 
       const graphQuery = gql
-      `query fees($dayId: String!, $yesterdayId: String!) {
+        `query fees($dayId: String!, $yesterdayId: String!) {
         today: balancerSnapshot(id: $dayId) {
           totalSwapFee
         }
@@ -98,7 +98,7 @@ const v2Graphs = (graphUrls: IGraphUrls) => {
         startTimestamp < fiftyPcFeeTimestamp ? dailyFee.multipliedBy(0.1) : dailyFee.multipliedBy(0.5))
       const totalRevenue = startTimestamp < tenPcFeeTimestamp ? "0" : (
         startTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
-      
+
       return {
         timestamp,
         totalFees: graphRes["today"]["totalSwapFee"],

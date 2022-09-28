@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../utils/adapters.type";
 import { ETHEREUM } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
@@ -11,7 +11,7 @@ const endpoints = {
   [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/messari/looksrare-ethereum",
 }
 
-const graphs = (graphUrls: IGraphUrls) => {
+const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);

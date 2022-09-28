@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../utils/adapters.type";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 
@@ -22,7 +22,7 @@ const endpoints = {
   "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai-test",
 };
 
-const graph = (graphUrls: IGraphUrls) => {
+const graph = (graphUrls: ChainEndpoints) => {
   const graphQuery = gql`query fees($yesterdaysTimestamp: Int!, $todaysTimestamp: Int!) 
   {
     dailyPoolSnapshots (

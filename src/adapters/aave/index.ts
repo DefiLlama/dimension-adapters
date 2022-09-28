@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../../utils/adapters.type";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import { IGraphUrls } from "../../helpers/graphs.type";
+import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type";
 import { Chain } from "../../utils/constants";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
@@ -37,7 +37,7 @@ const v3Endpoints = {
 }
 
 
-const v1Reserves = async (graphUrls: IGraphUrls, chain: string, timestamp: number) => {
+const v1Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
   const graphQuery = gql
   `{
     reserves(where: { pool: "${poolIDs.V1}" }) {
@@ -67,7 +67,7 @@ const v1Reserves = async (graphUrls: IGraphUrls, chain: string, timestamp: numbe
   return reserves
 }
 
-const v1Graphs = (graphUrls: IGraphUrls) => {
+const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -136,7 +136,7 @@ const v1Graphs = (graphUrls: IGraphUrls) => {
 };
 
 
-const v2Reserves = async (graphUrls: IGraphUrls, poolId: string, chain: string, timestamp: number) => {
+const v2Reserves = async (graphUrls: ChainEndpoints, poolId: string, chain: string, timestamp: number) => {
   const graphQuery = gql
   `{
     reserves(where: { pool: "${poolId}" }) {
@@ -166,7 +166,7 @@ const v2Reserves = async (graphUrls: IGraphUrls, poolId: string, chain: string, 
   return reserves
 }
 
-const v2Graphs = (graphUrls: IGraphUrls) => {
+const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -280,7 +280,7 @@ const v2Graphs = (graphUrls: IGraphUrls) => {
 
 
 
-const v3Reserves = async (graphUrls: IGraphUrls, chain: string, timestamp: number) => {
+const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
   const graphQuery = gql
   `{
     reserves(where: { pool: "${poolIDs.V3}" }) {
@@ -314,7 +314,7 @@ const v3Reserves = async (graphUrls: IGraphUrls, chain: string, timestamp: numbe
   return reserves
 }
 
-const v3Graphs = (graphUrls: IGraphUrls) => {
+const v3Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
