@@ -1,5 +1,5 @@
 import { FeeAdapter } from "../utils/adapters.type";
-import { BSC, FANTOM, OPTIMISM } from "../helpers/chains";
+import { BSC, FANTOM, OPTIMISM } from "@defillama/adapters/volumes/helper/chains";
 import { fetchURL } from "../utils";
 import { CHAIN } from "@defillama/adapters/volumes/helper/chains";
 

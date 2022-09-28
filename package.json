@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "update-submodules": "git submodule update --init --recursive",
+    "update-submodules": "git submodule update --init --recursive --remote --merge",
     "test": "npm run update-submodules && ts-node cli/test-fees.ts",
-    "ts-check": "tsc --project tsconfig.json --noEmit",
-    "ts-check-cli": "tsc --project tsconfig.cli.json --noEmit"
+    "ts-check": "npm run update-submodules && tsc --project tsconfig.json --noEmit",
+    "ts-check-cli": "npm run update-submodules && tsc --project tsconfig.cli.json --noEmit"
   },
   "repository": {
     "type": "git",

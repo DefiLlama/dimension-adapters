@@ -1,5 +1,5 @@
 import { BreakdownAdapter, FeeAdapter } from "../utils/adapters.type";
-import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON } from "../helpers/chains";
+import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON } from "@defillama/adapters/volumes/helper/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { getDexChainBreakdownFees, getUniswapV3Fees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "@defillama/adapters/volumes/adapters/uniswap";

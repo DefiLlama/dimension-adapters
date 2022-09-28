@@ -1,5 +1,5 @@
 import { FeeAdapter } from "../utils/adapters.type";
-import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../helpers/chains";
+import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
 import { IGraphUrls } from "../helpers/graphs.type";
 import { Chain } from "../utils/constants";

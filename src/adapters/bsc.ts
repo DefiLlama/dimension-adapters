@@ -1,5 +1,5 @@
 import { FeeAdapter } from "../utils/adapters.type";
-import { BSC } from "../helpers/chains";
+import { BSC } from "@defillama/adapters/volumes/helper/chains";
 import { request, gql } from "graphql-request";
 import { IGraphUrls } from "../helpers/graphs.type";
 import { Chain } from "../utils/constants";
