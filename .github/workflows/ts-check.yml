@@ -15,7 +15,7 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '16'
-    - run: npm ci
+    - run: yarn
     - name: Checking adapters
       run: yarn run ts-check
     - name: Checking cli
