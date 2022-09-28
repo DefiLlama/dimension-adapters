@@ -3,7 +3,7 @@ import volumeAdapter from "@defillama/adapters/volumes/adapters/pancakeswap";
 import { FeeAdapter, BreakdownAdapter, Fetch } from "../utils/adapters.type";
 import { CHAIN } from "@defillama/adapters/volumes/helper/chains";
 import { getChainVolume } from "@defillama/adapters/volumes/helper/getUniSubgraphVolume";
-import { getStartTimestamp } from "../helpers/getStartTimestamp";
+import { getStartTimestamp } from "@defillama/adapters/volumes/helper/getStartTimestamp";
 
 const TOTAL_FEES = 0.0025;
 const PROTOCOL_FEES = 0.0003;
