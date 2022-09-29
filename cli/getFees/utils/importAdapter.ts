@@ -1,3 +1,3 @@
-import { FeeAdapter } from "../../../src/adapters.type";
+import { FeeAdapter } from "../../../adapters.type";
 
 export default async (folderName: string): Promise<FeeAdapter> => (await import(`../../../src/adapters/${folderName}`)).default

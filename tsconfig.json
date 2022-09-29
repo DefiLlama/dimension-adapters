@@ -22,5 +22,5 @@
     "noUnusedParameters": true,
     "lib": ["ES2019"]
   },
-  "include": ["src/*"],
+  "include": ["src/*", "adapters.type.ts"],
 }

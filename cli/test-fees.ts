@@ -1,6 +1,6 @@
 import { handler } from "./getFees";
-import { protocolAdapterData } from "../src/utils/adapters";
-import { fetchConfig } from '../src/utils/config';
+import { protocolAdapterData } from "../utils/adapters";
+import { fetchConfig } from '../utils/config';
 
 
 export function checkArguments(argv: string[]) {

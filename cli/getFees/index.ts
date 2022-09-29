@@ -1,12 +1,12 @@
 import { getChainBlocks } from "@defillama/sdk/build/computeTVL/blocks";
-import { getTimestampAtStartOfDayUTC } from "../../src/utils/date";
-import { getAllChainsFromAdapters } from "../../src/utils/adapters";
-import { BaseAdapter } from "../../src/adapters.type";
-import { handleAdapterError } from "../../src/utils/adapters";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getAllChainsFromAdapters } from "../../utils/adapters";
+import { BaseAdapter } from "../../adapters.type";
+import { handleAdapterError } from "../../utils/adapters";
 import allSettled from 'promise.allsettled'
 import importAdapter from "./utils/importAdapter";
 import { canGetBlock } from "@defillama/adapters/volumes/helper/getBlock"
-import { fetchConfig } from "../../src/utils/config";
+import { fetchConfig } from "../../utils/config";
 import { Chain } from "@defillama/sdk/build/general";
 
 interface IHandlerEvent {

@@ -1,4 +1,4 @@
-import feeAdaptors from "../adapters";
+import feeAdaptors from "../fees";
 import { FeeAdapter } from "../adapters.type";
 import { Chain } from "./constants";
 import { Protocol, ChainObject } from "./protocols/types";
