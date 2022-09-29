@@ -29,6 +29,7 @@ import wombatExchange from "./wombat-exchange";
 import tarot from "./tarot";
 import woofi from "./woofi";
 import fraxSwap from "./frax-swap";
+import angle from "./angle";
 
 export default {
     sushiswap,
@@ -58,8 +59,9 @@ export default {
     doge,
     biswap,
     raydium,
-    "wombat-exchange" : wombatExchange,
+    "wombat-exchange": wombatExchange,
     tarot,
     woofi,
-    "frax-swap": fraxSwap
+    "frax-swap": fraxSwap,
+    angle
 };
