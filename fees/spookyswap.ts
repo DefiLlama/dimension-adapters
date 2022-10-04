@@ -1,5 +1,5 @@
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "@defillama/adapters/volumes/adapters/spookyswap";
+import volumeAdapter from "../volumes/adapters/spookyswap";
 import { FeeAdapter, BaseAdapter } from "../adapters.type";
 
 const TOTAL_FEES = 0.002;

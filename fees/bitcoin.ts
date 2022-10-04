@@ -1,5 +1,5 @@
 import { FeeAdapter } from "../adapters.type";
-import { BITCOIN } from "@defillama/adapters/volumes/helper/chains";
+import { BITCOIN } from "../volumes/helper/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 
 const feeAdapter = chainAdapter(BITCOIN, "btc", 1230958800);

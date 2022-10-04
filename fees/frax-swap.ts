@@ -1,6 +1,6 @@
-import { CHAIN } from "@defillama/adapters/volumes/helper/chains";
+import { CHAIN } from "../volumes/helper/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type"
+import type { ChainEndpoints } from "../volumes/dexVolume.type"
 import { fetchURL } from "../utils";
 import { FeeAdapter } from "../adapters.type";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";

@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../../adapters.type";
-import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "@defillama/adapters/volumes/helper/chains";
+import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../../volumes/helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "@defillama/adapters/volumes/dexVolume.type";
+import type { ChainEndpoints } from "../../volumes/dexVolume.type";
 import { Chain } from "../../utils/constants";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
