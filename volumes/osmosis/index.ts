@@ -2,7 +2,7 @@ import { SimpleVolumeAdapter } from "../../dexVolume.type";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://api-osmosis.imperator.co/volume/v2/historical/chart"
+const historicalVolumeEndpoint = "https://api-osmosis.imperator.cov2/historical/chart"
 
 interface IChartItem {
   time: string

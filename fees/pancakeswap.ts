@@ -1,9 +1,9 @@
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../volumes/pancakeswap";
 import { FeeAdapter, BreakdownAdapter, Fetch } from "../adapters.type";
-import { CHAIN } from "../volume/helper/chains";
-import { getChainVolume } from "../volume/helper/getUniSubgraphVolume";
-import { getStartTimestamp } from "../volume/helper/getStartTimestamp";
+import { CHAIN } from "../helper/chains";
+import { getChainVolume } from "../helper/getUniSubgraphVolume";
+import { getStartTimestamp } from "../helper/getStartTimestamp";
 
 const TOTAL_FEES = 0.0025;
 const PROTOCOL_FEES = 0.0003;

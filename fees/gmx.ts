@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../adapters.type";
-import { ARBITRUM, AVAX } from "../volume/helper/chains";
+import { ARBITRUM, AVAX } from "../helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volume/dexVolume.type"
+import type { ChainEndpoints } from "../dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 

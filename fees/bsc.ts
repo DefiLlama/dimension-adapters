@@ -1,11 +1,11 @@
 import { FeeAdapter } from "../adapters.type";
-import { BSC } from "../volume/helper/chains";
+import { BSC } from "../helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volume/dexVolume.type"
+import type { ChainEndpoints } from "../dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../volume/helper/getBlock";
-import { ChainBlocks } from "../volume/dexVolume.type";
+import { getBlock } from "../helper/getBlock";
+import { ChainBlocks } from "../dexVolume.type";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 

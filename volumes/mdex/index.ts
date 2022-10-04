@@ -4,7 +4,7 @@ import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://info.mdex.one/pair/volume/statistics/max"
+const historicalVolumeEndpoint = "https://info.mdex.one/pairstatistics/max"
 
 interface IVolume {
   swap_count: string;

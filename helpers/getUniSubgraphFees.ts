@@ -4,21 +4,21 @@ import {
   FetchResult as VolumeFetchResult,
   Adapter,
   BreakdownAdapter as VolumeBreakdownAdapter
-} from "../volume/dexVolume.type";
+} from "../dexVolume.type";
 import { Chain } from "@defillama/sdk/build/general";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
-import { getBlock } from "../volume/helper/getBlock";
+import { getBlock } from "../helper/getBlock";
 import {
   getUniqStartOfTodayTimestamp,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
-} from "../volume/helper/getUniSubgraphVolume";
+} from "../helper/getUniSubgraphVolume";
 import { BaseAdapter, BreakdownAdapter } from "../adapters.type";
-import type { ChainEndpoints } from "../volume/dexVolume.type";
+import type { ChainEndpoints } from "../dexVolume.type";
 
 // To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities
 const getUniswapDateId = (date?: Date) => getUniqStartOfTodayTimestamp(date) / 86400;

@@ -1,10 +1,10 @@
 import { FeeAdapter } from "../adapters.type";
-import { ETHEREUM } from "../volume/helper/chains";
+import { ETHEREUM } from "../helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volume/dexVolume.type"
+import type { ChainEndpoints } from "../dexVolume.type"
 import { Chain } from "../utils/constants";
-import { getBlock } from "../volume/helper/getBlock";
-import { ChainBlocks } from "../volume/dexVolume.type";
+import { getBlock } from "../helper/getBlock";
+import { ChainBlocks } from "../dexVolume.type";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 

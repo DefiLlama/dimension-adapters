@@ -5,7 +5,7 @@ import { BaseAdapter } from "../../adapters.type";
 import { handleAdapterError } from "../../utils/adapters";
 import allSettled from 'promise.allsettled'
 import importAdapter from "./utils/importAdapter";
-import { canGetBlock } from "../../volume/helper/getBlock"
+import { canGetBlock } from "../../helper/getBlock"
 import { fetchConfig } from "../../utils/config";
 import { Chain } from "@defillama/sdk/build/general";
 
