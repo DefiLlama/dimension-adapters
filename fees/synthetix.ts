@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../adapters.type";
-import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../volumes/helper/chains";
+import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../volume/helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volumes/dexVolume.type"
+import type { ChainEndpoints } from "../volume/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 

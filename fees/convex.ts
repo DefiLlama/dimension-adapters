@@ -1,7 +1,7 @@
 import { FeeAdapter } from "../adapters.type";
-import { ETHEREUM } from "../volumes/helper/chains";
+import { ETHEREUM } from "../volume/helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volumes/dexVolume.type"
+import type { ChainEndpoints } from "../volume/dexVolume.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";

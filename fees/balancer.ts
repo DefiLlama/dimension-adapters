@@ -1,11 +1,11 @@
 import { FeeAdapter } from "../adapters.type";
-import { ARBITRUM, ETHEREUM, POLYGON } from "../volumes/helper/chains";
-import { getStartTimestamp } from "../volumes/helper/getStartTimestamp";
+import { ARBITRUM, ETHEREUM, POLYGON } from "../volume/helper/chains";
+import { getStartTimestamp } from "../volume/helper/getStartTimestamp";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../volumes/dexVolume.type"
+import type { ChainEndpoints } from "../volume/dexVolume.type"
 import { Chain } from "../utils/constants";
-import { getBlock } from "../volumes/helper/getBlock";
-import { ChainBlocks } from "../volumes/dexVolume.type";
+import { getBlock } from "../volume/helper/getBlock";
+import { ChainBlocks } from "../volume/dexVolume.type";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 

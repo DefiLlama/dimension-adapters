@@ -1,4 +1,4 @@
-import { ChainBlocks } from "./volumes/dexVolume.type";
+import { ChainBlocks } from "./volume/dexVolume.type";
 
 
 export type FetchResult = {

@@ -1,5 +1,5 @@
 import { FeeAdapter } from "../../adapters.type";
-import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../volumes/helper/chains";
+import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../volume/helper/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "../../utils/constants";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";

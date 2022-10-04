@@ -1,6 +1,6 @@
-import { BreakdownVolumeAdapter, DISABLED_ADAPTER_KEY } from "../../dexVolume.type";
-import { CHAIN } from "../../helper/chains";
-import disabledAdapter from "../../helper/disabledAdapter";
+import { BreakdownVolumeAdapter, DISABLED_ADAPTER_KEY } from "../../volume/dexVolume.type";
+import { CHAIN } from "../../volume/helper/chains";
+import disabledAdapter from "../../volume/helper/disabledAdapter";
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
