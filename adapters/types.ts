@@ -6,13 +6,25 @@ export type ChainEndpoints = {
   [chain: string]: string
 }
 
-export type FetchResult = {
+export type FetchResultBase = {
   timestamp: number;
   block?: number;
-  dailyVolume?: string;
-  totalVolume?: string;
   [key: string]: string | number
 };
+
+export type FetchResultVolume = FetchResultBase & {
+  dailyVolume?: string;
+  totalVolume?: string;
+};
+
+export type FetchResultFees = FetchResultBase & {
+  totalFees?: string;
+  dailyFees?: string;
+  totalRevenue?: string;
+  dailyRevenue?: string;
+};
+
+export type FetchResult = FetchResultBase & FetchResultFees
 
 export type Fetch = (
   timestamp: number,
