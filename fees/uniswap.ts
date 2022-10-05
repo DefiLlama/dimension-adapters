@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FeeAdapter } from "../adapters.type";
+import { BreakdownAdapter, Adapter } from "../dexVolume.type";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON } from "../helper/chains";
 import { getStartTimestamp } from "../helper/getStartTimestamp";
 import { getDexChainBreakdownFees, getUniswapV3Fees } from "../helpers/getUniSubgraphFees";
@@ -22,12 +22,12 @@ const v3Graphs = getUniswapV3Fees({
   ...v3Endpoints
 });
 
-const breakdownAdapter: BreakdownAdapter = getDexChainBreakdownFees({
+const breakdownAdapter = getDexChainBreakdownFees({
   totalFees: TOTAL_FEES,
   volumeAdapter
 });
 
-const adapter: FeeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     ...breakdownAdapter,
     v3: {

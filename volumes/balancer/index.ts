@@ -1,4 +1,4 @@
-import { ChainEndpoints, BreakdownVolumeAdapter, Adapter } from "../../dexVolume.type";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../dexVolume.type";
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import customBackfill from "../../helper/customBackfill";
 import { CHAIN } from "../../helper/chains";
@@ -33,7 +33,7 @@ const v1graphs = getChainVolume({
   ...graphParams
 });
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
@@ -57,7 +57,7 @@ const adapter: BreakdownVolumeAdapter = {
           }),
         }
       }
-    }, {} as Adapter)
+    }, {} as BaseAdapter)
   }
 }
 

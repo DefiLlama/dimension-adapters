@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helper/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../dexVolume.type"
@@ -69,35 +69,35 @@ const graph = (graphUrls: ChainEndpoints) => {
   }
 };
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: 1577854800,
+      start: async ()  => 1577854800,
     },
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
-      start: 1620532800,
+      start: async ()  => 1620532800,
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
-      start: 1632110400,
+      start: async ()  => 1632110400,
     },
     [POLYGON]: {
       fetch: graph(endpoints)(POLYGON),
-      start: 1620014400,
+      start: async ()  => 1620014400,
     },
     [AVAX]: {
       fetch: graph(endpoints)(AVAX),
-      start: 1633492800,
+      start: async ()  => 1633492800,
     },
     [FANTOM]: {
       fetch: graph(endpoints)(FANTOM),
-      start: 1620532800,
+      start: async ()  => 1620532800,
     },
     [XDAI]: {
       fetch: graph(endpoints)(XDAI),
-      start: 1620532800,
+      start: async ()  => 1620532800,
     },
   }
 }

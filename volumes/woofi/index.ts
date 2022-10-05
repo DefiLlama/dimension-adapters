@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import {  AVAX, BSC, FANTOM, POLYGON } from "../../helper/chains";
 
 const { getChainVolume } = require("../../helper/getUniSubgraphVolume");
@@ -46,7 +46,7 @@ const volume = Object.keys(endpoints).reduce(
   {}
 );
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume,
 };
 export default adapter;

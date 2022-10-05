@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 
 const { getChainVolume } = require("../../helper/getUniSubgraphVolume");
@@ -13,7 +13,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [FANTOM]: {
       fetch: graphs(FANTOM),

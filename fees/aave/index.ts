@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../../adapters.type";
+import { Adapter } from "../../dexVolume.type";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../../helper/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../dexVolume.type";
@@ -387,52 +387,52 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   breakdown: {
     v1: {
       [ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-        start: 1578459600
+        start: async ()  => 1578459600
       },
     },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
-        start: 1606971600
+        start: async ()  => 1606971600
       },
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: 1606971600
+        start: async ()  => 1606971600
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: 1606971600
+        start: async ()  => 1606971600
       },
     },
     v3: {
       [AVAX]: {
         fetch: v3Graphs(v3Endpoints)(AVAX),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
       [POLYGON]: {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
       [ARBITRUM]: {
         fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
       [FANTOM]: {
         fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
-        start: 1647230400
+        start: async ()  => 1647230400
       },
     }
   }

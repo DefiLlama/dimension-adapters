@@ -1,5 +1,5 @@
 import { getDexChainFeesRaw, getDexChainFees } from "../helpers/getUniSubgraphFees";
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import volumeAdapter from "../volumes/quickswap";
 import { POLYGON } from "../helper/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -24,7 +24,7 @@ import { Chain } from "@defillama/sdk/build/general";
 //     ...acc,
 //     [chain]: {
 //       fetch: graphs(chain as Chain),
-//       start: 1602115200,
+//       start: async ()  => 1602115200,
 //     },
 //   }),
 //   {}
@@ -43,7 +43,7 @@ const feeAdapter = getDexChainFees({
   volumeAdapter
 });
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: feeAdapter
 };
 

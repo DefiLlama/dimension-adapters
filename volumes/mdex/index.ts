@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { ChainBlocks, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
@@ -41,7 +41,7 @@ const getStartTimestamp = async (chain_id: number) => {
   const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`))?.data.result;
   return (new Date(historicalVolume[0].created_time).getTime()) / 1000
 }
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     bsc: {
       fetch,

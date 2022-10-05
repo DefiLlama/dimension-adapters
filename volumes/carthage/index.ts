@@ -1,4 +1,4 @@
-import { BreakdownVolumeAdapter } from "../../dexVolume.type";
+import { BreakdownAdapter } from "../../dexVolume.type";
 
 const {
   getChainVolume,
@@ -32,7 +32,7 @@ const v3Graphs = getChainVolume({
   },
 });
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     v3: {
       [CANDLE]: {

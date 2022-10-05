@@ -1,4 +1,4 @@
-import { Adapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { BaseAdapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 import dailyVolumePayload from "./dailyVolumePayload";
@@ -71,7 +71,7 @@ const volume = chains.reduce(
   {}
 );
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume
 };
 export default adapter;

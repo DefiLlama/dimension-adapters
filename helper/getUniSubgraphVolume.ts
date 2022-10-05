@@ -1,8 +1,8 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "./getBlock";
-import { Adapter, ChainBlocks } from "../dexVolume.type";
-import { SimpleVolumeAdapter } from "../dexVolume.type";
+import { BaseAdapter, ChainBlocks } from "../dexVolume.type";
+import { SimpleAdapter } from "../dexVolume.type";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
@@ -139,7 +139,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
@@ -154,7 +154,7 @@ const adapter: SimpleVolumeAdapter = {
         }),
       }
     }
-  }, {} as Adapter)
+  }, {} as BaseAdapter)
 };
 
 return adapter;

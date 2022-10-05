@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helper/getUniSubgraphVolume";
 import { CHAIN } from "../../helper/chains";
@@ -19,7 +19,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),

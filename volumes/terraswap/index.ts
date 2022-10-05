@@ -1,4 +1,4 @@
-import { DISABLED_ADAPTER_KEY, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import disabledAdapter from "../../helper/disabledAdapter";
 
@@ -55,7 +55,7 @@ const getStartTimestamp = async () => {
   return data.terraswap.historicalData[data.terraswap.historicalData.length - 1].timestamp
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.TERRA]: {
       fetch,

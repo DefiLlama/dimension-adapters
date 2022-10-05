@@ -1,8 +1,6 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { getChainBlocks } from '@defillama/sdk/build/computeTVL/blocks';
 
-export type ChainBlocks = {
-  [x: string]: number
-};
+export type ChainBlocks = Awaited<ReturnType<typeof getChainBlocks>>
 
 export type ChainEndpoints = {
   [chain: string]: string
@@ -10,9 +8,10 @@ export type ChainEndpoints = {
 
 export type FetchResult = {
   timestamp: number;
+  block?: number;
   dailyVolume?: string;
   totalVolume?: string;
-  block?: number;
+  [key:string]: string | number
 };
 
 export type Fetch = (
@@ -22,7 +21,7 @@ export type Fetch = (
 
 export type IStartTimestamp = () => Promise<number>
 
-export type Adapter = {
+export type BaseAdapter = {
   [chain: string]: {
     start: IStartTimestamp
     fetch: Fetch;
@@ -33,16 +32,19 @@ export type Adapter = {
 
 export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
 
-export type SimpleVolumeAdapter = {
-  volume: Adapter
+export type SimpleAdapter = {
+  volume: BaseAdapter
+  adapterType?: string;
+} | {
+  fees: BaseAdapter;
+  adapterType?: string;
 };
 
 export type BreakdownAdapter = {
-  [version: string]: Adapter
+  breakdown: {
+    [version: string]: BaseAdapter
+  };
+  adapterType?: string;
 };
 
-export type BreakdownVolumeAdapter = {
-  breakdown: BreakdownAdapter;
-};
-
-export type VolumeAdapter = SimpleVolumeAdapter | BreakdownVolumeAdapter;
+export type Adapter = SimpleAdapter | BreakdownAdapter;

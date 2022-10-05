@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 
 const {
@@ -23,7 +23,7 @@ const graphs = getChainVolume({
 });
 
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
@@ -32,7 +32,7 @@ const adapter: SimpleVolumeAdapter = {
         start: async () => 1624332218
       }
     }
-  }, {} as SimpleVolumeAdapter['volume'])
+  }, {})
 };
 
 export default adapter;

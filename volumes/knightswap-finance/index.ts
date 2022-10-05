@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 const {
   getChainVolume,
@@ -35,7 +35,7 @@ const v2Graph = getChainVolume({
 });
 
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.BSC]: {
       fetch: v1Graph(CHAIN.BSC),

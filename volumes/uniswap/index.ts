@@ -1,4 +1,4 @@
-import { Adapter, BreakdownVolumeAdapter } from "../../dexVolume.type";
+import { BaseAdapter, BreakdownAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 
@@ -57,7 +57,7 @@ const v3Graphs = getChainVolume({
   },
 });
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
@@ -84,7 +84,7 @@ const adapter: BreakdownVolumeAdapter = {
         })
       }
       return acc
-    }, {} as Adapter)
+    }, {} as BaseAdapter)
   }
 }
 

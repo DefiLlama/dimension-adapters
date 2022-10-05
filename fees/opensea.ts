@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import {ETHEREUM } from "../helper/chains";
 import type { ChainEndpoints } from "../dexVolume.type"
 import { Chain } from "../utils/constants";
@@ -54,24 +54,24 @@ const graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   breakdown: {
     v1: {
       [ETHEREUM]: {
         fetch: graphs(v1Endpoints)(ETHEREUM),
-        start: 1528911384
+        start: async ()  => 1528911384
       },
     },
     v2: {
       [ETHEREUM]: {
         fetch: graphs(v2Endpoints)(ETHEREUM),
-        start: 1645228794
+        start: async ()  => 1645228794
       },
     },
     seaport: {
       [ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(ETHEREUM),
-        start: 1655055510
+        start: async ()  => 1655055510
       },
     }
   }

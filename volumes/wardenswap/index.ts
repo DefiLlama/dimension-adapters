@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 
 const {
@@ -7,7 +7,7 @@ const {
 } = require("../../helper/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap",
-  [CHAIN.OPTIMISM]:  "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-optimism",
+  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-optimism",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-arbitrum",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-ethereum",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-polygon",
@@ -29,7 +29,7 @@ const graphs = getChainVolume({
 });
 
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
@@ -38,7 +38,7 @@ const adapter: SimpleVolumeAdapter = {
         start: async () => 1657443314
       }
     }
-  }, {} as SimpleVolumeAdapter['volume'])
+  }, {})
 };
 
 export default adapter;

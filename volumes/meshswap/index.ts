@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
@@ -31,7 +31,7 @@ const getStartTimestamp = async () => {
   return (new Date(historicalVolume[0].dateId).getTime()) / 1000
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     polygon: {
       fetch,

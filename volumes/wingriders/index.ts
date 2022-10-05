@@ -1,6 +1,6 @@
 import axios from "axios"
 import BigNumber from "bignumber.js";
-import { VolumeAdapter } from "../../dexVolume.type"
+import { Adapter } from "../../dexVolume.type"
 import { CHAIN } from "../../helper/chains";
 
 const volUrl = 'https://aggregator.mainnet.wingriders.com/volumeInAda';
@@ -35,4 +35,4 @@ export default {
             start: async () => 0,
         }
     }
-} as VolumeAdapter
+} as Adapter

@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { BSC, FANTOM, OPTIMISM } from "../helper/chains";
 import { fetchURL } from "../utils";
 import { CHAIN } from "../helper/chains";
@@ -35,7 +35,7 @@ const graphs = () => {
 };
 
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),

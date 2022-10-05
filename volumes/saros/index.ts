@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 
 import fetchURL from "../../utils/fetchURL"
 
@@ -23,7 +23,7 @@ const graphs = (chain: string) => async () => {
 };
 
 // @TODO check and backfill
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     solana: {
       fetch: graphs("solana"),

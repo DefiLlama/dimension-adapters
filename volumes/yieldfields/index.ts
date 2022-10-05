@@ -6,7 +6,7 @@ const {
 const { BSC } = require("../../helper/chains");
 const { getStartTimestamp } = require("../../helper/getStartTimestamp");
 
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 
 const endpoints = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/sotblad/yieldfieldsexchange",
@@ -28,7 +28,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [BSC]: {
       fetch: graphs(BSC),
@@ -37,6 +37,7 @@ const adapter: SimpleVolumeAdapter = {
         chain: BSC,
         dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
       }),
+      runAtCurrTime: false
     },
   },
 };

@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { ETHEREUM } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helper/getUniSubgraphVolume";
@@ -24,7 +24,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [ETHEREUM]: {
       fetch: graphs(ETHEREUM),

@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
@@ -36,7 +36,7 @@ const getStartTimestamp = async () => {
   return (new Date(historicalVolume[0].dateId).getTime()) / 1000
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.KLAYTN]: {
       fetch,

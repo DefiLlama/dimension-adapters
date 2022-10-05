@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "update-submodules": "git submodule update --init --recursive --remote --merge",
-    "test": "yarn run update-submodules && ts-node cli/test-fees.ts",
+    "test": "yarn run update-submodules && ts-node cli/testAdapter.ts",
     "ts-check": "yarn run update-submodules && tsc --project tsconfig.json",
     "ts-check-cli": "yarn run update-submodules && tsc --project tsconfig.cli.json"
   },
@@ -24,6 +24,7 @@
     "async-retry": "^1.3.3",
     "axios": "^0.27.2",
     "bignumber.js": "^9.1.0",
+    "dotenv": "^16.0.3",
     "graphql-request": "^5.0.0"
   },
   "devDependencies": {

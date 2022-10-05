@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { ARBITRUM, ETHEREUM, POLYGON } from "../helper/chains";
 import { getStartTimestamp } from "../helper/getStartTimestamp";
 import { request, gql } from "graphql-request";
@@ -110,7 +110,7 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   breakdown: {
     v1: {
       [ETHEREUM]: {
