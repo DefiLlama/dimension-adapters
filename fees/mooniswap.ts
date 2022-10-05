@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../volumes/mooniswap";
 

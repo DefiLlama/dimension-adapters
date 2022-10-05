@@ -1,7 +1,7 @@
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import { FANTOM } from "../../helper/chains";
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {

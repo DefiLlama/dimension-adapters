@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 

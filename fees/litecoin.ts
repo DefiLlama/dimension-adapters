@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { LITECOIN } from "../helper/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 

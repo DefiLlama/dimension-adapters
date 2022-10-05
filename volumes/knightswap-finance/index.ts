@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 const {
   getChainVolume,

@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../dexVolume.type";
+import { Fetch, SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 

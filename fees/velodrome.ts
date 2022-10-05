@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import volumeAdapter from "../volumes/velodrome";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 

@@ -6,7 +6,7 @@ const {
 const { BSC } = require("../../helper/chains");
 const { getStartTimestamp } = require("../../helper/getStartTimestamp");
 
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 
 const endpoints = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/cdsexchange",

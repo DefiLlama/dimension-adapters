@@ -1,4 +1,4 @@
-import { Fetch, Adapter } from "../../dexVolume.type";
+import { Fetch, Adapter } from "../../adapter.type";
 
 import fetchURL from "../../utils/fetchURL"
 const { BSC } = require("../../helper/chains");

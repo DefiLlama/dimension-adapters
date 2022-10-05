@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 
 const { getChainVolume } = require("../../helper/getUniSubgraphVolume");

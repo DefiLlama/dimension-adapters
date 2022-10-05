@@ -1,5 +1,5 @@
 const { request, gql } = require("graphql-request");
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume, univ2Adapter } from "../../helper/getUniSubgraphVolume";

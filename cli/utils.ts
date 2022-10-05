@@ -1,5 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { FetchResult } from "../dexVolume.type";
+import { FetchResult } from "../adapter.type";
 
 export const ERROR_STRING = '------ ERROR ------'
 

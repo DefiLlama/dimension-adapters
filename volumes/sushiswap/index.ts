@@ -13,7 +13,7 @@ import {
   XDAI,
   MOONRIVER
 } from "../../helper/chains";
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {

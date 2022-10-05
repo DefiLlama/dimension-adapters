@@ -1,5 +1,5 @@
 import * as path from 'path'
-import type { Adapter, BaseAdapter, ChainBlocks } from '../dexVolume.type';
+import type { Adapter, BaseAdapter, ChainBlocks } from '../adapter.type';
 import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from '@defillama/sdk/build/general';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';

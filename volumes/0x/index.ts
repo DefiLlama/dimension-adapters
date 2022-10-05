@@ -1,5 +1,5 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../dexVolume.type";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 
 const chains = [CHAIN.ETHEREUM, CHAIN.POLYGON]

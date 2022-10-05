@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 const { getUniqStartOfTodayTimestamp } = require("../../helper/getUniSubgraphVolume");
 
 const { get } = require('../../../projects/helper/http')

@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import { fetchURL } from "../utils";
 import axios from "axios"

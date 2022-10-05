@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { BITCOIN } from "../helper/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 

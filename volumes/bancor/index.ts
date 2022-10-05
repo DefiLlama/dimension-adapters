@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResult, ChainBlocks } from "../../dexVolume.type";
+import { SimpleAdapter, FetchResult, ChainBlocks } from "../../adapter.type";
 
 import fetchURL from "../../utils/fetchURL"
 const {

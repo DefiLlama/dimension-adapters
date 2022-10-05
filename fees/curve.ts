@@ -1,7 +1,7 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../dexVolume.type"
+import type { ChainEndpoints } from "../adapter.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 

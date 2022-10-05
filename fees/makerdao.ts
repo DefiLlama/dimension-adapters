@@ -1,10 +1,10 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { ETHEREUM } from "../helper/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../dexVolume.type"
+import type { ChainEndpoints } from "../adapter.type"
 import { Chain } from "../utils/constants";
 import { getBlock } from "../helper/getBlock";
-import { ChainBlocks } from "../dexVolume.type";
+import { ChainBlocks } from "../adapter.type";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 

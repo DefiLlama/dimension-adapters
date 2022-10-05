@@ -1,4 +1,4 @@
-import { BaseAdapter, Adapter } from "../dexVolume.type";
+import { BaseAdapter, Adapter } from "../adapter.type";
 import volumeAdapter from "../volumes/raydium";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 

@@ -1,5 +1,5 @@
 import feeAdaptors from "../fees";
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { Chain } from "./constants";
 import { Protocol, ChainObject } from "./protocols/types";
 import { sluggifyString } from "./sluggify";

@@ -1,4 +1,4 @@
-import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../dexVolume.type";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapter.type";
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";

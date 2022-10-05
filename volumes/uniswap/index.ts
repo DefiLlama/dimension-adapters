@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter } from "../../dexVolume.type";
+import { BaseAdapter, BreakdownAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 

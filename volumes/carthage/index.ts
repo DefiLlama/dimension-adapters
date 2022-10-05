@@ -1,4 +1,4 @@
-import { BreakdownAdapter } from "../../dexVolume.type";
+import { BreakdownAdapter } from "../../adapter.type";
 
 const {
   getChainVolume,

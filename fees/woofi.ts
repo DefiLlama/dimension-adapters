@@ -1,6 +1,6 @@
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../volumes/woofi";
-import { Adapter, BaseAdapter } from "../dexVolume.type";
+import { Adapter, BaseAdapter } from "../adapter.type";
 
 const TOTAL_FEES = 0.00025;
 const PROTOCOL_FEES = 0.00005;

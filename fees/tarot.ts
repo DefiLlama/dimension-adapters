@@ -1,4 +1,4 @@
-import { Adapter } from "../dexVolume.type";
+import { Adapter } from "../adapter.type";
 import { BSC, FANTOM, OPTIMISM } from "../helper/chains";
 import { fetchURL } from "../utils";
 import { CHAIN } from "../helper/chains";

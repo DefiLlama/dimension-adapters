@@ -1,4 +1,4 @@
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../dexVolume.type";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import disabledAdapter from "../../helper/disabledAdapter";
 const {

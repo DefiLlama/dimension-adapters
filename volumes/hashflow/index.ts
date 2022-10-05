@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { IStartTimestamp, SimpleAdapter } from "../../dexVolume.type";
+import type { IStartTimestamp, SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 

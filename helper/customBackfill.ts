@@ -1,4 +1,4 @@
-import { ChainBlocks, Fetch } from "../dexVolume.type"
+import { ChainBlocks, Fetch } from "../adapter.type"
 import { getBlock } from "./getBlock"
 import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from "@defillama/sdk/build/general";

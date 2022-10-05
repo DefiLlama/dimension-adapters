@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 
 const { request, gql } = require("graphql-request");
 const { RONIN } = require("../../helper/chains");

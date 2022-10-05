@@ -1,4 +1,4 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../dexVolume.type";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapter.type";
 import { CHAIN } from "../../helper/chains";
 import disabledAdapter from "../../helper/disabledAdapter";
 

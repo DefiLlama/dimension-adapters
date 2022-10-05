@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
