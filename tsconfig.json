@@ -29,6 +29,6 @@
   "include": [
     "fees/*",
     "volumes/*",
-    "adapters.type.ts"
+    "dexVolume.type.ts"
   ],
 }

@@ -52,7 +52,6 @@ const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapt
         console.info("Version ->", promise.version.toUpperCase())
         console.info("---------")
         printVolumes(promise.res)
-        console.info("\n")
       })
     } else throw new Error("No compatible adapter found")
   } catch (error) {
@@ -81,7 +80,13 @@ async function runAdapter(volumeAdapter: BaseAdapter, timestamp: number) {
       const startTimestamp = await volumeAdapter[chain].start()
       const fetchVolumeFunc = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
       return fetchVolumeFunc(timestamp, chainBlocks)
-        .then(res => ({ timestamp: res.timestamp, [`total${upperCaseFirst(adapterType)}`]: res[`total${upperCaseFirst(adapterType)}`], [`daily${upperCaseFirst(adapterType)}`]: res[`daily${upperCaseFirst(adapterType)}`], chain, startTimestamp })).catch(e => {
+        .then(res => {
+          return {
+            ...res,
+            chain,
+            startTimestamp
+          }
+        }).catch(e => {
           throw new Error(`${process.argv[2]} ${timestamp}, ${chainBlocks} ${chain} ${e.message}`)
         })
     }

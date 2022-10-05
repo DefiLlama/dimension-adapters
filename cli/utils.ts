@@ -21,14 +21,19 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
+const exclude2Print = ['startTimestamp', 'chain']
 export function printVolumes(volumes: (FetchResult & { chain: string, startTimestamp?: number })[]) {
     volumes.forEach((element) => {
         console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
-        console.info(`24h volume: ${element.dailyVolume}`)
-        console.info(`Total volume: ${element.totalVolume}`)
+        delete element.startTimestamp
+        Object.entries(element).forEach(([attribute, value]) => {
+            if (!exclude2Print.includes(attribute))
+                console.info(`${camelCaseToSpaces(attribute)}: ${value}`)
+        })
+        console.info('\n')
     });
 }
 
@@ -39,4 +44,12 @@ export function formatTimestampAsDate(timestamp: string) {
 
 export function upperCaseFirst(t: string) {
     return t[0].toUpperCase() + t.slice(1)
+}
+
+export function camelCaseToSpaces(s: string) {
+    const withSpaces = s// insert a space before all caps
+        .replace(/([A-Z])/g, ' $1')
+        // uppercase the first character
+        .replace(/^./, function (str) { return str.toUpperCase(); })
+    return withSpaces[0] + withSpaces.slice(1).toLowerCase()
 }
