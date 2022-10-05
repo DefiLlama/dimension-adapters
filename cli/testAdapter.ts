@@ -2,11 +2,14 @@ import * as path from 'path'
 import type { Adapter, ChainBlocks, VolumeAdapter } from '../dexVolume.type';
 import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from '@defillama/sdk/build/general';
-import handleError from '../../utils/handleError';
-import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes } from './utils';
+import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
 import { getBlock } from '../helper/getBlock';
 import { getUniqStartOfTodayTimestamp } from '../helper/getUniSubgraphVolume';
+import { FeeAdapter } from "../adapters.type";
 require('dotenv').config()
+
+// tmp
+const handleError = (e) => console.error(e)
 
 // Add handler to rejections/exceptions
 process.on('unhandledRejection', handleError)
@@ -16,20 +19,22 @@ process.on('uncaughtException', handleError)
 checkArguments(process.argv)
 
 // Get path of module import
-const passedFile = path.resolve(process.cwd(), `volumes/adapters/${process.argv[2]}`);
+const adapterType = process.argv[2]
+const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
   try {
-    console.info(`🦙 Running ${process.argv[2].toUpperCase()} adapter 🦙`)
+    console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
-    let module: VolumeAdapter = (await import(passedFile)).default
+    let module: VolumeAdapter | FeeAdapter = (await import(passedFile)).default
     getUniqStartOfTodayTimestamp
     const unixTimestamp = +process.argv[3] || getUniqStartOfTodayTimestamp(new Date()) - 1;
     console.info(`Volume for ${formatTimestampAsDate(String(unixTimestamp))}`)
     console.info(`_______________________________________\n`)
-    if ("volume" in module) {
+    if ("volume" in module || "fees" in module) {
+      const adapter = "volume" in module ? module.volume : module.fees
       // Get adapter
-      const volumes = await runAdapter(module.volume, unixTimestamp)
+      const volumes = await runAdapter(adapter as Adapter, unixTimestamp)
       printVolumes(volumes)
       console.info("\n")
     } else if ("breakdown" in module) {
@@ -70,7 +75,7 @@ async function runAdapter(volumeAdapter: Adapter, timestamp: number) {
       const startTimestamp = await volumeAdapter[chain].start()
       const fetchVolumeFunc = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
       return fetchVolumeFunc(timestamp, chainBlocks)
-        .then(res => ({ timestamp: res.timestamp, totalVolume: res.totalVolume, dailyVolume: res.dailyVolume, chain, startTimestamp })).catch(e => {
+        .then(res => ({ timestamp: res.timestamp,[`total${upperCaseFirst(adapterType)}`]: res[`total${upperCaseFirst(adapterType)}`],[`daily${upperCaseFirst(adapterType)}`]: res[`daily${upperCaseFirst(adapterType)}`], chain, startTimestamp })).catch(e => {
           throw new Error(`${process.argv[2]} ${timestamp}, ${chainBlocks} ${chain} ${e.message}`)
         })
     }

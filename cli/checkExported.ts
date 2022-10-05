@@ -1,4 +1,4 @@
-import adapters from "../";
+import adapters from "../volumes";
 import { readdirSync } from 'fs'
 const path = require("path")
 

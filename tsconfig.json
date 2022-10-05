@@ -5,6 +5,8 @@
     }
   },
   "compilerOptions": {
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "target": "es2019",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -20,7 +22,13 @@
     "noImplicitThis": false,
     "noUnusedLocals": false,
     "noUnusedParameters": true,
-    "lib": ["ES2019"]
+    "lib": [
+      "ES2019"
+    ]
   },
-  "include": ["fees/*", "volumes/*", "adapters.type.ts"],
+  "include": [
+    "fees/*",
+    "volumes/*",
+    "adapters.type.ts"
+  ],
 }
