@@ -1,6 +1,6 @@
 import { Adapter } from "../adapter.type";
 import { BSC, FANTOM, OPTIMISM } from "../helpers/chains";
-import { fetchURL } from "../utils";
+import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
 const yieldPool = "https://yields.llama.fi/pools";

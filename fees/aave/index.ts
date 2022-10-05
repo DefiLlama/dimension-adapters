@@ -2,9 +2,10 @@ import { Adapter } from "../../adapter.type";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../adapter.type";
-import { Chain } from "../../utils/constants";
+
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
+import { Chain } from "@defillama/sdk/build/general";
 
 const poolIDs = {
   V1: '0x24a42fd28c976a61df5d00d0599c34c4f90748c8',

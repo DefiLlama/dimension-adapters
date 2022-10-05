@@ -1,7 +1,7 @@
 import { Adapter } from "../adapter.type";
 import {ETHEREUM } from "../helpers/chains";
 import type { ChainEndpoints } from "../adapter.type"
-import { Chain } from "../utils/constants";
+import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { request, gql } from "graphql-request";
 import { getPrices } from "../utils/prices";

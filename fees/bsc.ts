@@ -2,7 +2,7 @@ import { Adapter } from "../adapter.type";
 import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
-import { Chain } from "../utils/constants";
+import { Chain } from '@defillama/sdk/build/general';
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapter.type";

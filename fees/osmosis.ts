@@ -1,6 +1,6 @@
 import { Adapter } from "../adapter.type";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
-import { fetchURL } from "../utils";
+import fetchURL from "../utils/fetchURL";
 import axios from "axios"
 
 const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical"

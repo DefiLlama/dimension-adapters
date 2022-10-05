@@ -2,7 +2,7 @@ import { Adapter } from "../adapter.type";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
-import { Chain } from "../utils/constants";
+import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 

@@ -1,5 +1,5 @@
 import * as path from 'path'
-import type { Adapter, BaseAdapter, ChainBlocks } from '../adapter.type';
+import { Adapter, BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY } from '../adapter.type';
 import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from '@defillama/sdk/build/general';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
@@ -65,15 +65,7 @@ async function runAdapter(volumeAdapter: BaseAdapter, timestamp: number) {
   const chains: Chain[] = Object.keys(volumeAdapter).filter(item => typeof volumeAdapter[item] === 'object').map(c => c === "ava" ? "avax" : c as Chain)
   // Get lastest block 
   const chainBlocks: ChainBlocks = {};
-  await Promise.all(
-    chains.map(async (chain) => {
-      if (chainsForBlocks.includes(chain as Chain) || chain === "ethereum") {
-        const latestBlock = await getBlock(timestamp, chain, chainBlocks)
-        if (latestBlock)
-          chainBlocks[chain] = latestBlock - 15
-      }
-    })
-  );
+
   // Get volumes
   const volumes = await Promise.all(chains.map(
     async chain => {

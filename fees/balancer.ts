@@ -3,7 +3,7 @@ import { ARBITRUM, ETHEREUM, POLYGON } from "../helpers/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
-import { Chain } from "../utils/constants";
+import { Chain } from '@defillama/sdk/build/general';
 import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapter.type";
 import BigNumber from "bignumber.js";

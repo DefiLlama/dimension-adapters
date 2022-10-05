@@ -2,7 +2,7 @@ import { Adapter } from "../adapter.type";
 import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
-import { Chain } from "../utils/constants";
+import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 
 const endpoints = {
