@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { BOBA } from "../../helper/chains";
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
+import { BOBA } from "../../helpers/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [BOBA]:

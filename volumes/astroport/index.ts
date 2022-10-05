@@ -1,6 +1,6 @@
 import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import disabledAdapter from "../../helper/disabledAdapter";
+import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const adapter: SimpleAdapter = {
   adapter: {

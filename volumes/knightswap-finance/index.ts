@@ -1,9 +1,9 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
+import { CHAIN } from "../../helpers/chains";
 const {
   getChainVolume,
-} = require("../../helper/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+} = require("../../helpers/getUniSubgraphVolume");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/id/QmPQfcovYgjF2vyGBE4LwXaSYj7Bgfvbny8MBpgLSBVKjB",

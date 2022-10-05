@@ -1,5 +1,5 @@
 import { Adapter } from "../adapter.type";
-import { BITCOIN } from "../helper/chains";
+import { BITCOIN } from "../helpers/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 
 const feeAdapter = chainAdapter(BITCOIN, "btc", 1230958800);

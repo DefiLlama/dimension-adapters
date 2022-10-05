@@ -1,12 +1,12 @@
 import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import disabledAdapter from "../../helper/disabledAdapter";
+import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+} = require("../../helpers/getUniSubgraphVolume");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
   [CHAIN.METER]: "https://graph-meter.voltswap.finance/subgraphs/name/meterio/uniswap-v2-subgraph",
 };

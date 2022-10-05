@@ -1,5 +1,5 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
 const historicalVolumeEndpoint = "https://api-osmosis.imperator.cov2/historical/chart"

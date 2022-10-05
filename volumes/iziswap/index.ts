@@ -1,9 +1,9 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import customBackfill from "../../helper/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const historicalVolumeEndpoint = (chain_id: number) => `https://izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000`

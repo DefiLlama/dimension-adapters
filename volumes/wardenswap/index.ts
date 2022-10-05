@@ -1,10 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const {
   getChainVolume,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/wardenluna/wardenswap-optimism",

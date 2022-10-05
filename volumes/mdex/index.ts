@@ -1,8 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
 import { ChainBlocks, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import customBackfill from "../../helper/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://info.mdex.one/pairstatistics/max"
 

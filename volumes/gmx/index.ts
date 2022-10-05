@@ -1,7 +1,7 @@
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-stats",

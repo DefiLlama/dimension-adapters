@@ -1,5 +1,5 @@
 import { Adapter } from "../adapter.type";
-import {ETHEREUM } from "../helper/chains";
+import {ETHEREUM } from "../helpers/chains";
 import type { ChainEndpoints } from "../adapter.type"
 import { Chain } from "../utils/constants";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";

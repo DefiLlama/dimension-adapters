@@ -1,10 +1,10 @@
 import { Adapter } from "../adapter.type";
-import { BSC } from "../helper/chains";
+import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
 import { Chain } from "../utils/constants";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helper/getBlock";
+import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapter.type";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";

@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 interface IVolumeall {

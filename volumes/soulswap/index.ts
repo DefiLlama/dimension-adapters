@@ -1,6 +1,6 @@
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
-import { FANTOM } from "../../helper/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { FANTOM } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
 

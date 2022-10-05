@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { SimpleAdapter } from "../../adapter.type";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
 

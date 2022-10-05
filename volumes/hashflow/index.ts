@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { IStartTimestamp, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const chains = [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.POLYGON]
 

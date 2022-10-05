@@ -1,5 +1,5 @@
 import { Adapter } from "../adapter.type";
-import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../helper/chains";
+import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapter.type"
 import { Chain } from "../utils/constants";

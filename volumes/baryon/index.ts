@@ -1,7 +1,7 @@
 import { Fetch, Adapter } from "../../adapter.type";
 
 import fetchURL from "../../utils/fetchURL"
-const { BSC } = require("../../helper/chains");
+const { BSC } = require("../../helpers/chains");
 
 const endpoints = {
   [BSC]: "https://api.baryon.network/program/info",

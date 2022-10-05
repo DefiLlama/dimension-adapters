@@ -1,4 +1,4 @@
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   avax: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/exchange",

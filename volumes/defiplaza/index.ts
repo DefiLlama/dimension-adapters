@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza"

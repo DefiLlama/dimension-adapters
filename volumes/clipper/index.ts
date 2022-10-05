@@ -1,10 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import customBackfill from "../../helper/customBackfill";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
 const {
   getChainVolume,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-mainnet",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-optimism",

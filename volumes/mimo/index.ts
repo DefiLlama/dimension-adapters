@@ -1,10 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const {
   getChainVolume,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.IOTEX]: "https://graph-cache.mimo.exchange/subgraphs/name/mimo/mainnet"
 };

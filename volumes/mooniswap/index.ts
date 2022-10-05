@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { ETHEREUM } from "../../helper/chains";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helper/getUniSubgraphVolume";
+import { ETHEREUM } from "../../helpers/chains";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [ETHEREUM]:

@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import type { SimpleAdapter } from "../../adapter.type";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const URL = "https://mainnet.analytics.tinyman.org/api/v1/general-statistics/"
 

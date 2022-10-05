@@ -4,11 +4,11 @@ const {
   getChainVolume,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
-const { CANDLE } = require("../../helper/chains");
+const { CANDLE } = require("../../helpers/chains");
 
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 
 const v3Endpoints = {

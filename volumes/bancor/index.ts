@@ -3,7 +3,7 @@ import { SimpleAdapter, FetchResult, ChainBlocks } from "../../adapter.type";
 import fetchURL from "../../utils/fetchURL"
 const {
   getUniqStartOfTodayTimestamp,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
 interface BancorV2Response {
   data: Array<{

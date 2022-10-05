@@ -1,9 +1,9 @@
 import { ChainEndpoints, SimpleAdapter } from "../../adapter.type";
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
-import customBackfill from "../../helper/customBackfill";
-import { CHAIN } from "../../helper/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
+import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.KLAYTN]: "https://graph-prod.klex.finance/subgraphs/name/klex-staging-2-mainnet",

@@ -55,19 +55,19 @@ type FetchResult = {
 
 ### Helper functions
 ###### Custom backfill
-For situations where the fetch function can only return `totalVolume` and can return in based on a timestamp you can use the `customBackfill` function that can be found in `volumes/helper/customBackfill`.
+For situations where the fetch function can only return `totalVolume` and can return in based on a timestamp you can use the `customBackfill` function that can be found in `volumes/helpers/customBackfill`.
 ###### Obtaining data from subgraphs
 If the data is available in a subgraph and it follows a structure similar to uniswap, you can use the folling helper functions to easily query it. More docs about it to be added soon but for now... take a look at other implementations/the code!
-- `getChainVolume` from `volumes/helper/getUniSubgraphVolume`
-- `getStartTimestamp` from `volumes/helper/getStartTimestamp`
+- `getChainVolume` from `volumes/helpers/getUniSubgraphVolume`
+- `getStartTimestamp` from `volumes/helpers/getStartTimestamp`
 
 
 
 ### Adapter example
 ```typescript
-import customBackfill from "../../helper/customBackfill";
-import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helper/getUniSubgraphVolume";
-import { CHAIN } from "../../helper/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 import type { ChainEndpoints, SimpleVolumeAdapter } from "../../dexVolume.type";
 import type { Chain } from "@defillama/sdk/build/general";
 

@@ -1,8 +1,8 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
-const { getChainVolume } = require("../../helper/getUniSubgraphVolume");
-const { FANTOM } = require("../../helper/chains");
+const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
+const { FANTOM } = require("../../helpers/chains");
 const endpoints = {
   [FANTOM]: "https://api.thegraph.com/subgraphs/name/eerieeight/spookyswap",
 };

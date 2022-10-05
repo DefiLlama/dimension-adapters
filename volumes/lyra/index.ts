@@ -3,7 +3,7 @@ import { SimpleVolumeAdapter } from "../../dexVolume.type";
 
 const {
   getChainVolume,
-} = require("../../helper/getLyraSubgraphVolume");
+} = require("../../helpers/getLyraSubgraphVolume");
 
 const endpoints: { [chain: string]: string } = {
   optimism: "https://api.thegraph.com/subgraphs/name/lyra-finance/mainnet",

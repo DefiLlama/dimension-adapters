@@ -1,5 +1,5 @@
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
-import { CHAIN } from "../../helper/chains";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 
 const adapter = univ2Adapter({
   [CHAIN.OKEXCHAIN]: "https://okinfo.cherryswap.net/subgraphs/name/cherryswap/cherrysubgraph"

@@ -1,12 +1,12 @@
 import { BaseAdapter, BreakdownAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
+import { CHAIN } from "../../helpers/chains";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 const {
   getChainVolume,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",

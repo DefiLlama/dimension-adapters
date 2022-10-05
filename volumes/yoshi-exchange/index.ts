@@ -1,5 +1,5 @@
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
-import { CHAIN } from "../../helper/chains";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
   [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/yoshiexchange/yoshi-exchange",

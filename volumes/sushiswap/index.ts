@@ -1,5 +1,5 @@
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
   ARBITRUM,
   AVAX,
@@ -12,7 +12,7 @@ import {
   POLYGON,
   XDAI,
   MOONRIVER
-} from "../../helper/chains";
+} from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
 

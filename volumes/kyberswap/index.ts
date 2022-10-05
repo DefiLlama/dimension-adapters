@@ -1,10 +1,10 @@
 import { BaseAdapter, BreakdownAdapter } from "../../adapter.type";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} from "../../helper/getUniSubgraphVolume";
+} from "../../helpers/getUniSubgraphVolume";
 
 const normalizeChain = {
     "avax": "avalanche"

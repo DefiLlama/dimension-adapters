@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapter.type";
-const { getUniqStartOfTodayTimestamp } = require("../../helper/getUniSubgraphVolume");
+const { getUniqStartOfTodayTimestamp } = require("../../helpers/getUniSubgraphVolume");
 
-const { get } = require('../../../projects/helper/http')
+const { get } = require('../../../projects/helpers/http')
 
 const fetch = async (timestamp: number) => {
 

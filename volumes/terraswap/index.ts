@@ -1,12 +1,12 @@
 import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import disabledAdapter from "../../helper/disabledAdapter";
+import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const { request, gql } = require("graphql-request");
 
 const {
   getUniqStartOfTodayTimestamp,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
   terra: "https://terraswap-graph.terra.dev/graphql",

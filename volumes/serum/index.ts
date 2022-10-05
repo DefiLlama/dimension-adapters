@@ -1,5 +1,5 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { gql, GraphQLClient } from "graphql-request";
 
 const endpoint = "https://api.vybenetwork.com/v1/graphql";

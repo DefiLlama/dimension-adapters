@@ -1,8 +1,8 @@
 import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapter.type";
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
-import { CHAIN } from "../../helper/chains";
-import { getStartTimestamp } from "../../helper/getStartTimestamp";
-import customBackfill from "../../helper/customBackfill";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex",

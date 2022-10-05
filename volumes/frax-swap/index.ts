@@ -1,9 +1,9 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import customBackfill, { IGraphs } from "../../helper/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill, { IGraphs } from "../../helpers/customBackfill";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 

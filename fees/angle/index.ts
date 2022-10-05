@@ -1,5 +1,5 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../helper/chains";
+import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "../../utils/constants";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";

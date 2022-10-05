@@ -4,9 +4,9 @@ const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
-const { BSC, FANTOM } = require("../../helper/chains");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+} = require("../../helpers/getUniSubgraphVolume");
+const { BSC, FANTOM } = require("../../helpers/chains");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/whale-swap/exchange-bsc",
   [FANTOM]: "https://api.thegraph.com/subgraphs/name/whale-swap/exchange-ftm",

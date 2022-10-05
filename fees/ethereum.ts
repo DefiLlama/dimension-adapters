@@ -1,5 +1,5 @@
 import { Adapter } from "../adapter.type";
-import { ETHEREUM } from "../helper/chains";
+import { ETHEREUM } from "../helpers/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";
 import { fetchURL } from "../utils";

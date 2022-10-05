@@ -1,4 +1,4 @@
-import { CHAIN } from "../helper/chains";
+import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import type { ChainEndpoints } from "../adapter.type"
 import { fetchURL } from "../utils";

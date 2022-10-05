@@ -1,8 +1,8 @@
 import { SimpleAdapter } from "../../adapter.type";
 import { Chain } from "@defillama/sdk/build/general";
-import { CHAIN } from "../../helper/chains";
-import customBackfill from "../../helper/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 import fetchURL from "../../utils/fetchURL"
 

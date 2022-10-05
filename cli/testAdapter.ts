@@ -3,8 +3,8 @@ import type { Adapter, BaseAdapter, ChainBlocks } from '../adapter.type';
 import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from '@defillama/sdk/build/general';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
-import { getBlock } from '../helper/getBlock';
-import { getUniqStartOfTodayTimestamp } from '../helper/getUniSubgraphVolume';
+import { getBlock } from '../helpers/getBlock';
+import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 require('dotenv').config()
 
 // tmp

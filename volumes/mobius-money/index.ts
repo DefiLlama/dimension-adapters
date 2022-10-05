@@ -1,8 +1,8 @@
 import { SimpleAdapter } from "../../adapter.type";
-import { getChainVolume } from "../../helper/getUniSubgraphVolume";
-import { CHAIN } from "../../helper/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import customBackfill from "../../helper/customBackfill";
+import customBackfill from "../../helpers/customBackfill";
 
 const endpoints = {
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/d-mooers/mobius",

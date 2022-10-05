@@ -1,8 +1,8 @@
 import { SimpleAdapter } from "../../adapter.type";
-import {  AVAX, BSC, FANTOM, POLYGON } from "../../helper/chains";
+import {  AVAX, BSC, FANTOM, POLYGON } from "../../helpers/chains";
 
-const { getChainVolume } = require("../../helper/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
   [AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",

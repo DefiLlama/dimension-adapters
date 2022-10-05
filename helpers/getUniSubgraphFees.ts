@@ -9,14 +9,14 @@ import { Chain } from "@defillama/sdk/build/general";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
-import { getBlock } from "../helper/getBlock";
+import { getBlock } from "../helpers/getBlock";
 import {
   getUniqStartOfTodayTimestamp,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
-} from "../helper/getUniSubgraphVolume";
+} from "../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../adapter.type";
 
 // To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities

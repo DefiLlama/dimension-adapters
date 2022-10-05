@@ -1,10 +1,10 @@
 import { BaseAdapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import dailyVolumePayload from "./dailyVolumePayload";
 import totalVolumePayload from "./totalVolumePayload";
 
-const { postURL } = require("../../helper/utils");
+const { postURL } = require("../../helpers/utils");
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",

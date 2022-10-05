@@ -1,4 +1,4 @@
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapter = univ2Adapter({
   "cronos": "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange"

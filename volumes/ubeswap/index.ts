@@ -1,5 +1,5 @@
-import { CHAIN } from "../../helper/chains";
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap"

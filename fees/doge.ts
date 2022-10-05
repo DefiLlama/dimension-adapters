@@ -1,5 +1,5 @@
 import { Adapter } from "../adapter.type";
-import { DOGE } from "../helper/chains";
+import { DOGE } from "../helpers/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 
 const feeAdapter = chainAdapter(DOGE, "doge", 1386478800);

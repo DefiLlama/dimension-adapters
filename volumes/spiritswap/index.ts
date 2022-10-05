@@ -4,7 +4,7 @@ const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
   fantom:

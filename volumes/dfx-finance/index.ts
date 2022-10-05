@@ -1,5 +1,5 @@
-import { CHAIN } from "../../helper/chains";
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 const adapter = univ2Adapter({
     [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/dfx-finance/dfx-v1",
     [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/dfx-finance/dfx-v1-polygon",

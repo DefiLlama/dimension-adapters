@@ -1,5 +1,5 @@
-import { CHAIN } from "../../helper/chains";
-import { univ2Adapter } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cone-exchange/cone",

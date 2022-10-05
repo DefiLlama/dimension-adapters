@@ -1,7 +1,7 @@
 import axios from "axios";
 import { SimpleAdapter } from "../../adapter.type";
-import { CHAIN } from "../../helper/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const API = "https://nomics.com/data/exchange-volume-history?convert=USD&exchange=defikingdoms&interval=all"
 

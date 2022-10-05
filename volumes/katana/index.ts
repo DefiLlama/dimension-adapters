@@ -1,13 +1,13 @@
 import { SimpleAdapter } from "../../adapter.type";
 
 const { request, gql } = require("graphql-request");
-const { RONIN } = require("../../helper/chains");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+const { RONIN } = require("../../helpers/chains");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
+} = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
   [RONIN]:

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { CHAIN } from '../../helper/chains';
+import { CHAIN } from '../../helpers/chains';
 
 const endpoint = "https://api.mainnet.orca.so/v1/standard-pool/list";
 const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";

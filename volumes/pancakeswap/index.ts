@@ -1,13 +1,13 @@
 import { BreakdownAdapter, DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapter.type";
-import disabledAdapter from "../../helper/disabledAdapter";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
-const { BSC } = require("../../helper/chains");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+} = require("../../helpers/getUniSubgraphVolume");
+const { BSC } = require("../../helpers/chains");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
   [BSC]: "https://bsc.streamingfast.io/subgraphs/name/pancakeswap/exchange-v2",
 };

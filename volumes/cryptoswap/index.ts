@@ -2,9 +2,9 @@ const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helper/getUniSubgraphVolume");
-const { BSC } = require("../../helper/chains");
-const { getStartTimestamp } = require("../../helper/getStartTimestamp");
+} = require("../../helpers/getUniSubgraphVolume");
+const { BSC } = require("../../helpers/chains");
+const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 import { SimpleAdapter } from "../../adapter.type";
 
