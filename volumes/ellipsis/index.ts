@@ -25,7 +25,7 @@ const fetch = (chain: string) => async () => {
 };
 
 const adapter: SimpleAdapter = {
-  volume: Object.keys(endpoints).reduce((acc, chain) => {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {

@@ -37,7 +37,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
       runAtCurrTime: true,

@@ -20,7 +20,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
       start: getStartTimestamp({

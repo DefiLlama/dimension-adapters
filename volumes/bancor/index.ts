@@ -39,7 +39,7 @@ const graphs = (chain: string) =>
   }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     ethereum: {
       fetch: graphs("ethereum"),
       runAtCurrTime: false,

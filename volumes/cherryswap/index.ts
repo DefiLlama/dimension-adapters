@@ -9,5 +9,5 @@ const adapter = univ2Adapter({
   hasTotalVolume: false
 });
 
-adapter.volume.okexchain.start = async () => 1627385129;
+adapter.adapter.okexchain.start = async () => 1627385129;
 export default adapter;

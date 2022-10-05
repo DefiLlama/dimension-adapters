@@ -36,7 +36,7 @@ const v2Graph = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.BSC]: {
       fetch: v1Graph(CHAIN.BSC),
       start: getStartTimestamp({

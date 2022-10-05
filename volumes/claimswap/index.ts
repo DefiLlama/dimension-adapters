@@ -50,7 +50,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
       customBackfill: customBackfill(CHAIN.KLAYTN as Chain, (_chian: string) => fetch),

@@ -55,7 +55,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.HARMONY]: {
       fetch: graphs(CHAIN.HARMONY),
       start: getStartTimestamp({

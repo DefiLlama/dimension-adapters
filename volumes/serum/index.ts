@@ -49,7 +49,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     solana: {
       fetch,
       start: getStartTimestamp,

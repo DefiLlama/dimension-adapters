@@ -69,7 +69,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
         start: async ()  => 1573672933,

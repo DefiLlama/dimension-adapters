@@ -14,7 +14,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [FANTOM]: {
       fetch: graphs(FANTOM),
       start: getStartTimestamp({

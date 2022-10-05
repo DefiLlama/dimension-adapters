@@ -60,18 +60,16 @@ const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
   return firstDay?.timestamp ?? 0
 }
 
-const volume = chains.reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: getFetch(chain),
-      start: getStartTimestamp(chain)
-    },
-  }),
-  {}
-);
-
 const adapter: SimpleAdapter = {
-  volume
+  adapter: chains.reduce(
+    (acc, chain) => ({
+      ...acc,
+      [chain]: {
+        fetch: getFetch(chain),
+        start: getStartTimestamp(chain)
+      },
+    }),
+    {}
+  )
 };
 export default adapter;

@@ -5,7 +5,7 @@ import { chainAdapter } from "../helpers/getChainFees";
 const feeAdapter = chainAdapter(LITECOIN, "ltc", 1317960000);
 
 const adapter: Adapter = {
-  fees: feeAdapter,
+  adapter: feeAdapter,
   adapterType: "chain"
 }
 

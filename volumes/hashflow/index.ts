@@ -25,7 +25,7 @@ const getStartTime = async (chain: string) => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: chains.reduce((acc, chain) => {
+  adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {

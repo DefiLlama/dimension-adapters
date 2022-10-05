@@ -36,7 +36,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.TRON]: {
       fetch,
       start: getStartTimestamp,

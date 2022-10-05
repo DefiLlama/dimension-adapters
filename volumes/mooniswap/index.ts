@@ -25,7 +25,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [ETHEREUM]: {
       fetch: graphs(ETHEREUM),
       start: getStartTimestamp({

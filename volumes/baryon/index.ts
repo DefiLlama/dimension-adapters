@@ -18,7 +18,7 @@ const graphs: Fetch = async (_timestamp: number) => {
 };
 
 export default {
-  volume: {
+  adapter: {
     [BSC]: {
       fetch: graphs,
       runAtCurrTime: true

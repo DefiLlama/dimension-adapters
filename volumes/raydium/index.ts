@@ -23,7 +23,7 @@ const graphs = (chain: string) => async () => {
 };
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     solana: {
       fetch: graphs("solana"),
       runAtCurrTime: true,

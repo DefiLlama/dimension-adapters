@@ -37,8 +37,8 @@ const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapt
     const unixTimestamp = +process.argv[3] || getUniqStartOfTodayTimestamp(new Date()) - 1;
     console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(unixTimestamp))}`)
     console.info(`_______________________________________\n`)
-    if ("volume" in module || "fees" in module) {
-      const adapter = "volume" in module ? module.volume : module.fees
+    if ("adapter" in module) {
+      const adapter = module.adapter
       // Get adapter
       const volumes = await runAdapter(adapter, unixTimestamp)
       printVolumes(volumes)

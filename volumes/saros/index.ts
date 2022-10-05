@@ -24,7 +24,7 @@ const graphs = (chain: string) => async () => {
 
 // @TODO check and backfill
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     solana: {
       fetch: graphs("solana"),
       runAtCurrTime: true,

@@ -7,6 +7,6 @@ const adapter = univ2Adapter({
   dayData: "vvsDayData",
 });
 
-adapter.volume.cronos.start = async()=> 1632035122; // 1 a year ago
+adapter.adapter.cronos.start = async()=> 1632035122; // 1 a year ago
 
 export default adapter

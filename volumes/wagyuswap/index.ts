@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData"
 });
-adapters.volume.velas.start = async () => 1635653053;
+adapters.adapter.velas.start = async () => 1635653053;
 export default adapters;

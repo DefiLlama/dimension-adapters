@@ -41,7 +41,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.CARDADO]: {
       start: getStartTimestamp,
       fetch: fetch,

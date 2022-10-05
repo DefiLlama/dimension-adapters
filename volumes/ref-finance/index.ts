@@ -7,7 +7,7 @@ const dateToTs = (date: string) => new Date(date).getTime() / 1000
 const api = "https://api.stats.ref.finance/api/volume24h?period=730"
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     "near":{
       start: async()=>{
         const data = await axios.get(api)

@@ -36,7 +36,7 @@ const graphs = () => {
 
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
         runAtCurrTime: true,

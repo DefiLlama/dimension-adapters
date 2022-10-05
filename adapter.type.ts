@@ -11,7 +11,7 @@ export type FetchResult = {
   block?: number;
   dailyVolume?: string;
   totalVolume?: string;
-  [key:string]: string | number
+  [key: string]: string | number
 };
 
 export type Fetch = (
@@ -27,18 +27,19 @@ export type BaseAdapter = {
     fetch: Fetch;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
+    meta?: {
+      metodology?: string
+      hallmarks?: [number, string][]
+    }
   }
 };
 
 export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
 
 export type SimpleAdapter = {
-  volume: BaseAdapter
+  adapter: BaseAdapter
   adapterType?: string;
-} | {
-  fees: BaseAdapter;
-  adapterType?: string;
-};
+}
 
 export type BreakdownAdapter = {
   breakdown: {

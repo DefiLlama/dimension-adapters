@@ -15,7 +15,7 @@ interface IAPIResponse {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.HARMONY]: {
       start: async () => {
         const data = (await axios.get(API)).data as IAPIResponse

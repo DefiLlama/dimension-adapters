@@ -44,7 +44,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [ARBITRUM]: {
         fetch: graphs(endpoints)(ARBITRUM),
         start: async ()  => 1630468800,

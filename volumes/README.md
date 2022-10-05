@@ -21,7 +21,7 @@ A volume adapter could be either a `SimpleVolumeAdapter` or a `BreakdownVolumeAd
 
 ```
 type SimpleVolumeAdapter = {
-  volume: Adapter
+  adapter: Adapter
 };
 
 type BreakdownAdapter = {
@@ -93,7 +93,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleVolumeAdapter = {
-  volume: Object.keys(endpoints).reduce((acc, chain) => {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {

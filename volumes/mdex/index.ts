@@ -42,7 +42,7 @@ const getStartTimestamp = async (chain_id: number) => {
   return (new Date(historicalVolume[0].created_time).getTime()) / 1000
 }
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     bsc: {
       fetch,
       start: () => getStartTimestamp(56),

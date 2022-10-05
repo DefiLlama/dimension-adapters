@@ -49,7 +49,7 @@ const getStartTimestamp = async (chain_id: number) => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: () => getStartTimestamp(chains[CHAIN.BSC]),

@@ -15,7 +15,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     neo: {
       fetch,
       start: async () => 1639130007,

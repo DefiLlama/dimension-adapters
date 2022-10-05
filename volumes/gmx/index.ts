@@ -62,7 +62,7 @@ const getStartTimestamp = async (chain: string) => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: Object.keys(endpoints).reduce((acc, chain) => {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {

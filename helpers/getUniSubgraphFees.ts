@@ -127,9 +127,9 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
 
 
 const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0 }: IGetChainFeeParams) => {
-  if ('volume' in volumeAdapter) {
+  if ('adapter' in volumeAdapter) {
     let finalBaseAdapter: BaseAdapter = {}
-    const adapterObj = volumeAdapter.volume
+    const adapterObj = volumeAdapter.adapter
 
     const baseAdapters = Object.keys(adapterObj).map(chain => {
       const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks) => {

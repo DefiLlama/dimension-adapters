@@ -32,7 +32,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     polygon: {
       fetch,
       runAtCurrTime: true,

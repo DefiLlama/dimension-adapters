@@ -12,6 +12,6 @@ const adapter = univ2Adapter(endpoints, {
   totalVolume: "totalTradeVolumeUSD"
 });
 
-adapter.volume.bsc.start = async()=>1650243600
+adapter.adapter.bsc.start = async()=>1650243600
 
 export default adapter

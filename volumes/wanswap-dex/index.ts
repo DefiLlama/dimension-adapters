@@ -7,6 +7,6 @@ const adapter = univ2Adapter({
     factoriesName: "uniswapFactories",
     dayData: "uniswapDayData",
 });
-adapter.volume.wan.start = async () => 1632268798;
+adapter.adapter.wan.start = async () => 1632268798;
 
 export default adapter;

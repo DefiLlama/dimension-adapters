@@ -5,7 +5,7 @@ import { chainAdapter } from "../helpers/getChainFees";
 const feeAdapter = chainAdapter(BITCOIN, "btc", 1230958800);
 
 const adapter: Adapter = {
-  fees: feeAdapter,
+  adapter: feeAdapter,
   adapterType: "chain"
 }
 

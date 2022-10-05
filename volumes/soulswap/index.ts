@@ -32,19 +32,17 @@ const startTimeQuery = {
   volumeField: VOLUME_FIELD,
 };
 
-const volume = Object.keys(endpoints).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: graphs(chain as Chain),
-      start: getStartTimestamp({ ...startTimeQuery, chain }),
-    },
-  }),
-  {}
-);
-
 const adapter: SimpleAdapter = {
-  volume,
+  adapter: Object.keys(endpoints).reduce(
+    (acc, chain) => ({
+      ...acc,
+      [chain]: {
+        fetch: graphs(chain as Chain),
+        start: getStartTimestamp({ ...startTimeQuery, chain }),
+      },
+    }),
+    {}
+  )
 };
 
 export default adapter;

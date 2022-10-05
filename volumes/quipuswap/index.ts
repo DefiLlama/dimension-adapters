@@ -53,7 +53,7 @@ const getStartTime = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
       start: getStartTime,

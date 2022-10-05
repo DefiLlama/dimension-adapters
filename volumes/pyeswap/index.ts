@@ -7,5 +7,5 @@ const adapter = univ2Adapter({
     factoriesName: "pyeFactories",
     dayData: "pyeDayData",
 });
-adapter.volume.bsc.start = async () => 1660893036;
+adapter.adapter.bsc.start = async () => 1660893036;
 export default adapter;

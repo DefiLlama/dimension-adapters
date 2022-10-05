@@ -20,7 +20,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
       start: async () => 1633237008

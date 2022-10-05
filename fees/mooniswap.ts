@@ -10,7 +10,7 @@ const baseAdapter = getDexChainFees({
 });
 
 const adapter: Adapter = {
-  fees: baseAdapter
+  adapter: baseAdapter
 };
 
 export default adapter;

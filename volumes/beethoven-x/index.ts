@@ -23,7 +23,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: Object.keys(endpoints).reduce((acc, chain: any) => {
+  adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {

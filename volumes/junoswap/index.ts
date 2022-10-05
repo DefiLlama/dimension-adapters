@@ -35,7 +35,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.JUNO]: {
       fetch,
       start: getStartTimestamp,

@@ -35,18 +35,16 @@ const startTimeQuery = {
   volumeField: DAILY_VOLUME_FIELD,
 };
 
-const volume = Object.keys(endpoints).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: graphs(chain),
-      start: getStartTimestamp({ ...startTimeQuery, chain }),
-    },
-  }),
-  {}
-);
-
 const adapter: SimpleAdapter = {
-  volume,
+  adapter: Object.keys(endpoints).reduce(
+    (acc, chain) => ({
+      ...acc,
+      [chain]: {
+        fetch: graphs(chain),
+        start: getStartTimestamp({ ...startTimeQuery, chain }),
+      },
+    }),
+    {}
+  )
 };
 export default adapter;

@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
   factoriesName: "netswapFactories",
   dayData: "netswapDayData"
 });
-adapters.volume.metis.start = async () => 1638760703;
+adapters.adapter.metis.start = async () => 1638760703;
 export default adapters;

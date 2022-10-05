@@ -28,7 +28,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [BSC]: {
       fetch: graphs(BSC),
       start: getStartTimestamp({

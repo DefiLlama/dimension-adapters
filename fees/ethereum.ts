@@ -46,7 +46,7 @@ const graphs = () => {
 };
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [ETHEREUM]: {
         fetch: graphs()(),
         start: async ()  => 1438228800,

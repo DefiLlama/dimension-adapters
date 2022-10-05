@@ -58,7 +58,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [BSC]: {
         fetch: graphs(endpoints)(BSC),
         start: async ()  => 1598671449,

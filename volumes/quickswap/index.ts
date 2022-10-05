@@ -21,7 +21,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(CHAIN.POLYGON),
       start: getStartTimestamp({

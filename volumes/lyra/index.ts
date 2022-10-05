@@ -14,7 +14,7 @@ const subgraph = getChainVolume({
 });
 
 const adapter: SimpleVolumeAdapter = {
-  volume: Object.keys(endpoints).reduce((acc, chain) => {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {

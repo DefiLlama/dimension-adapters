@@ -20,7 +20,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     algorand: {
       fetch,
       runAtCurrTime: true,

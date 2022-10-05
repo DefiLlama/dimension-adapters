@@ -60,7 +60,7 @@ const getStartTimestamp = async (chain: Chain) => {
   return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
 }
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs()(CHAIN.ARBITRUM),
         start: async () => getStartTimestamp(CHAIN.ARBITRUM),

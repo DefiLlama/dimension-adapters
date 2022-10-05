@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapter.type";
 import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../helper/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "../../utils/constants";
@@ -238,8 +238,8 @@ const graph = (graphUrls: ChainMultiEndpoints) => {
     }
 };
 
-const adapter: Adapter = {
-    fees: {
+const adapter: SimpleAdapter = {
+    adapter: {
         [ETHEREUM]: {
             fetch: graph(endpoints)(ETHEREUM),
             start: async ()  => 1636046347,

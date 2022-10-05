@@ -35,7 +35,7 @@ const getStartTimestamp = async () => {
   return (new Date(historicalVolume[historicalVolume.length - 1].groupTimestamp).getTime() / 1000);
 }
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: getStartTimestamp,

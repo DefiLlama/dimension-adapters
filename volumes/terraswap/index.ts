@@ -56,7 +56,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [CHAIN.TERRA]: {
       fetch,
       runAtCurrTime: true,

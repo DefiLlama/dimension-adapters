@@ -33,7 +33,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     cosmos: {
       fetch,
       runAtCurrTime: true,

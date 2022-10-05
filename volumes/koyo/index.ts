@@ -17,7 +17,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [BOBA]: {
       fetch: graphs(BOBA),
       start: async () => 1655104044,

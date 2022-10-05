@@ -36,7 +36,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: Adapter = {
-  fees: {
+  adapter: {
     cosmos: {
       fetch,
       runAtCurrTime: true,

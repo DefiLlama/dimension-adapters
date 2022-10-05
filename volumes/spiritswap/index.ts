@@ -26,7 +26,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     fantom: {
       fetch: graphs("fantom"),
       start: async () => 1620864000,

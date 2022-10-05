@@ -64,7 +64,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  volume: {
+  adapter: {
     [RONIN]: {
       fetch: graphs(RONIN),
       start: getStartTimestamp({
