@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { ARBITRUM, AVAX } from "../helper/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../dexVolume.type"
@@ -43,15 +43,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     [ARBITRUM]: {
         fetch: graphs(endpoints)(ARBITRUM),
-        start: 1630468800,
+        start: async ()  => 1630468800,
     },
     [AVAX]: {
         fetch: graphs(endpoints)(AVAX),
-        start: 1641445200,
+        start: async ()  => 1641445200,
     },
   }
 }

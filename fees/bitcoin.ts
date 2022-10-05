@@ -1,10 +1,10 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { BITCOIN } from "../helper/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 
 const feeAdapter = chainAdapter(BITCOIN, "btc", 1230958800);
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: feeAdapter,
   adapterType: "chain"
 }

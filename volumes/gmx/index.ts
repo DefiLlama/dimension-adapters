@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { Fetch, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
@@ -61,7 +61,7 @@ const getStartTimestamp = async (chain: string) => {
   return startTimestamps[chain]
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
@@ -71,7 +71,7 @@ const adapter: SimpleVolumeAdapter = {
         runAtCurrTime: true
       }
     }
-  }, {}) as SimpleVolumeAdapter['volume']
+  }, {})
 }
 
 export default adapter;

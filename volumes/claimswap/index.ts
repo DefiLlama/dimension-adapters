@@ -1,7 +1,7 @@
 
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
@@ -49,7 +49,7 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.KLAYTN]: {
       fetch,

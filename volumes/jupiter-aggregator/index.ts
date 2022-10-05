@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
@@ -34,7 +34,7 @@ const getStartTimestamp = async () => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volumeInUSD;
   return (new Date(historicalVolume[historicalVolume.length - 1].groupTimestamp).getTime() / 1000);
 }
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.SOLANA]: {
       fetch: fetch,

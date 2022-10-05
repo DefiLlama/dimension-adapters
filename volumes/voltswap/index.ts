@@ -1,4 +1,4 @@
-import { BreakdownVolumeAdapter, DISABLED_ADAPTER_KEY } from "../../dexVolume.type";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import disabledAdapter from "../../helper/disabledAdapter";
 const {
@@ -25,7 +25,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter

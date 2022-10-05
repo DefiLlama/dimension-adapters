@@ -1,4 +1,4 @@
-import { ChainEndpoints, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { ChainEndpoints, SimpleAdapter } from "../../dexVolume.type";
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import customBackfill from "../../helper/customBackfill";
 import { CHAIN } from "../../helper/chains";
@@ -23,7 +23,7 @@ const graphs = getChainVolume({
   ...graphParams
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
@@ -39,7 +39,7 @@ const adapter: SimpleVolumeAdapter = {
         }),
       }
     }
-  }, {} as SimpleVolumeAdapter['volume'])
+  }, {})
 };
 
 export default adapter;

@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { ETHEREUM } from "../helper/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";
@@ -45,11 +45,11 @@ const graphs = () => {
   };
 };
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     [ETHEREUM]: {
         fetch: graphs()(),
-        start: 1438228800,
+        start: async ()  => 1438228800,
     },
   },
   adapterType: "chain"

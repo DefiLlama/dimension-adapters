@@ -2,7 +2,7 @@ import { CHAIN } from "../helper/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import type { ChainEndpoints } from "../dexVolume.type"
 import { fetchURL } from "../utils";
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
@@ -59,7 +59,7 @@ const getStartTimestamp = async (chain: Chain) => {
   const historicalVolume = historical.filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
   return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
 }
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs()(CHAIN.ARBITRUM),

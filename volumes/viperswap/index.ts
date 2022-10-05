@@ -1,5 +1,5 @@
 const { request, gql } = require("graphql-request");
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume, univ2Adapter } from "../../helper/getUniSubgraphVolume";
@@ -54,7 +54,7 @@ const graphs = getChainVolume({
   getCustomBlock,
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.HARMONY]: {
       fetch: graphs(CHAIN.HARMONY),

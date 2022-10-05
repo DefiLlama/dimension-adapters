@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { SimpleVolumeAdapter } from "../../dexVolume.type";
+import type { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
@@ -40,7 +40,7 @@ const getStartTimestamp = async () => {
   return (new Date(historicalVolume[0].time).getTime()) / 1000;
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.CARDADO]: {
       start: getStartTimestamp,

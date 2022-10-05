@@ -4,10 +4,9 @@ import { FetchResult } from "../dexVolume.type";
 export const ERROR_STRING = '------ ERROR ------'
 
 export function checkArguments(argv: string[]) {
-    console.log(argv)
-    if (argv.length < 3) {
+    if (argv.length < 4) {
         console.error(`Missing arguments, you need to provide the folder name of the adapter to test.
-    Eg: npm run test-dex uniswap`);
+    Eg: yarn test volume uniswap`);
         process.exit(1);
     }
 }
@@ -39,6 +38,5 @@ export function formatTimestampAsDate(timestamp: string) {
 }
 
 export function upperCaseFirst(t: string) {
-    console.log("t[0].toUpperCase() + t.slice(1)", t[0].toUpperCase() + t.slice(1))
     return t[0].toUpperCase() + t.slice(1)
 }

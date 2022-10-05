@@ -1,3 +1,3 @@
-import { FeeAdapter } from "../../../adapters.type";
+import { Adapter } from "../../../dexVolume.type";
 
-export default async (folderName: string): Promise<FeeAdapter> => (await import(`../../../fees/${folderName}`)).default
+export default async (folderName: string): Promise<Adapter> => (await import(`../../../fees/${folderName}`)).default

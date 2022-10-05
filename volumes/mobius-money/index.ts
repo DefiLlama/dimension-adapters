@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import { CHAIN } from "../../helper/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -21,7 +21,7 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.CELO]: {
       fetch: graphs(CHAIN.CELO),

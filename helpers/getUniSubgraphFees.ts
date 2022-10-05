@@ -1,9 +1,9 @@
 import {
   ChainBlocks,
-  VolumeAdapter,
-  FetchResult as VolumeFetchResult,
   Adapter,
-  BreakdownAdapter as VolumeBreakdownAdapter
+  FetchResult,
+  BreakdownAdapter,
+  BaseAdapter
 } from "../dexVolume.type";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -17,7 +17,6 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "../helper/getUniSubgraphVolume";
-import { BaseAdapter, BreakdownAdapter } from "../adapters.type";
 import type { ChainEndpoints } from "../dexVolume.type";
 
 // To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities
@@ -48,7 +47,7 @@ interface IGetRawChainFeeParams {
 }
 
 interface IGetChainFeeParams {
-  volumeAdapter: VolumeAdapter,
+  volumeAdapter: Adapter,
   totalFees?: number,
   protocolFees?: number,
 }
@@ -85,15 +84,15 @@ const getUniswapV3Fees = (graphUrls: ChainEndpoints) => {
 
 const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0 }: IGetChainFeeParams) => {
   if ('breakdown' in volumeAdapter) {
-    let breakdownAdapter: BreakdownAdapter = {}
-    const volumeBreakdownAdapter: VolumeBreakdownAdapter = volumeAdapter.breakdown
+    let breakdownAdapter = {} as BreakdownAdapter['breakdown']
+    const volumeBreakdownAdapter = volumeAdapter.breakdown
 
     for (const [version, adapterObj] of Object.entries(volumeBreakdownAdapter)) {
-      const volAdapter: Adapter = adapterObj
+      const volAdapter: BaseAdapter = adapterObj
 
       const baseAdapters = Object.keys(volAdapter).map(chain => {
         const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks) => {
-          const fetchedResult: VolumeFetchResult = await volAdapter[chain].fetch(timestamp, chainBlocks)
+          const fetchedResult: FetchResult = await volAdapter[chain].fetch(timestamp, chainBlocks)
           const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume : "0";
           const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume : "0";
 

@@ -1,12 +1,12 @@
 import axios from "axios";
-import type { SimpleVolumeAdapter } from "../../dexVolume.type";
+import type { SimpleAdapter } from "../../dexVolume.type";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
 
 const api = "https://api.stats.ref.finance/api/volume24h?period=730"
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     "near":{
       start: async()=>{

@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import volumeAdapter from "../volumes/wombat-exchange";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
@@ -9,7 +9,7 @@ const feeAdapter = getDexChainFees({
   volumeAdapter
 });
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: feeAdapter
 };
 

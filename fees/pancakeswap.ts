@@ -1,6 +1,6 @@
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../volumes/pancakeswap";
-import { FeeAdapter, BreakdownAdapter, Fetch } from "../adapters.type";
+import { Adapter, BreakdownAdapter, Fetch } from "../dexVolume.type";
 import { CHAIN } from "../helper/chains";
 import { getChainVolume } from "../helper/getUniSubgraphVolume";
 import { getStartTimestamp } from "../helper/getStartTimestamp";
@@ -27,13 +27,13 @@ const graphs = getChainVolume({
   },
 });
 
-const breakdownAdapter: BreakdownAdapter = getDexChainBreakdownFees({
+const breakdownAdapter = getDexChainBreakdownFees({
   totalFees: TOTAL_FEES,
   protocolFees: PROTOCOL_FEES,
   volumeAdapter
 });
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   breakdown: {
     ...breakdownAdapter,
     v2: {

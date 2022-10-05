@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { IStartTimestamp, SimpleVolumeAdapter } from "../../dexVolume.type";
+import type { IStartTimestamp, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
@@ -24,7 +24,7 @@ const getStartTime = async (chain: string) => {
   return startTime
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: chains.reduce((acc, chain) => {
     return {
       ...acc,
@@ -41,7 +41,7 @@ const adapter: SimpleVolumeAdapter = {
         start: async () => getStartTime(chain),
       }
     }
-  }, {} as SimpleVolumeAdapter['volume'])
+  }, {})
 };
 
 export default adapter;

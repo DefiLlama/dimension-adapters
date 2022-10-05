@@ -1,4 +1,4 @@
-import { ChainEndpoints, BreakdownVolumeAdapter, Adapter } from "../../dexVolume.type";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../dexVolume.type";
 import { getChainVolume } from "../../helper/getUniSubgraphVolume";
 import { CHAIN } from "../../helper/chains";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
@@ -36,7 +36,7 @@ const v1graphs = getChainVolume({
   }
 });
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     classic: {
       [CHAIN.MOONBEAN]: {

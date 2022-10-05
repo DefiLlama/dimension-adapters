@@ -1,4 +1,4 @@
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import { fetchURL } from "../utils";
 import axios from "axios"
@@ -35,7 +35,7 @@ const getStartTimestamp = async () => {
   return (new Date(historicalVolume[0].time).getTime()) / 1000
 }
 
-const adapter: FeeAdapter = {
+const adapter: Adapter = {
   fees: {
     cosmos: {
       fetch,

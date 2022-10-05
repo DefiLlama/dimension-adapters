@@ -1,7 +1,7 @@
 import { getChainBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getAllChainsFromAdapters } from "../../utils/adapters";
-import { BaseAdapter } from "../../adapters.type";
+import { BaseAdapter } from "../../dexVolume.type";
 import { handleAdapterError } from "../../utils/adapters";
 import allSettled from 'promise.allsettled'
 import importAdapter from "./utils/importAdapter";

@@ -1,5 +1,5 @@
 import feeAdaptors from "../fees";
-import { FeeAdapter } from "../adapters.type";
+import { Adapter } from "../dexVolume.type";
 import { Chain } from "./constants";
 import { Protocol, ChainObject } from "./protocols/types";
 import { sluggifyString } from "./sluggify";
@@ -51,9 +51,9 @@ const getProtocolIndex = (isNotChain: boolean, adapterKey: string, config: IConf
         : chain.find((chain: ChainObject) => filterIndexChain(chain , adapterKey));
 }
 
-const allFeeAdapters: Record<string, FeeAdapter> = feeAdaptors;
+const allFeeAdapters: Record<string, Adapter> = feeAdaptors;
 
-export const protocolFeeAdapters = (config: IConfig): FeeAdapter[] => {
+export const protocolFeeAdapters = (config: IConfig): Adapter[] => {
     return Object.entries(allFeeAdapters).map(adapterObj => {
         const [adapterKey, adapter] = adapterObj
         const adapterType = adapter.adapterType

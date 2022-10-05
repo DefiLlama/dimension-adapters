@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 
 import fetchURL from "../../utils/fetchURL"
 
@@ -29,7 +29,7 @@ const fetch = (chain: string) => async () => {
   };
 };
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
@@ -39,6 +39,6 @@ const adapter: SimpleVolumeAdapter = {
         runAtCurrTime: true
       }
     }
-  }, {}) as SimpleVolumeAdapter['volume']
+  }, {})
 };
 export default adapter;

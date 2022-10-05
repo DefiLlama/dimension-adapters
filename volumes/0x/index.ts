@@ -1,5 +1,5 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { BreakdownVolumeAdapter, Fetch, SimpleVolumeAdapter } from "../../dexVolume.type";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 
 const chains = [CHAIN.ETHEREUM, CHAIN.POLYGON]
@@ -56,7 +56,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     "0x RFQ": {
       ...chains.reduce((acc, chain) => {
@@ -67,7 +67,7 @@ const adapter: BreakdownVolumeAdapter = {
             start: async () => 0
           }
         }
-      }, {}) as SimpleVolumeAdapter['volume']
+      }, {})
     }
   }
 }

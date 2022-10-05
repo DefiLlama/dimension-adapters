@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import customBackfill from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
@@ -52,7 +52,7 @@ const getStartTime = async () => {
   return response.plotVolume[0].time;
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.TEZOS]: {
       fetch: fetch,

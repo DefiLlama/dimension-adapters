@@ -1,6 +1,6 @@
 const { fetchURL } = require("../../helper/utils");
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchResult, SimpleVolumeAdapter, ChainBlocks } from "../../dexVolume.type";
+import { FetchResult, SimpleAdapter, ChainBlocks } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import customBackfill, { IGraphs } from "../../helper/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
@@ -44,7 +44,7 @@ const getStartTimestamp = async (chain: Chain) => {
   return (new Date(historicalVolume[0].date).getTime()) / 1000;
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
@@ -54,7 +54,7 @@ const adapter: SimpleVolumeAdapter = {
         customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }
-  }, {} as SimpleVolumeAdapter['volume'])
+  }, {})
 };
 
 export default adapter;

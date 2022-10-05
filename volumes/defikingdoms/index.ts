@@ -1,5 +1,5 @@
 import axios from "axios";
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 import { CHAIN } from "../../helper/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helper/getUniSubgraphVolume";
 
@@ -14,7 +14,7 @@ interface IAPIResponse {
   }>
 }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [CHAIN.HARMONY]: {
       start: async () => {

@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter, FetchResult, ChainBlocks } from "../../dexVolume.type";
+import { SimpleAdapter, FetchResult, ChainBlocks } from "../../dexVolume.type";
 
 import fetchURL from "../../utils/fetchURL"
 const {
@@ -38,7 +38,7 @@ const graphs = (chain: string) =>
     }
   }
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     ethereum: {
       fetch: graphs("ethereum"),

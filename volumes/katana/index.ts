@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 
 const { request, gql } = require("graphql-request");
 const { RONIN } = require("../../helper/chains");
@@ -63,7 +63,7 @@ const graphs = getChainVolume({
   getCustomBlock,
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     [RONIN]: {
       fetch: graphs(RONIN),

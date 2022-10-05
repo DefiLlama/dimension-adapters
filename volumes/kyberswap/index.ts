@@ -1,4 +1,4 @@
-import { Adapter, BreakdownVolumeAdapter } from "../../dexVolume.type";
+import { BaseAdapter, BreakdownAdapter } from "../../dexVolume.type";
 import { getStartTimestamp } from "../../helper/getStartTimestamp";
 import {
   getChainVolume,
@@ -67,10 +67,10 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
           })
         }
         return acc
-      }, {} as Adapter)
+      }, {} as BaseAdapter)
 }
 
-const adapter: BreakdownVolumeAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas"),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas")

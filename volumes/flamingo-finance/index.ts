@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../dexVolume.type";
 const { getUniqStartOfTodayTimestamp } = require("../../helper/getUniSubgraphVolume");
 
 const { get } = require('../../../projects/helper/http')
@@ -14,7 +14,7 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   volume: {
     neo: {
       fetch,
