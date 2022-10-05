@@ -1,10 +1,12 @@
 import * as path from 'path'
-import { Adapter, BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY } from '../adapter.type';
-import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
+import { Adapter, BaseAdapter, ChainBlocks } from '../adapters/types';
 import { Chain } from '@defillama/sdk/build/general';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
-import { getBlock } from '../helpers/getBlock';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
+import { default as runAdapter2 } from '../adapters/utils/runAdapter'
+import { canGetBlock, getBlock } from '../helpers/getBlock';
+import allSettled from 'promise.allsettled';
+import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
 require('dotenv').config()
 
 // tmp
@@ -29,24 +31,38 @@ const adapterType: AdapterType = process.argv[2] as AdapterType
 const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapterType)}/${process.argv[3]}`);
 (async () => {
   try {
+    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date())
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
     let module: Adapter = (await import(passedFile)).default
-    getUniqStartOfTodayTimestamp
-    const unixTimestamp = +process.argv[3] || getUniqStartOfTodayTimestamp(new Date()) - 1;
-    console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(unixTimestamp))}`)
+    console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(cleanDayTimestamp))}`)
     console.info(`_______________________________________\n`)
+
+    // Get closest block to clean day. Only for EVM compatible ones.
+    const allChains = getChainsFromDexAdapter(module).filter(canGetBlock)
+
+    const chainBlocks: ChainBlocks = {};
+    await allSettled(
+      allChains.map(async (chain) => {
+        try {
+          const latestBlock = await getBlock(cleanDayTimestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${cleanDayTimestamp}, ${chain}`))
+          if (latestBlock)
+            chainBlocks[chain] = latestBlock
+        } catch (e) { console.log(e) }
+      })
+    );
+
     if ("adapter" in module) {
       const adapter = module.adapter
       // Get adapter
-      const volumes = await runAdapter(adapter, unixTimestamp)
+      const volumes = await runAdapter2(adapter, cleanDayTimestamp, {})
       printVolumes(volumes)
       console.info("\n")
     } else if ("breakdown" in module) {
       const breakdownAdapter = module.breakdown
       const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(async ([version, adapter]) =>
-        await runAdapter(adapter, unixTimestamp).then(res => ({ version, res }))
+        await runAdapter2(adapter, cleanDayTimestamp, {}).then(res => ({ version, res }))
       ))
       allVolumes.forEach((promise) => {
         console.info("Version ->", promise.version.toUpperCase())

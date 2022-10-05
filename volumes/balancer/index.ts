@@ -1,4 +1,4 @@
-import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapter.type";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";

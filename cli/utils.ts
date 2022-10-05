@@ -1,5 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { FetchResult } from "../adapter.type";
+import { FetchResult } from "../adapters/types";
 
 export const ERROR_STRING = '------ ERROR ------'
 
@@ -22,9 +22,10 @@ export async function getLatestBlockRetry(chain: string) {
 }
 
 const exclude2Print = ['startTimestamp', 'chain']
-export function printVolumes(volumes: (FetchResult & { chain: string, startTimestamp?: number })[]) {
+export function printVolumes(volumes: FetchResult[]) {
     volumes.forEach((element) => {
-        console.info(element.chain.toUpperCase(), "👇")
+        if (typeof element.chain === 'string')
+            console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")

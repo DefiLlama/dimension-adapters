@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";

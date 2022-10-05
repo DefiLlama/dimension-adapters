@@ -1,6 +1,6 @@
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../volumes/spookyswap";
-import { Adapter, BaseAdapter } from "../adapter.type";
+import { Adapter, BaseAdapter } from "../adapters/types";
 
 const TOTAL_FEES = 0.002;
 const PROTOCOL_FEES = 0.0003;

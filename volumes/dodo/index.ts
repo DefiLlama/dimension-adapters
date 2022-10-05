@@ -1,4 +1,4 @@
-import { BaseAdapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapter.type";
+import { BaseAdapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import dailyVolumePayload from "./dailyVolumePayload";

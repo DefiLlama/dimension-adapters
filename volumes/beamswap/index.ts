@@ -1,4 +1,4 @@
-import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapter.type";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";

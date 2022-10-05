@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";

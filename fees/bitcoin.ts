@@ -1,4 +1,4 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { BITCOIN } from "../helpers/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 

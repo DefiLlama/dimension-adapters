@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapters/types";
 import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";

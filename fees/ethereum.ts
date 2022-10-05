@@ -1,4 +1,4 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";

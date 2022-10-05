@@ -1,4 +1,4 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import volumeAdapter from "../volumes/wombat-exchange";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 

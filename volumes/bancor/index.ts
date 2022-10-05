@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResult, ChainBlocks } from "../../adapter.type";
+import { SimpleAdapter, FetchResult, ChainBlocks } from "../../adapters/types";
 
 import fetchURL from "../../utils/fetchURL"
 const {

@@ -29,6 +29,6 @@
   "include": [
     "fees/*",
     "volumes/*",
-    "adapter.type.ts"
+    "adapters/adapter.type.ts"
   ],
 }

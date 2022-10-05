@@ -1,8 +1,8 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks } from "../adapter.type";
-import { SimpleAdapter } from "../adapter.type";
+import { BaseAdapter, ChainBlocks } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {

@@ -1,4 +1,4 @@
-import { ChainBlocks } from "../adapter.type";
+import { ChainBlocks } from "../adapters/types";
 import axios from "axios"
 import { providers } from "@defillama/sdk/build/general"
 import type { Chain } from "@defillama/sdk/build/general"

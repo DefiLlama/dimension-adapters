@@ -1,11 +1,11 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, POLYGON } from "../helpers/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapter.type"
+import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import { getBlock } from "../helpers/getBlock";
-import { ChainBlocks } from "../adapter.type";
+import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 

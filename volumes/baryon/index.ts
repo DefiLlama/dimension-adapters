@@ -1,4 +1,4 @@
-import { Fetch, Adapter } from "../../adapter.type";
+import { Fetch, Adapter } from "../../adapters/types";
 
 import fetchURL from "../../utils/fetchURL"
 const { BSC } = require("../../helpers/chains");

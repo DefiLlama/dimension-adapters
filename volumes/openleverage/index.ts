@@ -1,6 +1,6 @@
 const { fetchURL } = require("../../helpers/utils");
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapter.type";
+import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";

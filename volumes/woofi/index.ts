@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapters/types";
 import {  AVAX, BSC, FANTOM, POLYGON } from "../../helpers/chains";
 
 const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");

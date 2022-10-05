@@ -1,4 +1,4 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { BSC, FANTOM, OPTIMISM } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";

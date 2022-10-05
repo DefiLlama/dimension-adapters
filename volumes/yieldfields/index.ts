@@ -6,7 +6,7 @@ const {
 const { BSC } = require("../../helpers/chains");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
-import { SimpleAdapter } from "../../adapter.type";
+import { SimpleAdapter } from "../../adapters/types";
 
 const endpoints = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/sotblad/yieldfieldsexchange",

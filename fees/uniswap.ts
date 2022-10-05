@@ -1,4 +1,4 @@
-import { BreakdownAdapter, Adapter } from "../adapter.type";
+import { BreakdownAdapter, Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON } from "../helpers/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { getDexChainBreakdownFees, getUniswapV3Fees } from "../helpers/getUniSubgraphFees";

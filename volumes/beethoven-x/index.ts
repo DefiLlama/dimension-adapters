@@ -1,4 +1,4 @@
-import { ChainEndpoints, SimpleAdapter } from "../../adapter.type";
+import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";

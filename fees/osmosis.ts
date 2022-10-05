@@ -1,4 +1,4 @@
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
 import axios from "axios"

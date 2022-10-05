@@ -1,8 +1,8 @@
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import type { ChainEndpoints } from "../adapter.type"
+import type { ChainEndpoints } from "../adapters/types"
 import fetchURL from "../utils/fetchURL";
-import { Adapter } from "../adapter.type";
+import { Adapter } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"

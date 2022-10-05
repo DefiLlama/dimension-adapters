@@ -1,4 +1,4 @@
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapter.type";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 const {
