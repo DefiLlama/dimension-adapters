@@ -9,7 +9,7 @@ export type ChainEndpoints = {
 export type FetchResultBase = {
   timestamp: number;
   block?: number;
-  [key: string]: string | number
+  [key: string]: string | number | undefined
 };
 
 export type FetchResultVolume = FetchResultBase & {
