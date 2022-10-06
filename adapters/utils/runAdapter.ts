@@ -20,7 +20,8 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                 const startTimestamp = await volumeAdapter[chain].start()
                 const result = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 Object.keys(result).forEach(key => {
-                    if (result[key] && Number.isNaN(+result[key])) delete result[key]
+                    const resultValue = result[key]
+                    if (resultValue && Number.isNaN(+resultValue)) delete result[key]
                 })
                 return ({
                     chain,
