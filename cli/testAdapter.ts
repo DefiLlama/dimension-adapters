@@ -9,7 +9,7 @@ import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
 require('dotenv').config()
 
 // tmp
-const handleError = (e) => console.error(e)
+const handleError = (e: Error) => console.error(e)
 
 // Add handler to rejections/exceptions
 process.on('unhandledRejection', handleError)
