@@ -1,1 +1,1 @@
-# fees-adapters
+# adapters
