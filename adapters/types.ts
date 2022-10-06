@@ -61,3 +61,8 @@ export type BreakdownAdapter = {
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;
+
+export enum AdapterType {
+  FEES = 'fees',
+  VOLUME = 'volume'
+}

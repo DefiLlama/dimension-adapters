@@ -1,5 +1,5 @@
 import * as path from 'path'
-import { Adapter, BaseAdapter, ChainBlocks } from '../adapters/types';
+import { Adapter, AdapterType, BaseAdapter, ChainBlocks } from '../adapters/types';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import runAdapter from '../adapters/utils/runAdapter'
@@ -17,11 +17,6 @@ process.on('uncaughtException', handleError)
 
 // Check if all arguments are present
 checkArguments(process.argv)
-
-enum AdapterType {
-  FEES = 'fees',
-  VOLUME = 'volume'
-}
 
 const getFolderByAdapterType = (adapterType: AdapterType) => adapterType === AdapterType.VOLUME ? 'volumes' : adapterType
 
@@ -55,7 +50,7 @@ const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapt
     if ("adapter" in module) {
       const adapter = module.adapter
       // Get adapter
-      const volumes = await runAdapter(adapter, cleanDayTimestamp, {})
+      const volumes = await runAdapter(adapter, cleanDayTimestamp, chainBlocks)
       printVolumes(volumes)
       console.info("\n")
     } else if ("breakdown" in module) {
