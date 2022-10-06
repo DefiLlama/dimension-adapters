@@ -1,4 +1,4 @@
-import { SimpleVolumeAdapter } from "../../dexVolume.type";
+import { SimpleAdapter } from "../../adapters/types";
 
 
 const {
@@ -13,7 +13,7 @@ const subgraph = getChainVolume({
   graphUrls: endpoints,
 });
 
-const adapter: SimpleVolumeAdapter = {
+const adapter: SimpleAdapter = {
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
@@ -23,6 +23,6 @@ const adapter: SimpleVolumeAdapter = {
         runAtCurrTime: true
       }
     }
-  }, {}) as SimpleVolumeAdapter['volume']
+  }, {})
 };
 export default adapter;

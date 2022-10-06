@@ -68,7 +68,7 @@ If the data is available in a subgraph and it follows a structure similar to uni
 import customBackfill from "../../helpers/customBackfill";
 import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type { ChainEndpoints, SimpleVolumeAdapter } from "../../dexVolume.type";
+import type { ChainEndpoints, SimpleVolumeAdapter } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
 
 // Subgraphs endpoints
