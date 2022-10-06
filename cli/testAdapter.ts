@@ -1,9 +1,8 @@
 import * as path from 'path'
 import { Adapter, BaseAdapter, ChainBlocks } from '../adapters/types';
-import { Chain } from '@defillama/sdk/build/general';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import { default as runAdapter2 } from '../adapters/utils/runAdapter'
+import runAdapter from '../adapters/utils/runAdapter'
 import { canGetBlock, getBlock } from '../helpers/getBlock';
 import allSettled from 'promise.allsettled';
 import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
@@ -56,13 +55,13 @@ const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapt
     if ("adapter" in module) {
       const adapter = module.adapter
       // Get adapter
-      const volumes = await runAdapter2(adapter, cleanDayTimestamp, {})
+      const volumes = await runAdapter(adapter, cleanDayTimestamp, {})
       printVolumes(volumes)
       console.info("\n")
     } else if ("breakdown" in module) {
       const breakdownAdapter = module.breakdown
       const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(async ([version, adapter]) =>
-        await runAdapter2(adapter, cleanDayTimestamp, {}).then(res => ({ version, res }))
+        await runAdapter(adapter, cleanDayTimestamp, {}).then(res => ({ version, res }))
       ))
       allVolumes.forEach((promise) => {
         console.info("Version ->", promise.version.toUpperCase())
@@ -75,29 +74,3 @@ const passedFile = path.resolve(process.cwd(), `./${getFolderByAdapterType(adapt
     console.error(error)
   }
 })()
-
-async function runAdapter(volumeAdapter: BaseAdapter, timestamp: number) {
-  // Get chains to check
-  const chains: Chain[] = Object.keys(volumeAdapter).filter(item => typeof volumeAdapter[item] === 'object').map(c => c === "ava" ? "avax" : c as Chain)
-  // Get lastest block 
-  const chainBlocks: ChainBlocks = {};
-
-  // Get volumes
-  const volumes = await Promise.all(chains.map(
-    async chain => {
-      const startTimestamp = await volumeAdapter[chain].start()
-      const fetchVolumeFunc = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
-      return fetchVolumeFunc(timestamp, chainBlocks)
-        .then(res => {
-          return {
-            ...res,
-            chain,
-            startTimestamp
-          }
-        }).catch(e => {
-          throw new Error(`${process.argv[2]} ${timestamp}, ${chainBlocks} ${chain} ${e.message}`)
-        })
-    }
-  ))
-  return volumes
-}
