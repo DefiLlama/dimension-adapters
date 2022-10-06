@@ -1,5 +1,5 @@
 {
-  "name": "fees-adapters",
+  "name": "adapters",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DefiLlama/fees-adapters.git"
+    "url": "git+https://github.com/DefiLlama/adapters.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/DefiLlama/fees-adapters/issues"
+    "url": "https://github.com/DefiLlama/adapters/issues"
   },
-  "homepage": "https://github.com/DefiLlama/fees-adapters#readme",
+  "homepage": "https://github.com/DefiLlama/adapters#readme",
   "dependencies": {
     "@defillama/sdk": "^2.3.105",
     "async-retry": "^1.3.3",
