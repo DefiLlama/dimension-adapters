@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Adapter, BaseAdapter, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 

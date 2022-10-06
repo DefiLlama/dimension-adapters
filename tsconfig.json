@@ -5,8 +5,6 @@
     }
   },
   "compilerOptions": {
-    "noImplicitAny": false,
-    "strictNullChecks": false,
     "target": "es2019",
     "skipLibCheck": true,
     "esModuleInterop": true,
