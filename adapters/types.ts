@@ -24,7 +24,7 @@ export type FetchResultFees = FetchResultBase & {
   dailyRevenue?: string;
 };
 
-export type FetchResult = FetchResultBase & FetchResultFees
+export type FetchResult = FetchResultVolume & FetchResultFees
 
 export type Fetch = (
   timestamp: number,
