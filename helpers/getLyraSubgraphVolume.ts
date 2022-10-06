@@ -13,7 +13,16 @@ interface IGetChainVolumeParams {
   timestamp: number;
 }
 
-function getChainVolume({ graphUrls, timestamp }: IGetChainVolumeParams) {
+interface IDayVolumeResponse {
+  markets: Array<{
+    latestVolumeAndFees: {
+      totalNotionalVolume: number | string
+      totalPremiumVolume: number | string
+    }
+  }>
+}
+
+function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
   const totalVolumeQuery = gql`
     {
       markets {
@@ -53,7 +62,7 @@ function getChainVolume({ graphUrls, timestamp }: IGetChainVolumeParams) {
         {}
       );
 
-      const previousDayVolume = await request(
+      const previousDayVolume:IDayVolumeResponse = await request(
         graphUrls[chain],
         graphQueryPreviousTotalVolume,
         { blockNumber: chainBlocksPreviousDay }
@@ -81,7 +90,7 @@ function getChainVolume({ graphUrls, timestamp }: IGetChainVolumeParams) {
         { notional: 0, premium: 0 }
       );
 
-      const totalVolume = await request(
+      const totalVolume:IDayVolumeResponse = await request(
         graphUrls[chain],
         graphQueryTotalVolume
       ).catch((e) =>

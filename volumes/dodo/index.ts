@@ -1,10 +1,10 @@
+import axios from "axios";
 import { BaseAdapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import dailyVolumePayload from "./dailyVolumePayload";
 import totalVolumePayload from "./totalVolumePayload";
 
-const { postURL } = require("../../helpers/utils");
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -45,7 +45,7 @@ interface ITotalResponse {
 
 const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
+  const dailyResponse = (await axios.post(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
   // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))).data as ITotalResponse
   return {
     timestamp: dayTimestamp,
@@ -55,7 +55,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 }
 
 const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
-  const response = (await postURL(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
+  const response = (await axios.post(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
   const firstDay = response.data.dashboard_chain_day_data.list.find((item: any) => item.volume[chain] !== '0')
   return firstDay?.timestamp ?? 0
 }
