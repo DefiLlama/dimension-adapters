@@ -1,5 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { FetchResult } from "../adapters/types";
+import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
 
 export const ERROR_STRING = '------ ERROR ------'
 
@@ -22,18 +22,29 @@ export async function getLatestBlockRetry(chain: string) {
 }
 
 const exclude2Print = ['startTimestamp', 'chain']
-export function printVolumes(volumes: FetchResult[]) {
+export function printVolumes(volumes: IRunAdapterResponseFulfilled[]) {
     volumes.forEach((element) => {
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
-        delete element.startTimestamp
         Object.entries(element).forEach(([attribute, value]) => {
             if (!exclude2Print.includes(attribute))
                 console.info(`${camelCaseToSpaces(attribute)}: ${value}`)
         })
+        console.info('\n')
+    });
+}
+
+export function printRejectedVolumes(volumes: IRunAdapterResponseRejected[]) {
+    volumes.forEach((element) => {
+        if (typeof element.chain === 'string')
+            console.info(element.chain.toUpperCase(), "👇")
+        if (element.timestamp !== undefined)
+            console.info(`Timestamp attempted: ${formatTimestampAsDate(String(element.timestamp))}`)
+        else console.info("No timestamp defined")
+        console.info(element.error)
         console.info('\n')
     });
 }
