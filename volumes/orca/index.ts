@@ -10,25 +10,25 @@ async function fetch() {
         return {
             volume_24h: Number(pools.data[index].volume.day)
         }
-    }).reduce((sum:number, pool:any) =>
+    }).reduce((sum: number, pool: any) =>
         sum + pool.volume_24h
-    , 0);
+        , 0);
 
-    const wpVol = whirlpools.data.whirlpools.reduce((sum:number, pool:any) =>
+    const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
         sum + pool.volume.day
-    , 0);
+        , 0);
     return {
-        dailyVolume:  wpVol + poolsVol,
-        timestamp: Date.now()/1e3
+        dailyVolume: wpVol + poolsVol,
+        timestamp: Date.now() / 1e3
     }
 }
 
 export default {
-    volume:{
+    adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
             runAtCurrTime: true,
-            start: async ()=>0,
+            start: async () => 0,
         }
     }
 }
