@@ -2,7 +2,7 @@ import * as path from 'path'
 import { Adapter, AdapterType, ChainBlocks, FetchResultVolume } from '../adapters/types';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printRejectedVolumes, printVolumes, upperCaseFirst } from './utils';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import runAdapter, { getFulfilledVolumes, getRejectedVolumes } from '../adapters/utils/runAdapter'
+import runAdapter, { getFulfilledResults, getRejectedResults } from '../adapters/utils/runAdapter'
 import { canGetBlock, getBlock } from '../helpers/getBlock';
 import allSettled from 'promise.allsettled';
 import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
@@ -49,8 +49,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
       const adapter = module.adapter
       // Get adapter
       const volumes = await runAdapter(adapter, cleanDayTimestamp, chainBlocks)
-      const fulfilledResults = getFulfilledVolumes(volumes)
-      const rejectedResults = getRejectedVolumes(volumes)
+      const fulfilledResults = getFulfilledResults(volumes)
+      const rejectedResults = getRejectedResults(volumes)
       printVolumes(fulfilledResults)
       printRejectedVolumes(rejectedResults)
       console.info("\n")
@@ -62,8 +62,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
       allVolumes.forEach((promise) => {
         console.info("Version ->", promise.version.toUpperCase())
         console.info("---------")
-        const fulfilledResults = getFulfilledVolumes(promise.res)
-        const rejectedResults = getRejectedVolumes(promise.res)
+        const fulfilledResults = getFulfilledResults(promise.res)
+        const rejectedResults = getRejectedResults(promise.res)
         printVolumes(fulfilledResults)
         printRejectedVolumes(rejectedResults)
       })

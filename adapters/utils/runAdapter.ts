@@ -43,5 +43,5 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
 const isFulfilled = <T,>(p: PromiseResult<T>): p is PromiseResolution<T> => p.status === 'fulfilled';
 const isRejected = <T, E>(p: PromiseResult<T, E>): p is PromiseRejection<E> => p.status === 'rejected';
-export const getFulfilledVolumes = <T,>(results: PromiseResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
-export const getRejectedVolumes = <T, E>(results: PromiseResult<T, E>[]) => results.filter(isRejected).map(r => r.reason)
+export const getFulfilledResults = <T,>(results: PromiseResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
+export const getRejectedResults = <T, E>(results: PromiseResult<T, E>[]) => results.filter(isRejected).map(r => r.reason)
