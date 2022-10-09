@@ -1,4 +1,4 @@
-import allSettled from 'promise.allsettled'
+import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -16,7 +16,7 @@ export interface IRunAdapterResponseRejected {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
-    return await allSettled(chains
+    return allSettled(chains
         .filter(async (chain) => {
             const start = await volumeAdapter[chain].start()
             return start !== undefined && (start <= cleanPreviousDayTimestamp) || (start === 0)
@@ -30,19 +30,18 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                     const resultValue = result[key]
                     if (resultValue && Number.isNaN(+resultValue)) delete result[key]
                 })
-                return ({
+                return Promise.resolve({
                     chain,
                     startTimestamp,
                     ...result
-                }) as IRunAdapterResponseFulfilled;
+                })
             } catch (e) {
-                return await Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp } as IRunAdapterResponseRejected);
+                return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
-        }
-        ))
+        })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>
 }
 
-const isFulfilled = <T,>(p: PromiseSettledResult<T>): p is PromiseFulfilledResult<T> => p.status === 'fulfilled';
-const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
-export const getFulfilledVolumes = <T>(results: PromiseSettledResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
-export const getRejectedVolumes = <T>(results: PromiseSettledResult<T>[]) => results.filter(isRejected).map(r => r.reason as IRunAdapterResponseRejected)
+const isFulfilled = <T,>(p: PromiseResult<T>): p is PromiseResolution<T> => p.status === 'fulfilled';
+const isRejected = <T, E>(p: PromiseResult<T, E>): p is PromiseRejection<E> => p.status === 'rejected';
+export const getFulfilledVolumes = <T,>(results: PromiseResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
+export const getRejectedVolumes = <T, E>(results: PromiseResult<T, E>[]) => results.filter(isRejected).map(r => r.reason)

@@ -21,8 +21,8 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-const exclude2Print = ['startTimestamp', 'chain']
 export function printVolumes(volumes: IRunAdapterResponseFulfilled[]) {
+    const exclude2Print = ['startTimestamp', 'chain']
     volumes.forEach((element) => {
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
