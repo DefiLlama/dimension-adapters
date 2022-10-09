@@ -9,22 +9,11 @@ export type ChainEndpoints = {
 export type FetchResultBase = {
   timestamp: number;
   block?: number;
-  [key: string]: string | number | undefined
 };
 
-export type FetchResultVolume = FetchResultBase & {
-  dailyVolume?: string;
-  totalVolume?: string;
-};
-
-export type FetchResultFees = FetchResultBase & {
-  totalFees?: string;
-  dailyFees?: string;
-  totalRevenue?: string;
-  dailyRevenue?: string;
-};
-
-export type FetchResult = FetchResultVolume & FetchResultFees
+export type FetchResultGeneric = FetchResultBase & {
+  [key: string]: number | string | undefined
+}
 
 export type Fetch = (
   timestamp: number,
@@ -62,7 +51,34 @@ export type BreakdownAdapter = {
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;
 
+/**
+ * Include here new adaptors types
+ */
+
+// VOLUME
+export type FetchResultVolume = FetchResultBase & {
+  dailyVolume?: string;
+  totalVolume?: string;
+};
+
+// FEES
+export type FetchResultFees = FetchResultBase & {
+  totalFees?: string;
+  dailyFees?: string;
+  totalRevenue?: string;
+  dailyRevenue?: string;
+};
+
+// INCENTIVES
+export type FetchResultIncentives = FetchResultBase & {
+  // TBD
+};
+
 export enum AdapterType {
   FEES = 'fees',
   VOLUME = 'volumes'
 }
+
+export type FetchResult = FetchResultVolume & FetchResultFees
+
+// End of specific adaptors type

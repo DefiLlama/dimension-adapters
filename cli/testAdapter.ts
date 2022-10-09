@@ -1,8 +1,8 @@
 import * as path from 'path'
-import { Adapter, AdapterType, ChainBlocks } from '../adapters/types';
-import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
+import { Adapter, AdapterType, ChainBlocks, FetchResultVolume } from '../adapters/types';
+import { checkArguments, ERROR_STRING, formatTimestampAsDate, printRejectedVolumes, printVolumes, upperCaseFirst } from './utils';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import runAdapter from '../adapters/utils/runAdapter'
+import runAdapter, { getFulfilledVolumes, getRejectedVolumes } from '../adapters/utils/runAdapter'
 import { canGetBlock, getBlock } from '../helpers/getBlock';
 import allSettled from 'promise.allsettled';
 import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
@@ -49,17 +49,23 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
       const adapter = module.adapter
       // Get adapter
       const volumes = await runAdapter(adapter, cleanDayTimestamp, chainBlocks)
-      printVolumes(volumes)
+      const fulfilledResults = getFulfilledVolumes(volumes)
+      const rejectedResults = getRejectedVolumes(volumes)
+      printVolumes(fulfilledResults)
+      printRejectedVolumes(rejectedResults)
       console.info("\n")
     } else if ("breakdown" in module) {
       const breakdownAdapter = module.breakdown
       const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(async ([version, adapter]) =>
-        await runAdapter(adapter, cleanDayTimestamp, {}).then(res => ({ version, res }))
+        await runAdapter(adapter, cleanDayTimestamp, chainBlocks).then(res => ({ version, res }))
       ))
       allVolumes.forEach((promise) => {
         console.info("Version ->", promise.version.toUpperCase())
         console.info("---------")
-        printVolumes(promise.res)
+        const fulfilledResults = getFulfilledVolumes(promise.res)
+        const rejectedResults = getRejectedVolumes(promise.res)
+        printVolumes(fulfilledResults)
+        printRejectedVolumes(rejectedResults)
       })
     } else throw new Error("No compatible adapter found")
   } catch (error) {

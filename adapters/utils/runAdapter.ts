@@ -1,24 +1,31 @@
 import allSettled from 'promise.allsettled'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult } from '../types'
+import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, onError?: (e: Error) => void) {
+export interface IRunAdapterResponseFulfilled extends FetchResult {
+    chain: string
+    startTimestamp: number
+}
+export interface IRunAdapterResponseRejected {
+    chain: string
+    timestamp: number
+    error: Error
+}
+
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
     return await allSettled(chains
         .filter(async (chain) => {
-            const start = await volumeAdapter[chain].start().catch(e => {
-                onError?.(new Error(`Error getting start time: ${e.message}`))
-                return undefined
-            })
+            const start = await volumeAdapter[chain].start()
             return start !== undefined && (start <= cleanPreviousDayTimestamp) || (start === 0)
         })
         .map(async (chain) => {
             const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
             try {
                 const startTimestamp = await volumeAdapter[chain].start()
-                const result = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
+                const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 Object.keys(result).forEach(key => {
                     const resultValue = result[key]
                     if (resultValue && Number.isNaN(+resultValue)) delete result[key]
@@ -27,10 +34,15 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                     chain,
                     startTimestamp,
                     ...result
-                });
+                }) as IRunAdapterResponseFulfilled;
             } catch (e) {
-                return await Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
+                return await Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp } as IRunAdapterResponseRejected);
             }
         }
-        )).then(res => res.map(r => r.status === 'fulfilled' ? r.value : r.reason as FetchResult))
+        ))
 }
+
+const isFulfilled = <T,>(p: PromiseSettledResult<T>): p is PromiseFulfilledResult<T> => p.status === 'fulfilled';
+const isRejected = <T,>(p: PromiseSettledResult<T>): p is PromiseRejectedResult => p.status === 'rejected';
+export const getFulfilledVolumes = <T>(results: PromiseSettledResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
+export const getRejectedVolumes = <T>(results: PromiseSettledResult<T>[]) => results.filter(isRejected).map(r => r.reason as IRunAdapterResponseRejected)
