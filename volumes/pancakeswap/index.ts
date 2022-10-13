@@ -31,7 +31,8 @@ const graphs = getChainVolume({
 const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [BSC]: disabledAdapter
     },
     v2: {
       [BSC]: {
