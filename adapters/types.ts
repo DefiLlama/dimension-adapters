@@ -87,3 +87,7 @@ export enum AdapterType {
 export type FetchResult = FetchResultVolume & FetchResultFees
 
 // End of specific adaptors type
+
+export interface IJSON<T> {
+  [key: string]: T
+}
