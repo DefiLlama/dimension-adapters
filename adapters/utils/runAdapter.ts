@@ -1,4 +1,5 @@
 import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
+import { IJSON } from '../../../src/adaptors/data/types'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -16,15 +17,16 @@ export interface IRunAdapterResponseRejected {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+    const validStart = ((await Promise.all(chains.map(async (chain) => {
+        const start = await volumeAdapter[chain].start()
+        return [chain, start !== undefined && (start <= cleanPreviousDayTimestamp), start]
+    }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean| number)[]>)
     return allSettled(chains
-        .filter(async (chain) => {
-            const start = await volumeAdapter[chain].start()
-            return start !== undefined && (start <= cleanPreviousDayTimestamp) || (start === 0)
-        })
+        .filter(chain => validStart[chain][0])
         .map(async (chain) => {
             const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
             try {
-                const startTimestamp = await volumeAdapter[chain].start()
+                const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 Object.keys(result).forEach(key => {
                     const resultValue = result[key]
