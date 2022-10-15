@@ -37,16 +37,21 @@ export type BaseAdapter = {
 
 export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
 
+export enum ProtocolType {
+  CHAIN = 'chain',
+  PROTOCOL = 'protocol'
+}
+
 export type SimpleAdapter = {
   adapter: BaseAdapter
-  adapterType?: string;
+  protocolType?: ProtocolType;
 }
 
 export type BreakdownAdapter = {
   breakdown: {
     [version: string]: BaseAdapter
   };
-  adapterType?: string;
+  protocolType?: ProtocolType;
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;

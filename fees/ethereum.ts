@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, ProtocolType } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getOneDayFees } from "../helpers/getChainFees";
@@ -52,7 +52,7 @@ const adapter: Adapter = {
         start: async ()  => 1438228800,
     },
   },
-  adapterType: "chain"
+  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
