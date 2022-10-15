@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, ProtocolType } from "../adapters/types";
 import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
@@ -64,7 +64,7 @@ const adapter: Adapter = {
         start: async ()  => 1598671449,
     },
   },
-  adapterType: "chain"
+  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
