@@ -102,11 +102,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives'
 }
 
-export type FetchResult = FetchResultVolume
-  | FetchResultFees
-  | FetchResultIncentives
-  | FetchResultAggregators
-  | FetchResultDerivatives
+export type FetchResult = FetchResultVolume & FetchResultFees
 
 // End of specific adaptors type
 
