@@ -28,5 +28,5 @@
     "fees/*",
     "volumes/*",
     "adapters/adapter.type.ts"
-  ],
+, "aggregators/jupiter-aggregator", "derivatives/lyra", "incentives/ethereum.ts"  ],
 }

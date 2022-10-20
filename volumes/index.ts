@@ -94,7 +94,7 @@ import dystopia from "./dystopia";
 import glideFinance from "./glide-finance";
 import quipuswap from "./quipuswap";
 import netswap from "./netswap";
-import jupiterAggregator from "./jupiter-aggregator";
+import jupiterAggregator from "../aggregators/jupiter-aggregator";
 import astroport from "./astroport";
 import mimo from "./mimo";
 import tethysFinance from "./tethys-finance";

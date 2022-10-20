@@ -76,12 +76,30 @@ export type FetchResultFees = FetchResultBase & {
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  // TBD
+  tokens: IJSON<string>
 };
+
+// AGGREGATORS
+export type FetchResultAggregators = FetchResultBase & {
+  dailyVolume?: string;
+  totalVolume?: string;
+};
+
+// DERIVATIVES
+export type FetchResultDerivatives = FetchResultBase & {
+  totalPremiumVolume: string
+  totalNotionalVolume: string
+  dailyPremiumVolume: string
+  dailyNotionalVolume: string
+};
+
 
 export enum AdapterType {
   FEES = 'fees',
-  VOLUME = 'volumes'
+  VOLUME = 'volumes',
+  INCENTIVES = 'incentives',
+  AGGREGATORS = 'aggregators',
+  DERIVATIVES = 'derivatives'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees
