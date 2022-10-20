@@ -23,7 +23,8 @@ const adapterType: AdapterType = process.argv[2] as AdapterType
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
   try {
-    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date())
+    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date(Date.now() - 1000 * 60 * 60 * 24))
+    const endCleanDayTimestamp = (cleanDayTimestamp + 60 * 60 * 24) - 1
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
@@ -38,7 +39,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     await allSettled(
       allChains.map(async (chain) => {
         try {
-          const latestBlock = await getBlock(cleanDayTimestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${cleanDayTimestamp}, ${chain}`))
+          const latestBlock = await getBlock(endCleanDayTimestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${endCleanDayTimestamp}, ${chain}`))
           if (latestBlock)
             chainBlocks[chain] = latestBlock
         } catch (e) { console.log(e) }
