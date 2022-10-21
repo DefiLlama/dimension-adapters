@@ -12,7 +12,7 @@ export type FetchResultBase = {
 };
 
 export type FetchResultGeneric = FetchResultBase & {
-  [key: string]: number | string | undefined
+  [key: string]: number | string | undefined | IJSON<string>
 }
 
 export type Fetch = (
@@ -76,7 +76,7 @@ export type FetchResultFees = FetchResultBase & {
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  tokens: IJSON<string>
+  tokens?: IJSON<string>
 };
 
 // AGGREGATORS

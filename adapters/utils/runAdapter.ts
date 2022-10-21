@@ -1,9 +1,10 @@
+import { type } from 'os'
 import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric, IJSON } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-export interface IRunAdapterResponseFulfilled extends FetchResult {
+export type IRunAdapterResponseFulfilled = FetchResult & {
     chain: string
     startTimestamp: number
 }
