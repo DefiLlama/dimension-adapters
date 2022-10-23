@@ -11,26 +11,37 @@ type IResponse = Array<{
 
 }>
 
-const getBTCRewardByBlock = (block: number) => {
+const BASE_REWARD = 50
+const HALVING_BLOCKS = 210000
+const getBTCRewardByBlock = (block: number) => BASE_REWARD / Math.trunc((block / HALVING_BLOCKS) + 1)
 
-}
-
-const getDailyBlocksByTimestamp = async (timestamp: number) => {
+const getDailyBlocksByTimestampLast24h = async (timestamp: number) => {
     const url = `https://blockchain.info/blocks/${timestamp * 1000}?format=json`
     return (await fetchURL(url)).data as IResponse
 }
 
+const getAverageBitcoinPriceLast24h = async (timestamp: number) => {
+    const AVERAGE_POINTS = 6
+    const offset = 24 / AVERAGE_POINTS
+    return Promise.all(
+        [...Array(AVERAGE_POINTS).keys()]
+            .map(async (_, index) =>
+                (await getPrices(['coingecko:bitcoin'], timestamp - (index * offset)))['coingecko:bitcoin'].price)
+    ).then(prices => {
+        const sum = prices.reduce((a, b) => a + b, 0);
+        return (sum / prices.length) || 0
+    })
+}
+
 const getIncentives: Fetch = async (timestamp: number) => {
-    const dayBlocks = await getDailyBlocksByTimestamp(timestamp)
-    for (let i = 0; i<48; i++) {
-        const BTC_PRICE = await getPrices(['coingecko:bitcoin'], timestamp+60*60*i)
-        console.log("BTC_PRICE", BTC_PRICE)
-    }
+    const dayBlocks = await getDailyBlocksByTimestampLast24h(timestamp)
+    const averageBTCPrice = await getAverageBitcoinPriceLast24h(timestamp)
+    const rewardByBlock = getBTCRewardByBlock(dayBlocks[0].height)
     return {
         timestamp,
-        block: dayBlocks[dayBlocks.length - 1].height,
+        block: dayBlocks[0].height,
         tokens: {
-            BTC: "BTC_PRICE"
+            BTC: dayBlocks.length * rewardByBlock * averageBTCPrice
         }
     }
 }

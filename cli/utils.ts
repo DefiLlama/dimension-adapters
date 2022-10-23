@@ -30,8 +30,10 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[]) {
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
         Object.entries(element).forEach(([attribute, value]) => {
-            if (!exclude2Print.includes(attribute))
-                console.info(`${camelCaseToSpaces(attribute)}: ${value}`)
+            if (!exclude2Print.includes(attribute)) {
+                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : value
+                console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
+            }
         })
         console.info('\n')
     });
