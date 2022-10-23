@@ -20,7 +20,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const validStart = ((await Promise.all(chains.map(async (chain) => {
         const start = await volumeAdapter[chain].start()
         return [chain, start !== undefined && (start <= cleanPreviousDayTimestamp), start]
-    }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean| number)[]>)
+    }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean | number)[]>)
     return allSettled(chains
         .filter(chain => validStart[chain][0])
         .map(async (chain) => {
@@ -28,10 +28,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
             try {
                 const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
-                Object.keys(result).forEach(key => {
-                    const resultValue = result[key]
-                    if (resultValue && Number.isNaN(+resultValue)) delete result[key]
-                })
+                cleanResult(result)
                 return Promise.resolve({
                     chain,
                     startTimestamp,
@@ -41,6 +38,20 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                 return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
         })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>
+}
+
+const cleanResult = (obj: any) => {
+    Object.keys(obj).forEach(key => {
+        if (typeof obj[key] === 'object') cleanResult(obj[key])
+        else if (!okAttribute(obj[key])) {
+            console.log("Wrong value", obj[key], "with key", key)
+            delete obj[key]
+        }
+    })
+}
+
+const okAttribute = (value: any) => {
+    return !(value && Number.isNaN(+value))
 }
 
 const isFulfilled = <T,>(p: PromiseResult<T>): p is PromiseResolution<T> => p.status === 'fulfilled';
