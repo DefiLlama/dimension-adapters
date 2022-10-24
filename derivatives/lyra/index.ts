@@ -19,8 +19,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: subgraph(chain),
-        start: async () => 1656154800,
-        runAtCurrTime: true
+        start: async () => 1656154800
       }
     }
   }, {})
