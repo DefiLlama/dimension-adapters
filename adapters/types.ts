@@ -29,7 +29,7 @@ export type BaseAdapter = {
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
     meta?: {
-      metodology?: string
+      methodology?: string
       hallmarks?: [number, string][]
     }
   }
