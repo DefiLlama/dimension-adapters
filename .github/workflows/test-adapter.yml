@@ -28,13 +28,14 @@ jobs:
           yarn upgrade @defillama/sdk
 
           list=$(echo $RUN_FILES | tr  -d '"[]' | tr "," "\n")
-          list_changes=("${list[@]:1}")
+          list_changes=("${list[:1]}")
           type=${list[0]}
 
           for i in ${list_changes}
           do 
             { 
-              yarn test ${type} ${i} 2>&1 | tee output.txt
+              IFS='@' read -r -a array <<< "$i"
+              yarn test ${array[0]} ${array[0]} 2>&1 | tee output.txt
               node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/adapters/adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
                 exit 1;
