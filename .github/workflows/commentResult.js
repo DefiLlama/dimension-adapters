@@ -3,8 +3,10 @@ const axios = require('axios');
 const junk = 'VPTOH1X0B7rf8od7BGNsQ1z0BJk8iMNLxqrD';
 
 async function main() {
-    const [, , log, author, repo, pr, adapterName ] = process.argv;
+    const [, , log, author, repo, pr, adapterNameKey ] = process.argv;
     const file = readFileSync(log, 'utf-8');
+
+    const [_, adapterName] = adapterNameKey.split('@')
 
 
     const errorString = '------ ERROR ------';
