@@ -28,11 +28,8 @@ jobs:
           yarn upgrade @defillama/sdk
 
           list=$(echo $RUN_FILES | tr  -d '"[]' | tr "," "\n")
-          echo ${list}
           list_changes=("${list[@]:1}")
-          echo ${list_changes}
           type=${list[0]}
-          echo ${type}
 
           for i in ${list_changes}
           do 
