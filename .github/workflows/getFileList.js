@@ -5,7 +5,8 @@ const fileSet = new Set();
 
 [...MODIFIED, ...ADDED].forEach(file => {
   const [root, adapter] = file.split('/')
-  if (ALLOWED_ROOTS.includes(root) && adapter !== undefined) fileSet.add(adapter)
+  if (ALLOWED_ROOTS.includes(root) && adapter !== undefined)
+    fileSet.add(`${root}@${adapter}`)
 })
 
 console.log(JSON.stringify([...fileSet]))
