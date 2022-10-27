@@ -85,8 +85,8 @@ export type FetchResultAggregators = FetchResultBase & {
   totalVolume?: string;
 };
 
-// DERIVATIVES
-export type FetchResultDerivatives = FetchResultBase & {
+// OPTIONS
+export type FetchResultOptions = FetchResultBase & {
   totalPremiumVolume: string
   totalNotionalVolume: string
   dailyPremiumVolume: string
@@ -99,7 +99,8 @@ export enum AdapterType {
   VOLUME = 'volumes',
   INCENTIVES = 'incentives',
   AGGREGATORS = 'aggregators',
-  DERIVATIVES = 'derivatives'
+  DERIVATIVES = 'derivatives',
+  OPTIONS = 'options'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees
