@@ -96,7 +96,7 @@ export type FetchResultOptions = FetchResultBase & {
 
 export enum AdapterType {
   FEES = 'fees',
-  VOLUME = 'volumes',
+  DEXS = 'dexs',
   INCENTIVES = 'incentives',
   AGGREGATORS = 'aggregators',
   DERIVATIVES = 'derivatives',
