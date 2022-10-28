@@ -1,5 +1,5 @@
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../volumes/pancakeswap";
+import volumeAdapter from "../dexs/pancakeswap";
 import { Adapter, BreakdownAdapter, Fetch } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getChainVolume } from "../helpers/getUniSubgraphVolume";
