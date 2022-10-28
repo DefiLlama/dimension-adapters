@@ -6,3 +6,9 @@ export default async function fetchURL(url: string) {
         retries: 3
     })
 }
+
+export async function postURL(url: string, data: any) {
+    return asyncRetry(async () => await axios.post(url, data), {
+        retries: 3
+    })
+}
