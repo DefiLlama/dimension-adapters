@@ -6,7 +6,6 @@ const adapter = univ2Adapter({
 }, {
   factoriesName: "uniswapFactories",
   dayData: "uniswapDayData",
-  hasTotalVolume: false
 });
 
 adapter.adapter.okexchain.start = async () => 1627385129;
