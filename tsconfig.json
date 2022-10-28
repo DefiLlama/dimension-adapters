@@ -26,6 +26,6 @@
   },
   "include": [
     "fees/*",
-    "volumes/*",
+    "dexs/*",
     "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*"],
 }

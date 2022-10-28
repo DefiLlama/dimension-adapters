@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "../volumes/wombat-exchange";
+import volumeAdapter from "../dexs/wombat-exchange";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
 const TOTAL_FEES = 0.0001;
