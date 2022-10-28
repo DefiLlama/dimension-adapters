@@ -37,7 +37,6 @@ const adapter: SimpleAdapter = {
         chain: BSC,
         dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
       }),
-      runAtCurrTime: false
     },
   },
 };

@@ -1,6 +1,5 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
@@ -20,17 +19,37 @@ const graphs = getChainVolume({
   },
 });
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: graphs(CHAIN.POLYGON),
-      start: getStartTimestamp({
-        endpoints: endpoints,
-        chain: CHAIN.POLYGON,
-        volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-        dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
-      })
+const endpointsV3 = {
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3"
+};
+const graphsV3 = getChainVolume({
+  graphUrls: endpointsV3,
+  totalVolume: {
+    factory: "factories",
+    field: "totalVolumeUSD",
+  },
+  dailyVolume: {
+    factory: "algebraDayData",
+    field: "volumeUSD",
+    dateField: "date"
+  },
+});
+
+
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    v2: {
+      [CHAIN.POLYGON]: {
+        fetch: graphs(CHAIN.POLYGON),
+        start: async () => 1602118043
+      },
     },
+    v3: {
+      [CHAIN.POLYGON]: {
+        fetch: graphsV3(CHAIN.POLYGON),
+        start: async () => 1662425243
+      },
+    }
   },
 };
 
