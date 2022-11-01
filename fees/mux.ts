@@ -31,9 +31,9 @@ const formatMetaBaseData = (cols: Array<any>, rows: Array<Array<any>>) => {
 }
 
 const computeRevenue = (fee: number, por: number) => {
-  // fee × 50% × POR: Allocate for veMUX holders (in ETH)
-  // fee × 50%: Purchase MUXLP and add as protocol-owned liquidity
-  return (fee * 0.5 * por) + (fee * 0.5)
+  // fee × 70% × POR: Allocate for veMUX holders (in ETH)
+  // fee × 30%: Purchase MUXLP and add as protocol-owned liquidity
+  return (fee * 0.7 * por) + (fee * 0.3)
 }
 
 const getFees = (chainId: CHAIN_ID) => {
