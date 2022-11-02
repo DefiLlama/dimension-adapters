@@ -23,7 +23,7 @@ const adapterType: AdapterType = process.argv[2] as AdapterType
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
   try {
-    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date(Date.now() - 1000 * 60 * 60 * 24))
+    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date(Date.now() - 1000))
     const endCleanDayTimestamp = (cleanDayTimestamp + 60 * 60 * 24) - 1
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
