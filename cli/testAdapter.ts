@@ -24,7 +24,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
 (async () => {
   try {
     const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date(Date.now() - 1000))
-    const endCleanDayTimestamp = (cleanDayTimestamp + 60 * 60 * 24) - 1
+    const endCleanDayTimestamp = cleanDayTimestamp - 1
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
