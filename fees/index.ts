@@ -30,6 +30,7 @@ import tarot from "./tarot";
 import woofi from "./woofi";
 import fraxSwap from "./frax-swap";
 import angle from "./angle";
+import geistFinance from "./geist-finance"
 
 export default {
     sushiswap,
@@ -63,5 +64,6 @@ export default {
     tarot,
     woofi,
     "frax-swap": fraxSwap,
-    angle
+    angle,
+    "geist-finance": geistFinance
 };
