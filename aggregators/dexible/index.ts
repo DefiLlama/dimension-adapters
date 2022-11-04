@@ -54,39 +54,26 @@ const chainPath = (chain: string): string => {
     }
 }
 
-let cachedResponse: IVolumeResponse | null = null;
-
-const getAndCache = async (chain: string, timestamp: number): Promise<{
+const getVolume = async (chain: string, timestamp: number): Promise<{
     timestamp: number;
     dailyVolume: string;
     totalVolume: string;
 }> => {
-    cachedResponse = null;
-    const url = `${chainPath(chain)}${timestamp}`;
+    const url = `${chainPath(chain)}timestamp=${timestamp}`;
     const r = await axios.get(url);
     if (!r.data) {
         throw new Error("No data found in response");
     }
     const data = r.data as IVolumeResponse;
-    cachedResponse = data;
-    cachedResponse.timestamp = data.timestamp || timestamp;
-    cachedResponse.earliestTimestamp = data.earliestTimestamp || 0;
     return {
-        timestamp: cachedResponse.timestamp,
-        dailyVolume: cachedResponse.dailyVolume,
+        timestamp: data.timestamp || timestamp,
+        dailyVolume: data.dailyVolume,
         totalVolume: data.totalVolume
     };
 }
 
 const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-    if (cachedResponse) {
-        return Promise.resolve({
-            timestamp: cachedResponse.earliestTimestamp,
-            dailyVolume: cachedResponse.dailyVolume,
-            totalVolume: cachedResponse.totalVolume
-        });
-    }
-    return await getAndCache(chain, timestamp);
+    return getVolume(chain, timestamp);
 }
 
 const adapter: BreakdownAdapter = {
@@ -98,11 +85,13 @@ const adapter: BreakdownAdapter = {
                     [chain]: {
                         fetch: getFetch(chain),
                         start: async () => {
-                            await getAndCache(chain, Math.ceil(Date.now() / 1000));
-                            if (cachedResponse) {
-                                return cachedResponse.earliestTimestamp;
+                            const url = `${chainPath(chain)}timestamp=${Math.ceil(Date.now() / 1000)}`;
+                            const r = await axios.get(url);
+                            if (!r.data) {
+                                throw new Error("No data found in response");
                             }
-                            return 0;
+                            const data = r.data as IVolumeResponse;
+                            return data.earliestTimestamp
                         }
                     }
                 }
