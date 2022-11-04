@@ -1,9 +1,6 @@
 name: Check ts
 
-on:
-  push:
-    branches: [ master ]
-  repository_dispatch:
+on: [pull_request]
     
 jobs:
   ts-check:
