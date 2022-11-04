@@ -33,6 +33,9 @@ jobs:
           do 
             { 
               IFS='@' read -r -a array <<< "$i"
+              echo oout
+              echo ${array[0]}
+              echo ${array[1]}
               yarn test ${array[0]} ${array[1]} 2>&1 | tee output.txt
               node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/adapters/adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
