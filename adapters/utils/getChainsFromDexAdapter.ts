@@ -13,6 +13,6 @@ export default (dexAdapter: Adapter, filter: boolean = true) => {
             for (const chain of chains)
                 if (!acc.includes(chain)) acc.push(chain)
         }
-    } else console.error("Invalid adapter")
+    } else console.error("Invalid adapter", Object.keys(dexAdapter))
     return acc
 }
