@@ -30,7 +30,7 @@ const graphs = () => {
         totalFees: totalFees.toString(),
         dailyFees: dailyFees?.toString(),
         totalRevenue: totalRevenue.toString(),
-        dailyRevenue: dailyRevenue ? dailyRevenue.toString() : '0',
+        dailyRevenue: dailyRevenue ? dailyRevenue.toString() : "0",
       };
     };
   }
