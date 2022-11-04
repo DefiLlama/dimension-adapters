@@ -9,6 +9,8 @@ const fileSet = new Set();
     fileSet.add(`${root}@${adapter}`)
 })
 
+console.log(JSON.stringify([...fileSet]))
+
 function parse(data) {
   return data.replace('[', '').replace(']', '').split(',')
 }
