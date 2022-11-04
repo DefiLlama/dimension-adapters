@@ -28,6 +28,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
+    console.log("passedFile", passedFile)
     let module: Adapter = (await import(passedFile)).default
     console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(cleanDayTimestamp))}`)
     console.info(`_______________________________________\n`)
