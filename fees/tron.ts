@@ -17,9 +17,7 @@ const adapter: Adapter = {
 
             return {
                 timestamp,
-                totalFees: "0",
                 dailyFees: usdFees, 
-                totalRevenue: "0",
                 dailyRevenue: usdFees,
             };
         },
