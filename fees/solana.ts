@@ -20,14 +20,15 @@ const adapter: Adapter = {
             const dailyFees: IFees = (await axios.get(`https://hyper.solana.fm/v3/tx-fees?date=${today}`)).data;
             const solanaFee = dailyFees.total_tx_fees
             const pricesObj = await getPrices(["coingecko:solana"], ts);
-            const usdFees = (solanaFee/1e8 * pricesObj["coingecko:solana"].price).toString()
+            const usdFees = (solanaFee/1e8 * pricesObj["coingecko:solana"].price);
+            const dailyRevenue = usdFees * 0.5;
 
             return {
                 timestamp,
                 totalFees: "0",
                 dailyFees: usdFees.toString(),
                 totalRevenue: "0",
-                dailyRevenue: "0",
+                dailyRevenue: dailyRevenue.toString(),
             };
         },
         start: async () => 1610841600
