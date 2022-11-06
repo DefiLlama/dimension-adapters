@@ -23,13 +23,13 @@ const adapterType: AdapterType = process.argv[2] as AdapterType
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
   try {
-    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date(Date.now() - 1000))
+    const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000)) : getUniqStartOfTodayTimestamp(new Date())
     const endCleanDayTimestamp = cleanDayTimestamp - 1
     console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
     console.info(`_______________________________________`)
     // Import module to test
     let module: Adapter = (await import(passedFile)).default
-    console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(cleanDayTimestamp))}`)
+    console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(getUniqStartOfTodayTimestamp(new Date(endCleanDayTimestamp * 1000))))}`)
     console.info(`_______________________________________\n`)
 
     // Get closest block to clean day. Only for EVM compatible ones.
