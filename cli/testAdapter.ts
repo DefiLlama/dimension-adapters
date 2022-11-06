@@ -49,7 +49,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     if ("adapter" in module) {
       const adapter = module.adapter
       // Get adapter
-      const volumes = await runAdapter(adapter, cleanDayTimestamp, chainBlocks)
+      const volumes = await runAdapter(adapter, endCleanDayTimestamp, chainBlocks)
       const fulfilledResults = getFulfilledResults(volumes)
       const rejectedResults = getRejectedResults(volumes)
       printVolumes(fulfilledResults)
