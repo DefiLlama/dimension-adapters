@@ -56,7 +56,7 @@ const adapter: Adapter = {
               totalRevenue: "0",
           };
         },
-        start: async () => 1575158400
+        start: async () => 1622250511
     },
 },
   protocolType: ProtocolType.CHAIN
