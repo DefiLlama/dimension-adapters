@@ -5,12 +5,6 @@ import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 
-
-const URL = 'https://api.thegraph.com/subgraphs/name/dmihal/arbitrum-fees-collected'
-interface IValue {
-  totalFeesETH: string;
-}
-
 interface ITx {
   value: string;
 }
@@ -21,7 +15,7 @@ const NETWORK_INFRA_FEES = '0xD345e41aE2cb00311956aA7109fC801Ae8c81a52'
 const CONGESTION_FEES = '0xa4B00000000000000000000000000000000000F6'
 
 const getWithdrawalTxs = async (address: string, startblock: number, endblock: number) => {
-  const url = `https://api.arbiscan.io/api?module=account&action=txlist&address=${address}&startblock=${startblock}&endblock=${endblock}`;
+  const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&startblock=${startblock}&endblock=${endblock}`;
   const data: ITx[] = await axios.get(url).then((e: any) => e.data.result).catch((err: any) => {
     console.log(`error get tx list: ${err}`);
     return [];
@@ -31,13 +25,13 @@ const getWithdrawalTxs = async (address: string, startblock: number, endblock: n
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
+    ["arbitrum-nitro"]: {
         fetch:  async (timestamp: number, _: ChainBlocks) => {
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+          const todaysTimestamp = timestamp
+          const yesterdaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
 
-          const todaysBlock = (await getBlock(todaysTimestamp, "arbitrum", {}));
-          const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "arbitrum", {}));
+          const todaysBlock = (await getBlock(todaysTimestamp, "ethereum", {}));
+          const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "ethereum", {}));
           const [sequesnerFee, infraFee, congestionFee] = await Promise.all([
             getWithdrawalTxs(SEQUENCER_FEES, todaysBlock, yesterdaysBlock),
             getWithdrawalTxs(NETWORK_INFRA_FEES, todaysBlock, yesterdaysBlock),
@@ -50,10 +44,7 @@ const adapter: Adapter = {
 
           return {
               timestamp,
-              totalFees: undefined,
               dailyFees: dailyFees.toString(),
-              dailyRevenue: "0",
-              totalRevenue: "0",
           };
         },
         start: async () => 1622250511
