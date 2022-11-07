@@ -69,12 +69,13 @@ const adapter: Adapter = {
           const pricesObj = await getPrices(["coingecko:ethereum"], timestamp);
           const feesETH = Number(graphResDaily.yesterday.totalFeesETH) - Number(graphResDaily.today.totalFeesETH) + withdrawalFee;
           const dailyFees = feesETH * pricesObj["coingecko:ethereum"].price
+          const dailyRevenue = (feesETH - withdrawalFee) * pricesObj["coingecko:ethereum"].price
           return {
               timestamp,
               totalFees: undefined,
               dailyFees: dailyFees.toString(),
               totalRevenue: "0",
-              dailyRevenue: "0",
+              dailyRevenue: dailyRevenue.toString(),
           };
         },
         start: async () => 1575158400
