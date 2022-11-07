@@ -73,7 +73,8 @@ export enum CHAIN {
   THORCHAIN ="thorchain",
   MILKOMEDA = "milkomeda",
   FLOW = "flow",
-  FUSION = "fusion"
+  FUSION = "fusion",
+  CANTO="canto",
 }
 
 // Don´t use
