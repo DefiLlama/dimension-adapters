@@ -46,15 +46,6 @@ const adapter: Adapter = {
           const todaysId = getUniswapDateId(new Date(todaysTimestamp * 1000));
           const yesterdaysId = getUniswapDateId(new Date(yesterdaysTimestamp * 1000));
 
-          const todaysBlock = (await getBlock(todaysTimestamp, "arbitrum", {}));
-          const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "arbitrum", {}));
-          const [sequesnerFee, infraFee, congestionFee] = await Promise.all([
-            getWithdrawalTxs(SEQUENCER_FEES, todaysBlock, yesterdaysBlock),
-            getWithdrawalTxs(NETWORK_INFRA_FEES, todaysBlock, yesterdaysBlock),
-            getWithdrawalTxs(CONGESTION_FEES, todaysBlock, yesterdaysBlock),
-          ]);
-          const withdrawalFee = sequesnerFee + infraFee + congestionFee;
-
           const graphQueryDaily = gql
           `query fees {
             yesterday: fee(id: ${yesterdaysId}) {
@@ -66,8 +57,8 @@ const adapter: Adapter = {
           }`;
 
           const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily);
-          const pricesObj = await getPrices(["coingecko:ethereum"], timestamp);
-          const feesETH = Number(graphResDaily.yesterday.totalFeesETH) - Number(graphResDaily.today.totalFeesETH) + withdrawalFee;
+          const pricesObj = await getPrices(["coingecko:ethereum"], todaysTimestamp);
+          const feesETH = Number(graphResDaily.yesterday.totalFeesETH) - Number(graphResDaily.today.totalFeesETH);
           const dailyFees = feesETH * pricesObj["coingecko:ethereum"].price
           return {
               timestamp,
