@@ -1,7 +1,7 @@
 import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 const { request, gql } = require("graphql-request");
 
 
@@ -17,11 +17,11 @@ interface IDailyResponse {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-        fetch:  async (timestamp: number, chainBlocks: ChainBlocks) => {
+        fetch:  async (timestamp: number, _: ChainBlocks) => {
           const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-          const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-          const todaysBlock = (await getBlock(todaysTimestamp, "polygon", chainBlocks));
+          const todaysBlock = (await getBlock(todaysTimestamp, "polygon", {}));
           const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "polygon", {}));
 
           const graphQueryDaily = gql
@@ -44,7 +44,7 @@ const adapter: Adapter = {
           const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily);
           const graphResTotal: IValue[] = (await request(URL, graphQueryTotal)).fees;
 
-          const dailyFee = Number(graphResDaily.today.totalFeesUSD) - Number(graphResDaily.yesterday.totalFeesUSD)
+          const dailyFee = Number(graphResDaily.yesterday.totalFeesUSD) - Number(graphResDaily.today.totalFeesUSD)
           const totalFees = Number(graphResTotal[0].totalFeesUSD);
           return {
               timestamp,
