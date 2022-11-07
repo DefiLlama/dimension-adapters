@@ -4,16 +4,11 @@ import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
-const { request, gql } = require("graphql-request");
 
 
 const URL = 'https://api.thegraph.com/subgraphs/name/dmihal/arbitrum-fees-collected'
 interface IValue {
   totalFeesETH: string;
-}
-interface IDailyResponse {
-  yesterday: IValue;
-  today: IValue;
 }
 
 interface ITx {
