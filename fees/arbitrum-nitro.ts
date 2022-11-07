@@ -2,8 +2,7 @@ import axios from "axios";
 import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 const { request, gql } = require("graphql-request");
 
@@ -21,7 +20,6 @@ interface ITx {
   value: string;
 }
 
-const getUniswapDateId = (date?: Date) => getUniqStartOfTodayTimestamp(date) / 86400;
 
 const SEQUENCER_FEES = '0xa4b1e63cb4901e327597bc35d36fe8a23e4c253f'
 const NETWORK_INFRA_FEES = '0xD345e41aE2cb00311956aA7109fC801Ae8c81a52'
@@ -40,11 +38,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch:  async (timestamp: number, _: ChainBlocks) => {
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-          const todaysId = getUniswapDateId(new Date(todaysTimestamp * 1000));
-          const yesterdaysId = getUniswapDateId(new Date(yesterdaysTimestamp * 1000));
+          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
 
           const todaysBlock = (await getBlock(todaysTimestamp, "arbitrum", {}));
           const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "arbitrum", {}));
@@ -55,27 +50,14 @@ const adapter: Adapter = {
           ]);
           const withdrawalFee = sequesnerFee + infraFee + congestionFee;
 
-          const graphQueryDaily = gql
-          `query fees {
-            yesterday: fee(id: ${yesterdaysId}) {
-              totalFeesETH
-            }
-            today: fee(id: ${todaysId}) {
-              totalFeesETH
-            }
-          }`;
-
-          const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily);
-          const pricesObj = await getPrices(["coingecko:ethereum"], timestamp);
-          const feesETH = Number(graphResDaily.yesterday.totalFeesETH) - Number(graphResDaily.today.totalFeesETH);
-          const dailyFees = feesETH * pricesObj["coingecko:ethereum"].price;
-          const dailyRevenue = (feesETH - withdrawalFee) * pricesObj["coingecko:ethereum"].price
+          const pricesObj = await getPrices(["coingecko:ethereum"], todaysTimestamp);
+          const dailyFees = (withdrawalFee) * pricesObj["coingecko:ethereum"].price
 
           return {
               timestamp,
               totalFees: undefined,
               dailyFees: dailyFees.toString(),
-              dailyRevenue: dailyRevenue.toString(),
+              dailyRevenue: "0",
               totalRevenue: "0",
           };
         },
