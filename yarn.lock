@@ -992,6 +992,11 @@ object.assign@^4.1.4:
     has-symbols "^1.0.3"
     object-keys "^1.1.1"
 
+postgres@^3.3.1:
+  version "3.3.1"
+  resolved "https://registry.yarnpkg.com/postgres/-/postgres-3.3.1.tgz#1d9b5e8f01ee325df13b6db14f38ae2b8f6fe912"
+  integrity sha512-ak/xXToZYwRvQlZIUtLgPUIggz62eIIbPTgxl/Yl4oTu0TgNOd1CrzTCifsvZ89jBwLvnX6+Ky5frp5HzIBoaw==
+
 promise.allsettled@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/promise.allsettled/-/promise.allsettled-1.0.5.tgz#2443f3d4b2aa8dfa560f6ac2aa6c4ea999d75f53"
