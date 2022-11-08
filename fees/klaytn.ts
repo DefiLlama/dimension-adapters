@@ -32,7 +32,7 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
     variables: value
   });
 
-  const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEK || '', "Content-Type": "application/json"};
+  const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEY || '', "Content-Type": "application/json"};
   const result: ITx[] = (await axios.post("https://graphql.bitquery.io", body, { headers: headers }))?.data?.data.ethereum.transactions;
 
   return result;
