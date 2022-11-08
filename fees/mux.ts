@@ -30,6 +30,10 @@ const formatMetaBaseData = (cols: Array<any>, rows: Array<Array<any>>) => {
   })
 }
 
+const formatDate = (date: number) => {
+  return date < 10 ? `0${date}` : `${date}`
+}
+
 const computeRevenue = (fee: number, por: number) => {
   // fee × 70% × POR: Allocate for veMUX holders (in ETH)
   // fee × 30%: Purchase MUXLP and add as protocol-owned liquidity
@@ -39,7 +43,7 @@ const computeRevenue = (fee: number, por: number) => {
 const getFees = (chainId: CHAIN_ID) => {
   return async (timestamp: number) => {
     const date = new Date(timestamp * 1000)
-    const dateTime = `${date.getUTCFullYear()}-${date.getUTCMonth()+1}-${date.getUTCDate()+1}`
+    const dateTime = `${date.getUTCFullYear()}-${formatDate(date.getUTCMonth()+1)}-${formatDate(date.getUTCDate())}`
     const parameter = `[{"type":"date/single","value":"${dateTime}","target":["variable",["template-tag","timestamp"]],"id":"eff4a885"}]`
     const feePathUrl = `${feesDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
     const porPathUrl = `${porDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
