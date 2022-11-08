@@ -11,14 +11,15 @@ const adapter: Adapter = {
             const ts = getTimestampAtStartOfDayUTC(timestamp)
             const today = new Date(ts * 1000).toISOString().substring(0, "2022-11-03".length)
             const dailyFees = await axios.get(`https://apilist.tronscanapi.com/api/turnover?size=1000&start=1575158400000&end=${Date.now()}&type=0`);
-            const trxFeesToday = dailyFees.data.data.find((d:any)=>d.day===today).total_trx_burn // excludes trx burned for USDD
+            const trxFeesToday = dailyFees.data.data.find((d:any)=>d.day===today)
             const pricesObj = await getPrices(["coingecko:tron"], ts);
-            const usdFees = (trxFeesToday*pricesObj["coingecko:tron"].price).toString()
+            const usdFees = (trxFeesToday.total_trx_burn*pricesObj["coingecko:tron"].price).toString() // excludes trx burned for USDD
+            const usdRev = Math.max(trxFeesToday.total_trx_burn - trxFeesToday.total_produce, 0) * pricesObj["coingecko:tron"].price
 
             return {
                 timestamp,
                 dailyFees: usdFees, 
-                dailyRevenue: usdFees,
+                dailyRevenue: usdRev.toString(),
             };
         },
         start: async () => 1575158400

@@ -49,7 +49,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         totalFees: finalTotalFee.toString(),
         dailyFees: finalDailyFee.toString(),
-        dailyRevenue: (finalDailyFee.times(0.1)).toString(), // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
+        dailyRevenue: timestamp<1638234000?"0":(finalDailyFee.times(0.1)).toString(), // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
       };
     };
   };
