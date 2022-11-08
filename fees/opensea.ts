@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import {ETHEREUM } from "../helpers/chains";
+import { ETHEREUM } from "../helpers/chains";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
@@ -34,20 +34,16 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }`;
       const ethAddress = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
       const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-      console.log(pricesObj)
       const latestPrice = new BigNumber(pricesObj[ethAddress]["price"])
-      console.log(latestPrice)
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
-      const dailyFee = new BigNumber(graphRes.totalRevenueETH).multipliedBy(latestPrice)
-      const dailyRev = new BigNumber(graphRes.marketplaceRevenueETH).multipliedBy(latestPrice)
-      console.log(dailyFee.toString())
-      
+      const graphRes = await request(graphUrls[chain], graphQuery)
+      const data = graphRes['marketplaceDailySnapshot'];
+      const dailyFee = new BigNumber(data.totalRevenueETH).multipliedBy(latestPrice)
+      const dailyRev = new BigNumber(data.marketplaceRevenueETH).multipliedBy(latestPrice)
+
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0",
         dailyRevenue: dailyRev.toString(),
       };
     };
@@ -59,19 +55,19 @@ const adapter: Adapter = {
     v1: {
       [ETHEREUM]: {
         fetch: graphs(v1Endpoints)(ETHEREUM),
-        start: async ()  => 1528911384
+        start: async () => 1528911384
       },
     },
     v2: {
       [ETHEREUM]: {
         fetch: graphs(v2Endpoints)(ETHEREUM),
-        start: async ()  => 1645228794
+        start: async () => 1645228794
       },
     },
     seaport: {
       [ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(ETHEREUM),
-        start: async ()  => 1655055510
+        start: async () => 1655055510
       },
     }
   }
