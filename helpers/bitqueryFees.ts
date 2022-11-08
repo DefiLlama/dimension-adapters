@@ -35,5 +35,7 @@ const adapterBitqueryFeesEthereumNetwork = async (form: string, till: string, ne
   return result;
 }
 export {
+  IDate,
+  ITx,
   adapterBitqueryFeesEthereumNetwork
 }
