@@ -25,7 +25,6 @@ const adapter: Adapter = {
 
             return {
                 timestamp,
-                totalFees: undefined,
                 dailyFees: usdFees.toString(),
                 totalRevenue: "0",
                 dailyRevenue: dailyRevenue.toString(),
