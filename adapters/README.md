@@ -1,9 +1,3 @@
-# Adapters
-
-Find the instructions to list, write, test and submit an adapter [here](https://docs.llama.fi/list-your-project/other-dashboards)
-
-```
-
 ## Fees dimensions
 
 | Attribute         | DEXs               | Lending                    | Chains             | NFT Marketplace     | Derivatives        | CDP | Liquid Staking             | Yield | Synthetics |
