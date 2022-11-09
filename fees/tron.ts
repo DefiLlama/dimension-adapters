@@ -14,12 +14,11 @@ const adapter: Adapter = {
             const trxFeesToday = dailyFees.data.data.find((d:any)=>d.day===today)
             const pricesObj = await getPrices(["coingecko:tron"], ts);
             const usdFees = (trxFeesToday.total_trx_burn*pricesObj["coingecko:tron"].price).toString() // excludes trx burned for USDD
-            const usdRev = Math.max(trxFeesToday.total_trx_burn - trxFeesToday.total_produce, 0) * pricesObj["coingecko:tron"].price
 
             return {
                 timestamp,
                 dailyFees: usdFees, 
-                dailyRevenue: usdRev.toString(),
+                dailyRevenue: usdFees,
             };
         },
         start: async () => 1575158400
