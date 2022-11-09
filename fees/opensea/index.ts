@@ -50,7 +50,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
       if (!snapshot24h || !snapshot48h) return { timestamp: todaysTimestamp }
       const ethAddress = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
       const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-      const latestPrice = new BigNumber(pricesObj[ethAddress]["price"])
+      const latestPrice24 = new BigNumber(pricesObj[ethAddress]["price"])
+      const latestPrice48 = new BigNumber(pricesObj[ethAddress]["price"])
+      const latestPrice = latestPrice48.plus(latestPrice24).dividedBy(2)
 
       const dailyFeesETH = snapshot24h.totalFeesETH - snapshot48h.totalFeesETH
       const dailyRevenueETH = snapshot24h.totalRevenueETH - snapshot48h.totalRevenueETH
