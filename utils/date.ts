@@ -20,6 +20,10 @@ export function getTimestampAtStartOfDay(timestamp: number) {
   return toUNIXTimestamp(dt.getTime() - dt.getTimezoneOffset() * 6e4);
 }
 
+export const getTimestamp24hAgo = (timestamp: number) => {
+  return timestamp - 24*3600
+}
+
 export const getTimestampAtStartOfDayUTC = (timestamp: number) => {
   const date = new Date(timestamp * 1000);
   var date_utc = Date.UTC(
