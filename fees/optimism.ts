@@ -6,7 +6,7 @@ import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestamp24hAgo } from "../utils/date";
 
 async function totalSpent(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
     const todaysBlock = (await getBlock(todaysTimestamp, ETHEREUM, chainBlocks));
@@ -59,7 +59,7 @@ async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chain
 
 const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
     const todaysTimestamp = timestamp
-    const yesterdaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
 
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
