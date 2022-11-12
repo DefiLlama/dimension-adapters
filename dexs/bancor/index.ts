@@ -1,9 +1,8 @@
-import { SimpleAdapter, FetchResult, ChainBlocks } from "../../adapters/types";
+import { FetchResult, ChainBlocks, BreakdownAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 import fetchURL from "../../utils/fetchURL"
-const {
-  getUniqStartOfTodayTimestamp,
-} = require("../../helpers/getUniSubgraphVolume");
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface BancorV2Response {
   data: Array<{
@@ -14,10 +13,27 @@ interface BancorV2Response {
     eth: string
   }>
 }
+
+interface BancorV3Response {
+  bnt: string;
+  usd: string;
+  eur: string;
+  eth: string;
+}
+const v3Url = "https://api-v3.bancor.network/stats";
+
 const endpoints = {
   ethereum: (date: number) =>
     `https://api-v2.bancor.network/history/volume?interval=day&start_date=${date}`,
 };
+
+const fetchV3 = async (timestamp: number): Promise<FetchResult> => {
+  const res: BancorV3Response = (await fetchURL(v3Url)).data.data.totalVolume24h;
+  return {
+    timestamp,
+    dailyVolume: res.usd
+  }
+}
 
 const graphs = (chain: string) =>
   async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
@@ -38,16 +54,25 @@ const graphs = (chain: string) =>
     }
   }
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    ethereum: {
-      fetch: graphs("ethereum"),
-      runAtCurrTime: false,
-      customBackfill: undefined,
-      start: async () => 1570665600,
-    },
-    // CUSTOM BACKFILL
-  },
-};
 
+
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    "v2.1": {
+      [CHAIN.ETHEREUM]: {
+        fetch: graphs("ethereum"),
+        runAtCurrTime: false,
+        customBackfill: undefined,
+        start: async () => 1570665600,
+      }
+    },
+    "v3": {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchV3,
+        runAtCurrTime: true,
+        start: async () => 0,
+      }
+    }
+  }
+}
 export default adapter;
