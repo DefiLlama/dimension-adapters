@@ -6,7 +6,7 @@ const {
 } = require("../../helpers/getLyraSubgraphVolume");
 
 const endpoints: { [chain: string]: string } = {
-  optimism: "https://api.thegraph.com/subgraphs/name/lyra-finance/mainnet",
+  optimism: "https://subgraph.satsuma-prod.com/lyra/optimism-mainnet/api",
 };
 
 const subgraph = getChainVolume({
