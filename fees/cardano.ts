@@ -3,6 +3,7 @@ import { Adapter, FetchResult, ProtocolType } from "../adapters/types";
 import { IDate } from "../helpers/bitqueryFees";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 
 
@@ -36,13 +37,14 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
 }
 const startTime = 1577836800;
 const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const form = new Date(startTime * 1000).toISOString().split('T')[0];
-  const till = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const startTimestamp = getTimestampAtStartOfDayUTC(startTime);
+  const tillTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const form = new Date(startTimestamp * 1000).toISOString().split('T')[0];
+  const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITxAda[] = await adapterQuery(form, till, "cardano");
   const totalFees = result.filter((a: ITxAda) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITxAda)=> a + b.feeValue, 0);
-  const dailyFees = result.find((a: ITxAda) => new Date(a.date.date).getTime() === new Date(till).getTime())?.feeValue
-
+  const dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
   const price_id = 'coingecko:cardano'
   const price = (await getPrices([price_id], dayTimestamp))[price_id].price;
   const dailyFeesUsd = (dailyFees || 0) * price;
