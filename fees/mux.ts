@@ -62,9 +62,7 @@ const getFees = (chainId: CHAIN_ID) => {
 
     return {
       timestamp,
-      totalFees: "0",
       dailyFees: dailyFees.toString(),
-      totalRevenue: "0",
       dailyRevenue: computeRevenue(dailyFees, por).toString(),
     };
   }
