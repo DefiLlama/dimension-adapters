@@ -1,5 +1,5 @@
 import { BaseAdapter, Adapter } from "../adapters/types";
-import volumeAdapter from "../volumes/raydium";
+import volumeAdapter from "../dexs/raydium";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
 const TOTAL_FEES = 0.0025;

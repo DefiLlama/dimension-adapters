@@ -1,6 +1,6 @@
-import { getDexChainFeesRaw, getDexChainFees } from "../helpers/getUniSubgraphFees";
+import { getDexChainFeesRaw, getDexChainFees, getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "../volumes/quickswap";
+import volumeAdapter from "../dexs/quickswap";
 import { POLYGON } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -37,14 +37,14 @@ import { Chain } from "@defillama/sdk/build/general";
 const TOTAL_FEES = 0.003;
 const PROTOCOL_FEES = 0.0005;
 
-const feeAdapter = getDexChainFees({
+const feeAdapter = getDexChainBreakdownFees({
   totalFees: TOTAL_FEES,
   protocolFees: PROTOCOL_FEES,
   volumeAdapter
 });
 
 const adapter: Adapter = {
-  adapter: feeAdapter
+  breakdown: feeAdapter
 };
 
 export default adapter;

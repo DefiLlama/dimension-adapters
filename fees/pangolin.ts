@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "../volumes/pangolin";
+import volumeAdapter from "../dexs/pangolin";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
 const TOTAL_FEES = 0.003;

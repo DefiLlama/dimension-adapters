@@ -5,8 +5,6 @@
     }
   },
   "compilerOptions": {
-    "noImplicitAny": false,
-    "strictNullChecks": false,
     "target": "es2019",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -28,7 +26,6 @@
   },
   "include": [
     "fees/*",
-    "volumes/*",
-    "adapters/adapter.type.ts"
-  ],
+    "dexs/*",
+    "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*"],
 }

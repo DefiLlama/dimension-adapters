@@ -2,7 +2,7 @@ import { BreakdownAdapter, Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON } from "../helpers/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { getDexChainBreakdownFees, getUniswapV3Fees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../volumes/uniswap";
+import volumeAdapter from "../dexs/uniswap";
 
 const v3Endpoints = {
   [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",

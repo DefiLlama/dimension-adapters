@@ -2,7 +2,7 @@ name: Alert
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   deploy:
@@ -11,5 +11,4 @@ jobs:
     - uses: actions/checkout@v2
     - run: curl https://born-to-llama.onrender.com/refresh
     - name: Deploy
-      run: |
-        curl -XPOST -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" -H "Authorization: Bearer ${{ secrets.PAT }}" https://api.github.com/repos/DefiLlama/defillama-server/dispatches --data '{"event_type": "build"}'
+      run: wget -O- https://born-to-llama.herokuapp.com/rebuild-server > /dev/null

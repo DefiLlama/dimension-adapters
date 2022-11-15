@@ -1,35 +1,60 @@
-import allSettled from 'promise.allsettled'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult } from '../types'
+import { type } from 'os'
+import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
+import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric, IJSON } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, onError?: (e: Error) => void) {
+export type IRunAdapterResponseFulfilled = FetchResult & {
+    chain: string
+    startTimestamp: number
+}
+export interface IRunAdapterResponseRejected {
+    chain: string
+    timestamp: number
+    error: Error
+}
+
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
-    return await allSettled(chains
-        .filter(async (chain) => {
-            const start = await volumeAdapter[chain].start().catch(e => {
-                onError?.(new Error(`Error getting start time: ${e.message}`))
-                return undefined
-            })
-            return start !== undefined && (start <= cleanPreviousDayTimestamp) || (start === 0)
-        })
+    const validStart = ((await Promise.all(chains.map(async (chain) => {
+        const start = await volumeAdapter[chain].start()
+        return [chain, start !== undefined && (start <= cleanPreviousDayTimestamp), start]
+    }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean | number)[]>)
+    return allSettled(chains
+        .filter(chain => validStart[chain][0])
         .map(async (chain) => {
             const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
             try {
-                const startTimestamp = await volumeAdapter[chain].start()
-                const result = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
-                Object.keys(result).forEach(key => {
-                    if (result[key] && Number.isNaN(+result[key])) delete result[key]
-                })
-                return ({
+                const startTimestamp = validStart[chain][1]
+                const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
+                cleanResult(result)
+                return Promise.resolve({
                     chain,
                     startTimestamp,
                     ...result
-                });
+                })
             } catch (e) {
-                return await Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
+                return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
-        }
-        )).then(res => res.map(r => r.status === 'fulfilled' ? r.value : r.reason as FetchResult))
+        })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>
 }
+
+const cleanResult = (obj: any) => {
+    Object.keys(obj).forEach(key => {
+        if (typeof obj[key] === 'object') cleanResult(obj[key])
+        else if (!okAttribute(obj[key])) {
+            console.log("Wrong value", obj[key], "with key", key)
+            delete obj[key]
+        }
+    })
+}
+
+const okAttribute = (value: any) => {
+    return !(value && Number.isNaN(+value))
+}
+
+const isFulfilled = <T,>(p: PromiseResult<T>): p is PromiseResolution<T> => p.status === 'fulfilled';
+const isRejected = <T, E>(p: PromiseResult<T, E>): p is PromiseRejection<E> => p.status === 'rejected';
+export const getFulfilledResults = <T,>(results: PromiseResult<T>[]) => results.filter(isFulfilled).map(r => r.value)
+export const getRejectedResults = <T, E>(results: PromiseResult<T, E>[]) => results.filter(isRejected).map(r => r.reason)
