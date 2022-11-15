@@ -46,30 +46,37 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BOBA]: {
         fetch:  async (timestamp: number, chainBlocks: ChainBlocks) => {
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-          const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-          const startDay = new Date(todaysTimestamp * 1e3);
-          const endDay = new Date(endToDayTimestamp * 1e3);
-          const totalFees = await getFees(todaysTimestamp, endToDayTimestamp, chainBlocks)
-          const sequencerGas = await sql`
-            SELECT
-              sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price)/10^18 as sum
-            FROM ethereum.transactions
-              INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-            WHERE ( to_address = '\\xfbd2541e316948b259264c02f370ed088e04c3db'::bytea -- Canonical Transaction Chain
-              OR to_address = '\\xde7355c971a5b733fe2133753abd7e5441d441ec'::bytea -- State Commitment Chain
-            ) AND (timestamp BETWEEN ${startDay} AND ${endDay});
-          `
+          try {
+            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+            const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+            const startDay = new Date(todaysTimestamp * 1e3);
+            const endDay = new Date(endToDayTimestamp * 1e3);
+            const totalFees = await getFees(todaysTimestamp, endToDayTimestamp, chainBlocks)
+            const sequencerGas = await sql`
+              SELECT
+                sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price)/10^18 as sum
+              FROM ethereum.transactions
+                INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+              WHERE ( to_address = '\\xfbd2541e316948b259264c02f370ed088e04c3db'::bytea -- Canonical Transaction Chain
+                OR to_address = '\\xde7355c971a5b733fe2133753abd7e5441d441ec'::bytea -- State Commitment Chain
+              ) AND (timestamp BETWEEN ${startDay} AND ${endDay});
+            `
 
-          const seqGas = sequencerGas[0].sum;
-          const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-          const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-          await sql.end({ timeout: 5 });
-          return {
-              timestamp,
-              dailyFees: (totalFees.times(ethPrice)).toString(),
-              dailyRevenue: ((totalFees.minus(seqGas)).times(ethPrice)).toString(),
-          };
+            const seqGas = sequencerGas[0].sum;
+            const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+            const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+            await sql.end({ timeout: 5 });
+            const dailyRevenue = totalFees.minus(seqGas).times(ethPrice);
+            return {
+                timestamp,
+                dailyFees: (totalFees.times(ethPrice)).toString(),
+                dailyRevenue: dailyRevenue.toNumber() < 0 ?  "0": dailyRevenue.toString(),
+            };
+          } catch(error) {
+            await sql.end({ timeout: 5 });
+            throw error
+          }
+
         },
         start: async () => 1609459200
     },
