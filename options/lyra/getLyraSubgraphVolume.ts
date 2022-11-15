@@ -9,7 +9,7 @@ interface IGetChainVolumeParams {
   graphUrls: {
     [chains: string]: string;
   };
-  timestamp: number;
+  timestamp?: number;
 }
 
 interface IDayVolumeResponse {
