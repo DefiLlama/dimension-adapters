@@ -1,9 +1,6 @@
+import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
-
-
-const {
-  getChainVolume,
-} = require("../../helpers/getLyraSubgraphVolume");
+import { getChainVolume } from "./getLyraSubgraphVolume";
 
 const endpoints: { [chain: string]: string } = {
   optimism: "https://subgraph.satsuma-prod.com/lyra/optimism-mainnet/api",
@@ -18,7 +15,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: subgraph(chain),
+        fetch: subgraph(chain as Chain),
         start: async () => 1656154800
       }
     }
