@@ -57,12 +57,12 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
                 .div(UNIT)
                 .toNumber(),
             totalNotional:
-              acc.notional +
+              acc.totalNotional +
               BigNumber.from(obj.totalNotionalVolume)
                 .div(UNIT)
                 .toNumber(),
             totalPremium:
-              acc.premium +
+              acc.totalPremium +
               BigNumber.from(obj.totalPremiumVolume)
                 .div(UNIT)
                 .toNumber(),
