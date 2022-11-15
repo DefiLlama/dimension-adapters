@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "@defillama/adapters/volumes/adapters/mojitoswap";
+import volumeAdapter from "../dexs/mojitoswap";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
 const TOTAL_FEES = 0.003;
