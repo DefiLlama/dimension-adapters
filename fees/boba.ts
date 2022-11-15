@@ -15,10 +15,10 @@ async function getFees(todaysTimestamp: number, yesterdaysTimestamp: number, _: 
   const endTodayBlock = (await getBlock(yesterdaysTimestamp, "boba", {}));
   const graphQuery = gql
       `query txFees {
-          today: withdrawns(id: 1, block: { number: ${todaysBlock} }) {
+          today: withdrawns(id: "1", block: { number: ${todaysBlock} }) {
               amount
           }
-          endToday: withdrawns(id: 1, block: { number: ${endTodayBlock} }) {
+          endToday: withdrawns(id: "1", block: { number: ${endTodayBlock} }) {
               amount
           }
     }`;
@@ -53,7 +53,7 @@ const adapter: Adapter = {
           const totalFees = await getFees(todaysTimestamp, endToDayTimestamp, chainBlocks)
           const sequencerGas = await sql`
             SELECT
-              sum(ethereum.transactions.gas_used*ethereum.transactions.gas_price)
+              sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price)/10^18 as sum
             FROM ethereum.transactions
               INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
             WHERE ( to_address = '\\xfbd2541e316948b259264c02f370ed088e04c3db'::bytea -- Canonical Transaction Chain
@@ -61,10 +61,10 @@ const adapter: Adapter = {
             ) AND (timestamp BETWEEN ${startDay} AND ${endDay});
           `
 
-          const seqGas = sequencerGas[0].sum/1e18;
+          const seqGas = sequencerGas[0].sum;
           const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
           const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-
+          await sql.end({ timeout: 5 });
           return {
               timestamp,
               dailyFees: (totalFees.times(ethPrice)).toString(),
