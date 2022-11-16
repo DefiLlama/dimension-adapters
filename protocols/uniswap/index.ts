@@ -76,17 +76,20 @@ const v3Graphs = getGraphDimensions({
     field: VOLUME_USD,
   },
   feesPercent: {
-    type: "volume",
+    type: "fees",
     ProtocolRevenue: 0,
     HoldersRevenue: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 100, // 100% of fees are going to LPs
+    Revenue: 100 // Revenue is 100% of collected fees
   }
 });
 
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Protocol has no revenue.",
+  ProtocolRevenue: "Protocol have no revenue.",
   SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders has no revenue."
+  HoldersRevenue: "Holders have no revenue."
 }
 
 const adapter: BreakdownAdapter = {
