@@ -1,9 +1,9 @@
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "@defillama/adapters/volumes/adapters/spiritswap";
+import volumeAdapter from "../dexs/spiritswap";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 
-const TOTAL_FEES = 0.0022;
-const PROTOCOL_FEES = 0.00045;
+const TOTAL_FEES = 0.003;
+const PROTOCOL_FEES = 0.0005;
 
 const feeAdapter = getDexChainFees({
   totalFees: TOTAL_FEES,
