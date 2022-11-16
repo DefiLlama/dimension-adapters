@@ -1,5 +1,6 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 import { getPrices } from "../../utils/prices";
 
@@ -59,6 +60,7 @@ const convertSymbol = (symbol: string): ITokenInfo => {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const poolCall = (await fetchURL(URL))?.data;
   const poolDetail = poolCall
     .map((pool: any) => pool.volume
@@ -71,14 +73,14 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     }
   });
   const id = pools.map((p: IVolumeall) => `coingecko:${p.id}`);
-  const prices = await getPrices(id, timestamp);
+  const prices = await getPrices(id, dayTimestamp);
   const dailyVolume = pools
     .map((p: IVolumeall) => p.amount * prices[`coingecko:${p.id}`.toLowerCase()].price)
     .reduce((a: number, b: number) => a + b, 0);
 
   return {
     dailyVolume: dailyVolume.toString(),
-    timestamp
+    timestamp: dayTimestamp
   }
 }
 
