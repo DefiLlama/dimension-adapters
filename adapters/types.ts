@@ -29,7 +29,7 @@ export type BaseAdapter = {
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
     meta?: {
-      methodology?: string
+      methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
     }
   }
