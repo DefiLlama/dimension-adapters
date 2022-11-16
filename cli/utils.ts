@@ -1,4 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
+import { Adapter, BaseAdapter, IJSON } from "../adapters/types";
 import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
 
 export const ERROR_STRING = '------ ERROR ------'
@@ -21,18 +22,23 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: IRunAdapterResponseFulfilled[]) {
+export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapter?: BaseAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
     volumes.forEach((element) => {
+        const methodology = baseAdapter?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
+        if (typeof methodology === 'string') console.log("Methodology:", methodology)
+        else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
         Object.entries(element).forEach(([attribute, value]) => {
             if (!exclude2Print.includes(attribute)) {
                 const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : value
                 console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
+                if (typeof methodology === 'object' && methodology[attribute.slice(5)])
+                    console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }
         })
         console.info('\n')

@@ -82,6 +82,13 @@ const v3Graphs = getGraphDimensions({
   }
 });
 
+const methodology = {
+  UserFees: "User pays 0.3% fees on each swap.",
+  ProtocolRevenue: "Protocol has no revenue.",
+  SupplySideRevenue: "All user fees are distributed among LPs.",
+  HoldersRevenue: "Holders has no revenue."
+}
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
@@ -89,10 +96,8 @@ const adapter: BreakdownAdapter = {
         fetch: v1Graph(CHAIN.ETHEREUM),
         start: async () => 1541203200,
         meta: {
-          methodology: {
-
-          }
-        }
+          methodology
+        },
       },
     },
     v2: {
@@ -102,6 +107,9 @@ const adapter: BreakdownAdapter = {
           endpoints: v2Endpoints,
           chain: CHAIN.ETHEREUM,
         }),
+        meta: {
+          methodology
+        },
       },
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
@@ -111,7 +119,13 @@ const adapter: BreakdownAdapter = {
           endpoints: v3Endpoints,
           chain: chain,
           volumeField: VOLUME_USD,
-        })
+        }),
+        meta: {
+          methodology: {
+            ...methodology,
+            UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
+          }
+        }
       }
       return acc
     }, {} as BaseAdapter)
