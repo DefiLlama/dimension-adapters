@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async () => 0,
+      start: async () => 1668643200,
     },
   },
 };
