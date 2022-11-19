@@ -1,5 +1,5 @@
 import { getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../dexs/pancakeswap";
+import volumeAdapter from "../protocols/pancakeswap";
 import { Adapter } from "../adapters/types";
 
 const TOTAL_FEES = 0.0025;

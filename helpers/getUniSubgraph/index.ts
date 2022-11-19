@@ -38,7 +38,6 @@ interface IGetChainVolumeParams {
   feesPercent?: {
     type: "volume" | "fees"
     UserFees?: number,
-    TotalRevenue?: number,
     SupplySideRevenue?: number,
     ProtocolRevenue?: number,
     HoldersRevenue?: number,
@@ -150,13 +149,13 @@ function getGraphDimensions({
       if (!graphResDailyVolume || !dailyVolume) {
         console.info("Attempting with alternative query...")
         graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
-        const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
+        const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
         dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[dailyVolume.field]), 0);
       }
 
       // TOTAL VOLUME
       const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block }).catch(e => console.error(`Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`));
-      const totalVolume = graphResTotalVolume[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)
+      const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
       // DAILY FEES
       const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }).catch(e => {
@@ -183,8 +182,6 @@ function getGraphDimensions({
 
       if (feesPercent) {
         const feeBase = feesPercent.type
-        // @ts-ignore: ignore deleting non optional attribute
-        delete feesPercent.type
         const dailyBase = feeBase === 'volume' ? dailyVolume : dailyFees
         const totalBase = feeBase === 'volume' ? totalVolume : totalFees
         Object.entries(feesPercent).forEach(([feeType, feePercentType]) => {

@@ -37,7 +37,7 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapte
             if (!exclude2Print.includes(attribute)) {
                 const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : value
                 console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
-                if (typeof methodology === 'object' && methodology[attribute.slice(5)])
+                if (valueFormatted !== undefined && typeof methodology === 'object' && methodology[attribute.slice(5)])
                     console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }
         })
