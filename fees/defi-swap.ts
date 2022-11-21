@@ -13,5 +13,4 @@ const adapter: Adapter = {
   adapter: feeAdapter
 };
 
-
 export default adapter;
