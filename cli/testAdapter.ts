@@ -1,3 +1,4 @@
+require('dotenv').config()
 import * as path from 'path'
 import { Adapter, AdapterType, ChainBlocks, FetchResultVolume } from '../adapters/types';
 import { checkArguments, ERROR_STRING, formatTimestampAsDate, printRejectedVolumes, printVolumes, upperCaseFirst } from './utils';
@@ -6,7 +7,6 @@ import runAdapter, { getFulfilledResults, getRejectedResults } from '../adapters
 import { canGetBlock, getBlock } from '../helpers/getBlock';
 import allSettled from 'promise.allsettled';
 import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
-require('dotenv').config()
 
 // tmp
 const handleError = (e: Error) => console.error(e)
