@@ -49,7 +49,7 @@ const fetch = (chain: Chain) => {
     });
     const dailyVolume = bridgesVolumeInfo.reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0);
     const dailyFees = dailyVolume * 0.0006;
-    const dailyRevenue = dailyVolume * 0.00015;
+    const dailyRevenue = dailyVolume * 0.0005;
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
