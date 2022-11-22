@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: async () => 666224000,
+      start: async () => 1666224000,
       customBackfill: customBackfill(CHAIN.APTOS as Chain, (_chian: string) => fetch)
     },
   },
