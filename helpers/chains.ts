@@ -75,6 +75,7 @@ export enum CHAIN {
   FLOW = "flow",
   FUSION = "fusion",
   CANTO="canto",
+  APTOS = "aptos"
 }
 
 // Don´t use
