@@ -1,18 +1,18 @@
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
+import { getDexChainBreakdownFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../dexs/traderjoe";
-import { Adapter, BaseAdapter } from "../adapters/types";
+import { Adapter } from "../adapters/types";
 
 const TOTAL_FEES = 0.003;
 const PROTOCOL_FEES = 0.0005;
 
-const feeAdapter: BaseAdapter = getDexChainFees({
+const breakdownAdapter = getDexChainBreakdownFees({
   totalFees: TOTAL_FEES,
   protocolFees: PROTOCOL_FEES,
   volumeAdapter
 });
 
 const adapter: Adapter = {
-    adapter: feeAdapter
+  breakdown: breakdownAdapter
 };
 
 export default adapter;
