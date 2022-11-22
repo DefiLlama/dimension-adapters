@@ -15,4 +15,5 @@ const adapter: Adapter = {
   breakdown: breakdownAdapter
 };
 
+
 export default adapter;
