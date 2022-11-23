@@ -29,7 +29,7 @@ export type BaseAdapter = {
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
     meta?: {
-      methodology?: string | IJSON<string>
+      methodology?: string
       hallmarks?: [number, string][]
     }
   }
@@ -100,8 +100,7 @@ export enum AdapterType {
   INCENTIVES = 'incentives',
   AGGREGATORS = 'aggregators',
   DERIVATIVES = 'derivatives',
-  OPTIONS = 'options',
-  PROTOCOLS = 'protocols'
+  OPTIONS = 'options'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees
