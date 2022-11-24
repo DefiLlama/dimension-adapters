@@ -85,10 +85,7 @@ const graph = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: prevDayFeesSum.dailyFees.toString(),
-        totalRevenue: "0",
-        dailyRevenue: "0",
       };
     };
   };
