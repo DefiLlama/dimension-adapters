@@ -1,5 +1,4 @@
 import { Adapter } from "../adapters/types";
-import { FANTOM } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
@@ -40,8 +39,8 @@ const graphs = () => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
-        fetch: graphs()(CHAIN.FANTOM),
-        start: async () => 1633478400,
+        fetch: graphs()(CHAIN.BSC),
+        start: async () => 1647734400,
     },
   },
 }
