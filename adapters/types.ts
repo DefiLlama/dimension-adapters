@@ -1,6 +1,4 @@
-import { util  } from '@defillama/sdk';
-
-const { blocks: { getChainBlocks }} = util
+import { getChainBlocks } from '@defillama/sdk/build/computeTVL/blocks';
 
 export type ChainBlocks = Awaited<ReturnType<typeof getChainBlocks>>
 

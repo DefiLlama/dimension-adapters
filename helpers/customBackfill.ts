@@ -1,9 +1,8 @@
 import { ChainBlocks, Fetch } from "../adapters/types"
 import { getBlock } from "./getBlock"
-import { util } from '@defillama/sdk';
+import { chainsForBlocks } from "@defillama/sdk/build/computeTVL/blocks";
 import { Chain } from "@defillama/sdk/build/general";
 
-const { blocks: {chainsForBlocks } } = util
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 export type IGraphs = (chain: Chain) => (timestamp: number, chainBlocks: ChainBlocks) => Promise<{
