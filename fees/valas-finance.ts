@@ -39,7 +39,7 @@ const graphs = () => {
 
 const adapter: Adapter = {
   adapter: {
-    [FANTOM]: {
+    [CHAIN.BSC]: {
         fetch: graphs()(CHAIN.FANTOM),
         start: async () => 1633478400,
     },
