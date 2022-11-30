@@ -4,6 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getBlock } from "../helpers/getBlock";
 import BigNumber from "bignumber.js";
+import { getPrices } from "../utils/prices";
 
 
 interface IEvent {
@@ -65,9 +66,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const nftBotFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
   const daiVaultVol = daiVaultCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
   const lpFeeVol = lpFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-
-  const dailyRevenue = devFeeValume.plus(ssFeeVol).div(BIG_TEN.pow(18)).toString();
-  const dailyFees =  devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol).plus(lpFeeVol).div(BIG_TEN.pow(18)).toString();
+  const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
+  const daiPrice = prices['coingecko:dai']?.price || 1;
+  const dailyRevenue = devFeeValume.plus(ssFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+  const dailyFees =  devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol).plus(lpFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
   return {
     timestamp,
     dailyFees,
