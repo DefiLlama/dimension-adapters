@@ -1,4 +1,4 @@
-const ALLOWED_ROOTS = ['volumes', 'dexs', 'options', 'derivatives', 'incentives', 'fees', 'options']
+const ALLOWED_ROOTS = ['volumes', 'dexs', 'options', 'derivatives', 'incentives', 'fees', 'options', 'protocols']
 const MODIFIED = parse(process.env.MODIFIED)
 const ADDED = parse(process.env.ADDED)
 const fileSet = new Set();

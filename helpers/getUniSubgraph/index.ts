@@ -1,10 +1,11 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "../getBlock";
-import { ChainBlocks, FetchResultGeneric } from "../../adapters/types";
+import { BaseAdapter, ChainBlocks, FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphFees";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp, getUniswapDateId } from "./utils";
+import { getStartTimestamp } from "../getStartTimestamp";
 
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
@@ -158,16 +159,16 @@ function getGraphDimensions({
       const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
       // DAILY FEES
-      const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }).catch(e => {
+      const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }).catch(_e => {
         if (dailyVolume === undefined || feesPercent?.Fees === undefined)
-          console.error(`Failed to get daily fees on ${chain} with graph ${graphUrls[chain]}: ${e.message}`)
+          console.error(`Unable to get daily fees on ${chain} from graph.`)
       });
       const dailyFees = graphResDailyFees?.[graphFieldsDailyFees.factory]?.[graphFieldsDailyFees.field]
 
       // TOTAL FEES
-      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { id }).catch(e => {
+      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { id }).catch(_e => {
         if (totalVolume === undefined || feesPercent?.Fees === undefined)
-          console.error(`Failed to get total fees on ${chain} with graph ${graphUrls[chain]}: ${e.message}`)
+          console.error(`Unable to get total fees on ${chain} from graph.`)
       });
       const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
@@ -197,8 +198,34 @@ function getGraphDimensions({
   };
 }
 
+function univ2DimensionAdapter(params: IGetChainVolumeParams, meta: BaseAdapter[string]['meta']) {
+  const graphs = getGraphDimensions(params);
+
+  const adapter: SimpleAdapter = {
+    adapter: Object.keys(params.graphUrls).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: graphs(chain as Chain),
+          start: getStartTimestamp({
+            endpoints: params.graphUrls,
+            chain,
+            volumeField: params.dailyVolume?.field,
+            dailyDataField: params.dailyVolume?.factory + "s",
+            dateField: params.dailyVolume?.dateField
+          }),
+          meta
+        }
+      }
+    }, {} as BaseAdapter)
+  };
+
+  return adapter;
+}
+
 export {
   getGraphDimensions,
+  univ2DimensionAdapter,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
