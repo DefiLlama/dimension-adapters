@@ -6,12 +6,12 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.NEO]: "http://localhost:5000/defillama/fees?chain=n3&timestamp=",
-  [CHAIN.BSC]: "http://localhost:5000/defillama/fees?chain=bsc&timestamp=",
-  [CHAIN.AVAX]: "http://localhost:5000/defillama/fees?chain=avalanche&timestamp=",
-  [CHAIN.POLYGON]: "http://localhost:5000/defillama/fees?chain=polygon&timestamp=",
-  [CHAIN.ETHEREUM]: "http://localhost:5000/defillama/fees?chain=eth&timestamp=",
-  [CHAIN.PHANTASMA]: "http://localhost:5000/defillama/fees?chain=pha&timestamp=",
+  [CHAIN.NEO]: "https://api-external.ghostmarket.io/defillama/fees?chain=n3&timestamp=",
+  [CHAIN.BSC]: "https://api-external.ghostmarket.io/defillama/fees?chain=bsc&timestamp=",
+  [CHAIN.AVAX]: "https://api-external.ghostmarket.io/defillama/fees?chain=avalanche&timestamp=",
+  [CHAIN.POLYGON]: "https://api-external.ghostmarket.io/defillama/fees?chain=polygon&timestamp=",
+  [CHAIN.ETHEREUM]: "https://api-external.ghostmarket.io/defillama/fees?chain=eth&timestamp=",
+  [CHAIN.PHANTASMA]: "https://api-external.ghostmarket.io/defillama/fees?chain=pha&timestamp=",
 }
 
 const buildUrl = async (apiUrl: string, timestamp: number) => {
@@ -31,7 +31,9 @@ const apis = (apiUrls: ChainEndpoints) => {
         dailyFees: data.dailyFees,
         userFees: data.userFees,
         dailyRevenue: data.dailyRevenue,
-        protocolRevenue: data.protocolRevenue
+        protocolRevenue: data.protocolRevenue,
+        dailyVolume: data.dailyVolume,
+        totalVolume: data.totalVolume
       }
     };
   };
