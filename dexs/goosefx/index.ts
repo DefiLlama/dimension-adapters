@@ -10,7 +10,6 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const dailyVolumeEndpoint = "https://nft-launchpad.goosefx.io/getTotalVolumeTrade";
 const historicalVolumeEndpoint = "https://nft-launchpad.goosefx.io/getDailyVolumeTrade"
 
-
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const currentDayTimestamp = getUniqStartOfTodayTimestamp(new Date());
