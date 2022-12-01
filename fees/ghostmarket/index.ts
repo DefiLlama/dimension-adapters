@@ -23,8 +23,6 @@ const apis = (apiUrls: ChainEndpoints) => {
   return (chain: CHAIN) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      console.log("VALENTIN3");
-      console.log(chain);
       const url = await buildUrl(apiUrls[chain], todaysTimestamp);
       const data = (await fetchURL(url)).data;
 
