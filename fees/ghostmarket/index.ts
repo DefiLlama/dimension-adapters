@@ -15,7 +15,14 @@ const endpoints = {
 }
 
 const buildUrl = async (apiUrl: string, timestamp: number) => {
-    return apiUrl + timestamp.toString();
+  return apiUrl + timestamp.toString();
+}
+
+const methodology = {
+  Fees: "Users pay 2% fees on each trade",
+  UserFees: "Users pay 2% fees on each trade",
+  ProtocolRevenue: "Protocol gets 80% of user fees",
+  Revenue: "Revenue is 2% of each trade"
 }
 
 
@@ -29,9 +36,13 @@ const apis = (apiUrls: ChainEndpoints) => {
       return {
         timestamp,
         dailyFees: data.dailyFees,
-        userFees: data.userFees,
+        totalFees: data.userFees,
+        dailyUserFees: data.dailyFees,
+        totalUserFees: data.userFees,
         dailyRevenue: data.dailyRevenue,
-        protocolRevenue: data.protocolRevenue,
+        totalRevenue: data.protocolRevenue,
+        dailyProtocolRevenue: data.dailyRevenue,
+        totalProtocolRevenue: data.protocolRevenue,
         dailyVolume: data.dailyVolume,
         totalVolume: data.totalVolume
       }
@@ -42,46 +53,46 @@ const apis = (apiUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.NEO]: {
-        fetch: apis(endpoints)(CHAIN.NEO),
-        start: async ()  => 1629813600,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.NEO),
+      start: async () => 1629813600,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.BSC]: {
-        fetch: apis(endpoints)(CHAIN.BSC),
-        start: async ()  => 1653868800,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.BSC),
+      start: async () => 1653868800,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.AVAX]: {
-        fetch: apis(endpoints)(CHAIN.AVAX),
-        start: async ()  => 1653868800,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.AVAX),
+      start: async () => 1653868800,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.POLYGON]: {
-        fetch: apis(endpoints)(CHAIN.POLYGON),
-        start: async ()  => 1653868800,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.POLYGON),
+      start: async () => 1653868800,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.ETHEREUM]: {
-        fetch: apis(endpoints)(CHAIN.ETHEREUM),
-        start: async ()  => 1652400000,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.ETHEREUM),
+      start: async () => 1652400000,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.PHANTASMA]: {
-        fetch: apis(endpoints)(CHAIN.PHANTASMA),
-        start: async ()  => 1577664000,
-        meta: {
-            methodology: "Users pay 2% fees on each trade (20% of those goes to GFUND single stake pool)"
-        }
+      fetch: apis(endpoints)(CHAIN.PHANTASMA),
+      start: async () => 1577664000,
+      meta: {
+        methodology
+      }
     }
   }
 }
