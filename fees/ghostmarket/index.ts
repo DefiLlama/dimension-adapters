@@ -21,8 +21,9 @@ const buildUrl = async (apiUrl: string, timestamp: number) => {
 const methodology = {
   Fees: "Users pay 2% fees on each trade",
   UserFees: "Users pay 2% fees on each trade",
-  ProtocolRevenue: "Protocol gets 80% of user fees",
-  Revenue: "Revenue is 2% of each trade"
+  ProtocolRevenue: "Protocol gets 2% of each trade",
+  Revenue: "Revenue is 2% of each trade",
+  HoldersRevenue: "20% of user fees goes to GFUND single stake pool"
 }
 
 
@@ -44,7 +45,9 @@ const apis = (apiUrls: ChainEndpoints) => {
         dailyProtocolRevenue: data.dailyRevenue,
         totalProtocolRevenue: data.protocolRevenue,
         dailyVolume: data.dailyVolume,
-        totalVolume: data.totalVolume
+        totalVolume: data.totalVolume,
+        dailyHoldersRevenue: data.dailyFees * 0.2,
+        totalHoldersRevenue: data.userFees * 0.2
       }
     };
   };
