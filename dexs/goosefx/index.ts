@@ -26,8 +26,8 @@ const fetch = async (timestamp: number) => {
         "date": formattedDate
     });
     return {
-        totalVolume: dayVolume?.data?.data[0]?.totalVolumeTradeDay,
-        dailyVolume: dayVolume?.data?.data[0]?.totalVolumeTrade,
+        dailyVolume: dayVolume?.data?.data[0]?.totalVolumeTradeDay,
+        totalVolume: dayVolume?.data?.data[0]?.totalVolumeTrade,
         timestamp: dayTimestamp,
     };
   }
