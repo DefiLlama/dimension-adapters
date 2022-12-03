@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2DimensionAdapter } from "../../helpers/getUniSubgraph";
 
 const DEFAULT_DAILY_VOLUME_FACTORY = "dailyVolume";
-const DEFAULT_DAILY_DATE_FIELD = "date";
+const DEFAULT_DAILY_DATE_FIELD = "timestamp";
 const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolume";
 const DEFAULT_TOTAL_VOLUME_FACTORY = "jojodealers";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
@@ -22,5 +22,5 @@ const adapter = univ2DimensionAdapter({
     }
 }, {});
 
-adapter.adapter.bsc.start = async () => 22088074;
+adapter.adapter.bsc.start = async () => 1667260800;
 export default adapter;
