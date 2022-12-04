@@ -12,7 +12,7 @@ const adapter = univ2DimensionAdapter({
     SupplySideRevenue: 0.2, // 0.2% of fees are going to LPs
     Fees: 0.2,
     ProtocolRevenue: 0,
-    Revenue: 0.2
+    Revenue: 0// 0.2
   }
 }, {
   methodology: {
