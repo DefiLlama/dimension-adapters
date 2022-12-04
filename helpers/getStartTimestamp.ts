@@ -34,13 +34,13 @@ const getStartTimestamp =
         }
     `;
 
-      const result = await request(endpoints[chain], query);
+      const result = await request(endpoints[chain], query).catch(console.error);
 
       const days = result?.[dailyDataField];
 
-      const firstValidDay = days.find((data: any) => data[volumeField] !== "0");
+      const firstValidDay = days?.find((data: any) => data[volumeField] !== "0");
 
-      return firstValidDay[dateField];
+      return firstValidDay?.[dateField];
     };
 
 export {
