@@ -24,12 +24,12 @@ const chainDataQuery = gql`
     totalFeeRevenues {
       totalFeeRevenueInUsd
     }
-    totalFeeRevenueDailies {
+    totalFeeRevenueDailies(orderDirection: desc, orderBy: timestamp) {
       id
       timestamp
       totalFeeRevenueInUsd
     }
-    totalVolumeDailies {
+    totalVolumeDailies(orderDirection: desc, orderBy: timestamp) {
       id
       timestamp
       totalVolumeInUsd
@@ -45,14 +45,17 @@ interface ChainData {
   timestamp: string
 }
 
-function getLast(array: Array<any>): any {
-  if (!Array.isArray(array) || array.length === 0) return {}
-  const lastIdx = array.length - 1
-  return array[lastIdx]
+function get2Days(array: Array<any>, key: string): [string, string] {
+  if (!Array.isArray(array) || array.length <= 2) return ['0', '0']
+  return array.slice(1, 3).map((obj) => obj[key]) as [string, string]
 }
 
 function toNumber(value: string): number {
   return Number(utils.formatEther(value))
+}
+
+function calcLast24hrsVolume(values: [string, string]): number {
+  return toNumber(values[0]) - toNumber(values[1])
 }
 
 async function getChainData(
@@ -68,12 +71,15 @@ async function getChainData(
     totalVolumes,
   } = result
   const totalPremiumVolume = toNumber(totalFeeRevenues[0].totalFeeRevenueInUsd)
-  const dailyPremiumVolume = toNumber(
-    getLast(totalFeeRevenueDailies).totalFeeRevenueInUsd
+  const dailyPremiumVolume = calcLast24hrsVolume(
+    get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
   )
+  console.log(totalFeeRevenueDailies)
+  console.log(get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd'))
+
   const totalNotionalVolume = toNumber(totalVolumes[0].totalVolumeInUsd)
-  const dailyNotionalVolume = toNumber(
-    getLast(totalVolumeDailies).totalVolumeInUsd
+  const dailyNotionalVolume = calcLast24hrsVolume(
+    get2Days(totalVolumeDailies, 'totalVolumeInUsd')
   )
 
   return {
