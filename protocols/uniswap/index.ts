@@ -1,12 +1,13 @@
+import { Chain } from "@defillama/sdk/build/general";
 import { BaseAdapter, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
-const {
-  getChainVolume,
+import {
+  getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-} = require("../../helpers/getUniSubgraphVolume");
+} from "../../helpers/getUniSubgraph"
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -28,23 +29,43 @@ const v3Endpoints = {
 
 const VOLUME_USD = "volumeUSD";
 
-const v1Graph = getChainVolume({
+const v1Graph = getGraphDimensions({
   graphUrls: v1Endpoints,
   totalVolume: {
     factory: "uniswaps",
-    field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
     field: "dailyVolumeInUSD",
   },
+  dailyFees: {
+    factory: "exchangeHistoricalData",
+    field: "feeInEth"
+  },
+  feesPercent: {
+    type: "volume",
+    UserFees: 0.3,
+    ProtocolRevenue: 0,
+    SupplySideRevenue: 0.3,
+    HoldersRevenue: 0,
+    Revenue: 0,
+    Fees: 0.3
+  }
 });
 
-const v2Graph = getChainVolume({
-  graphUrls: v2Endpoints
+const v2Graph = getGraphDimensions({
+  graphUrls: v2Endpoints,
+  feesPercent: {
+    type: "volume",
+    UserFees: 0.3,
+    ProtocolRevenue: 0,
+    SupplySideRevenue: 0.3,
+    HoldersRevenue: 0,
+    Revenue: 0,
+    Fees: 0.3
+  }
 });
 
-const v3Graphs = getChainVolume({
+const v3Graphs = getGraphDimensions({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
@@ -54,7 +75,22 @@ const v3Graphs = getChainVolume({
     factory: DEFAULT_DAILY_VOLUME_FACTORY,
     field: VOLUME_USD,
   },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 100, // 100% of fees are going to LPs
+    Revenue: 0 // Revenue is 100% of collected fees
+  }
 });
+
+const methodology = {
+  UserFees: "User pays 0.3% fees on each swap.",
+  ProtocolRevenue: "Protocol have no revenue.",
+  SupplySideRevenue: "All user fees are distributed among LPs.",
+  HoldersRevenue: "Holders have no revenue."
+}
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -62,6 +98,9 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graph(CHAIN.ETHEREUM),
         start: async () => 1541203200,
+        meta: {
+          methodology
+        },
       },
     },
     v2: {
@@ -71,16 +110,25 @@ const adapter: BreakdownAdapter = {
           endpoints: v2Endpoints,
           chain: CHAIN.ETHEREUM,
         }),
+        meta: {
+          methodology
+        },
       },
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain),
+        fetch: v3Graphs(chain as Chain),
         start: getStartTimestamp({
           endpoints: v3Endpoints,
           chain: chain,
           volumeField: VOLUME_USD,
-        })
+        }),
+        meta: {
+          methodology: {
+            ...methodology,
+            UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
+          }
+        }
       }
       return acc
     }, {} as BaseAdapter)

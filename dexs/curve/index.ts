@@ -1,15 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 import fetchURL from "../../utils/fetchURL"
 
 const endpoints: { [chain: string]: string } = {
-  ethereum: "https://api.curve.fi/api/getAllPoolsVolume/ethereum",
-  polygon: "https://api.curve.fi/api/getAllPoolsVolume/polygon",
-  fantom: "https://api.curve.fi/api/getAllPoolsVolume/fantom",
-  arbitrum: "https://api.curve.fi/api/getAllPoolsVolume/arbitrum",
-  avalanche: "https://api.curve.fi/api/getAllPoolsVolume/avalanche",
-  optimism: "https://api.curve.fi/api/getAllPoolsVolume/optimism",
-  xdai: "https://api.curve.fi/api/getAllPoolsVolume/xdai"
+  [CHAIN.ETHEREUM]: "https://api.curve.fi/api/getAllPoolsVolume/ethereum",
+  [CHAIN.POLYGON]: "https://api.curve.fi/api/getAllPoolsVolume/polygon",
+  [CHAIN.FANTOM]: "https://api.curve.fi/api/getAllPoolsVolume/fantom",
+  [CHAIN.ARBITRUM]: "https://api.curve.fi/api/getAllPoolsVolume/arbitrum",
+  [CHAIN.AVAX]: "https://api.curve.fi/api/getAllPoolsVolume/avalanche",
+  [CHAIN.OPTIMISM]: "https://api.curve.fi/api/getAllPoolsVolume/optimism",
+  [CHAIN.XDAI]: "https://api.curve.fi/api/getAllPoolsVolume/xdai"
 };
 
 interface IAPIResponse {

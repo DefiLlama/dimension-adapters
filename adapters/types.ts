@@ -1,4 +1,6 @@
-import { getChainBlocks } from '@defillama/sdk/build/computeTVL/blocks';
+import { util  } from '@defillama/sdk';
+
+const { blocks: { getChainBlocks }} = util
 
 export type ChainBlocks = Awaited<ReturnType<typeof getChainBlocks>>
 
@@ -29,7 +31,7 @@ export type BaseAdapter = {
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
     meta?: {
-      methodology?: string
+      methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
     }
   }
@@ -100,7 +102,8 @@ export enum AdapterType {
   INCENTIVES = 'incentives',
   AGGREGATORS = 'aggregators',
   DERIVATIVES = 'derivatives',
-  OPTIONS = 'options'
+  OPTIONS = 'options',
+  PROTOCOLS = 'protocols'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees

@@ -1,28 +1,46 @@
+
+
+import fetchURL, { postURL } from "../../utils/fetchURL"
+import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-import fetchURL from "../../utils/fetchURL"
+const dailyVolumeEndpoint = "https://nft-launchpad.goosefx.io/getTotalVolumeTrade";
+const historicalVolumeEndpoint = "https://nft-launchpad.goosefx.io/getDailyVolumeTrade"
 
-const gfx_volume_endpoint = "https://nest-api.goosefx.io/stats/volume"
-
-
-const graphs = async () => {
-  let res = await fetchURL(gfx_volume_endpoint);
-  return {
-    dailyVolume: res?.data?.volume24hr,
-    timestamp: Math.trunc(Date.now() / 1000)
-  };
+const fetch = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const currentDayTimestamp = getUniqStartOfTodayTimestamp(new Date());
+  if (dayTimestamp === currentDayTimestamp) {
+    let res = await fetchURL(dailyVolumeEndpoint);
+    return {
+        dailyVolume: res?.data?.data?.totalVolumeTradeDay,
+        totalVolume: res?.data?.data?.totalVolumeTrade,
+        timestamp: dayTimestamp
+    };
+  } else {
+    const formattedDate = new Date(dayTimestamp * 1000).toISOString().substring(0, 10);
+    const dayVolume = await postURL(historicalVolumeEndpoint, {
+        "date": formattedDate
+    });
+    return {
+        dailyVolume: dayVolume?.data?.data[0]?.totalVolumeTradeDay,
+        totalVolume: dayVolume?.data?.data[0]?.totalVolumeTrade,
+        timestamp: dayTimestamp,
+    };
+  }
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    solana: {
-      fetch: graphs,
-      runAtCurrTime: true,
-      //customBackfill: undefined,
-      start: async () => 0,
+    adapter: {
+      [CHAIN.SOLANA]: {
+        fetch: fetch,
+        start: async () => 1664360407,
+        customBackfill: customBackfill(CHAIN.SOLANA as Chain, () => fetch)
+      },
     },
-    // TODO custom backfill
-  },
-};
-
-export default adapter;
+  };
+  
+  export default adapter;

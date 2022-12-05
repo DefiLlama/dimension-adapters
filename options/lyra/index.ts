@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "./getLyraSubgraphVolume";
 
 const endpoints: { [chain: string]: string } = {
-  optimism: "https://subgraph.satsuma-prod.com/lyra/optimism-mainnet/api",
+  optimism: "https://api.lyra.finance/subgraph/optimism/v1/api",
 };
 
 const subgraph = getChainVolume({

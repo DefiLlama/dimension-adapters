@@ -26,7 +26,7 @@ const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-    const bridgesVolume: IBridgesVolumeData[] = (await fetchURL(getBridgesVolumeData(todaysTimestamp, endToDayTimestamp, chain))).data;
+    const bridgesVolume: IBridgesVolumeData[] = (await fetchURL(getBridgesVolumeData(todaysTimestamp, endToDayTimestamp, chain === "avax" ? "avalanche" : chain))).data;
     const tokenAdreess = [...new Set([...bridgesVolume.map((e: IBridgesVolumeData) => e.token)])];
     const decimals = (await sdk.api.abi.multiCall({
       abi: 'erc20:decimals',
@@ -49,10 +49,9 @@ const fetch = (chain: Chain) => {
     });
     const dailyVolume = bridgesVolumeInfo.reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0);
     const dailyFees = dailyVolume * 0.0006;
-    const dailyRevenue = dailyVolume * 0.00015;
     return {
       dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyRevenue: dailyFees.toString(),
       timestamp: todaysTimestamp
     }
   }

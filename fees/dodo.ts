@@ -1,18 +1,37 @@
 import { Adapter } from "../adapters/types";
-import volumeAdapter from "../dexs/dodo";
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
+import { request, gql } from "graphql-request";
 
-const TOTAL_FEES = 0.003;
-const PROTOCOL_FEES = 0.0006;
-
-const feeAdapter = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  volumeAdapter
-});
+const feesReq = gql`
+query FetchDashboardPairs($where: Dashboardrate24h_filter) {
+	dashboard_pairs_rate_24(where: $where) {
+		pages
+		pairs
+		__typename
+	}
+}
+`
 
 const adapter: Adapter = {
-  adapter: feeAdapter
+  adapter: ["ethereum", "bsc", "polygon", "arbitrum", "aurora", "boba"].reduce((all, chain)=>({
+    ...all,
+    [chain]: {
+      fetch: async()=>{
+        const pairs = await request("https://gateway.dodoex.io/graphql?opname=FetchDashboardPairs", feesReq,
+          { "where": { "page": 1, "limit": 10, "order_direction": "desc", "order_by": "fee", "chain": chain } }, {
+          "Content-Type": "application/json",
+          "user-agent": "insomnia/2022.5.0"
+        })
+        const fees = Object.values(pairs.dashboard_pairs_rate_24.pairs).reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
+        return {
+          timestamp: Date.now()/1e3,
+          dailyFees: fees,
+          dailyRevenue: fees*0.2,
+        };
+      },
+      runAtCurrTime: true,
+      start: async()=>0,
+    }
+  }), {} as any)
 };
 
 

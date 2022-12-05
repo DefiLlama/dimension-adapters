@@ -16,11 +16,11 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   const totalVolume = historicalVolume
-    .filter(volItem => (new Date(Number(`${volItem.time}`.split('.')[0]) * 1000).getTime() / 1000) <= dayTimestamp)
+    .filter(volItem => getUniqStartOfTodayTimestamp(new Date(Number(`${volItem.time}`.split('.')[0]) * 1000)) <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000).getTime() / 1000) === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000)) === dayTimestamp)?.volume
 
   return {
     totalVolume: `${totalVolume}`,
@@ -31,7 +31,7 @@ const fetch = async (timestamp: number) => {
 
 const getStartTimestamp = async () => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  return (new Date(Number(`${historicalVolume[0].time}`.split('.')[0]) * 1000).getTime() / 1000)
+  return getUniqStartOfTodayTimestamp(new Date(Number(`${historicalVolume[0].time}`.split('.')[0]) * 1000))
 }
 
 const adapter: SimpleAdapter = {
