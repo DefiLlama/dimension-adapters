@@ -13,9 +13,8 @@ async function fetch() {
     }).reduce((sum: number, pool: any) =>
         sum + pool.volume_24h
         , 0);
-
     const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
-        sum + pool.volume.day
+        sum + (pool?.volume?.day || 0)
         , 0);
     return {
         dailyVolume: wpVol + poolsVol,
