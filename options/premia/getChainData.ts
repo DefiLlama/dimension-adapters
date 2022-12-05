@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers'
+import { utils } from 'ethers'
 import { request, gql } from 'graphql-request'
 
 interface GqlResult {
@@ -52,8 +52,7 @@ function getLast(array: Array<any>): any {
 }
 
 function toNumber(value: string): number {
-  const UNIT = BigNumber.from('1000000000000000000')
-  return BigNumber.from(value).div(UNIT).toNumber()
+  return Number(utils.formatEther(value))
 }
 
 async function getChainData(
