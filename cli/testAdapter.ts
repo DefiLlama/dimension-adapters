@@ -52,7 +52,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
       const volumes = await runAdapter(adapter, endCleanDayTimestamp, chainBlocks)
       const fulfilledResults = getFulfilledResults(volumes)
       const rejectedResults = getRejectedResults(volumes)
-      printVolumes(fulfilledResults)
+      printVolumes(fulfilledResults, adapter)
       printRejectedVolumes(rejectedResults)
       console.info("\n")
     } else if ("breakdown" in module) {
@@ -65,7 +65,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
         console.info("---------")
         const fulfilledResults = getFulfilledResults(promise.res)
         const rejectedResults = getRejectedResults(promise.res)
-        printVolumes(fulfilledResults)
+        printVolumes(fulfilledResults, breakdownAdapter[promise.version])
         printRejectedVolumes(rejectedResults)
       })
     } else throw new Error("No compatible adapter found")

@@ -1,10 +1,11 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { BOBA } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  [BOBA]:
-    "https://thegraph.com/hosted-service/subgraph/koyo-finance/exchange-subgraph-boba",
+  [CHAIN.BOBA]:
+    "https://api.thegraph.com/subgraphs/name/koyo-finance/exchange-subgraph-boba",
 };
 
 const graphs = getChainVolume({
@@ -13,15 +14,15 @@ const graphs = getChainVolume({
     factory: "koyos",
     field: "totalSwapVolume",
   },
-  hasDailyVolume: false,
+  hasDailyVolume: false
 });
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [BOBA]: {
-      fetch: graphs(BOBA),
+    [CHAIN.BOBA]: {
+      fetch: graphs(CHAIN.BOBA),
       start: async () => 1655104044,
-      customBackfill: undefined,
+      customBackfill: customBackfill(CHAIN.BOBA, graphs),
     },
   },
 };
