@@ -11,7 +11,7 @@ const getGQLClient = () => {
 
 const getData = () => {
   return gql`
-    query lp {
+    query data {
       liquidityPools {
         totalValueLockedUSD
       }
