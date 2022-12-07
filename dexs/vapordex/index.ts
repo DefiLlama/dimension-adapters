@@ -12,56 +12,29 @@ const getGQLClient = () => {
 const getData = () => {
   return gql`
     query data {
-      liquidityPools {
-        totalValueLockedUSD
-      }
       dexAmmProtocols {
         cumulativeVolumeUSD
       }
-      protocols {
-        cumulativeUniqueUsers
-      }
       financialsDailySnapshots {
         dailyVolumeUSD
+        timestamp
       }
     }
   `;
 };
 
 const methodology = {
-  totalValueLocked: "Funds locked in liquidity pools",
   dailyVolume: "Daily volume on the dex",
-  cumlativeVolume: "Total volume in USD",
-  cumulativeUniqueUsers: "Unique users",
-};
-
-// Converts string[] to number[] and returns a sum of vals in the number[]
-const calTVL = (res: string[]) => {
-  const numRes: number[] = [];
-  const length = res.length;
-  for (let i = 0; i < length; i++) {
-    numRes.push(parseInt(res[i]));
-  }
-  const TVL = numRes.reduce((partialSum, a) => partialSum + a, 0);
-  return TVL;
+  totalVolume: "Total volume in USD",
 };
 
 const fetch = async () => {
   const response = await getGQLClient().request(getData());
-  const res: string[] = response.liquidityPools.flatMap(
-    (result: any) => result.totalValueLockedUSD
-  );
-
-  // Total value locked in the Dex pools
-  const tvlUSD = calTVL(res);
 
   // Cumulative volume in USD
   const cumulativeVolumeUSD = Math.round(
     response.dexAmmProtocols[0].cumulativeVolumeUSD
   );
-
-  // Cumulative unique users
-  const cumulativeUniqueUsers = response.protocols[0].cumulativeUniqueUsers;
 
   // Calculating the total length of daily snapshots to determine the latest one
   const responseLength = response.financialsDailySnapshots.length;
@@ -70,11 +43,15 @@ const fetch = async () => {
   const latestDailyVolumeUSD = Math.round(
     response.financialsDailySnapshots[responseLength - 1].dailyVolumeUSD
   );
+
+  // Timestamp of the latest daily volume
+  const timeStamp =
+    response.financialsDailySnapshots[responseLength - 1].timestamp;
+
   return {
-    totalValueLocked: `${tvlUSD}`,
+    timeStamp: timeStamp,
     dailyVolume: `${latestDailyVolumeUSD}`,
-    cumulativeVolume: `${cumulativeVolumeUSD}`,
-    cumulativeUniqueUsers: `${cumulativeUniqueUsers}`,
+    totalVolume: `${cumulativeVolumeUSD}`,
   };
 };
 
