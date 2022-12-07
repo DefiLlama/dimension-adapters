@@ -46,8 +46,6 @@ const calTVL = (res: string[]) => {
   return TVL;
 };
 
-const START_TIME = 1663584236;
-
 const fetch = async () => {
   const response = await getGQLClient().request(getData());
   const res: string[] = response.liquidityPools.flatMap(
@@ -84,7 +82,8 @@ const adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: async () => fetch(),
-      start: async () => START_TIME,
+      runAtCurrTime: true,
+      start: async () => 0,
       meta: {
         methodology,
       },
