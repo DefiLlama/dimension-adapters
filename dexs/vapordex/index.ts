@@ -24,6 +24,7 @@ const getData = () => {
 };
 
 const methodology = {
+  timeStamp: "Timestamp",
   dailyVolume: "Daily volume on the dex",
   totalVolume: "Total volume in USD",
 };
@@ -58,7 +59,7 @@ const fetch = async () => {
 const adapter = {
   adapter: {
     [CHAIN.AVAX]: {
-      fetch: async () => fetch(),
+      fetch: fetch,
       runAtCurrTime: true,
       start: async () => 0,
       meta: {
