@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: async () => 1669420800,
+      start: async () => 1668643200,
     },
   },
 };
