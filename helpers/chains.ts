@@ -77,7 +77,8 @@ export enum CHAIN {
   CANTO="canto",
   APTOS = "aptos",
   NEO = "neo",
-  PHANTASMA = "phantasma"
+  PHANTASMA = "phantasma",
+  XDC = "xdc"
 }
 
 // Don´t use
