@@ -74,8 +74,6 @@ async function getChainData(
   const dailyPremiumVolume = calcLast24hrsVolume(
     get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
   )
-  console.log(totalFeeRevenueDailies)
-  console.log(get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd'))
 
   const totalNotionalVolume = toNumber(totalVolumes[0].totalVolumeInUsd)
   const dailyNotionalVolume = calcLast24hrsVolume(
