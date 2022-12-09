@@ -33,8 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: async () => 1663545600,
-      customBackfill: customBackfill(CHAIN.STARKNET as Chain, (_chian: string) => fetch)
+      start: async () => 1663545600
     },
   },
 };
