@@ -78,7 +78,8 @@ export enum CHAIN {
   APTOS = "aptos",
   NEO = "neo",
   PHANTASMA = "phantasma",
-  XDC = "xdc"
+  XDC = "xdc",
+  STARKNET = "starknet"
 }
 
 // Don´t use
