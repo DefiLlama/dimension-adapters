@@ -4,8 +4,12 @@ import { request, gql } from 'graphql-request'
 import { utils } from 'ethers'
 
 const dailyFeesQuery = gql`
-  query MyQuery {
-    totalFeeRevenueDailies(orderDirection: desc, orderBy: timestamp) {
+  query MyQuery($timestamp: String) {
+    totalFeeRevenueDailies(
+      orderDirection: desc
+      orderBy: timestamp
+      where: { timestamp_lte: $timestamp }
+    ) {
       id
       timestamp
       totalFeeRevenueInUsd
@@ -31,8 +35,10 @@ function get2Days(array: Array<any>, key: string): [string, string] {
   return array.slice(1, 3).map((obj) => obj[key]) as [string, string]
 }
 
-async function getDailyFee(url: string, timestamp: string): Promise<DailyFee> {
-  const fetchResult = await request(url, dailyFeesQuery)
+async function getDailyFee(url: string, timestamp: number): Promise<DailyFee> {
+  const fetchResult = await request(url, dailyFeesQuery, {
+    timestamp: timestamp.toString(),
+  })
   const { totalFeeRevenueDailies } = fetchResult
 
   const dailyFees = calcLast24hrsVolume(
@@ -41,7 +47,7 @@ async function getDailyFee(url: string, timestamp: string): Promise<DailyFee> {
 
   return {
     dailyFees: dailyFees.toFixed(2),
-    timestamp,
+    timestamp: timestamp.toString(),
   }
 }
 
@@ -61,7 +67,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (ts: string) => await getDailyFee(endpoints[chain], ts),
+        fetch: async (ts: number) => await getDailyFee(endpoints[chain], ts),
         start: async () => 1656154800,
       },
     }
