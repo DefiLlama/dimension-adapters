@@ -4,7 +4,7 @@ import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 
 const blocksGraph = "https://www.okx.com/okc/subgraph/name/okcswap/okc-swap-subgraph-v3";
-
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 const blockQuery = gql`
   query blocks($timestampFrom: Int!, $timestampTo: Int!) {
     blocks(
@@ -29,8 +29,8 @@ const getCustomBlock = async (timestamp: number) => {
   const block = Number(
     (
       await request(blocksGraph, blockQuery, {
-        timestampFrom: timestamp - 30,
-        timestampTo: timestamp + 30,
+        timestampFrom: timestamp - ONE_DAY_IN_SECONDS,
+        timestampTo: timestamp + ONE_DAY_IN_SECONDS,
       })
     ).blocks[0].number
   );
