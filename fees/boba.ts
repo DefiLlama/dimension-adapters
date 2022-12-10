@@ -8,45 +8,45 @@ import request, { gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 import { getBalance } from "@defillama/sdk/build/eth";
 
-const sql = postgres(process.env.INDEXER_DB!);
 
 async function getFees(todaysTimestamp: number, yesterdaysTimestamp: number, _: ChainBlocks){
   const todaysBlock = (await getBlock(todaysTimestamp, "boba", {}));
   const endTodayBlock = (await getBlock(yesterdaysTimestamp, "boba", {}));
   const graphQuery = gql
-      `query txFees {
-          today: withdrawns(id: "1", block: { number: ${todaysBlock} }) {
+  `query txFees {
+    today: withdrawns(id: "1", block: { number: ${todaysBlock} }) {
               amount
           }
           endToday: withdrawns(id: "1", block: { number: ${endTodayBlock} }) {
-              amount
+            amount
           }
-    }`;
-
-  const graphRes = await request("https://api.thegraph.com/subgraphs/name/0xngmi/boba-fee-withdrawn", graphQuery);
-
-  const dailyFee = new BigNumber(graphRes["endToday"][0].amount).minus(graphRes["today"][0].amount);
-
-  const feeWallet = '0x4200000000000000000000000000000000000011';
-  const startBalance = await getBalance({
-      target: feeWallet,
-      block: todaysBlock,
-      chain: "boba"
-  });
-  const endBalance = await getBalance({
-      target: feeWallet,
-      block: endTodayBlock,
-      chain: "boba"
-  });
-
-  return (new BigNumber(endBalance.output).plus(dailyFee).minus(startBalance.output)).div(1e18);
+        }`;
+        
+        const graphRes = await request("https://api.thegraph.com/subgraphs/name/0xngmi/boba-fee-withdrawn", graphQuery);
+        
+        const dailyFee = new BigNumber(graphRes["endToday"][0].amount).minus(graphRes["today"][0].amount);
+        
+        const feeWallet = '0x4200000000000000000000000000000000000011';
+        const startBalance = await getBalance({
+          target: feeWallet,
+          block: todaysBlock,
+          chain: "boba"
+        });
+        const endBalance = await getBalance({
+          target: feeWallet,
+          block: endTodayBlock,
+          chain: "boba"
+        });
+        
+        return (new BigNumber(endBalance.output).plus(dailyFee).minus(startBalance.output)).div(1e18);
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.BOBA]: {
-        fetch:  async (timestamp: number, chainBlocks: ChainBlocks) => {
-          try {
+      fetch:  async (timestamp: number, chainBlocks: ChainBlocks) => {
+        const sql = postgres(process.env.INDEXER_DB!);
+        try {
             const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
             const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
             const startDay = new Date(todaysTimestamp * 1e3);
