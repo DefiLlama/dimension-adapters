@@ -9,17 +9,17 @@ const endpoints = {
   [ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet-test",
   [OPTIMISM]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism-test",
   [ARBITRUM]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum-test",
   [POLYGON]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic-test",
   [AVAX]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche-test",
   [FANTOM]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom-test",
   [XDAI]:
-  "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai-test",
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
@@ -36,22 +36,26 @@ const graph = (graphUrls: ChainEndpoints) => {
     ) {
       totalDailyFeesUSD
       adminFeesUSD
+      lpFeesUSD
+      pool {
+        symbol
+      }
     }
   }`;
 
   return (chain: Chain) => {
     return async (timestamp: number) => {
-    
+
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
       const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
 
       const graphRes = await request(graphUrls[chain], graphQuery, {
         todaysTimestamp, yesterdaysTimestamp
       });
-      const feesPerPool = graphRes.dailyPoolSnapshots.map((vol: any): number => {
+      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
         return parseFloat(vol.totalDailyFeesUSD);
       })
-      const revPerPool = graphRes.dailyPoolSnapshots.map((vol: any): number => {
+      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
         return parseFloat(vol.adminFeesUSD);
       });
 
@@ -60,9 +64,7 @@ const graph = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0",
         dailyRevenue: dailyRev.toString(),
       };
     }
@@ -73,31 +75,31 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: async ()  => 1577854800,
+      start: async () => 1577854800,
     },
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
-      start: async ()  => 1620532800,
+      start: async () => 1620532800,
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
-      start: async ()  => 1632110400,
+      start: async () => 1632110400,
     },
     [POLYGON]: {
       fetch: graph(endpoints)(POLYGON),
-      start: async ()  => 1620014400,
+      start: async () => 1620014400,
     },
     [AVAX]: {
       fetch: graph(endpoints)(AVAX),
-      start: async ()  => 1633492800,
+      start: async () => 1633492800,
     },
     [FANTOM]: {
       fetch: graph(endpoints)(FANTOM),
-      start: async ()  => 1620532800,
+      start: async () => 1620532800,
     },
     [XDAI]: {
       fetch: graph(endpoints)(XDAI),
-      start: async ()  => 1620532800,
+      start: async () => 1620532800,
     },
   }
 }
