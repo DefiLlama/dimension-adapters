@@ -10,7 +10,7 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from
 
 const endpoints = {
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/messari/compound-ethereum"
+    "https://api.thegraph.com/subgraphs/name/0vix/ovix-lending-subgraph"
 }
 
 
@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
         fetch: graphs(endpoints)(POLYGON),
-        start: async ()  => 1557201600,
+        start: async ()  => 1648157552,
     },
   }
 }
