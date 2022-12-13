@@ -7,12 +7,17 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 
 const endpoints = {
-  [CHAIN.BSC]: "https://bsc.streamingfast.io/subgraphs/name/pancakeswap/exchange-v2",
+  [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth"
 };
 
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
+  graphRequestHeaders: {
+    [CHAIN.BSC]: {
+      "origin": "https://pancakeswap.finance",
+    },
+  },
   totalVolume: {
     factory: "pancakeFactories"
   },
