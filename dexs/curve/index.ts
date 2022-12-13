@@ -22,11 +22,12 @@ interface IAPIResponse {
   }
 }
 
-const fetch = (chain: string) => async () => {
+const fetch = (chain: string) => async (timestamp: number) => {
   const response: IAPIResponse = (await fetchURL(endpoints[chain])).data;
+  const t = response.data.generatedTimeMs ? response.data.generatedTimeMs / 1000 : timestamp
   return {
     dailyVolume: `${response.data.totalVolume}`,
-    timestamp: response.data.generatedTimeMs / 1000,
+    timestamp: t,
   };
 };
 
