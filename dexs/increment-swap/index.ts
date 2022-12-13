@@ -24,11 +24,11 @@ const fetch = async (timestamp: number) => {
     };
   });
   const totalVolume = historicalVolume
-    .filter(volItem => new Date(volItem.time).getTime() / 1000 <= dayTimestamp)
+    .filter(volItem =>  getUniqStartOfTodayTimestamp(new Date(volItem.time)) <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => new Date(dayItem.time).getTime() / 1000 === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
 
   return {
     totalVolume: `${totalVolume}`,
@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.FLOW]: {
       fetch,
       start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.FLOW as Chain, (_chian: string) => fetch)
+      // customBackfill: customBackfill(CHAIN.FLOW as Chain, (_chian: string) => fetch)
     },
   },
 };
