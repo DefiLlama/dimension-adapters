@@ -7,9 +7,9 @@ import { Adapter, ProtocolType } from "../adapters/types";
 export async function getEtherscanFees(timestamp: number, url:string, coin:string) {
     const ts = getTimestampAtStartOfDayUTC(timestamp)
     const dailyFees = await axios.get(url);
-    const feesToday = dailyFees.data.split("\n").find((d: any) => d.split(",")?.[1]?.slice(1, -1) == ts)
+    const feesToday = dailyFees.data?.split("\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == ts)
     const pricesObj = await getPrices([coin], ts);
-    return Number(feesToday.split(",")[2].slice(1, -2)) / 1e18 * pricesObj[coin].price
+    return Number(feesToday?.split(",")[2].slice(1, -2)) / 1e18 * pricesObj[coin].price
 }
 
 export function etherscanFeeAdapter(chain:string, url:string, coin:string){

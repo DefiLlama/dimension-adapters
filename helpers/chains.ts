@@ -75,7 +75,12 @@ export enum CHAIN {
   FLOW = "flow",
   FUSION = "fusion",
   CANTO="canto",
-  APTOS = "aptos"
+  APTOS = "aptos",
+  NEO = "neo",
+  PHANTASMA = "phantasma",
+  XDC = "xdc",
+  STARKNET = "starknet",
+  MOONBEAM = "moonbeam"
 }
 
 // Don´t use

@@ -3,23 +3,21 @@ const {
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
 } = require("../../helpers/getUniSubgraphVolume");
-const { BSC } = require("../../helpers/chains");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/exchange",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/exchange",
 };
 
-const DAILY_VOLUME_FACTORY = "SMBDayData";
+const DAILY_VOLUME_FACTORY = "smbdayData";
 
 const graphs = getChainVolume({
-  graphUrls: {
-    [BSC]: endpoints[BSC],
-  },
+  graphUrls: endpoints,
   totalVolume: {
-    factory: "SMBFactory",
+    factory: "smbfactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
   dailyVolume: {
@@ -30,11 +28,11 @@ const graphs = getChainVolume({
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [BSC]: {
-      fetch: graphs(BSC),
+    [CHAIN.BSC]: {
+      fetch: graphs(CHAIN.BSC),
       start: getStartTimestamp({
         endpoints,
-        chain: BSC,
+        chain: CHAIN.BSC,
         dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
       }),
     },

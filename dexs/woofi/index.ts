@@ -1,15 +1,15 @@
 import { SimpleAdapter } from "../../adapters/types";
-import {  AVAX, BSC, FANTOM, POLYGON, ARBITRUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
-  [AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",
-  [BSC]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-bsc",
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-fantom",
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
-  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum"
+  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-bsc",
+  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-fantom",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum"
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";

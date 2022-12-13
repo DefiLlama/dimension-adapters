@@ -1,4 +1,3 @@
-import { type } from 'os'
 import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric, IJSON } from '../types'
 
@@ -18,7 +17,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
     const validStart = ((await Promise.all(chains.map(async (chain) => {
-        const start = await volumeAdapter[chain].start()
+        const start = await volumeAdapter[chain]?.start()
         return [chain, start !== undefined && (start <= cleanPreviousDayTimestamp), start]
     }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean | number)[]>)
     return allSettled(chains

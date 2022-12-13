@@ -27,5 +27,5 @@
   "include": [
     "fees/*",
     "dexs/*",
-    "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*"],
+    "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*", "protocols/*"],
 }

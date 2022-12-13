@@ -47,7 +47,7 @@ const v1Graph = getGraphDimensions({
     ProtocolRevenue: 0,
     SupplySideRevenue: 0.3,
     HoldersRevenue: 0,
-    Revenue: 0.3,
+    Revenue: 0,
     Fees: 0.3
   }
 });
@@ -60,7 +60,7 @@ const v2Graph = getGraphDimensions({
     ProtocolRevenue: 0,
     SupplySideRevenue: 0.3,
     HoldersRevenue: 0,
-    Revenue: 0.3,
+    Revenue: 0,
     Fees: 0.3
   }
 });
@@ -81,7 +81,7 @@ const v3Graphs = getGraphDimensions({
     HoldersRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
     SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 100 // Revenue is 100% of collected fees
+    Revenue: 0 // Revenue is 100% of collected fees
   }
 });
 

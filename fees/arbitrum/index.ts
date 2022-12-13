@@ -1,15 +1,15 @@
-import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { Adapter, ChainBlocks, ProtocolType } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getPrices } from "../../utils/prices";
 import postgres from 'postgres'
-
-const sql = postgres("postgresql://readonly:dew098dewjklklsbnbajkhejwakhw098dshlshlkwa@65.21.95.47/indexer");
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (timestamp: number) => {
+        const sql = postgres(process.env.INDEXER_DB!);
+
         const now = new Date(timestamp * 1e3)
         const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
 

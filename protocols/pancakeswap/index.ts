@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
@@ -26,9 +26,14 @@ const graphs = getGraphDimensions({
     HoldersRevenue: 0.0575,
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
-    Revenue: 0.25
+    Revenue: 0.0225// 0.25
   }
 });
+
+const startTimes = {
+  [CHAIN.ETHEREUM]: 1664236800,
+  [CHAIN.BSC]: 1619136000
+} as IJSON<number>
 
 const methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
@@ -47,11 +52,7 @@ const adapter: BreakdownAdapter = {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphs(chain as Chain),
-        start: getStartTimestamp({
-          endpoints,
-          chain,
-          dailyDataField: `pancakeDayDatas`,
-        }),
+        start: async () => startTimes[chain],
         meta: {
           methodology
         }
