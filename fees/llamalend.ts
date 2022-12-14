@@ -20,10 +20,7 @@ interface IGraph {
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
-
+      const todaysBlock = (await getBlock(timestamp, chain, {}));
       const graphQuery = gql
       `
       {
@@ -36,12 +33,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes:IGraph[]  = (await request(graphUrls[chain], graphQuery)).loans;
       const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-      const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
-      const dailyFeePerSec = graphRes.reduce((a: BigNumber, b:IGraph ) =>  a.plus(new BigNumber(b.interest).multipliedBy(new BigNumber(b.borrowed))), new BigNumber('0'))
-      const dailyFee = dailyFeePerSec.div(1e36).multipliedBy(ONE_DAY_IN_SECONDS).times(ethPrice);
+      const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+      const dailyFeePerSec = graphRes.reduce((a: number, b: IGraph ) => a + (Number(b.interest) * Number(b.borrowed)), 0)
+      const dailyFee = dailyFeePerSec / 1e36 * ONE_DAY_IN_SECONDS * ethPrice;
 
       return {
-        timestamp: todaysTimestamp,
+        timestamp: timestamp,
         dailyFees: dailyFee.toString(),
       };
     };
