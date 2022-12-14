@@ -17,19 +17,19 @@ interface GqlResult {
 }
 
 const chainDataQuery = gql`
-  query feeAndVolumeQuery {
+  query feeAndVolumeQuery($timestamp: Int) {
     totalVolumes {
       totalVolumeInUsd
     }
     totalFeeRevenues {
       totalFeeRevenueInUsd
     }
-    totalFeeRevenueDailies(orderDirection: desc, orderBy: timestamp) {
+    totalFeeRevenueDailies(orderDirection: desc, orderBy: timestamp, where: { timestamp_lte: $timestamp }) {
       id
       timestamp
       totalFeeRevenueInUsd
     }
-    totalVolumeDailies(orderDirection: desc, orderBy: timestamp) {
+    totalVolumeDailies(orderDirection: desc, orderBy: timestamp, where: { timestamp_lte: $timestamp }) {
       id
       timestamp
       totalVolumeInUsd
@@ -62,7 +62,9 @@ async function getChainData(
   url: string,
   timestamp: string
 ): Promise<ChainData> {
-  const result: GqlResult = await request(url, chainDataQuery)
+  const result: GqlResult = await request(url, chainDataQuery, {
+    timestamp: timestamp,
+  })
 
   const {
     totalFeeRevenueDailies,
