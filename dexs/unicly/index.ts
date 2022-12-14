@@ -12,17 +12,17 @@ interface IVolumeall {
   timestamp: number;
 }
 const headers = {
-  "Origin": "https://dex.viewblock.io"
+  "origin": "https://dex.viewblock.io"
 }
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers }))?.data.charts.volume;
   const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
+    .filter(volItem => Math.floor(Number(volItem.timestamp) / 1000) <= dayTimestamp)
     .reduce((acc, { value }) => acc + Number(value), 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value
+    .find(dayItem => Math.floor(Number(dayItem.timestamp) / 1000) === dayTimestamp)?.value
 
   return {
     totalVolume: `${totalVolume}`,
