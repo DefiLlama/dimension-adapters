@@ -1,16 +1,15 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
 import fetchURL from "../../utils/fetchURL"
 
 const endpoints: { [chain: string]: string } = {
-  [CHAIN.ETHEREUM]: "https://api.curve.fi/api/getAllPoolsVolume/ethereum",
-  [CHAIN.POLYGON]: "https://api.curve.fi/api/getAllPoolsVolume/polygon",
-  [CHAIN.FANTOM]: "https://api.curve.fi/api/getAllPoolsVolume/fantom",
-  [CHAIN.ARBITRUM]: "https://api.curve.fi/api/getAllPoolsVolume/arbitrum",
-  [CHAIN.AVAX]: "https://api.curve.fi/api/getAllPoolsVolume/avalanche",
-  [CHAIN.OPTIMISM]: "https://api.curve.fi/api/getAllPoolsVolume/optimism",
-  [CHAIN.XDAI]: "https://api.curve.fi/api/getAllPoolsVolume/xdai"
+  [CHAIN.ETHEREUM]: "https://api.curve.fi/api/getSubgraphData/ethereum",
+  [CHAIN.POLYGON]: "https://api.curve.fi/api/getSubgraphData/polygon",
+  [CHAIN.FANTOM]: "https://api.curve.fi/api/getSubgraphData/fantom",
+  [CHAIN.ARBITRUM]: "https://api.curve.fi/api/getSubgraphData/arbitrum",
+  [CHAIN.AVAX]: "https://api.curve.fi/api/getSubgraphData/avalanche",
+  [CHAIN.OPTIMISM]: "https://api.curve.fi/api/getSubgraphData/optimism",
+  [CHAIN.XDAI]: "https://api.curve.fi/api/getSubgraphData/xdai"
 };
 
 interface IAPIResponse {

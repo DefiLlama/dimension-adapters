@@ -21,7 +21,7 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.timestamp * 1000)) === dayTimestamp)?.volume
 
   return {
     totalVolume: `${totalVolume}`,
