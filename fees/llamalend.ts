@@ -3,8 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import BigNumber from "bignumber.js";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
 
