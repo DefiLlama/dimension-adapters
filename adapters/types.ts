@@ -64,35 +64,35 @@ export type Adapter = SimpleAdapter | BreakdownAdapter;
 
 // VOLUME
 export type FetchResultVolume = FetchResultBase & {
-  dailyVolume?: string;
-  totalVolume?: string;
+  dailyVolume?: string // | IJSON<string>;
+  totalVolume?: string // | IJSON<string>;
 };
 
 // FEES
 export type FetchResultFees = FetchResultBase & {
-  totalFees?: string;
-  dailyFees?: string;
-  totalRevenue?: string;
-  dailyRevenue?: string;
+  totalFees?: string // | IJSON<string>;
+  dailyFees?: string // | IJSON<string>;
+  totalRevenue?: string // | IJSON<string>;
+  dailyRevenue?: string // | IJSON<string>;
 };
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  tokens?: IJSON<string>
+  tokens?: IJSON<string> // | string
 };
 
 // AGGREGATORS
 export type FetchResultAggregators = FetchResultBase & {
-  dailyVolume?: string;
-  totalVolume?: string;
+  dailyVolume?: string // | IJSON<string>;
+  totalVolume?: string // | IJSON<string>;
 };
 
 // OPTIONS
 export type FetchResultOptions = FetchResultBase & {
-  totalPremiumVolume: string
-  totalNotionalVolume: string
-  dailyPremiumVolume: string
-  dailyNotionalVolume: string
+  totalPremiumVolume?: string // | IJSON<string>
+  totalNotionalVolume?: string // | IJSON<string>
+  dailyPremiumVolume?: string // | IJSON<string>
+  dailyNotionalVolume?: string // | IJSON<string>
 };
 
 
@@ -106,7 +106,7 @@ export enum AdapterType {
   PROTOCOLS = 'protocols'
 }
 
-export type FetchResult = FetchResultVolume & FetchResultFees
+export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
 
 // End of specific adaptors type
 
