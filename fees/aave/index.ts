@@ -127,9 +127,7 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0",
         dailyRevenue: dailyRev.toString(),
       };
     };
@@ -270,9 +268,7 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0",
         dailyRevenue: dailyRev.toString(),
       };
     };
@@ -379,9 +375,7 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0",
         dailyRevenue: dailyRev.toString(),
       };
     };

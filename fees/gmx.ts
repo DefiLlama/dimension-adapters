@@ -33,10 +33,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        totalFees: "0",
         dailyFees: finalDailyFee.toString(),
-        totalRevenue: "0",
-        dailyRevenue: (finalDailyFee * 0.3).toString(),
+        dailyRevenue: (finalDailyFee * 0.3).toString()
       };
     };
   };
