@@ -1,16 +1,14 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
 
 const endpoint = "https://statistics-api.emdx.io/volume";
 
 const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const response = await axios.get(`${endpoint}?date=${dayTimestamp}`);
+  const response = await axios.get(`${endpoint}?date=${timestamp}`);
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: timestamp,
     dailyVolume: `${response?.data?.volume || 0}`,
     totalVolume: `${response?.data?.cumulative_volume || 0}`,
   };
