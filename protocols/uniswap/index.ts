@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
@@ -29,6 +29,8 @@ const v3Endpoints = {
 
 const VOLUME_USD = "volumeUSD";
 
+// fees results are in eth, needs to be converted to a balances objects
+const ETH_ADDRESS = "ethereum:0x0000000000000000000000000000000000000000";
 const v1Graph = getGraphDimensions({
   graphUrls: v1Endpoints,
   totalVolume: {
@@ -42,13 +44,13 @@ const v1Graph = getGraphDimensions({
     field: "feeInEth"
   },
   feesPercent: {
-    type: "volume",
-    UserFees: 0.3,
+    type: "fees",
+    UserFees: 100,
     ProtocolRevenue: 0,
-    SupplySideRevenue: 0.3,
+    SupplySideRevenue: 100,
     HoldersRevenue: 0,
     Revenue: 0,
-    Fees: 0.3
+    Fees: 100
   }
 });
 
@@ -96,7 +98,20 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: v1Graph(CHAIN.ETHEREUM),
+        fetch: async (timestamp, chainBlocks) => {
+          const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
+          return {
+            ...response,
+            ...["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"].reduce((acc, resultType) => {
+              const valueInEth = response[resultType]
+              if (typeof valueInEth === 'string')
+                acc[resultType] = {
+                  [ETH_ADDRESS]: valueInEth
+                }
+              return acc
+            }, {} as FetchResultGeneric)
+          } as FetchResultGeneric
+        },
         start: async () => 1541203200,
         meta: {
           methodology
