@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { Adapter, Fetch, ProtocolType } from "../../adapters/types";
+import { Adapter, Fetch, FetchResultIncentives, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 
@@ -33,7 +33,7 @@ const getAverageBitcoinPriceLast24h = async (timestamp: number) => {
     })
 }
 
-const getIncentives: Fetch = async (timestamp: number) => {
+const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncentives> => {
     const dayBlocks = await getDailyBlocksByTimestampLast24h(timestamp)
     const averageBTCPrice = await getAverageBitcoinPriceLast24h(timestamp)
     const rewardByBlock = getBTCRewardByBlock(dayBlocks[0].height)
@@ -41,7 +41,7 @@ const getIncentives: Fetch = async (timestamp: number) => {
         timestamp,
         block: dayBlocks[0].height,
         tokens: {
-            BTC: dayBlocks.length * rewardByBlock * averageBTCPrice
+            BTC: (dayBlocks.length * rewardByBlock * averageBTCPrice).toString()
         }
     }
 }
