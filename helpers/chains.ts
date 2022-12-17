@@ -80,7 +80,8 @@ export enum CHAIN {
   PHANTASMA = "phantasma",
   XDC = "xdc",
   STARKNET = "starknet",
-  MOONBEAM = "moonbeam"
+  MOONBEAM = "moonbeam",
+  WAVES = "waves"
 }
 
 // Don´t use

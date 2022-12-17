@@ -25,9 +25,7 @@ const graphs = () => {
       const revenue = fees * .1;
       return {
         timestamp,
-        totalFees: "0" ,
         dailyFees: fees.toString(),
-        totalRevenue: "0",
         dailyRevenue: revenue.toString(),
       };
     };

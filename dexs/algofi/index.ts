@@ -3,7 +3,7 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = "https://thf1cmidt1.execute-api.us-east-2.amazonaws.com/Prod/amm_protocol_snapshot/?network=MAINNET"
+const URL = "https://api.algofi.org/protocolStats"
 
 interface IAPIResponse {
   total_usd: number;
@@ -11,10 +11,10 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse = (await fetchURL(URL))?.data.protocol_snapshot.volume.day;
+  const response: IAPIResponse = (await fetchURL(URL))?.data.amm.volume.day;
 
   return {
-    dailyVolume: `${response.total_usd}`,
+    dailyVolume: `${response}`,
     timestamp: dayTimestamp,
   };
 };

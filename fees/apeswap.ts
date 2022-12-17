@@ -9,14 +9,14 @@ const adapterObj = volumeAdapter.adapter;
 const fetch = (chain: string, totalFees: number, protocolFees: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
     const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-    const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume : "0";
-    const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume : "0";
+    const chainDailyVolume = fetchedResult.dailyVolume;
+    const chainTotalVolume = fetchedResult.totalVolume;
 
     return {
       timestamp,
-      totalFees: new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString(),
+      totalFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,
       dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      totalRevenue: new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString(),
+      totalRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString() : undefined,
       dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString() : undefined
     };
   }

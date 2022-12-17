@@ -58,14 +58,19 @@ const graph = (graphUrls: ChainEndpoints) => {
       const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
         return parseFloat(vol.adminFeesUSD);
       });
+      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+        return parseFloat(vol.lpFeesUSD);
+      });
 
       const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
       const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+      const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
 
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
+        dailySupplySideRevenue: dailyLPRev.toString()
       };
     }
   }

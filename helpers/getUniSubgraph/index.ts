@@ -18,6 +18,9 @@ interface IGetChainVolumeParams {
   graphUrls: {
     [chains: string]: string
   },
+  graphRequestHeaders?: {
+    [chains: string]: RequestInit['headers']
+  },
   totalVolume?: {
     factory?: string,
     field?: string
@@ -50,6 +53,7 @@ interface IGetChainVolumeParams {
 
 function getGraphDimensions({
   graphUrls,
+  graphRequestHeaders,
   totalVolume = {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
@@ -79,7 +83,7 @@ function getGraphDimensions({
   }
   // Queries
   const dailyVolumeQuery = gql`
-  query daily_volume ($id: Int) {
+  query daily_volume ($id: ID!) {
       ${graphFieldsDailyVolume.factory} (id: $id) {
         ${graphFieldsDailyVolume.field}
       }
@@ -114,7 +118,7 @@ function getGraphDimensions({
   }
   // Query
   const dailyFeesQuery = gql`
-  query daily_fees ($id: Int!) {
+  query daily_fees ($id: ID!) {
     ${graphFieldsDailyFees.factory}(id: $id) {
       ${graphFieldsDailyFees.field}
     }
@@ -137,7 +141,7 @@ function getGraphDimensions({
   return (chain: Chain) => {
     return async (timestamp: number, chainBlocks: ChainBlocks) => {
       // Get params
-      const id = getUniswapDateId(new Date(timestamp * 1000));
+      const id = String(getUniswapDateId(new Date(timestamp * 1000)));
       const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
       const customBlockFunc = getCustomBlock ?? getBlock
       const block = await customBlockFunc(timestamp, chain, chainBlocks);
@@ -145,28 +149,28 @@ function getGraphDimensions({
       // Execute queries
       // DAILY VOLUME
       let graphResDailyVolume
-      graphResDailyVolume = await request(graphUrls[chain], dailyVolumeQuery, { id }).catch(e => console.error(`Failed to get daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
+      graphResDailyVolume = await request(graphUrls[chain], dailyVolumeQuery, { id }, graphRequestHeaders?.[chain]).catch(e => console.error(`Failed to get daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
       let dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
       if (!graphResDailyVolume || !dailyVolume) {
         console.info("Attempting with alternative query...")
-        graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
+        graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }, graphRequestHeaders?.[chain]).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
         const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
         dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[dailyVolume.field]), 0);
       }
 
       // TOTAL VOLUME
-      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block }).catch(e => console.error(`Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`));
+      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block }, graphRequestHeaders?.[chain]).catch(e => console.error(`Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`));
       const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
       // DAILY FEES
-      const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }).catch(_e => {
+      const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }, graphRequestHeaders?.[chain]).catch(_e => {
         if (dailyVolume === undefined || feesPercent?.Fees === undefined)
           console.error(`Unable to get daily fees on ${chain} from graph.`)
       });
       const dailyFees = graphResDailyFees?.[graphFieldsDailyFees.factory]?.[graphFieldsDailyFees.field]
 
       // TOTAL FEES
-      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { id }).catch(_e => {
+      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { id }, graphRequestHeaders?.[chain]).catch(_e => {
         if (totalVolume === undefined || feesPercent?.Fees === undefined)
           console.error(`Unable to get total fees on ${chain} from graph.`)
       });
