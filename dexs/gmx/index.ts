@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -8,10 +8,19 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-stats",
 }
 
-const historicalData = gql`
+const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: {period: $period, id: $id}) {
         swap
+      }
+  }
+`
+
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+        liquidation
+        margin
       }
   }
 `
@@ -26,15 +35,15 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
+const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], historicalData, {
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
     id: chain === CHAIN.ARBITRUM
       ? String(dayTimestamp)
       : String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], historicalData, {
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
     id: 'total',
     period: 'total',
   })
@@ -61,17 +70,29 @@ const getStartTimestamp = async (chain: string) => {
   return startTimestamps[chain]
 }
 
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch(chain),
-        start: async () => getStartTimestamp(chain),
-        runAtCurrTime: true
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    "swap": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataSwap)(chain),
+          start: async () => getStartTimestamp(chain),
+          runAtCurrTime: true
+        }
       }
-    }
-  }, {})
+    }, {}),
+    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataDerivatives)(chain),
+          start: async () => getStartTimestamp(chain),
+          runAtCurrTime: true
+        }
+      }
+    }, {})
+  }
 }
 
 export default adapter;
