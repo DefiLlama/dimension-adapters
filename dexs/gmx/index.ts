@@ -77,8 +77,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain),
-          runAtCurrTime: true
+          start: async () => getStartTimestamp(chain)
         }
       }
     }, {}),
@@ -87,8 +86,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain),
-          runAtCurrTime: true
+          start: async () => getStartTimestamp(chain)
         }
       }
     }, {})
