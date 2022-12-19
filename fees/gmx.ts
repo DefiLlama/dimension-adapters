@@ -11,10 +11,10 @@ const endpoints = {
 }
 
 const methodology = {
-  Fees: "Fees collected from open/close position (0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  UserFees: "Fees collected from open/close position (0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  HoldersRevenue: "30% of all collected fees",
-  SupplySideRevenue: "70% of all collected fees"
+  Fees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  UserFees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  HoldersRevenue: "30% of all collected fees goes to GMX stakers",
+  SupplySideRevenue: "70% of all collected fees goes to GLP holders"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -37,11 +37,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
       const finalDailyFee = (dailyFee / 1e30);
+      const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+      const finalUserFee = (userFee / 1e30);
 
       return {
         timestamp,
         dailyFees: finalDailyFee.toString(),
-        dailyUserFees: finalDailyFee.toString(),
+        dailyUserFees: finalUserFee.toString(),
         dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
         dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
       };
@@ -53,18 +55,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
-        fetch: graphs(endpoints)(ARBITRUM),
-        start: async ()  => 1630468800,
-        meta: {
-          methodology
-        }
+      fetch: graphs(endpoints)(ARBITRUM),
+      start: async () => 1630468800,
+      meta: {
+        methodology
+      }
     },
     [AVAX]: {
-        fetch: graphs(endpoints)(AVAX),
-        start: async ()  => 1641445200,
-        meta: {
-          methodology
-        }
+      fetch: graphs(endpoints)(AVAX),
+      start: async () => 1641445200,
+      meta: {
+        methodology
+      }
     },
   }
 }
