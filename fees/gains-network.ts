@@ -13,28 +13,28 @@ interface IEvent {
 }
 const event: IEvent[] = [
   {
-    name: 'DevGovFeeCharged(uint valueDai)',
-    topic: '0x94bf664d3924a5d5d3e71ee53c5bdcce866ec4b43c54db2cd179f3473790920d'
+    name: 'DevGovFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0x4628f3d38f72d5f9e077d3965e10cd3242ff1316aa2bf81f054c0dfb25408406'
   },
   {
-    name: 'SssFeeCharged(uint valueDai)',
-    topic: '0x3788d58fa410ec2544131c6c383109bca0ba17fb72096a3f77581aba0e454228'
+    name: 'SssFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0xd1e388cc27c5125a80cf538c12b26dc5a784071d324a81a736e4d17f238588e4'
   },
   {
-    name: 'ReferralFeeCharged(uint valueDai)',
-    topic: '0x146e3fd3726924a61f7680adc15e73436f5e17a023460d5fc860dd9abce05c8f'
+    name: 'ReferralFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0x0f5273269f52308b9c40fafda3ca13cc42f715fcd795365e87f351f59e249313'
   },
   {
-    name: 'NftBotFeeCharged(uint valueDai)',
-    topic: '0x14f8be3132e5b96272e03b3f1bf63723d335360268f02c28c75808359d70490b'
+    name: 'NftBotFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0xcada75418f444febbe725c87360b063440c54e00e82d578010de1ed009d756c5'
   },
   {
-    name: 'DaiVaultFeeCharged(uint valueDai)',
-    topic: '0x5d2a90b1b3edfd2a9bea268b669e9d44c0a8d46b9f593cdd25ed986aefa2ae99'
+    name: 'DaiVaultFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0x60c73da98faf96842eabd77a0c73964cd189dbaf2c9ae90923a3fed137f30e3e'
   },
   {
-    name: 'LpFeeCharged(uint valueDai)',
-    topic: '0xc476668ed4772e5ad97cf622f4fa0e63e9671e7d9e169ee746432fdb21bc42b2'
+    name: 'LpFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0xf3dd1b8102b506743ce65a97636e91051e861f4f8f7e3eb87f2d95d0a616cea2'
   }
 ];
 
@@ -42,7 +42,7 @@ interface ITx {
   data: string;
 }
 
-const FEE_ADDRESS = "0x6805dD635AA542210ed572F7b93121002c629690";
+const FEE_ADDRESS = "0xb454d8A8C98035C65Bb73FE2a11567b9B044E0fa";
 const BIG_TEN = new BigNumber('10');
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -59,7 +59,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       keys: [],
       chain: "polygon",
       topics: [e.topic]
-  })))
+  })));
   const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
   const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
   const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
