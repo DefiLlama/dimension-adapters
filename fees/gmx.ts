@@ -14,7 +14,9 @@ const methodology = {
   Fees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   UserFees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   HoldersRevenue: "30% of all collected fees goes to GMX stakers",
-  SupplySideRevenue: "70% of all collected fees goes to GLP holders"
+  SupplySideRevenue: "70% of all collected fees goes to GLP holders",
+  Revenue: "Revenue is 30% of all collected fees, which goes to GMX stakers",
+  ProtocolRevenue: "Treasury has no revenue"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -44,6 +46,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         dailyFees: finalDailyFee.toString(),
         dailyUserFees: finalUserFee.toString(),
+        dailyRevenue: (finalDailyFee * 0.3).toString(),
+        dailyProtocolRevenue: "0",
+        totalProtocolRevenue: "0",
         dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
         dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
       };

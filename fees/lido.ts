@@ -22,6 +22,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
             dailyProtocolSideRevenueUSD
             cumulativeTotalRevenueUSD
             cumulativeProtocolSideRevenueUSD
+            dailySupplySideRevenueUSD
+            cumulativeSupplySideRevenueUSD
         }
       }`;
 
@@ -31,13 +33,21 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const totalFee = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
       const dailyRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
       const totalRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeProtocolSideRevenueUSD);
+      const dailySSRev = new BigNumber(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD);
+      const totalSSRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeSupplySideRevenueUSD);
 
       return {
         timestamp,
+        dailyUserFees: dailyRev.toString(),
+        totalUserFees: totalRev.toString(),
         totalFees: totalFee.toString(),
         dailyFees: dailyFee.toString(),
         totalRevenue: totalRev.toString(),
         dailyRevenue: dailyRev.toString(),
+        dailyProtocolRevenue: dailyRev.toString(),
+        totalProtocolRevenue: totalRev.toString(),
+        dailySupplySideRevenue: dailySSRev.toString(),
+        totalSupplySideRevenue: totalSSRev.toString(),
       };
     };
   };
@@ -49,6 +59,15 @@ const adapter: Adapter = {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
         start: async ()  => 1608354000,
+        meta: {
+          methodology: {
+            UserFees: "Lido takes 10% fee on users staking rewards",
+            Fees: "Staking rewards earned by earned by all staked ETH",
+            Revenue: "Staking rewards",
+            ProtocolRevenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
+            SupplySideRevenue: "Staking rewards earned by stETH holders"
+          }
+        }
     },
   }
 }
