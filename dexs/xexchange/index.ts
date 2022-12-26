@@ -11,7 +11,7 @@ const getDailyVolume = () => {
   }`
 }
 
-const graphQLClient = new GraphQLClient(" https://graph.maiar.exchange/graphql");
+const graphQLClient = new GraphQLClient("https://graph.xexchange.com/graphql");
 const getGQLClient = () => {
   return graphQLClient
 }
@@ -22,20 +22,18 @@ interface IGraphResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IGraphResponse = (await getGQLClient().request(getDailyVolume())).factory;
-
+  const historicalVolume: IGraphResponse = (await getGQLClient().request(getDailyVolume())).factory;
   return {
+    dailyVolume: historicalVolume.totalVolumeUSD24h ? `${historicalVolume.totalVolumeUSD24h}` : undefined,
     timestamp: dayTimestamp,
-    dailyVolume: response.totalVolumeUSD24h
-  }
+  };
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
-      start: async () => 0,
-      runAtCurrTime: true
+      start: async () => 1664928000
     },
   },
 };
