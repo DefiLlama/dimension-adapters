@@ -5,9 +5,8 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const getDailyVolume = () => {
   return gql`{
-    pairsDayDatas {
-      timestamp
-      volumeUSD24h
+    factory {
+      totalVolumeUSD24h
     }
   }`
 }
@@ -18,25 +17,14 @@ const getGQLClient = () => {
 }
 
 interface IGraphResponse {
-  timestamp: string;
-  volumeUSD24h: string;
+  totalVolumeUSD24h: string;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).pairsDayDatas;
-
-  const totalVolume = historicalVolume
-    .filter(volItem => getUniqStartOfTodayTimestamp(new Date(volItem.timestamp)) <= dayTimestamp)
-    .reduce((acc, { volumeUSD24h }) => acc + Number(volumeUSD24h), 0);
-
-  const dailyVolume = historicalVolume
-    .filter(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.timestamp)) === dayTimestamp)
-    .reduce((acc, { volumeUSD24h }) => acc + Number(volumeUSD24h), 0);
-
+  const historicalVolume: IGraphResponse = (await getGQLClient().request(getDailyVolume())).factory;
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: historicalVolume.totalVolumeUSD24h ? `${historicalVolume.totalVolumeUSD24h}` : undefined,
     timestamp: dayTimestamp,
   };
 }
@@ -45,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
-      start: async () => 1652832000
+      start: async () => 0
     },
   },
 };
