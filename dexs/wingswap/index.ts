@@ -1,0 +1,15 @@
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+
+const endpoints = {
+  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/wingswap/wingswap-exchange",
+};
+
+const adapter = univ2Adapter(endpoints, {
+  factoriesName: "wingSwapFactories",
+  dayData: "wingSwapDayData",
+});
+
+adapter.adapter.fantom.start = async () => 1637452800;
+
+export default adapter
