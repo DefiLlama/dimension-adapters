@@ -1,6 +1,5 @@
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, POLYGON } from "../helpers/chains";
-import { getStartTimestamp } from "../helpers/getStartTimestamp";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
@@ -49,8 +48,7 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee.toString(),
-        totalRevenue: "0", // balancer v1 had no rev
-        dailyRevenue: "0", // balancer v1 had no rev
+        // balancer v1 had no rev
       };
     };
   };
@@ -115,41 +113,21 @@ const adapter: Adapter = {
     v1: {
       [ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-        start: getStartTimestamp({
-          endpoints: v1Endpoints,
-          chain: ETHEREUM,
-          dailyDataField: "transactions",
-          dateField: "timestamp"
-        }),
+        start: async () => 1582761600,
       },
     },
     v2: {
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: ETHEREUM,
-          dailyDataField: "balancerSnapshots",
-          dateField: "timestamp"
-        }),
+        start: async () => 1619136000,
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: POLYGON,
-          dailyDataField: "balancerSnapshots",
-          dateField: "timestamp"
-        }),
+        start: async () => 1624492800,
       },
       [ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(ARBITRUM),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: ARBITRUM,
-          dailyDataField: "balancerSnapshots",
-          dateField: "timestamp"
-        }),
+        start: async () => 1630368000,
       }
     }
   }
