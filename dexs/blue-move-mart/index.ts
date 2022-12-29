@@ -21,10 +21,14 @@ const fetch = async (timestamp: number) => {
 
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
-
+  const rateFees = 0.02;
+  const dailyFees = Number(dailyVolume) * rateFees;
+  const totalFees = Number(totalVolume) * rateFees;
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalFees: `${totalFees}`,
+    dailyFees:  dailyFees ? `${dailyFees}` : undefined,
     timestamp: dayTimestamp,
   };
 };
@@ -35,7 +39,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch,
       start: async () => 1666224000,
-      customBackfill: customBackfill(CHAIN.APTOS as Chain, (_chian: string) => fetch)
+      // customBackfill: customBackfill(CHAIN.APTOS as Chain, (_chian: string) => fetch)
     },
   },
 };
