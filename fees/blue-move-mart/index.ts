@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://aptos-mainnet-api.bluemove.net/api/histogram"; 
+const historicalVolumeEndpoint = "https://aptos-mainnet-api.bluemove.net/api/histogram";
 
 interface IVolumeall {
   num: string;
