@@ -27,6 +27,7 @@ const getTotalFeesnRev = async (timestamp: number, graphUrl: string) => {
         marketplaceDailySnapshot(id: ${dateId}) {
           totalRevenueETH
           marketplaceRevenueETH
+          creatorRevenueETH
         }
       }`;
 
@@ -38,7 +39,14 @@ const getTotalFeesnRev = async (timestamp: number, graphUrl: string) => {
     timestamp,
     totalFeesETH: data.totalRevenueETH,
     totalRevenueETH: data.marketplaceRevenueETH,
+    totalCreatorRevenueETH: data.creatorRevenueETH,
   };
+}
+
+const methodology = {
+  Fees: "Service fees and royalties collected",
+  Revenue: "Opensea takes 2.5% on each sale",
+  CreatorRevenue: "Creators can set up to 10% royalty fees of each sale",
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -57,13 +65,16 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const dailyFeesETH = snapshot24h.totalFeesETH - snapshot48h.totalFeesETH
       const dailyRevenueETH = snapshot24h.totalRevenueETH - snapshot48h.totalRevenueETH
-      
+      const dailyCreatorRevenueETH = snapshot24h.totalCreatorRevenueETH - snapshot48h.totalCreatorRevenueETH
+
       return {
         timestamp: todaysTimestamp,
         dailyFees: (new BigNumber(dailyFeesETH).multipliedBy(latestPrice)).toString(),
         dailyRevenue: (new BigNumber(dailyRevenueETH).multipliedBy(latestPrice)).toString(),
+        dailyCreatorRevenue: (new BigNumber(dailyCreatorRevenueETH).multipliedBy(latestPrice)).toString(),
         totalFees: (new BigNumber(snapshot24h.totalFeesETH).multipliedBy(latestPrice)).toString(),
-        totalRevenue: (new BigNumber(snapshot24h.totalRevenueETH).multipliedBy(latestPrice)).toString()
+        totalRevenue: (new BigNumber(snapshot24h.totalRevenueETH).multipliedBy(latestPrice)).toString(),
+        totalCreatorRevenue: (new BigNumber(snapshot24h.totalCreatorRevenueETH).multipliedBy(latestPrice)).toString()
       }
     };
   };
@@ -74,19 +85,28 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(v1Endpoints)(CHAIN.ETHEREUM),
-        start: async () => 1528911384
+        start: async () => 1528911384,
+        meta: {
+          methodology
+        }
       },
     },
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(v2Endpoints)(CHAIN.ETHEREUM),
-        start: async () => 1645228794
+        start: async () => 1645228794,
+        meta: {
+          methodology
+        }
       },
     },
     seaport: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(CHAIN.ETHEREUM),
-        start: async () => 1655055510
+        start: async () => 1655055510,
+        meta: {
+          methodology
+        }
       },
     }
   }
