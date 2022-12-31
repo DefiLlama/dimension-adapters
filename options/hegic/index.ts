@@ -3,48 +3,41 @@ import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
-const endpoints: { [chain: string]: string } = {
-  arbitrum: "https://api.hegic.co/analytics",
-};
-
+const analyticsEndpoint = "https://api.hegic.co/analytics";
 const hegicHergeStart = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
 const secondsInADay = 24 * 60 * 60;
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: createFetchFn(endpoints[chain]),
-        start: async () => hegicHergeStart,
-      },
-    };
-  }, {}),
+  adapter: {
+    arbitrum: {
+      fetch: fetchArbitrumAnalyticsData,
+      start: async () => hegicHergeStart,
+    },
+  },
 };
 
-function createFetchFn(endpoint: string) {
-  return async (timestamp: number) => {
-    const analyticsData = await getAnalyticsData(endpoint);
+async function fetchArbitrumAnalyticsData(timestamp: number) {
+  const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
-    const allPositions = [
-      //
-      ...analyticsData.positions.active,
-      ...analyticsData.positions.closed,
-    ];
+  const allPositions = [
+    //
+    ...analyticsData.positions.active,
+    ...analyticsData.positions.closed,
+  ];
 
-    const dailyPositions = getPositionsForDaily(allPositions, timestamp);
+  const dailyPositions = getPositionsForDaily(allPositions, timestamp);
 
-    const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions);
-    const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions);
-    const totalNotionalVolume = getNotionalVolumeUSD(allPositions);
-    const totalPremiumVolume = getPremiumVolumeUSD(allPositions);
+  const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions).toFixed(2);
+  const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions).toFixed(2);
+  const totalNotionalVolume = getNotionalVolumeUSD(allPositions).toFixed(2);
+  const totalPremiumVolume = getPremiumVolumeUSD(allPositions).toFixed(2);
 
-    return {
-      dailyNotionalVolume,
-      dailyPremiumVolume,
-      totalNotionalVolume,
-      totalPremiumVolume,
-    };
+  return {
+    timestamp,
+    dailyNotionalVolume,
+    dailyPremiumVolume,
+    totalNotionalVolume,
+    totalPremiumVolume,
   };
 }
 
