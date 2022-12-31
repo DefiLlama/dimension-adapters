@@ -16,7 +16,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
       const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
 
-      const graphQuery = `query totals($todaysTimestamp: Int!, $yesterdaysTimestamp: Int!, $product: String!){
+      const graphQuery = gql`query totals($todaysTimestamp: Int!, $yesterdaysTimestamp: Int!, $product: String!){
         totals(first: 1000, orderBy: timestamp, orderDirection: desc, where: { period: 86400, bucketMagnitude: 0, synth: null, timestamp_lte: $todaysTimestamp, timestamp_gte: $yesterdaysTimestamp, product: $product }) {
           totalFeesGeneratedInUSD
         }
@@ -27,7 +27,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       let dailyFee = graphRes.totals.reduce((accumulator: number, dailyTotal: any) => {
         return accumulator + Number(dailyTotal.totalFeesGeneratedInUSD)
       }, 0);
-      
+
       if (chain == OPTIMISM) {
         const graphResOptimism = await request(graphUrls[chain], graphQuery, { todaysTimestamp, yesterdaysTimestamp, product: "futures" } );
 
@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: async ()  => 1528430400,
+        start: async ()  => 1653523200,
     },
     [OPTIMISM]: {
         fetch: graphs(endpoints)(OPTIMISM),

@@ -6,7 +6,8 @@ const endpoints = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/exchange",
 };
 const endpointsV2 = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2"
+  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2-arbitrum"
 }
 
 
@@ -49,7 +50,11 @@ const adapter: BreakdownAdapter = {
       [CHAIN.AVAX]: {
         fetch: graphsV2(CHAIN.AVAX),
         start: async () => 1668556800
-      }
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: graphsV2(CHAIN.ARBITRUM),
+        start: async () => 1671926400
+      },
     }
   },
 };
