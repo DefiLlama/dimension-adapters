@@ -1,7 +1,7 @@
 // import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { AnalyticsData, Position } from "./interfaces";
+import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
 const endpoints: { [chain: string]: string } = {
   arbitrum: "https://api.hegic.co/analytics",
@@ -74,8 +74,31 @@ function getPremiumVolumeUSD(positions: Position[]) {
 
 function getNotionalVolumeUSD(positions: Position[]) {
   return positions
-    .map((position) => position.amount * position.spotPrice)
+    .map(
+      (position) =>
+        position.amount *
+        position.spotPrice *
+        StrategyVolumeCoefficients[position.type]
+    )
     .reduce((sumVolume, positionVolume) => sumVolume + positionVolume, 0);
 }
+
+/** Coefficients for multiplying plain volume,
+ *  to reflect the number of options that are
+ *  bought as part of the strategy. */
+const StrategyVolumeCoefficients = {
+  [StrategyType.CALL]: 1,
+  [StrategyType.PUT]: 1,
+  [StrategyType.STRIP]: 3,
+  [StrategyType.STRAP]: 3,
+  [StrategyType.STRADDLE]: 2,
+  [StrategyType.STRANGLE]: 2,
+  [StrategyType.LongCondor]: 4,
+  [StrategyType.LongButterfly]: 4,
+  [StrategyType.BearCallSpread]: 2,
+  [StrategyType.BearPutSpread]: 2,
+  [StrategyType.BullCallSpread]: 2,
+  [StrategyType.BullPutSpread]: 2,
+};
 
 export default adapter;
