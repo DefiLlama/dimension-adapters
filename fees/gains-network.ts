@@ -5,6 +5,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import { getBlock } from "../helpers/getBlock";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../utils/prices";
+import { Chain } from "@defillama/sdk/build/general";
 
 
 interface IEvent {
@@ -42,47 +43,60 @@ interface ITx {
   data: string;
 }
 
-const FEE_ADDRESS = "0xb454d8A8C98035C65Bb73FE2a11567b9B044E0fa";
-const BIG_TEN = new BigNumber('10');
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+const FEE_ADDRESS_POLYGON = "0xb454d8A8C98035C65Bb73FE2a11567b9B044E0fa";
+const FEE_ADDRESS_ARBITRUM = "0x6C612C804c84e3D20E3109c8efD06cD2d8b28F46";
+const FEE_ADDRESS = {
+  [CHAIN.POLYGON]: FEE_ADDRESS_POLYGON,
+  [CHAIN.ARBITRUM]: FEE_ADDRESS_ARBITRUM
+};
 
-  const todaysBlock = (await getBlock(todaysTimestamp, "polygon", {}));
-  const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "polygon", {}));
-  const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall]: any = await Promise.all(
-    event.map((e:IEvent) => sdk.api.util.getLogs({
-      target: FEE_ADDRESS,
-      topic: e.name,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: "polygon",
-      topics: [e.topic]
-  })));
-  const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const nftBotFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const daiVaultVol = daiVaultCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const lpFeeVol = lpFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-  const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
-  const daiPrice = prices['coingecko:dai']?.price || 1;
-  const dailyRevenue = devFeeValume.plus(ssFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
-  const dailyFees =  devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol).plus(lpFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
-  return {
-    timestamp,
-    dailyFees,
-    dailyRevenue
-  } as FetchResultFees
+const BIG_TEN = new BigNumber('10');
+
+const fetch = (address: string, chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+
+    const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall]: any = await Promise.all(
+      event.map((e:IEvent) => sdk.api.util.getLogs({
+        target: address,
+        topic: e.name,
+        toBlock: yesterdaysBlock,
+        fromBlock: todaysBlock,
+        keys: [],
+        chain: chain,
+        topics: [e.topic]
+    })));
+    const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const nftBotFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const daiVaultVol = daiVaultCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const lpFeeVol = lpFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
+    const daiPrice = prices['coingecko:dai']?.price || 1;
+    const dailyRevenue = devFeeValume.plus(ssFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+    const dailyFees =  devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol).plus(lpFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+    return {
+      timestamp,
+      dailyFees,
+      dailyRevenue
+    } as FetchResultFees
+  }
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-        fetch: fetch,
+        fetch: fetch(FEE_ADDRESS[CHAIN.POLYGON], CHAIN.POLYGON),
         start: async ()  => 1654214400,
     },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(FEE_ADDRESS[CHAIN.ARBITRUM], CHAIN.ARBITRUM),
+      start: async ()  => 1672358400,
+  },
   }
 }
 
