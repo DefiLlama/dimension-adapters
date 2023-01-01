@@ -48,7 +48,14 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee.toString(),
-        // balancer v1 had no rev
+        totalUserFees: graphRes["today"]["totalSwapFee"],
+        dailyUserFees: dailyFee.toString(),
+        totalRevenue: "0",
+        dailyRevenue: "0",
+        totalProtocolRevenue: "0",
+        dailyProtocolRevenue: "0",
+        totalSupplySideRevenue: graphRes["today"]["totalSwapFee"],
+        dailySupplySideRevenue: dailyFee.toString(),
       };
     };
   };
@@ -99,14 +106,28 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
+        totalUserFees: graphRes["today"]["totalSwapFee"],
+        dailyUserFees: dailyFee.toString(),
         totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee.toString(),
         totalRevenue: totalRevenue.toString(), // balancer v2 subgraph does not flash loan fees yet
         dailyRevenue: dailyRevenue.toString(), // balancer v2 subgraph does not flash loan fees yet
+        totalProtocolRevenue: totalRevenue.toString(),
+        dailyProtocolRevenue: dailyRevenue.toString(),
+        totalSupplySideRevenue: new BigNumber(graphRes["today"]["totalSwapFee"]).minus(totalRevenue.toString()).toString(),
+        dailySupplySideRevenue: new BigNumber(dailyFee.toString()).minus(dailyRevenue.toString()).toString(),
       };
     };
   };
 };
+
+const methodology = {
+  UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
+  Fees: "All trading fees collected (doesn't include withdrawal and flash loan fees)",
+  Revenue: "Protocol revenue from all fees collected",
+  ProtocolRevenue: "Set to 10% of collected fees by a governance vote",
+  SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs, set by the pool creator or dynamically optimized by Gauntlet",
+}
 
 const adapter: Adapter = {
   breakdown: {
@@ -114,20 +135,38 @@ const adapter: Adapter = {
       [ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(ETHEREUM),
         start: async () => 1582761600,
+        meta: {
+          methodology: {
+            UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
+            Fees: "All trading fees collected",
+            Revenue: "Balancer V1 protocol fees are set to 0%",
+            ProtocolRevenue: "Balancer V1 protocol fees are set to 0%",
+            SupplySideRevenue: "Trading fees are distributed among LPs",
+          }
+        }
       },
     },
     v2: {
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
         start: async () => 1619136000,
+        meta: {
+          methodology
+        }
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
         start: async () => 1624492800,
+        meta: {
+          methodology
+        }
       },
       [ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(ARBITRUM),
         start: async () => 1630368000,
+        meta: {
+          methodology
+        }
       }
     }
   }
