@@ -1,19 +1,33 @@
-import { Adapter } from "../adapters/types";
-import volumeAdapter from "../dexs/biswap";
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
+import { CHAIN } from "../helpers/chains";
+import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
-const TOTAL_FEES = 0.002;
-const PROTOCOL_FEES = 0.0005;
-
-const feeAdapter = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  volumeAdapter
+const adapters = univ2DimensionAdapter({
+  graphUrls: {
+    [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/biswapcom/exchange5"
+  },
+  dailyVolume: {
+    factory: "pancakeDayData"
+  },
+  totalVolume: {
+    factory: "pancakeFactories"
+  },
+  feesPercent: {
+    type: "volume",
+    Fees: 0.2,
+    UserFees: 0.2,
+    Revenue: 0.05,
+    ProtocolRevenue: 0.05,
+    HoldersRevenue: 0,
+    SupplySideRevenue: 0.15,
+  }
+}, {
+  methodology: {
+    Fees: "Fees collected from user trading fees",
+    UserFees: "Users pays 0.2% of each swap",
+    Revenue: "Revenue is 0.05% of each swap which goes to treasury",
+    ProtocolRevenue: "A 0.05% of each swap goes to treasure",
+    SupplySideRevenue: "A 0.15% fee of each swap is distributed among LPs",
+  }
 });
 
-const adapter: Adapter = {
-  adapter: feeAdapter
-};
-
-
-export default adapter;
+export default adapters;
