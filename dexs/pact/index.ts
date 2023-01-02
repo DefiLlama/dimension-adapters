@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
       fetch,
       start: async () => 1667520000,
     },
-  }
+  },
 };
 
 export default adapter;
