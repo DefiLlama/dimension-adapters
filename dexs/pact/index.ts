@@ -2,18 +2,22 @@ import fetchURL from "../../utils/fetchURL"
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 
-const URL = "https://api.pact.fi/api/pools?limit=1000"
+const URL = (date: string) => `https://api.pact.fi/api/pools/overall/historical_stats?interval=DAY&start=${date}`;
 
 interface IAPIResponse {
-  volume_24h: string;
+  for_datetime: string;
+  volume: string;
 };
 
 const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL)).data.results;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+  const url = URL(new Date(yesterdaysTimestamp * 1000).toISOString());
+  const response: IAPIResponse[] = (await fetchURL(url)).data;
   const dailyVolume = response
-    .reduce((acc, { volume_24h }) => acc + Number(volume_24h), 0)
+    .find(dayItem => (new Date(dayItem.for_datetime.split('T')[0]).getTime() / 1000) === dayTimestamp)?.volume;
 
   return {
     dailyVolume: `${dailyVolume}`,
@@ -25,9 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
+      start: async () => 1667520000,
     },
   }
 };
