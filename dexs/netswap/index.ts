@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.METIS]: "https://api.netswap.io/graph/subgraphs/name/netswap/exchange"
+  [CHAIN.METIS]: "https://andromeda.thegraph.metis.io/subgraphs/name/netswap/exchange"
 }, {
   factoriesName: "netswapFactories",
   dayData: "netswapDayData"
