@@ -68,7 +68,10 @@ const graph = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
+        dailyUserFees: dailyFee.toString(),
         dailyFees: dailyFee.toString(),
+        dailyProtocolRevenue: "0",
+        dailyHoldersRevenue: dailyRev.toString(),
         dailyRevenue: dailyRev.toString(),
         dailySupplySideRevenue: dailyLPRev.toString()
       };
@@ -76,35 +79,65 @@ const graph = (graphUrls: ChainEndpoints) => {
   }
 };
 
+const methodology = {
+  UserFees: "Users pay a trading fee from 0.04% to 0.4% on each swap (as of July 2022, the fee on all pools was 0.04%)",
+  Fees: "Trading fees paid by users",
+  Revenue: "A 50% of the trading fee is collected by veCRV holders",
+  ProtocolRevenue: "Treasury have no revenue",
+  HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
+  SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
+}
+
 const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
       start: async () => 1577854800,
+      meta: {
+        methodology
+      }
     },
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
       start: async () => 1620532800,
+      meta: {
+        methodology
+      }
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
       start: async () => 1632110400,
+      meta: {
+        methodology
+      }
     },
     [POLYGON]: {
       fetch: graph(endpoints)(POLYGON),
       start: async () => 1620014400,
+      meta: {
+        methodology
+      }
     },
     [AVAX]: {
       fetch: graph(endpoints)(AVAX),
       start: async () => 1633492800,
+      meta: {
+        methodology
+      }
     },
     [FANTOM]: {
       fetch: graph(endpoints)(FANTOM),
       start: async () => 1620532800,
+      meta: {
+        methodology
+      }
     },
     [XDAI]: {
       fetch: graph(endpoints)(XDAI),
       start: async () => 1620532800,
+      meta: {
+        methodology
+      }
     },
   }
 }
