@@ -3,20 +3,20 @@ import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
-const analyticsEndpoint = "https://api.hegic.co/analytics";
-const hegicHergeStart = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
+export const analyticsEndpoint = "https://api.hegic.co/analytics";
+export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
 const secondsInADay = 24 * 60 * 60;
 
 const adapter: SimpleAdapter = {
   adapter: {
     arbitrum: {
       fetch: fetchArbitrumAnalyticsData,
-      start: async () => hegicHergeStart,
+      start: async () => HEGIC_HERGE_START,
     },
   },
 };
 
-async function fetchArbitrumAnalyticsData(timestamp: number) {
+export async function fetchArbitrumAnalyticsData(timestamp: number) {
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
   const allPositions = [
