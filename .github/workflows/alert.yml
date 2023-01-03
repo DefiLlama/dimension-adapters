@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: curl https://born-to-llama.onrender.com/refresh
-    - name: Deploy
-      run: wget -O- https://born-to-llama.herokuapp.com/rebuild-server > /dev/null
+    - name: Update unlisted
+      run: curl https://born-to-llama.herokuapp.com/refresh
+    - name: Deploy to server
+      run: curl https://born-to-llama.herokuapp.com/rebuild-server
