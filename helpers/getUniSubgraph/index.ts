@@ -191,7 +191,7 @@ function getGraphDimensions({
         const totalBase = feeBase === 'volume' ? totalVolume : totalFees
         Object.entries(feesPercent).forEach(([feeType, feePercentType]) => {
           if (typeof feePercentType !== "number") return
-          if (dailyBase && response[`daily${feeType}`] === undefined)
+          if (dailyBase !== undefined && response[`daily${feeType}`] === undefined)
             response[`daily${feeType}`] = new BigNumber(dailyBase).multipliedBy(feePercentType / 100).toString()
           if (totalBase && response[`total${feeType}`] === undefined)
             response[`total${feeType}`] = new BigNumber(totalBase).multipliedBy(feePercentType / 100).toString()

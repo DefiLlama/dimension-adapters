@@ -1,7 +1,3 @@
-import { Adapter } from "../adapters/types";
-import volumeAdapter from "../dexs/babydogeswap";
-import { getGraphDimensions } from "../helpers/getUniSubgraph";
-
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
