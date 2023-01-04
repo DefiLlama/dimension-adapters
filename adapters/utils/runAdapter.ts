@@ -13,7 +13,7 @@ export interface IRunAdapterResponseRejected {
     error: Error
 }
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks) {
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
     const validStart = ((await Promise.all(chains.map(async (chain) => {
@@ -27,6 +27,8 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
             try {
                 const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
+                if (id)
+                    console.log("Result before cleaning", id, cleanCurrentDayTimestamp, result, JSON.stringify(chainBlocks ?? {}))
                 cleanResult(result)
                 return Promise.resolve({
                     chain,
