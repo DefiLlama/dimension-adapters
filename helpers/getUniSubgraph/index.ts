@@ -155,7 +155,7 @@ function getGraphDimensions({
         console.info("Attempting with alternative query...")
         graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
         const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
-        dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[dailyVolume.field]), 0);
+        dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[graphFieldsDailyVolume.field]), 0);
       }
 
       // TOTAL VOLUME
