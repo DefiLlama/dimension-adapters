@@ -1,6 +1,6 @@
-import { util  } from '@defillama/sdk';
+import { util } from '@defillama/sdk';
 
-const { blocks: { getChainBlocks }} = util
+const { blocks: { getChainBlocks } } = util
 
 export type ChainBlocks = Awaited<ReturnType<typeof getChainBlocks>>
 
@@ -72,8 +72,12 @@ export type FetchResultVolume = FetchResultBase & {
 export type FetchResultFees = FetchResultBase & {
   totalFees?: string // | IJSON<string>;
   dailyFees?: string // | IJSON<string>;
+  dailyUserFees?: string // | IJSON<string>;
   totalRevenue?: string // | IJSON<string>;
   dailyRevenue?: string // | IJSON<string>;
+  dailyProtocolRevenue?: string
+  dailyHoldersRevenue?: string
+  dailySupplySideRevenue?: string
 };
 
 // INCENTIVES
