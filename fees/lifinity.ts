@@ -1,3 +1,4 @@
+import BigNumber from "bignumber.js";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
@@ -19,17 +20,38 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const dailyFees = historicalVolume
     .find(dayItem => Number(new Date(dayItem.date.split('/').join('-')).getTime() / 1000) === dayTimestamp)?.fees;
-  const dailyFeesUsd = (dailyFees || 0);
-  const dailyRevenue = dailyFeesUsd * 0.15;
-  const totalRevenue = totalFees * 0.15;
-  return {
-    dailyFees: dailyFeesUsd.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    totalFees: totalFees.toString(),
-    totalRevenue: totalRevenue.toString(),
-    timestamp: dayTimestamp,
-  };
+  const fetchResponse: FetchResultFees = {
+    timestamp: dayTimestamp
+  }
+  if (dailyFees !== undefined) {
+    const dailyFeesUsd = new BigNumber(dailyFees);
+    fetchResponse['dailyFees'] = dailyFeesUsd.toString()
+    fetchResponse['dailyRevenue'] = dailyFeesUsd.multipliedBy(0.15).toString()
+    fetchResponse['dailyProtocolRevenue'] = dailyFeesUsd.multipliedBy(0.15).toString()
+    fetchResponse['dailySupplySideRevenue'] = dailyFeesUsd.multipliedBy(0.85).toString()
+    fetchResponse['dailyUserFees'] = dailyFeesUsd.toString()
+  }
+
+  if (totalFees !== undefined) {
+    const totalFeesUsd = new BigNumber(totalFees);
+    fetchResponse['totalFees'] = totalFeesUsd.toString()
+    fetchResponse['totalRevenue'] = totalFeesUsd.multipliedBy(0.15).toString()
+    fetchResponse['totalProtocolRevenue'] = totalFeesUsd.multipliedBy(0.15).toString()
+    fetchResponse['totalSupplySideRevenue'] = totalFeesUsd.multipliedBy(0.85).toString()
+    fetchResponse['totalUserFees'] = totalFeesUsd.toString()
+  }
+
+  return fetchResponse;
 };
+
+const methodology = {
+  UserFees: "Base trading fee differs on each pool",
+  Fees: "All fees generated from trading fees",
+  SupplySideRevenue: "LPs currently receive 85% of trading fees",
+  ProtocolRevenue: "A 15% of trading fees is retained as a protocol fee",
+  Revenue: "A 15% of trading fees is retained as a protocol fee",
+  HoldersRevenue: "Holders have no revenue from trading fees",
+}
 
 const getStartTimestamp = async () => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
@@ -41,6 +63,9 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: getStartTimestamp,
+      meta: {
+        methodology
+      }
     },
   }
 }
