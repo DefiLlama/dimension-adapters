@@ -34,7 +34,13 @@ const getStartTimestamp =
         }
     `;
 
-      const result = await request(endpoints[chain], query).catch(console.error);
+      const result = await request(endpoints[chain], query).catch(e => {
+        const statusCode = e?.response?.status
+        if (statusCode >= 200 && statusCode < 300) {
+          return e.error
+        }
+        console.error(e)
+      });
 
       const days = result?.[dailyDataField];
 
