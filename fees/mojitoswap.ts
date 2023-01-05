@@ -1,19 +1,32 @@
-import { Adapter } from "../adapters/types";
-import volumeAdapter from "../dexs/mojitoswap";
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
+import { CHAIN } from "../helpers/chains";
+import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
-const TOTAL_FEES = 0.003;
-const PROTOCOL_FEES = 0.0012;
-
-const feeAdapter = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  volumeAdapter
-});
-
-const adapter: Adapter = {
-  adapter: feeAdapter
+const graphUrls = {
+  [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
 };
 
+const adapter = univ2DimensionAdapter({
+  graphUrls,
+  feesPercent: {
+    type: "volume",
+    UserFees: 0.3,
+    Fees: 0.3,
+    SupplySideRevenue: 0.18,
+    HoldersRevenue: 0.08,
+    ProtocolRevenue: 0.04,
+    Revenue: 0.12,
+  }
+}, {
+  methodology: {
+    UserFees: "Trading fees are 0.3% of each swap",
+    Fees: "The transaction fee on MojitoSwap is 0.3%",
+    SupplySideRevenue: "Liquidity providers earn a 0.18% of each swap",
+    HoldersRevenue: "A 0.08% fee of each swap is used to buyback and burn",
+    ProtocolRevenue: "A 0.04% of swap fees goes to MJT treasury",
+    Revenue: "Revenue is 0.12% of each swap",
+  }
+});
 
-export default adapter;
+adapter.adapter.kcc.start = async () => 1634200191;
+
+export default adapter
