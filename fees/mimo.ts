@@ -2,13 +2,10 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
-const endpoints = {
-  [CHAIN.IOTEX]: "https://graph-cache.mimo.exchange/subgraphs/name/mimo/mainnet"
-};
-
-
 const adapter = univ2DimensionAdapter({
-  graphUrls: endpoints,
+  graphUrls: {
+    [CHAIN.IOTEX]: "https://graph-cache.mimo.exchange/subgraphs/name/mimo/mainnet"
+  },
   totalVolume: {
     factory: "uniswapFactories",
     field: "totalVolumeUSD",
