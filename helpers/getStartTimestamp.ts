@@ -1,4 +1,5 @@
 import { request, gql } from "graphql-request";
+import { handle200Errors } from "./getUniSubgraph/utils";
 
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD } from "./getUniSubgraphVolume";
 
@@ -34,13 +35,7 @@ const getStartTimestamp =
         }
     `;
 
-      const result = await request(endpoints[chain], query).catch(e => {
-        const statusCode = e?.response?.status
-        if (statusCode >= 200 && statusCode < 300) {
-          return e.error
-        }
-        console.error(e)
-      });
+      const result = await request(endpoints[chain], query).catch(handle200Errors).catch(console.error);
 
       const days = result?.[dailyDataField];
 
