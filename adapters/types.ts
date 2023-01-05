@@ -78,6 +78,9 @@ export type FetchResultFees = FetchResultBase & {
   dailyProtocolRevenue?: string
   dailyHoldersRevenue?: string
   dailySupplySideRevenue?: string
+  totalProtocolRevenue?: string
+  totalSupplySideRevenue?: string
+  totalUserFees?: string
 };
 
 // INCENTIVES
