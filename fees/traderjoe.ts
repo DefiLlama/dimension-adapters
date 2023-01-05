@@ -14,7 +14,7 @@ const adapterV1 = getDexChainFees({
 
 const adapterV2 = getDexChainFees({
   totalFees: TOTAL_FEES,
-  volumeAdapter: {adapter: volumeAdapter.breakdown.v1}
+  volumeAdapter: {adapter: volumeAdapter.breakdown.v2}
 });
 
 const adapter: Adapter = {
