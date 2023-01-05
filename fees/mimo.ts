@@ -1,4 +1,3 @@
-import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
