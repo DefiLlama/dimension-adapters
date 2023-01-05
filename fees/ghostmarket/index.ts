@@ -36,18 +36,18 @@ const apis = (apiUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: data.dailyFees,
-        totalFees: data.userFees,
-        dailyUserFees: data.dailyFees,
-        totalUserFees: data.userFees,
-        dailyRevenue: data.dailyRevenue,
-        totalRevenue: data.protocolRevenue,
-        dailyProtocolRevenue: data.dailyRevenue,
-        totalProtocolRevenue: data.protocolRevenue,
-        dailyVolume: data.dailyVolume,
-        totalVolume: data.totalVolume,
-        dailyHoldersRevenue: data.dailyFees * 0.2,
-        totalHoldersRevenue: data.userFees * 0.2
+        dailyFees: String(data.dailyFees),
+        totalFees: String(data.userFees),
+        dailyUserFees: String(data.dailyFees),
+        totalUserFees: String(data.userFees),
+        dailyRevenue: String(data.dailyRevenue),
+        totalRevenue: String(data.protocolRevenue),
+        dailyProtocolRevenue: String(data.dailyRevenue),
+        totalProtocolRevenue: String(data.protocolRevenue),
+        dailyVolume: String(data.dailyVolume),
+        totalVolume: String(data.totalVolume),
+        dailyHoldersRevenue: String(data.dailyFees * 0.2),
+        totalHoldersRevenue: String(data.userFees * 0.2),
       }
     };
   };
