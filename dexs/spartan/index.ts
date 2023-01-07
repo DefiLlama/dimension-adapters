@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -24,7 +24,7 @@ interface IGraphResponse {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).metricsGlobalDays;
   const totalVolume = historicalVolume
