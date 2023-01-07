@@ -2,7 +2,6 @@ import { ChainBlocks, Fetch, FetchResultGeneric } from "../adapters/types"
 import { getBlock } from "./getBlock"
 import { util } from '@defillama/sdk';
 import { Chain } from "@defillama/sdk/build/general";
-import { formatTimestampAsDate } from "../utils/date";
 
 const { blocks: { chainsForBlocks } } = util
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -17,7 +16,7 @@ export default (chain: Chain, graphs: IGraphs): Fetch => async (timestamp: numbe
     if (chainsForBlocks.includes(chain) || chain === "ethereum")
         chainBlocksPreviousDay = { [chain]: await getBlock(timestampPreviousDay, chain, {}).catch(() => { }) }
     const resultPreviousDayN = await fetchGetVolume(timestampPreviousDay, chainBlocksPreviousDay)
-    const response: FetchResultGeneric = { timestamp: resultDayN.timestamp, block: resultDayN.block }
+    const response: FetchResultGeneric = { timestamp: resultDayN.timestamp, block: resultDayN.block, dailyVolume: resultDayN?.dailyVolume, totalVolume: resultDayN?.totalVolume }
     Object.keys(resultPreviousDayN).filter((key) => key.includes('total')).forEach(key => {
         const dimension = `daily${key.slice(5)}`
         if (resultDayN[dimension] === undefined) {
