@@ -52,8 +52,9 @@ const trident = Object.keys(endpointsTrident).reduce(
           return snapshot.factory.type == "ALL"
         })
         return {
-          totalVolume: res.factories[0].volumeUSD,
-          dailyVolume: daily.volumeUSD
+          timestamp: timestamp,
+          totalVolume: res.factories[0]?.volumeUSD,
+          dailyVolume: daily?.volumeUSD
         }
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
