@@ -86,6 +86,11 @@ const graph = (graphUrls: ChainEndpoints) => {
       return {
         timestamp,
         dailyFees: prevDayFeesSum.dailyFees.toString(),
+        dailyUserFees: prevDayFeesSum.dailyFees.toString(),
+        dailySupplySideRevenue: prevDayFeesSum.dailyFees.toString(),
+        dailyRevenue: "0",
+        dailyHoldersRevenue: "0",
+        dailyProtocolRevenue: "0"
       };
     };
   };
@@ -96,6 +101,16 @@ const adapter: Adapter = {
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
       start: async () => 1656154800,
+      meta: {
+        methodology: {
+          Fees: "All fees collected comes from user fees",
+          UserFees: "Fees paid by users",
+          SupplySideRevenue: "LPs revenue, from user fees",
+          Revenue: "Governance have no revenue",
+          HoldersRevenue: "Token holders have no revenue",
+          ProtocolRevenue: "Protocol have no revenue"
+        }
+      }
     },
   },
 };
