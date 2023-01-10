@@ -131,15 +131,15 @@ const fetch = async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
   const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-  const poolLength = await sdk.api.abi.call({
+  const poolLength = (await sdk.api.abi.call({
     target: FACTORY_ADDRESS,
     chain: 'fantom',
     abi: ABIs.allPairsLength,
-  });
+  })).output;
 
   const poolsRes = await sdk.api.abi.multiCall({
     abi: ABIs.allPairs,
-    calls: [...Array(Number(poolLength.output)).keys()].map((i) => ({
+    calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
       target: FACTORY_ADDRESS,
       params: i,
     })),
