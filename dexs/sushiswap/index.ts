@@ -1,70 +1,12 @@
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import {
-  ARBITRUM,
-  AVAX,
-  BSC,
-  CELO,
-  ETHEREUM,
-  FANTOM,
-  HARMONY,
-  HECO,
-  POLYGON,
-  XDAI,
-  MOONRIVER
-} from "../../helpers/chains";
-import { SimpleAdapter } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { BreakdownAdapter } from "../../adapters/types";
+import trident from './trident'
+import classic from './classic'
 
-const endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
-  [BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
-  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
-  [CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
-  [AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
-  [HARMONY]: "https://api.thegraph.com/subgraphs/name/sushiswap/harmony-exchange",
-  [MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
-  [XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
-  // [HECO]: "https://q.hg.network/subgraphs/name/heco-exchange/heco",
-  //'okexchain': 'https://q.hg.network/subgraphs/name/okex-exchange/oec',
-  //'okexchain': 'https://q.hg.network/subgraphs/name/sushiswap/okex-exchange',
-};
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    classic: classic,
+    trident: trident
+  }
+}
 
-const VOLUME_FIELD = "volumeUSD";
-
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
-    field: VOLUME_FIELD,
-  },
-});
-
-const startTimeQuery = {
-  endpoints,
-  dailyDataField: "dayDatas",
-  volumeField: VOLUME_FIELD,
-};
-
-const volume = Object.keys(endpoints).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: graphs(chain as Chain),
-      start: getStartTimestamp({ ...startTimeQuery, chain }),
-    },
-  }),
-  {}
-);
-
-const adapter: SimpleAdapter = {
-  adapter: volume,
-};
-
-export default adapter;
+export default adapter
