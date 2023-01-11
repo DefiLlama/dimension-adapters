@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/kperp/core",
+  [CHAIN.KAVA]: "https://graph-node.kperp.exchange/subgraphs/name/kperp/core",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
