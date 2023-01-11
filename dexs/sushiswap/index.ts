@@ -9,4 +9,4 @@ const adapter: BreakdownAdapter = {
   }
 }
 
-export default adapter;
+export default adapter
