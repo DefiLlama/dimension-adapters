@@ -13,8 +13,8 @@ interface IVolumeall {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  const _dailyVolume =  historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) <= dayTimestamp);
-  const dailyVolume = Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length-1].value)
+  const _dailyVolume =  historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === dayTimestamp);
+  const dailyVolume = Math.abs(Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length-1].value))
   const priceId = 'coingecko:zilliqa';
   const prices = await getPrices([priceId], dayTimestamp);
   const dailyVolumeUSD = dailyVolume ? `${Number(dailyVolume) * prices[priceId].price}` : undefined
