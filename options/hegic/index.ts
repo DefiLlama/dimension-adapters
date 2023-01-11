@@ -46,9 +46,8 @@ async function getAnalyticsData(endpoint: string): Promise<AnalyticsData> {
 }
 
 function getPositionsForDaily(positions: Position[], fromTimestamp: number) {
-  const from = fromTimestamp;
-  const to = from + secondsInADay;
-
+  const from = fromTimestamp - secondsInADay;
+  const to = fromTimestamp;
   return positions.filter((position) => {
     const purchaseTimestamp = dateStringToTimestamp(position.purchaseDate);
     return purchaseTimestamp >= from && purchaseTimestamp < to;
