@@ -25,17 +25,22 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
             const graphRes = await request(graphUrls[chain], graphQuery);
 
-            const dailyFee =
+            const dailyFee = (
                 parseInt(graphRes.feeStat.mint) +
                 parseInt(graphRes.feeStat.burn) +
                 parseInt(graphRes.feeStat.marginAndLiquidation) +
-                parseInt(graphRes.feeStat.swap);
-            const dailyUserFees = dailyFee / 1e30;
+                parseInt(graphRes.feeStat.swap)
+            ) / 1e30
+            const dailyUserFees = (
+                parseInt(graphRes.feeStat.marginAndLiquidation) +
+                parseInt(graphRes.feeStat.swap)
+            ) / 1e30;
 
             return {
                 timestamp,
+                dailyFees: dailyFee.toString(),
                 dailyUserFees: dailyUserFees.toString(),
-                dailyRevenue: (dailyUserFees * 0.3).toString(),
+                dailyRevenue: (dailyFee * 0.3).toString()
             };
         };
     };
@@ -47,7 +52,11 @@ const adapter: Adapter = {
             fetch: graphs(endpoints)(BSC),
             start: async () => 1670659200,
             meta: {
-                methodology: 'All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.'
+                methodology: {
+                    Fees: "All mint, burn, margin and liquidation and swap fees are collected",
+                    UserFees: "Users pay swap fees and margin and liquidation fees",
+                    Revenue: "Revenue is calculated as 30% of the total fee.",
+                }
             }
         },
     },
