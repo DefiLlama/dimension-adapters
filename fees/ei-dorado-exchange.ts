@@ -30,12 +30,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 parseInt(graphRes.feeStat.burn) +
                 parseInt(graphRes.feeStat.marginAndLiquidation) +
                 parseInt(graphRes.feeStat.swap);
-            const finalDailyFee = dailyFee / 1e30;
+            const dailyUserFees = dailyFee / 1e30;
 
             return {
                 timestamp,
-                dailyFees: finalDailyFee.toString(),
-                dailyRevenue: (finalDailyFee * 0.3).toString(),
+                dailyUserFees: dailyUserFees.toString(),
+                dailyRevenue: (dailyUserFees * 0.3).toString(),
             };
         };
     };
