@@ -88,20 +88,18 @@ const PAIR_TOKEN_ABI  = (token: string): object => {
 
 interface IPairToken  {
   address: string;
-  symbol: string;
   decimals: number;
 }
 
 interface IPairInfo {
   lpToken: string;
-  pairName: string;
   token0: IPairToken;
   token1: IPairToken;
 }
 
 const getPairInfo = async (pair: string, tokenAddress: string[]): Promise<IPairInfo>  => {
-  const [tokenSymbol, tokenDecimals] = await Promise.all(
-    ['erc20:symbol', 'erc20:decimals'].map((method: string) =>
+  const [tokenDecimals] = await Promise.all(
+    ['erc20:decimals'].map((method: string) =>
       sdk.api.abi.multiCall({
         abi: method,
         calls: tokenAddress.map((address) => ({
@@ -113,15 +111,12 @@ const getPairInfo = async (pair: string, tokenAddress: string[]): Promise<IPairI
   ));
   return {
     lpToken: pair.toLowerCase(),
-    pairName: tokenSymbol.output.map(e => e.output).join('-'),
     token0: {
       address: tokenAddress[0],
-      symbol: tokenSymbol.output[0].output,
       decimals: Number(tokenDecimals.output[0].output)
     },
     token1: {
       address: tokenAddress[1],
-      symbol: tokenSymbol.output[1].output,
       decimals: Number(tokenDecimals.output[1].output)
     }
   };
