@@ -5,14 +5,14 @@ import { utils } from 'ethers'
 
 const dailyFeesQuery = gql`
   query MyQuery($timestamp: String) {
-    totalFeeRevenueDailies(
+    totalPremiumsDailies(
       orderDirection: desc
       orderBy: timestamp
       where: { timestamp_lte: $timestamp }
     ) {
       id
       timestamp
-      totalFeeRevenueInUsd
+      totalPremiumsInUsd
     }
   }
 `
@@ -39,10 +39,10 @@ async function getDailyFee(url: string, timestamp: number): Promise<DailyFee> {
   const fetchResult = await request(url, dailyFeesQuery, {
     timestamp: timestamp.toString(),
   })
-  const { totalFeeRevenueDailies } = fetchResult
+  const { totalPremiumsDailies } = fetchResult
 
   const dailyFees = calcLast24hrsVolume(
-    get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
+    get2Days(totalPremiumsDailies, 'totalPremiumsInUsd')
   )
 
   return {
