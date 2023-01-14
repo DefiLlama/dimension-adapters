@@ -195,7 +195,7 @@ const fetch = async (timestamp: number) => {
       .reduce((a: number, b: IAmount) => Number(b.amount0In)+ Number(b.amount0Out) + a, 0) / 10 ** pairInfos[index].token0.decimals * token0Price;
     const totalAmount1 = log
       .reduce((a: number, b: IAmount) => Number(b.amount1In)+ Number(b.amount1Out) + a, 0) / 10 ** pairInfos[index].token1.decimals * token1Price;
-    const untrackAmountUSD = (totalAmount1 !== 0 && totalAmount1 !== 0) ? (totalAmount0 + totalAmount1) / 2 : 0; // counted only we have price data
+    const untrackAmountUSD = (totalAmount1 !== 0 && totalAmount1 !== 0) ? (totalAmount0 + totalAmount1) : 0; // counted only we have price data
     return untrackAmountUSD;
   });
 
