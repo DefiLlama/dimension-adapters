@@ -2,11 +2,10 @@ import { utils } from 'ethers'
 import { request, gql } from 'graphql-request'
 
 interface GqlResult {
-  totalFeeRevenues: [{ totalFeeRevenueInUsd: string }]
-  totalFeeRevenueDailies: Array<{
+  totalPremiumsDailies: Array<{
     id: string
     timestamp: string
-    totalFeeRevenueInUsd: string
+    totalPremiumsInUsd: string
   }>
   totalVolumes: [{ totalVolumeInUsd: string }]
   totalVolumeDailies: Array<{
@@ -21,13 +20,10 @@ const chainDataQuery = gql`
     totalVolumes {
       totalVolumeInUsd
     }
-    totalFeeRevenues {
-      totalFeeRevenueInUsd
-    }
-    totalFeeRevenueDailies(orderDirection: desc, orderBy: timestamp, where: { timestamp_lte: $timestamp }) {
+    totalPremiumsDailies(orderDirection: desc, orderBy: timestamp, where: { timestamp_lte: $timestamp }) {
       id
       timestamp
-      totalFeeRevenueInUsd
+      totalPremiumsInUsd
     }
     totalVolumeDailies(orderDirection: desc, orderBy: timestamp, where: { timestamp_lte: $timestamp }) {
       id
@@ -67,14 +63,13 @@ async function getChainData(
   })
 
   const {
-    totalFeeRevenueDailies,
-    totalFeeRevenues,
+    totalPremiumsDailies,
     totalVolumeDailies,
     totalVolumes,
   } = result
-  const totalPremiumVolume = toNumber(totalFeeRevenues[0].totalFeeRevenueInUsd)
+  const totalPremiumVolume = toNumber(totalPremiumsDailies[0].totalPremiumsInUsd)
   const dailyPremiumVolume = calcLast24hrsVolume(
-    get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
+    get2Days(totalPremiumsDailies, 'totalPremiumsInUsd')
   )
 
   const totalNotionalVolume = toNumber(totalVolumes[0].totalVolumeInUsd)
