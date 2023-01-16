@@ -5,8 +5,7 @@ import type { ChainEndpoints } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
 import {
-  formatTimestampAsDate,
-  getTimestampAtStartOfDayUTC,
+  formatTimestampAsDate, getTimestampAtStartOfPreviousDayUTC
 } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
 
@@ -29,7 +28,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       );
       const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
 
-      const previousDateUTC = getTimestampAtStartOfDayUTC(timestamp);
+      const previousDateUTC = getTimestampAtStartOfPreviousDayUTC(timestamp);
       const previousDateParts = formatTimestampAsDate(
         previousDateUTC.toString()
       ).split("/");
