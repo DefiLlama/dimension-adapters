@@ -11,6 +11,10 @@ const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth"
 };
 
+const stablesSwapEndpoints = {
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap"
+}
+
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
   graphRequestHeaders: {
@@ -32,6 +36,25 @@ const graphs = getGraphDimensions({
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
     Revenue: 0.0225// 0.25
+  }
+});
+
+const graphsStableSwap = getGraphDimensions({
+  graphUrls: endpoints,
+  totalVolume: {
+    factory: "pancakeFactories"
+  },
+  dailyVolume: {
+    factory: "pancakeDayData"
+  },
+  feesPercent: {
+    type: "volume",
+    Fees: 0.25, // 0.25% volume
+    ProtocolRevenue: 0.025, // 10% fees
+    HoldersRevenue: 0.1, // 40% fees
+    UserFees: 0.25, // 25% volume
+    SupplySideRevenue: 0.125, // 50% fees
+    Revenue: 0.0225 // 50% fees
   }
 });
 
@@ -63,7 +86,24 @@ const adapter: BreakdownAdapter = {
         }
       }
       return acc
-    }, {} as BaseAdapter)
+    }, {} as BaseAdapter),
+    stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
+      acc[chain] = {
+        fetch: graphsStableSwap(chain as Chain),
+        start: async () => startTimes[chain],
+        meta: {
+          methodology : {
+            UserFees: "User pays 0.25% fees on each swap.",
+            ProtocolRevenue: "Treasury receives 10% of the fees.",
+            SupplySideRevenue: "LPs receive 50% of the fees.",
+            HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
+            Revenue: "Revenue is 50% of the fees paid by users.",
+            Fees: "All fees comes from the user fees, which is 025% of each trade."
+          }
+        }
+      }
+      return acc
+    }, {} as BaseAdapter),
   },
 };
 
