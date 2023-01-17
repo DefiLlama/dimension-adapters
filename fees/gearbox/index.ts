@@ -285,7 +285,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 
-
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
