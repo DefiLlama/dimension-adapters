@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchResult } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import axios from "axios";
 
@@ -7,7 +7,7 @@ interface DailyFeeResponse {
 }
 
 const fetch = (chain: string) => {
-  return async (timestamp: number): FetchResult => {
+  return async (timestamp: number): Promise<FetchResult> => {
     const response = await axios.get<DailyFeeResponse>(
       `https://stride-app-server-git-main-stride-staging.vercel.app/api/${chain}/stats/fees`
     );
