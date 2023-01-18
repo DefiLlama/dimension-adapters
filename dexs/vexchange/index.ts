@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VECHAIN]: {
       fetch,
-      start: async () => 0,
+      start: async () => 1673827200,
       runAtCurrTime: true
     },
   },
