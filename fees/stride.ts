@@ -21,7 +21,7 @@ const fetch = (chain: string) => {
 
 const meta = {
   methodology: {
-    Fees: "Stride collects a 10% fee on liquid staked asset staking yield. This fee is measured across Stride's LSD tokens' yields and converts them to USD terms.",
+    Fees: "Stride collects a 10% fee on liquid staked asset staking yield. These fees are measured across Stride's LSD tokens' yields and converts them to USD terms.",
   },
 };
 
