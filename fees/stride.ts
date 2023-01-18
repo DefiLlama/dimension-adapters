@@ -19,6 +19,12 @@ const fetch = (chain: string) => {
   };
 };
 
+const meta = {
+  methodology: {
+    Fees: "Stride collects a 10% fee on liquid staked asset staking yield.",
+  },
+};
+
 // What value can we pur for the `start` field?
 
 const adapter: Adapter = {
@@ -27,21 +33,25 @@ const adapter: Adapter = {
       fetch: fetch("cosmos"),
       runAtCurrTime: true,
       start: async () => 0,
+      meta,
     },
     osmosis: {
       fetch: fetch("osmosis"),
       runAtCurrTime: true,
       start: async () => 0,
+      meta,
     },
     juno: {
       fetch: fetch("juno"),
       runAtCurrTime: true,
       start: async () => 0,
+      meta,
     },
     stargaze: {
       fetch: fetch("stargaze"),
       runAtCurrTime: true,
       start: async () => 0,
+      meta,
     },
   },
 };
