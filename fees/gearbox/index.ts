@@ -51,7 +51,11 @@ const mapDieselToken: IMapDieselToken = {
   "0x2158034dB06f06dcB9A786D2F1F8c38781bA779d": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
   '0xba3335588d9403515223f109edc4eb7269a9ab5d': '0xba3335588d9403515223f109edc4eb7269a9ab5d',
   '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+  '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+  '0x6b175474e89094c44da98b954eedeac495271d0f': '0x6b175474e89094c44da98b954eedeac495271d0f',
+  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
 };
+
 
 interface IAmount {
   amount: number;
@@ -266,6 +270,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     .concat(logEventCloseCreditAccount)
     .concat(logEventReturnCreditAccount).map((e: ITx) => e.transactionHash);
   const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
+  // const token = [...new Set(logEventTranfer.map(e => e.token))] // debug check token address
   const txAmountUSD: IAmount[] = logEventTranfer.filter((e: ITx) => hashEvent.includes(e.transactionHash)).map((transfer_events: ITx, _: number) => {
       const indexTokenMap = Object.keys(mapDieselToken).map((e: any) => e.toLowerCase()).findIndex((e: string) => e === transfer_events?.token);
       const token = Object.values(mapDieselToken)[indexTokenMap];
