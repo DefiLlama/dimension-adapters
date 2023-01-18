@@ -65,6 +65,7 @@ const mapDieselToken: IMapDieselToken = {
   '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0': '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'
 };
 
+
 const tokenBlacklist = [
   '0xe397ef3e332256f38983ffae987158da3e18c5ec',
   '0xbfa9180729f1c549334080005ca37093593fb7aa',
@@ -284,9 +285,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
   // const token = [...new Set(logEventTranfer.map(e => e.token))] // debug check token address
   const txAmountUSD: IAmount[] = logEventTranfer.filter((e: ITx) => hashEvent.includes(e.transactionHash)).map((transfer_events: ITx, _: number) => {
-      // filter counted diesel token only
-      const _dieselTokenListLowerCase = dieselTokenList.map((e: any) => e.toLowerCase());
-      if(!_dieselTokenListLowerCase.includes(transfer_events?.token || '')) {
+      if(tokenBlacklist.includes(transfer_events?.token || '')) {
         return {
           amount: 0,
           amountUsd: 0,
