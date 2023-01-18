@@ -1,4 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
+import request from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
@@ -40,7 +41,7 @@ const graphs = getGraphDimensions({
 });
 
 const graphsStableSwap = getGraphDimensions({
-  graphUrls: endpoints,
+  graphUrls: stablesSwapEndpoints,
   totalVolume: {
     factory: "pancakeFactories"
   },
@@ -61,6 +62,10 @@ const graphsStableSwap = getGraphDimensions({
 const startTimes = {
   [CHAIN.ETHEREUM]: 1664236800,
   [CHAIN.BSC]: 1619136000
+} as IJSON<number>
+
+const stableTimes = {
+  [CHAIN.BSC]: 1663718400
 } as IJSON<number>
 
 const methodology = {
@@ -90,7 +95,7 @@ const adapter: BreakdownAdapter = {
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphsStableSwap(chain as Chain),
-        start: async () => startTimes[chain],
+        start: async () => stableTimes[chain],
         meta: {
           methodology : {
             UserFees: "User pays 0.25% fees on each swap.",
