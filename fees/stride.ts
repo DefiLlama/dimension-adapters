@@ -9,7 +9,7 @@ interface DailyFeeResponse {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const response = await axios.get<DailyFeeResponse>(
-      `https://stride-app-server-git-main-stride-staging.vercel.app/api/${chain}/stats/fees`
+      `https://edge.stride.zone/api/${chain}/stats/fees`
     );
 
     return {
@@ -46,4 +46,4 @@ const adapter: Adapter = {
   },
 };
 
-export default adapter;
+export default adapter; // yarn test fees stride
