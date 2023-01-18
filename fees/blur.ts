@@ -1,44 +1,39 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
-import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../utils/prices";
+import postgres from "postgres";
 
-
-interface ITx {
-  data: string;
-}
 interface IFee {
   feeRate: string;
   volume: number;
 }
 
-const topics = '0x61cbb2a3dee0b6064c2e681aadd61677fb4ef319f0b547508d495626f5a62f64';
-const MarketplaceAddress = "0x000000000000ad05ccc4f10045630fb830b95127";
-const FEE_ADDRESS = {
-  [CHAIN.ETHEREUM]: MarketplaceAddress,
-};
-
-const fetch = (address: string, chain: Chain) => {
+const fetch = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-    const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const log: IFee[] = (await sdk.api.util.getLogs({
-      target: address,
-      topic: topics,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: chain,
-      topics: [topics]
-    })).output
-      .map((e:any) => {return { data: e.data.replace('0x', '') } as ITx})
-      .map((p: ITx) => {
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+      const sql = postgres(process.env.INDEXA_DB!);
+      try {
+
+      const now = new Date(timestamp * 1e3)
+      const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+
+
+      const logs = await sql`
+        SELECT
+          encode(transaction_hash, 'hex') AS HASH,
+          encode(data, 'hex') AS data
+        FROM
+          ethereum.event_logs
+        WHERE
+          block_number > 16324200
+          AND contract_address = '\\x000000000000ad05ccc4f10045630fb830b95127'
+          AND topic_0 = '\\x61cbb2a3dee0b6064c2e681aadd61677fb4ef319f0b547508d495626f5a62f64'
+          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+      `;
+
+      const log = logs.map((p: any) => {
           const volume = new BigNumber('0x'+p.data.slice(704, 768)).toString();
           const feeRate = new BigNumber('0x'+p.data.slice(1152, 1216)).toString();
         return {
@@ -52,17 +47,24 @@ const fetch = (address: string, chain: Chain) => {
     const prices = await getPrices(['coingecko:ethereum'], todaysTimestamp);
     const ethPrice = prices['coingecko:ethereum'].price;
     const dailyFeesUsd = dailyFees * ethPrice;
+
+    await sql.end({ timeout: 5 })
     return {
       timestamp,
       dailyFees: dailyFeesUsd.toString(),
     } as FetchResultFees
+
+    } catch (error) {
+      await sql.end({ timeout: 5 })
+      throw error
+    }
   }
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(FEE_ADDRESS[CHAIN.ETHEREUM], CHAIN.ETHEREUM),
+        fetch: fetch(),
         start: async ()  => 1669852800,
     },
   }
