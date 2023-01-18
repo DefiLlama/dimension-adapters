@@ -43,6 +43,14 @@ const registyContract: any = {
 type IMapDieselToken = {
   [l: string]: string;
 }
+const dieselTokenList = [
+  '0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA',
+  '0xc411dB5f5Eb3f7d552F9B8454B2D74097ccdE6E3',
+  '0xF21fc650C1B34eb0FDE786D52d23dA99Db3D6278',
+  '0xe753260F1955e8678DCeA8887759e07aa57E8c54',
+  '0x2158034dB06f06dcB9A786D2F1F8c38781bA779d'
+];
+
 const mapDieselToken: IMapDieselToken = {
   "0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA": "0x6b175474e89094c44da98b954eedeac495271d0f",
   "0xc411dB5f5Eb3f7d552F9B8454B2D74097ccdE6E3": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
@@ -53,10 +61,14 @@ const mapDieselToken: IMapDieselToken = {
   '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
   '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
   '0x6b175474e89094c44da98b954eedeac495271d0f': '0x6b175474e89094c44da98b954eedeac495271d0f',
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+  '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0': '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'
 };
 
-
+const tokenBlacklist = [
+  '0xe397ef3e332256f38983ffae987158da3e18c5ec',
+  '0xbfa9180729f1c549334080005ca37093593fb7aa',
+]
 interface IAmount {
   amount: number;
   amountUsd: number;
@@ -272,6 +284,15 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
   // const token = [...new Set(logEventTranfer.map(e => e.token))] // debug check token address
   const txAmountUSD: IAmount[] = logEventTranfer.filter((e: ITx) => hashEvent.includes(e.transactionHash)).map((transfer_events: ITx, _: number) => {
+      // filter counted diesel token only
+      const _dieselTokenListLowerCase = dieselTokenList.map((e: any) => e.toLowerCase());
+      if(!_dieselTokenListLowerCase.includes(transfer_events?.token || '')) {
+        return {
+          amount: 0,
+          amountUsd: 0,
+          transactionHash: transfer_events.transactionHash
+        } as IAmount
+      }
       const indexTokenMap = Object.keys(mapDieselToken).map((e: any) => e.toLowerCase()).findIndex((e: string) => e === transfer_events?.token);
       const token = Object.values(mapDieselToken)[indexTokenMap];
       const { price, decimals } = prices[`ethereum:${token.toLocaleLowerCase()}`];
