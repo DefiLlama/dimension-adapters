@@ -1,3 +1,4 @@
+import axios from "axios";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL"
@@ -10,7 +11,7 @@ interface IVolume {
 const URL = "https://api.saros.finance/info";
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-    const res: IVolume = (await fetchURL(URL)).data;
+    const res: IVolume = (await axios.get(URL, { headers: {  'origin': 'https://saros.finance' }})).data;
     return {
       timestamp: timestamp,
       dailyVolume: res.volume24h ? `${res.volume24h}` : undefined,
