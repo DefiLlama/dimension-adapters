@@ -52,7 +52,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
             borrowInterest1
             updatedAt
           }
-      }    
+      }
       `;
       const result = await request(graphUrls[chain], query);
 
