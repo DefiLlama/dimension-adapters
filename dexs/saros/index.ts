@@ -1,35 +1,29 @@
-import { SimpleAdapter } from "../../adapters/types";
-
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL"
 
-const endpoints = {
-  solana: "https://api.saros.finance/info",
+interface IVolume {
+  tvl: number;
+  volume24h: number;
+  totalvolume: number;
+}
+const URL = "https://api.saros.finance/info";
+
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+    const res: IVolume = (await fetchURL(URL)).data;
+    return {
+      timestamp: timestamp,
+      dailyVolume: res.volume24h ? `${res.volume24h}` : undefined,
+      totalVolume: res.totalvolume ? `${res.totalvolume}`: undefined,
+    }
 };
 
-const graphs = (chain: string) => async () => {
-  let res;
-  switch (chain) {
-    case "solana":
-      res = await fetchURL(endpoints.solana);
-    default:
-      res = await fetchURL(endpoints.solana);
-  }
-
-  return {
-    timestamp: 1, // fix
-    dailyVolume: res.data.volume24h,
-    totalVolume: res.data.totalvolume,
-  };
-};
-
-// @TODO check and backfill
 const adapter: SimpleAdapter = {
   adapter: {
-    solana: {
-      fetch: graphs("solana"),
+    [CHAIN.SOLANA]: {
+      fetch: fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
+      start: async () => 1673827200,
     },
   },
 };
