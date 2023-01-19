@@ -11,7 +11,7 @@ interface IVolume {
 const URL = "https://api.saros.finance/info";
 const headers = {
   'origin': 'https://saros.finance',
-  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
 }
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     const res: IVolume = (await axios.get(URL, { headers: headers})).data;
