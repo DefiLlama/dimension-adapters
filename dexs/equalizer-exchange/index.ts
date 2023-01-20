@@ -6,16 +6,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
 
-interface IToken {
-  address: string;
-  decimale: number;
-}
 
-interface IPool {
-  lpAddress: string;
-  token0: IToken;
-  token1: IToken;
-}
 interface ILog {
   data: string;
   transactionHash: string;
@@ -97,30 +88,6 @@ interface IPairInfo {
   token1: IPairToken;
 }
 
-const getPairInfo = async (pair: string, tokenAddress: string[]): Promise<IPairInfo>  => {
-  const [tokenDecimals] = await Promise.all(
-    ['erc20:decimals'].map((method: string) =>
-      sdk.api.abi.multiCall({
-        abi: method,
-        calls: tokenAddress.map((address) => ({
-          target: address,
-        })),
-        chain: 'fantom',
-      }
-    )
-  ));
-  return {
-    lpToken: pair.toLowerCase(),
-    token0: {
-      address: tokenAddress[0],
-      decimals: Number(tokenDecimals.output[0].output)
-    },
-    token1: {
-      address: tokenAddress[1],
-      decimals: Number(tokenDecimals.output[1].output)
-    }
-  };
-}
 
 const fetch = async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -158,7 +125,6 @@ const fetch = async (timestamp: number) => {
 
   const tokens0 = underlyingToken0.output.map((res) => res.output);
   const tokens1 = underlyingToken1.output.map((res) => res.output);
-  const pairInfos = await Promise.all(lpTokens.map((_, index: number) => getPairInfo(lpTokens[index], [tokens0[index], tokens1[index]])));
   const todaysBlock = (await getBlock(todaysTimestamp, 'fantom', {}));
   const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'fantom', {}));
   const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
@@ -191,10 +157,12 @@ const fetch = async (timestamp: number) => {
     }) as IAmount [];
     const token0Price = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.price || 0);
     const token1Price = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.price || 0);
+    const token0Decimals = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.decimals || 0)
+    const token1Decimals = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.decimals || 0)
     const totalAmount0 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount0In)+ Number(b.amount0Out) + a, 0) / 10 ** pairInfos[index].token0.decimals * token0Price;
+      .reduce((a: number, b: IAmount) => Number(b.amount0In)+ Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
     const totalAmount1 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount1In)+ Number(b.amount1Out) + a, 0) / 10 ** pairInfos[index].token1.decimals * token1Price;
+      .reduce((a: number, b: IAmount) => Number(b.amount1In)+ Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
     const untrackAmountUSD = (totalAmount1 !== 0 && totalAmount1 !== 0) ? (totalAmount0 + totalAmount1) : 0; // counted only we have price data
     return untrackAmountUSD;
   });
