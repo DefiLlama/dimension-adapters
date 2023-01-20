@@ -3,14 +3,14 @@ import { ARBITRUM } from "../helpers/chains";
 
 import {
   fetchArbitrumAnalyticsData,
-  HEGIC_HERGE_START,
+  getEarliestAvailableTimestamp,
 } from "../options/hegic";
 
 const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getHegicFees,
-      start: async () => HEGIC_HERGE_START,
+      start: getEarliestAvailableTimestamp,
       meta: {
         methodology: `
 The only thing anyone pays on Hegic is premiums. This goes into dailyFees.
@@ -27,7 +27,10 @@ Hegic Development fund also stakes ~170M Hegic tokens (16% of supply), so that c
   },
 };
 
-async function getHegicFees(timestamp: number): Promise<FetchResultFees> {
+async function getHegicFees(
+  /** Timestamp representing the end of the 24 hour period */
+  timestamp: number
+): Promise<FetchResultFees> {
   const optionsDashboardData = await fetchArbitrumAnalyticsData(timestamp);
 
   return {
