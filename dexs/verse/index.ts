@@ -1,7 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { ChainEndpoints, SimpleAdapter, BaseAdapter } from "../../adapters/types";
-import { getChainVolume, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: ChainEndpoints = {
     [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/arnkthr/ethv1",
@@ -24,12 +23,10 @@ const volumeAdapter: BaseAdapter = {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
         start: async () => 1655164800,
-        customBackfill: customBackfill(CHAIN.ETHEREUM, fetch),
     },
     [CHAIN.SMARTBCH]: {
         fetch: fetch(CHAIN.SMARTBCH),
         start: async () => 1646697600,
-        customBackfill: customBackfill(CHAIN.SMARTBCH, fetch),
     },
 }
 
