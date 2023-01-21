@@ -77,17 +77,6 @@ const PAIR_TOKEN_ABI  = (token: string): object => {
   }
 };
 
-interface IPairToken  {
-  address: string;
-  decimals: number;
-}
-
-interface IPairInfo {
-  lpToken: string;
-  token0: IPairToken;
-  token1: IPairToken;
-}
-
 
 const fetch = async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
