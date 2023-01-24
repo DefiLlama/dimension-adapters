@@ -84,7 +84,8 @@ export enum CHAIN {
   WAVES = "waves",
   CARBON = "carbon",
   THUNDERCORE = "thundercore",
-  VECHAIN = "vechain"
+  VECHAIN = "vechain",
+  WAX = "wax"
 }
 
 // Don´t use
