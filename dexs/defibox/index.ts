@@ -29,14 +29,17 @@ const adapter: SimpleAdapter = {
     [CHAIN.EOS]: {
       fetch: graph(CHAIN.EOS),
       start: async () => 1674345600,
+      runAtCurrTime: true,
     },
     [CHAIN.WAX]: {
       fetch: graph(CHAIN.WAX),
       start: async () => 1674345600,
+      runAtCurrTime: true,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: async () => 1674345600,
+      runAtCurrTime: true,
     },
   },
 };
