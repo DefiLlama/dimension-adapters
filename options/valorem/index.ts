@@ -56,7 +56,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
         }
 
         return {
-          dailyNotionalVolume: todayStats.notionalVolSumUSD,
+          dailyNotionalVolume: todayStats.notionalVolCoreSumUSD,
           dailyPremiumVolume: undefined,
         };
       };
@@ -68,10 +68,10 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
         (acc, dayData) => {
           return {
             totalNotionalVolume:
-              acc.totalNotionalVolume + Number(dayData.notionalVolSumUSD),
+              acc.totalNotionalVolume + Number(dayData.notionalVolCoreSumUSD),
             totalPremiumVolume:
               acc.totalPremiumVolume +
-              Number(/** dayData.premiumVolSumUSD */ "0"),
+              Number(/** dayData.premiumVolCoreSumUSD */ "0"),
           };
         },
         {

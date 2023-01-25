@@ -5,9 +5,9 @@ export interface IValoremDayData {
   notionalVolRedeemedUSD: string;
   notionalVolTransferredUSD: string;
   notionalVolSettledUSD: string;
-  notionalVolSumUSD: string;
-  notionalVolFeesAccruedUSD: string;
-  notionalVolFeesSweptUSD: string;
+  notionalVolCoreSumUSD: string;
+  volFeesAccruedUSD: string;
+  volFeesSweptUSD: string;
 }
 
 export interface IValoremDailyRecordsResponse {

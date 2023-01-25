@@ -62,10 +62,10 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
         }
 
         return {
-          dailyFees: todayStats.notionalVolFeesAccruedUSD,
-          dailyUserFees: todayStats.notionalVolFeesAccruedUSD,
-          dailyRevenue: todayStats.notionalVolFeesAccruedUSD,
-          dailyProtocolRevenue: todayStats.notionalVolFeesAccruedUSD,
+          dailyFees: todayStats.volFeesAccruedUSD,
+          dailyUserFees: todayStats.volFeesAccruedUSD,
+          dailyRevenue: todayStats.volFeesAccruedUSD,
+          dailyProtocolRevenue: todayStats.volFeesAccruedUSD,
         };
       };
 
@@ -75,15 +75,12 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
       const totalStatsUpToToday = filteredRecords.reduce(
         (acc, dayData) => {
           return {
-            totalFees:
-              acc.totalFees + Number(dayData.notionalVolFeesAccruedUSD),
+            totalFees: acc.totalFees + Number(dayData.volFeesAccruedUSD),
             totalUserFees:
-              acc.totalUserFees + Number(dayData.notionalVolFeesAccruedUSD),
-            totalRevenue:
-              acc.totalRevenue + Number(dayData.notionalVolFeesAccruedUSD),
+              acc.totalUserFees + Number(dayData.volFeesAccruedUSD),
+            totalRevenue: acc.totalRevenue + Number(dayData.volFeesAccruedUSD),
             totalProtocolRevenue:
-              acc.totalProtocolRevenue +
-              Number(dayData.notionalVolFeesAccruedUSD),
+              acc.totalProtocolRevenue + Number(dayData.volFeesAccruedUSD),
           };
         },
         {

@@ -12,9 +12,9 @@ export const dayDataQuery = gql`
       notionalVolRedeemedUSD
       notionalVolTransferredUSD
       notionalVolSettledUSD
-      notionalVolSumUSD
-      notionalVolFeesAccruedUSD
-      notionalVolFeesSweptUSD
+      notionalVolCoreSumUSD
+      volFeesAccruedUSD
+      volFeesSweptUSD
     }
   }
 `;
