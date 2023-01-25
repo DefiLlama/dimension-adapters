@@ -1,36 +1,52 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.TELOS]: "http://api.archly.fi/subgraphs/name/archly/amm",
+    [CHAIN.TELOS]: "http://api.archly.fi/subgraphs/name/archly/amm",
 };
 
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
+const graphFetch = getGraphDimensions({
+    graphUrls: endpoints,
+    totalVolume: {
+        factory: "factories"
+    },
+    dailyVolume: {
+        factory: "dayData"
+    },
+    feesPercent: {
+        type: 'volume',
+        Fees: 0.3,
+        UserFees: 0.3,
+        HoldersRevenue: 0.3,
+        Revenue: 0,
+        SupplySideRevenue: 0,
+        ProtocolRevenue: 0,
+    }
 });
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.TELOS]: {
-      fetch: graphs(CHAIN.TELOS),
-      start: getStartTimestamp({
-        endpoints: endpoints,
-        chain: CHAIN.TELOS,
-        volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-        dailyDataField: "dayDatas"
-      })
-    },
-  },
+const adapter: Adapter = {
+    adapter: {
+        [CHAIN.TELOS]: {
+            fetch: graphFetch(CHAIN.TELOS),
+            start: getStartTimestamp({
+                endpoints: endpoints,
+                chain: CHAIN.TELOS,
+                dailyDataField: "dayDatas"
+            }),
+            meta: {
+                methodology: {
+                    Fees: "The trading fees are 0.03%, and can be adjusted from 0.01% up to 0.1%.",
+                    UserFees: "Currently users pay a trading fee of 0.03%.",
+                    HoldersRevenue: "veArc voters receive all protocol fees.",
+                    Revenue: "The protocol does not earn any revenue from trading fees.",
+                    SupplySideRevenue: "LPs do not earn any revenue from trading fees.",
+                    ProtocolRevenue: "Treasury does not earn any revenue from trading fees."
+                }
+            }
+        }
+    }
 };
 
 export default adapter;
