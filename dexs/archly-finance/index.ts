@@ -20,7 +20,7 @@ const graphFetch = getGraphDimensions({
         Fees: 0.3,
         UserFees: 0.3,
         HoldersRevenue: 0.3,
-        Revenue: 0,
+        Revenue: 0.3,
         SupplySideRevenue: 0,
         ProtocolRevenue: 0,
     }
@@ -40,8 +40,8 @@ const adapter: Adapter = {
                     Fees: "The trading fees are 0.03%, and can be adjusted from 0.01% up to 0.1%.",
                     UserFees: "Currently users pay a trading fee of 0.03%.",
                     HoldersRevenue: "veArc voters receive all protocol fees.",
-                    Revenue: "The protocol does not earn any revenue from trading fees.",
-                    SupplySideRevenue: "LPs do not earn any revenue from trading fees.",
+                    Revenue: "All trading fees are paid to veArc voters.",
+                    SupplySideRevenue: "LPs do not earn any revenue from trading fees, only Arc emission decided by veArc voters.",
                     ProtocolRevenue: "Treasury does not earn any revenue from trading fees."
                 }
             }
