@@ -4,8 +4,14 @@ import type { ChainEndpoints } from "../../adapters/types";
 import { IValoremDailyRecordsResponse, IValoremDayData } from "./interfaces";
 
 export const dayDataQuery = gql`
-  query ($skipNum: Int) {
-    dayDatas(first: 1000, skip: $skipNum, orderBy: date, orderDirection: asc) {
+  query ($skipNum: Int, $timestamp: Int) {
+    dayDatas(
+      first: 1000
+      skip: $skipNum
+      orderBy: date
+      orderDirection: asc
+      where: { date_lte: $timestamp }
+    ) {
       date
       notionalVolWrittenUSD
       notionalVolExercisedUSD
@@ -21,18 +27,21 @@ export const dayDataQuery = gql`
 
 export const getAllDailyRecords = async (
   graphUrls: ChainEndpoints,
-  chain: Chain
+  chain: Chain,
+  timestamp: number
 ): Promise<IValoremDayData[]> => {
   const allDailyRecords: IValoremDayData[] = [];
 
   let moreRemaining = true;
   let i = 0;
+  // should really never have to loop more than once, at least for a few more years
   while (moreRemaining) {
     const { dayDatas }: IValoremDailyRecordsResponse = await request(
       graphUrls[chain],
       dayDataQuery,
       {
         skipNum: i * 1000,
+        timestamp: timestamp,
       }
     );
 

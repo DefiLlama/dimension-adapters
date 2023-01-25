@@ -37,7 +37,11 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
       );
 
       // get all daily records and filter out any that are after the timestamp
-      const allDailyRecords = await getAllDailyRecords(graphUrls, chain);
+      const allDailyRecords = await getAllDailyRecords(
+        graphUrls,
+        chain,
+        timestamp
+      );
       const filteredRecords = allDailyRecords
         .map((dayData) => {
           if (dayData.date <= formattedTimestamp) {
