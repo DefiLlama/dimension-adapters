@@ -152,7 +152,7 @@ const fetch = async (timestamp: number) => {
       .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
     const totalAmount1 = log
       .reduce((a: number, b: IAmount) => Number(b.amount1In) + Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
-    if (token0Price === 0 && token1Price === 0) console.log("RIIIIIP")
+
     const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
     return untrackAmountUSD;
   });
