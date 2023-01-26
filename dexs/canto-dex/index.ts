@@ -20,17 +20,17 @@ interface IAmount {
 const topic_name = 'Swap(index_topic_1 address sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, index_topic_2 address to)';
 const topic0 = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
 
-const PAIR_TOKEN_ABI  = (token: string): object => {
+const PAIR_TOKEN_ABI = (token: string): object => {
   return {
     "constant": true,
     "inputs": [],
     "name": token,
     "outputs": [
-        {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-        }
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
     "payable": false,
     "stateMutability": "view",
@@ -63,7 +63,7 @@ interface IToken {
   address: string;
   decimals: number;
 }
-interface ITokenInfo  {
+interface ITokenInfo {
   token0: IToken;
   token1: IToken;
 }
@@ -78,8 +78,8 @@ const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
         })),
         chain: 'canto',
       }
-    )
-  ));
+      )
+    ));
   return {
     token0: {
       address: tokenAddress[0],
@@ -94,8 +94,8 @@ const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
 
 
 const fetch = async (timestamp: number) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+  const toTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)-1
   const lpTokens = lpAddress;
 
   const [underlyingToken0, underlyingToken1] = await Promise.all(
@@ -113,46 +113,47 @@ const fetch = async (timestamp: number) => {
   const tokens0 = underlyingToken0.output.map((res) => res.output);
   const tokens1 = underlyingToken1.output.map((res) => res.output);
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
-  const todaysBlock = (await getBlock(todaysTimestamp, 'canto', {}));
-  const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'canto', {}));
+  const toBlock = (await getBlock(toTimestamp, 'canto', {}));
+  const fromBlock = (await getBlock(fromTimestamp, 'canto', {}));
   const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: topic_name,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'canto',
-      topics: [topic0]
+    target: address,
+    topic: topic_name,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    keys: [],
+    chain: 'canto',
+    topics: [topic0]
   }))))
     .map((p: any) => p)
     .map((a: any) => a.output);
   const coins = [...tokens0, ...tokens1].map((e: string) => `coingecko:${coinsId[e]}`);
-  const prices = await getPrices(coins, todaysTimestamp);
-
+  const coinsUnique = [...new Set(coins)]
+  const prices = await getPrices(coinsUnique, fromTimestamp);
   const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
     const log: IAmount[] = logs[index]
-    .map((e:ILog)  => {return  { ...e, data: e.data.replace('0x', '') }})
-    .map((p: ILog) => {
-      const amount0In = new BigNumber('0x'+p.data.slice(0, 64)).toString();
-      const amount1In = new BigNumber('0x'+p.data.slice(64, 128)).toString();
-      const amount0Out = new BigNumber('0x'+p.data.slice(128, 192)).toString();
-      const amount1Out = new BigNumber('0x'+p.data.slice(192, 256)).toString();
-      return {
-        amount0In,
-        amount1In,
-        amount0Out,
-        amount1Out,
-      } as IAmount
-    }) as IAmount [];
+      .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
+      .map((p: ILog) => {
+        const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
+        const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
+        const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
+        const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
+        return {
+          amount0In,
+          amount1In,
+          amount0Out,
+          amount1Out,
+        } as IAmount
+      }) as IAmount[];
     const token0Price = (prices[`coingecko:${coinsId[tokens0[index]]}`]?.price || 0);
     const token1Price = (prices[`coingecko:${coinsId[tokens1[index]]}`]?.price || 0);
     const token0Decimals = pairInfo[index].token0.decimals;
-    const token1Decimals =  pairInfo[index].token1.decimals
+    const token1Decimals = pairInfo[index].token1.decimals
     const totalAmount0 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount0In)+ Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
+      .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
     const totalAmount1 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount1In)+ Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
-    const untrackAmountUSD = (totalAmount1 !== 0 && totalAmount1 !== 0) ? (totalAmount0 + totalAmount1) : 0; // counted only we have price data
+      .reduce((a: number, b: IAmount) => Number(b.amount1In) + Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
+    if (token0Price === 0 && token1Price === 0) console.log("RIIIIIP")
+    const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
     return untrackAmountUSD;
   });
 
