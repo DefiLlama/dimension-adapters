@@ -40,15 +40,16 @@ interface ILog {
 }
 
 const fetch = async (timestamp: number) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-  const todaysBlock = (await getBlock(todaysTimestamp, 'arbitrum', {}));
-  const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'arbitrum', {}));
+  const fromTimestamp = timestamp - 60 * 60 * 24
+  const toTimestamp = timestamp
+
+  const fromBlock = (await getBlock(fromTimestamp, 'arbitrum', {}));
+  const toBlock = (await getBlock(toTimestamp, 'arbitrum', {}));
   const logs: ILog[][] = (await Promise.all(tokenList.map(({ address }) => sdk.api.util.getLogs({
     target: address,
     topic: topic,
-    toBlock: yesterdaysBlock,
-    fromBlock: todaysBlock,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
     keys: [],
     chain: 'arbitrum',
     topics: [topic0,topic1]
@@ -56,7 +57,7 @@ const fetch = async (timestamp: number) => {
   .map((p: any) => p)
   .map((a: any) => a.output);
   const coins = tokenList.map(({address}) => `arbitrum:${address}`);
-  const prices = await getPrices(coins, todaysTimestamp);
+  const prices = await getPrices(coins, timestamp);
   const untrackVolumes = tokenList.map((token: ITokenList, index: number) => {
     const log = logs[index]
       .map((e:ILog)  => {return  { ...e, data: e.data }})
