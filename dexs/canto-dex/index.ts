@@ -5,7 +5,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
-
+import { providers } from "ethers";
 
 interface ILog {
   data: string;
@@ -92,7 +92,7 @@ const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
   };
 }
 
-
+const provider = new providers.JsonRpcProvider("https://canto.slingshot.finance", 7700);
 const fetch = async (timestamp: number) => {
   const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp)
   const toTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)-1
@@ -113,19 +113,26 @@ const fetch = async (timestamp: number) => {
   const tokens0 = underlyingToken0.output.map((res) => res.output);
   const tokens1 = underlyingToken1.output.map((res) => res.output);
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
-  const toBlock = (await getBlock(toTimestamp, 'canto', {}));
-  const fromBlock = (await getBlock(fromTimestamp, 'canto', {}));
-  const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
-    target: address,
-    topic: topic_name,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    keys: [],
-    chain: 'canto',
+  const toBlock2 = (await getBlock(toTimestamp, 'canto', {}));
+  const fromBlock1 = (await getBlock(fromTimestamp, 'canto', {}));
+  // hotfix split block
+  const toBlock1 = fromBlock1 + 10000;
+  const fromBlock2 = toBlock1 + 1;
+  const logs1: ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
+    address: address,
+    toBlock: toBlock1,
+    fromBlock: fromBlock1,
     topics: [topic0]
   }))))
-    .map((p: any) => p)
-    .map((a: any) => a.output);
+    .map((p: any) => p);
+    const logs2: ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
+      address: address,
+      toBlock: toBlock2,
+      fromBlock: fromBlock2,
+      topics: [topic0]
+    }))))
+      .map((p: any) => p);
+  const logs = logs1.concat(logs2)
   const coins = [...tokens0, ...tokens1].map((e: string) => `coingecko:${coinsId[e]}`);
   const coinsUnique = [...new Set(coins)]
   const prices = await getPrices(coinsUnique, fromTimestamp);
