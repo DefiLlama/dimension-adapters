@@ -12,14 +12,14 @@ const endpoints = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/sotblad/yieldfieldsexchange",
 };
 
-const DAILY_VOLUME_FACTORY = "YieldFieldsDayData";
+const DAILY_VOLUME_FACTORY = "yieldFieldsDayData";
 
 const graphs = getChainVolume({
   graphUrls: {
     [BSC]: endpoints[BSC],
   },
   totalVolume: {
-    factory: "YieldFieldsFactory",
+    factory: "yieldFieldsFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
   dailyVolume: {
