@@ -41,7 +41,8 @@ export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
 
 export enum ProtocolType {
   CHAIN = 'chain',
-  PROTOCOL = 'protocol'
+  PROTOCOL = 'protocol',
+  COLLECTION = 'collection',
 }
 
 export type SimpleAdapter = {

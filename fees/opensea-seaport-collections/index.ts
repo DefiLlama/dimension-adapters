@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import getOpenseaCollections from "../../helpers/getOpenseaCollections"
 
@@ -7,7 +7,8 @@ const seaportEndpoints = {
 }
 
 const adapter: Adapter = {
-  breakdown: getOpenseaCollections(seaportEndpoints, 1655055510)
+  breakdown: getOpenseaCollections(seaportEndpoints, 1655055510),
+  protocolType: ProtocolType.COLLECTION
 }
 
 export default adapter;
