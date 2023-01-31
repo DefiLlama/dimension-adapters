@@ -90,18 +90,28 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
     res['dailyUserFees'] = { [ethAddress]: collections[collectionId].marketplaceRevenueETH }
   if (collections[collectionId].marketplaceRevenueETH)
     res['dailyFees'] = { [ethAddress]: collections[collectionId].totalRevenueETH }
-  if (collections[collectionId].creatorRevenueETH)
+  if (collections[collectionId].creatorRevenueETH) {
+    res['dailyRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
     res['dailyProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+  }
   return res
 }
 
 const createBreakdownAdapters = (graphUrls: ChainEndpoints): BreakdownAdapter['breakdown'] => {
   return Object.entries(graphUrls).reduce((acc, [chain, graphURL], _index) => {
-    Object.keys(collectionsList).forEach(collectionID => {
+    Object.entries(collectionsList).forEach(([collectionID]) => {
       acc[collectionID] = {
         [chain]: {
           fetch: collectionFetch(collectionID, graphURL),
-          start: async () => 0
+          start: async () => 0,
+          meta: {
+            methodology: {
+              UserFees: "Fees paid to Opensea",
+              Fees: "All fees paid: marketplace fees (paid by buyers) + royalty fees (paid by sellers)",
+              ProtocolRevenue: "Revenue from royalties (paid by sellers)",
+              Revenue: "Revenue from royalties (paid by sellers)"
+            }
+          }
         }
       }
     });
