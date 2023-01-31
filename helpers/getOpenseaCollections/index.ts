@@ -4,7 +4,6 @@ import { request, gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
 import collectionsList from './collections'
 import { getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
-import getOpenseaCollections from "../../helpers/getOpenseaCollections"
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/messari/opensea-v1-ethereum",
@@ -98,7 +97,7 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
   return res
 }
 
-const createBreakdownAdapters = (graphUrls: ChainEndpoints): BreakdownAdapter['breakdown'] => {
+export default (graphUrls: ChainEndpoints): BreakdownAdapter['breakdown'] => {
   return Object.entries(graphUrls).reduce((acc, [chain, graphURL], _index) => {
     Object.entries(collectionsList).forEach(([collectionID]) => {
       acc[collectionID] = {
@@ -119,9 +118,3 @@ const createBreakdownAdapters = (graphUrls: ChainEndpoints): BreakdownAdapter['b
     return acc
   }, {} as BreakdownAdapter['breakdown'])
 };
-
-const adapter: Adapter = {
-  breakdown: getOpenseaCollections(seaportEndpoints)
-}
-
-export default adapter;
