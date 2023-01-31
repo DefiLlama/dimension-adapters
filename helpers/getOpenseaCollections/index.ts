@@ -87,13 +87,13 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
     return res
 }
 
-export default (graphUrls: ChainEndpoints): BreakdownAdapter['breakdown'] => {
+export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['breakdown'] => {
     return Object.entries(graphUrls).reduce((acc, [chain, graphURL], _index) => {
         Object.entries(collectionsList).forEach(([collectionID]) => {
             acc[collectionID] = {
                 [chain]: {
                     fetch: collectionFetch(collectionID, graphURL),
-                    start: async () => 0,
+                    start: async () => start,
                     meta: {
                         methodology: {
                             UserFees: "Fees paid to Opensea",

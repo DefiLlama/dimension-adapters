@@ -7,7 +7,7 @@ const seaportEndpoints = {
 }
 
 const adapter: Adapter = {
-  breakdown: getOpenseaCollections(seaportEndpoints)
+  breakdown: getOpenseaCollections(seaportEndpoints, 1655055510)
 }
 
 export default adapter;
