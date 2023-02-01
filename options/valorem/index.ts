@@ -101,31 +101,11 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
   };
 };
 
-// simple adapter, no segmenting OSE/Quay Exchange
-// const adapter: Adapter = {
-//   adapter: {
-//     /** GOERLI */ [ETHEREUM]: {
-//       fetch: graphOptions(endpoints)(ETHEREUM),
-//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
-//       meta: {
-//         methodology,
-//       },
-//     },
-//     [ARBITRUM]: {
-//       fetch: graphOptions(endpoints)(ARBITRUM),
-//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-//       meta: {
-//         methodology,
-//       },
-//     },
-//   },
-// };
-
 // breakdown adapter, provides views for different segments
 const adapter: BreakdownAdapter = {
   breakdown: {
     ["Options"]: {
-      /** GOERLI */ [ETHEREUM]: {
+      [ETHEREUM]: {
         fetch: graphOptions(endpoints)(ETHEREUM),
         start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
         meta: {
@@ -141,7 +121,7 @@ const adapter: BreakdownAdapter = {
       },
     },
     ["Exchange"]: {
-      /** GOERLI */ [ETHEREUM]: {
+      [ETHEREUM]: {
         fetch: graphExchange(endpoints)(ETHEREUM),
         start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
         meta: {
@@ -160,3 +140,23 @@ const adapter: BreakdownAdapter = {
 };
 
 export default adapter;
+
+// simple adapter, no segmenting OSE/Quay Exchange
+// const adapter: Adapter = {
+//   adapter: {
+//     [ETHEREUM]: {
+//       fetch: graphOptions(endpoints)(ETHEREUM),
+//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
+//       meta: {
+//         methodology,
+//       },
+//     },
+//     [ARBITRUM]: {
+//       fetch: graphOptions(endpoints)(ARBITRUM),
+//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
+//       meta: {
+//         methodology,
+//       },
+//     },
+//   },
+// };

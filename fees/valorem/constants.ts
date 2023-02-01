@@ -1,8 +1,9 @@
 import { ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// TODO: update with mainnet subgraph urls
 export const endpoints: ChainEndpoints = {
-  /** GOERLI */ [CHAIN.ETHEREUM]:
+  [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/nickadamson/test-goerli2",
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/nickadamson/test-goerli2",
@@ -22,7 +23,8 @@ export const methodology = {
     "Premium Volume is calculated with the market price an Option/Claim position is trading for on the Exchange.",
 };
 
+// TODO: update with mainnet deploy timestamps
 export const OSE_DEPLOY_TIMESTAMP_BY_CHAIN = {
-  /** GOERLI */ [CHAIN.ETHEREUM]: 1672722780,
+  [CHAIN.ETHEREUM]: 1672722780,
   [CHAIN.ARBITRUM]: 1672722780,
 };
