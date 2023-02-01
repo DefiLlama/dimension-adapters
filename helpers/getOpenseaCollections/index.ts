@@ -37,7 +37,7 @@ interface ICollectionDailySnapshot {
     dailyTradedItemCount: number
 }
 const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollectionDailySnapshot>> => {
+const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollectionDailySnapshot> | undefined> => {
     const dayId = getUniswapDateId(new Date(timestamp * 1000))
     const graphQuery = gql
         `{
@@ -59,7 +59,7 @@ const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<
     }`;
     const graphRes = await request(graphUrl, graphQuery)
     const collections = graphRes['collectionDailySnapshots'] as ICollectionDailySnapshot[];
-    if (!collections || collections.length <= 0) return {}
+    if (!collections || collections.length <= 0) return undefined
 
     return collections.reduce((acc, curr) => ({ ...acc, [curr.collection.id]: curr }), {} as IJSON<ICollectionDailySnapshot>)
 }
@@ -71,7 +71,7 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
         collections = await getCollectionsData(timestamp, graphUrl)
     }
     const res = { timestamp } as FetchResult
-    if (!collections[collectionId]) {
+    if (!collections || !collections[collectionId]) {
         return res
     }
     if (collections[collectionId].marketplaceRevenueETH !== undefined) {
