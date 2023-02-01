@@ -10,9 +10,9 @@
     "@jridgewell/trace-mapping" "0.3.9"
 
 "@defillama/sdk@^3.0.1":
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.2.tgz#892dd636b81b424419f5bf4fcfc755026a74b098"
-  integrity sha512-eXm6HY7GJaQ39Efr2EMtfK55ppIoCcPvss7SzqInXhIUcR90wCZ6l2a3VMnnepAdGG5u6Vpj5jp+aL2dTOzSuQ==
+  version "3.0.31"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.31.tgz#e52789e60457291fc6ae53f86fd178f8fac9276a"
+  integrity sha512-gO7tAPLhWIhG4EhziectrjpcsXc9aLsZUqkw1Vmma1WjpGxjhSGc37kW3Wc5buZ1q05oSNTVidtnamkqZkIgqA==
   dependencies:
     "@supercharge/promise-pool" "^2.1.0"
     ethers "^5.4.5"
@@ -948,10 +948,17 @@ minimalistic-crypto-utils@^1.0.1:
   resolved "https://registry.yarnpkg.com/minimalistic-crypto-utils/-/minimalistic-crypto-utils-1.0.1.tgz#f6c00c1c0b082246e5c4d99dfb8c7c083b2b582a"
   integrity sha512-JIYlbt6g8i5jKfJ3xz7rF0LXmv2TkDxBLUkiBeZ7bAx4GnnNMr8xFpGnOxn6GhTEHx3SjRrZEoU+j04prX1ktg==
 
-node-fetch@2.6.7, node-fetch@^2.6.7:
+node-fetch@2.6.7:
   version "2.6.7"
   resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.7.tgz#24de9fba827e3b4ae44dc8b20256a379160052ad"
   integrity sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==
+  dependencies:
+    whatwg-url "^5.0.0"
+
+node-fetch@^2.6.7:
+  version "2.6.9"
+  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.9.tgz#7c7f744b5cc6eb5fd404e0c7a9fec630a55657e6"
+  integrity sha512-DJm/CJkZkRjKKj4Zi4BsKVZh3ValV5IR5s7LVZnW+6YMh0W1BfNA8XSs6DLMGYlId5F3KnA70uu2qepcR08Qqg==
   dependencies:
     whatwg-url "^5.0.0"
 
