@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const fetch = async (timestamp: number) => {
@@ -26,7 +24,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.TEZOS]: {
       fetch: fetch,
       start: getStartTime,
-      customBackfill: customBackfill(CHAIN.TEZOS as Chain, () => fetch)
     },
   },
 };
