@@ -73,7 +73,7 @@ const splitBlock = (fromBlock: number, toBlock: number): number[][] => {
   let tempToBlock = 0;
   let tempFromBlock = fromBlock;
   while (tempToBlock < toBlock) {
-    const _toBlock = tempFromBlock + 2000;
+    const _toBlock = tempFromBlock + 3500;
     list.push([tempFromBlock, _toBlock > toBlock ? toBlock : _toBlock]);
     tempFromBlock = _toBlock + 1;
     tempToBlock = _toBlock;
@@ -126,11 +126,10 @@ const fetch = async (timestamp: number) => {
   const tokens0 = underlyingToken0.output.map((res) => res.output);
   const tokens1 = underlyingToken1.output.map((res) => res.output);
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
-  const toBlock2 = (await getBlock(toTimestamp, 'canto', {}));
-  const fromBlock1 = (await getBlock(fromTimestamp, 'canto', {}));
-  const blocks = splitBlock(fromBlock1, toBlock2)
-
-  let logs: ILog[][] = [];
+  const toBlock = (await getBlock(toTimestamp, 'canto', {}));
+  const fromBlock = (await getBlock(fromTimestamp, 'canto', {}));
+  const blocks = splitBlock(fromBlock, toBlock);
+  let logs: any = [];
   for(const [fromBlock, toBlock] of blocks) {
     const _logs : ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
       address: address,
@@ -138,40 +137,42 @@ const fetch = async (timestamp: number) => {
       fromBlock: fromBlock,
       topics: [topic0]
     })))).map((p: any) => p)
-    logs = [...logs, ..._logs]
+    logs.push(_logs)
   }
 
   const coins = [...tokens0, ...tokens1].map((e: string) => `coingecko:${coinsId[e]}`);
   const coinsUnique = [...new Set(coins)]
-  const prices = await getPrices(coinsUnique, fromTimestamp);
-  const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
-    const log: IAmount[] = logs[index]
-      .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-      .map((p: ILog) => {
-        const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
-        const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
-        const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
-        const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
-        return {
-          amount0In,
-          amount1In,
-          amount0Out,
-          amount1Out,
-        } as IAmount
-      }) as IAmount[];
-    const token0Price = (prices[`coingecko:${coinsId[tokens0[index]]}`]?.price || 0);
-    const token1Price = (prices[`coingecko:${coinsId[tokens1[index]]}`]?.price || 0);
-    const token0Decimals = pairInfo[index].token0.decimals;
-    const token1Decimals = pairInfo[index].token1.decimals
-    const totalAmount0 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
-    const totalAmount1 = log
-      .reduce((a: number, b: IAmount) => Number(b.amount1In) + Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
+  const prices = await getPrices(coinsUnique, timestamp);
 
-    const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
-    return untrackAmountUSD;
-  });
+  const untrackVolumes: number[] = logs.map((_: any, blockIndex: number) => {
+    return lpTokens.map((_: string, index: number) => {
+      const log: IAmount[] = logs[blockIndex][index]
+        .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
+        .map((p: ILog) => {
+          const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
+          const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
+          const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
+          const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
+          return {
+            amount0In,
+            amount1In,
+            amount0Out,
+            amount1Out,
+          } as IAmount
+        }) as IAmount[];
+      const token0Price = (prices[`coingecko:${coinsId[tokens0[index]]}`]?.price || 0);
+      const token1Price = (prices[`coingecko:${coinsId[tokens1[index]]}`]?.price || 0);
+      const token0Decimals = pairInfo[index].token0.decimals;
+      const token1Decimals = pairInfo[index].token1.decimals
+      const totalAmount0 = log
+        .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
+      const totalAmount1 = log
+        .reduce((a: number, b: IAmount) => Number(b.amount1In) + Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
 
+      const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
+      return untrackAmountUSD;
+    });
+  }).flat()
   const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
 
   return {
