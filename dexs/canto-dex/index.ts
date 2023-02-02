@@ -73,7 +73,7 @@ const splitBlock = (fromBlock: number, toBlock: number): number[][] => {
   let tempToBlock = 0;
   let tempFromBlock = fromBlock;
   while (tempToBlock < toBlock) {
-    const _toBlock = tempFromBlock + 3500;
+    const _toBlock = tempFromBlock + 3600;
     list.push([tempFromBlock, _toBlock > toBlock ? toBlock : _toBlock]);
     tempFromBlock = _toBlock + 1;
     tempToBlock = _toBlock;
