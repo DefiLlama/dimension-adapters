@@ -3,7 +3,10 @@ import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import axios from "axios";
 
 interface DailyFeeResponse {
-  fees: { dailyFees: number };
+  fees: {
+    dailyFees: number;
+    dailyRevenue: number;
+  };
 }
 
 const fetch = (chain: string) => {
@@ -15,13 +18,16 @@ const fetch = (chain: string) => {
     return {
       timestamp: timestamp,
       dailyFees: String(response.data.fees.dailyFees),
+      dailyRevenue: String(response.data.fees.dailyRevenue),
     };
   };
 };
 
 const meta = {
   methodology: {
-    Fees: "Stride collects a 10% fee on liquid staked asset staking yield. These fees are measured across Stride's LSD tokens' yields and converts them to USD terms.",
+    Fees: "Fees are staking rewards earned by tokens staked with Stride. They are measured across Stride's LSD tokens' yields and converted to USD terms.",
+    Revenue:
+      "Stride collects 10% of liquid staked assets's staking rewards. These fees are measured across Stride's LSD tokens' yields and converted to USD terms.",
   },
 };
 
