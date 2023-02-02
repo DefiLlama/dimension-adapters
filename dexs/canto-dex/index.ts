@@ -68,6 +68,19 @@ interface ITokenInfo {
   token1: IToken;
 }
 
+const splitBlock = (fromBlock: number, toBlock: number): number[][] => {
+  const list: number[][] = [];
+  let tempToBlock = 0;
+  let tempFromBlock = fromBlock;
+  while (tempToBlock < toBlock) {
+    const _toBlock = tempFromBlock + 2000;
+    list.push([tempFromBlock, _toBlock > toBlock ? toBlock : _toBlock]);
+    tempFromBlock = _toBlock + 1;
+    tempToBlock = _toBlock;
+  }
+  return list;
+}
+
 const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
   const [tokenDecimals] = await Promise.all(
     ['erc20:decimals'].map((method) =>
@@ -115,24 +128,19 @@ const fetch = async (timestamp: number) => {
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
   const toBlock2 = (await getBlock(toTimestamp, 'canto', {}));
   const fromBlock1 = (await getBlock(fromTimestamp, 'canto', {}));
-  // hotfix split block
-  const toBlock1 = fromBlock1 + 10000;
-  const fromBlock2 = toBlock1 + 1;
-  const logs1: ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
-    address: address,
-    toBlock: toBlock1,
-    fromBlock: fromBlock1,
-    topics: [topic0]
-  }))))
-    .map((p: any) => p);
-    const logs2: ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
+  const blocks = splitBlock(fromBlock1, toBlock2)
+
+  let logs: ILog[][] = [];
+  for(const [fromBlock, toBlock] of blocks) {
+    const _logs : ILog[][] = (await Promise.all(lpTokens.map((address: string) => provider.getLogs({
       address: address,
-      toBlock: toBlock2,
-      fromBlock: fromBlock2,
+      toBlock: toBlock,
+      fromBlock: fromBlock,
       topics: [topic0]
-    }))))
-      .map((p: any) => p);
-  const logs = logs1.concat(logs2)
+    })))).map((p: any) => p)
+    logs = [...logs, ..._logs]
+  }
+
   const coins = [...tokens0, ...tokens1].map((e: string) => `coingecko:${coinsId[e]}`);
   const coinsUnique = [...new Set(coins)]
   const prices = await getPrices(coinsUnique, fromTimestamp);
