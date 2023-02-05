@@ -8,6 +8,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 const OPTIMISM_ADDRESS = '0x0d32748b617e6c9fc3b505b0e8d0a897c69e56e8';
 const topic0 = '0x6961098fee108da07c31a03d7cdf81c188ac73f57eeebbade85cc61e35f28488';
+const MarketplaceFee: number = 2.5;
 
 interface ITx {
   data: string;
@@ -36,14 +37,14 @@ const map_creator_fee: TCreatorFee = {
     '0x812053625db6b8fbd282f8e269413a6dd59724c9': 10,
   }
 }
-const MarketplaceFee: number = 2.5;
-const fetch = () => {
+
+const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-    const fromBlock = (await getBlock(todaysTimestamp, 'optimism', {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, 'optimism', {}));
+    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
     const logs: ITx[] = (await sdk.api.util.getLogs({
       target: OPTIMISM_ADDRESS,
       topic: '',
@@ -51,7 +52,7 @@ const fetch = () => {
       toBlock: toBlock,
       topics: [topic0],
       keys: [],
-      chain: 'optimism'
+      chain: chain
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
     const rawLogsData: ISaleData[] = logs.map((tx: ITx) => {
@@ -61,7 +62,7 @@ const fetch = () => {
       return {
         amount: amount,
         contract_address: contract_address,
-        creator_fee: ((map_creator_fee[CHAIN.OPTIMISM][contract_address] || 0)/100) * amount,
+        creator_fee: ((map_creator_fee[chain][contract_address] || 0)/100) * amount,
         marketplace_fee:  (MarketplaceFee / 100) * amount
       } as ISaleData
     });
@@ -82,7 +83,7 @@ const fetch = () => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
-        fetch: fetch(),
+        fetch: fetch(CHAIN.OPTIMISM),
         start: async ()  => 1675382400,
     },
   }
