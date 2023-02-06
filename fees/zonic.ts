@@ -6,8 +6,15 @@ import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
-const OPTIMISM_ADDRESS = '0x11c9e50dfde606a864a25726d174faf947626f3d';
 const topic0 = '0x31d8f0f884ca359b1c76fda3fd0e25e5f67c2a5082158630f6f3900cb27de467';
+
+type TMarketPlaceAddress = {
+  [l: string | Chain]: string;
+}
+const marketplace_address: TMarketPlaceAddress = {
+  [CHAIN.OPTIMISM]: '0x11c9e50dfde606a864a25726d174faf947626f3d',
+  [CHAIN.ARBITRUM]: '0x1A7b46C660603EBB5FBe3AE51e80AD21dF00bDd1',
+}
 
 interface ITx {
   data: string;
@@ -29,7 +36,7 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
     const logs: ITx[] = (await sdk.api.util.getLogs({
-      target: OPTIMISM_ADDRESS,
+      target: marketplace_address[chain],
       topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
@@ -72,6 +79,10 @@ const adapter: Adapter = {
         fetch: fetch(CHAIN.OPTIMISM),
         start: async ()  => 1675382400,
     },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: async ()  => 1675382400,
+  },
   }
 }
 
