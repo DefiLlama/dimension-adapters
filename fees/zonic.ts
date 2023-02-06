@@ -21,13 +21,6 @@ interface ISaleData {
   marketplace_fee: number;
 }
 
-type Fee = {
-  [l: string]: number;
-}
-type TCreatorFee = {
-  [k: string | Chain]: Fee;
-}
-
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -58,6 +51,7 @@ const fetch = (chain: Chain) => {
         marketplace_fee: marketplace_fee
       } as ISaleData
     });
+
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const marketplace_fee = rawLogsData.reduce((a: number, b: ISaleData) => a+b.marketplace_fee, 0);
