@@ -17,10 +17,11 @@ const adapter: Adapter = {
         const ts = getTimestampAtStartOfDayUTC(timestamp)
         const today = new Date(ts * 1000).toISOString().split('T')[0].split('-').reverse().join('-');
 
-        const dailyFees: IFees = (await axios.get(`https://hyper.solana.fm/v3/tx-fees?date=${today}`)).data;
+        const dailyFees: IFees = (await axios.get(`https://hyper.solana.fm/v1/stats/tx-fees?date=${today}`)).data;
+
         const solanaFee = dailyFees.total_tx_fees
         const pricesObj = await getPrices(["coingecko:solana"], ts);
-        const usdFees = (solanaFee / 1e9 * pricesObj["coingecko:solana"].price);
+        const usdFees = (solanaFee * pricesObj["coingecko:solana"].price);
         const dailyRevenue = usdFees * 0.5;
 
         return {
