@@ -6,9 +6,8 @@ import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
-const OPTIMISM_ADDRESS = '0x0d32748b617e6c9fc3b505b0e8d0a897c69e56e8';
-const topic0 = '0x6961098fee108da07c31a03d7cdf81c188ac73f57eeebbade85cc61e35f28488';
-const MarketplaceFee: number = 2.5;
+const OPTIMISM_ADDRESS = '0x11c9e50dfde606a864a25726d174faf947626f3d';
+const topic0 = '0x31d8f0f884ca359b1c76fda3fd0e25e5f67c2a5082158630f6f3900cb27de467';
 
 interface ITx {
   data: string;
@@ -27,15 +26,6 @@ type Fee = {
 }
 type TCreatorFee = {
   [k: string | Chain]: Fee;
-}
-
-const map_creator_fee: TCreatorFee = {
-  [CHAIN.OPTIMISM]: {
-    '0x51e5426ede4e2d4c2586371372313b5782387222': 2.5,
-    '0x8e56343adafa62dac9c9a8ac8c742851b0fb8b03': 10,
-    '0x9b9f542456ad12796ccb8eb6644f29e3314e68e1': 5,
-    '0x812053625db6b8fbd282f8e269413a6dd59724c9': 10,
-  }
 }
 
 const fetch = (chain: Chain) => {
@@ -57,13 +47,15 @@ const fetch = (chain: Chain) => {
 
     const rawLogsData: ISaleData[] = logs.map((tx: ITx) => {
       const amount = Number('0x' + tx.data.slice(320, 384)) / 10 **  18;
+      const creator_fee =  Number('0x' + tx.data.slice(384, 448)) / 10 **  18;
+      const marketplace_fee =  Number('0x' + tx.data.slice(448, 512)) / 10 **  18;
       const address = tx.data.slice(128, 192);
       const contract_address = '0x' + address.slice(24, address.length);
       return {
         amount: amount,
         contract_address: contract_address,
-        creator_fee: ((map_creator_fee[chain][contract_address] || 0)/100) * amount,
-        marketplace_fee:  (MarketplaceFee / 100) * amount
+        creator_fee: creator_fee,
+        marketplace_fee: marketplace_fee
       } as ISaleData
     });
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
