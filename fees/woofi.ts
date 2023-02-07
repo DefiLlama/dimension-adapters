@@ -68,11 +68,12 @@ interface ITx  {
   data: string;
   transactionHash: string;
 }
-process.env.BSC_RPC="https://rpc.ankr.com/bsc";
+
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = timestamp + 34000;
     const yesterdaysTimestamp = todaysTimestamp + 4000
+    console.log({todaysTimestamp, yesterdaysTimestamp})
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
