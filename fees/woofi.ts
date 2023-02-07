@@ -102,27 +102,27 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
         fetch: fetch(CHAIN.AVAX),
-        start: async ()  => 1675555200,
+        start: async ()  => 1675209600,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1675555200,
+      start: async ()  => 1675209600,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1675555200,
+      start: async ()  => 1675209600,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1675555200,
+      start: async ()  => 1675209600,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1675555200,
+      start: async ()  => 1675209600,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1675555200,
+      start: async ()  => 1675209600,
     },
   }
 }
