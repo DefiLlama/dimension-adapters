@@ -1,35 +1,10 @@
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../dexs/woofi";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getBlock } from "../helpers/getBlock";
-import BigNumber from "bignumber.js";
-import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { type } from "os";
 
-// const TOTAL_FEES = 0.00025;
-// const PROTOCOL_FEES = 0.00005;
 
-// const feeAdapter: BaseAdapter = getDexChainFees({
-//   totalFees: TOTAL_FEES,
-//   protocolFees: PROTOCOL_FEES,
-//   volumeAdapter
-// });
-
-// const adapter: Adapter = {
-//   adapter: feeAdapter
-// };
-
-// export default adapter;
-// type TFeeToken = {
-//   [s: string | Chain]: string;
-// }
-// const fee_token = {
-
-// }
 type TFee = {
   target: string;
   targetDecimal: number
@@ -93,7 +68,7 @@ interface ITx  {
   data: string;
   transactionHash: string;
 }
-
+process.env.BSC_RPC="https://rpc.ankr.com/bsc";
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = timestamp + 34000;
