@@ -71,8 +71,8 @@ interface ITx  {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = timestamp + 35500;
-    const yesterdaysTimestamp = todaysTimestamp + 4000;
+    const todaysTimestamp = timestamp + 34500;
+    const yesterdaysTimestamp = todaysTimestamp + 5000;
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
