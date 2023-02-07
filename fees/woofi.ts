@@ -88,8 +88,8 @@ const fetch = (chain: Chain) => {
     })).output as ITx[];
 
     const [first, second, third] = logs;
-    const dailyFees = (Number(first.data) + Number(second.data) + Number(third.data)) / 10 ** fee_detail[chain].targetDecimal;
-    const dailyRevenue = (Number(first.data) + Number(third.data)) / 10 ** fee_detail[chain].targetDecimal;
+    const dailyFees = (Number(first?.data || 0) + Number(second?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
+    const dailyRevenue = (Number(first?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
@@ -102,27 +102,27 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
         fetch: fetch(CHAIN.AVAX),
-        start: async ()  => 1675209600,
+        start: async ()  => 1673222400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1675209600,
+      start: async ()  => 1673222400,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1675209600,
+      start: async ()  => 1673222400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1675209600,
+      start: async ()  => 1673222400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1675209600,
+      start: async ()  => 1673222400,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1675209600,
+      start: async ()  => 1673222400,
     },
   }
 }
