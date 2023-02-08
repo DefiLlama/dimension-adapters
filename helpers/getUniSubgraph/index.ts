@@ -143,9 +143,8 @@ function getGraphDimensions({
       // Get params
       const id = String(getUniswapDateId(new Date(timestamp * 1000)));
       const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const customBlockFunc = getCustomBlock ?? getBlock
-      const block = await customBlockFunc(timestamp, chain, chainBlocks);
-
+      const customBlockFunc = getCustomBlock ? getCustomBlock : chainBlocks?.[chain] ? async (_: number) => chainBlocks[chain] : getBlock
+      const block = await customBlockFunc(timestamp, chain, chainBlocks).catch(e=>console.log(e.message)) ?? undefined
       // Execute queries
       // DAILY VOLUME
       let graphResDailyVolume

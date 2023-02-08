@@ -5,18 +5,27 @@ import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
 export const analyticsEndpoint = "https://api.hegic.co/analytics";
 export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
+
 const secondsInADay = 24 * 60 * 60;
+
+/** Returns the earliest timestamp for which the data are available */
+export async function getEarliestAvailableTimestamp() {
+  return HEGIC_HERGE_START + secondsInADay;
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
     arbitrum: {
       fetch: fetchArbitrumAnalyticsData,
-      start: async () => HEGIC_HERGE_START,
+      start: getEarliestAvailableTimestamp,
     },
   },
 };
 
-export async function fetchArbitrumAnalyticsData(timestamp: number) {
+export async function fetchArbitrumAnalyticsData(
+  /** Timestamp representing the end of the 24 hour period */
+  timestamp: number
+) {
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
   const allPositions = [
@@ -45,10 +54,12 @@ async function getAnalyticsData(endpoint: string): Promise<AnalyticsData> {
   return (await fetchURL(endpoint))?.data;
 }
 
-function getPositionsForDaily(positions: Position[], fromTimestamp: number) {
-  const from = fromTimestamp;
-  const to = from + secondsInADay;
-
+function getPositionsForDaily(
+  positions: Position[],
+  endOfDayTimestamp: number
+) {
+  const from = endOfDayTimestamp - secondsInADay;
+  const to = endOfDayTimestamp;
   return positions.filter((position) => {
     const purchaseTimestamp = dateStringToTimestamp(position.purchaseDate);
     return purchaseTimestamp >= from && purchaseTimestamp < to;

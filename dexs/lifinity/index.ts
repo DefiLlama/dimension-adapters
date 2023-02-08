@@ -39,7 +39,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.SOLANA as Chain, (_chian: string) => fetch)
     },
   },
 };

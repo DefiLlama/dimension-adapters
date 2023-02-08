@@ -1,10 +1,10 @@
 import {
   ChainBlocks,
   Adapter,
-  FetchResult,
   BreakdownAdapter,
   BaseAdapter,
-  FetchResultVolume
+  FetchResultVolume,
+  FetchResultGeneric,
 } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -51,6 +51,11 @@ interface IGetChainFeeParams {
   volumeAdapter: Adapter,
   totalFees?: number,
   protocolFees?: number,
+  revenue?: number,
+  userFees?: number,
+  supplySideRevenue?: number,
+  holdersRevenue?: number,
+  meta?: BaseAdapter[string]['meta']
 }
 
 
@@ -127,24 +132,46 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
 }
 
 
-const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0 }: IGetChainFeeParams) => {
+const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...params }: IGetChainFeeParams) => {
   if ('adapter' in volumeAdapter) {
     let finalBaseAdapter: BaseAdapter = {}
     const adapterObj = volumeAdapter.adapter
 
-    const baseAdapters = Object.keys(adapterObj).map(chain => {
+    Object.keys(adapterObj).map(chain => {
       const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks) => {
-        const fetchedResult:FetchResultVolume = await adapterObj[chain].fetch(timestamp, chainBlocks)
-        const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume : "0";
-        const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume : "0";
-
-        return {
-          timestamp,
-          totalFees: new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString(),
-          dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-          totalRevenue: new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString(),
-          dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString() : undefined
-        };
+        const fetchedResult: FetchResultVolume = await adapterObj[chain].fetch(timestamp, chainBlocks)
+        const chainDailyVolume = fetchedResult.dailyVolume;
+        const chainTotalVolume = fetchedResult.totalVolume;
+        const response: FetchResultGeneric = { timestamp }
+        if (chainDailyVolume !== undefined) {
+          if (totalFees)
+            response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString()
+          if (params.userFees !== undefined)
+            response["dailyUserFees"] = new BigNumber(chainDailyVolume).multipliedBy(params.userFees).toString()
+          if (params.revenue !== undefined)
+            response["dailyRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.revenue).toString()
+          if (params.holdersRevenue !== undefined)
+            response["dailyHoldersRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.holdersRevenue).toString()
+          if (params.supplySideRevenue !== undefined)
+            response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.supplySideRevenue).toString()
+          if (protocolFees !== undefined)
+            response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString()
+        }
+        if (chainTotalVolume !== undefined) {
+          if (totalFees)
+            response["totalFees"] = new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString()
+          if (params.userFees !== undefined)
+            response["totalUserFees"] = new BigNumber(chainTotalVolume).multipliedBy(params.userFees).toString()
+          if (params.revenue !== undefined)
+            response["totalRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.revenue).toString()
+          if (params.holdersRevenue !== undefined)
+            response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
+          if (params.supplySideRevenue !== undefined)
+            response["totalSupplySideRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.supplySideRevenue).toString()
+          if (protocolFees !== undefined)
+            response["totalProtocolRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString()
+        }
+        return response
       }
 
       const baseAdapter: BaseAdapter = {
@@ -152,6 +179,7 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0 }: IGe
           ...adapterObj[chain],
           fetch: fetchFees,
           customBackfill: fetchFees,
+          meta: params.meta
         }
       }
       finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }

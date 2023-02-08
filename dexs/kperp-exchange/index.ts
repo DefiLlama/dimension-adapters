@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/kperp/core",
+  [CHAIN.KAVA]: "https://graph-node.kperp.exchange/subgraphs/name/kperp/core",
 }
 
 const historicalData = gql`

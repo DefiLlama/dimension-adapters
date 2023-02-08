@@ -28,7 +28,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                 const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 if (id)
-                    console.log("Result before cleaning", id, cleanCurrentDayTimestamp, result, JSON.stringify(chainBlocks ?? {}))
+                    console.log("Result before cleaning", id, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
                 cleanResult(result)
                 return Promise.resolve({
                     chain,

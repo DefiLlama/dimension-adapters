@@ -11,8 +11,7 @@ interface IKlaySwapInfoDayVolumeItem {
   amount: string
 }
 
-const historicalVolumeEndpoint =
-  "https://s.klayswap.com/stat/klayswapInfo.json";
+const historicalVolumeEndpoint = "https://ss.klayswap.com/stat/dashboardInfo.json";
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))

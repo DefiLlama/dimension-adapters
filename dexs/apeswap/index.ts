@@ -5,7 +5,7 @@ const adapters = univ2Adapter({
   [CHAIN.BSC]: "https://bnb.apeswapgraphs.com/subgraphs/name/ape-swap/apeswap-subgraph",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/prof-sd/as-matic-graft",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/apeswapfinance/ethereum-dex",
-  [CHAIN.TELOS]: "https://telos.apeswapgraphs.com/subgraphs/name/ape-swap/apeswap-subgraph-telos"
+  [CHAIN.TELOS]: "https://telos.apeswapgraphs.com/subgraphs/name/ape-swap/apeswap-graph"
 }, {});
 
 adapters.adapter.bsc.start = async () => 1613273226;

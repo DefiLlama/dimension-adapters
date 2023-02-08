@@ -28,12 +28,14 @@ const tridentQuery = gql`
     factoryDaySnapshots(where: {date_gt: $timestampLow, date_lt: $timestampHigh}, first: 10) {
       date
       volumeUSD
+      feesUSD
       factory {
         type
       }
     }
     factories(where: {type: "ALL"}) {
       volumeUSD
+      feesUSD
       type
     }
   }
@@ -52,8 +54,13 @@ const trident = Object.keys(endpointsTrident).reduce(
           return snapshot.factory.type == "ALL"
         })
         return {
-          totalVolume: res.factories[0].volumeUSD,
-          dailyVolume: daily.volumeUSD
+          timestamp: timestamp,
+          totalVolume: res.factories[0]?.volumeUSD,
+          totalFees: res.factories[0]?.feesUSD,
+          totalUserFees: res.factories[0]?.feesUSD,
+          dailyVolume: daily?.volumeUSD,
+          dailyFees: daily?.feesUSD,
+          dailyUserFees: daily?.feesUSD
         }
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
