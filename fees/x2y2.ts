@@ -24,6 +24,7 @@ const dataProsition : TDataPosition = {
   2816: [16, 40, 42],
   2688: [16, 40, 0],
   2880: [17, 43, 0],
+  3008: [17, 43, 45],
 }
 
 const fetch = () => {
