@@ -25,8 +25,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }`;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
-      const dailyRev = new BigNumber(graphRes.dailyRevenueAndFee.totalFee).div(1000000);
-      const dailyFee = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
+      const dailyRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
+      const dailyFee = new BigNumber(graphRes.dailyRevenueAndFee.totalFee).div(1000000);
 
       return {
         timestamp,
