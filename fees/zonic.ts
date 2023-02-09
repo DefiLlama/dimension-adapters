@@ -14,6 +14,7 @@ type TMarketPlaceAddress = {
 const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.OPTIMISM]: '0x11c9e50dfde606a864a25726d174faf947626f3d',
   [CHAIN.ARBITRUM]: '0x1A7b46C660603EBB5FBe3AE51e80AD21dF00bDd1',
+  [CHAIN.ARBITRUM_NOVA]: '0x1a7b46c660603ebb5fbe3ae51e80ad21df00bdd1',
 }
 
 interface ITx {
@@ -83,6 +84,10 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1675382400,
   },
+  [CHAIN.ARBITRUM_NOVA]: {
+    fetch: fetch(CHAIN.ARBITRUM_NOVA),
+    start: async ()  => 1675382400,
+},
   }
 }
 
