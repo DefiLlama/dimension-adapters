@@ -56,15 +56,16 @@ function graphs() {
                 }
             }`
       );
+      const coins = graphRes.tokens.map((token: any) => {
+        if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
+          return "coingecko:floki";
+        } else {
+          return chain + ":" + token.id;
+        }
+      });
 
       const currentPrices = await getPrices(
-        graphRes.tokens.map((token: any) => {
-          if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
-            return "coingecko:floki";
-          } else {
-            return chain + ":" + token.id;
-          }
-        }),
+        [...coins, `coingecko:binance-usd`],
         timestamp
       );
 
@@ -72,6 +73,7 @@ function graphs() {
         // Floki price taken from CG
         currentPrices["bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e"] =
           currentPrices["coingecko:floki"];
+        currentPrices["bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56"] = currentPrices["coingecko:binance-usd"];
         // Hardcoding MDB+ price
         if (!currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"]) {
           currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"] = {
@@ -106,12 +108,13 @@ function graphs() {
       const totalSupplySideRevenue: TBalance = {};
 
       for (const token of graphRes.tokens) {
-        let tokenKey = chain + `:` + token.id;
-        if (!currentPrices[tokenKey]) {
-          console.log(tokenKey);
+        let tokenKey = chain + `:` + token.id.split(':')[0];
+        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
+          // console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
+        if (tokenDecimals && tokenPrice) continue;
 
         totalUserFees[tokenKey] = fromWei(
           toBN(token.dividendAmount)
@@ -150,8 +153,12 @@ function graphs() {
 
       for (const token of graphRes.yesterdayTokens) {
         const tokenKey = chain + `:` + token.id;
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
+          // console.log('not found token: ',tokenKey);
+        }
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
+        if (tokenDecimals && tokenPrice) continue;
 
         dailyUserFees[tokenKey] =
           totalUserFees[tokenKey] -
@@ -270,17 +277,17 @@ const meta = {
 const adapter: Adapter = {
   adapter: {
     [BSC]: {
-      start: async () => 1649190350,
+      start: async () => 1658880000,
       fetch: graphs()(BSC),
       meta,
     },
     [POLYGON]: {
-      start: async () => 1645968312,
+      start: async () => 1658880000,
       fetch: graphs()(POLYGON),
       meta,
     },
     [AVAX]: {
-      start: async () => 1655505906,
+      start: async () => 1658880000,
       fetch: graphs()(AVAX),
       meta,
     },
