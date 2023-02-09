@@ -42,7 +42,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 56585555 ,
+        start: async ()  => 1674993600 ,
     },
   }
 }
