@@ -23,6 +23,10 @@ const endpoints: any = {
   [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
 };
 
+type TBalance  = {
+  [s: string]: number;
+}
+
 function graphs() {
   return (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultFees> => {
@@ -88,18 +92,18 @@ function graphs() {
         }
       }
 
-      const dailyUserFees: any = {};
-      const dailyFees: any = {};
-      const dailyRevenue: any = {};
-      const dailyProtocolRevenue: any = {};
-      const dailyHoldersRevenue: any = {};
-      const dailySupplySideRevenue: any = {};
-      const totalUserFees: any = {};
-      const totalFees: any = {};
-      const totalRevenue: any = {};
-      const totalProtocolRevenue: any = {};
-      const totalDailyHoldersRevenue: any = {};
-      const totalSupplySideRevenue: any = {};
+      const dailyUserFees: TBalance = {};
+      const dailyFees: TBalance = {};
+      const dailyRevenue: TBalance = {};
+      const dailyProtocolRevenue: TBalance = {};
+      const dailyHoldersRevenue: TBalance = {};
+      const dailySupplySideRevenue: TBalance = {};
+      const totalUserFees: TBalance = {};
+      const totalFees: TBalance = {};
+      const totalRevenue: TBalance = {};
+      const totalProtocolRevenue: TBalance = {};
+      const totalDailyHoldersRevenue: TBalance = {};
+      const totalSupplySideRevenue: TBalance = {};
 
       for (const token of graphRes.tokens) {
         let tokenKey = chain + `:` + token.id;
@@ -188,20 +192,19 @@ function graphs() {
             .multipliedBy(tokenPrice)
             .toNumber();
       }
-
       return {
         timestamp,
-        dailyFees,
-        dailyUserFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
-        dailySupplySideRevenue,
-        totalFees,
-        totalUserFees,
-        totalRevenue,
-        totalProtocolRevenue,
-        totalSupplySideRevenue,
+        dailyFees: Object.values(dailyFees).reduce((a: number, b: number) => a + b, 0).toString(),
+        dailyUserFees: Object.values(dailyUserFees).reduce((a: number, b: number) => a + b, 0).toString(),
+        dailyRevenue: Object.values(dailyRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        dailyProtocolRevenue: Object.values(dailyProtocolRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        dailyHoldersRevenue: Object.values(dailyHoldersRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        dailySupplySideRevenue: Object.values(dailySupplySideRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        totalFees: Object.values(totalFees).reduce((a: number, b: number) => a + b, 0).toString(),
+        totalUserFees: Object.values(totalUserFees).reduce((a: number, b: number) => a + b, 0).toString(),
+        totalRevenue: Object.values(totalRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        totalProtocolRevenue: Object.values(totalProtocolRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
+        totalSupplySideRevenue: Object.values(totalSupplySideRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
         // totalDailyHoldersRevenue,
       };
     };
