@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import BigNumber from "bignumber.js";
 
 import { api } from "@defillama/sdk";
+import { FetchResultFees } from "../../adapters/types";
 import { BSC, POLYGON, AVAX } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
@@ -24,7 +25,7 @@ const endpoints: any = {
 
 function graphs() {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
+    return async (timestamp: number): Promise<FetchResultFees> => {
       const { block: yesterdayLastBlock } = await api.util.lookupBlock(
         getTimestampAtStartOfDayUTC(timestamp),
         { chain }
@@ -201,7 +202,7 @@ function graphs() {
         totalRevenue,
         totalProtocolRevenue,
         totalSupplySideRevenue,
-        totalDailyHoldersRevenue,
+        // totalDailyHoldersRevenue,
       };
     };
   };
