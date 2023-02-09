@@ -2,7 +2,7 @@ import { request } from "graphql-request";
 import BigNumber from "bignumber.js";
 
 import { api } from "@defillama/sdk";
-import { FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchResultFees } from "../../adapters/types";
 import { BSC, POLYGON, AVAX } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
@@ -220,68 +220,71 @@ const meta = {
     HoldersRevenue: "Dividends fee allocations.",
     SupplySideRevenue: "Bank and Partner fee allocations",
   },
-  hallmarks: [
-    // Polygon
-    [1645970923, "BetSwirl deposit: 2.6k MATIC"],
-    [1645976015, "BetSwirl deposit: 1.1k MATIC"],
-    [1646136632, "BetSwirl deposit: 1.3k MATIC"],
-    [1647366653, "BetSwirl deposit: 544m BETS"],
-    [1647445756, "BetSwirl deposit: 7.2k MATIC"],
-    [1655245802, "Sphere deposit: 1.3m SPHERE"],
-    // [31115990, "BetSwirl deposit: 9k MATIC"], // Transfer to v2
-    // [32898892, "BetSwirl deposit: 16.6k MATIC"], // Transfer to v3
-    // [32898952, "BetSwirl deposit: 554m BETS"], // Transfer to v3
-    // [35726240, "BetSwirl deposit: 556m BETS"], // Transfer to v4
-    // [35726240, "BetSwirl deposit: 20.3k MATIC"], // Transfer to v4
-    [1669205490, "BetSwirl deposit: 5 wETH"],
-    [1669330628, "Jarvis deposit: 106k jMXN"],
-    [1669330780, "Jarvis deposit: 5.3k jEUR"],
-    [1675356553, "Jarvis deposit: 15.7k jEUR"],
-    [1675420032, "BetSwirl deposit: 21k MATIC"],
-    [1675815093, "BetSwirl deposit: 777M PolyDoge"],
+  // hallmarks: [
+  //   // Polygon
+  //   [1645970923, "BetSwirl deposit: 2.6k MATIC"],
+  //   [1645976015, "BetSwirl deposit: 1.1k MATIC"],
+  //   [1646136632, "BetSwirl deposit: 1.3k MATIC"],
+  //   [1647366653, "BetSwirl deposit: 544m BETS"],
+  //   [1647445756, "BetSwirl deposit: 7.2k MATIC"],
+  //   [1655245802, "Sphere deposit: 1.3m SPHERE"],
+  //   // [31115990, "BetSwirl deposit: 9k MATIC"], // Transfer to v2
+  //   // [32898892, "BetSwirl deposit: 16.6k MATIC"], // Transfer to v3
+  //   // [32898952, "BetSwirl deposit: 554m BETS"], // Transfer to v3
+  //   // [35726240, "BetSwirl deposit: 556m BETS"], // Transfer to v4
+  //   // [35726240, "BetSwirl deposit: 20.3k MATIC"], // Transfer to v4
+  //   [1669205490, "BetSwirl deposit: 5 wETH"],
+  //   [1669330628, "Jarvis deposit: 106k jMXN"],
+  //   [1669330780, "Jarvis deposit: 5.3k jEUR"],
+  //   [1675356553, "Jarvis deposit: 15.7k jEUR"],
+  //   [1675420032, "BetSwirl deposit: 21k MATIC"],
+  //   [1675815093, "BetSwirl deposit: 777M PolyDoge"],
 
-    // BNB
-    [1649191463, "BetSwirl deposit: 10 BNB"],
-    [1649616314, "BetSwirl deposit: 75m BETS"],
-    [1652807622, "BetSwirl deposit: 29 BNB"],
-    [1652808633, "BetSwirl deposit: 75m BETS"],
-    [1654293017, "Titano deposit: 40m TITANO"],
-    [1655707329, "BetSwirl deposit: 51m BETS"], // to check
-    [1659023680, "BetSwirl deposit: 15 BNB"],
-    // [21190276, "BetSwirl deposit: 49 BNB"], // Transfer to v3
-    // [21190300, "BetSwirl deposit: 197m BETS"], // Transfer to v3
-    // [21526500, "Titano deposit: 240m TITANO"], // Transfer to v3
-    // [23129957, "BetSwirl deposit: 57 BNB"], // Transfer to v4
-    // [23129957, "BetSwirl deposit: 199m BETS"], // Transfer to v4
-    [1670448025, "MDB deposit: 3m MDB"],
-    [1670448049, "MDB deposit: 15.5k MDB+"],
+  //   // BNB
+  //   [1649191463, "BetSwirl deposit: 10 BNB"],
+  //   [1649616314, "BetSwirl deposit: 75m BETS"],
+  //   [1652807622, "BetSwirl deposit: 29 BNB"],
+  //   [1652808633, "BetSwirl deposit: 75m BETS"],
+  //   [1654293017, "Titano deposit: 40m TITANO"],
+  //   [1655707329, "BetSwirl deposit: 51m BETS"], // to check
+  //   [1659023680, "BetSwirl deposit: 15 BNB"],
+  //   // [21190276, "BetSwirl deposit: 49 BNB"], // Transfer to v3
+  //   // [21190300, "BetSwirl deposit: 197m BETS"], // Transfer to v3
+  //   // [21526500, "Titano deposit: 240m TITANO"], // Transfer to v3
+  //   // [23129957, "BetSwirl deposit: 57 BNB"], // Transfer to v4
+  //   // [23129957, "BetSwirl deposit: 199m BETS"], // Transfer to v4
+  //   [1670448025, "MDB deposit: 3m MDB"],
+  //   [1670448049, "MDB deposit: 15.5k MDB+"],
 
-    // Avalanche
-    [1655506365, "BetSwirl deposit: 350 AVAX"],
-    [1655506474, "BetSwirl deposit: 23m BETS"],
-    [1655519330, "BetSwirl deposit: 127m BETS"],
-    [1655707066, "BetSwirl deposit: 50m BETS"],
-    // [19714942, "BetSwirl deposit: 395 AVAX"], // Transfer to v3
-    [1662768298, "ThorFi deposit: 27k THOR"],
-    // [19714974, "BetSwirl deposit: 200m BETS"], // Transfer to v3
-  ],
+  //   // Avalanche
+  //   [1655506365, "BetSwirl deposit: 350 AVAX"],
+  //   [1655506474, "BetSwirl deposit: 23m BETS"],
+  //   [1655519330, "BetSwirl deposit: 127m BETS"],
+  //   [1655707066, "BetSwirl deposit: 50m BETS"],
+  //   // [19714942, "BetSwirl deposit: 395 AVAX"], // Transfer to v3
+  //   [1662768298, "ThorFi deposit: 27k THOR"],
+  //   // [19714974, "BetSwirl deposit: 200m BETS"], // Transfer to v3
+  // ],
 };
-export default {
+
+const adapter: Adapter = {
   adapter: {
     [BSC]: {
-      meta,
-      start: () => 1649190350,
+      start: async () => 1649190350,
       fetch: graphs()(BSC),
+      meta,
     },
     [POLYGON]: {
-      meta,
-      start: () => 1645968312,
+      start: async () => 1645968312,
       fetch: graphs()(POLYGON),
+      meta,
     },
     [AVAX]: {
-      meta,
-      start: () => 1655505906,
+      start: async () => 1655505906,
       fetch: graphs()(AVAX),
+      meta,
     },
   },
-};
+}
+
+export default adapter;
