@@ -103,9 +103,6 @@ function graphs() {
 
       for (const token of graphRes.tokens) {
         let tokenKey = chain + `:` + token.id;
-        if (!currentPrices[tokenKey]) {
-          console.log(tokenKey);
-        }
         const tokenDecimals = currentPrices[tokenKey].decimals;
         const tokenPrice = currentPrices[tokenKey].price;
 
