@@ -5,6 +5,7 @@ import { api } from "@defillama/sdk";
 import { BSC, POLYGON, AVAX } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
+import { getPrices } from "../../utils/prices";
 
 const ten = toBN("10");
 function fromWei(wei: string | BigNumber, unit = 18) {
@@ -28,6 +29,7 @@ function graphs() {
         getTimestampAtStartOfDayUTC(timestamp),
         { chain }
       );
+
       const graphRes = await request(
         endpoints[chain],
         `{
@@ -50,6 +52,41 @@ function graphs() {
             }`
       );
 
+      const currentPrices = await getPrices(
+        graphRes.tokens.map((token: any) => {
+          if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
+            return "coingecko:floki";
+          } else {
+            return chain + ":" + token.id;
+          }
+        }),
+        timestamp
+      );
+
+      if (chain === BSC) {
+        // Floki price taken from CG
+        currentPrices["bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e"] =
+          currentPrices["coingecko:floki"];
+        // Hardcoding MDB+ price
+        if (!currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"]) {
+          currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"] = {
+            decimals: 18,
+            symbol: "MDB+",
+            price: 1.2,
+            timestamp,
+          };
+        }
+        // Hardcoding INF-MDB
+        if (!currentPrices["bsc:0xacc966b91100f879c9ed4839ed2f77c70e3e97ed"]) {
+          currentPrices["bsc:0xacc966b91100f879c9ed4839ed2f77c70e3e97ed"] = {
+            decimals: 18,
+            symbol: "INF-MDB",
+            price: 0, // There was 0 volume anyway
+            timestamp,
+          };
+        }
+      }
+
       const dailyUserFees: any = {};
       const dailyFees: any = {};
       const dailyRevenue: any = {};
@@ -62,34 +99,54 @@ function graphs() {
       const totalProtocolRevenue: any = {};
       const totalDailyHoldersRevenue: any = {};
       const totalSupplySideRevenue: any = {};
+
       for (const token of graphRes.tokens) {
-        const tokenKey = chain + `:` + token.id;
+        let tokenKey = chain + `:` + token.id;
+        if (!currentPrices[tokenKey]) {
+          console.log(tokenKey);
+        }
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
 
         totalUserFees[tokenKey] = fromWei(
           toBN(token.dividendAmount)
             .plus(token.bankAmount)
             .plus(token.partnerAmount)
             .plus(token.treasuryAmount)
-            .plus(token.teamAmount)
-        ).toNumber();
+            .plus(token.teamAmount),
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
         totalFees[tokenKey] = totalUserFees[tokenKey];
 
         totalSupplySideRevenue[tokenKey] = fromWei(
-          toBN(token.bankAmount).plus(token.partnerAmount)
-        ).toNumber();
+          toBN(token.bankAmount).plus(token.partnerAmount),
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
 
         totalProtocolRevenue[tokenKey] = fromWei(
-          toBN(token.treasuryAmount).plus(token.teamAmount)
-        ).toNumber();
+          toBN(token.treasuryAmount).plus(token.teamAmount),
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
         totalDailyHoldersRevenue[tokenKey] = fromWei(
-          token.dividendAmount
-        ).toNumber();
+          token.dividendAmount,
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
         totalRevenue[tokenKey] =
           totalProtocolRevenue[tokenKey] + totalDailyHoldersRevenue[tokenKey];
       }
 
       for (const token of graphRes.yesterdayTokens) {
         const tokenKey = chain + `:` + token.id;
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
 
         dailyUserFees[tokenKey] =
           totalUserFees[tokenKey] -
@@ -98,22 +155,37 @@ function graphs() {
               .plus(token.bankAmount)
               .plus(token.partnerAmount)
               .plus(token.treasuryAmount)
-              .plus(token.teamAmount)
-          ).toNumber();
+              .plus(token.teamAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
         dailyFees[tokenKey] = dailyUserFees[tokenKey];
 
         dailyHoldersRevenue[tokenKey] =
           totalDailyHoldersRevenue[tokenKey] -
-          fromWei(token.dividendAmount).toNumber();
+          fromWei(token.dividendAmount, tokenDecimals)
+            .multipliedBy(tokenPrice)
+            .toNumber();
         dailyProtocolRevenue[tokenKey] =
           totalProtocolRevenue[tokenKey] -
-          fromWei(toBN(token.treasuryAmount).plus(token.teamAmount)).toNumber();
+          fromWei(
+            toBN(token.treasuryAmount).plus(token.teamAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
         dailyRevenue[tokenKey] =
           dailyHoldersRevenue[tokenKey] + dailyProtocolRevenue[tokenKey];
 
         dailySupplySideRevenue[tokenKey] =
           totalSupplySideRevenue[tokenKey] -
-          fromWei(toBN(token.bankAmount).plus(token.partnerAmount)).toNumber();
+          fromWei(
+            toBN(token.bankAmount).plus(token.partnerAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
       }
 
       return {
@@ -137,8 +209,7 @@ function graphs() {
 
 const meta = {
   methodology: {
-    UserFees:
-      "The player is charged of the fee when a bet is won.",
+    UserFees: "The player is charged of the fee when a bet is won.",
     Fees: "All fees (called «house edge» from 2.4% to 3.5% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Dividends, Treasury, and Team.",
     Revenue: "Dividends, Treasury and Team fee allocations.",
     ProtocolRevenue: "Treasury and Team fee allocations.",
