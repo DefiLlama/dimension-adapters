@@ -4,9 +4,10 @@ import BigNumber from "bignumber.js";
 import { api } from "@defillama/sdk";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { BSC, POLYGON, AVAX } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../../utils/prices";
+import { getBlock } from "../../helpers/getBlock";
 
 const ten = toBN("10");
 function fromWei(wei: string | BigNumber, unit = 18) {
@@ -27,18 +28,33 @@ type TBalance  = {
   [s: string]: number;
 }
 
+interface IToken {
+  id: string;
+  dividendAmount: string;
+  bankAmount: string;
+  partnerAmount: string;
+  treasuryAmount: string;
+  teamAmount: string;
+}
+
+interface IGraph {
+  todayTokens: IToken[]
+  yesterdayTokens: IToken[]
+}
+
 function graphs() {
   return (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultFees> => {
-      const { block: yesterdayLastBlock } = await api.util.lookupBlock(
-        getTimestampAtStartOfDayUTC(timestamp),
-        { chain }
-      );
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
 
-      const graphRes = await request(
+      const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
+      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+
+      const graphRes: IGraph = await request(
         endpoints[chain],
         `{
-                tokens {
+              todayTokens: tokens(block: { number: ${todaysBlock} }) {
                     id
                     dividendAmount
                     bankAmount
@@ -46,7 +62,7 @@ function graphs() {
                     treasuryAmount
                     teamAmount
                 }
-                yesterdayTokens: tokens(block: { number: ${yesterdayLastBlock} }) {
+                yesterdayTokens: tokens(block: { number: ${yesterdaysBlock} }) {
                     id
                     dividendAmount
                     bankAmount
@@ -56,7 +72,8 @@ function graphs() {
                 }
             }`
       );
-      const coins = graphRes.tokens.map((token: any) => {
+
+      const coins = graphRes.todayTokens.map((token: IToken) => {
         if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
           return "coingecko:floki";
         } else {
@@ -107,14 +124,13 @@ function graphs() {
       const totalDailyHoldersRevenue: TBalance = {};
       const totalSupplySideRevenue: TBalance = {};
 
-      for (const token of graphRes.tokens) {
+      for (const token of graphRes.todayTokens) {
         let tokenKey = chain + `:` + token.id.split(':')[0];
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          // console.log('not found token: ',tokenKey);
+          console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
-        if (tokenDecimals && tokenPrice) continue;
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
 
         totalUserFees[tokenKey] = fromWei(
           toBN(token.dividendAmount)
@@ -154,11 +170,10 @@ function graphs() {
       for (const token of graphRes.yesterdayTokens) {
         const tokenKey = chain + `:` + token.id;
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          // console.log('not found token: ',tokenKey);
+          console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
-        if (tokenDecimals && tokenPrice) continue;
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
 
         dailyUserFees[tokenKey] =
           totalUserFees[tokenKey] -
@@ -172,6 +187,7 @@ function graphs() {
           )
             .multipliedBy(tokenPrice)
             .toNumber();
+
         dailyFees[tokenKey] = dailyUserFees[tokenKey];
 
         dailyHoldersRevenue[tokenKey] =
@@ -199,6 +215,7 @@ function graphs() {
             .multipliedBy(tokenPrice)
             .toNumber();
       }
+
       return {
         timestamp,
         dailyFees: Object.values(dailyFees).reduce((a: number, b: number) => a + b, 0).toString(),
