@@ -2,7 +2,6 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
-import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
 
 
@@ -133,10 +132,10 @@ const fetch = async (timestamp: number) => {
     const log: IAmount[] = logs[index]
       .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
       .map((p: ILog) => {
-        const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
-        const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
-        const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
-        const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
+        const amount0In = Number('0x' + p.data.slice(0, 64)).toString();
+        const amount1In = Number('0x' + p.data.slice(64, 128)).toString();
+        const amount0Out = Number('0x' + p.data.slice(128, 192)).toString();
+        const amount1Out = Number('0x' + p.data.slice(192, 256)).toString();
         return {
           amount0In,
           amount1In,
