@@ -29,9 +29,7 @@ export async function fetchArbitrumAnalyticsData(
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
   const allPositions = [
-    //
-    ...analyticsData.positions.active,
-    ...analyticsData.positions.closed,
+    ...analyticsData.positions,
   ];
 
   const dailyPositions = getPositionsForDaily(allPositions, timestamp);
