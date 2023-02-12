@@ -6,7 +6,7 @@ import { POLYGON } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/graphordertst/",
+  [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/graphordertst",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
