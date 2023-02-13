@@ -9,6 +9,11 @@ const endpoints = {
   [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/graphordertst",
 }
 
+let dailyFee= 0;
+let finalDailyFee = 0;
+let userFee = 0;
+let finalUserFee = 0;
+
 const methodology = {
   Fees: "Fees from open/close position, swap, mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   UserFees: "Fees from open/close position, swap and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
@@ -22,7 +27,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
+      const searchTimestamp = todaysTimestamp 
 
       const graphQuery = gql
       `{
@@ -33,14 +38,16 @@ const graphs = (graphUrls: ChainEndpoints) => {
           swap
         }
       }`;
-
+    
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalDailyFee = (dailyFee / 1e30);
-      const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalUserFee = (userFee / 1e30);
+      if (graphRes.feeStat!=null){
+       dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+       finalDailyFee = (dailyFee / 1e30);
+       userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+       finalUserFee = (userFee / 1e30);
 
+      }
       return {
         timestamp,
         dailyFees: finalDailyFee.toString(),
@@ -59,8 +66,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
-      fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1630468800,
+      fetch: graphs(endpoints)(POLYGON),
+      start: async () => 1672511400,
       meta: {
         methodology
       }
