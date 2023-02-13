@@ -28,6 +28,7 @@ const adapter: Adapter = {
           timestamp,
           dailyFees: usdFees.toString(),
           dailyRevenue: dailyRevenue.toString(),
+          dailyHoldersRevenue: dailyRevenue.toString(),
         };
       },
       start: async () => 1610841600

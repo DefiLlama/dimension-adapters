@@ -19,6 +19,7 @@ const adapter: Adapter = {
                 timestamp,
                 dailyFees: usdFees, 
                 dailyRevenue: usdFees,
+                dailyHoldersRevenue: usdFees,
             };
         },
         start: async () => 1575158400
