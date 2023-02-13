@@ -25,6 +25,7 @@ const graph = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async (timestamp: number) => {
             const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
+            console.log(dateId);
 
             const graphQuery = gql
                     `{
@@ -47,7 +48,6 @@ const graph = (graphUrls: ChainEndpoints) => {
                 }`;
 
             const graphRes = await request(graphUrls[chain], graphQuery);
-            console.log(graphRes)
             Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
                 graphRes.dailyRevenueSnapshot[k] = new BigNumber(graphRes.dailyRevenueSnapshot[k])
             });
