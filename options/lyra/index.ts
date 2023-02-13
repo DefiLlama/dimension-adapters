@@ -4,6 +4,7 @@ import { getChainVolume } from "./getLyraSubgraphVolume";
 
 const endpoints: { [chain: string]: string } = {
   optimism: "https://api.lyra.finance/subgraph/optimism/v1/api",
+  arbitrum: "https://api.lyra.finance/subgraph/arbitrum/v2/api",
 };
 
 const subgraph = getChainVolume({

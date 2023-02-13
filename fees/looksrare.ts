@@ -42,6 +42,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
+        dailyHoldersRevenue: dailyRev.toString(),
       };
     };
   };

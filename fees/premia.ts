@@ -5,6 +5,18 @@ import { utils } from 'ethers'
 
 const dailyFeesQuery = gql`
   query MyQuery($timestamp: String) {
+    totalFeeRevenues {
+      totalFeeRevenueInUsd
+    }
+    totalPremiumsDailies(
+      orderDirection: desc
+      orderBy: timestamp
+      where: { timestamp_lte: $timestamp }
+    ) {
+      id
+      timestamp
+      totalPremiumsInUsd
+    }
     totalFeeRevenueDailies(
       orderDirection: desc
       orderBy: timestamp
@@ -20,6 +32,9 @@ const dailyFeesQuery = gql`
 interface DailyFee {
   timestamp: string
   dailyFees: string
+  dailyRevenue: string
+  totalRevenue: string
+  totalFees: string
 }
 
 export function toNumber(value: string): number {
@@ -39,15 +54,29 @@ async function getDailyFee(url: string, timestamp: number): Promise<DailyFee> {
   const fetchResult = await request(url, dailyFeesQuery, {
     timestamp: timestamp.toString(),
   })
-  const { totalFeeRevenueDailies } = fetchResult
+  const { totalPremiumsDailies, totalFeeRevenueDailies, totalFeeRevenues } =
+    fetchResult
 
-  const dailyFees = calcLast24hrsVolume(
+  const dailyPremiums = calcLast24hrsVolume(
+    get2Days(totalPremiumsDailies, 'totalPremiumsInUsd')
+  )
+
+  const dailyRevenue = calcLast24hrsVolume(
     get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
   )
 
+  const totalPremiumsInUsd = toNumber(
+    totalPremiumsDailies[0].totalPremiumsInUsd
+  )
+
   return {
-    dailyFees: dailyFees.toFixed(2),
+    // map totalPremiumDailies to Fee
+    dailyFees: dailyPremiums.toFixed(2),
+    // map totalFeeRevenue to Revenue
+    dailyRevenue: dailyRevenue.toFixed(2),
     timestamp: timestamp.toString(),
+    totalFees: totalPremiumsInUsd.toFixed(2),
+    totalRevenue: toNumber(totalFeeRevenues[0].totalFeeRevenueInUsd).toFixed(2),
   }
 }
 

@@ -48,6 +48,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         totalProtocolRevenue: totalRev.toString(),
         dailySupplySideRevenue: dailySSRev.toString(),
         totalSupplySideRevenue: totalSSRev.toString(),
+        dailyHoldersRevenue: '0',
       };
     };
   };

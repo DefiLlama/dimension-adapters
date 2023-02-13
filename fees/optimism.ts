@@ -75,6 +75,7 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
         timestamp,
         dailyFees: finalDailyFee.toString(),
         dailyRevenue: revenue.toString(),
+        dailyHoldersRevenue: '0',
     };
 }
 

@@ -92,9 +92,9 @@ function getChainVolume({
   return (chain: Chain) => {
     return async (timestamp: number, chainBlocks: ChainBlocks) => {
       const block =
-        getCustomBlock ?
-          await getCustomBlock(timestamp) :
-          await getBlock(timestamp, chain, chainBlocks);
+        (getCustomBlock ?
+          await getCustomBlock(timestamp).catch(e => console.log(e.message)) :
+          await getBlock(timestamp, chain, chainBlocks).catch(e => console.log(e.message))) ?? undefined;
       const id = getUniswapDateId(new Date(timestamp * 1000));
       const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block }).catch(e => {
         try {
