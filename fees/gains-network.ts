@@ -82,7 +82,8 @@ const fetch = (address: string, chain: Chain) => {
     return {
       timestamp,
       dailyFees,
-      dailyRevenue
+      dailyRevenue,
+      dailyHoldersRevenue: dailyRevenue,
     } as FetchResultFees
   }
 }

@@ -67,10 +67,14 @@ const fetch = () => {
       } as ISeaPort
     });
 
+
     const dailyFees = log
       .filter(e => e.feeRate !== '0')
       .reduce((p: number , c: IFee) => p + (((Number(c.feeRate)/100)/100) * c.volume), 0);
-    const fromSeaPort = seaport_logs.reduce((a: number ,e: ISeaPort) => a+e.amount, 0);
+    const fromSeaPort = seaport_logs
+      .filter(e => e.amount)
+      .reduce((a: number ,e: ISeaPort) => a+e.amount, 0);
+
     const prices = await getPrices(['coingecko:ethereum'], todaysTimestamp);
     const ethPrice = prices['coingecko:ethereum'].price;
     const dailyFeesUsd = (dailyFees + fromSeaPort) * ethPrice;

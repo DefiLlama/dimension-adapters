@@ -1,4 +1,4 @@
+import { blockscoutFeeAdapter } from "../helpers/blockscoutFees";
 import { CHAIN } from "../helpers/chains";
-import { etherscanFeeAdapter } from "../helpers/etherscanFees";
 
-export default etherscanFeeAdapter(CHAIN.AURORA, "https://aurorascan.dev/chart/transactionfee?output=csv", "coingecko:ethereum")
+export default blockscoutFeeAdapter(CHAIN.AURORA, "https://aurorascan.dev/api?module=stats&action=totalfees", "coingecko:ethereum")
