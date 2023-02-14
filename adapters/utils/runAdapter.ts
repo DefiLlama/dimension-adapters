@@ -36,6 +36,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                     ...result
                 })
             } catch (e) {
+                console.error(`Failed to get volume on ${chain}: ${e.message}`)
                 return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
         })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>
