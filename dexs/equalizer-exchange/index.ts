@@ -10,10 +10,10 @@ interface ILog {
   transactionHash: string;
 }
 interface IAmount {
-  amount0In: string;
-  amount1In: string;
-  amount0Out: string;
-  amount1Out: string;
+  amount0In: number;
+  amount1In: number;
+  amount0Out: number;
+  amount1Out: number;
 }
 const topic_name = 'Swap(index_topic_1 address sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, index_topic_2 address to)';
 const topic0 = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
@@ -132,10 +132,10 @@ const fetch = async (timestamp: number) => {
     const log: IAmount[] = logs[index]
       .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
       .map((p: ILog) => {
-        const amount0In = Number('0x' + p.data.slice(0, 64)).toString();
-        const amount1In = Number('0x' + p.data.slice(64, 128)).toString();
-        const amount0Out = Number('0x' + p.data.slice(128, 192)).toString();
-        const amount1Out = Number('0x' + p.data.slice(192, 256)).toString();
+        const amount0In = Number('0x' + p.data.slice(0, 64));
+        const amount1In = Number('0x' + p.data.slice(64, 128));
+        const amount0Out = Number('0x' + p.data.slice(128, 192));
+        const amount1Out = Number('0x' + p.data.slice(192, 256));
         return {
           amount0In,
           amount1In,
@@ -155,7 +155,7 @@ const fetch = async (timestamp: number) => {
     const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
     return untrackAmountUSD;
   });
-
+  console.log('untrackVolumes', untrackVolumes)
   const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
   return {
     dailyVolume: `${dailyVolume}`,
