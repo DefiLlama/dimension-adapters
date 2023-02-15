@@ -1,5 +1,4 @@
 import { Adapter, FetchResult } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import axios from "axios";
 
 interface DailyFeeResponse {
@@ -12,7 +11,8 @@ interface DailyFeeResponse {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const response = await axios.get<DailyFeeResponse>(
-      `https://edge.stride.zone/api/${chain}/stats/fees`
+      // `https://edge.stride.zone/api/${chain}/stats/fees`
+      `http://localhost:4000/api/${chain}/stats/fees`
     );
 
     return {
@@ -55,6 +55,18 @@ const adapter: Adapter = {
     },
     stargaze: {
       fetch: fetch("stargaze"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
+    terra: {
+      fetch: fetch("terra"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
+    evmos: {
+      fetch: fetch("evmos"),
       runAtCurrTime: true,
       start: async () => 0,
       meta,
