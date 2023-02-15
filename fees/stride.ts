@@ -11,8 +11,7 @@ interface DailyFeeResponse {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const response = await axios.get<DailyFeeResponse>(
-      // `https://edge.stride.zone/api/${chain}/stats/fees`
-      `http://localhost:4000/api/${chain}/stats/fees`
+      `https://edge.stride.zone/api/${chain}/stats/fees`
     );
 
     return {
