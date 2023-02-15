@@ -68,7 +68,7 @@ const adapter: Adapter = {
         }
 
       },
-      start: async () => 1575158400
+      start: async () => 1628553600
     },
   },
   protocolType: ProtocolType.CHAIN
