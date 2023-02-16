@@ -1,9 +1,11 @@
 import { Adapter, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
 import postgres from 'postgres'
 import { request, gql } from "graphql-request";
+import { getBlock } from "../../helpers/getBlock";
+import * as sdk from "@defillama/sdk";
 
 const ARBITRUM_FEES_URL = "https://api.thegraph.com/subgraphs/name/dmihal/arbitrum-fees-collected";
 
@@ -17,6 +19,14 @@ interface IGraph {
   today: IFee;
 }
 
+interface ITx {
+  data: string;
+  transactionHash: string;
+}
+
+const WITHDRAWAL_ADDRESS = '0x0000000000000000000000000000000000000064';
+const topic0 = '0x3e7aafa77dbf186b7fd488006beff893744caa3c4f6f299e8a709fa2087374fc';
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
@@ -27,8 +37,11 @@ const adapter: Adapter = {
 
         try {
           const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
           const startDateId = Math.floor(todaysTimestamp / 86400);
           const endDateId = startDateId + 1;
+          const fromBlock = (await getBlock(todaysTimestamp, CHAIN.ARBITRUM, {}));
+          const toBlock = (await getBlock(yesterdaysTimestamp, CHAIN.ARBITRUM, {}));
           const query = gql`
           query txFees($startDateId: String!, $endDateId: String!){
             yesterday: fee(id: $startDateId) {
@@ -39,8 +52,23 @@ const adapter: Adapter = {
             }
           }`;
           const res: IGraph  = await request(ARBITRUM_FEES_URL, query, {startDateId: startDateId.toString(), endDateId: endDateId.toString()});
-
-          const fees = Number(res.today.totalFeesETH) - Number(res.yesterday.totalFeesETH);
+          const logs: ITx[] = (await sdk.api.util.getLogs({
+            target: WITHDRAWAL_ADDRESS,
+            topic: '',
+            fromBlock: fromBlock,
+            toBlock: toBlock,
+            topics: [topic0],
+            keys: [],
+            chain: CHAIN.ARBITRUM
+          })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+          const rawLogsData: number[] = logs
+            .filter((e => e.data.length === 448))
+            .map((tx: ITx) => {
+              const amount = Number('0x' + tx.data.slice(256, 320)) / 10 **  18;
+            return amount;
+          });
+          const withdrawnFee = rawLogsData.reduce((a: number, b: number) => a + b, 0);
+          const fees = Number(res.today.totalFeesETH) - Number(res.yesterday.totalFeesETH) + withdrawnFee;
 
           const sequencerGas = await sql`
             SELECT
@@ -56,6 +84,7 @@ const adapter: Adapter = {
 
           const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
           const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
+
           await sql.end({ timeout: 3 })
           return {
             timestamp: todaysTimestamp,
