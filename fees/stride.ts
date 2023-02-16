@@ -1,5 +1,4 @@
 import { Adapter, FetchResult } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import axios from "axios";
 
 interface DailyFeeResponse {
@@ -55,6 +54,18 @@ const adapter: Adapter = {
     },
     stargaze: {
       fetch: fetch("stargaze"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
+    terra: {
+      fetch: fetch("terra"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
+    evmos: {
+      fetch: fetch("evmos"),
       runAtCurrTime: true,
       start: async () => 0,
       meta,
