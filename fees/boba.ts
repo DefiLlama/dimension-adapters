@@ -74,7 +74,6 @@ const adapter: Adapter = {
             const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
             const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
             await sql.end({ timeout: 3 });
-            console.log(totalFees.toString())
             const dailyRevenue = (totalFees - seqGas) * (ethPrice);
             return {
               timestamp,
