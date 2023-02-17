@@ -91,9 +91,11 @@ const fetch = (chain: Chain) => {
     const [first, second, third] = logs;
     const dailyFees = (Number(first?.data || 0) + Number(second?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
     const dailyRevenue = (Number(first?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
+    const dailyHolderRevenue = Number(first?.data || 0) / 10 ** fee_detail[chain].targetDecimal;
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
+      dailyHoldersRevenue: dailyHolderRevenue.toString(),
       timestamp
     }
   }
