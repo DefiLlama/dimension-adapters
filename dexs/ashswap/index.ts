@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
-      start: async () => 1676606400
+      start: async () => 1676678400
     },
   },
 };
