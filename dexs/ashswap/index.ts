@@ -2,13 +2,11 @@ import { request } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import fetchURL from "../../utils/fetchURL"
 
-const API_URL = 'https://api.ashswap.io/overview/volume';
+const API_URL = 'https://api-v2.ashswap.io/graphql';
 
 interface IVolume {
-  volume: number;
-  time: number;
+  totalVolumeUSD24h: number;
 }
 
 const VolumeQuery = `
@@ -21,21 +19,10 @@ const VolumeQuery = `
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const results: any[] = (await fetchURL(API_URL)).data;
-  const volumes = results.map((e: any) => {
-    const [time, volume] = e;
-    return {
-      volume,
-      time
-    }
-  });
-  const dailyVolume = volumes.find((e: IVolume) => e.time === dayTimestamp);
-  const totalVolume = volumes
-    .filter((e: IVolume) => e.time <= dayTimestamp)
-    .reduce((a: number, e: IVolume) => a+e.volume, 0);
+  const results: IVolume = (await request(API_URL, VolumeQuery)).defillama;
+  const dailyVolume = results?.totalVolumeUSD24h;
   return {
-    dailyVolume: dailyVolume ? `${totalVolume}` : undefined,
-    totalVolume: totalVolume.toString(),
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
 }
@@ -44,6 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
+      runAtCurrTime: true,
       start: async () => 1676592000
     },
   },
