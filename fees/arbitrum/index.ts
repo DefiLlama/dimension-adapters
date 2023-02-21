@@ -29,6 +29,7 @@ const CONGESTION_FEES = '0xb04D2C62c0Cd8cec5691Cefd2E7CF041EBD26382'
 const SEQUENCER_FEES_NITRO = '0xa4b1e63cb4901e327597bc35d36fe8a23e4c253f'
 const NETWORK_INFRA_FEES_NITRO = '0xD345e41aE2cb00311956aA7109fC801Ae8c81a52'
 const CONGESTION_FEES_NITRO = '0xa4B00000000000000000000000000000000000F6'
+const NEW_1 = '0xc1b634853cb333d3ad8663715b08f41a3aec47cc'
 
 const getWithdrawalTxs = async (address: string, startblock: number, endblock: number): Promise<number> => {
   const url = `https://api.arbiscan.io/api?module=account&action=txlist&address=${address}&startblock=${startblock}&endblock=${endblock}`;
@@ -73,6 +74,7 @@ const adapter: Adapter = {
             getWithdrawalTxs(SEQUENCER_FEES_NITRO, startblock, endblock),
             getWithdrawalTxs(NETWORK_INFRA_FEES_NITRO, startblock, endblock),
             getWithdrawalTxs(CONGESTION_FEES_NITRO, startblock, endblock),
+            getWithdrawalTxs(NEW_1, startblock, endblock),
           ]);
 
           const totalWithdrawn = withdrawalTxs.reduce((a: number, b: number) => a + b, 0);
