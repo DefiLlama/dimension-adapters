@@ -88,7 +88,8 @@ export enum CHAIN {
   WAX = "wax",
   MAP = "map",
   ARBITRUM_NOVA = "arbitrum_nova",
-  INJECTIVE = "injective"
+  INJECTIVE = "injective",
+  ORAI = "orai"
 }
 
 // Don´t use
