@@ -98,6 +98,10 @@ const adapter: Adapter = {
       fetch: graph(endpoints)(OPTIMISM),
       start: async () => 1656154800,
     },
+    [ARBITRUM]: {
+      fetch: graph(endpoints)(ARBITRUM),
+      start: async () => 1674691200,
+    },
   },
 };
 
