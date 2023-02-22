@@ -44,11 +44,11 @@ const getFees = () => {
     const graphRes = await request(endpoint, query);
     const dailyFee = new BigNumber(0);
 
-    for (const pool of graphRes["today"]) {
+    for (const pool of graphRes["today"].pools) {
       todayVolume[pool.id] = new BigNumber(pool.cumulativeVolumeUSD);
     }
 
-    for (const pool of graphRes["yesterday"]) {
+    for (const pool of graphRes["yesterday"].pools) {
       if (!todayVolume[pool.id]) continue;
       const dailyVolume = todayVolume[pool.id].minus(pool.cumulativeVolumeUSD);
       if (pool._stable) {
