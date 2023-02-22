@@ -17,7 +17,7 @@ const endpointsClassic = {
   [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
   [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
-  [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-0m/sushiswap-boba',
+  [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
   [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
 };
 

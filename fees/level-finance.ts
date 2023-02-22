@@ -53,9 +53,9 @@ const adapter: Adapter = {
       start: async () => 1672063200,
       meta: {
         methodology: {
-          Fees: 'All mint, burn, margin, liquidation and swap fees are colletec',
+          Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
           UserFees:
-            'All mint, burn, margin, liquidation and swap fees are colletec',
+            'All mint, burn, margin, liquidation and swap fees are collect',
           Revenue: '50% of the total fee',
         },
       },

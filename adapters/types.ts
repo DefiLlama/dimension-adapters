@@ -41,7 +41,8 @@ export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
 
 export enum ProtocolType {
   CHAIN = 'chain',
-  PROTOCOL = 'protocol'
+  PROTOCOL = 'protocol',
+  COLLECTION = 'collection',
 }
 
 export type SimpleAdapter = {
@@ -70,17 +71,17 @@ export type FetchResultVolume = FetchResultBase & {
 
 // FEES
 export type FetchResultFees = FetchResultBase & {
-  totalFees?: string // | IJSON<string>;
-  dailyFees?: string // | IJSON<string>;
-  dailyUserFees?: string // | IJSON<string>;
-  totalRevenue?: string // | IJSON<string>;
-  dailyRevenue?: string // | IJSON<string>;
-  dailyProtocolRevenue?: string
-  dailyHoldersRevenue?: string
-  dailySupplySideRevenue?: string
-  totalProtocolRevenue?: string
-  totalSupplySideRevenue?: string
-  totalUserFees?: string
+  totalFees?: string | IJSON<string>;
+  dailyFees?: string | IJSON<string>;
+  dailyUserFees?: string | IJSON<string>;
+  totalRevenue?: string | IJSON<string>;
+  dailyRevenue?: string | IJSON<string>;
+  dailyProtocolRevenue?: string | IJSON<string>;
+  dailyHoldersRevenue?: string | IJSON<string>;
+  dailySupplySideRevenue?: string | IJSON<string>;
+  totalProtocolRevenue?: string | IJSON<string>;
+  totalSupplySideRevenue?: string | IJSON<string>;
+  totalUserFees?: string | IJSON<string>;
 };
 
 // INCENTIVES

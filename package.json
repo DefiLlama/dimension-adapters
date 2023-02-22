@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/DefiLlama/adapters#readme",
   "dependencies": {
-    "@defillama/sdk": "^3.0.1",
+    "@defillama/sdk": "^3.0.31",
     "async-retry": "^1.3.3",
     "axios": "^0.27.2",
     "bignumber.js": "^9.1.0",

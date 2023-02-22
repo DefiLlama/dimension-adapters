@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import { OPTIMISM } from "../helpers/chains";
+import { ARBITRUM, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
@@ -10,6 +10,7 @@ const UNIT = BigNumber.from("1000000000000000000");
 
 const endpoints = {
   [OPTIMISM]: "https://api.lyra.finance/subgraph/optimism/v1/api",
+  [ARBITRUM]: "https://api.lyra.finance/subgraph/arbitrum/v2/api",
 };
 
 interface IGetChainFeesParams {
@@ -96,6 +97,10 @@ const adapter: Adapter = {
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
       start: async () => 1656154800,
+    },
+    [ARBITRUM]: {
+      fetch: graph(endpoints)(ARBITRUM),
+      start: async () => 1674691200,
     },
   },
 };

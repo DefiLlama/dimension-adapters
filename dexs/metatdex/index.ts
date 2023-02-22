@@ -12,6 +12,7 @@ type TEndoint = {
 const endpoints: TEndoint = {
   [CHAIN.BSC]: "http://public.tdex.cz/get_volumes_list?chain_id=56",
   [CHAIN.HECO]: "http://public.tdex.cz/get_volumes_list?chain_id=128",
+  [CHAIN.POLYGON]: "http://public.tdex.cz/get_volumes_list?chain_id=137",
 };
 
 interface IVolumeall {

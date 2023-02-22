@@ -43,7 +43,7 @@ const graphs = getGraphDimensions({
 const graphsStableSwap = getGraphDimensions({
   graphUrls: stablesSwapEndpoints,
   totalVolume: {
-    factory: "pancakeFactories"
+    factory: "factories"
   },
   dailyVolume: {
     factory: "pancakeDayData"

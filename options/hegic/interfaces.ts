@@ -1,11 +1,9 @@
 export interface AnalyticsData {
-  positions: {
-    active: Position[];
-    closed: Position[];
-  };
+  positions: Position[];
 }
 
 export interface Position {
+  state: number;
   type: StrategyType;
   purchaseDate: string;
   amount: number;
