@@ -80,7 +80,8 @@ const methodology = {
 const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [CHAIN.BSC]: disabledAdapter
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
