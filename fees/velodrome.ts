@@ -11,7 +11,7 @@ import { OPTIMISM } from "../helpers/chains";
 const STABLE_FEES = 0.0002;
 const VOLATILE_FEES = 0.0005;
 const endpoint =
-  "https://api.thegraph.com/subgraphs/name/ethzoomer/velodrome-trading-data";
+  "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
 
 const getFees = () => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
@@ -26,35 +26,31 @@ const getFees = () => {
 
     const query = gql`
       query fees {
-        yesterday: dexAmmProtocols(block: {number: ${yesterdaysBlock}}) {
-          pools {
-            id
-            _stable
-            cumulativeVolumeUSD
-          }
+        yesterday: pairs(block: {number: ${yesterdaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+          id
+          isStable
+          volumeUSD
         }
-        today: dexAmmProtocols(block: {number: ${todaysBlock}}) {
-          pools {
-            id
-            _stable
-            cumulativeVolumeUSD
-          }
+        today: pairs(block: {number: ${todaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+          id
+          isStable
+          volumeUSD
         }
       }
     `;
     const todayVolume: { [id: string]: BigNumber } = {};
     const graphRes = await request(endpoint, query);
     let dailyFee = new BigNumber(0);
-    for (const pool of graphRes["today"][0].pools) {
-      todayVolume[pool.id] = new BigNumber(pool.cumulativeVolumeUSD);
+    for (const pool of graphRes["today"]) {
+      todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
     }
 
-    for (const pool of graphRes["yesterday"][0].pools) {
+    for (const pool of graphRes["yesterday"]) {
       if (!todayVolume[pool.id]) continue;
       const dailyVolume = BigNumber(todayVolume[pool.id]).minus(
-        pool.cumulativeVolumeUSD
+        pool.volumeUSD
       );
-      if (pool._stable) {
+      if (pool.isStable) {
         dailyFee = dailyFee.plus(dailyVolume.times(STABLE_FEES));
       } else {
         dailyFee = dailyFee.plus(dailyVolume.times(VOLATILE_FEES));
