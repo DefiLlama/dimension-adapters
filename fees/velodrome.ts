@@ -61,6 +61,7 @@ const getFees = () => {
       timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.toString(),
+      dailyHoldersRevenue: dailyFee.toString(),
     };
   };
 };
