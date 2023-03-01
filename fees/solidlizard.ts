@@ -13,6 +13,17 @@ const VOLATILE_FEES = 0.004;
 const endpoint =
   "https://api.thegraph.com/subgraphs/name/solidlizardfinance/sliz";
 
+interface IPair {
+  id: string;
+  isStable: boolean;
+  volumeUSD: string;
+}
+
+interface IQuery  {
+  yesterday: IPair[];
+  today: IPair[];
+}
+
 const getFees = () => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
@@ -39,7 +50,7 @@ const getFees = () => {
       }
     `;
     const todayVolume: { [id: string]: BigNumber } = {};
-    const graphRes = await request(endpoint, query);
+    const graphRes: IQuery = await request(endpoint, query);
     let dailyFee = new BigNumber(0);
     for (const pool of graphRes["today"]) {
       todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
@@ -70,7 +81,7 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: getFees(),
-      start: async () => 1677110400, // TODO: Add accurate timestamp
+      start: async () => 1675036800,
     },
   },
 };
