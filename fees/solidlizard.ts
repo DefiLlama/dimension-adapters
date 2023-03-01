@@ -6,7 +6,8 @@ import {
   getTimestampAtStartOfPreviousDayUTC,
 } from "../utils/date";
 import BigNumber from "bignumber.js";
-import { OPTIMISM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
 
 const STABLE_FEES = 0.0002;
 const VOLATILE_FEES = 0.004;
@@ -24,16 +25,16 @@ interface IQuery  {
   today: IPair[];
 }
 
-const getFees = () => {
+const getFees = (chain: Chain) => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const todaysBlock = await getBlock(
       todaysTimestamp,
-      "arbitrum",
+      chain,
       chainBlocks
     );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "arbitrum", {});
+    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, chain, {});
 
     const query = gql`
       query fees {
@@ -79,8 +80,8 @@ const getFees = () => {
 
 const adapter: Adapter = {
   adapter: {
-    [OPTIMISM]: {
-      fetch: getFees(),
+    [CHAIN.ARBITRUM]: {
+      fetch: getFees(CHAIN.ARBITRUM),
       start: async () => 1675036800,
     },
   },
