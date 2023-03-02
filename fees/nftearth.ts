@@ -7,7 +7,6 @@ import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
 const topic0 = '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31';
-const topic1 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 type TMarketPlaceAddress = {
   [l: string | Chain]: string;
