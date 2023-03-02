@@ -47,7 +47,7 @@ const fetch = (chain: Chain) => {
       chain: chain
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = chain !== CHAIN.POLYGON ? "ethereum:0x0000000000000000000000000000000000000000" : 'ethereum:0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
     const payableToken: string[] = logs.map((tx: ITx) => {
       const postionPayableToken = Number(tx.data.slice(320, 384)) === 1 ? 6 : 11;
       const address = tx.data.slice(postionPayableToken*64, (postionPayableToken*64)+64); // 11
@@ -102,10 +102,10 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1676332800,
     },
-  //   [CHAIN.POLYGON]: {
-  //     fetch: fetch(CHAIN.POLYGON),
-  //     start: async ()  => 1675036800,
-  // },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(CHAIN.POLYGON),
+      start: async ()  => 1675036800,
+    },
   }
 }
 
