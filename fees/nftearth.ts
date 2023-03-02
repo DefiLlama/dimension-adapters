@@ -30,7 +30,6 @@ interface ISaleData {
   marketplace_fee: number;
 }
 
-
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
@@ -49,34 +48,36 @@ const fetch = (chain: Chain) => {
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethOptimism ="optimism:0x4200000000000000000000000000000000000006";
-    const l2dao = "optimism:0xd52f94df742a6f4b4c8b033369fe13a41782bf44";
-    const op = "optimism:0x4200000000000000000000000000000000000042";
-    const nfteOptimism = "optimism:0xc96f4F893286137aC17e07Ae7F217fFca5db3AB6";
-    const nfteArbitrum = "arbitrum:0xb261104a83887ae92392fb5ce5899fcfe5481456";
-    const prices = await getPrices([ethAddress, l2dao, op, nfteOptimism, nfteArbitrum, ethOptimism], timestamp);
+    const payableToken: string[] = logs.map((tx: ITx) => {
+      const postionPayableToken = Number(tx.data.slice(320, 384)) === 1 ? 6 : 11;
+      const address = tx.data.slice(postionPayableToken*64, (postionPayableToken*64)+64); // 11
+      const contract_address = '0x' + address.slice(24, address.length);
+      return `${chain}:${contract_address}`;
+    });
+
+    const prices = await getPrices([ethAddress, ...new Set(payableToken)], timestamp);
     const ethPrice = prices[ethAddress].price;
-    const l2daoPrice = prices[l2dao].price;
-    const opPrice = prices[op].price;
-    const nfteOptimismPrice = prices[nfteOptimism].price
-    const nfteArbitrumPrice = prices[nfteArbitrum].price
-    const ethOptimismPrice = prices[ethOptimism].price
+
+
 
     const rawLogsData: ISaleData[] = logs.map((tx: ITx) => {
-      const address = tx.data.slice(704, 768); // 11
+      const postionPayableToken = Number(tx.data.slice(320, 384)) === 1 ? 6 : 11;
+      const address = tx.data.slice(postionPayableToken*64, (postionPayableToken*64)+64); // 11
       const contract_address = '0x' + address.slice(24, address.length);
       const thereIsNotCreatorFee = tx.data.length === 1280;
-      const amount = Number('0x' + tx.data.slice(832, 896)) / 10 **  18; // 13
-      const _price = contract_address === '0x0000000000000000000000000000000000000000' ? ethOptimismPrice : opPrice;
-      const creator_fee =  (Number('0x' + tx.data.slice(1152, 1216)) / 10 **  18) * _price; // 18
-      const marketplace_fee =  (Number('0x' + tx.data.slice(1472, 1536)) / 10 **  18) * _price; // 23
+      const _price = prices[`${chain}:${contract_address}`]?.price || ethPrice;
+      const _decimal = prices[`${chain}:${contract_address}`]?.decimals || 18;
+      const amount = Number('0x' + tx.data.slice(832, 896)) / 10 **  _decimal; // 13
+
+      const creator_fee =  (Number('0x' + tx.data.slice(1152, 1216)) / 10 **  _decimal) * _price; // 18
+      const marketplace_fee =  (Number('0x' + tx.data.slice(1472, 1536)) / 10 **  _decimal) * _price; // 23
 
       return {
         amount: amount,
         contract_address: contract_address,
         creator_fee: thereIsNotCreatorFee ? 0 : creator_fee,
         marketplace_fee: thereIsNotCreatorFee ? creator_fee : marketplace_fee,
-      } as ISaleData
+      }
     });
 
 
@@ -102,10 +103,10 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1676332800,
     },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1675036800,
-  },
+  //   [CHAIN.POLYGON]: {
+  //     fetch: fetch(CHAIN.POLYGON),
+  //     start: async ()  => 1675036800,
+  // },
   }
 }
 
