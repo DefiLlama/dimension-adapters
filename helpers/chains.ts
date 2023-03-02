@@ -90,7 +90,8 @@ export enum CHAIN {
   ARBITRUM_NOVA = "arbitrum_nova",
   INJECTIVE = "injective",
   ORAI = "orai",
-  TON = "ton"
+  TON = "ton",
+  OBYTE = "obyte"
 }
 
 // Don´t use
