@@ -1,7 +1,6 @@
 import axios from "axios";
 
 import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 interface ITicker {
@@ -64,11 +63,10 @@ const getDailyVolume = async () => {
 
 
 const fetch = async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dailyVolume = await getDailyVolume();
 
     return {
-        timestamp: dayTimestamp,
+        timestamp,
         dailyVolume: dailyVolume.toString(),
     }
 }
