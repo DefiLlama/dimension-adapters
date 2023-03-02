@@ -69,16 +69,18 @@ const fetch = (chain: Chain) => {
       const _decimal = prices[`${chain}:${contract_address}`]?.decimals || 18;
       const amount = Number('0x' + tx.data.slice(832, 896)) / 10 **  _decimal; // 13
 
-      const creator_fee =  (Number('0x' + tx.data.slice(1152, 1216)) / 10 **  _decimal) * _price; // 18
-      const marketplace_fee =  (Number('0x' + tx.data.slice(1472, 1536)) / 10 **  _decimal) * _price; // 23
+      const creator_fee =  (Number('0x' + tx.data.slice(1152, 1216)) / 10 **  _decimal); // 18
+      const marketplace_fee =  (Number('0x' + tx.data.slice(1472, 1536)) / 10 **  _decimal); // 23
 
       return {
         amount: amount,
         contract_address: contract_address,
         creator_fee: thereIsNotCreatorFee ? 0 : creator_fee,
         marketplace_fee: thereIsNotCreatorFee ? creator_fee : marketplace_fee,
+        tx: tx.transactionHash
       }
     });
+    console.log(rawLogsData)
 
 
     const marketplace_fee = rawLogsData.reduce((a: number, b: ISaleData) => a + b.marketplace_fee, 0);
