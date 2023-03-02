@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 interface ITicker {
@@ -68,17 +68,14 @@ const fetch = async (timestamp: number) => {
     return {
         timestamp,
         dailyVolume: dailyVolume.toString(),
-    }
+    } as FetchResultVolume
 }
 
-const getStartTimestamp = async () => {
-    return 0;
-}
 
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.OBYTE]: {
-            start: getStartTimestamp,
+            start: async () => 1677542400,
             runAtCurrTime: true,
             fetch: fetch
         }
