@@ -1,8 +1,7 @@
-export type ChainMultiEndpoints = {
-    [chains: string]: {
-        [subgraphs: string]: string
-    }
-}
+import { CHAIN } from "../../helpers/chains";
+
+export type ChainEndpoint = { [key in CHAIN]?: string }
+
 
 export type BorrowFee = {
     surplusFromInterests: number;
