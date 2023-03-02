@@ -40,6 +40,12 @@ const feesV2:IFeeV2  = {
   [CHAIN.POLYGON]: 0.0005,
 }
 
+const feesV1:IFeeV2  = {
+  [CHAIN.ETHEREUM]: 2,
+  [CHAIN.BSC]: 0.2,
+  [CHAIN.POLYGON]: 0.0001,
+}
+
 
 const fetch = (chain: Chain, version: number) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -69,7 +75,7 @@ const fetch = (chain: Chain, version: number) => {
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
     const linkAddress = "coingecko:chainlink";
     const linkPrice = (await getPrices([linkAddress], timestamp))[linkAddress].price;
-    const fees = version === 1 ? 2 : feesV2[chain]
+    const fees = version === 1 ? feesV1[chain] : feesV2[chain]
     const dailyFees = ((logs_1.length + logs_2.length) * fees) * linkPrice;
     const dailyRevenue = dailyFees;
     return {
