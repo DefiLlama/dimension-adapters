@@ -27,7 +27,7 @@ interface IExchangeRates {
 }
 
 
-const OSWAP_STATS_ENDPOINT = "http://localhost:4200/api/v1";
+const OSWAP_STATS_ENDPOINT = "https://v2-stats.oswap.io/api/v1";
 
 const getTickers = async () => {
     const tickers: ITickers = (await axios.get(`${OSWAP_STATS_ENDPOINT}/tickers`))?.data;
