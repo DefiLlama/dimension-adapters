@@ -1,4 +1,4 @@
-import { Adapter, BreakdownAdapter, FetchResultFees } from "../adapters/types";
+import { BreakdownAdapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import * as sdk from "@defillama/sdk";
@@ -26,6 +26,12 @@ const address_v2: TAddrress = {
   [CHAIN.ETHEREUM]: '0x271682DEB8C4E0901D1a1550aD2e64D568E69909',
   [CHAIN.BSC]: '0xc587d9053cd1118f25F645F9E08BB98c9712A4EE',
   [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067'
+}
+const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
+const address_keeper: TAddrress = {
+  [CHAIN.ETHEREUM]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
+  [CHAIN.BSC]: '0x7b3ec232b08bd7b4b3305be0c044d907b2df960b',
+  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B'
 }
 interface ITx {
   data: string;
@@ -86,11 +92,44 @@ const fetch = (chain: Chain, version: number) => {
   }
 }
 
+const fetchKeeper = (chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+
+    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    const logs: ITx[] = (await sdk.api.util.getLogs({
+      target: address_keeper[chain],
+      topic: '',
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      topics: [topic0_keeper],
+      keys: [],
+      chain: chain
+    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+
+    const payAmount: number[] = logs.map((tx: ITx) => {
+      const amount = Number('0x'+tx.data.slice(0, 64)) / 10 ** 18
+      return amount;
+    });
+    const linkAddress = "coingecko:chainlink";
+    const linkPrice = (await getPrices([linkAddress], timestamp))[linkAddress].price;
+    const dailyFees = payAmount.reduce((a: number, b: number) => a+b,0);
+    const dailyFeesUsd = dailyFees * linkPrice;
+    return {
+      dailyFees: dailyFeesUsd.toString(),
+      dailyRevenue: dailyFeesUsd.toString(),
+      timestamp
+    }
+  }
+
+}
 
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    v1: {
+    "vrf v1": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 1),
         start: async ()  => 1675382400,
@@ -104,7 +143,7 @@ const adapter: BreakdownAdapter = {
         start: async ()  => 1675382400,
       },
     },
-    v2: {
+    "vrf v2": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 2),
         start: async ()  => 1675382400,
@@ -118,6 +157,20 @@ const adapter: BreakdownAdapter = {
         start: async ()  => 1675382400,
       },
     },
+    "keepers": {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchKeeper(CHAIN.ETHEREUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.BSC]: {
+        fetch: fetchKeeper(CHAIN.BSC),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.POLYGON]: {
+        fetch: fetchKeeper(CHAIN.POLYGON),
+        start: async ()  => 1675382400,
+      }
+    }
   }
 }
 export default adapter;
