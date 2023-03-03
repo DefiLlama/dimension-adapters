@@ -107,7 +107,7 @@ const fetchKeeper = (chain: Chain) => {
       topics: [topic0_keeper],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
     const payAmount: number[] = logs.map((tx: ITx) => {
       const amount = Number('0x'+tx.data.slice(0, 64)) / 10 ** 18
@@ -119,7 +119,6 @@ const fetchKeeper = (chain: Chain) => {
     const dailyFeesUsd = dailyFees * linkPrice;
     return {
       dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: dailyFeesUsd.toString(),
       timestamp
     }
   }
