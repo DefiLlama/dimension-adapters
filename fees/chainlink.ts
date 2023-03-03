@@ -1,10 +1,12 @@
-import { Adapter, BreakdownAdapter, FetchResultFees } from "../adapters/types";
+import { BreakdownAdapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { providers } from "ethers";
+
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
 const topic1_v1 = '0x56bd374744a66d531874338def36c906e3a6cf31176eb1e9afd9f1de69725d51';
@@ -27,6 +29,12 @@ const address_v2: TAddrress = {
   [CHAIN.BSC]: '0xc587d9053cd1118f25F645F9E08BB98c9712A4EE',
   [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067'
 }
+const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
+const address_keeper: TAddrress = {
+  [CHAIN.ETHEREUM]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
+  [CHAIN.BSC]: '0x7b3ec232b08bd7b4b3305be0c044d907b2df960b',
+  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B'
+}
 interface ITx {
   data: string;
   transactionHash: string;
@@ -44,6 +52,36 @@ const feesV1:IFeeV2  = {
   [CHAIN.ETHEREUM]: 2,
   [CHAIN.BSC]: 0.2,
   [CHAIN.POLYGON]: 0.0001,
+}
+
+type TProvider = {
+  [l: string | Chain]: {
+    url: string;
+    chainId: number;
+  };
+}
+
+type IGasTokenId = {
+  [l: string | Chain]: string;
+}
+const gasTokenId: IGasTokenId = {
+  [CHAIN.ETHEREUM]: "coingecko:ethereum",
+  [CHAIN.BSC]: "coingecko:binancecoin",
+  [CHAIN.POLYGON]: "coingecko:matic-network",
+}
+const _providers: TProvider =  {
+  [CHAIN.ETHEREUM]: {
+    url: "https://eth-mainnet.gateway.pokt.network/v1/5f3453978e354ab992c4da79",
+    chainId: 1
+  },
+  [CHAIN.BSC]: {
+    url: "https://rpc.ankr.com/bsc",
+    chainId: 56
+  },
+  [CHAIN.POLYGON]: {
+    url: "https://rpc-mainnet.maticvigil.com/",
+    chainId: 137
+  },
 }
 
 
@@ -86,11 +124,55 @@ const fetch = (chain: Chain, version: number) => {
   }
 }
 
+const fetchKeeper = (chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+
+    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    const logs: ITx[] = (await sdk.api.util.getLogs({
+      target: address_keeper[chain],
+      topic: '',
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      topics: [topic0_keeper],
+      keys: [],
+      chain: chain
+    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    const provider = new providers.JsonRpcProvider(_providers[chain].url, _providers[chain].chainId);
+    const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+      .map((e: any) => {
+        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice._hex)) / 10 ** 18
+        return amount
+      })
+    const payAmount: number[] = logs.map((tx: ITx) => {
+      const amount = Number('0x'+tx.data.slice(0, 64)) / 10 ** 18
+      return amount;
+    });
+    const linkAddress = "coingecko:chainlink";
+    const gasToken = gasTokenId[chain];
+    const prices = (await getPrices([linkAddress, gasToken], timestamp))
+    const linkPrice = prices[linkAddress].price
+    const gagPrice  =  prices[gasToken].price
+    const dailyFees = payAmount.reduce((a: number, b: number) => a+b,0);
+    const dailyFeesUsd = dailyFees * linkPrice;
+    const dailyGas = txReceipt.reduce((a: number, b: number) => a+b,0);
+    const dailyGasUsd = dailyGas * gagPrice;
+    const dailyRevenue  = dailyFeesUsd - dailyGasUsd;
+    return {
+      dailyFees: dailyFeesUsd.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      timestamp
+    }
+  }
+
+}
 
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    v1: {
+    "vrf v1": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 1),
         start: async ()  => 1675382400,
@@ -104,7 +186,7 @@ const adapter: BreakdownAdapter = {
         start: async ()  => 1675382400,
       },
     },
-    v2: {
+    "vrf v2": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 2),
         start: async ()  => 1675382400,
@@ -118,6 +200,20 @@ const adapter: BreakdownAdapter = {
         start: async ()  => 1675382400,
       },
     },
+    "keepers": {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchKeeper(CHAIN.ETHEREUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.BSC]: {
+        fetch: fetchKeeper(CHAIN.BSC),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.POLYGON]: {
+        fetch: fetchKeeper(CHAIN.POLYGON),
+        start: async ()  => 1675382400,
+      }
+    }
   }
 }
 export default adapter;
