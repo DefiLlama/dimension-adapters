@@ -5,6 +5,8 @@ import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { providers } from "ethers";
+
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
 const topic1_v1 = '0x56bd374744a66d531874338def36c906e3a6cf31176eb1e9afd9f1de69725d51';
@@ -50,6 +52,36 @@ const feesV1:IFeeV2  = {
   [CHAIN.ETHEREUM]: 2,
   [CHAIN.BSC]: 0.2,
   [CHAIN.POLYGON]: 0.0001,
+}
+
+type TProvider = {
+  [l: string | Chain]: {
+    url: string;
+    chainId: number;
+  };
+}
+
+type IGasTokenId = {
+  [l: string | Chain]: string;
+}
+const gasTokenId: IGasTokenId = {
+  [CHAIN.ETHEREUM]: "coingecko:ethereum",
+  [CHAIN.BSC]: "coingecko:binancecoin",
+  [CHAIN.POLYGON]: "coingecko:matic-network",
+}
+const _providers: TProvider =  {
+  [CHAIN.ETHEREUM]: {
+    url: "https://eth-mainnet.gateway.pokt.network/v1/5f3453978e354ab992c4da79",
+    chainId: 1
+  },
+  [CHAIN.BSC]: {
+    url: "https://rpc.ankr.com/bsc",
+    chainId: 56
+  },
+  [CHAIN.POLYGON]: {
+    url: "https://rpc-mainnet.maticvigil.com/",
+    chainId: 137
+  },
 }
 
 
@@ -108,17 +140,29 @@ const fetchKeeper = (chain: Chain) => {
       keys: [],
       chain: chain
     })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
-
+    const provider = new providers.JsonRpcProvider(_providers[chain].url, _providers[chain].chainId);
+    const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+      .map((e: any) => {
+        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice._hex)) / 10 ** 18
+        return amount
+      })
     const payAmount: number[] = logs.map((tx: ITx) => {
       const amount = Number('0x'+tx.data.slice(0, 64)) / 10 ** 18
       return amount;
     });
     const linkAddress = "coingecko:chainlink";
-    const linkPrice = (await getPrices([linkAddress], timestamp))[linkAddress].price;
+    const gasToken = gasTokenId[chain];
+    const prices = (await getPrices([linkAddress, gasToken], timestamp))
+    const linkPrice = prices[linkAddress].price
+    const gagPrice  =  prices[gasToken].price
     const dailyFees = payAmount.reduce((a: number, b: number) => a+b,0);
     const dailyFeesUsd = dailyFees * linkPrice;
+    const dailyGas = txReceipt.reduce((a: number, b: number) => a+b,0);
+    const dailyGasUsd = dailyGas * gagPrice;
+    const dailyRevenue  = dailyFeesUsd - dailyGasUsd;
     return {
       dailyFees: dailyFeesUsd.toString(),
+      dailyRevenue: dailyRevenue.toString(),
       timestamp
     }
   }
