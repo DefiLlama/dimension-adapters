@@ -1,7 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { BorrowFee, BorrowFeeQuery, BorrowResult, ChainEndpoint, CoreFee, CoreFeeQuery, CoreResult, veANGLEQuery } from "./types";
 
@@ -229,23 +228,23 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: graph(endpoints)(CHAIN.ARBITRUM),
-            start: async () => 1657041547,
+            start: async () => 1672531200,
         },
         [CHAIN.AVAX]: {
             fetch: graph(endpoints)(CHAIN.AVAX),
-            start: async () => 1656021600,
+            start: async () => 1672531200,
         },
         [CHAIN.ETHEREUM]: {
             fetch: graph(endpoints)(CHAIN.ETHEREUM),
-            start: async () => 1636046347,
+            start: async () => 1672531200,
         },
         [CHAIN.OPTIMISM]: {
             fetch: graph(endpoints)(CHAIN.OPTIMISM),
-            start: async () => 1657041547,
+            start: async () => 1672531200,
         },
         [CHAIN.POLYGON]: {
             fetch: graph(endpoints)(CHAIN.POLYGON),
-            start: async () => 1656782347,
+            start: async () => 1672531200,
         },
     }
 }
