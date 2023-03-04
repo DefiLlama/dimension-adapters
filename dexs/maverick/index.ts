@@ -90,11 +90,11 @@ const fetch = (chain: Chain) => {
         totalFee +=
           Number(dailyData.pool.tokenAVolume) *
           prices[tokenAId].price *
-          dailyData.fee;
+          dailyData.pool.fee;
         totalFee +=
           Number(dailyData.pool.tokenBVolume) *
           prices[tokenBId].price *
-          dailyData.fee;
+          dailyData.pool.fee;
       }
     }
 
