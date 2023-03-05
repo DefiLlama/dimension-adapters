@@ -32,14 +32,18 @@ const address_v2: TAddrress = {
   [CHAIN.AVAX]: '0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634',
 }
 const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
+const success_topic = '0x0000000000000000000000000000000000000000000000000000000000000001';
 const address_keeper: TAddrress = {
   [CHAIN.ETHEREUM]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
   [CHAIN.BSC]: '0x7b3ec232b08bd7b4b3305be0c044d907b2df960b',
-  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B'
+  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
+  [CHAIN.FANTOM]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
+  [CHAIN.AVAX]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
 }
 interface ITx {
   data: string;
   transactionHash: string;
+  topics: string[];
 }
 type IFeeV2 = {
   [l: string | Chain]: number;
@@ -72,6 +76,8 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.ETHEREUM]: "coingecko:ethereum",
   [CHAIN.BSC]: "coingecko:binancecoin",
   [CHAIN.POLYGON]: "coingecko:matic-network",
+  [CHAIN.FANTOM]: "coingecko:fantom",
+  [CHAIN.AVAX]: "coingecko:avalanche-2",
 }
 const _providers: TProvider =  {
   [CHAIN.ETHEREUM]: {
@@ -85,6 +91,14 @@ const _providers: TProvider =  {
   [CHAIN.POLYGON]: {
     url: "https://rpc-mainnet.maticvigil.com/",
     chainId: 137
+  },
+  [CHAIN.FANTOM]: {
+    url: "https://fantom-mainnet.gateway.pokt.network/v1/lb/62759259ea1b320039c9e7ac",
+    chainId: 250
+  },
+  [CHAIN.AVAX]: {
+    url: "https://rpc.ankr.com/avalanche",
+    chainId: 43114
   },
 }
 
@@ -143,7 +157,8 @@ const fetchKeeper = (chain: Chain) => {
       topics: [topic0_keeper],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
+      .filter((e: ITx) => e.topics.includes(success_topic));
     const provider = new providers.JsonRpcProvider(_providers[chain].url, _providers[chain].chainId);
     const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
       .map((e: any) => {
@@ -223,6 +238,14 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.POLYGON]: {
         fetch: fetchKeeper(CHAIN.POLYGON),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.FANTOM]: {
+        fetch: fetchKeeper(CHAIN.FANTOM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchKeeper(CHAIN.AVAX),
         start: async ()  => 1675382400,
       }
     }
