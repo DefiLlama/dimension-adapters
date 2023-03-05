@@ -27,7 +27,9 @@ const address_v1: TAddrress = {
 const address_v2: TAddrress = {
   [CHAIN.ETHEREUM]: '0x271682DEB8C4E0901D1a1550aD2e64D568E69909',
   [CHAIN.BSC]: '0xc587d9053cd1118f25F645F9E08BB98c9712A4EE',
-  [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067'
+  [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067',
+  [CHAIN.FANTOM]: '0xd5d517abe5cf79b7e95ec98db0f0277788aff634',
+  [CHAIN.AVAX]: '0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634',
 }
 const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
 const address_keeper: TAddrress = {
@@ -46,6 +48,8 @@ const feesV2:IFeeV2  = {
   [CHAIN.ETHEREUM]: 0.25,
   [CHAIN.BSC]: 0.005,
   [CHAIN.POLYGON]: 0.0005,
+  [CHAIN.FANTOM]: 0.0005,
+  [CHAIN.AVAX]: 0.005,
 }
 
 const feesV1:IFeeV2  = {
@@ -197,6 +201,14 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.POLYGON]: {
         fetch: fetch(CHAIN.POLYGON, 2),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.FANTOM]: {
+        fetch: fetch(CHAIN.FANTOM, 2),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetch(CHAIN.AVAX, 2),
         start: async ()  => 1675382400,
       },
     },
