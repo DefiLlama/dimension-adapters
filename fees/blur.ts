@@ -92,13 +92,22 @@ const fetch = () => {
   }
 }
 
+const methodology = {
+  Fees: "All royalties+marketplace fees paid on sales",
+  Revenue: "At the moment blur charges no marketplace fees",
+}
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(),
         start: async ()  => 1669852800,
+        meta: {
+          methodology
+        }
     },
-  }
+  },
+  
 }
 
 export default adapter;

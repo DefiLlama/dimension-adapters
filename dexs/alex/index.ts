@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://alexgo-io.metabaseapp.com/api/public/dashboard/66cca0ba-7735-46c5-adfb-d80535506f4a/dashcard/413/card/421"
+const historicalVolumeEndpoint = "https://alexgo-io.metabaseapp.com/api/public/dashboard/66cca0ba-7735-46c5-adfb-d80535506f4a/dashcard/464/card/496?parameters=%5B%5D"
 
 interface IVolumeall {
   volume: string;

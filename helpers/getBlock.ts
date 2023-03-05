@@ -15,7 +15,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
         } else if (chain === CHAIN.MOONRIVER) {
             return Number((await retry(async () => await axios.get(`https://blockscout.moonriver.moonbeam.network/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`))).data.result.blockNumber);
         } else if (chain === CHAIN.CANTO) {
-            return Number((await retry(async () => await axios.get(`https://evm.explorer.canto.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`))).data.result.blockNumber);
+            return Number((await retry(async () => await axios.get(`https://coins.llama.fi/block/canto/${timestamp}`))).data.height);
         }
         return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
     }

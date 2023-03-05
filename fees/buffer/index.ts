@@ -26,17 +26,17 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
       const dailyFee = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
-      const protocolRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.05);
-      const userHolderRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.4);
-      const supplySideRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.55);
-      const dailyRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.45);
+      // const protocolRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.05);
+      // const userHolderRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.4);
+      // const supplySideRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.55);
+      const dailyRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
 
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
-        dailyProtocolRevenue: protocolRev.toString(),
-        dailyUserHolderRevenue: userHolderRev.toString(),
-        dailySupplySideRevenue: supplySideRev.toString(),
+        // dailyProtocolRevenue: protocolRev.toString(),
+        // dailyUserHolderRevenue: userHolderRev.toString(),
+        // dailySupplySideRevenue: supplySideRev.toString(),
         dailyRevenue: dailyRev.toString()
       };
     };

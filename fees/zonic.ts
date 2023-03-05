@@ -83,11 +83,11 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1675382400,
-  },
-  [CHAIN.ARBITRUM_NOVA]: {
-    fetch: fetch(CHAIN.ARBITRUM_NOVA),
-    start: async ()  => 1675382400,
-},
+    },
+    [CHAIN.ARBITRUM_NOVA]: {
+      fetch: fetch(CHAIN.ARBITRUM_NOVA),
+      start: async ()  => 1675382400,
+    },
   }
 }
 

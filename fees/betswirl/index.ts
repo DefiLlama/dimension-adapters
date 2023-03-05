@@ -4,7 +4,7 @@ import BigNumber from "bignumber.js";
 import { api } from "@defillama/sdk";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { BSC, POLYGON, AVAX } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../../utils/prices";
 import { getBlock } from "../../helpers/getBlock";
@@ -45,8 +45,8 @@ interface IGraph {
 function graphs() {
   return (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultFees> => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+      const yesterdaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+      const todaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
       const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
       const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));

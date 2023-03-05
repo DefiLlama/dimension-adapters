@@ -9,8 +9,8 @@ import { getPrices } from "../utils/prices";
 
 const methodology = {
   UserFees: "Users pay between 10-100 bps (0.1%-1%), usually 30 bps, whenever they exchange a synthetic asset (Synth)",
-  HoldersRevenue: "Fees in the fee pool can be claimed by proportionally by SNX stakers (note: rewards can also be claimed by SNX stakers, which are not included here)",
-  Revenue: "Fees paid by user and claimed by SNX stakers",
+  HoldersRevenue: "Fees are granted proportionally to SNX stakers by automatically burning outstanding debt (note: rewards not included here can also be claimed by SNX stakers)",
+  Revenue: "Fees paid by users and awarded to SNX stakers",
   Fees: "Fees generated on each synthetic asset exchange, between 0.1% and 1% (usually 0.3%)",
 }
 

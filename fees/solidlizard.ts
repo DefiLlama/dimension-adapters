@@ -6,23 +6,35 @@ import {
   getTimestampAtStartOfPreviousDayUTC,
 } from "../utils/date";
 import BigNumber from "bignumber.js";
-import { OPTIMISM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
 
 const STABLE_FEES = 0.0002;
-const VOLATILE_FEES = 0.0005;
+const VOLATILE_FEES = 0.004;
 const endpoint =
-  "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
+  "https://api.thegraph.com/subgraphs/name/solidlizardfinance/sliz";
 
-const getFees = () => {
+interface IPair {
+  id: string;
+  isStable: boolean;
+  volumeUSD: string;
+}
+
+interface IQuery  {
+  yesterday: IPair[];
+  today: IPair[];
+}
+
+const getFees = (chain: Chain) => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const todaysBlock = await getBlock(
       todaysTimestamp,
-      "optimism",
+      chain,
       chainBlocks
     );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "optimism", {});
+    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, chain, {});
 
     const query = gql`
       query fees {
@@ -39,7 +51,7 @@ const getFees = () => {
       }
     `;
     const todayVolume: { [id: string]: BigNumber } = {};
-    const graphRes = await request(endpoint, query);
+    const graphRes: IQuery = await request(endpoint, query);
     let dailyFee = new BigNumber(0);
     for (const pool of graphRes["today"]) {
       todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
@@ -68,9 +80,9 @@ const getFees = () => {
 
 const adapter: Adapter = {
   adapter: {
-    [OPTIMISM]: {
-      fetch: getFees(),
-      start: async () => 1677110400, // TODO: Add accurate timestamp
+    [CHAIN.ARBITRUM]: {
+      fetch: getFees(CHAIN.ARBITRUM),
+      start: async () => 1675036800,
     },
   },
 };
