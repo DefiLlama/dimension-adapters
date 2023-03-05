@@ -117,6 +117,7 @@ export const fetchFee = (chain: Chain) => {
     const data = await getData(chain, timestamp);
 
     return {
+      timestamp,
       dailyFees: data.dailyFees,
       totalFees: data.totalFees,
       dailyUserFees: data.dailyUserFees,
