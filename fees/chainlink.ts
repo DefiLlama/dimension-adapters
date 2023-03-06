@@ -6,6 +6,7 @@ import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { providers } from "ethers";
+import axios from "axios"
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -185,6 +186,44 @@ const fetchKeeper = (chain: Chain) => {
       timestamp
     }
   }
+}
+
+const fetchRequests = (chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+
+    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+
+    const query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
+      "sql": `SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${chain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
+      AND BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}`,
+      "ttl_minutes": 15,
+      "cache": true
+    }, {
+      headers:{
+        "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
+      }
+    })
+
+    await new Promise(r => setTimeout(r, 20e3)); //20s
+
+    const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
+      headers:{
+        "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
+      }
+    })
+    
+    const linkAddress = "coingecko:chainlink";
+    const prices = (await getPrices([linkAddress], timestamp))
+    const linkPrice = prices[linkAddress].price
+    const dailyFeesUsd = results.data.results[0][0] * linkPrice;
+    return {
+      dailyFees: dailyFeesUsd.toString(),
+      timestamp
+    }
+  }
 
 }
 
@@ -249,6 +288,20 @@ const adapter: BreakdownAdapter = {
         start: async ()  => 1675382400,
       }
     },
+    "requests": {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchRequests(CHAIN.ETHEREUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.BSC]: {
+        fetch: fetchRequests(CHAIN.BSC),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.POLYGON]: {
+        fetch: fetchRequests(CHAIN.POLYGON),
+        start: async ()  => 1675382400,
+      }
+    }
   }
 }
 export default adapter;
