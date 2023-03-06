@@ -4,9 +4,8 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { providers } from "ethers";
 import axios from "axios"
+import { Chain, getProvider } from "@defillama/sdk/build/general";
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -40,6 +39,8 @@ const address_keeper: TAddrress = {
   [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
   [CHAIN.FANTOM]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
   [CHAIN.AVAX]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
+  [CHAIN.ARBITRUM]: '0x75c0530885F385721fddA23C539AF3701d6183D4',
+  [CHAIN.OPTIMISM]: '0x75c0530885F385721fddA23C539AF3701d6183D4'
 }
 interface ITx {
   data: string;
@@ -63,13 +64,6 @@ const feesV1:IFeeV2  = {
   [CHAIN.POLYGON]: 0.0001,
 }
 
-type TProvider = {
-  [l: string | Chain]: {
-    url: string;
-    chainId: number;
-  };
-}
-
 type IGasTokenId = {
   [l: string | Chain]: string;
 }
@@ -79,30 +73,9 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.POLYGON]: "coingecko:matic-network",
   [CHAIN.FANTOM]: "coingecko:fantom",
   [CHAIN.AVAX]: "coingecko:avalanche-2",
+  [CHAIN.ARBITRUM]:  "coingecko:ethereum",
+  [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
-const _providers: TProvider =  {
-  [CHAIN.ETHEREUM]: {
-    url: "https://eth-mainnet.gateway.pokt.network/v1/5f3453978e354ab992c4da79",
-    chainId: 1
-  },
-  [CHAIN.BSC]: {
-    url: "https://rpc.ankr.com/bsc",
-    chainId: 56
-  },
-  [CHAIN.POLYGON]: {
-    url: "https://rpc-mainnet.maticvigil.com/",
-    chainId: 137
-  },
-  [CHAIN.FANTOM]: {
-    url: "https://fantom-mainnet.gateway.pokt.network/v1/lb/62759259ea1b320039c9e7ac",
-    chainId: 250
-  },
-  [CHAIN.AVAX]: {
-    url: "https://rpc.ankr.com/avalanche",
-    chainId: 43114
-  },
-}
-
 
 const fetch = (chain: Chain, version: number) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -160,10 +133,10 @@ const fetchKeeper = (chain: Chain) => {
       chain: chain
     })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
       .filter((e: ITx) => e.topics.includes(success_topic));
-    const provider = new providers.JsonRpcProvider(_providers[chain].url, _providers[chain].chainId);
+    const provider = getProvider(chain);
     const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
       .map((e: any) => {
-        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice._hex)) / 10 ** 18
+        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
       })
     const payAmount: number[] = logs.map((tx: ITx) => {
@@ -214,7 +187,7 @@ const fetchRequests = (chain: Chain) => {
         "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
       }
     })
-    
+
     const linkAddress = "coingecko:chainlink";
     const prices = (await getPrices([linkAddress], timestamp))
     const linkPrice = prices[linkAddress].price
@@ -285,6 +258,14 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.AVAX]: {
         fetch: fetchKeeper(CHAIN.AVAX),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchKeeper(CHAIN.ARBITRUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.OPTIMISM]: {
+        fetch: fetchKeeper(CHAIN.OPTIMISM),
         start: async ()  => 1675382400,
       }
     },
