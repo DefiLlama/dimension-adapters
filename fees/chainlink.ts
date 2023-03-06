@@ -178,7 +178,7 @@ const fetchRequests = (chain: Chain) => {
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
     const query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
-      "sql": `SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${chain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
+      "sql": `SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${chain === "avax"?"avalanche":chain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
       AND BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}`,
       "ttl_minutes": 15,
       "cache": true
@@ -199,7 +199,7 @@ const fetchRequests = (chain: Chain) => {
     const linkAddress = "coingecko:chainlink";
     const prices = (await getPrices([linkAddress], timestamp))
     const linkPrice = prices[linkAddress].price
-    const dailyFeesUsd = results.data.results[0][0] * linkPrice;
+    const dailyFeesUsd = (results.data.results[0][0] ?? 0) * linkPrice;
     return {
       dailyFees: dailyFeesUsd.toString(),
       timestamp
@@ -265,7 +265,19 @@ const adapter: BreakdownAdapter = {
       [CHAIN.POLYGON]: {
         fetch: fetchRequests(CHAIN.POLYGON),
         start: async ()  => 1675382400,
-      }
+      },
+      [CHAIN.OPTIMISM]: {
+        fetch: fetchRequests(CHAIN.OPTIMISM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchRequests(CHAIN.ARBITRUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchRequests(CHAIN.AVAX),
+        start: async ()  => 1675382400,
+      },
     }
   }
 }
