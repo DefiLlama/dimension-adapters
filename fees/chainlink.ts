@@ -4,7 +4,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
-import axios from "axios"
+import { queryFlipside } from "../helpers/flipsidecrypto";
 import { Chain, getProvider } from "@defillama/sdk/build/general";
 
 
@@ -169,31 +169,28 @@ const fetchRequests = (chain: Chain) => {
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
-    const query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
-      "sql": `SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${chain === "avax"?"avalanche":chain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
-      AND BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}`,
-      "ttl_minutes": 15,
-      "cache": true
-    }, {
-      headers:{
-        "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
-      }
-    })
-
-    await new Promise(r => setTimeout(r, 20e3)); //20s
-
-    const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
-      headers:{
-        "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
-      }
-    })
-
+    const flipsideChain = chain === "avax"?"avalanche":chain
+    const linkPaid = await queryFlipside(`SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${flipsideChain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
+      AND BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}`)
+    const ethGas = await queryFlipside(`
+  SELECT
+    SUM(TX_FEE)
+  from
+    ${flipsideChain}.core.fact_event_logs logs
+    JOIN ${flipsideChain}.core.fact_transactions txs ON txs.tx_hash=logs.tx_hash
+  WHERE
+    logs.TOPICS[0] = '0x9e9bc7616d42c2835d05ae617e508454e63b30b934be8aa932ebc125e0e58a64'
+    AND logs.BLOCK_NUMBER > ${fromBlock} AND logs.BLOCK_NUMBER < ${toBlock}`)
+    
     const linkAddress = "coingecko:chainlink";
-    const prices = (await getPrices([linkAddress], timestamp))
+    const gasToken = gasTokenId[chain];
+    const prices = (await getPrices([linkAddress, gasToken], timestamp))
     const linkPrice = prices[linkAddress].price
-    const dailyFeesUsd = (results.data.results[0][0] ?? 0) * linkPrice;
+    const dailyFeesUsd = (linkPaid[0][0] ?? 0) * linkPrice;
+    const dailyGasUsd = ethGas[0][0] * prices[gasToken].price;
     return {
       dailyFees: dailyFeesUsd.toString(),
+      dailyRevenue: (dailyFeesUsd-dailyGasUsd).toString(),
       timestamp
     }
   }
