@@ -6,6 +6,7 @@ import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { Chain, getProvider } from "@defillama/sdk/build/general";
+import retry from "async-retry";
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -146,7 +147,7 @@ const fetchKeeper = (chain: Chain) => {
     })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
       .filter((e: ITx) => e.topics.includes(success_topic));
     const provider = getProvider(chain);
-    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => retry(()=>provider.getTransactionReceipt(e.transactionHash), {retries:3}))))
       .map((e: any) => {
         const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
