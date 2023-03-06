@@ -11,7 +11,7 @@ export async function queryFlipside(sqlQuery:string){
       }
     })
 
-    for(let i=0; i<6; i++){
+    for(let i=0; i<15; i++){ // 5 mins
         await new Promise(r => setTimeout(r, 20e3)); //20s
 
         const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
