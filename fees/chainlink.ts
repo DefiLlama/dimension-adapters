@@ -134,7 +134,7 @@ const fetchKeeper = (chain: Chain) => {
     })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
       .filter((e: ITx) => e.topics.includes(success_topic));
     const provider = getProvider(chain);
-    const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
       .map((e: any) => {
         const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
@@ -155,7 +155,7 @@ const fetchKeeper = (chain: Chain) => {
     const dailyRevenue  = dailyFeesUsd - dailyGasUsd;
     return {
       dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
       timestamp
     }
   }
