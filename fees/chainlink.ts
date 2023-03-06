@@ -4,9 +4,8 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { providers } from "ethers";
 import axios from "axios"
+import { Chain, getProvider } from "@defillama/sdk/build/general";
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -28,17 +27,25 @@ const address_v1: TAddrress = {
 const address_v2: TAddrress = {
   [CHAIN.ETHEREUM]: '0x271682DEB8C4E0901D1a1550aD2e64D568E69909',
   [CHAIN.BSC]: '0xc587d9053cd1118f25F645F9E08BB98c9712A4EE',
-  [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067'
+  [CHAIN.POLYGON]: '0xAE975071Be8F8eE67addBC1A82488F1C24858067',
+  [CHAIN.FANTOM]: '0xd5d517abe5cf79b7e95ec98db0f0277788aff634',
+  [CHAIN.AVAX]: '0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634',
 }
 const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
+const success_topic = '0x0000000000000000000000000000000000000000000000000000000000000001';
 const address_keeper: TAddrress = {
   [CHAIN.ETHEREUM]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
   [CHAIN.BSC]: '0x7b3ec232b08bd7b4b3305be0c044d907b2df960b',
-  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B'
+  [CHAIN.POLYGON]: '0x7b3EC232b08BD7b4b3305BE0C044D907B2DF960B',
+  [CHAIN.FANTOM]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
+  [CHAIN.AVAX]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
+  [CHAIN.ARBITRUM]: '0x75c0530885F385721fddA23C539AF3701d6183D4',
+  [CHAIN.OPTIMISM]: '0x75c0530885F385721fddA23C539AF3701d6183D4'
 }
 interface ITx {
   data: string;
   transactionHash: string;
+  topics: string[];
 }
 type IFeeV2 = {
   [l: string | Chain]: number;
@@ -47,19 +54,14 @@ const feesV2:IFeeV2  = {
   [CHAIN.ETHEREUM]: 0.25,
   [CHAIN.BSC]: 0.005,
   [CHAIN.POLYGON]: 0.0005,
+  [CHAIN.FANTOM]: 0.0005,
+  [CHAIN.AVAX]: 0.005,
 }
 
 const feesV1:IFeeV2  = {
   [CHAIN.ETHEREUM]: 2,
   [CHAIN.BSC]: 0.2,
   [CHAIN.POLYGON]: 0.0001,
-}
-
-type TProvider = {
-  [l: string | Chain]: {
-    url: string;
-    chainId: number;
-  };
 }
 
 type IGasTokenId = {
@@ -69,22 +71,11 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.ETHEREUM]: "coingecko:ethereum",
   [CHAIN.BSC]: "coingecko:binancecoin",
   [CHAIN.POLYGON]: "coingecko:matic-network",
+  [CHAIN.FANTOM]: "coingecko:fantom",
+  [CHAIN.AVAX]: "coingecko:avalanche-2",
+  [CHAIN.ARBITRUM]:  "coingecko:ethereum",
+  [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
-const _providers: TProvider =  {
-  [CHAIN.ETHEREUM]: {
-    url: "https://eth-mainnet.gateway.pokt.network/v1/5f3453978e354ab992c4da79",
-    chainId: 1
-  },
-  [CHAIN.BSC]: {
-    url: "https://rpc.ankr.com/bsc",
-    chainId: 56
-  },
-  [CHAIN.POLYGON]: {
-    url: "https://rpc-mainnet.maticvigil.com/",
-    chainId: 137
-  },
-}
-
 
 const fetch = (chain: Chain, version: number) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -140,11 +131,12 @@ const fetchKeeper = (chain: Chain) => {
       topics: [topic0_keeper],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
-    const provider = new providers.JsonRpcProvider(_providers[chain].url, _providers[chain].chainId);
-    const txReceipt: number[] = (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
+      .filter((e: ITx) => e.topics.includes(success_topic));
+    const provider = getProvider(chain);
+    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
       .map((e: any) => {
-        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice._hex)) / 10 ** 18
+        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
       })
     const payAmount: number[] = logs.map((tx: ITx) => {
@@ -163,7 +155,7 @@ const fetchKeeper = (chain: Chain) => {
     const dailyRevenue  = dailyFeesUsd - dailyGasUsd;
     return {
       dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
       timestamp
     }
   }
@@ -195,7 +187,7 @@ const fetchRequests = (chain: Chain) => {
         "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
       }
     })
-    
+
     const linkAddress = "coingecko:chainlink";
     const prices = (await getPrices([linkAddress], timestamp))
     const linkPrice = prices[linkAddress].price
@@ -238,6 +230,14 @@ const adapter: BreakdownAdapter = {
         fetch: fetch(CHAIN.POLYGON, 2),
         start: async ()  => 1675382400,
       },
+      [CHAIN.FANTOM]: {
+        fetch: fetch(CHAIN.FANTOM, 2),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetch(CHAIN.AVAX, 2),
+        start: async ()  => 1675382400,
+      },
     },
     "keepers": {
       [CHAIN.ETHEREUM]: {
@@ -250,6 +250,22 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.POLYGON]: {
         fetch: fetchKeeper(CHAIN.POLYGON),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.FANTOM]: {
+        fetch: fetchKeeper(CHAIN.FANTOM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchKeeper(CHAIN.AVAX),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchKeeper(CHAIN.ARBITRUM),
+        start: async ()  => 1675382400,
+      },
+      [CHAIN.OPTIMISM]: {
+        fetch: fetchKeeper(CHAIN.OPTIMISM),
         start: async ()  => 1675382400,
       }
     },
