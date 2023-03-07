@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchResultFees } from "../adapters/types";
+import { BreakdownAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import * as sdk from "@defillama/sdk";
@@ -51,7 +51,7 @@ interface ITx {
 type IFeeV2 = {
   [l: string | Chain]: number;
 }
-const feesV2:IFeeV2  = {
+const feesV2: IFeeV2 = {
   [CHAIN.ETHEREUM]: 0.25,
   [CHAIN.BSC]: 0.005,
   [CHAIN.POLYGON]: 0.0005,
@@ -59,7 +59,7 @@ const feesV2:IFeeV2  = {
   [CHAIN.AVAX]: 0.005,
 }
 
-const feesV1:IFeeV2  = {
+const feesV1: IFeeV2 = {
   [CHAIN.ETHEREUM]: 2,
   [CHAIN.BSC]: 0.2,
   [CHAIN.POLYGON]: 0.0001,
@@ -74,39 +74,49 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.POLYGON]: "coingecko:matic-network",
   [CHAIN.FANTOM]: "coingecko:fantom",
   [CHAIN.AVAX]: "coingecko:avalanche-2",
-  [CHAIN.ARBITRUM]:  "coingecko:ethereum",
+  [CHAIN.ARBITRUM]: "coingecko:ethereum",
   [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
 
+let chainBlocksStore: IJSON<ChainBlocks> | undefined = undefined
+
 const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
+    if (!chainBlocksStore)
+      chainBlocksStore = {
+        [timestamp]: chainBlocks
+      }
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    if (!chainBlocksStore[todaysTimestamp])
+      chainBlocksStore[todaysTimestamp] = {}
+    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
+    if (!chainBlocksStore[yesterdaysTimestamp])
+      chainBlocksStore[yesterdaysTimestamp] = {}
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
     const logs_1: ITx[] = (await sdk.api.util.getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
-      topics:  version === 1 ? [topic0_v1] : [topic0_v2],
+      topics: version === 1 ? [topic0_v1] : [topic0_v2],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const logs_2: ITx[] = (await sdk.api.util.getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
-      topics:  version === 1 ? [topic1_v1] : [topic1_v2],
+      topics: version === 1 ? [topic1_v1] : [topic1_v2],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const provider = getProvider(chain);
-    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all([...logs_1,...logs_2].map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all([...logs_1, ...logs_2].map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
       .map((e: any) => {
         const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
@@ -114,9 +124,9 @@ const fetch = (chain: Chain, version: number) => {
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = await getPrices([linkAddress, gasToken], timestamp);
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a+b,0);
+    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
-    const gagPrice  =  prices[gasToken].price
+    const gagPrice = prices[gasToken].price
     const dailyGasUsd = dailyGas * gagPrice;
     const fees = version === 1 ? feesV1[chain] : feesV2[chain]
     const dailyFees = ((logs_1.length + logs_2.length) * fees) * linkPrice;
@@ -130,12 +140,20 @@ const fetch = (chain: Chain, version: number) => {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
+    if (!chainBlocksStore)
+      chainBlocksStore = {
+        [timestamp]: chainBlocks
+      }
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    if (!chainBlocksStore[todaysTimestamp])
+      chainBlocksStore[todaysTimestamp] = {}
+    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
+    if (!chainBlocksStore[yesterdaysTimestamp])
+      chainBlocksStore[yesterdaysTimestamp] = {}
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
     const logs: ITx[] = (await sdk.api.util.getLogs({
       target: address_keeper[chain],
       topic: '',
@@ -144,28 +162,28 @@ const fetchKeeper = (chain: Chain) => {
       topics: [topic0_keeper],
       keys: [],
       chain: chain
-    })).output.map((e: any) => { return { ...e,data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx})
+    })).output.map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
       .filter((e: ITx) => e.topics.includes(success_topic));
     const provider = getProvider(chain);
-    const txReceipt: number[] =  chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => retry(()=>provider.getTransactionReceipt(e.transactionHash), {retries:3}))))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => retry(() => provider.getTransactionReceipt(e.transactionHash), { retries: 3 }))))
       .map((e: any) => {
         const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
         return amount
       })
     const payAmount: number[] = logs.map((tx: ITx) => {
-      const amount = Number('0x'+tx.data.slice(0, 64)) / 10 ** 18
+      const amount = Number('0x' + tx.data.slice(0, 64)) / 10 ** 18
       return amount;
     });
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = (await getPrices([linkAddress, gasToken], timestamp))
     const linkPrice = prices[linkAddress].price
-    const gagPrice  =  prices[gasToken].price
-    const dailyFees = payAmount.reduce((a: number, b: number) => a+b,0);
+    const gagPrice = prices[gasToken].price
+    const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
     const dailyFeesUsd = dailyFees * linkPrice;
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a+b,0);
+    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const dailyGasUsd = dailyGas * gagPrice;
-    const dailyRevenue  = dailyFeesUsd - dailyGasUsd;
+    const dailyRevenue = dailyFeesUsd - dailyGasUsd;
     return {
       dailyFees: dailyFeesUsd.toString(),
       dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
@@ -175,14 +193,22 @@ const fetchKeeper = (chain: Chain) => {
 }
 
 const fetchRequests = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
+    if (!chainBlocksStore)
+      chainBlocksStore = {
+        [timestamp]: chainBlocks
+      }
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    if (!chainBlocksStore[todaysTimestamp])
+      chainBlocksStore[todaysTimestamp] = {}
+    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
+    if (!chainBlocksStore[yesterdaysTimestamp])
+      chainBlocksStore[yesterdaysTimestamp] = {}
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
 
-    const flipsideChain = chain === "avax"?"avalanche":chain
+    const flipsideChain = chain === "avax" ? "avalanche" : chain
     const linkPaid = await queryFlipside(`SELECT SUM(EVENT_INPUTS['payment']) / 1e18 as payments, COUNT(*) from ${flipsideChain}.core.fact_event_logs WHERE EVENT_NAME = 'OracleRequest'
       AND BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}`)
     const ethGas = await queryFlipside(`
@@ -203,7 +229,7 @@ const fetchRequests = (chain: Chain) => {
     const dailyGasUsd = ethGas[0][0] * prices[gasToken].price;
     return {
       dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: (dailyFeesUsd-dailyGasUsd).toString(),
+      dailyRevenue: (dailyFeesUsd - dailyGasUsd).toString(),
       timestamp
     }
   }
@@ -216,93 +242,93 @@ const adapter: BreakdownAdapter = {
     "vrf v1": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 1),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.BSC]: {
         fetch: fetch(CHAIN.BSC, 1),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.POLYGON]: {
         fetch: fetch(CHAIN.POLYGON, 1),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
     },
     "vrf v2": {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM, 2),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.BSC]: {
         fetch: fetch(CHAIN.BSC, 2),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.POLYGON]: {
         fetch: fetch(CHAIN.POLYGON, 2),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.FANTOM]: {
         fetch: fetch(CHAIN.FANTOM, 2),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.AVAX]: {
         fetch: fetch(CHAIN.AVAX, 2),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
     },
     "keepers": {
       [CHAIN.ETHEREUM]: {
         fetch: fetchKeeper(CHAIN.ETHEREUM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.BSC]: {
         fetch: fetchKeeper(CHAIN.BSC),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.POLYGON]: {
         fetch: fetchKeeper(CHAIN.POLYGON),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.FANTOM]: {
         fetch: fetchKeeper(CHAIN.FANTOM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.AVAX]: {
         fetch: fetchKeeper(CHAIN.AVAX),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchKeeper(CHAIN.ARBITRUM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.OPTIMISM]: {
         fetch: fetchKeeper(CHAIN.OPTIMISM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       }
     },
     "requests": {
       [CHAIN.ETHEREUM]: {
         fetch: fetchRequests(CHAIN.ETHEREUM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.BSC]: {
         fetch: fetchRequests(CHAIN.BSC),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.POLYGON]: {
         fetch: fetchRequests(CHAIN.POLYGON),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.OPTIMISM]: {
         fetch: fetchRequests(CHAIN.OPTIMISM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchRequests(CHAIN.ARBITRUM),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
       [CHAIN.AVAX]: {
         fetch: fetchRequests(CHAIN.AVAX),
-        start: async ()  => 1675382400,
+        start: async () => 1675382400,
       },
     }
   }
