@@ -18,7 +18,10 @@ export async function queryFlipside(sqlQuery:string){
         headers:{
             "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
         }
+        }).catch(e=>{
+          console.error(`Error flipside ${e.message}`)
         })
+        if (!results) continue
 
         const status = results.data.status
         if(status === "finished"){

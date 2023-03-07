@@ -1,5 +1,4 @@
 import allSettled, { PromiseRejection, PromiseResolution, PromiseResult } from 'promise.allsettled'
-import { withTimeout } from '../../cli/utils'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchResult, FetchResultGeneric, IJSON } from '../types'
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -27,8 +26,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
             const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
             try {
                 const startTimestamp = validStart[chain][1]
-                // 5 mins timeout
-                const result: FetchResultGeneric = await withTimeout<FetchResultGeneric>(2 * 1000 * 60, fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks))
+                const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 if (id)
                     console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
                 cleanResult(result)
