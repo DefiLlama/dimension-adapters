@@ -1,4 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
+import { clearTimeout } from "timers";
 import { Adapter, BaseAdapter, IJSON } from "../adapters/types";
 import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
 
@@ -73,3 +74,18 @@ export function camelCaseToSpaces(s: string) {
         .replace(/^./, function (str) { return str.toUpperCase(); })
     return withSpaces[0] + withSpaces.slice(1).toLowerCase()
 }
+
+export const withTimeout = <T>(millis: number, promise: Promise<T>) => {
+    // this should be error type
+    const timeout: Promise<T> = new Promise((_resolve, reject) => {
+        const id = setTimeout(
+            () => {
+                clearTimeout(id)
+                reject(`Timed out after ${millis} ms.`)
+            }, millis)
+    });
+    return Promise.race([
+        promise,
+        timeout
+    ]);
+};
