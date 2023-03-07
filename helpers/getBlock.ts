@@ -12,11 +12,17 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
     } else {
         let block: number | undefined = undefined
         if (chain === CHAIN.CELO)
-            block = Number((await retry(async () => (await axios.get("https://explorer.celo.org/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before"))?.data?.result?.blockNumber)));
+            block = Number((await retry(async () => (await axios.get("https://explorer.celo.org/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before").catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
         else if (chain === CHAIN.MOONRIVER)
-            block = Number((await retry(async () => (await axios.get(`https://blockscout.moonriver.moonbeam.network/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`))?.data?.result?.blockNumber)));
+            block = Number((await retry(async () => (await axios.get(`https://blockscout.moonriver.moonbeam.network/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
         else
-            block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`))?.data?.height)));
+            block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.height)));
         if (block) chainBlocks[chain] = block
         return block
         //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
