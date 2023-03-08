@@ -62,6 +62,7 @@ const fetch = (chain: Chain) => {
     });
     const dailyFees = amounts.reduce((a: number, b: number) => a+b, 0);
     return {
+      dailyUserFees: dailyFees.toString(),
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyFees.toString(),
       timestamp
@@ -69,15 +70,27 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  UserFees: "Trading fees",
+  Fees: "Trading fees",
+  Revenue: "Trading fees",
+}
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
         start: async ()  => 1675382400,
+        meta: {
+          methodology
+        }
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
   },
   }
 }
