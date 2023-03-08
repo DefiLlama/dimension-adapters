@@ -1,4 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
+import { clearTimeout } from "timers";
 import { Adapter, BaseAdapter, IJSON } from "../adapters/types";
 import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
 

@@ -13,7 +13,7 @@ export interface IRunAdapterResponseRejected {
     error: Error
 }
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string) {
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
     const validStart = ((await Promise.all(chains.map(async (chain) => {
@@ -28,7 +28,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                 const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 if (id)
-                    console.log("Result before cleaning", id, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
+                    console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
                 cleanResult(result)
                 return Promise.resolve({
                     chain,
@@ -36,7 +36,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                     ...result
                 })
             } catch (e) {
-                console.error(`Failed to get volume on ${chain}: ${e}`)
+                console.error(`Failed to get value on ${chain}: ${e}`)
                 return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
         })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>

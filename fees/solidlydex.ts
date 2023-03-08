@@ -60,6 +60,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     timestamp,
     dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyFees.toString(),
+    dailyHoldersRevenue: dailyFees.toString(),
+
   }
 }
 const adapter: Adapter = {
