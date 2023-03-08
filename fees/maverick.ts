@@ -1,5 +1,4 @@
 //  Maverick v1 fee
-import { get } from "http";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchFee } from "../dexs/maverick/maverick";
@@ -15,7 +14,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFee(CHAIN.ETHEREUM),
-      start: async () => 1672531200,
+      start: async () => 1676851200,
       meta: {
         methodology,
       },
