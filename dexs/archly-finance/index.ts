@@ -4,7 +4,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-    [CHAIN.TELOS]: "http://api.archly.fi/subgraphs/name/archly/amm",
+    [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
 };
 
 const graphFetch = getGraphDimensions({
@@ -37,8 +37,8 @@ const adapter: Adapter = {
             }),
             meta: {
                 methodology: {
-                    Fees: "The trading fees are 0.03%, and can be adjusted from 0.01% up to 0.1%.",
-                    UserFees: "Currently users pay a trading fee of 0.03%.",
+                    Fees: "The trading fees are 0.05%, and can be adjusted from 0.01% up to 0.1%.",
+                    UserFees: "Currently users pay a trading fee of 0.05%.",
                     HoldersRevenue: "veArc voters receive all protocol fees.",
                     Revenue: "All trading fees are paid to veArc voters.",
                     SupplySideRevenue: "LPs do not earn any revenue from trading fees, only Arc emission decided by veArc voters.",
