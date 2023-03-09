@@ -1,34 +1,47 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
+import retry from "async-retry";
 
-export async function queryFlipside(sqlQuery:string){
-    const query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
-      "sql": sqlQuery,
-      "ttl_minutes": 15,
-      "cache": true
-    }, {
-      headers:{
-        "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
-      }
-    })
-
-    for(let i=0; i<15; i++){ // 5 mins
-        await new Promise(r => setTimeout(r, 20e3)); //20s
-
-        const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
-        headers:{
+export async function queryFlipside(sqlQuery: string) {
+  return await retry(
+    async (bail, attempt) => {
+      let query: undefined | AxiosResponse<any, any> = undefined
+      // only runs first time
+      if (attempt === 1) {
+        query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
+          "sql": sqlQuery,
+          "ttl_minutes": 15,
+          "cache": true
+        }, {
+          headers: {
             "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
-        }
-        }).catch(e=>{
-          console.error(`Error flipside ${e.message}`)
+          }
         })
-        if (!results) continue
+      }
 
-        const status = results.data.status
-        if(status === "finished"){
-            return results.data.results
-        } else if(status!=="running"){
-            throw new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(results.data)}`)
-        }   
+      if (!query) {
+        bail(new Error("Couldn't get a token from flipsidecrypto"))
+        return
+      }
+
+      const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
+        headers: {
+          "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
+        }
+      })
+
+      const status = results.data.status
+      if (status === "finished") {
+        return results.data.results
+      } else if (status !== "running") {
+        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(results.data)}`))
+      }
+      if (status !== "running") {
+        throw new Error("Still running")
+      }
+    },
+    {
+      retries: 10,
+      maxTimeout: 6000
     }
-    throw new Error(`Query ${sqlQuery} timed out`)
+  );
 }
