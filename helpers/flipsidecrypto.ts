@@ -19,8 +19,7 @@ export async function queryFlipside(sqlQuery: string) {
       }
 
       if (!query) {
-        bail(new Error("Couldn't get a token from flipsidecrypto"))
-        return
+        throw new Error("Couldn't get a token from flipsidecrypto")
       }
 
       const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
