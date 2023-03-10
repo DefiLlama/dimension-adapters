@@ -91,7 +91,8 @@ export enum CHAIN {
   INJECTIVE = "injective",
   ORAI = "orai",
   TON = "ton",
-  OBYTE = "obyte"
+  OBYTE = "obyte",
+  CORE = "core"
 }
 
 // Don´t use
