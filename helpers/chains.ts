@@ -92,7 +92,8 @@ export enum CHAIN {
   ORAI = "orai",
   TON = "ton",
   OBYTE = "obyte",
-  CORE = "core"
+  CORE = "core",
+  RPG = "rpg"
 }
 
 // Don´t use
