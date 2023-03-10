@@ -5,6 +5,30 @@ import {
 } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
+const blacklistTokens = {
+  [CHAIN.ARBITRUM]: [
+    "0xb1bc3f4eacc69c663d289516034981c5272e7fa1",//CPT
+    "0xfbef65afa44faa7b69c8779d42ffb5d661ac8b25",//ACID
+    "0x134781f5ab6014c9d75cbd87bb1654ab7e6bb432",//CPT
+    "0x947d54973d908dc76ff415895bf29108d71ceba3",//ACID
+    "0xbbb930795e2a974fd95064fa46a5525a7d447fa7",//ACID
+    "0xb94ea12476c2591b8f7a1070a7db8e3b0722e00d",//ACID
+    "0x7d823eefa4f801b0b9455ebd4fcbacb154e63b22",//CPT
+    "0xaa4d8ab8aeafa2273d670d11acc46785346e5cb9",//GPT
+    "0x2c347d1c20caebf45908b5f55841b25fd0c943d3",//GPT
+    "0x04845e2af405063a6f3590efea87d418ad92ccc4",//ACID
+    "0x29c170dfe9994a113fac69bb77708d90bd3d867e",//ACID
+    "0xe41ce5d4aa167de4d59f54a5bb984139207c274d",//GPT
+    "0xc09d04c474e78b130a8cb636a5132760bece5edf",//CPT
+    "0xdc0b4039a0b358eec18dd6be01f690556098582b",//ARBPAD
+    "0xb370f370780def161125afdd944e2d26e04e0178",//MZR
+    "0xe167cb54d03ab5692e8d917b07f72bb1b177f652",//SPOOL
+    "0x312ca799e46b58768aa64d209ae84b7ab5fcbfa1",//MZR Token
+    "0x47480a09b270c559e78d30d63b31e694e091614a",//ARBK
+    "0x29c170dfe9994a113fac69bb77708d90bd3d867e",//ACID
+  ]
+}
+
 const endpointsClassic = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
@@ -43,7 +67,8 @@ const graphsClassic = getGraphDimensions({
     factory: "dayData",
     field: VOLUME_FIELD,
   },
-  feesPercent
+  feesPercent,
+  blacklistTokens
 });
 
 const graphsClassicBoba = getGraphDimensions({
