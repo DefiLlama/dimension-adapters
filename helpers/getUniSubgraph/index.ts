@@ -182,6 +182,7 @@ function getGraphDimensions({
       // Execute queries
       // DAILY VOLUME
       let graphResDailyVolume
+      let dailyVolume: any
       if (dailyVolumePairsQuery) {
         console.info("Calculating volume excluding blacklisted tokens...")
         graphResDailyVolume = await request(graphUrls[chain], dailyVolumePairsQuery, {
@@ -199,7 +200,7 @@ function getGraphDimensions({
         }, undefined as number | undefined)
       } else {
         graphResDailyVolume = await request(graphUrls[chain], dailyVolumeQuery, { id }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
-        let dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
+        dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
         if (!graphResDailyVolume || !dailyVolume) {
           console.info("Attempting with alternative query...")
           graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${e.message}`))
