@@ -113,10 +113,9 @@ const fetch = async (timestamp: number) => {
 
     const tokens0 = underlyingToken0.output.map((res) => res.output);
     const tokens1 = underlyingToken1.output.map((res) => res.output);
-    const [fromBlock, toBlock] = await Promise.all([
-      getBlock(fromTimestamp, 'kava' as Chain, {}),
-      getBlock(toTimestamp, 'kava' as Chain, {})
-    ]);
+    const fromBlock = await getBlock(fromTimestamp, 'kava' as Chain, {});
+    const toBlock = await getBlock(toTimestamp, 'kava' as Chain, {});
+
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
       topic: '',
