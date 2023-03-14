@@ -7,19 +7,19 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet",
   [OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic",
   [AVAX]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
   [FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom",
   [XDAI]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai-test",
+    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai",
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
@@ -30,8 +30,7 @@ const graph = (graphUrls: ChainEndpoints) => {
       orderDirection: desc
       first: 1000
       where: {
-        timestamp_gte: $yesterdaysTimestamp
-        timestamp_lt: $todaysTimestamp
+        timestamp: $todaysTimestamp
       }
     ) {
       totalDailyFeesUSD
@@ -40,6 +39,7 @@ const graph = (graphUrls: ChainEndpoints) => {
       pool {
         symbol
       }
+      timestamp
     }
   }`;
 
