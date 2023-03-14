@@ -19,9 +19,10 @@ const elasticEndpoints = elasticChains.reduce((acc, chain)=>({
 }), {
     //cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos", // missing -> almost no volume and stale
     ethereum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
-    arbitrum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-one",
-    polygon: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic"
+    arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum",
+    polygon: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
 } as any);
+elasticEndpoints.fantom = "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom"
 
 const elasticGraphs = getChainVolume({
     graphUrls: elasticEndpoints,
