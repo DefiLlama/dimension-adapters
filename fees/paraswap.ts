@@ -65,8 +65,8 @@ const fetch = (chain: Chain) => {
         referrerFeeUSD: referrerFee,
       };
     })
-    const dailyFees = feesAmounts.reduce((a: number, b: IAmount) => a+b.paraswapFeeUSD+b.referrerFeeUSD, 0);
-    const dailyRevenue = feesAmounts.reduce((a: number, b: IAmount) => a+b.paraswapFeeUSD, 0);
+    const dailyFees = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD + b.referrerFeeUSD, 0);
+    const dailyRevenue = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD, 0);
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
