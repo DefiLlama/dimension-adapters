@@ -134,7 +134,7 @@ const fetch = () => {
     await sql.end({ timeout: 5 })
     return {
       timestamp: todaysTimestamp,
-      dailyRevenue: (protocolRevenue+farmRev).toString(),
+      dailyRevenue: (protocolRevenue).toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       dailyProtocolRevenue: protocolRevenue.toString(),
       dailySupplySideRevenue: farmRev.toString(),
