@@ -23,14 +23,14 @@ const endpoints = {
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($yesterdaysTimestamp: Int!, $todaysTimestamp: Int!) 
+  const graphQuery = gql`query fees($timestampEndOfDay: Int!) 
   {
     dailyPoolSnapshots (
       orderBy: timestamp
       orderDirection: desc
       first: 1000
       where: {
-        timestamp: $todaysTimestamp
+        timestamp: $timestampEndOfDay
       }
     ) {
       totalDailyFeesUSD
@@ -46,11 +46,9 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-
+      const timestampEndOfDay = getTimestampAtStartOfDayUTC(timestamp+60*60*24)
       const graphRes = await request(graphUrls[chain], graphQuery, {
-        todaysTimestamp, yesterdaysTimestamp
+        timestampEndOfDay
       });
       const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
         return parseFloat(vol.totalDailyFeesUSD);
