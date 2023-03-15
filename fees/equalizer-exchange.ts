@@ -126,7 +126,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `fantom:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
+    const fees: any[] = lpTokens.map((_: string, index: number) => {
       const token0Decimals = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.decimals || 0)
       const token1Decimals = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.decimals || 0)
       const log: IAmount[] = logs[index]
@@ -142,16 +142,16 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const token0Price = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.price || 0);
       const token1Price = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.price || 0);
 
-      const totalAmount0 = log
+      const feesAmount0 = log
         .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-      const totalAmount1 = log
+      const feesAmount1 = log
         .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
 
-      const feesUSD = totalAmount0 + totalAmount1;
-      return feesUSD;
+      const feesUSD = feesAmount0 + feesAmount1;
+      return {feesAmount0,feesAmount1};
     });
-
-    const dailyFees = fees.reduce((a: number, b: number) => a + b, 0);
+    console.log(fees)
+    const dailyFees = 0
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue:  `${dailyFees}`,
