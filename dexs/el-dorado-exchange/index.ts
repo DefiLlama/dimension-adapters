@@ -5,6 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/aaronlux/ede-stats",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
 }
 
 const historicalDataSwap = gql`
@@ -53,6 +54,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.BSC]: 1670198400,
+    [CHAIN.ARBITRUM]: 1678118400,
   }
   return startTimestamps[chain]
 }
@@ -64,6 +66,10 @@ const adapter: SimpleAdapter = {
       fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
       start: async () => getStartTimestamp(CHAIN.BSC),
     },
+    [CHAIN.ARBITRUM]: {
+      fetch: getFetch(historicalDataSwap)(CHAIN.ARBITRUM),
+      start: async () => getStartTimestamp(CHAIN.ARBITRUM),
+    }
   },
 };
 
