@@ -147,7 +147,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const totalAmount1 = log
         .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
 
-      const feesUSD = totalAmount0 || totalAmount1  // counted only we have price data
+      const feesUSD = totalAmount0 + totalAmount1;
       return feesUSD;
     });
 
