@@ -155,6 +155,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue:  `${dailyFees}`,
+      dailyHoldersRevenue: `${dailyFees}`,
       timestamp,
     };
   } catch(error) {
