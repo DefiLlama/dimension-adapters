@@ -24,12 +24,6 @@ interface ITx {
   topics: string[];
 }
 
-interface IFees {
-  contract_address: string;
-  amount: number;
-  creator_fee: number;
-  marketplace_fee: number;
-}
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
