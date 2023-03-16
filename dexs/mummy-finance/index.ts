@@ -5,6 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats",
+  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/op-stats",
 }
 
 const historicalDataSwap = gql`
@@ -53,6 +54,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.FANTOM]: 1670198400,
+    [CHAIN.OPTIMISM]: 1677603600,
   }
   return startTimestamps[chain]
 }
@@ -63,6 +65,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.FANTOM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
       start: async () => getStartTimestamp(CHAIN.FANTOM),
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
+      start: async () => getStartTimestamp(CHAIN.OPTIMISM),
     },
   },
 };
