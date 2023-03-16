@@ -24,7 +24,8 @@ const v3Endpoints = {
     "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-dev",
   [CHAIN.POLYGON]:
     "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo"
+  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
 };
 
 const VOLUME_USD = "volumeUSD";
