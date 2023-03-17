@@ -10,12 +10,15 @@ interface IPoolData {
   date: number;
   dailyFeeUSD: string;
 }
+
 type IURL = {
   [l: string | Chain]: string;
 }
+
 const endpoints: IURL = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
 }
+
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
