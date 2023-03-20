@@ -1,20 +1,24 @@
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
-import { Adapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
+import type { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import {
   formatTimestampAsDate, getTimestampAtStartOfPreviousDayUTC
 } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
 
-const endpoints = {
-  [ARBITRUM]:
+const v3endpoints = {
+  [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/predy-dev/predyv3arbitrum",
 };
 
-const graphs = (graphUrls: ChainEndpoints) => {
+const v320endpoints = {
+  [CHAIN.ARBITRUM]:
+    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v320-arbitrum",
+};
+
+const v3graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       // ETH oracle price
@@ -122,11 +126,19 @@ const graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: Adapter = {
-  adapter: {
-    [ARBITRUM]: {
-      fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1671092333,
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    v3: {
+      [CHAIN.ARBITRUM]: {
+        fetch: v3graphs(v3endpoints)(CHAIN.ARBITRUM),
+        start: async () => 1671092333,
+      },
+    },
+    v320: {
+      [CHAIN.ARBITRUM]: {
+        fetch: v3graphs(v320endpoints)(CHAIN.ARBITRUM),
+        start: async () => 1678734774,
+      },
     },
   },
 };
