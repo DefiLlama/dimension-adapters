@@ -6,8 +6,7 @@ const { request, gql } = require("graphql-request");
 
 const info: { [key: string]: any } = {
   ethereum: {
-    subgraph:
-      "https://api.studio.thegraph.com/query/42519/maverick-v1/v0.0.6",
+    subgraph: "https://api.studio.thegraph.com/query/42519/maverick-v1/v0.0.6",
   },
 };
 
@@ -24,7 +23,7 @@ const getData = async (chain: Chain, timestamp: number) => {
   let step = 0;
   while (returnCount == 1000) {
     const graphQL = `{
-        totalDayStats(
+        poolDayStats(
           orderBy: id
           orderDirection: desc
           first: 1000
@@ -51,18 +50,18 @@ const getData = async (chain: Chain, timestamp: number) => {
       }`;
 
     const data = await request(info[chain].subgraph, graphQL);
-    returnCount = data.totalDayStats.length;
+    returnCount = data.poolDayStats.length;
     step++;
 
     let tokenArray = [] as string[];
-    for (const dailyData of data.totalDayStats) {
+    for (const dailyData of data.poolDayStats) {
       tokenArray.push(chain + ":" + dailyData.pool.tokenA.id);
       tokenArray.push(chain + ":" + dailyData.pool.tokenB.id);
     }
     let unique = [...new Set(tokenArray)] as string[];
     const prices = await getPrices(unique, totdayTimestamp);
 
-    for (const dailyData of data.totalDayStats) {
+    for (const dailyData of data.poolDayStats) {
       const tokenAId = chain + ":" + dailyData.pool.tokenA.id;
       const tokenBId = chain + ":" + dailyData.pool.tokenB.id;
       daySum += Number(dailyData.tokenAVolume) * prices[tokenAId].price;
