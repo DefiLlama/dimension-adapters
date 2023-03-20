@@ -7,7 +7,7 @@ import { BSC } from '../helpers/chains'
 import { getBlock } from '../helpers/getBlock'
 
 const endpoints = {
-  [BSC]: 'https://graph.level.finance/subgraphs/name/level/main',
+  [BSC]: 'https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics',
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
