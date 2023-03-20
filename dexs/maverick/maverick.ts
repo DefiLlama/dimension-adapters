@@ -7,7 +7,7 @@ const { request, gql } = require("graphql-request");
 const info: { [key: string]: any } = {
   ethereum: {
     subgraph:
-      "https://api.studio.thegraph.com/query/42519/maverick-v1-2/v0.0.1",
+      "https://api.studio.thegraph.com/query/42519/maverick-v1/v0.0.6",
   },
 };
 
