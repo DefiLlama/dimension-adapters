@@ -1,8 +1,8 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Chain } from "@defillama/sdk/build/general";
+import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",
@@ -13,11 +13,23 @@ const endpoints = {
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
 };
 
+type TStartTime = {
+  [l: string | Chain]: number;
+}
+const startTime: TStartTime = {
+  [CHAIN.AVAX]: 1645228800,
+  [CHAIN.BSC]: 1635206400,
+  [CHAIN.FANTOM]: 1649808000,
+  [CHAIN.POLYGON]: 1656028800,
+  [CHAIN.ARBITRUM]: 1667520000,
+  [CHAIN.OPTIMISM]: 1669161600,
+};
+
 const TOTAL_VOLUME_FACTORY = "globalVariables";
-const TOTAL_VOLUME_FIELD = "realTotalVolumeUSD";
+const TOTAL_VOLUME_FIELD = "totalVolumeUSD";
 
 const DAILY_VOLUME_FACTORY = "dayData";
-const DAILY_VOLUME_FIELD = "realVolumeUSD";
+const DAILY_VOLUME_FIELD = "volumeUSD";
 
 const graphs = getChainVolume({
   graphUrls: endpoints,
@@ -28,21 +40,28 @@ const graphs = getChainVolume({
   dailyVolume: {
     factory: DAILY_VOLUME_FACTORY,
     field: DAILY_VOLUME_FIELD,
+    dateField: 'timestamp'
   },
 });
 
-const startTimeQuery = {
-  endpoints,
-  dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-  volumeField: DAILY_VOLUME_FIELD,
-};
+const fetch = (chain: string) => {
+  return async (timestamp: number, chainBlocks: ChainBlocks) => {
+    const result = await graphs(chain)(timestamp, chainBlocks);
+    if (!result) return {};
+    return {
+      ...result,
+      totalVolume: `${result.totalVolume / 10 ** 18}`,
+      dailyVolume:  `${result.dailyVolume  / 10 ** 18}`
+    };
+  }
+}
 
 const volume = Object.keys(endpoints).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: graphs(chain),
-      start: getStartTimestamp({ ...startTimeQuery, chain }),
+      fetch: fetch(chain),
+      start: async () => startTime[chain],
     },
   }),
   {}
