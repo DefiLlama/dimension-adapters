@@ -4,7 +4,23 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { getPrices } from "../utils/prices";
+import { type } from "os";
+import fetchURL from "../utils/fetchURL";
 
+
+const feesMMURL = "https://api.paraswap.io/stk/daily-volume-fees-by-chain";
+type TChainId = {
+  [l: string | Chain]: string;
+}
+const mapChainId: TChainId = {
+  [CHAIN.ETHEREUM]: '1',
+  [CHAIN.POLYGON]: '137',
+  [CHAIN.BSC]: '56',
+  [CHAIN.AVAX]: '43114',
+  [CHAIN.FANTOM]: '250',
+  [CHAIN.ARBITRUM]: '42161',
+  [CHAIN.OPTIMISM]: '10',
+}
 
 type TUrl = {
   [l: string | Chain]: string;
@@ -34,6 +50,7 @@ const swapQuery = gql`
 `;
 
 
+
 interface IFees {
   feeToken: string;
   paraswapFee: string;
@@ -53,6 +70,11 @@ const fetch = (chain: Chain) => {
       timestampFrom: timestampFrom,
       timestampTo: timestampTo,
     })).swaps;
+    const mmFees: any[] = (await fetchURL(feesMMURL)).data.data;
+    const [_, partnerRevenue, protocolRevenue]: number[] = mmFees.filter(([time]: any) => time === timestampFrom)
+      .map(([_, data]: any) => data[mapChainId[chain]]).flat()
+    const otherFees = partnerRevenue + protocolRevenue;
+    const otherProtocolReveune = protocolRevenue;
     const tokens: string[] = result.map((e: IFees) => `ethereum:${e.feeToken}`)
     const prices = await getPrices(tokens, timestamp);
     const feesAmounts: IAmount[] = result.map((e: IFees) => {
@@ -65,8 +87,8 @@ const fetch = (chain: Chain) => {
         referrerFeeUSD: referrerFee,
       };
     })
-    const dailyFees = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD + b.referrerFeeUSD, 0);
-    const dailyRevenue = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD, 0);
+    const dailyFees = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD + b.referrerFeeUSD, 0) + otherFees;
+    const dailyRevenue = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD, 0) + otherProtocolReveune;
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
