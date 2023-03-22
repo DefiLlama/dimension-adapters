@@ -8,7 +8,7 @@ import { type } from "os";
 import fetchURL from "../utils/fetchURL";
 
 
-const feesMMURL = "https://api.paraswap.io/stk/daily-volume-fees-by-chain";
+const feesMMURL = "https://api.paraswap.io/stk/volume-stats/breakdown-by-chain";
 type TChainId = {
   [l: string | Chain]: string;
 }
@@ -70,7 +70,7 @@ const fetch = (chain: Chain) => {
       timestampFrom: timestampFrom,
       timestampTo: timestampTo,
     })).swaps;
-    const mmFees: any[] = (await fetchURL(feesMMURL)).data.data;
+    const mmFees: any[] = (await fetchURL(feesMMURL)).data.daily;
     const [_, partnerRevenue, protocolRevenue]: number[] = mmFees.filter(([time]: any) => time === timestampFrom)
       .map(([_, data]: any) => data[mapChainId[chain]]).flat()
     const otherFees = partnerRevenue + protocolRevenue;
