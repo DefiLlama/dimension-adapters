@@ -1,10 +1,7 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
-import request, { gql } from "graphql-request";
-import { getPrices } from "../utils/prices";
-import { type } from "os";
 import fetchURL from "../utils/fetchURL";
 
 
@@ -22,76 +19,31 @@ const mapChainId: TChainId = {
   [CHAIN.OPTIMISM]: '10',
 }
 
-type TUrl = {
-  [l: string | Chain]: string;
-}
-const endpoints: TUrl = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-polygon",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-bsc",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-avalanche",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-fantom",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-arbitrum",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/paraswap/paraswap-subgraph-optimism",
-}
-const swapQuery = gql`
-  query swaps($timestampFrom: Int!, $timestampTo: Int!) {
-    swaps(
-      first: 1000
-      orderBy: timestamp
-      orderDirection: asc
-      where: { timestamp_gt: $timestampFrom, timestamp_lt: $timestampTo, paraswapFee_not: "0" }
-    ) {
-      feeToken
-      paraswapFee
-      referrerFee
-    }
-  }
-`;
-
-
-
-interface IFees {
-  feeToken: string;
-  paraswapFee: string;
-  referrerFee: string;
-}
-
-interface IAmount {
-  paraswapFeeUSD: number;
-  referrerFeeUSD: number;
+interface IResponse {
+  daily: any[];
+  allTime: any;
 }
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const timestampFrom = getTimestampAtStartOfDayUTC(timestamp)
-    const timestampTo = getTimestampAtStartOfNextDayUTC(timestamp)
-    const result: IFees[] = (await request(endpoints[chain], swapQuery, {
-      timestampFrom: timestampFrom,
-      timestampTo: timestampTo,
-    })).swaps;
-    const mmFees: any[] = (await fetchURL(feesMMURL)).data.daily;
-    const [_, partnerRevenue, protocolRevenue]: number[] = mmFees.filter(([time]: any) => time === timestampFrom)
+    const timestampToday = getTimestampAtStartOfDayUTC(timestamp)
+    const response: IResponse = (await fetchURL(feesMMURL)).data;
+    const dailyResultFees: any[] = response.daily;
+    const [__,totalPartnerRevenue, totalProtocolRevenue]: number[] = response.allTime[mapChainId[chain]];
+    const [_, partnerRevenue, protocolRevenue]: number[] = dailyResultFees.filter(([time]: any) => time === timestampToday)
       .map(([_, data]: any) => data[mapChainId[chain]]).flat()
     const otherFees = partnerRevenue + protocolRevenue;
     const otherProtocolReveune = protocolRevenue;
-    const tokens: string[] = result.map((e: IFees) => `ethereum:${e.feeToken}`)
-    const prices = await getPrices(tokens, timestamp);
-    const feesAmounts: IAmount[] = result.map((e: IFees) => {
-      const price = prices[`ethereum:${e.feeToken.toLowerCase()}`]?.price || 0;
-      const decimals = prices[`ethereum:${e.feeToken.toLowerCase()}`]?.decimals || 0;
-      const paraswapFee = (Number(e.referrerFee) / 10 ** decimals)  * price;
-      const referrerFee = (Number(e.referrerFee) / 10 ** decimals) * price;
-      return {
-        paraswapFeeUSD: paraswapFee,
-        referrerFeeUSD: referrerFee,
-      };
-    })
-    const dailyFees = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD + b.referrerFeeUSD, 0) + otherFees;
-    const dailyRevenue = feesAmounts.reduce((a: number, b: IAmount) => a + b.paraswapFeeUSD, 0) + otherProtocolReveune;
+
+    const dailyFees = otherFees;
+    const dailyRevenue = otherProtocolReveune;
+    const totalFees = totalPartnerRevenue + totalProtocolRevenue;
+    const totalRevenue = totalProtocolRevenue;
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
+      totalRevenue: totalRevenue.toString(),
+      totalFees: totalFees.toString(),
       timestamp
     }
   }
@@ -101,31 +53,31 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: async ()  => 1669852800,
+        start: async ()  => 1647907200,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1669852800,
+      start: async ()  => 1647907200,
     }
   }
 }
