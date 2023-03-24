@@ -29,9 +29,14 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
     }
 }
 
+async function getBlocks(chain:Chain, timestamps:number[]){
+    return Promise.all(timestamps.map(t=>getBlock(t, chain, {})))
+}
+
 const canGetBlock = (chain: string) => Object.keys(providers).includes(chain)
 
 export {
     getBlock,
-    canGetBlock
+    canGetBlock,
+    getBlocks
 }
