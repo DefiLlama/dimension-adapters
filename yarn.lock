@@ -10,9 +10,9 @@
     "@jridgewell/trace-mapping" "0.3.9"
 
 "@defillama/sdk@^3.0.31":
-  version "3.0.34"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.34.tgz#54dbdccd18b36c1866a3100ceac5bfd57a288c56"
-  integrity sha512-N5cuNuUPOZ4/m7em6sUI/nEdIPhOmY4ohyOGMNE7J7maUEO1HzIxdTFqzjeRwxpO9lRdpEHJxa/EBYv8VS0Vnw==
+  version "3.0.46"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.46.tgz#753a6b27bdfe5fd388da9cafaf1066f6d3bf08df"
+  integrity sha512-ax+VDcvSf7/wIYqjYwCMJMDoUpQrDXdHkWHHskyFIvSV+CGk8Uu6d0VvYr8edYq1xjTzKAnDWc5bjcjPuDV21A==
   dependencies:
     "@supercharge/promise-pool" "^2.1.0"
     ethers "^5.4.5"
@@ -384,9 +384,9 @@
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
 "@supercharge/promise-pool@^2.1.0":
-  version "2.3.2"
-  resolved "https://registry.yarnpkg.com/@supercharge/promise-pool/-/promise-pool-2.3.2.tgz#6366894a7e7bc699bb65e58d8c828113729cf481"
-  integrity sha512-f5+C7zv+QQivcUO1FH5lXi7GcuJ3CFuJF3Eg06iArhUs5ma0szCLEQwIY4+VQyh7m/RLVZdzvr4E4ZDnLe9MNg==
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@supercharge/promise-pool/-/promise-pool-2.4.0.tgz#6050eea8c2d7f92ddd4ddc582ee328b15c034ad3"
+  integrity sha512-O9CMipBlq5OObdt1uKJGIzm9cdjpPWfj+a+Zw9EgWKxaMNHKC7EU7X9taj3H0EGQNLOSq2jAcOa3EzxlfHsD6w==
 
 "@tsconfig/node10@^1.0.7":
   version "1.0.9"
