@@ -12,4 +12,4 @@ function getUsers(chain: string) {
 export const users = [
     "arbitrum", "avalanche", "bsc", "ethereum", "flow", "gnosis", "near", "optimism", "osmosis", "polygon", "solana",
     // "terra2"
-].map(c=>[c, getUsers(c)])
+].map(c=>({name:c, users: getUsers(c)}))
