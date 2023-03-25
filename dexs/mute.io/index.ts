@@ -10,7 +10,7 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "muteSwitchDayData",
   dailyVolume: "dailyVolumeUSD",
   totalVolume: "totalVolumeUSD",
-  dailyVolumeTimestampField: "date"
+  dailyVolumeTimestampField: "date",
 });
 
 adapter.adapter.era.start = async () => 1679529600
