@@ -1,5 +1,6 @@
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlocks } from "../helpers/getBlock";
+import axios from 'axios';
 
 const convertChain = (chain: string) => ({
     gnosis: "xdai",
@@ -36,6 +37,26 @@ async function near(start: number, end: number) {
     return query[0][0]
 }
 
+const toIso = (d:number) => new Date(d*1e3).toISOString()
+const timeDif = (d:string, t:number) => Math.abs(new Date(d).getTime() - new Date(t*1e3).getTime())
+function coinmetricsData(assetID: string) {
+    return async (start: number, end: number) => {
+        const result = (await axios.get(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24*3600)}&end_time=${toIso(end + 24*3600)}`)).data.data;
+        const closestDatapooint = result.reduce((acc:any, t:any)=>{
+            if(timeDif(t.time, start) < timeDif(acc.time, start)){
+                return t
+            } else {
+                return acc
+            }
+        }, result[0])
+        if (!closestDatapooint) {
+            throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${end}, no data`);
+        }
+
+        return parseFloat(closestDatapooint['AdrActCnt']);
+    }
+}
+
 
 export const users = [
     "arbitrum", "avalanche", "bsc", "ethereum", "gnosis", "optimism", "polygon",
@@ -52,5 +73,30 @@ export const users = [
     {
         name: "near",
         getUsers: near
-    }
+    },
+    // https://coverage.coinmetrics.io/asset-metrics/AdrActCnt
+    {
+        name: "bitcoin",
+        getUsers: coinmetricsData("btc")
+    },
+    {
+        name: "litecoin",
+        getUsers: coinmetricsData("ltc")
+    },
+    {
+        name: "cardano",
+        getUsers: coinmetricsData("ada")
+    },
+    {
+        name: "algorand",
+        getUsers: coinmetricsData("algo")
+    },
+    {
+        name: "bch",
+        getUsers: coinmetricsData("bch")
+    },
+    {
+        name: "bsv",
+        getUsers: coinmetricsData("bsv")
+    },
 ])
