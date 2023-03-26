@@ -2,7 +2,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://s.meshswap.fi/stat/dashboardInfo.json"
+const historicalVolumeEndpoint = "https://ss.meshswap.fi/stat/dashboardInfo.json"
 
 interface IVolume {
   dateId: string;
