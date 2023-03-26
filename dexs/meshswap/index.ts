@@ -35,7 +35,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     polygon: {
       fetch,
-      runAtCurrTime: true,
       start: getStartTimestamp,
     },
   },
