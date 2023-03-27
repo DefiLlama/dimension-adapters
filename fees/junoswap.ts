@@ -3,8 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
-
-const historicalVolumeEndpoint = "https://api-junoswap.enigma-validator.com/volumes/total/historical/999M/d"
+const historicalVolumeEndpoint = "https://api-junoswap.enigma-validator.com/volumes/total/historical/12M/d"
 
 interface IVolumeall {
   volume_total: string;
@@ -25,6 +24,8 @@ const fetch = async (timestamp: number) => {
   return {
     totalFees: totalFeesUsd.toString(),
     dailyFees: dailyFeesUsd.toString(),
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: `${totalVolume}`,
     timestamp: dayTimestamp,
   };
 };
