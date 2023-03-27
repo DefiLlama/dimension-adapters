@@ -22,7 +22,6 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     }
     `;
   const response: IGraph = (await request(URL, query)).protocolDayData;
-  console.log(response);
   const dailyVolume = Number(response.dailyTradeVolumeUSD) / 2;
 
   return {
