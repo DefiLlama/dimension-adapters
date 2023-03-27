@@ -65,7 +65,6 @@ const graphs = (graphUrl: string) => {
       parseFloat(graphGutsFees.integratorDays[0].reservedFuel) * getPrice;
 
     const dailyRevenue = Math.trunc((finalDailyFee - gutsFeesDaily) * 0.8);
-    console.log(dailyRevenue);
     return {
       timestamp,
       totalFees: finalFeeAllTime.toString(),
