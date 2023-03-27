@@ -64,12 +64,12 @@ const graphs = (graphUrl: string) => {
     const gutsFeesDaily =
       parseFloat(graphGutsFees.integratorDays[0].reservedFuel) * getPrice;
 
-    const dailyRevenue = Math.trunc((finalDailyFee - gutsFeesDaily) * 0.8);
+    const dailyRevenue = (finalDailyFee - gutsFeesDaily) * 0.8;
     return {
       timestamp,
-      totalFees: finalFeeAllTime.toString(),
-      dailyFees: finalDailyFee.toString(),
-      dailyProtocolRevenue: dailyRevenue.toString(),
+      totalFees: finalFeeAllTime.toFixed(0),
+      dailyFees: finalDailyFee.toFixed(0),
+      dailyProtocolRevenue: dailyRevenue.toFixed(0),
     };
   };
 };
