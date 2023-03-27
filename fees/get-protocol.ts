@@ -53,21 +53,19 @@ const graphs = (graphUrl: string) => {
 
     //GET Price in USD
     const getPrice = parseFloat(graphGETPrice.priceOracle.price);
-
     //total fees
-    const finalDailyFee = Math.trunc(
-      parseFloat(graphRes.protocolDays[0].reservedFuel) * getPrice
-    );
-    const finalFeeAllTime = Math.trunc(
-      parseFloat(graphResAllTime.protocol.reservedFuel) * getPrice
-    );
+    const finalDailyFee =
+      parseFloat(graphRes.protocolDays[0].reservedFuel) * getPrice;
+
+    const finalFeeAllTime =
+      parseFloat(graphResAllTime.protocol.reservedFuel) * getPrice;
 
     //GUTS fees
-    const gutsFeesDaily = Math.trunc(
-      parseFloat(graphGutsFees.integratorDays.reservedFuel) * getPrice
-    );
-    const dailyRevenue = Math.trunc((finalDailyFee - gutsFeesDaily) * 0.8);
+    const gutsFeesDaily =
+      parseFloat(graphGutsFees.integratorDays[0].reservedFuel) * getPrice;
 
+    const dailyRevenue = Math.trunc((finalDailyFee - gutsFeesDaily) * 0.8);
+    console.log(dailyRevenue);
     return {
       timestamp,
       totalFees: finalFeeAllTime.toString(),
