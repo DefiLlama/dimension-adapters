@@ -20,11 +20,11 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.date)) === dayTimestamp)?.volume_total
   const totalFeesUsd = totalVolume * TOTAL_FEES;
-  const dailyFeesUsd = Number(dailyVolume || 0) * TOTAL_FEES
+  const dailyFeesUsd = dailyVolume ? Number(dailyVolume) * TOTAL_FEES : undefined
   return {
     totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd.toString(),
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyFees: dailyFeesUsd ? dailyFeesUsd.toString(): undefined,
+    dailyVolume: dailyVolume ? dailyVolume.toString() : undefined,
     totalVolume: `${totalVolume}`,
     timestamp: dayTimestamp,
   };
