@@ -18,7 +18,7 @@ const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.MOONBEAM]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
   [CHAIN.FANTOM]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
   [CHAIN.POLYGON]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
-  [CHAIN.XDAI]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
+  // [CHAIN.XDAI]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
   [CHAIN.OPTIMISM]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
 }
 
@@ -102,10 +102,10 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.POLYGON),
       start: async ()  => 1675382400,
     },
-    [CHAIN.XDAI]: {
-      fetch: fetch(CHAIN.XDAI),
-      start: async ()  => 1675382400,
-    },
+    // [CHAIN.XDAI]: {
+    //   fetch: fetch(CHAIN.XDAI),
+    //   start: async ()  => 1675382400,
+    // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: async ()  => 1675382400,
