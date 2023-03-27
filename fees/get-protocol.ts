@@ -10,8 +10,8 @@ const graphs = (graphUrl: string) => {
     const graphQueryFees = gql`
       {
         protocolDays(orderBy: day, orderDirection: desc, first: 1) {
-          spentFuel
-          spentFuelProtocol
+          reservedFuel
+          reservedFuelProtocol
         }
       }
     `;
@@ -19,30 +19,60 @@ const graphs = (graphUrl: string) => {
     const graphQueryFeesAllTime = gql`
       {
         protocol(id: "1") {
-          spentFuel
-          spentFuelProtocol
+          reservedFuel
+          reservedFuelProtocol
         }
       }
     `;
-
+    const graphQueryGutsFees = gql`
+      {
+        integratorDays(
+          orderBy: day
+          orderDirection: desc
+          first: 1
+          where: { integrator: "4" }
+        ) {
+          integrator {
+            name
+          }
+          reservedFuel
+        }
+      }
+    `;
+    const graphQueryGETPrice = gql`
+      {
+        priceOracle(id: "1") {
+          price
+        }
+      }
+    `;
     const graphRes = await request(graphUrl, graphQueryFees);
     const graphResAllTime = await request(graphUrl, graphQueryFeesAllTime);
+    const graphGutsFees = await request(graphUrl, graphQueryGutsFees);
+    const graphGETPrice = await request(graphUrl, graphQueryGETPrice);
 
-    const finalDailyFee = parseInt(graphRes.protocolDays[0].spentFuel);
-    const finalDailyRevenue = parseInt(
-      graphRes.protocolDays[0].spentFuelProtocol
+    //GET Price in USD
+    const getPrice = parseFloat(graphGETPrice.priceOracle.price);
+
+    //total fees
+    const finalDailyFee = Math.trunc(
+      parseFloat(graphRes.protocolDays[0].reservedFuel) * getPrice
     );
-    const finalFeeAllTime = parseInt(graphResAllTime.protocol.spentFuel);
-    const finalRevenueAllTime = parseInt(
-      graphResAllTime.protocol.spentFuelProtocol
+    const finalFeeAllTime = Math.trunc(
+      parseFloat(graphResAllTime.protocol.reservedFuel) * getPrice
     );
+
+    //GUTS fees
+    const gutsFeesDaily = Math.trunc(
+      parseFloat(graphGutsFees.integratorDays.reservedFuel) * getPrice
+    );
+    const dailyRevenue = Math.trunc((finalDailyFee - gutsFeesDaily) * 0.8);
 
     return {
       timestamp,
       totalFees: finalFeeAllTime.toString(),
       dailyFees: finalDailyFee.toString(),
-      totalProtocolRevenue: finalRevenueAllTime.toString(),
-      dailyProtocolRevenue: finalDailyRevenue.toString(),
+      dailyProtocolRevenue: dailyRevenue.toString(),
     };
   };
 };
