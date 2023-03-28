@@ -5,8 +5,16 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
-const middleFees = '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f';
 const topic0NewTransferAdded = '0xc5e1cdb94ac0a9f4f65e1a23fd59354025cffdf472eb03020ac4ba0e92d9969f';
+
+type TAddress = {
+  [l: string | Chain]: string;
+}
+
+const address: TAddress  = {
+  [CHAIN.ARBITRUM]: '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f',
+  [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8'
+}
 
 interface ITx {
   data: string;
@@ -28,7 +36,7 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
     const logs: ITx[] = (await sdk.api.util.getLogs({
-      target: middleFees,
+      target: address[chain],
       topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
@@ -71,7 +79,12 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1679097600,
     },
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC),
+      start: async ()  => 1679788800,
+    },
   }
 }
+
 
 export default adapter;
