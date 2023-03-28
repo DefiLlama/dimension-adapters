@@ -7,9 +7,6 @@ import { Chain } from "@defillama/sdk/build/general";
 
 const middleFees = '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f';
 const topic0NewTransferAdded = '0xc5e1cdb94ac0a9f4f65e1a23fd59354025cffdf472eb03020ac4ba0e92d9969f';
-type TMapToken = {
-  [st: string]: string;
-}
 
 interface ITx {
   data: string;
@@ -53,9 +50,16 @@ const fetch = (chain: Chain) => {
       return {amount: d.amount / 10 ** 18, tx: d.tx, a: d.contract_address} // debug
     });
     const dailyFee = feesAmuntsUSD.reduce((a: number, b: any) => a+b.amount, 0);
+    const supplySideRev = dailyFee * 0.25;
+    const dailyHoldersRevenue = dailyFee * .60;
+    const protocolRev = dailyFee * .15;
 
     return {
       dailyFees: dailyFee.toString(),
+      dailySupplySideRevenue: supplySideRev.toString(),
+      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
+      dailyProtocolRevenue: protocolRev.toString(),
+      dailyRevenue: protocolRev.toString(),
       timestamp
     }
   }
@@ -65,7 +69,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1675382400,
+      start: async ()  => 1679097600,
     },
   }
 }
