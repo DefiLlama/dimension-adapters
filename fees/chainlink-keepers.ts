@@ -1,4 +1,4 @@
-import { BreakdownAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
@@ -98,37 +98,35 @@ const fetchKeeper = (chain: Chain) => {
   }
 }
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "keepers": {
-      [CHAIN.ETHEREUM]: {
-        fetch: fetchKeeper(CHAIN.ETHEREUM),
-        start: async () => 1675382400,
-      },
-      [CHAIN.BSC]: {
-        fetch: fetchKeeper(CHAIN.BSC),
-        start: async () => 1675382400,
-      },
-      [CHAIN.POLYGON]: {
-        fetch: fetchKeeper(CHAIN.POLYGON),
-        start: async () => 1675382400,
-      },
-      [CHAIN.FANTOM]: {
-        fetch: fetchKeeper(CHAIN.FANTOM),
-        start: async () => 1675382400,
-      },
-      [CHAIN.AVAX]: {
-        fetch: fetchKeeper(CHAIN.AVAX),
-        start: async () => 1675382400,
-      },
-      [CHAIN.ARBITRUM]: {
-        fetch: fetchKeeper(CHAIN.ARBITRUM),
-        start: async () => 1675382400,
-      },
-      [CHAIN.OPTIMISM]: {
-        fetch: fetchKeeper(CHAIN.OPTIMISM),
-        start: async () => 1675382400,
-      }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchKeeper(CHAIN.ETHEREUM),
+      start: async () => 1675382400,
+    },
+    [CHAIN.BSC]: {
+      fetch: fetchKeeper(CHAIN.BSC),
+      start: async () => 1675382400,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetchKeeper(CHAIN.POLYGON),
+      start: async () => 1675382400,
+    },
+    [CHAIN.FANTOM]: {
+      fetch: fetchKeeper(CHAIN.FANTOM),
+      start: async () => 1675382400,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchKeeper(CHAIN.AVAX),
+      start: async () => 1675382400,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchKeeper(CHAIN.ARBITRUM),
+      start: async () => 1675382400,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetchKeeper(CHAIN.OPTIMISM),
+      start: async () => 1675382400
     }
   }
 }

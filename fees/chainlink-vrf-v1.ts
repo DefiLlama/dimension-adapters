@@ -1,4 +1,4 @@
-import { BreakdownAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
@@ -129,21 +129,19 @@ const fetch = (chain: Chain, version: number) => {
 }
 
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "vrf v1": {
-      [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM, 1),
-        start: async () => 1675382400,
-      },
-      [CHAIN.BSC]: {
-        fetch: fetch(CHAIN.BSC, 1),
-        start: async () => 1675382400,
-      },
-      [CHAIN.POLYGON]: {
-        fetch: fetch(CHAIN.POLYGON, 1),
-        start: async () => 1675382400,
-      },
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: fetch(CHAIN.ETHEREUM, 1),
+      start: async () => 1675382400,
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC, 1),
+      start: async () => 1675382400,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(CHAIN.POLYGON, 1),
+      start: async () => 1675382400,
     }
   }
 }
