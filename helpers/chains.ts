@@ -94,7 +94,9 @@ export enum CHAIN {
   OBYTE = "obyte",
   CORE = "core",
   RPG = "rpg",
-  WEMIX="wemix"
+  WEMIX="wemix",
+  ZKSYNC = "zksync",
+  ERA = "era"
 }
 
 // Don´t use

@@ -7,7 +7,8 @@ const endpoints = {
 };
 const endpointsV2 = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2-arbitrum"
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2-arbitrum",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2-bnb"
 }
 
 
@@ -54,6 +55,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ARBITRUM]: {
         fetch: graphsV2(CHAIN.ARBITRUM),
         start: async () => 1671926400
+      },
+      [CHAIN.BSC]: {
+        fetch: graphsV2(CHAIN.BSC),
+        start: async () => 1677715200
       },
     }
   },

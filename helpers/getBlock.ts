@@ -19,6 +19,10 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://blockscout.moonriver.moonbeam.network/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
+        else if (chain === CHAIN.ERA)
+            block = Number((await retry(async () => (await axios.get(`https://zksync2-mainnet.zkscan.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
         else
             block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
@@ -29,9 +33,14 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
     }
 }
 
+async function getBlocks(chain:Chain, timestamps:number[]){
+    return Promise.all(timestamps.map(t=>getBlock(t, chain, {})))
+}
+
 const canGetBlock = (chain: string) => Object.keys(providers).includes(chain)
 
 export {
     getBlock,
-    canGetBlock
+    canGetBlock,
+    getBlocks
 }
