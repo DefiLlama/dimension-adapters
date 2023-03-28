@@ -82,23 +82,23 @@ const fetch = () => {
 
 
     const balAddress = `ethereum:${BAL_TOKEN.toLowerCase()}`;
-    const balPrice = (await getPrices([balAddress], timestamp))[balAddress].price;
+    const balPrice = (await getPrices([balAddress], todaysTimestamp))[balAddress].price;
 
     const bal_transfer_amount = bal_transfer_amounts.reduce((a: number, b: number) => a+b,0);
     const bbusd_transfer_amount = bbusd_transfer_amounts.reduce((a: number, b: number) => a+b,0);
     const bal_bal_bal_yield_amount = bal_bal_bal_yield_amounts.reduce((a: number, b: number) => a+b,0);
-    const revGenByLP = ((bal_transfer_amount + (bal_bal_bal_yield_amount / 4)) * balPrice) + bbusd_transfer_amount;
-    const dailyFee = revGenByLP;
+    const dailyFee = ((bal_transfer_amount + bal_bal_bal_yield_amount) * balPrice) + bbusd_transfer_amount;
     const dailySupplySideRevenue = dailyFee * .75
     const dailyRevenue =  dailyFee * .25;
+    const dailyHoldersRevenue = dailyFee * .04;
 
     await sql.end({ timeout: 3 })
     return {
       timestamp: todaysTimestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyRevenue.toString(),
-      dailyProtocolRevenue: dailyRevenue.toString(),
       dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
     } as FetchResultFees
     } catch (error) {
       await sql.end({ timeout: 3 })
