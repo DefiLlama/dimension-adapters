@@ -15,7 +15,7 @@ const fetch = () => {
       const now = new Date(timestamp * 1e3)
       const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
 
-
+      // bal vote
       const bal_transfer_logs = await sql`
         SELECT
           substr(encode(topic_1, 'hex'), 25) AS origin,
@@ -33,7 +33,7 @@ const fetch = () => {
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
       `;
 
-
+    // bal vote
       const bal_bal_yield_logs = await sql`
         SELECT
           substr(encode(topic_1, 'hex'), 25) AS origin,
@@ -80,27 +80,26 @@ const fetch = () => {
       return Number('0x'+e.data) / 10 ** 18;
     });
 
+
     const balAddress = `ethereum:${BAL_TOKEN.toLowerCase()}`;
     const balPrice = (await getPrices([balAddress], timestamp))[balAddress].price;
 
     const bal_transfer_amount = bal_transfer_amounts.reduce((a: number, b: number) => a+b,0);
     const bbusd_transfer_amount = bbusd_transfer_amounts.reduce((a: number, b: number) => a+b,0);
     const bal_bal_bal_yield_amount = bal_bal_bal_yield_amounts.reduce((a: number, b: number) => a+b,0);
-    const protocolRevenue = ((bal_transfer_amount + (bal_bal_bal_yield_amount / 4)) * balPrice) + bbusd_transfer_amount;
-    const dailyFee = (protocolRevenue);
-    const dailyHoldersRevenue =  protocolRevenue * (4/25); // 4% goes to AURA lockers. This is paid out as auraBAL.
-
+    const revGenByLP = ((bal_transfer_amount + (bal_bal_bal_yield_amount / 4)) * balPrice) + bbusd_transfer_amount;
+    const dailyFee = revGenByLP;
+    const dailySupplySideRevenue = dailyFee * .75
+    const dailyRevenue =  dailyFee * .25;
 
     await sql.end({ timeout: 3 })
     return {
       timestamp: todaysTimestamp,
       dailyFees: dailyFee.toString(),
-      dailyRevenue: (protocolRevenue).toString(),
-      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
-      dailyProtocolRevenue: protocolRevenue.toString(),
-      dailySupplySideRevenue: protocolRevenue.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      dailyProtocolRevenue: dailyRevenue.toString(),
+      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
     } as FetchResultFees
-
     } catch (error) {
       await sql.end({ timeout: 3 })
       throw error
