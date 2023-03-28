@@ -1,11 +1,14 @@
 import axios, { AxiosResponse } from "axios"
 import retry from "async-retry";
+import { IJSON } from "../adapters/types";
+
+const token = {} as IJSON<string>
 
 export async function queryFlipside(sqlQuery: string) {
   return await retry(
     async (bail) => {
       let query: undefined | AxiosResponse<any, any> = undefined
-      if (!query) {
+      if (!token[sqlQuery]) {
         query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
           "sql": sqlQuery,
           "ttl_minutes": 15,
@@ -15,13 +18,14 @@ export async function queryFlipside(sqlQuery: string) {
             "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
           }
         })
+        token[sqlQuery] = query?.data.token
       }
 
-      if (!query) {
+      if (!token[sqlQuery]) {
         throw new Error("Couldn't get a token from flipsidecrypto")
       }
 
-      const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${query.data.token}`, {
+      const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${token[sqlQuery]}`, {
         headers: {
           "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
         }
@@ -33,13 +37,13 @@ export async function queryFlipside(sqlQuery: string) {
       } else if (status !== "running") {
         bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(results.data)}`))
       }
-      if (status !== "running") {
+      if (status === "running") {
         throw new Error("Still running")
       }
     },
     {
-      retries: 10,
-      maxTimeout: 6000
+      retries: 20,
+      maxTimeout: 1000 * 60 * 5
     }
   );
 }
