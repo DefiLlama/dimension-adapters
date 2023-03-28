@@ -3,10 +3,9 @@ import retry from "async-retry";
 
 export async function queryFlipside(sqlQuery: string) {
   return await retry(
-    async (bail, attempt) => {
+    async (bail) => {
       let query: undefined | AxiosResponse<any, any> = undefined
-      // only runs first time
-      if (attempt === 1) {
+      if (!query) {
         query = await axios.post("https://node-api.flipsidecrypto.com/queries", {
           "sql": sqlQuery,
           "ttl_minutes": 15,
