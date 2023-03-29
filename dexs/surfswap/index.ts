@@ -1,5 +1,5 @@
 import { ChainEndpoints, BreakdownAdapter } from "../../adapters/types";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
@@ -38,7 +38,7 @@ const getCustomBlock = async (timestamp: number) => {
   return Number(block.blocks[0].number);
 };
 
-const graphs = getChainVolume({
+const graphs = getGraphDimensions({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
@@ -51,7 +51,7 @@ const graphs = getChainVolume({
   getCustomBlock
 });
 
-const v1graphs = getChainVolume({
+const v1graphs = getGraphDimensions({
   graphUrls: {
     [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/surfswap-stable-amm",
   },
