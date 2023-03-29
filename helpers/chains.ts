@@ -96,7 +96,8 @@ export enum CHAIN {
   RPG = "rpg",
   WEMIX="wemix",
   ZKSYNC = "zksync",
-  ERA = "era"
+  ERA = "era",
+  DFK = "dfk"
 }
 
 // Don´t use
