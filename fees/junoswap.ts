@@ -1,7 +1,8 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const historicalVolumeEndpoint = "https://api-junoswap.enigma-validator.com/volumes/total/historical/12M/d"
 
@@ -33,6 +34,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {
         fetch: fetch,
         start: async ()  => 1646784000,
