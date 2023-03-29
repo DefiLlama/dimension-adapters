@@ -3,10 +3,13 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const KAVA_DAILY_VOLUME_API_URL = "https://market-api/defillama/v1/kava/total_daily_volume";
+const KAVA_DAILY_VOLUME_API_URL = "https://market-api.openocean.finance/v1/defillama/kava/total_daily_volume";
 
 interface KavaDailyVolumeApiResponse {
-  volume: any;
+  chain: string,
+  result: {
+    volume: any;
+  }
 }
 
 /**
@@ -17,10 +20,12 @@ interface KavaDailyVolumeApiResponse {
  */
 async function fetchKavaDailyVolume(timestamp: number): Promise<{ dailyVolume: string; timestamp: number }> {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: KavaDailyVolumeApiResponse = (await fetchURL(KAVA_DAILY_VOLUME_API_URL)).data;
+  const { data = {} } = await fetchURL(KAVA_DAILY_VOLUME_API_URL);
+  console.log('fetchKavaDailyVolume', data.chain, data.result.volume);
+  const response: KavaDailyVolumeApiResponse = data;
 
   return {
-    dailyVolume: `${response.volume}`,
+    dailyVolume: `${response.result.volume || 0}`,
     timestamp: dayTimestamp,
   };
 }
