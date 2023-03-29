@@ -13,5 +13,7 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date"
 });
 
-adapter.adapter.fantom.start = async () => 1673827200;
+// setting start time to day metropolis adapter was disabled + started tracking swapline
+// after swapline acquisition of metropolis
+adapter.adapter.fantom.start = async () => 1680048000;
 export default adapter;
