@@ -98,7 +98,7 @@ export enum CHAIN {
   ZKSYNC = "zksync",
   ERA = "era",
   DFK = "dfk",
-  POLYGON_ZKEVM = " polygon_zkevm"
+  POLYGON_ZKEVM = "polygon_zkevm"
 }
 
 // Don´t use
