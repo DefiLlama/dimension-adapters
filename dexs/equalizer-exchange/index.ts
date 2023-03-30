@@ -144,10 +144,10 @@ const fetch = async (timestamp: number) => {
             amount1Out,
           } as IAmount
         }) as IAmount[];
-      const token0Price = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.price || 0);
-      const token1Price = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.price || 0);
-      const token0Decimals = (prices[`fantom:${tokens0[index].toLowerCase()}`]?.decimals || 0)
-      const token1Decimals = (prices[`fantom:${tokens1[index].toLowerCase()}`]?.decimals || 0)
+      const token0Price = (prices[`fantom:${tokens0[index]}`]?.price || 0);
+      const token1Price = (prices[`fantom:${tokens1[index]}`]?.price || 0);
+      const token0Decimals = (prices[`fantom:${tokens0[index]}`]?.decimals || 0)
+      const token1Decimals = (prices[`fantom:${tokens1[index]}`]?.decimals || 0)
       const totalAmount0 = log
         .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
       const totalAmount1 = log
