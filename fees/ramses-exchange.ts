@@ -127,8 +127,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
     const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals = (prices[`${CHAIN.ARBITRUM}:${tokens0[index].toLowerCase()}`]?.decimals || 0)
-      const token1Decimals = (prices[`${CHAIN.ARBITRUM}:${tokens1[index].toLowerCase()}`]?.decimals || 0)
+      const token0Decimals = (prices[`${CHAIN.ARBITRUM}:${tokens0[index]}`]?.decimals || 0)
+      const token1Decimals = (prices[`${CHAIN.ARBITRUM}:${tokens1[index]}`]?.decimals || 0)
       const log: IAmount[] = logs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
         .map((p: ILog) => {
@@ -139,8 +139,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             amount1
           } as IAmount
         }) as IAmount[];
-      const token0Price = (prices[`${CHAIN.ARBITRUM}:${tokens0[index].toLowerCase()}`]?.price || 0);
-      const token1Price = (prices[`${CHAIN.ARBITRUM}:${tokens1[index].toLowerCase()}`]?.price || 0);
+      const token0Price = (prices[`${CHAIN.ARBITRUM}:${tokens0[index]}`]?.price || 0);
+      const token1Price = (prices[`${CHAIN.ARBITRUM}:${tokens1[index]}`]?.price || 0);
 
       const feesAmount0 = log
         .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
