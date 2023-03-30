@@ -15,8 +15,9 @@ const ChainId: TChainID = {
 
 const fetch = (chainId: number) => {
   return async (timestamp: number) => {
-    const data = (await fetchURL("https://api.plexus.app/v1/dashboard/fee")).data.data;
-    const dailyFee = data[chainId];
+    const dateString = new Date(timestamp * 1000).toISOString().split('T')[0];
+    const data = (await fetchURL(`https://api.plexus.app/v1/dashboard/fee?date=${dateString}`)).data.data;
+    const dailyFee = data[chainId] || 0;
     return {
       timestamp,
       dailyFee
@@ -29,7 +30,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(ChainId[chain]),
-        start: async () => 1679788800,
+        start: async () => 1675209600,
         runAtCurrTime: true
       },
     }
