@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -14,13 +14,13 @@ const ChainId: TChainID = {
 };
 
 const fetch = (chainId: number) => {
-  return async (timestamp: number) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
     const dateString = new Date(timestamp * 1000).toISOString().split('T')[0];
     const data = (await fetchURL(`https://api.plexus.app/v1/dashboard/fee?date=${dateString}`)).data.data;
-    const dailyFee = data[chainId] || 0;
+    const dailyFee: number = data[chainId] || 0;
     return {
       timestamp,
-      dailyFee
+      dailyFees: dailyFee.toString()
     }
   }
 };
