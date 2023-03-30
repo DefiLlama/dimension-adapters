@@ -35,7 +35,7 @@ interface IHistory {
 }
 
 const graphs = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: IHistory[] = (await fetchURL(poolsDataEndpoint))?.data.data.dailyStatisticsByChain;
     const historicalVolume = historical
@@ -47,12 +47,10 @@ const graphs = (chain: Chain) => {
     const dailyFees = historicalVolume
       .find(dayItem => dayItem.date  === dateStr)?.[chains[chain]]
 
-    if (dailyFees === undefined) return {} as FetchResultFees;
-
     return {
       timestamp,
       dailyFees: dailyFees?.toString(),
-      dailyRevenue: dailyFees.toString(),
+      dailyRevenue: dailyFees?.toString(),
       dailyUserFees: dailyFees?.toString(),
       totalFees: totalFees.toString(),
       totalUserFees: totalFees.toString(),
