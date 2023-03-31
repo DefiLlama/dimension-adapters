@@ -2,7 +2,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.ERA]: "https://graph.mute.io/subgraphs/name/mattt21/muteswitch_mainnet",
+  [CHAIN.ERA]: "https://graph2.mute.io/subgraphs/id/QmZfueRArcknULqR9rma72T3KFJ2q32kc6aUnwbZnMZHJ9",
 };
 
 const adapter = univ2Adapter(endpoints, {
