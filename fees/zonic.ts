@@ -15,6 +15,8 @@ const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.OPTIMISM]: '0x11c9e50dfde606a864a25726d174faf947626f3d',
   [CHAIN.ARBITRUM]: '0x1A7b46C660603EBB5FBe3AE51e80AD21dF00bDd1',
   [CHAIN.ARBITRUM_NOVA]: '0x1a7b46c660603ebb5fbe3ae51e80ad21df00bdd1',
+  [CHAIN.ERA]: '0xf7Ce7998B4c8aFc97a15c32E724ae2C0D0F90F73',
+  [CHAIN.POLYGON_ZKEVM]: '0x1a7b46c660603ebb5fbe3ae51e80ad21df00bdd1'
 }
 
 interface ITx {
@@ -87,6 +89,14 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM_NOVA]: {
       fetch: fetch(CHAIN.ARBITRUM_NOVA),
       start: async ()  => 1675382400,
+    },
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
+      start: async ()  => 1679961600,
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      fetch: fetch(CHAIN.POLYGON_ZKEVM),
+      start: async ()  => 1679961600,
     },
   }
 }
