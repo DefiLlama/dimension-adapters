@@ -31,10 +31,9 @@ const getCustomBlock = async (timestamp: number) => {
     (
       await request(blocksGraph, blockQuery, {
         timestampFrom: timestamp - DAY_IN_SECONDS,
-        timestampTo: timestamp + DAY_IN_SECONDS,
+        timestampTo: timestamp,
       })
     )
-  ;
   return Number(block.blocks[0].number);
 };
 
