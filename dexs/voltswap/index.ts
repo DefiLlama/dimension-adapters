@@ -1,19 +1,16 @@
 import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-const {
-  getChainVolume,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helpers/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
 const endpoints = {
   [CHAIN.METER]: "https://graph-meter.voltswap.finance/subgraphs/name/meterio/uniswap-v2-subgraph",
 };
 
 const DAILY_VOLUME_FACTORY = "uniswapDayData";
 
-const graphs = getChainVolume({
+const graphs = getGraphDimensions({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
