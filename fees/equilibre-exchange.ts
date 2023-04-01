@@ -168,7 +168,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch,
-      start: async () => 1677106605,
+      start: async () => 1677888000,
     },
   }
 };
