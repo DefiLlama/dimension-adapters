@@ -11,7 +11,7 @@ export function blockscoutFeeAdapter(chain:string, url:string, coin:string){
                     const ts = getTimestampAtStartOfDayUTC(timestamp)
                   const date = new Date(ts*1000).toISOString().slice(0, "2011-10-05".length)
                   const fees = await axios.get(`${url}&date=${date}`)
-                  const prices = await getPrices([coin], );
+                  const prices = await getPrices([coin], timestamp);
                   const usdFees = Number(fees.data.result)/1e18*prices[coin].price
 
                   return {

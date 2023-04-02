@@ -3,7 +3,7 @@ import { IJSON } from '../adapters/types'
 interface Price { decimals: number, price: number, symbol: string, timestamp: number }
 const pricesStore: IJSON<IJSON<Price>> = {}
 
-export const getPrices = async (tokens: string[], timestamp?: number) => {
+export const getPrices = async (tokens: string[], timestamp: number) => {
     let path = "/current"
     if (timestamp) {
         path = `/historical/${timestamp}`
