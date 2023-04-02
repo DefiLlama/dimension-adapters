@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
   data: string;
@@ -109,15 +110,15 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const tokens0 = underlyingToken0.output.map((res) => res.output);
     const tokens1 = underlyingToken1.output.map((res) => res.output);
-    const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
-    const toBlock = (await getBlock(toTimestamp, 'kava', {}));
+    const fromBlock = (await getBlock(fromTimestamp, CHAIN.KAVA, {}));
+    const toBlock = (await getBlock(toTimestamp, CHAIN.KAVA, {}));
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
       topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: 'kava',
+      chain: CHAIN.KAVA as Chain,
       topics: [topic0]
     }))))
       .map((p: any) => p)

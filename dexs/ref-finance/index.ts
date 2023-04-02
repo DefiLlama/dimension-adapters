@@ -8,17 +8,14 @@ const api = "https://api.stats.ref.finance/api/volume24h?period=730"
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "near":{
-      start: async()=>{
-        const data = await axios.get(api)
-        return dateToTs(data.data[0].date)
-      },
-      fetch: async(ts)=>{
+    "near": {
+      start: async () => 1629590400,
+      fetch: async (ts) => {
         const data = await axios.get(api)
         const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
         return {
           timestamp: cleanTimestamp,
-          dailyVolume: data.data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+          dailyVolume: data.data.find((t: any) => dateToTs(t.date) === cleanTimestamp)?.volume
         }
       }
     }

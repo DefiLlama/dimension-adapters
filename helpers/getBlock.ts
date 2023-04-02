@@ -6,7 +6,7 @@ import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
 const retry = require("async-retry")
 
-async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlocks) {
+async function getBlock(timestamp: number, chain: Chain | CHAIN, chainBlocks: ChainBlocks) {
     if (chainBlocks[chain] !== undefined) {
         return chainBlocks[chain]
     } else {
@@ -24,7 +24,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
         else if (chain as CHAIN === CHAIN.POLYGON_ZKEVM || chain === CHAIN.VISION)
-            return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
+            return sdk.api.util.lookupBlock(timestamp, { chain: chain as Chain }).then(blockData => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
         else
             block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
