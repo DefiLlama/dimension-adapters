@@ -24,7 +24,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         }
       `;
-      console.log(todaysTimestamp);
 
       const graphRes = await request(graphUrls[chain], graphQuery);
       const totalVolume = parseInt(graphRes.globalInfos[0].volume) / 1e30;
