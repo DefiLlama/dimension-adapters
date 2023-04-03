@@ -45,11 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: v3Graphs(CHAIN.METIS),
-      start: getStartTimestamp({
-        endpoints: v3Endpoints,
-        chain: CHAIN.METIS,
-        volumeField: VOLUME_USD,
-      }),
+      start: async () => 1680307200,
       meta: {
         methodology: {
           ...methodology,
