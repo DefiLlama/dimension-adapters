@@ -168,11 +168,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.METIS]: {
       fetch,
       start: async () => 1670544000,
-      meta: {
-        methodology: {
-          UserFees: "User pays 0.01% on each swap."
-        }
-      }
     },
   }
 };
