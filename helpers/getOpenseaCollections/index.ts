@@ -74,13 +74,9 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
     if (!collections || !collections[collectionId]) {
         return res
     }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyUserFees'] = { [ethAddress]: collections[collectionId].marketplaceRevenueETH }
-    }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyFees'] = { [ethAddress]: collections[collectionId].totalRevenueETH }
-    }
     if (collections[collectionId].creatorRevenueETH !== undefined) {
+        res['dailyUserFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+        res['dailyFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
         res['dailyRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
         res['dailyProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
     }
