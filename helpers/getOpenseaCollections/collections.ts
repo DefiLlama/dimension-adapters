@@ -1,3 +1,5 @@
+import { IJSON } from "../../adapters/types"
+
 // note: lowercase keys
 export default {
     '0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb': { slug: 'cryptopunks' },
@@ -10,5 +12,7 @@ export default {
     '0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38': { slug: 'sandbox' },
     '0x8a90cab2b38dba80c64b7734e58ee1db38b8992e': { slug: 'doodles-official' },
     '0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d': { slug: 'decentraland' }
-}
+} as IJSON<{
+    slug: string
+}>
 // note: lowercase keys

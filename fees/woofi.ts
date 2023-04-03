@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { getTimestampAtStartOfNextDayUTC } from "../utils/date";
 
 
 type TFee = {
@@ -72,11 +72,10 @@ interface ITx  {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+    const nextDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    const fromBlock = (await getBlock(nextDayTimestamp, chain, {}));
+    const toBlock = (await getBlock(nextDayTimestamp + 8400, chain, {}));
 
     const logs: ITx[] = (await sdk.api.util.getLogs({
       target: fee_detail[chain].target,

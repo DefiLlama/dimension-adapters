@@ -65,8 +65,8 @@ const adapter: Adapter = {
             const maticAddress = "ethereum:0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0";
 
             const pricesObj = await getPrices([maticAddress], todaysTimestamp);
-            const latestPrice = pricesObj[maticAddress.toLowerCase()].price;
-            const decimals =   pricesObj[maticAddress.toLowerCase()].decimals;
+            const latestPrice = pricesObj[maticAddress].price;
+            const decimals =   pricesObj[maticAddress].decimals;
             const maticBurn = burnTx.map((a: any) => Number('0x'+a.data)).reduce((a: number, b: number) => a+b,0) / 10 ** decimals;
             const dailyRevenue = maticBurn * latestPrice;
 

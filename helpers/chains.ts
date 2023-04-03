@@ -93,7 +93,13 @@ export enum CHAIN {
   TON = "ton",
   OBYTE = "obyte",
   CORE = "core",
-  RPG = "rpg"
+  RPG = "rpg",
+  WEMIX="wemix",
+  ZKSYNC = "zksync",
+  ERA = "era",
+  DFK = "dfk",
+  POLYGON_ZKEVM = "polygon_zkevm",
+  ACALA = "acala"
 }
 
 // Don´t use

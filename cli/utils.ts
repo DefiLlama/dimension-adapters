@@ -29,7 +29,7 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapte
         const methodology = baseAdapter?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
-        if (element.startTimestamp !== undefined)
+        if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
         if (typeof methodology === 'string') console.log("Methodology:", methodology)
