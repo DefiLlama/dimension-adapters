@@ -1,5 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter, BaseAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
@@ -36,9 +35,9 @@ const v3Graphs = getGraphDimensions({
 });
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
+  UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap.",
+  ProtocolRevenue: "Protocol receives 10% of fees.",
+  SupplySideRevenue: "90% of user fees are distributed among LPs.",
   HoldersRevenue: "Holders have no revenue."
 }
 
@@ -54,7 +53,6 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           ...methodology,
-          UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap."
         }
       }
     }
