@@ -9,7 +9,7 @@ import {
 } from "../../helpers/getUniSubgraph"
 
 const v3Endpoints = {
-  [CHAIN.METIS]: "https://metis-graph.maiadao.io/uniswap-v3",
+  [CHAIN.METIS]: "http://api.maiadao.io:8000/subgraphs/name/maia-dao/uniswap-v3",
 };
 
 const VOLUME_USD = "volumeUSD";
