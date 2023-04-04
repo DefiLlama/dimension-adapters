@@ -1,6 +1,6 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../utils/prices";
 import postgres from "postgres";
@@ -63,7 +63,7 @@ const fetch = () => {
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
       `
       const _cost:{[k: string]: number} = {}
-      logs_name_renewed
+      const raw_name_renewed = logs_name_renewed
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1], data: '0x'+e.data}),...e}})
         .map((p: any) => {
             const expires = new BigNumber(p.args.expires._hex).toNumber()
@@ -75,7 +75,7 @@ const fetch = () => {
             } as IData
       });
 
-      logs_name_registered
+      const raw_name_registered = logs_name_registered
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1, '0x'+e.topic_2], data: '0x'+e.data}),...e}})
         .map((p: any) => {
           const name: string = p.args.name;
@@ -93,7 +93,9 @@ const fetch = () => {
 
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    const dailyFees = Object.values(_cost).reduce((a: number, b: number) => a+b,0) * ethPrice
+    const name_renewed_cost = raw_name_renewed.reduce((a: number, b: IData) => a+b.cost, 0);
+    const name_registered_const = raw_name_registered.reduce((a: number, b: IData) => a+b.cost, 0);
+    const dailyFees = (name_registered_const + name_renewed_cost) * ethPrice
 
     await sql.end({ timeout: 3 })
     return {
@@ -118,7 +120,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(),
-        start: async ()  => 1669852800,
+        start: async ()  => 1677110400,
         meta: {
           methodology
         }
