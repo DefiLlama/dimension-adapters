@@ -1,7 +1,7 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const blocksGraph =
   "https://graph.jfswap.com/subgraphs/name/blocklytics/oec-blocks";
@@ -41,7 +41,7 @@ const getCustomBlock = async (timestamp: number) => {
 
 const DAILY_VOLUME_FACTORY = "jswapDayData";
 
-const graphs = getChainVolume({
+const graphs = getGraphDimensions({
   graphUrls: endpoints,
   totalVolume: {
     factory: "jswapFactories",

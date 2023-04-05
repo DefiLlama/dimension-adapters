@@ -3,6 +3,8 @@ import type { ChainEndpoints, IJSON } from "../../adapters/types"
 import { request, gql } from "graphql-request";
 import collectionsList from './collections'
 import { getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
+import customBackfill from "../customBackfill";
+import { Chain } from "@defillama/sdk/build/general";
 
 interface ICollection {
     id: string
@@ -74,15 +76,11 @@ export const collectionFetch = (collectionId: string, graphUrl: string) => async
     if (!collections || !collections[collectionId]) {
         return res
     }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyUserFees'] = { [ethAddress]: collections[collectionId].marketplaceRevenueETH }
-    }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyFees'] = { [ethAddress]: collections[collectionId].totalRevenueETH }
-    }
     if (collections[collectionId].creatorRevenueETH !== undefined) {
-        res['dailyRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
-        res['dailyProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+        res['totalUserFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+        res['totalFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+        res['totalRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+        res['totalProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
     }
     return res
 }
@@ -94,6 +92,7 @@ export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['bre
                 [chain]: {
                     fetch: collectionFetch(collectionID, graphURL),
                     start: async () => start,
+                    customBackfill: customBackfill(chain as Chain, () => collectionFetch(collectionID, graphURL)),
                     meta: {
                         methodology: {
                             UserFees: "Fees paid to Opensea",

@@ -70,6 +70,12 @@ const adapter: Adapter = {
       start: async () => 0,
       meta,
     },
+    injective: {
+      fetch: fetch("injective"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
   },
 };
 

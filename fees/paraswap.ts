@@ -40,10 +40,10 @@ const fetch = (chain: Chain) => {
     const totalFees = totalPartnerRevenue + totalProtocolRevenue;
     const totalRevenue = totalProtocolRevenue;
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
-      totalRevenue: totalRevenue.toString(),
-      totalFees: totalFees.toString(),
+      dailyFees: dailyFees ? dailyFees.toString() : undefined,
+      dailyRevenue: dailyRevenue ? dailyRevenue.toString() : undefined,
+      totalRevenue: totalRevenue ? totalRevenue.toString() : undefined,
+      totalFees: totalFees ? totalFees.toString(): undefined,
       timestamp
     }
   }
