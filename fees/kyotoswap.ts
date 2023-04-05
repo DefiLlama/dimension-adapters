@@ -45,19 +45,17 @@ const methodology = {
   Fees: "All fees comes from the user.",
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: async () => startTimes[chain],
-        meta: {
-          methodology,
-        },
-      };
-      return acc;
-    }, {} as BaseAdapter),
-  },
-};
+const adapter: Adapter = {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
+    acc[chain] = {
+      fetch: graphs(chain as Chain),
+      start: async () => startTimes[chain],
+      meta: {
+        methodology,
+      },
+    };
+    return acc;
+  }, {} as BaseAdapter)
+}
 
-export default adapter;
+export default adapter
