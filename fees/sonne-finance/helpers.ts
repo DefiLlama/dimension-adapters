@@ -43,21 +43,18 @@ const getVeloGaugeDetails = async (
   token: string,
   account: string,
   chain: CHAIN,
-  block?: number
 ) => {
   const lastEarn = await sdk.api.abi.call({
     target: gauge,
     abi: veloGaugeAbi.lastEarn,
     chain: chain,
     params: [token, account],
-    block,
   });
   const earned = await sdk.api.abi.call({
     target: gauge,
     abi: veloGaugeAbi.earned,
     chain: chain,
     params: [token, account],
-    block,
   });
 
   return {

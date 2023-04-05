@@ -13,7 +13,6 @@ interface IContext {
   currentTimestamp: number;
   startTimestamp: number;
   endTimestamp: number;
-  currentBlock: number;
   startBlock: number;
   endBlock: number;
   markets: string[];
