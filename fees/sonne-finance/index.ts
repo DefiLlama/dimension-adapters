@@ -21,39 +21,14 @@ const veloGauge = "0x3786d4419d6b4a902607ceb2bb319bb336735df8";
 const veloToken = "0x3c8b650257cfb5f272f799f5e2b4e65093a11a05";
 const veVeloHolder = "0x17063ad4e83b0aba4ca0f3fc3a9794e807a00ed7";
 
-const getMarketInterestLogs = async (
-  market: string,
-  fromBlock: number,
-  toBlock: number
-): Promise<IAccrueInterestLog[]> => {
-  const logs = (
-    await sdk.api.util.getLogs({
-      target: market,
-      topic: CTokenABI.accrueInterest,
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [cTokenInterface.getEventTopic("AccrueInterest")],
-      keys: [],
-      chain: CHAIN.OPTIMISM,
-    })
-  ).output;
-
-  const parsedLogs = logs.map((log: any) => cTokenInterface.parseLog(log));
-
-  return parsedLogs.map((x) => ({
-    market: market,
-    cashPrior: x.args.cashPrior,
-    interestAccumulated: x.args.interestAccumulated,
-    borrowIndexNew: x.args.borrowIndexNew,
-    totalBorrowsNew: x.args.totalBorrowsNew,
-  }));
-};
+interface ITx {
+  data: string;
+  topics: string[];
+}
 
 const getContext = async (timestamp: number): Promise<IContext> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-
-  const currentBlock = await getBlock(timestamp, CHAIN.OPTIMISM, {});
   const todaysBlock = await getBlock(todaysTimestamp, CHAIN.OPTIMISM, {});
   const endTodayBlock = await getBlock(endToDayTimestamp, CHAIN.OPTIMISM, {});
 
@@ -75,7 +50,6 @@ const getContext = async (timestamp: number): Promise<IContext> => {
     currentTimestamp: timestamp,
     startTimestamp: todaysTimestamp,
     endTimestamp: endToDayTimestamp,
-    currentBlock: currentBlock,
     startBlock: todaysBlock,
     endBlock: endTodayBlock,
     markets: allMarketAddressess,
@@ -95,29 +69,43 @@ const getDailyProtocolFees = async ({
 }: IContext) => {
   let dailyProtocolFees = 0;
   let dailyProtocolRevenue = 0;
+  const logs: IAccrueInterestLog[] = (await Promise.all(
+    markets.map((address: string) => sdk.api.util.getLogs({
+      target: address,
+      topic: '',
+      toBlock: endBlock,
+      fromBlock: startBlock,
+      keys: [],
+      chain: CHAIN.OPTIMISM,
+      topics: ['0x4dec04e750ca11537cabcd8a9eab06494de08da3735bc8871cd41250e190bc04']
+  })))).map((e: any) => e.output.map((p: any) => {
+    return {...p}
+  })).flat()
+  .map((log: any) => {
+    const x =  cTokenInterface.parseLog(log);
+    return {
+      market: log.address,
+      cashPrior: x.args.cashPrior,
+      interestAccumulated: x.args.interestAccumulated,
+      borrowIndexNew: x.args.borrowIndexNew,
+      totalBorrowsNew: x.args.totalBorrowsNew,
+    }
+  });
 
-  const logs = (
-    await Promise.all(
-      markets.map((market) => {
-        return getMarketInterestLogs(market, startBlock, endBlock);
-      })
-    )
-  ).flat();
-
-  logs.forEach((log) => {
+  logs.forEach((log: IAccrueInterestLog) => {
     const marketIndex = markets.indexOf(log.market);
     const underlying = underlyings[marketIndex].toLowerCase();
-    const price = prices[`${CHAIN.OPTIMISM}:${underlying}`];
+    const price = prices[`${CHAIN.OPTIMISM}:${underlying.toLocaleLowerCase()}`];
 
     const interestTokens = +ethers.utils.formatUnits(
       log.interestAccumulated,
-      price.decimals
+      price?.decimals || 0
     );
     const reserveFactor = +ethers.utils.formatUnits(
       reserveFactors[marketIndex],
       18
     );
-    const interestUSD = interestTokens * price.price;
+    const interestUSD = interestTokens * price?.price || 0;
 
     dailyProtocolFees += interestUSD;
     dailyProtocolRevenue += interestUSD * reserveFactor;
@@ -131,7 +119,6 @@ const getDailyProtocolFees = async ({
 
 const getDailyVeloRewards = async (context: IContext) => {
   const {
-    currentBlock,
     currentTimestamp,
     startTimestamp,
     endTimestamp,
@@ -143,7 +130,6 @@ const getDailyVeloRewards = async (context: IContext) => {
     veloToken,
     veVeloHolder,
     CHAIN.OPTIMISM,
-    currentBlock
   );
 
   const timespan = endTimestamp - startTimestamp;
@@ -161,8 +147,7 @@ const getDailyVeloRewards = async (context: IContext) => {
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const context = await getContext(timestamp);
 
-  const { dailyProtocolFees, dailyProtocolRevenue } =
-    await getDailyProtocolFees(context);
+  const { dailyProtocolFees, dailyProtocolRevenue } = await getDailyProtocolFees(context);
 
   const dailyVeloRewards = await getDailyVeloRewards(context);
 
