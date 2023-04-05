@@ -1,19 +1,15 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, ChainBlocks, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 import { getBlock } from "../../helpers/getBlock";
 import { ethers } from "ethers";
 import {
-  getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfNextDayUTC,
-} from "../../utils/date";
-import {
   getAllMarkets,
   getMarketDetails,
   getVeloGaugeDetails,
 } from "./helpers";
-import { CTokenABI, cTokenInterface } from "./_abi";
+import { cTokenInterface } from "./_abi";
 import { IAccrueInterestLog, IContext } from "./_types";
 
 const unitroller = "0x60CF091cD3f50420d50fD7f707414d0DF4751C58";
@@ -26,11 +22,11 @@ interface ITx {
   topics: string[];
 }
 
-const getContext = async (timestamp: number): Promise<IContext> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-  const todaysBlock = await getBlock(todaysTimestamp, CHAIN.OPTIMISM, {});
-  const endTodayBlock = await getBlock(endToDayTimestamp, CHAIN.OPTIMISM, {});
+const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> => {
+  const fromTimestamp = timestamp - 60 * 60 * 24
+  const toTimestamp = timestamp
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
 
   const allMarketAddressess = await getAllMarkets(unitroller, CHAIN.OPTIMISM);
   const { underlyings, reserveFactors } = await getMarketDetails(
@@ -48,10 +44,10 @@ const getContext = async (timestamp: number): Promise<IContext> => {
 
   return {
     currentTimestamp: timestamp,
-    startTimestamp: todaysTimestamp,
-    endTimestamp: endToDayTimestamp,
-    startBlock: todaysBlock,
-    endBlock: endTodayBlock,
+    startTimestamp: fromTimestamp,
+    endTimestamp: toTimestamp,
+    startBlock: fromBlock,
+    endBlock: toBlock,
     markets: allMarketAddressess,
     underlyings,
     reserveFactors,
@@ -79,7 +75,7 @@ const getDailyProtocolFees = async ({
       chain: CHAIN.OPTIMISM,
       topics: ['0x4dec04e750ca11537cabcd8a9eab06494de08da3735bc8871cd41250e190bc04']
   })))).map((e: any) => e.output.map((p: any) => {
-    return {...p}
+    return {...p} as ITx
   })).flat()
   .map((log: any) => {
     const x =  cTokenInterface.parseLog(log);
@@ -144,8 +140,8 @@ const getDailyVeloRewards = async (context: IContext) => {
   return todayEarnedUSD;
 };
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const context = await getContext(timestamp);
+const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
+  const context = await getContext(timestamp, chainBlocks);
 
   const { dailyProtocolFees, dailyProtocolRevenue } = await getDailyProtocolFees(context);
 
