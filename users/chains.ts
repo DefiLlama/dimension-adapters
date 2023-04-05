@@ -1,11 +1,7 @@
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlocks } from "../helpers/getBlock";
 import axios from 'axios';
-
-const convertChain = (chain: string) => ({
-    gnosis: "xdai",
-    avalanche: "avax"
-}[chain] ?? chain)
+import { convertChain } from "./utils/convertChain";
 
 function getUsersChain(chain: string) {
     return async (start: number, end: number) => {

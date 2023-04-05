@@ -8,7 +8,9 @@ async function main(){
             const end = Math.floor(Date.now()/1e3)
             const start = end - 24*3600
             const users = await getUsers(start, end)
-            console.log(`${name.padEnd(15, " ")} - ${humanizeNumber(users)}`)
+            Object.entries(users).forEach(([chain, userNum])=>{
+                console.log(`${name.padEnd(15, " ")} - ${chain.padEnd(15, " ")} - ${humanizeNumber(userNum as number)}`)
+            })
         } catch(e){
             console.log(`Adapter for ${name} failed with error`, e)
         }
