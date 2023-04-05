@@ -96,10 +96,6 @@ const adapter: BreakdownAdapter = {
         fetch: fetchV2(CHAIN.BSC),
         start: async () => 1677801600
       },
-      [CHAIN.BSC]: {
-        fetch: graphsV2(CHAIN.BSC),
-        start: async () => 1677715200
-      },
     }
   },
 };
