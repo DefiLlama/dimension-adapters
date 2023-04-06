@@ -38,7 +38,6 @@ export default [
             "addresses":{
                 "ethereum":[
                     "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",
-                    "0x044b75f554b886A065b9567891e45c79542d7357" //v3
                 ],
                 "arbitrum":[
                     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
@@ -67,6 +66,8 @@ export default [
                 "ethereum":[
                     "0xf5bce5077908a1b7370b9ae04adc565ebd643966",
                     "0xF70c086618dcf2b1A461311275e00D6B722ef914",
+                    "0x044b75f554b886A065b9567891e45c79542d7357",
+                    "0x7af71799C40F952237eAA4D81A77C1af49125113"
                 ],
                 "arbitrum":[
                     "0x74c764d41b77dbbb4fe771dab1939b00b146894a",
