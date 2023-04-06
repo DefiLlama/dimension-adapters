@@ -38,26 +38,22 @@ export default [
             "addresses":{
                 "ethereum":[
                     "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",
-                    "0xF70c086618dcf2b1A461311275e00D6B722ef914",
                     "0x044b75f554b886A065b9567891e45c79542d7357" //v3
                 ],
                 "arbitrum":[
-                    "0x9c6522117e2ed1fE5bdb72bb0eD5E3f2bdE7DBe0"
-                ],
-                "optimism":[
-                    "0xD9988b4B5bBC53A794240496cfA9Bf5b1F8E0523"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
                 ],
                 "avax":[
-                    "0xD75F5369724b513b497101fb15211160c1d96550"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
                 ],
                 "polygon":[
-                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
                 ],
                 "fantom":[
-                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
                 ],
                 "bsc":[
-                    "0x7cf167390E2526Bc03F3CF6852A7AF1CEC3e243d"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
                 ],
                 "xdai":[
                     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
@@ -69,22 +65,38 @@ export default [
             "name":"Sushi BentoBox",
             "addresses":{
                 "ethereum":[
-                    "0xf5bce5077908a1b7370b9ae04adc565ebd643966"
+                    "0xf5bce5077908a1b7370b9ae04adc565ebd643966",
+                    "0xF70c086618dcf2b1A461311275e00D6B722ef914",
                 ],
                 "arbitrum":[
-                    "0x74c764d41b77dbbb4fe771dab1939b00b146894a"
+                    "0x74c764d41b77dbbb4fe771dab1939b00b146894a",
+                    "0x9c6522117e2ed1fE5bdb72bb0eD5E3f2bdE7DBe0",
+                    "0x9f18658f7206EaA8D885bBfBb95aB6D9f6c6C12F"
                 ],
                 "optimism":[
-                    "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"
+                    "0xF0cBce1942A68BEB3d1b73F0dd86C8DCc363eF49",
+                    "0x96E04591579f298681361C6122Dc4Ef405c19385",
+                    "0xD9988b4B5bBC53A794240496cfA9Bf5b1F8E0523"
                 ],
                 "polygon":[
-                    "0x0319000133d3AdA02600f0875d2cf03D442C3367"
+                    "0x0319000133d3AdA02600f0875d2cf03D442C3367",
+                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B"
                 ],
                 "avax":[
-                    "0x0711B6026068f736bae6B213031fCE978D48E026"
+                    "0x0711B6026068f736bae6B213031fCE978D48E026",
+                    "0xD75F5369724b513b497101fb15211160c1d96550",
+                    "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F",
+                    "0x400d75dAb26bBc18D163AEA3e83D9Ea68F6c1804"
                 ],
                 "bsc":[
-                    "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966"
+                    "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966",
+                    "0xD75F5369724b513b497101fb15211160c1d96550",
+                    "0x7cf167390E2526Bc03F3CF6852A7AF1CEC3e243d",
+                ],
+                "fantom":[
+                    "0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715",
+                    "0x3D2f8ae0344d38525d2AE96Ab750B83480c0844F",
+                    "0x9e4791ad13f14783C7B2A6A7bD8D6DDD1DC95847"
                 ]
             }
         },
