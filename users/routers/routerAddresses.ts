@@ -1368,6 +1368,15 @@ export default [
                 ],
                 "heco":[]
             }
+        },
+        {
+            "id":"2779",
+            "name":"ZenithSwap",
+            "addresses":{
+                "arbitrum":[
+                    "0x8CA9EF098F84ceDa319Ec12B9d21EeF50AA3624C"
+                ]
+            }
         }
 
 
