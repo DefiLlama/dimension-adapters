@@ -81,7 +81,10 @@ export default [
                 ],
                 "polygon":[
                     "0x0319000133d3AdA02600f0875d2cf03D442C3367",
-                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B"
+                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B",
+                    "0x5097CBB61D3C75907656DC4e3bbA892Ff136649a",
+                    "0x1A52AfDd24994704e61fEC49924d6c5388Ae47fD",
+                    "0x7CD29170e8fA3fE5204624deDE5A66F4e8161741"
                 ],
                 "avax":[
                     "0x0711B6026068f736bae6B213031fCE978D48E026",
