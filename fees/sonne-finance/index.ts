@@ -36,8 +36,8 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
 
   const prices = await getPrices(
     [
-      ...underlyings.map((x) => `${CHAIN.OPTIMISM}:${x}`),
-      `${CHAIN.OPTIMISM}:${veloToken}`,
+      ...underlyings.map((x: string) => `${CHAIN.OPTIMISM}:${x.toLowerCase()}`),
+      `${CHAIN.OPTIMISM}:${veloToken.toLowerCase()}`,
     ],
     timestamp
   );
@@ -91,7 +91,7 @@ const getDailyProtocolFees = async ({
   logs.forEach((log: IAccrueInterestLog) => {
     const marketIndex = markets.indexOf(log.market);
     const underlying = underlyings[marketIndex].toLowerCase();
-    const price = prices[`${CHAIN.OPTIMISM}:${underlying.toLocaleLowerCase()}`];
+    const price = prices[`${CHAIN.OPTIMISM}:${underlying.toLowerCase()}`];
 
     const interestTokens = +ethers.utils.formatUnits(
       log.interestAccumulated,
