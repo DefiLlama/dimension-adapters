@@ -1,40 +1,58 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { Chain } from "@defillama/sdk/build/general";
 interface IGraph {
   dailyTradeVolumeUSD: string;
   dayID: string;
 }
 
-const URL =
-  "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange";
+type TEndpoint = {
+  [s: string | Chain]: string;
+};
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const dayID = dayTimestamp / 86400;
-  const query = gql`
-    {
-        protocolDayData(id: "${dayID}") {
-            dayID
-            dailyTradeVolumeUSD
-        }
-    }
-    `;
-  const response: IGraph = (await request(URL, query)).protocolDayData;
-  const dailyVolume = Number(response.dailyTradeVolumeUSD) / 2;
+const endpoints: TEndpoint = {
+  [CHAIN.BSC]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange",
+  [CHAIN.ARBITRUM]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
+};
 
-  return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+const fetchVolume = (chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultVolume> => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1000)
+    );
+    const dayID = dayTimestamp / 86400;
+    const query = gql`
+      {
+          protocolDayData(id: "${dayID}") {
+              dayID
+              dailyTradeVolumeUSD
+          }
+      }
+      `;
+    const response: IGraph = (await request(endpoints[chain], query))
+      .protocolDayData;
+    const dailyVolume = Number(response.dailyTradeVolumeUSD) / 2;
+
+    return {
+      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      timestamp: dayTimestamp,
+    };
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch,
+      fetch: fetchVolume(CHAIN.BSC),
       start: async () => 1650243600,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchVolume(CHAIN.ARBITRUM),
+      start: async () => 1679809928,
     },
   },
 };
