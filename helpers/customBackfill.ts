@@ -2,6 +2,7 @@ import { ChainBlocks, Fetch, FetchResultGeneric } from "../adapters/types"
 import { getBlock } from "./getBlock"
 import { util } from '@defillama/sdk';
 import { Chain } from "@defillama/sdk/build/general";
+import BigNumber from "bignumber.js";
 
 const { blocks: { chainsForBlocks } } = util
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -21,11 +22,12 @@ export default (chain: Chain, graphs: IGraphs): Fetch => async (timestamp: numbe
         const dimension = `daily${key.slice(5)}`
         if (resultDayN[dimension] === undefined) {
             const dataResultDayN = resultDayN[key]
-            const dataResultPreviousDayN = resultDayN[key]
+            const dataResultPreviousDayN = resultPreviousDayN[key]
             if (dataResultPreviousDayN !== undefined && dataResultDayN !== undefined) {
                 if (typeof dataResultDayN === 'object' && typeof dataResultPreviousDayN === 'object') {
                     response[dimension] = Object.keys(dataResultDayN).reduce((acc, key) => {
-                        acc[key] = `${Number(dataResultDayN[key]) - Number(dataResultPreviousDayN[key])}`
+                        if (dataResultDayN[key] !== undefined && dataResultPreviousDayN[key] !== undefined)
+                            acc[key] = BigNumber(dataResultDayN[key]).minus(dataResultPreviousDayN[key]).toString()
                         return acc
                     }, {} as typeof dataResultDayN)
                 } else {

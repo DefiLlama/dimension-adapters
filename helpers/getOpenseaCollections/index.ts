@@ -2,7 +2,7 @@ import { BreakdownAdapter, FetchResult } from "../../adapters/types";
 import type { ChainEndpoints, IJSON } from "../../adapters/types"
 import { request, gql } from "graphql-request";
 import collectionsList from './collections'
-import { getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
+import { getUniqStartOfTodayTimestamp, getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
 import customBackfill from "../customBackfill";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -66,21 +66,23 @@ const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<
     return collections.reduce((acc, curr) => ({ ...acc, [curr.collection.id]: curr }), {} as IJSON<ICollectionDailySnapshot>)
 }
 
-let collections: IJSON<ICollectionDailySnapshot> | undefined = undefined
+let collections: IJSON<IJSON<ICollectionDailySnapshot>> = {}
 
 export const collectionFetch = (collectionId: string, graphUrl: string) => async (timestamp: number) => {
-    if (!collections) {
-        collections = await getCollectionsData(timestamp, graphUrl)
+    const cleanTimestampKey = String(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))
+    if (!collections[cleanTimestampKey]) {
+        const response = await getCollectionsData(timestamp, graphUrl)
+        if (response) collections[cleanTimestampKey] = response
     }
     const res = { timestamp } as FetchResult
-    if (!collections || !collections[collectionId]) {
+    if (!collections[cleanTimestampKey] || !collections[cleanTimestampKey][collectionId]) {
         return res
     }
-    if (collections[collectionId].creatorRevenueETH !== undefined) {
-        res['totalUserFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
-        res['totalFees'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
-        res['totalRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
-        res['totalProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+    if (collections[cleanTimestampKey][collectionId].creatorRevenueETH !== undefined) {
+        res['totalUserFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalProtocolRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
     }
     return res
 }
