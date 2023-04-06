@@ -600,10 +600,10 @@ export default [
             }
         },
         {
-            "id":"",
+            "id":"1028",
             "name":"MM Finance Cronos",
             "addresses":{
-                "bsc":[
+                "cronos":[
                     ""
                 ]
             }
@@ -627,19 +627,19 @@ export default [
             }
         },
         {
-            "id":"",
+            "id":"2015",
             "name":"MM Stableswap Polygon",
             "addresses":{
-                "bsc":[
+                "polygon":[
                     ""
                 ]
             }
         },
         {
-            "id":"",
+            "id":"1971",
             "name":"MM Stableswap",
             "addresses":{
-                "bsc":[
+                "cronos":[
                     ""
                 ]
             }
@@ -937,13 +937,27 @@ export default [
             }
         },
         {
-            "id":"",
+            "id":"2751",
             "name":"LFGSwap",
             "addresses":{
                 "arbitrum":[
                     "0xF83675ac64a142D92234681B7AfB6Ba00fa38dFF"
                 ],
                 "ethpow":[],
+                "core":[]
+            }
+        },
+        {
+            "id":"2166",
+            "name":"LFGSwap EthereumPoW",
+            "addresses":{
+                "ethpow":[]
+            }
+        },
+        {
+            "id":"2647",
+            "name":"LFGSwap Core",
+            "addresses":{
                 "core":[]
             }
         },
