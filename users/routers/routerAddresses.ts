@@ -944,7 +944,7 @@ export default [
             }
         },
         {
-            "id":"387",
+            "id":"659",
             "name":"JetSwap",
             "addresses":{
                 "bsc":[
