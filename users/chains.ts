@@ -57,7 +57,7 @@ async function tronscan(start: number, _end: number) {
     return findClosestItem(results, start, t=>t.day_time).active_count
 }
 
-export const users = [
+export default [
     "arbitrum", "avalanche", "bsc", "ethereum", "gnosis", "optimism", "polygon",
     // "terra2", "flow"
 ].map(c => ({ name: c, getUsers: getUsersChain(c) })).concat([
@@ -103,4 +103,8 @@ export const users = [
         name: "tron",
         getUsers: tronscan
     },
-])
+]).map(chain=>({
+    name: chain.name,
+    id: `chain#${chain.name}`,
+    getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>({all:u}))
+}))

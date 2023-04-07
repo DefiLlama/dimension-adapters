@@ -49,7 +49,7 @@ ${chainArray.concat([["both", []]]).map(([chain])=>`${chain}_count`).join(' CROS
     }
 }
 
-export const users = routerAddresses.map(addresses=>({
+export default routerAddresses.map(addresses=>({
     name: addresses.name,
     id: addresses.id,
     getUsers: getUsers(addresses.addresses as any)
