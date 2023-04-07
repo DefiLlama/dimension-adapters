@@ -115,7 +115,10 @@ export default [
             "id":"221",
             "name":"Defi Swap",
             "addresses":{
-                "ethereum":["0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"]
+                "ethereum":["0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"],
+                "arbitrum":[
+                    "0xCeB90E4C17d626BE0fACd78b79c9c87d7ca181b3"
+                ]
             }
         },
         {
@@ -150,7 +153,10 @@ export default [
             "id":"324",
             "name":"Unicly",
             "addresses":{
-                "ethereum":["0xe6e90bc9f3b95cdb69f48c7bfdd0ede1386b135a"]
+                "ethereum":["0xe6e90bc9f3b95cdb69f48c7bfdd0ede1386b135a"],
+                "arbitrum":[
+                    "0xE6E90bC9F3b95cdB69F48c7bFdd0edE1386b135a"
+                ]
             }
         },
         {
@@ -246,21 +252,6 @@ export default [
             "addresses":{
                 "arbitrum":[
                     "0x3E48298A5Fe88E4d62985DFf65Dee39a25914975"
-                ]
-            }
-        },
-        {
-            "id":"2393",
-            "name":"Joe V2",
-            "addresses":{
-                "arbitrum":[
-                    "0x7BFd7192E76D950832c77BB412aaE841049D8D9B"
-                ],
-                "avax":[
-                    "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3"
-                ],
-                "bsc":[
-                    "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
                 ]
             }
         },
@@ -867,24 +858,6 @@ export default [
             "addresses":{
                 "arbitrum":[
                     "0x38eEd6a71A4ddA9d7f776946e3cfa4ec43781AE6"
-                ]
-            }
-        },
-        {
-            "id":"221",
-            "name":"Defi Swap",
-            "addresses":{
-                "arbitrum":[
-                    "0xCeB90E4C17d626BE0fACd78b79c9c87d7ca181b3"
-                ]
-            }
-        },
-        {
-            "id":"324",
-            "name":"Unicly",
-            "addresses":{
-                "arbitrum":[
-                    "0xE6E90bC9F3b95cdB69F48c7bFdd0edE1386b135a"
                 ]
             }
         },
