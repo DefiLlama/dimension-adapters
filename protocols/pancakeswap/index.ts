@@ -36,7 +36,7 @@ const graphs = getGraphDimensions({
     HoldersRevenue: 0.0575,
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
-    Revenue: 0.0225// 0.25
+    Revenue: 0.08
   }
 });
 
