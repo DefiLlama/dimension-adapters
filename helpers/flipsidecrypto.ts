@@ -15,7 +15,7 @@ export async function queryFlipside(sqlQuery: string) {
           "cache": true
         }, {
           headers: {
-            "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
+            "x-api-key": "f3b65679-a179-4983-b794-e41cf40103ed"
           }
         })
         token[sqlQuery] = query?.data.token
@@ -27,7 +27,7 @@ export async function queryFlipside(sqlQuery: string) {
 
       const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${token[sqlQuery]}`, {
         headers: {
-          "x-api-key": "915bc857-d8d2-4445-8c55-022ab853476e"
+          "x-api-key": "f3b65679-a179-4983-b794-e41cf40103ed"
         }
       })
 
