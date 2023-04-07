@@ -5,6 +5,7 @@ import collectionsList from './collections'
 import { getUniqStartOfTodayTimestamp, getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
 import customBackfill from "../customBackfill";
 import { Chain } from "@defillama/sdk/build/general";
+import { getBlock } from "../getBlock";
 
 interface ICollection {
     id: string
@@ -39,34 +40,30 @@ interface ICollectionDailySnapshot {
     dailyTradedItemCount: number
 }
 const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollectionDailySnapshot> | undefined> => {
-    const dayId = getUniswapDateId(new Date(timestamp * 1000))
+const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollection> | undefined> => {
+    const blockTimestamp = await getBlock(timestamp, 'ethereum', {});
     const graphQuery = gql
-        `{
-      collectionDailySnapshots(
-        where:{id_in: [${Object.keys(collectionsList).map(c => `"${c.toLowerCase()}-${dayId}"`).join(',')}]}
-      ) {
-        id
-        timestamp
-        collection {
-          royaltyFee
-          id
-          name
-          nftStandard
-        }
-        creatorRevenueETH
-        totalRevenueETH
-        marketplaceRevenueETH
-      }
-    }`;
+        `
+        {
+            collections(
+              where: {id_in: ["${Object.keys(collectionsList).map(c => c.toLowerCase()).join('","')}"]}
+              block: {number: ${blockTimestamp}}
+            ) {
+              id
+              royaltyFee
+              creatorRevenueETH
+              totalRevenueETH
+              marketplaceRevenueETH
+            }
+          }`;
     const graphRes = await request(graphUrl, graphQuery)
-    const collections = graphRes['collectionDailySnapshots'] as ICollectionDailySnapshot[];
+    const collections = graphRes['collections'] as ICollection[];
     if (!collections || collections.length <= 0) return undefined
 
-    return collections.reduce((acc, curr) => ({ ...acc, [curr.collection.id]: curr }), {} as IJSON<ICollectionDailySnapshot>)
+    return collections.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {} as IJSON<ICollection>)
 }
 
-let collections: IJSON<IJSON<ICollectionDailySnapshot>> = {}
+let collections: IJSON<IJSON<ICollection>> = {}
 
 export const collectionFetch = (collectionId: string, graphUrl: string) => async (timestamp: number) => {
     const cleanTimestampKey = String(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))
