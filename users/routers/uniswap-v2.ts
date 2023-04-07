@@ -49,7 +49,9 @@ ${chainArray.concat([["both", []]]).map(([chain])=>`${chain}_count`).join(' CROS
     }
 }
 
-export default routerAddresses.map(addresses=>({
+export default routerAddresses.filter(addresses=>{
+    return Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys.length>0)
+}).map(addresses=>({
     name: addresses.name,
     id: addresses.id,
     getUsers: getUsers(addresses.addresses as any)
