@@ -6,7 +6,7 @@ const {
   getChainVolume,
 } = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
-  [CHAIN.IOTEX]: "https://graph-cache.mimo.exchange/subgraphs/name/mimo/mainnet"
+  [CHAIN.IOTEX]: "https://graph.mimo.exchange/subgraphs/name/mimo/mainnet"
 };
 
 const graphs = getChainVolume({
