@@ -26,9 +26,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
       start: async () => 1678404995, // birthBlock timestamp
-      meta: {
-        methodology: 'Accumulated volume is calculated by summing up all the swaps on the SmarDex protocol.',
-      }
     },
   },
 };
