@@ -44,14 +44,20 @@ const adapter: SimpleAdapter = {
             `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain}`
           );
 
-          const matchedObj = response.data.find(
+          const totalVol = response.data.reduce(
+            (sum: number, entry: ResEntry) => sum + entry.volumeUSD,
+            0
+          );
+
+          const dateEntry = response.data.find(
             (entry: ResEntry) => entry.date === cleanTimestamp
           );
-          const vol = matchedObj ? matchedObj.volumeUSD : undefined;
+          const dailyVol = dateEntry ? dateEntry.volumeUSD : undefined;
 
           return {
             timestamp: cleanTimestamp,
-            dailyVolume: vol,
+            dailyVolume: dailyVol,
+            totalVolume: totalVol,
           };
         },
         start: async () => getStartTime(chain),
