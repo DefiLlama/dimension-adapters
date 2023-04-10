@@ -6,7 +6,6 @@ import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { ethers } from "ethers";
 import { getPrices } from "../utils/prices";
-import { type } from "os";
 
 const topic0_fee_paid = '0x150276cb173fff450b089197a2ff8a9b82d3efbf988df82ba90a00bbe48602f5';
 const topic0_trove_liq = '0x44b1a33c624451b36e8d636828145aa4eb39bd6cc5e2cf623bb270d3abc38c88';
