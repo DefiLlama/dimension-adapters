@@ -1,14 +1,13 @@
 import {Adapter, ChainEndpoints} from "../../adapters/types";
-import {POLYGON, XDAI} from "../../helpers/chains";
+import {CHAIN} from "../../helpers/chains";
 import {Bet, BetResult} from "./types";
 import {Chain} from "@defillama/sdk/build/general";
 import {request, gql} from "graphql-request";
 import {getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC} from "../../utils/date";
-import BigNumber from "bignumber.js";
 
 const endpoints = {
-    [POLYGON]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-polygon",
-    [XDAI]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-gnosis"
+    [CHAIN.POLYGON]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-polygon",
+    [CHAIN.XDAI]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-gnosis"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -22,20 +21,20 @@ const graphs = (graphUrls: ChainEndpoints) => {
             while (true) {
                 const graphQuery = gql`
                     {
-                      bets(
-                        where: {
-                          status: Resolved, 
-                          isFreebet: false
-                          createdBlockTimestamp_gte: ${yesterdaysTimestamp}, 
-                          createdBlockTimestamp_lte: ${todaysTimestamp}, 
+                        bets(
+                            where: {
+                            status: Resolved,
+                            isFreebet: false
+                            createdBlockTimestamp_gte: ${yesterdaysTimestamp},
+                            createdBlockTimestamp_lte: ${todaysTimestamp},
+                            }
+                            first: 1000,
+                            skip: ${skip}
+                        ) {
+                            amount
+                            odds
+                            result
                         }
-                        first: 1000,
-                        skip: ${skip}
-                      ) { 
-                        amount
-                        odds
-                        result
-                      }
                     }
                     `;
                 const graphRes = await request(graphUrls[chain], graphQuery);
@@ -46,34 +45,39 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 if (graphRes.bets.length < 1000) break
             }
 
-            let dailyFees = new BigNumber(0)
-            // amount - (amount * odds * won)
-            bets.forEach(({ result, amount, odds }) => {
-                if (result === BetResult.Won){
-                    dailyFees = dailyFees.plus(Number(amount) - (Number(odds) * Number(amount)))
-                }
-                else {
-                    dailyFees = dailyFees.plus(Number(amount))
-                }
-            })
+            const dailyFees = bets.reduce((e: number, {amount}) => e+Number(amount), 0)
+            const wonAmount = bets.filter(({result}) => result === BetResult.Won)
+                                .reduce((e: number, {amount, odds}) => e+Number(amount) * Number(odds), 0)
+            const dailyRevenue = dailyFees - wonAmount;
             return {
                 timestamp,
-                dailyFees: dailyFees.toFixed(2),
-                dailyRevenue: dailyFees.toFixed(2)
+                dailyFees: dailyFees.toString(),
+                dailyRevenue: dailyRevenue.toString(),
             };
         }
     }
 }
 
+const methodology = {
+    Fees: "all money that users spent taking bets (win or lose)",
+    Revenue: "how much money pool makes, including wins and losses",
+}
+
 const adapter: Adapter = {
     adapter: {
-        [POLYGON]: {
-            fetch: graphs(endpoints)(POLYGON),
-            start: async () => 1609459200,
+        [CHAIN.POLYGON]: {
+            fetch: graphs(endpoints)(CHAIN.POLYGON),
+            start: async () => 1657756800,
+            meta: {
+                methodology
+            }
         },
-        [XDAI]: {
-            fetch: graphs(endpoints)(XDAI),
-            start: async () => 1609459200,
+        [CHAIN.XDAI]: {
+            fetch: graphs(endpoints)(CHAIN.XDAI),
+            start: async () => 1657756800,
+            meta: {
+                methodology
+            }
         },
     }
 }
