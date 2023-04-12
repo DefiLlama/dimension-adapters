@@ -8,6 +8,10 @@ const PROTOCOL_FEES = 0.0003;
 const feeAdapter: BaseAdapter = getDexChainFees({
   totalFees: TOTAL_FEES,
   protocolFees: PROTOCOL_FEES,
+  supplySideRevenue: 0.002,
+  holdersRevenue: 0.0003,
+  revenue: 0.0003,
+  userFees: TOTAL_FEES,
   volumeAdapter
 });
 
