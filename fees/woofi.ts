@@ -29,7 +29,7 @@ const fee_detail: TFeeDetail = {
     targetDecimal: 18,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x0000000000000000000000008c603050d7a913b6f63836e07ebf385a4a5736e7',
+      '0x000000000000000000000000da5e1d3aaa93e8716f87b5ee39e5f514cc934d5e',
     ]
   },
   [CHAIN.FANTOM]: {
