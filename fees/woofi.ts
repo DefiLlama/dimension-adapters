@@ -25,7 +25,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.BSC]: {
-    target: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
+    target: '0x55d398326f99059fF775485246999027B3197955',
     targetDecimal: 18,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -73,7 +73,6 @@ interface ITx  {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const nextDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
     const fromBlock = (await getBlock(nextDayTimestamp, chain, {}));
     const toBlock = (await getBlock(nextDayTimestamp + 8400, chain, {}));
 
