@@ -6,8 +6,11 @@ const endpoints = {
   [CHAIN.CORE]: "https://subgraph.satoshiswap.exchange/subgraphs/name/pancakeswap/exchange",
 };
 
-const adapter = univ2Adapter(endpoints, {});
+const adapter = univ2Adapter(endpoints, {
+  factoriesName: "pancakeFactories",
+  dayData: "pancakeDayData",
+});
 
-adapter.adapter.core.start = async()=> 1680700002;
+adapter.adapter.core.start = async()=> 1680825600;
 
 export default adapter
