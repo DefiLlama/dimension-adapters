@@ -7,8 +7,8 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 interface IPoolData {
-  date: number;
-  dailyFeeUSD: string;
+  id: number;
+  feesUSD: string;
 }
 
 type IURL = {
@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm"
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-v3"
 }
 
 const fetch = (chain: Chain) => {
@@ -26,16 +26,16 @@ const fetch = (chain: Chain) => {
     const graphQuery = gql
       `
       {
-        uniswapDayData(id: ${dateId}) {
+        algebraDayData(id: ${dateId}) {
           id
-          dailyFeeUSD
+          feesUSD
         }
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).uniswapDayData;
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
     const dailyFeeUSD = graphRes;
-    const dailyFee = dailyFeeUSD?.dailyFeeUSD ? new BigNumber(dailyFeeUSD.dailyFeeUSD) : undefined
+    const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
 
     return {
@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1667952000,
+      start: async () => 1680220800,
     },
   },
 };
