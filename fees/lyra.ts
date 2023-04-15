@@ -29,6 +29,7 @@ interface IDayFeesResponse {
     liquidatorFees: string;
     smLiquidationFees: string;
     lpLiquidationFees: string;
+    premiumVolume: string;
   }>;
 }
 
@@ -45,6 +46,7 @@ const graph = (graphUrls: ChainEndpoints) => {
         liquidatorFees
         smLiquidationFees
         lpLiquidationFees
+        premiumVolume
       }
     }
   `;
@@ -75,6 +77,7 @@ const graph = (graphUrls: ChainEndpoints) => {
                   .add(BigNumber.from(obj.liquidatorFees))
                   .add(BigNumber.from(obj.smLiquidationFees))
                   .add(BigNumber.from(obj.lpLiquidationFees))
+                  .add(BigNumber.from(obj.premiumVolume))
                   .div(UNIT)
                   .toNumber(),
             };
