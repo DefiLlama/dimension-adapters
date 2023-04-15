@@ -17,7 +17,7 @@ const methodology = {
     Fees: "Includes all treasury revenue, all revenue to CVX lockers and stakers and all revenue to liquid derivatives (cvxCRV, cvxFXS)",
     HoldersRevenue: "All revenue going to CVX lockers and stakers, including bribes",
     Revenue: "Sum of protocol revenue and holders' revenue",
-    ProtocolRevenue: "Share of revenue going to Convex treasury (includes caller incentives on Frax pools)",
+    ProtocolRevenue: "Share of revenue going to Convex treasury (includes caller incentives on Frax pools, POL yield and Votemarket bribes)",
     SupplySideRevenue: "All CRV, CVX and FXS rewards redistributed to liquidity providers staking on Convex.",
 }
 
@@ -43,6 +43,7 @@ const graph = (graphUrls: ChainEndpoints) => {
                         fxsRevenueToCallersAmount
                         crvRevenueToPlatformAmount
                         fxsRevenueToPlatformAmount
+                        otherRevenue
                         bribeRevenue
                     }
                 }`;
@@ -59,8 +60,8 @@ const graph = (graphUrls: ChainEndpoints) => {
             const dailyHoldersRevenue = snapshot.bribeRevenue.plus(snapshot.crvRevenueToCvxStakersAmount).plus(snapshot.fxsRevenueToCvxStakersAmount);
             // cvxCRV & cvxFXS liquid lockers revenue
             const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount.plus(snapshot.cvxRevenueToCvxCrvStakersAmount).plus(snapshot.threeCrvRevenueToCvxCrvStakersAmount).plus(snapshot.fxsRevenueToCvxFxsStakersAmount);
-            // Share of revenue redirected to treasury, includes call incentives monopolized by the protocol (FXS)
-            const dailyTreasuryRevenue = snapshot.crvRevenueToPlatformAmount.plus(snapshot.fxsRevenueToPlatformAmount).plus(snapshot.fxsRevenueToCallersAmount);
+            // Share of revenue redirected to treasury, includes call incentives monopolized by the protocol (FXS), POL revenue & vote market bribes
+            const dailyTreasuryRevenue = snapshot.crvRevenueToPlatformAmount.plus(snapshot.fxsRevenueToPlatformAmount).plus(snapshot.fxsRevenueToCallersAmount).plus(snapshot.otherRevenue);
 
             // Platform fee on CRV rewards + Rewards to liquid lockers + Rewards to CVX holders
             const dailyFees = dailyTreasuryRevenue.plus(liquidRevenue).plus(dailyHoldersRevenue);
