@@ -23,7 +23,7 @@ const endpoints = {
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($timestampEndOfDay: Int!) 
+  const graphQuery = gql`query fees($timestampEndOfDay: Int!)
   {
     dailyPoolSnapshots (
       orderBy: timestamp
@@ -50,13 +50,15 @@ const graph = (graphUrls: ChainEndpoints) => {
       const graphRes = await request(graphUrls[chain], graphQuery, {
         timestampEndOfDay
       });
-      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+
+      const blacklist = ['ypaxCrv', 'A3CRV-f']
+      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.totalDailyFeesUSD);
       })
-      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.adminFeesUSD);
       });
-      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.lpFeesUSD);
       });
 
