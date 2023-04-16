@@ -11,6 +11,7 @@ import { ethers } from "ethers";
 import seaport_abi from "./seaport_abi.json"
 import { mapAllOrders } from "./maptest";
 import BigNumber from "bignumber.js";
+import { clearInterval } from "timers";
 
 interface ICollection {
     id: string
@@ -134,56 +135,81 @@ interface QueryTransactionResult {
     price: string
 }
 
-
-const payoutAddress = "0xf3b985336fd574a0aa6e02cbe61c609861e923d6"
-export const collectionFetch = (_collectionId: string, _graphUrl: string) => async (timestamp: number) => {
+let rangeSeaportTxs: QueryTransactionResult[] | undefined
+let queryStarted = false
+export const collectionFetch = (payoutAddress: string, _graphUrl: string) => async (timestamp: number) => {
+    // get range to search
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const sql = postgres(process.env.INDEXA_DB!);
     const startDay = new Date((todaysTimestamp - 60 * 60 * 24) * 1e3);
     const endDay = new Date((todaysTimestamp + 60 * 60 * 24 * 2) * 1e3);
-    const rangeSeaportTxs = (await sql`
-          SELECT
-            *
-          FROM ethereum.transactions
-            INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-          WHERE ( to_address = '\\x00000000000001ad428e4906ae43d8f9852d0dd6'::bytea -- Seaport 1.4
-          ) AND (block_time BETWEEN ${startDay.toISOString()} AND ${endDay.toISOString()});`) as QueryTransactionResult[]
-
-    const allNames = [] as string[]
-    const txExample = [] as string[]
-    const mapAllOrders = {} as IJSON<ethers.TransactionDescription>
-    const iface = new ethers.Interface(seaport_abi)
-    for (let tx of rangeSeaportTxs) {
-        try {
-            const uh = iface.parseTransaction({ data: `0x${tx.data.toString('hex')}` })
-            if (!allNames.includes(uh?.fragment.name ?? '')) {
-                allNames.push(uh?.fragment.name ?? '')
-                txExample.push(uh?.args[0][16])
-            }
-            if (uh !== null)
-                mapAllOrders[uh?.fragment.name ?? ''] = uh
-            //console.log(uh?.args[0][16].find(([_amount, addr]: [number, string]) => payoutAddress.toLowerCase() === addr.toLowerCase()))
-        } catch (error) {
-            // @ts-ignore
-            console.log(error.message)
-        }
+    // query seaport 1.4 transactions
+    if (rangeSeaportTxs === undefined && !queryStarted) {
+        queryStarted = true
+        const sql = postgres(process.env.INDEXA_DB!);
+        rangeSeaportTxs = (await sql`
+        SELECT
+        *
+        FROM ethereum.transactions
+        INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+        WHERE ( to_address = '\\x00000000000001ad428e4906ae43d8f9852d0dd6'::bytea -- Seaport 1.4
+        ) AND (block_time BETWEEN ${startDay.toISOString()} AND ${endDay.toISOString()});`) as QueryTransactionResult[]
+        await sql.end({ timeout: 3 })
     }
-    Object.entries(mapAllOrders).forEach(([key, tx]) => {
-        console.log(key, parseTxByType(tx as unknown as ethers.TransactionDescription, key))
-    })
-    const res = { timestamp } as FetchResult
+    // parse transactions of that range using seaport abi
+    const iface = new ethers.Interface(seaport_abi)
+    // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
+    const processedFees = await patientExtractFeesByPayout(iface, payoutAddress)
+
+    const res = { timestamp, dailyFees: processedFees } as FetchResult
     return res
 }
 
-const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
+const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress: string) => {
+    return new Promise((resolve) => {
+        const intervalid = setInterval(() => {
+            if (rangeSeaportTxs !== undefined) {
+                clearInterval(intervalid)
+                const allTxs = rangeSeaportTxs.map(tx => {
+                    try {
+                        return iface.parseTransaction({ data: `0x${tx.data.toString('hex')}` })
+                    } catch (e) {
+                        // @ts-ignore
+                        console.error("parsetx", e.message)
+                    }
+                }).filter((tx): tx is ethers.TransactionDescription => !!tx)
+                // extract fees based on payoutAddress and sum them
+                const allPayouts = [] as ReturnType<typeof extractFeesByPayoutAddress>
+                for (const tx of allTxs) {
+                    allPayouts.push(...extractFeesByPayoutAddress(tx, payoutAddress))
+                }
+                console.log(allPayouts.slice(0, 5))
+                resolve(allPayouts.reduce((acc, payout) => {
+                    console.log("payout", payout)
+                    Object.entries(payout).forEach(([token, balance]) => {
+                        let sum = balance
+                        console.log("Balance is", balance)
+                        if (acc[token]) sum = BigNumber(acc[token]).plus(BigNumber(balance)).toString()
+                        console.log("Balance is sum", sum)
+                        acc[token] = sum
+                        return acc
+                    })
+                    return acc
+                }, {} as IJSON<string>))
+            } else {
+            }
+        }, 3000)
+    });
+}
+
+const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAddress: string) => {
     let considerationArr
     let fee
     let response = [] as (IJSON<string> | undefined)[]
     try {
-        switch (type) {
+        switch (tx.fragment.name) {
             case "fulfillAdvancedOrder":
             case "fulfillOrder":
-                response = [processAdvancedOrder(tx?.args[0])]
+                response = [processAdvancedOrder(tx?.args[0], payoutAddress)]
                 break
             case "fulfillAvailableOrders":
             case "fulfillAvailableAdvancedOrders":
@@ -191,7 +217,7 @@ const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
             case "matchOrders":
                 const advancedOrders = [] as (IJSON<string> | undefined)[]
                 tx?.args[0].forEach((order: any) => {
-                    advancedOrders.push(processAdvancedOrder(order))
+                    advancedOrders.push(processAdvancedOrder(order, payoutAddress))
                 })
                 response = advancedOrders
                 break
@@ -199,18 +225,25 @@ const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
                 considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
-                fee = BigNumber(considerationArr[0])
-                response = [{
-                    [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-                }]
+                if (considerationArr) {
+                    fee = BigNumber(considerationArr[0])
+                    console.log("Fee before", fee)
+                    response = [{
+                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                    }]
+                }
+                break
             case "fulfillBasicOrder_efficient_6GL6yc":
                 considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
-                fee = BigNumber(tx?.args[0][0])
-                response = [{
-                    [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-                }]
+                if (considerationArr) {
+                    fee = BigNumber(tx?.args[0][0])
+                    console.log("Fee before", fee)
+                    response = [{
+                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                    }]
+                }
                 break
             default:
                 response = []
@@ -218,13 +251,13 @@ const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
         }
     } catch (error) {
         // @ts-ignore
-        console.error(tx?.args)
+        console.error("extracttx", tx?.args, error)
     }
-    return response.filter(el => el !== undefined)
+    return response.filter((el): el is IJSON<string> => el !== undefined)
 }
 
 
-const processAdvancedOrder = (order: any) => {
+const processAdvancedOrder = (order: any, payoutAddress: string) => {
     const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
         consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
     )
@@ -236,13 +269,13 @@ const processAdvancedOrder = (order: any) => {
 }
 
 export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['breakdown'] => {
-    return Object.entries(graphUrls).reduce((acc, [chain, graphURL], _index) => {
-        ["Object.keys(collectionsList)"].forEach((collectionID) => {
-            acc[collectionID] = {
+    const graphUrlsEntries = Object.entries(graphUrls)
+    return Object.keys(collectionsList).reduce((acc, collectionAddress) => {
+        for (const [chain, graphURL] of graphUrlsEntries) {
+            acc[collectionAddress] = {
                 [chain]: {
-                    fetch: collectionFetch(collectionID, graphURL),
+                    fetch: collectionFetch(collectionAddress, graphURL),
                     start: async () => start,
-                    // customBackfill: customBackfill(chain as Chain, () => collectionFetch(collectionID, graphURL)),
                     meta: {
                         methodology: {
                             UserFees: "Fees paid to Opensea",
@@ -253,7 +286,7 @@ export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['bre
                     }
                 }
             }
-        });
+        }
         return acc
     }, {} as BreakdownAdapter['breakdown'])
 };

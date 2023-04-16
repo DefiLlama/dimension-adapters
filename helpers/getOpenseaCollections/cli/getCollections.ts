@@ -80,7 +80,6 @@ const collectionsList = [
     "vv-checks",
     "mocaverse",
     "thecaptainz",
-    "clonex",
     "nakamigos",
     "gitcoin-presents",
     "owls-wtf",
@@ -113,6 +112,7 @@ interface CollectionResponse {
             image_url: string
             external_link: string
         }>
+        payout_address: string
     }
 }
 
@@ -121,15 +121,16 @@ interface CollectionResponse {
     // switched to for of bc promise.all was getting rate limited
     for (const collSlug of collectionsList) {
         const coll = (await fetchCollectionData(collSlug)).data
+        if (coll.collection.payout_address === null) continue
         if (coll.collection.primary_asset_contracts.length === 1) {
-            console.log(`"${coll.collection.primary_asset_contracts[0].address}": { slug: "${coll.collection.slug}" },`)
+            console.log(`"${coll.collection.primary_asset_contracts[0].address}": { slug: "${coll.collection.slug}", payoutAddress: ${coll.collection.payout_address} },`)
         } else {
             multipleAddrColl.push(coll)
         }
     }
     multipleAddrColl.forEach(coll => {
         coll.collection.primary_asset_contracts.forEach(addr => {
-            console.log(`"${addr.address}": { slug: "${coll.collection.slug}" },`)
+            console.log(`"${addr.address}": { slug: "${coll.collection.slug}", payoutAddress: ${coll.collection.payout_address} },`)
         })
     })
     /* const allColl = await Promise.all(collectionsList.map(fetchCollectionData))
