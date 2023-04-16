@@ -9,7 +9,7 @@ import { getBlock } from "../getBlock";
 import postgres from "postgres";
 import { ethers } from "ethers";
 import seaport_abi from "./seaport_abi.json"
-//import { mapAllOrders } from "./maptest";
+import { mapAllOrders } from "./maptest";
 import BigNumber from "bignumber.js";
 
 interface ICollection {
@@ -137,21 +137,21 @@ interface QueryTransactionResult {
 
 const payoutAddress = "0xf3b985336fd574a0aa6e02cbe61c609861e923d6"
 export const collectionFetch = (_collectionId: string, _graphUrl: string) => async (timestamp: number) => {
-    /* const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const sql = postgres(process.env.INDEXA_DB!);
     const startDay = new Date((todaysTimestamp - 60 * 60 * 24) * 1e3);
     const endDay = new Date((todaysTimestamp + 60 * 60 * 24 * 2) * 1e3);
     const rangeSeaportTxs = (await sql`
-      SELECT
-        *
-      FROM ethereum.transactions
-        INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-      WHERE ( to_address = '\\x00000000000001ad428e4906ae43d8f9852d0dd6'::bytea -- Seaport 1.4
-      ) AND (block_time BETWEEN ${startDay.toISOString()} AND ${endDay.toISOString()});`) as QueryTransactionResult[]
+          SELECT
+            *
+          FROM ethereum.transactions
+            INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+          WHERE ( to_address = '\\x00000000000001ad428e4906ae43d8f9852d0dd6'::bytea -- Seaport 1.4
+          ) AND (block_time BETWEEN ${startDay.toISOString()} AND ${endDay.toISOString()});`) as QueryTransactionResult[]
 
     const allNames = [] as string[]
     const txExample = [] as string[]
-    const mmmaaap = {} as IJSON<ethers.TransactionDescription>
+    const mapAllOrders = {} as IJSON<ethers.TransactionDescription>
     const iface = new ethers.Interface(seaport_abi)
     for (let tx of rangeSeaportTxs) {
         try {
@@ -161,20 +161,16 @@ export const collectionFetch = (_collectionId: string, _graphUrl: string) => asy
                 txExample.push(uh?.args[0][16])
             }
             if (uh !== null)
-                mmmaaap[uh?.fragment.name ?? ''] = uh
+                mapAllOrders[uh?.fragment.name ?? ''] = uh
             //console.log(uh?.args[0][16].find(([_amount, addr]: [number, string]) => payoutAddress.toLowerCase() === addr.toLowerCase()))
         } catch (error) {
             // @ts-ignore
-            //console.log(error.message)
+            console.log(error.message)
         }
     }
-    Object.entries(mmmaaap).forEach(([key, value])=>{
-        console.log(`__________________${key}__________________`)
-        console.log(value.fragment)
-    }) */
-   /*  Object.entries(mapAllOrders).forEach(([key, tx]) => {
+    Object.entries(mapAllOrders).forEach(([key, tx]) => {
         console.log(key, parseTxByType(tx as unknown as ethers.TransactionDescription, key))
-    }) */
+    })
     const res = { timestamp } as FetchResult
     return res
 }
@@ -183,44 +179,46 @@ const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
     let considerationArr
     let fee
     let response = [] as (IJSON<string> | undefined)[]
-    switch (type) {
-        case "fulfillAdvancedOrder":
-        case "fulfillOrder":
-            response = [processAdvancedOrder(tx?.args[0])]
-            break
-        case "fulfillAvailableOrders":
-        case "fulfillAvailableAdvancedOrders":
-        case "matchAdvancedOrders":
-        case "matchOrders":
-            const advancedOrders = [] as (IJSON<string> | undefined)[]
-            tx?.args[0].forEach((order: any) => {
-                advancedOrders.push(processAdvancedOrder(order))
-            })
-            response = advancedOrders
-            break
-        case "fulfillBasicOrder":
-            considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
-                consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes("0x0000a26b00c1F0DF003000390027140000fAa719".toLowerCase())
-            )
-            fee = BigNumber(considerationArr[0])
-            response = [{
-                [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-            }]
-            break
-        case "fulfillBasicOrder_efficient_6GL6yc":
-            considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
-                consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes("0x0000a26b00c1F0DF003000390027140000fAa719".toLowerCase())
-            )
-            fee = BigNumber(tx?.args[0][0])
-            response = [{
-                [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-            }]
-            break
-        case "cancel":
-        case "incrementCounter":
-        default:
-            response = []
-            break
+    try {
+        switch (type) {
+            case "fulfillAdvancedOrder":
+            case "fulfillOrder":
+                response = [processAdvancedOrder(tx?.args[0])]
+                break
+            case "fulfillAvailableOrders":
+            case "fulfillAvailableAdvancedOrders":
+            case "matchAdvancedOrders":
+            case "matchOrders":
+                const advancedOrders = [] as (IJSON<string> | undefined)[]
+                tx?.args[0].forEach((order: any) => {
+                    advancedOrders.push(processAdvancedOrder(order))
+                })
+                response = advancedOrders
+                break
+            case "fulfillBasicOrder":
+                considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
+                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
+                )
+                fee = BigNumber(considerationArr[0])
+                response = [{
+                    [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                }]
+            case "fulfillBasicOrder_efficient_6GL6yc":
+                considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
+                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
+                )
+                fee = BigNumber(tx?.args[0][0])
+                response = [{
+                    [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                }]
+                break
+            default:
+                response = []
+                break
+        }
+    } catch (error) {
+        // @ts-ignore
+        console.error(tx?.args)
     }
     return response.filter(el => el !== undefined)
 }
@@ -228,7 +226,7 @@ const parseTxByType = (tx: ethers.TransactionDescription, type: string) => {
 
 const processAdvancedOrder = (order: any) => {
     const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
-        consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes("0x0000a26b00c1F0DF003000390027140000fAa719".toLowerCase())
+        consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
     )
     if (!considerationArr) return undefined
     const fee = BigNumber(considerationArr[4])
