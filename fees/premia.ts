@@ -59,9 +59,9 @@ async function getDailyFee(url: string, timestamp: number): Promise<FetchResultF
   return {
     dailyFees: dailyRevenue.toString(),
     dailyUserFees: dailyRevenue.toString(),
-    dailyRevenue: dailyRevenue.toString(),
+    // dailyRevenue: dailyRevenue.toString(),
     timestamp: timestamp,
-    totalRevenue: totalFees.toString(),
+    // totalRevenue: totalFees.toString(),
     totalFees: totalFees.toString()
   }
 }
