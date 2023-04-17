@@ -1,5 +1,5 @@
 import { CHAIN } from '../helpers/chains'
-import { SimpleAdapter, ChainEndpoints } from '../adapters/types'
+import { SimpleAdapter, ChainEndpoints, FetchResultFees } from '../adapters/types'
 import { request, gql } from 'graphql-request'
 import { utils } from 'ethers'
 
@@ -29,14 +29,6 @@ const dailyFeesQuery = gql`
   }
 `
 
-interface DailyFee {
-  timestamp: string
-  dailyFees: string
-  dailyRevenue: string
-  totalRevenue: string
-  totalFees: string
-}
-
 export function toNumber(value: string): number {
   return Number(utils.formatEther(value))
 }
@@ -50,33 +42,27 @@ function get2Days(array: Array<any>, key: string): [string, string] {
   return array.slice(1, 3).map((obj) => obj[key]) as [string, string]
 }
 
-async function getDailyFee(url: string, timestamp: number): Promise<DailyFee> {
+async function getDailyFee(url: string, timestamp: number): Promise<FetchResultFees> {
   const fetchResult = await request(url, dailyFeesQuery, {
     timestamp: timestamp.toString(),
   })
-  const { totalPremiumsDailies, totalFeeRevenueDailies, totalFeeRevenues } =
-    fetchResult
-
-  const dailyPremiums = calcLast24hrsVolume(
-    get2Days(totalPremiumsDailies, 'totalPremiumsInUsd')
-  )
+  const { totalFeeRevenueDailies } = fetchResult
 
   const dailyRevenue = calcLast24hrsVolume(
     get2Days(totalFeeRevenueDailies, 'totalFeeRevenueInUsd')
   )
 
-  const totalPremiumsInUsd = toNumber(
-    totalPremiumsDailies[0].totalPremiumsInUsd
+  const totalFees = toNumber(
+    totalFeeRevenueDailies[0].totalFeeRevenueInUsd
   )
 
   return {
-    // map totalPremiumDailies to Fee
-    dailyFees: dailyPremiums.toFixed(2),
-    // map totalFeeRevenue to Revenue
-    dailyRevenue: dailyRevenue.toFixed(2),
-    timestamp: timestamp.toString(),
-    totalFees: totalPremiumsInUsd.toFixed(2),
-    totalRevenue: toNumber(totalFeeRevenues[0].totalFeeRevenueInUsd).toFixed(2),
+    dailyFees: dailyRevenue.toString(),
+    dailyUserFees: dailyRevenue.toString(),
+    dailyRevenue: dailyRevenue.toString(),
+    timestamp: timestamp,
+    totalRevenue: totalFees.toString(),
+    totalFees: totalFees.toString()
   }
 }
 
