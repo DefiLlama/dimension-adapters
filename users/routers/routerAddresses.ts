@@ -369,7 +369,8 @@ export default [
             "name":"Velodrome",
             "addresses":{
                 "optimism":[
-                    "0x9c12939390052919aF3155f41Bf4160Fd3666A6f"
+                    "0x9c12939390052919aF3155f41Bf4160Fd3666A6f",
+                    "0xa132DAB612dB5cB9fC9Ac426A0Cc215A3423F9c9"
                 ]
             }
         },
