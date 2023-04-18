@@ -99,7 +99,8 @@ export enum CHAIN {
   ERA = "era",
   DFK = "dfk",
   POLYGON_ZKEVM = "polygon_zkevm",
-  ACALA = "acala"
+  ACALA = "acala",
+  SORA = "sora"
 }
 
 // Don´t use
