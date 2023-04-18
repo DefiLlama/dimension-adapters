@@ -1,6 +1,6 @@
 export default [
         {
-            "id":"2198",
+            "id":"parent#{Uniswap}",
             "name":"Uniswap",
             "addresses":{
                 "ethereum":[
@@ -262,8 +262,8 @@ export default [
             }
         },
         {
-            "id":"194",
-            "name":"Pancakeswap AMM",
+            "id":"parent#pancakeswap",
+            "name":"Pancakeswap",
             "addresses":{
                 "etheruem":[
                     "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4", // v3
@@ -319,8 +319,8 @@ export default [
             }
         },
         {
-            "id":"2239",
-            "name":"Quickswap V3",
+            "id":"parent#quickswap",
+            "name":"Quickswap",
             "addresses":{
                 "polygon":[
                     "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
@@ -360,8 +360,8 @@ export default [
             }
         },
         {
-            "id":"2611",
-            "name":"Balancer V2",
+            "id":"parent#balancer",
+            "name":"Balancer",
             "addresses":{
                 "ethereum":[
                     "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
@@ -397,8 +397,8 @@ export default [
             }
         },
         {
-            "id":"2393",
-            "name":"Joe V2",
+            "id":"parent#trader-joe",
+            "name":"Trader Joe",
             "addresses":{
                 "arbitrum":[
                     "0x7BFd7192E76D950832c77BB412aaE841049D8D9B"
@@ -430,8 +430,8 @@ export default [
             }
         },
         {
-            "id":"1995",
-            "name":"Bancor V2.1",
+            "id":"parent#bancor",
+            "name":"Bancor",
             "addresses":{
                 "ethereum":[
                     "0x2F9EC37d6CcFFf1caB21733BdaDEdE11c823cCB0"
@@ -518,19 +518,11 @@ export default [
             }
         },
         {
-            "id":"2602",
-            "name":"Zyberswap V3",
+            "id":"parent#zyberswap",
+            "name":"Zyberswap",
             "addresses":{
                 "arbitrum":[
-                    "0xFa58b8024B49836772180f2Df902f231ba712F72"
-                ]
-            }
-        },
-        {
-            "id":"2467",
-            "name":"Zyberswap AMM",
-            "addresses":{
-                "arbitrum":[
+                    "0xFa58b8024B49836772180f2Df902f231ba712F72",
                     "0x16e71B13fE6079B4312063F7E81F76d165Ad32Ad"
                 ]
             }
