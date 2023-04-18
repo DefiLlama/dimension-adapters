@@ -1,6 +1,6 @@
 export default [
         {
-            "id":"parent#{Uniswap}",
+            "id":"parent#uniswap",
             "name":"Uniswap",
             "addresses":{
                 "ethereum":[
