@@ -45,6 +45,7 @@ const fetch = (chain: Chain) => {
       try {
         const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
         const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+
         const logs: ITx[] = (await sdk.api.util.getLogs({
           target: address[chain],
           topic: '',
@@ -92,7 +93,12 @@ const fetch = (chain: Chain) => {
 
         const tokenGasId = gasTokenId[chain];
         const tokens = [...new Set(rawLogsData.map((e: ISaleData) => `${chain}:${e.contract_address}`))]
-        const prices = (await getPrices([...tokens, tokenGasId], todaysTimestamp));
+        const splitIndex = Math.floor(tokens.length/2);
+        const firstHalf = tokens.slice(0, splitIndex);
+        const secondHalf = tokens.slice(splitIndex);
+        const pricesfirstHalf = (await getPrices([...firstHalf], todaysTimestamp));
+        const pricessecondHalf = (await getPrices([...secondHalf, tokenGasId], todaysTimestamp));
+        const prices = Object.assign(pricesfirstHalf, pricessecondHalf);
         const gasPrice = chain === CHAIN.ETHEREUM ? prices[tokenGasId].price : 1;
         const consumeGas = allGasUsed * gasPrice;
         const amounts = rawLogsData.map((e: ISaleData) => {
@@ -137,7 +143,7 @@ const adapter: Adapter = {
       meta: {
         methodology
       }
-  },
+    }
   }
 }
 
