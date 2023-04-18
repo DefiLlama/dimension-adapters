@@ -1500,6 +1500,19 @@ export default [
                     "0x8CA9EF098F84ceDa319Ec12B9d21EeF50AA3624C"
                 ]
             }
+        },
+        {
+            "id":"2863",
+            "name":"SaitaSwap",
+            "addresses":{
+                "ethereum":[
+                    "0x0c17e776CD218252ADFca8D4e761D3fe757e9778",
+                    "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
+                ],
+                "bsd":[
+                    "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
+                ]
+            }
         }
 
 
