@@ -7,27 +7,31 @@ export default [
                     // v2
                     "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
                     "0xf164fc0ec4e93095b804a4795bbe1e041497b92a",
-                    // v3
+                    //v3
                     "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-                    "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B"
+                    "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",
+                    "0x075B36dE1Bd11cb361c5B3B1E80A9ab0e7aa8a60",
+                    "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45"
                 ],
                 "bsc":[
                     "0x5Dc88340E1c5c6366864Ee415d6034cadd1A9897"
                 ],
                 "celo":[
-                    "0xC73d61d192FB994157168Fb56730FdEc64C9Cb8F"
+                    "0xC73d61d192FB994157168Fb56730FdEc64C9Cb8F",
+                    // v3
+                    "0x5615CDAb10dc425a742d643d949a7F474C01abc4"
                 ],
                 "polygon":[
-                    "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+                    "0xE592427A0AEce92De3Edee1F18E0157C05861564", //v3
                     "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5"
                 ],
                 "arbitrum":[
-                    "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+                    "0xE592427A0AEce92De3Edee1F18E0157C05861564",//v3
                     "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5",
                     "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45"
                 ],
                 "optimism":[
-                    "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+                    "0xE592427A0AEce92De3Edee1F18E0157C05861564", //v3
                     "0xb555edF5dcF85f42cEeF1f3630a52A108E55A654"
                 ]
             }
