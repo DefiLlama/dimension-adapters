@@ -724,47 +724,19 @@ export default [
             }
         },
         {
-            "id":"1028",
-            "name":"MM Finance Cronos",
+            "id":"parent#mm-finance",
+            "name":"MM Finance",
             "addresses":{
                 "cronos":[
                     ""
-                ]
-            }
-        },
-        {
-            "id":"1966",
-            "name":"MM Finance Polygon",
-            "addresses":{
+                ],
                 "polygon":[
                     "0x7E5E5957De93D00c352dF75159FbC37d5935f8bF"
-                ]
-            }
-        },
-        {
-            "id":"2754",
-            "name":"MM Finance Arbitrum",
-            "addresses":{
+                ],
                 "arbitrum":[
-                    "0x4F879a9d95e01041dDAA607A65F04e0EDbD04139"
-                ]
-            }
-        },
-        {
-            "id":"2015",
-            "name":"MM Stableswap Polygon",
-            "addresses":{
-                "polygon":[
-                    ""
-                ]
-            }
-        },
-        {
-            "id":"1971",
-            "name":"MM Stableswap",
-            "addresses":{
-                "cronos":[
-                    ""
+                    "0x4F879a9d95e01041dDAA607A65F04e0EDbD04139",
+                    "0x20AB386813F59B92e1C4596f22591bEe92935d83",//v3smartrouter
+                    "0x611c9F2f536E087BE7d0F02D9F99e5CE9b7E175B"
                 ]
             }
         },
