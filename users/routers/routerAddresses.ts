@@ -46,62 +46,109 @@ export default [
             }
         },
         {
-            "id":"119",
+            "id":"parent#sushi",
             "name":"Sushiswap",
             "addresses":{
                 "ethereum":[
                     "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",
+                    "0xf5bce5077908a1b7370b9ae04adc565ebd643966",
+                    "0xF70c086618dcf2b1A461311275e00D6B722ef914",
+                    "0x044b75f554b886A065b9567891e45c79542d7357",
+                    "0x7af71799C40F952237eAA4D81A77C1af49125113",
+                    "0xDdC1b5920723F774d2Ec2C3c9355251A20819776"
                 ],
                 "arbitrum":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x74c764d41b77dbbb4fe771dab1939b00b146894a",
+                    "0x9c6522117e2ed1fE5bdb72bb0eD5E3f2bdE7DBe0",
+                    "0x9f18658f7206EaA8D885bBfBb95aB6D9f6c6C12F",
+                    "0xD9988b4B5bBC53A794240496cfA9Bf5b1F8E0523"
+                ],
+                "optimism":[
+                    "0xF0cBce1942A68BEB3d1b73F0dd86C8DCc363eF49",
+                    "0x96E04591579f298681361C6122Dc4Ef405c19385",
+                    "0xD9988b4B5bBC53A794240496cfA9Bf5b1F8E0523",
+                    "0xc35DADB65012eC5796536bD9864eD8773aBc74C4",
+                    "0xE52180815c81D7711B83412e53259bed6a3aB70a"
                 ],
                 "avax":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x0711B6026068f736bae6B213031fCE978D48E026",
+                    "0xD75F5369724b513b497101fb15211160c1d96550",
+                    "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F",
+                    "0x400d75dAb26bBc18D163AEA3e83D9Ea68F6c1804",
+                    "0xF70c086618dcf2b1A461311275e00D6B722ef914"
                 ],
                 "polygon":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x0319000133d3AdA02600f0875d2cf03D442C3367",
+                    "0x0dc8E47a1196bcB590485eE8bF832c5c68A52f4B",
+                    "0x5097CBB61D3C75907656DC4e3bbA892Ff136649a",
+                    "0x1A52AfDd24994704e61fEC49924d6c5388Ae47fD",
+                    "0x7CD29170e8fA3fE5204624deDE5A66F4e8161741",
+                    "0x7A250C60Cde7A5Ca7B667209beAB5eA4E16eed67"
                 ],
                 "fantom":[
                     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715",
+                    "0x3D2f8ae0344d38525d2AE96Ab750B83480c0844F",
+                    "0x9e4791ad13f14783C7B2A6A7bD8D6DDD1DC95847",
+                    "0x7cf167390E2526Bc03F3CF6852A7AF1CEC3e243d"
                 ],
                 "bsc":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966",
+                    "0xD75F5369724b513b497101fb15211160c1d96550",
+                    "0x7cf167390E2526Bc03F3CF6852A7AF1CEC3e243d",
+                    "0x97a32B4f8486735075f2cBEcff64208fBF2e610A"
                 ],
                 "xdai":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0xCaAbdD9Cf4b61813D4a52f980d6BC1B713FE66F5"
                 ],
                 "arbitrum-nova":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"
                 ],
                 "boba-avax":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"
                 ],
                 "boba-bnb":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"
                 ],
                 "boba":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"
                 ],
                 "celo":[
-                    "0x1421bDe4B10e8dd459b3BCb598810B1337D56842"
+                    "0x1421bDe4B10e8dd459b3BCb598810B1337D56842",
+                    "0x0711B6026068f736bae6B213031fCE978D48E026"
                 ],
                 "fuse":[
-                    "0xF4d73326C13a4Fc5FD7A064217e12780e9Bd62c3"
+                    "0xF4d73326C13a4Fc5FD7A064217e12780e9Bd62c3",
+                    "0x0BE808376Ecb75a5CF9bB6D237d16cd37893d904"
                 ],
                 "goerli":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966"
                 ],
                 "harmony":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x6b2A3FF504798886862Ca5ce501e080947A506A2"
                 ],
                 "heco":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966"
                 ],
                 "moonbeam":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x80C7DD17B01855a6D2347444a0FCC36136a314de"
                 ],
                 "moonriver":[
-                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+                    "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                    "0x145d82bCa93cCa2AE057D1c6f26245d1b9522E6F"
                 ],
                 "okexchain":[
                     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
@@ -111,7 +158,18 @@ export default [
                 ],
                 "telos":[
                     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
-                ]
+                ],
+                "kava":[
+                    "0xc35DADB65012eC5796536bD9864eD8773aBc74C4",
+                    "0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"
+                ],
+                "metis":[
+                    "0xc35DADB65012eC5796536bD9864eD8773aBc74C4",
+                    "0xaB235da7f52d35fb4551AfBa11BFB56e18774A65"
+                ],
+                "bittorrent":[
+                    "0xeae23C766a1B25481025a02B2d82a1DB3FC130Ca"
+                ],
             }
         },
         {
@@ -202,45 +260,6 @@ export default [
                 ],
                 "moonriver":[
                     "0x145d82bCa93cCa2AE057D1c6f26245d1b9522E6F"
-                ]
-            }
-        },
-        {
-            "id":"2152",
-            "name":"Sushi Trident",
-            "addresses":{
-                "arbitrum":[
-                    "0xD9988b4B5bBC53A794240496cfA9Bf5b1F8E0523"
-                ],
-                "avax":[
-                    "0xF70c086618dcf2b1A461311275e00D6B722ef914"
-                ],
-                "bsc":[
-                    "0x97a32B4f8486735075f2cBEcff64208fBF2e610A"
-                ],
-                "bittorrent":[
-                    "0xeae23C766a1B25481025a02B2d82a1DB3FC130Ca"
-                ],
-                "ethereum":[
-                    "0xDdC1b5920723F774d2Ec2C3c9355251A20819776"
-                ],
-                "fantom":[
-                    "0x7cf167390E2526Bc03F3CF6852A7AF1CEC3e243d"
-                ],
-                "xdai":[
-                    "0xCaAbdD9Cf4b61813D4a52f980d6BC1B713FE66F5"
-                ],
-                "kava":[
-                    "0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"
-                ],
-                "metis":[
-                    "0xaB235da7f52d35fb4551AfBa11BFB56e18774A65"
-                ],
-                "optimism":[
-                    "0xE52180815c81D7711B83412e53259bed6a3aB70a"
-                ],
-                "polygon":[
-                    "0x7A250C60Cde7A5Ca7B667209beAB5eA4E16eed67"
                 ]
             }
         },
