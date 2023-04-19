@@ -35,12 +35,16 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const todayFee = new BigNumber(graphRes.today[0].totalFee)
       const yesterdayFee = new BigNumber(graphRes.yesterday[0].totalFee)
       const dailyFee = todayFee.minus(yesterdayFee).dividedBy(1e30)
+      const totalFee = todayFee.dividedBy(1e30);
 
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
         dailyUserFees: dailyFee.toString(),
         dailyRevenue: dailyFee.dividedBy(2).toString(),
+        totalFees: totalFee.toString(),
+        dailyHoldersRevenue: dailyFee.times(20).dividedBy(100).toString(),
+        dailyTreasuryRevenue: dailyFee.times(30).dividedBy(100).toString()
       }
     }
   }
@@ -56,7 +60,9 @@ const adapter: Adapter = {
           Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
           UserFees:
             'All mint, burn, margin, liquidation and swap fees are collect',
-          Revenue: '50% of the total fee',
+          Revenue: 'Revenue is 50% of the total fees, which goes to Treasury and LVL/LGO stakers',
+          HoldersRevenue: '20% of the total fees goes to LVL/LGO stakers',
+          TreasuryRevenue: '30% of the total fees goes to Treasury'
         },
       },
     },
