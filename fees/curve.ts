@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchResult } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
@@ -46,7 +46,7 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      const timestampEndOfDay = getTimestampAtStartOfDayUTC(timestamp+60*60*24)
+      const timestampEndOfDay = getTimestampAtStartOfDayUTC(timestamp + 60 * 60 * 24)
       const graphRes = await request(graphUrls[chain], graphQuery, {
         timestampEndOfDay
       });
@@ -62,19 +62,22 @@ const graph = (graphUrls: ChainEndpoints) => {
         return parseFloat(vol.lpFeesUSD);
       });
 
-      const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-      const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-      const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-
-      return {
-        timestamp,
-        dailyUserFees: dailyFee.toString(),
-        dailyFees: dailyFee.toString(),
-        dailyProtocolRevenue: "0",
-        dailyHoldersRevenue: dailyRev.toString(),
-        dailyRevenue: dailyRev.toString(),
-        dailySupplySideRevenue: dailyLPRev.toString()
-      };
+      const res: FetchResult = { timestamp, dailyProtocolRevenue: "0", }
+      if (feesPerPool.length > 0) {
+        const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailyUserFees"] = dailyFee.toString()
+        res["dailyFees"] = dailyFee.toString()
+      }
+      if (revPerPool.length > 0) {
+        const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailyHoldersRevenue"] = dailyRev.toString()
+        res["dailyRevenue"] = dailyRev.toString()
+      }
+      if (revLPPerPool.length > 0) {
+        const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailySupplySideRevenue"] = dailyLPRev.toString()
+      }
+      return res
     }
   }
 };
