@@ -1485,6 +1485,18 @@ export default [
                     "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
                 ]
             }
+        },
+        {
+            "id":"parent#skullswap",
+            "name":"SkullSwap",
+            "addresses":{
+                "fantom":[
+                    "0x0A239A1fC3Bb5abc6F06ad950e52996308E8E925",
+                    "0xe8E357B75823D1Cc133ED7265a27BC2D9237527c",
+                    "0xA4C5457Eca4E36db9062871631351eF627146044",
+                    "0x6d6E00B42c599ad8F70b2C006ad5135bF93Eb396"
+                ]
+            }
         }
 
 
