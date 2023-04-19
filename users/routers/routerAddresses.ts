@@ -343,7 +343,7 @@ export default [
             "addresses":{
                 "polygon":[
                     "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
-                    "Paraswap v5: Augustus Swapper:0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57"
+                    //"Paraswap v5: Augustus Swapper:0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57"
                 ]
             }
         },
@@ -440,11 +440,12 @@ export default [
             }
         },
         {
-            "id":"2417",
+            "id":"parent#thena",
             "name":"Thena",
             "addresses":{
                 "bsc":[
-                    "0xd4ae6eCA985340Dd434D38F470aCCce4DC78D109"
+                    "0xd4ae6eCA985340Dd434D38F470aCCce4DC78D109",
+                    "0x8f097E07a07Bf2F031E5513f764DaFC6Df58e818"
                 ]
             }
         },
@@ -1516,7 +1517,107 @@ export default [
                     "0x6d6E00B42c599ad8F70b2C006ad5135bF93Eb396"
                 ]
             }
-        }
+        },
+        {
+            "id":"2846",
+            "name":"Solisnek Finance",
+            "addresses":{
+                "avax":[
+                    "0xeeee17b45E4d127cFaAAD14e2710489523ADB4d8"
+                ]
+            }
+        },
+        {
+            "id":"2803",
+            "name":"Native",
+            "addresses":{
+                "ethereum":[
+                    "0x7A27BBD83b5065eEFf85411DFE048Eaac9be2A9D",
+                    "0xF1aF55CC38A92A3b072D05e146E27c2E75bB8F2D"
+                ],
+                "bsc":[
+                    "0x7A27BBD83b5065eEFf85411DFE048Eaac9be2A9D",
+                    "0x83B9fcea670d66626d9db79Af00fc718014C3de8"
+                ]
+            }
+        },
+        {
+            "id":"2821",
+            "name":"Hamburger Finance",
+            "addresses":{
+                "arbitrum":[
+                    "0xE5e5Cd7685755BF4c82137639d75b068ed657384"
+                ]
+            }
+        },
+        {
+            "id":"2812",
+            "name":"Forge SX Trade",
+            "addresses":{
+                "arbitrum":[
+                    "0xE5e5Cd7685755BF4c82137639d75b068ed657384"
+                ]
+            }
+        },
+        {
+            "id":"2806",
+            "name":"AstroFi",
+            "addresses":{
+                "ethereum":[
+                    "0x42c76F3BBC2E4d505420fE5bda4C316fA5234624"
+                ]
+            }
+        },
+        {
+            "id":"2773",
+            "name":"Auragi Finance",
+            "addresses":{
+                "arbitrum":[
+                    "0x0FaE1e44655ab06825966a8fCE87b9e988AB6170"
+                ]
+            }
+        },
+        {
+            "id":"2757",
+            "name":"Glacier Finance",
+            "addresses":{
+                "avax":[
+                    "0xC5B8Ce3C8C171d506DEb069a6136a351Ee1629DC"
+                ]
+            }
+        },
+        {
+            "id":"2731",
+            "name":"Swapline",
+            "addresses":{
+                "fantom":[
+                    "0xb2755FeEc193a718f6135351057a63b2F7B95cef",
+                    "0xFC33f3cac9f6d1713a4B7787dF6a9a33bAD244d6",
+                    "0x795bF60522F36244E4e51ed5522fE83Df4D3Bf9a"
+                ]
+            }
+        },
+        {
+            "id":"2721",
+            "name":"Flair Dex",
+            "addresses":{
+                "avax":[
+                    "0xd79eE05678241C16e6195b9FC0bCc778A02d4324",
+                    "0xBfC8f125CFce29789500987A9553395E84bDfDD2"
+                ]
+            }
+        },
+        /*
+        { //uses firebird router to swap
+            "id":"2720",
+            "name":"Satin Exchange",
+            "addresses":{
+                "polygon":[
+                    "0xb31D1B1eA48cE4Bf10ed697d44B747287E785Ad4"//firebird router
+                ]
+            }
+        },*/
+
 
 
 ]
