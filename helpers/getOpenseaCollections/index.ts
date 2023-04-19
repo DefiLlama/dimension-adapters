@@ -189,8 +189,6 @@ const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress
                     Object.entries(payout).forEach(([token, balance]) => {
                         let sum = balance
                         if (acc[token]) sum = BigNumber(acc[token]).plus(BigNumber(balance)).toString()
-                        if (sum==='NaN')
-                            console.log(sum)
                         acc[token] = sum
                         return acc
                     })
@@ -238,7 +236,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
                 if (considerationArr) {
-                    fee = BigNumber(tx?.args[0][0])
+                    fee = BigNumber(considerationArr[0])
                     response = [{
                         [tx.args[0][0]]: fee.dividedBy(1e18).toString()
                     }]
