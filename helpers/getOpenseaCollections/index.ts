@@ -148,7 +148,8 @@ export const collectionFetch = (payoutAddress: string, _graphUrl: string) => asy
         const sql = postgres(process.env.INDEXA_DB!);
         rangeSeaportTxs = (await sql`
         SELECT
-        *
+        encode(ethereum.transactions.hash, 'hex') as hash,
+        encode(ethereum.transactions.data, 'hex') as data
         FROM ethereum.transactions
         INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
         WHERE ( to_address = '\\x00000000000001ad428e4906ae43d8f9852d0dd6'::bytea -- Seaport 1.4
@@ -158,13 +159,15 @@ export const collectionFetch = (payoutAddress: string, _graphUrl: string) => asy
     // parse transactions of that range using seaport abi
     const iface = new ethers.Interface(seaport_abi)
     // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
+    const res = { timestamp } as FetchResult
     const processedFees = await patientExtractFeesByPayout(iface, payoutAddress)
-
-    const res = { timestamp, dailyFees: processedFees } as FetchResult
+    if (Object.keys(processedFees).length > 0) {
+        res["dailyFees"] = processedFees
+    }
     return res
 }
 
-const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress: string) => {
+const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress: string): Promise<IJSON<string>> => {
     return new Promise((resolve) => {
         const intervalid = setInterval(() => {
             if (rangeSeaportTxs !== undefined) {
@@ -182,14 +185,12 @@ const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress
                 for (const tx of allTxs) {
                     allPayouts.push(...extractFeesByPayoutAddress(tx, payoutAddress))
                 }
-                console.log(allPayouts.slice(0, 5))
                 resolve(allPayouts.reduce((acc, payout) => {
-                    console.log("payout", payout)
                     Object.entries(payout).forEach(([token, balance]) => {
                         let sum = balance
-                        console.log("Balance is", balance)
                         if (acc[token]) sum = BigNumber(acc[token]).plus(BigNumber(balance)).toString()
-                        console.log("Balance is sum", sum)
+                        if (sum==='NaN')
+                            console.log(sum)
                         acc[token] = sum
                         return acc
                     })
@@ -227,7 +228,6 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                 )
                 if (considerationArr) {
                     fee = BigNumber(considerationArr[0])
-                    console.log("Fee before", fee)
                     response = [{
                         [tx.args[0][0]]: fee.dividedBy(1e18).toString()
                     }]
@@ -239,7 +239,6 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                 )
                 if (considerationArr) {
                     fee = BigNumber(tx?.args[0][0])
-                    console.log("Fee before", fee)
                     response = [{
                         [tx.args[0][0]]: fee.dividedBy(1e18).toString()
                     }]
@@ -270,11 +269,11 @@ const processAdvancedOrder = (order: any, payoutAddress: string) => {
 
 export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['breakdown'] => {
     const graphUrlsEntries = Object.entries(graphUrls)
-    return Object.keys(collectionsList).reduce((acc, collectionAddress) => {
+    return Object.entries(collectionsList).reduce((acc, [collectionAddress, { payoutAddress }]) => {
         for (const [chain, graphURL] of graphUrlsEntries) {
             acc[collectionAddress] = {
                 [chain]: {
-                    fetch: collectionFetch(collectionAddress, graphURL),
+                    fetch: collectionFetch(payoutAddress, graphURL),
                     start: async () => start,
                     meta: {
                         methodology: {

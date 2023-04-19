@@ -130,7 +130,7 @@ interface CollectionResponse {
     }
     multipleAddrColl.forEach(coll => {
         coll.collection.primary_asset_contracts.forEach(addr => {
-            console.log(`"${addr.address}": { slug: "${coll.collection.slug}", payoutAddress: ${coll.collection.payout_address} },`)
+            console.log(`"${addr.address}": { slug: "${coll.collection.slug}", payoutAddress: "${coll.collection.payout_address}" },`)
         })
     })
     /* const allColl = await Promise.all(collectionsList.map(fetchCollectionData))
