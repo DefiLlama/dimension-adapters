@@ -329,8 +329,8 @@ export default [
             }
         },
         {
-            "id":"2615",
-            "name":"KyberSwap Elastic",
+            "id":"parent#kyberswap",
+            "name":"KyberSwap",
             "addresses":{
                 "ethereum":[
                     "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
