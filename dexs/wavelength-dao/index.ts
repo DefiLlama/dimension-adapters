@@ -2,7 +2,6 @@ const { request, gql } = require("graphql-request");
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill, { IGraphs } from "../../helpers/customBackfill";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const blocksGraph = "https://testeborabora.cyou/subgraphs/name/blocks";
@@ -44,11 +43,7 @@ const graphs = getChainVolume({
     factory: "balancers",
     field: "totalSwapVolume",
   },
-  dailyVolume: {
-    factory: "balancerSnapshot",
-    field: "totalSwapVolume",
-    dateField: "timestamp"
-  },
+  hasDailyVolume: false,
   getCustomBlock,
 });
 
@@ -56,13 +51,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VELAS]: {
       fetch: graphs(CHAIN.VELAS),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.VELAS,
-        dailyDataField: `balancerSnapshots`,
-        dateField: 'timestamp',
-        volumeField: 'totalSwapVolume'
-      }),
+      start: async () => 1666263553,
       customBackfill: customBackfill(CHAIN.VELAS, graphs as unknown as IGraphs)
     },
   },
