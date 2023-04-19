@@ -208,7 +208,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
         switch (tx.fragment.name) {
             case "fulfillAdvancedOrder":
             case "fulfillOrder":
-                response = [processAdvancedOrder(tx?.args[0], payoutAddress)]
+                response = [processAdvancedOrder(tx?.args[0], payoutAddress, tx?.args[5])]
                 break
             case "fulfillAvailableOrders":
             case "fulfillAvailableAdvancedOrders":
@@ -216,7 +216,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
             case "matchOrders":
                 const advancedOrders = [] as (IJSON<string> | undefined)[]
                 tx?.args[0].forEach((order: any) => {
-                    advancedOrders.push(processAdvancedOrder(order, payoutAddress))
+                    advancedOrders.push(processAdvancedOrder(order, payoutAddress, tx?.args[5]))
                 })
                 response = advancedOrders
                 break
@@ -227,7 +227,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                 if (considerationArr) {
                     fee = BigNumber(considerationArr[0])
                     response = [{
-                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                        [tx?.args[5]]: fee.dividedBy(1e18).toString()
                     }]
                 }
                 break
@@ -238,7 +238,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                 if (considerationArr) {
                     fee = BigNumber(considerationArr[0])
                     response = [{
-                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                        [tx.args[5]]: fee.dividedBy(1e18).toString()
                     }]
                 }
                 break
@@ -248,20 +248,20 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
         }
     } catch (error) {
         // @ts-ignore
-        console.error("extracttx", tx?.args, error)
+        console.error("extracttx", tx.fragment.name, tx?.args, error)
     }
     return response.filter((el): el is IJSON<string> => el !== undefined)
 }
 
 
-const processAdvancedOrder = (order: any, payoutAddress: string) => {
+const processAdvancedOrder = (order: any, payoutAddress: string, offerToken: string) => {
     const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
         consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
     )
     if (!considerationArr) return undefined
     const fee = BigNumber(considerationArr[4])
     return {
-        [considerationArr[1]]: fee.dividedBy(1e18).toString()
+        [offerToken]: fee.dividedBy(1e18).toString()
     }
 }
 

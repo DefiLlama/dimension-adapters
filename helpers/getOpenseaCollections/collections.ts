@@ -4,7 +4,7 @@ import { IJSON } from "../../adapters/types"
 // there's a helper to generate this file by providing a list of collections
 export default {
     "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d": { slug: "boredapeyachtclub", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
-    "0x60e4d786628fea6478f785a6d7e704777c86a7c6": { slug: "mutant-ape-yacht-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
+   /*  "0x60e4d786628fea6478f785a6d7e704777c86a7c6": { slug: "mutant-ape-yacht-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
     "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258": { slug: "otherdeed", payoutAddress: "0x37ceb4ba093d40234c6fb312d9791b67c04ef49a" },
     "0xed5af388653567af2f388e6224dc7c4b3241c544": { slug: "azuki", payoutAddress: "0xb4d24dacbdffa1bbf9a624044484b3feeb7fdf74" },
     "0x49cf6f5d44e70224e2e23fdcdd2c053f30ada28b": { slug: "clonex", payoutAddress: "0xe65b6865dbce299ae6a20efcc7543362540741d8" },
@@ -75,7 +75,7 @@ export default {
     "0x4b15a9c28034dc83db40cd810001427d3bd7163d": { slug: "hv-mtl", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
     "0xbd3531da5cf5857e7cfaa92426877b022e612cf8": { slug: "pudgypenguins", payoutAddress: "0x1afa64e9b8e3090f2001f66d9c9a74cde646738a" },
     "0xba30e5f9bb24caa003e9f2f0497ad287fdf95623": { slug: "bored-ape-kennel-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
-    "0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38": { slug: "sandbox", payoutAddress: "0x7a9fe22691c811ea339d9b73150e6911a5343dca" }
+    "0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38": { slug: "sandbox", payoutAddress: "0x7a9fe22691c811ea339d9b73150e6911a5343dca" } */
 } as IJSON<{
     slug: string
     payoutAddress: string
