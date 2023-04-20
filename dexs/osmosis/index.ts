@@ -1,4 +1,5 @@
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
@@ -34,7 +35,7 @@ const getStartTimestamp = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    cosmos: {
+    [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
       start: getStartTimestamp,

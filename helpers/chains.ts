@@ -100,7 +100,8 @@ export enum CHAIN {
   DFK = "dfk",
   POLYGON_ZKEVM = "polygon_zkevm",
   ACALA = "acala",
-  SORA = "sora"
+  SORA = "sora",
+  COSMOS = "cosmos"
 }
 
 // Don´t use
