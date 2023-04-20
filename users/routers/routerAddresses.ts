@@ -1325,18 +1325,6 @@ export default [
             }
         },
         {
-            "id":"1296",
-            "name":"ZipSwap",
-            "addresses":{
-                "arbitrum":[
-                    "0x4D70D768f5E1e6a7062973aFB0c7FBDa9bBb42b3"
-                ],
-                "optimism":[
-                    "0xE6Df0BB08e5A97b40B21950a0A51b94c4DbA0Ff6"
-                ]
-            }
-        },
-        {
             "id":"978",
             "name":"ChickenSwap",
             "addresses":{
@@ -1664,6 +1652,15 @@ export default [
                 "optimism":[
                     "0xE6Df0BB08e5A97b40B21950a0A51b94c4DbA0Ff6",
                     "0x00000000000013adDDC0919642d45f5d9Df09502"
+                ]
+            }
+        },
+        {
+            "id":"1364",
+            "name":"Narwhalswap",
+            "addresses":{
+                "bsc":[
+                    "0x849B7b4541CDE9cBE41cfd064d9d7fF459b9cEa4"
                 ]
             }
         },
