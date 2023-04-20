@@ -1,16 +1,21 @@
 //  Maverick v1 data
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "@defillama/sdk/build/general";
+import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 const { request, gql } = require("graphql-request");
 
 const info: { [key: string]: any } = {
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/42519/maverick-v1/v0.0.6",
+  },
+  [CHAIN.ERA]: {
+    subgraph:
+      "https://api.studio.thegraph.com/query/42519/maverick-zksync-data/v0.0.1",
   },
 };
 
-const getData = async (chain: Chain, timestamp: number) => {
+const getData = async (chain: string, timestamp: number) => {
   const totdayTimestamp = getUniqStartOfTodayTimestamp(
     new Date(timestamp * 1000)
   );
@@ -64,27 +69,19 @@ const getData = async (chain: Chain, timestamp: number) => {
     for (const dailyData of data.poolDayStats) {
       const tokenAId = chain + ":" + dailyData.pool.tokenA.id;
       const tokenBId = chain + ":" + dailyData.pool.tokenB.id;
-      daySum += Number(dailyData.tokenAVolume) * prices[tokenAId].price;
-      daySum += Number(dailyData.tokenBVolume) * prices[tokenBId].price;
-      dayFee +=
-        Number(dailyData.tokenAVolume) *
-        prices[tokenAId].price *
-        dailyData.pool.fee;
-      dayFee +=
-        Number(dailyData.tokenBVolume) *
-        prices[tokenBId].price *
-        dailyData.pool.fee;
+      let aPrice = prices[tokenAId] === undefined ? 0 : prices[tokenAId].price;
+      let bPrice = prices[tokenBId] === undefined ? 0 : prices[tokenBId].price;
+      daySum += Number(dailyData.tokenAVolume) * aPrice;
+      daySum += Number(dailyData.tokenBVolume) * bPrice;
+      dayFee += Number(dailyData.tokenAVolume) * aPrice * dailyData.pool.fee;
+      dayFee += Number(dailyData.tokenBVolume) * bPrice * dailyData.pool.fee;
 
-      totalSum += Number(dailyData.pool.tokenAVolume) * prices[tokenAId].price;
-      totalSum += Number(dailyData.pool.tokenBVolume) * prices[tokenBId].price;
+      totalSum += Number(dailyData.pool.tokenAVolume) * aPrice;
+      totalSum += Number(dailyData.pool.tokenBVolume) * bPrice;
       totalFee +=
-        Number(dailyData.pool.tokenAVolume) *
-        prices[tokenAId].price *
-        dailyData.pool.fee;
+        Number(dailyData.pool.tokenAVolume) * aPrice * dailyData.pool.fee;
       totalFee +=
-        Number(dailyData.pool.tokenBVolume) *
-        prices[tokenBId].price *
-        dailyData.pool.fee;
+        Number(dailyData.pool.tokenBVolume) * bPrice * dailyData.pool.fee;
     }
   }
 
@@ -99,7 +96,7 @@ const getData = async (chain: Chain, timestamp: number) => {
   };
 };
 
-export const fetchVolume = (chain: Chain) => {
+export const fetchVolume = (chain: string) => {
   return async (timestamp: number) => {
     const data = await getData(chain, timestamp);
 
@@ -111,7 +108,7 @@ export const fetchVolume = (chain: Chain) => {
   };
 };
 
-export const fetchFee = (chain: Chain) => {
+export const fetchFee = (chain: string) => {
   return async (timestamp: number) => {
     const data = await getData(chain, timestamp);
 
