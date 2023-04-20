@@ -1664,6 +1664,24 @@ export default [
                 ]
             }
         },
+        {
+            "id":"1074",
+            "name":"AutoShark",
+            "addresses":{
+                "bsc":[
+                    "0xB0EeB0632bAB15F120735e5838908378936bd484"
+                ]
+            }
+        },
+        {
+            "id":"883",
+            "name":"SmartDEX",
+            "addresses":{
+                "polygon":[
+                    "0x6f5fE5Fef0186f7B27424679cbb17e45df6e2118"
+                ]
+            }
+        },
 
 
 
