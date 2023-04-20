@@ -1,15 +1,10 @@
 import { BreakdownAdapter, FetchResult } from "../../adapters/types";
 import type { ChainEndpoints, IJSON } from "../../adapters/types"
-import { request, gql } from "graphql-request";
 import collectionsList from './collections'
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import customBackfill from "../customBackfill";
-import { Chain } from "@defillama/sdk/build/general";
-import { getBlock } from "../getBlock";
 import postgres from "postgres";
 import { ethers } from "ethers";
 import seaport_abi from "./seaport_abi.json"
-import { mapAllOrders } from "./maptest";
 import BigNumber from "bignumber.js";
 import { clearInterval } from "timers";
 
@@ -29,69 +24,8 @@ interface ICollection {
     sellerCount: number
 }
 
-interface ICollectionDailySnapshot {
-    id: string
-    collection: ICollection
-    blockNumber: string
-    timestamp: string
-    royaltyFee: string
-    dailyMinSalePrice: string
-    dailyMaxSalePrice: string
-    cumulativeTradeVolumeETH: string
-    dailyTradeVolumeETH: string
-    marketplaceRevenueETH: string
-    creatorRevenueETH: string
-    totalRevenueETH: string
-    tradeCount: number
-    dailyTradedItemCount: number
-}
-const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollection> | undefined> => {
-    const blockTimestamp = await getBlock(timestamp, 'ethereum', {});
-    const graphQuery = gql
-        `
-        {
-            collections(
-              where: {id_in: ["${Object.keys(collectionsList).map(c => c.toLowerCase()).join('","')}"]}
-              block: {number: ${blockTimestamp}}
-            ) {
-              id
-              royaltyFee
-              creatorRevenueETH
-              totalRevenueETH
-              marketplaceRevenueETH
-            }
-          }`;
-    const graphRes = await request(graphUrl, graphQuery)
-    const collections = graphRes['collections'] as ICollection[];
-    if (!collections || collections.length <= 0) return undefined
-
-    return collections.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {} as IJSON<ICollection>)
-}
-
-let collections: IJSON<IJSON<ICollection>> = {}
-
-/* export const collectionFetch = (collectionId: string, graphUrl: string) => async (timestamp: number) => {
-    const cleanTimestampKey = String(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))
-    if (!collections[cleanTimestampKey]) {
-        const response = await getCollectionsData(timestamp, graphUrl)
-        if (response) collections[cleanTimestampKey] = response
-    }
-    const res = { timestamp } as FetchResult
-    if (!collections[cleanTimestampKey] || !collections[cleanTimestampKey][collectionId]) {
-        return res
-    }
-    if (collections[cleanTimestampKey][collectionId].creatorRevenueETH !== undefined) {
-        res['totalUserFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
-        res['totalFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
-        res['totalRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
-        res['totalProtocolRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
-    }
-    return res
-} */
-
 interface QueryTransactionResult {
-    hash: Buffer
+    hash: string//Buffer
     is_confirmed: boolean,
     success: boolean,
     error_message: null,
@@ -137,7 +71,7 @@ interface QueryTransactionResult {
 
 let rangeSeaportTxs: QueryTransactionResult[] | undefined
 let queryStarted = false
-export const collectionFetch = (payoutAddress: string, _graphUrl: string) => async (timestamp: number) => {
+export const collectionFetch = (collectionAddress: string, payoutAddress: string) => async (timestamp: number) => {
     // get range to search
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const startDay = new Date((todaysTimestamp - 60 * 60 * 24) * 1e3);
@@ -160,14 +94,14 @@ export const collectionFetch = (payoutAddress: string, _graphUrl: string) => asy
     const iface = new ethers.Interface(seaport_abi)
     // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
     const res = { timestamp } as FetchResult
-    const processedFees = await patientExtractFeesByPayout(iface, payoutAddress)
+    const processedFees = await patientExtractFeesByPayoutFrmToken(iface, payoutAddress, collectionAddress)
     if (Object.keys(processedFees).length > 0) {
         res["dailyFees"] = processedFees
     }
     return res
 }
 
-const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress: string): Promise<IJSON<string>> => {
+const patientExtractFeesByPayoutFrmToken = async (iface: ethers.Interface, payoutAddress: string, collectionAddress: string): Promise<IJSON<string>> => {
     return new Promise((resolve) => {
         const intervalid = setInterval(() => {
             if (rangeSeaportTxs !== undefined) {
@@ -183,7 +117,7 @@ const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress
                 // extract fees based on payoutAddress and sum them
                 const allPayouts = [] as ReturnType<typeof extractFeesByPayoutAddress>
                 for (const tx of allTxs) {
-                    allPayouts.push(...extractFeesByPayoutAddress(tx, payoutAddress))
+                    allPayouts.push(...extractFeesByPayoutAddress(tx, payoutAddress, collectionAddress))
                 }
                 resolve(allPayouts.reduce((acc, payout) => {
                     Object.entries(payout).forEach(([token, balance]) => {
@@ -200,7 +134,7 @@ const patientExtractFeesByPayout = async (iface: ethers.Interface, payoutAddress
     });
 }
 
-const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAddress: string) => {
+const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAddress: string, collectionAddress: string) => {
     let considerationArr
     let fee
     let response = [] as (IJSON<string> | undefined)[]
@@ -208,6 +142,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
         switch (tx.fragment.name) {
             case "fulfillAdvancedOrder":
             case "fulfillOrder":
+                if (tx.args[0][0][2][0][1].toLowerCase() !== collectionAddress.toLowerCase()) break
                 response = [processAdvancedOrder(tx?.args[0], payoutAddress, tx?.args[5])]
                 break
             case "fulfillAvailableOrders":
@@ -216,11 +151,13 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
             case "matchOrders":
                 const advancedOrders = [] as (IJSON<string> | undefined)[]
                 tx?.args[0].forEach((order: any) => {
+                    if (order[0][2][0][1].toLowerCase() !== collectionAddress.toLowerCase()) return
                     advancedOrders.push(processAdvancedOrder(order, payoutAddress, tx?.args[5]))
                 })
                 response = advancedOrders
                 break
             case "fulfillBasicOrder":
+                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
                 considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
@@ -232,6 +169,7 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                 }
                 break
             case "fulfillBasicOrder_efficient_6GL6yc":
+                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
                 considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
@@ -271,7 +209,7 @@ export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['bre
         for (const [chain, graphURL] of graphUrlsEntries) {
             acc[collectionAddress] = {
                 [chain]: {
-                    fetch: collectionFetch(payoutAddress, graphURL),
+                    fetch: collectionFetch(collectionAddress, payoutAddress),
                     start: async () => start,
                     meta: {
                         methodology: {
