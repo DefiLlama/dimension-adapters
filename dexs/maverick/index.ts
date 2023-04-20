@@ -9,6 +9,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.ETHEREUM),
       start: async () => 1676851200,
     },
+    [CHAIN.ERA]: {
+      fetch: fetchVolume(CHAIN.ERA),
+      start: async () => 1337265,
+    },
   },
 };
 
