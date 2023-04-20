@@ -1,5 +1,6 @@
 import { Adapter, FetchResult } from "../adapters/types";
 import axios from "axios";
+import { CHAIN } from "../helpers/chains";
 
 interface DailyFeeResponse {
   fees: {
@@ -32,7 +33,7 @@ const meta = {
 
 const adapter: Adapter = {
   adapter: {
-    cosmos: {
+    [CHAIN.COSMOS]: {
       fetch: fetch("cosmos"),
       runAtCurrTime: true,
       start: async () => 0,
@@ -62,18 +63,18 @@ const adapter: Adapter = {
       start: async () => 0,
       meta,
     },
-   /*  evmos: {
-      fetch: fetch("evmos"),
-      runAtCurrTime: true,
-      start: async () => 0,
-      meta,
-    },
-    injective: {
-      fetch: fetch("injective"),
-      runAtCurrTime: true,
-      start: async () => 0,
-      meta,
-    }, */
+    /*  evmos: {
+       fetch: fetch("evmos"),
+       runAtCurrTime: true,
+       start: async () => 0,
+       meta,
+     },
+     injective: {
+       fetch: fetch("injective"),
+       runAtCurrTime: true,
+       start: async () => 0,
+       meta,
+     }, */
   },
 };
 

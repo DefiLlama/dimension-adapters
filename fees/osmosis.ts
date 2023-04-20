@@ -2,6 +2,7 @@ import { Adapter } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
 import axios from "axios"
+import { CHAIN } from "../helpers/chains";
 
 const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical"
 
@@ -37,7 +38,7 @@ const getStartTimestamp = async () => {
 
 const adapter: Adapter = {
   adapter: {
-    cosmos: {
+    [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
       start: getStartTimestamp,
