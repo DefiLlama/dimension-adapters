@@ -1641,6 +1641,32 @@ export default [
                 "polygon":[],
             }
         },
+        {
+            "id":"351",
+            "name":"Gravity Finance",
+            "addresses":{
+                "polygon":[
+                    "0x57dE98135e8287F163c59cA4fF45f1341b680248",
+                    "0xF2e6b6d7F3b62449260ac87B66cEf9e2664C26d7",
+                    "0xb4A1F1Dd67e129190feeB4bcADB5298D434d54f2",
+                    "0x57dE98135e8287F163c59cA4fF45f1341b680248",
+                    "0xEbe141dE74F1E6377f53551C275568d7bcBC4119"
+                ]
+            }
+        },
+        {
+            "id":"1296",
+            "name":"ZipSwap",
+            "addresses":{
+                "arbitrum":[
+                    "0x4D70D768f5E1e6a7062973aFB0c7FBDa9bBb42b3"
+                ],
+                "optimism":[
+                    "0xE6Df0BB08e5A97b40B21950a0A51b94c4DbA0Ff6",
+                    "0x00000000000013adDDC0919642d45f5d9Df09502"
+                ]
+            }
+        },
 
 
 
