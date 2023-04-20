@@ -1617,6 +1617,30 @@ export default [
                 ]
             }
         },*/
+        {
+            "id":"392",
+            "name":"WardenSwap",
+            "addresses":{
+                "bsc":[
+                    "0x451ef8D6B645a60115EB8b8bEa76B39C0C761004",
+                    "0x71ac17934b60A4610dc58b715B61e45DCBdE4054",
+                    "0x0Bdc24946818C0Fe045A1D84d2Fe630e6e59B77D",
+                ],
+                "ethereum":[
+                    "0x39f97198c5DbC193EB962c4B3B7e447091A18eAB"
+                ],
+                "avax":[
+                    "0x5EF960Eb78B8CFc11e654D03BeEB313BaDF5C7C0"
+                ],
+                "arbitrum":[
+                    "0x79A556ef2c5b613dB3DFa8797E6772c5AAF86834"
+                ],
+                "optimism":[
+                    "0x7EA8c22E6Dcd7bd69eb180664Da68e1f1F11D696"
+                ],
+                "polygon":[],
+            }
+        },
 
 
 
