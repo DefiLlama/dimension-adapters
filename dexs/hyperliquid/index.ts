@@ -38,10 +38,11 @@ const fetch = async (timestamp: number) => {
   const historical = (await Promise.all(Object.keys(coins).map((coins: string) =>axios.post(URL, getBody(coins)))))
     .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index]}})).flat()
   const prices = (await getPrices(Object.values(coins),dayTimestamp))
+
   const historicalUSD = historical.map((e: IAPIResponse) => {
     return {
       ...e,
-      volumeUSD: Number(e.volume) * prices[e.id].price
+      volumeUSD: Number(e.volume) * prices[e.id]?.price || 0
     }
   });
   const dailyVolume = historicalUSD.filter((e: IAPIResponse) => e.timestamp === dayTimestamp)
