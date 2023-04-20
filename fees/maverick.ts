@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.ERA]: {
       fetch: fetchFee(CHAIN.ERA),
-      start: async () => 1337265,
+      start: async () => 1681257600,
       meta: {
         methodology,
       },
