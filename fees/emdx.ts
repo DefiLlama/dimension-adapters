@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import * as sdk from "@defillama/sdk";
@@ -12,7 +12,7 @@ interface ITx {
   transactionHash: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
   const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
@@ -33,7 +33,7 @@ const fetch = async (timestamp: number) => {
   }).reduce((a: number, b: number) => a+b,0);
   return {
     timestamp: timestamp,
-    dailyVolume: dailyFees ? `${dailyFees}` : undefined,
+    dailyFees: dailyFees ? `${dailyFees}` : undefined,
   };
 }
 
