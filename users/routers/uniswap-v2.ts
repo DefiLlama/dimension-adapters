@@ -50,7 +50,7 @@ ${chainArray.map(([chain])=>`${chain}_count AS (
 )`).join(',\n')},
 both_count AS (
     SELECT
-    COUNT(FROM_ADDRESS) AS both_count
+    COUNT(DISTINCT FROM_ADDRESS) AS both_count
     FROM
     both
 )
