@@ -3,8 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
 
-const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1633997&to=${to}`
-
+const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=${to}`
+// https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=1682093355
 interface IVolumeall {
   timestampSeconds: string;
   valueHbar: string;
@@ -12,7 +12,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(dayTimestamp), { headers: {
+  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
     'origin': 'https://analytics.saucerswap.finance',
   }}))?.data;
 
