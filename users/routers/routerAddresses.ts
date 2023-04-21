@@ -1682,7 +1682,66 @@ export default [
                 ]
             }
         },
-
-
-
+        {
+            "id":"2331",
+            "name":"SwapFish",
+            "addresses":{
+                "arbitrum":[
+                    "0xcDAeC65495Fa5c0545c5a405224214e3594f30d8"
+                ],
+                "bsc":[
+                    "0xcDAeC65495Fa5c0545c5a405224214e3594f30d8"
+                ]
+            }
+        },
+        {
+            "id":"409",
+            "name":"CafeSwap",
+            "addresses":{
+                "polygon":[
+                    "0x9055682E58C74fc8DdBFC55Ad2428aB1F96098Fc"
+                ],
+                "bsc":[
+                    "0x933DAea3a5995Fb94b14A7696a5F3ffD7B1E385A"
+                ]
+            }
+        },
+        {
+            "id":"1530",
+            "name":"Excalibur",
+            "addresses":{
+                "fantom":[
+                    "0xc8Fe105cEB91e485fb0AC338F2994Ea655C78691"
+                ]
+            }
+        },
+        {
+            "id":"1359",
+            "name":"CapitalDEX",
+            "addresses":{
+                "ethereum":[
+                    "0xDc6844cED486Ec04803f02F2Ee40BBDBEf615f21"
+                ]
+            }
+        },
+        {
+            "id":"1253",
+            "name":"HakuSwap",
+            "addresses":{
+                "avax":[
+                    "0xE6e79A66cB32c53A9d56B18FA737fb5D72c71475",
+                    "0x5F1FdcA239362c5b8A8Ada26a256ac5626CC33E0"
+                ]
+            }
+        },
+        {
+            "id":"455",
+            "name":"ZooCoin",
+            "addresses":{
+                "fantom":[
+                    "0x40b12a3E261416fF0035586ff96e23c2894560f2",
+                    "0xA7843036252e79fBc495814e714F1439dF8Dc8a4"
+                ]
+            }
+        },
 ]
