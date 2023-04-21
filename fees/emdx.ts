@@ -1,18 +1,39 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import * as sdk from "@defillama/sdk";
+import { getBlock } from "../helpers/getBlock";
 
-const endpoint = "https://statistics-api.emdx.io/fee";
+const address = '0xbfb083840b0507670b92456264164e5fecd0430b';
+const topic0 = '0x4c7b764f428c13bbea8cc8da90ebe6eef4dafeb27a4e3d9041d64208c47ca7c2';
+
+interface ITx {
+  data: string;
+  transactionHash: string;
+}
 
 const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const response = await axios.get(`${endpoint}?date=${dayTimestamp}`);
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
+  const fromBlock = (await getBlock(todaysTimestamp, CHAIN.AVAX, {}));
+  const toBlock = (await getBlock(yesterdaysTimestamp, CHAIN.AVAX, {}));
+  const logs: ITx[] = (await sdk.api.util.getLogs({
+    target: address,
+    topic: '',
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    topics: [topic0],
+    keys: [],
+    chain: CHAIN.AVAX
+  })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+  const dailyFees = logs.map((tx: ITx) => {
+    const amount = Number('0x' + tx.data.slice(192, 256)) / 10 **  18;
+    return amount;
+  }).reduce((a: number, b: number) => a+b,0);
   return {
-    timestamp: dayTimestamp,
-    totalFees: `${response?.data?.cumulative_fees || 0}`,
-    dailyFees: `${response?.data?.volume || 0}`,
+    timestamp: timestamp,
+    dailyVolume: dailyFees ? `${dailyFees}` : undefined,
   };
 }
 
