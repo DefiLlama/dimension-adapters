@@ -58,9 +58,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
          {
           graphRes.feeStat.margin=0;}
 
-       dailyFee = parseInt(graphRes.feeStat.margin) + 20/100*parseInt(graphRes1.tradingStat.liquidatedCollateral);
+       dailyFee = parseInt(graphRes.feeStat.margin) + parseInt(graphRes1.tradingStat.liquidatedCollateral);
        finalDailyFee = (dailyFee / 1000000);
-       userFee = parseInt(graphRes.feeStat.margin) + 20/100*parseInt(graphRes1.tradingStat.liquidatedCollateral)
+       userFee = parseInt(graphRes.feeStat.margin) + parseInt(graphRes1.tradingStat.liquidatedCollateral)
        finalUserFee = (userFee / 1000000);
 
       }
