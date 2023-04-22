@@ -1,4 +1,7 @@
-export default [
+import { isAddressesUsable } from "../utils/countUsers";
+import { ProtocolAddresses } from "../utils/types";
+
+export default ([
         {
             "id":"parent#uniswap",
             "name":"Uniswap",
@@ -1825,4 +1828,4 @@ export default [
             }
         },
         
-]
+] as ProtocolAddresses[]).filter(isAddressesUsable)

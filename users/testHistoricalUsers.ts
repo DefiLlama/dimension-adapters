@@ -1,7 +1,9 @@
 require("dotenv").config();
-import protocolAddresses from "./routers/routerAddresses";
+import {addressList} from "./list";
 import { convertChainToFlipside, isAcceptedChain } from "./utils/convertChain";
 import { queryFlipside } from "../helpers/flipsidecrypto";
+import { ChainAddresses } from "./utils/types";
+import { isAddressesUsable } from "./utils/countUsers";
 
 function encode(n:number[]){
   const digit="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
@@ -14,14 +16,22 @@ function encode(n:number[]){
 
 async function main() {
     const selectedProtocol = process.argv[2]
-    const filtered = protocolAddresses.filter(addresses => {
-        return Object.entries(addresses.addresses).some(([chain, addys]) => isAcceptedChain(chain) && addys.length > 0)
-            && addresses.name.toLowerCase() === selectedProtocol.toLowerCase()
-    })
-    if (filtered.length === 0) {
+    const protocol = addressList.find(addresses => {
+        return addresses.name.toLowerCase() === selectedProtocol.toLowerCase()
+    }) as any
+    if (protocol === undefined) {
         console.log("No protocol with that name!")
+        return
     }
-    const { name, addresses, id } = filtered[0]
+    let addresses:ChainAddresses
+    if(protocol.getAddresses){
+      addresses = await protocol.getAddresses()
+    } else {
+      addresses = protocol.addresses
+    }
+    if(!isAddressesUsable({addresses, id:protocol.id, name:protocol.name})){
+      throw new Error("Protocol has no addresses on indexed chains")
+    }
     const chainArray = Object.entries(addresses).filter(([chain]) => isAcceptedChain(chain))
     const usersChart = await queryFlipside(`
 WITH
