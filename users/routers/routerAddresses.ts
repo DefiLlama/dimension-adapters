@@ -352,28 +352,44 @@ export default [
             "name":"KyberSwap",
             "addresses":{
                 "ethereum":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "polygon":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "avax":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "bsc":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "arbitrum":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "optimism":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "fantom":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ],
                 "cronos":[
-                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+                    "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
+                    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+                    "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83" //Elastic Router
                 ]
 
             }
@@ -472,7 +488,7 @@ export default [
             "name":"Beethoven X",
             "addresses":{
                 "optimism":[
-                    "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+                    "0xBA12222222228d8Ba445958a75a0704d566BF2C8" //Vault
                 ],
                 "fantom":[
                     "0x20dd72Ed959b6147912C2e529F0a0C651c33c9ce"
@@ -780,10 +796,12 @@ export default [
                     "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
                 ],
                 "optimism":[
-                    "0x5130f6cE257B8F9bF7fac0A0b519Bd588120ed40"
+                    "0x5130f6cE257B8F9bF7fac0A0b519Bd588120ed40", //ClipperPackedVerifiedExchange
+                    "0xF33141BC4E9D1d92a2Adba2fa27A09c2DA2AF3eB" //ClipperPermitRouter
                 ],
                 "polygon":[
-                    "0x6Bfce69d1Df30FD2B2C8e478EDEC9dAa643Ae3B8"
+                    "0x6Bfce69d1Df30FD2B2C8e478EDEC9dAa643Ae3B8",
+                    "0xF33141BC4E9D1d92a2Adba2fa27A09c2DA2AF3eB" //ClipperPermitRouter
                 ],
                 "moonbeam":[
                     "0xCE37051a3e60587157DC4c0391B4C555c6E68255"
