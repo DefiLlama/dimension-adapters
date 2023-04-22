@@ -1,4 +1,4 @@
-import { isAddressesUsable } from "../utils/countUsers";
+import { countUsers, isAddressesUsable } from "../utils/countUsers";
 import * as sdk from "@defillama/sdk";
 import { ChainAddresses } from "../utils/types";
 
@@ -24,8 +24,14 @@ function findAllAddresses(addresses:any): ()=>Promise<ChainAddresses>{
     })))
 }
 
-export default comptrollers.filter(isAddressesUsable).map(addresses=>({
+export const addresses = comptrollers.filter(isAddressesUsable).map(addresses=>({
     name: addresses.name,
     id: addresses.id,
     getAddresses: findAllAddresses(addresses.addresses)
+}))
+
+export default addresses.map(addresses=>({
+    name: addresses.name,
+    id: addresses.id,
+    getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end)
 }))
