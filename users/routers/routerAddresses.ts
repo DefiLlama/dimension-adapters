@@ -1744,4 +1744,85 @@ export default [
                 ]
             }
         },
+        {
+            "id":"1750",
+            "name":"CryptoSwap",
+            "addresses":{
+                "bsc":[
+                    "0xe4964c56f46063F25f2a77269B36a773140Ab325"
+                ]
+            }
+        },
+        {
+            "id":"2865",
+            "name":"Moonbase Alpha",
+            "addresses":{
+                "arbitrum":[
+                    "0x88FcF70243B4BCC0325060805b7bE9b3DA984805",
+                    "0x5cb6600359Cd392A6Ffea69781d1C6db6A25A18F",//masterchef
+                ]
+            }
+        },
+        {
+            "id":"1150",
+            "name":"WraithSwap",
+            "addresses":{
+                "fantom":[
+                    "0x8C9E059a729C17fB294cd782eB66Df3871D29173",
+                    "0x37b106f101a63D9d06e53140E52Eb6F8A3aC5bBc",//masterchef
+                ]
+            }
+        },
+        {
+            "id":"920",
+            "name":"Raven",
+            "addresses":{
+                "fantom":[
+                    "0xbCEf0849DDd928835A6Aa130aE527C2703CD832C",//masterchef
+                    "0x2639779d6CA9091483a2A7b9A1FE77Ab83b90281",//masterchef
+                ]
+            }
+        },
+        {
+            "id":"737",
+            "name":"Dino.Exchange",
+            "addresses":{
+                "bsc":[
+                    "0xe12405F0A569A9402fF563FB923A96DC2525D3Eb",
+                    "0xc2a88eCE6B6321819D947c9EadEABBa699c16349",
+                ]
+            }
+        },
+        {
+            "id":"1363",
+            "name":"Oni Exchange",
+            "addresses":{
+                "bsc":[
+                    "0x3f49193f91a07bb87102e5768fa7a61692EA4D9c",
+                    "0x974A8959c52f6109C59d0A6D63D4eA4CC522DfA2",
+                    "0x09a8521FC838D795555113Fcb5b8fC8C267783F9",//masterchef
+                    "0xE93fC7e6103EF86F3329635B8197D462B74F0cb8",//masterchef
+                ]
+            }
+        },
+        {
+            "id":"1857",
+            "name":"FATExFi",
+            "addresses":{
+                "polygon":[
+                    "0x8863f716706e9e4f13A52601A129DD1E1c3fA08B"
+                ]
+            }
+        },
+        {
+            "id":"1859",
+            "name":"AuraSwap",
+            "addresses":{
+                "polygon":[
+                    "0x09Fd8B8ed6E30e583379Dc73b9261dF5E1A28b6F",
+                    "0x44Bb1a3E56Cb12b7B1a8E925f09A170e3646346d",//masterchef
+                ]
+            }
+        },
+        
 ]
