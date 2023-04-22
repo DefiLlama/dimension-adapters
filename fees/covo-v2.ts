@@ -6,7 +6,7 @@ import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/covo-v2",
+  [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/covo-v2-2",
 }
 
 let dailyFee= 0;
