@@ -277,9 +277,8 @@ export default ([
             "id":"221",
             "name":"Defi Swap",
             "addresses":{
-                "ethereum":["0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"],
-                "arbitrum":[
-                    "0xCeB90E4C17d626BE0fACd78b79c9c87d7ca181b3"
+                "ethereum":[
+                    "0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"
                 ]
             }
         },
@@ -939,7 +938,11 @@ export default ([
             "name":"Nomiswap",
             "addresses":{
                 "bsc":[
-                    "0xD486D0846812266D21e1Ab6c57FCF202DF836dc8"
+                    "0xD486D0846812266D21e1Ab6c57FCF202DF836dc8",
+                    "0xD654953D746f0b114d1F85332Dc43446ac79413d",
+                    "0x9D15d0d737e06a875F3d46621fB52fe79ffA6136",
+                    "0x4eC3432d9443f05022e2Ff4E54fC7514BE2359e0",
+                    "0xbF4c0d66Db59Ae8276e0cB7E1Ed36fC4Ac8C1d68"
                 ]
             }
         },
