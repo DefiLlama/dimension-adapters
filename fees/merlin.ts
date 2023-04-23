@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/45654/merlin-subgraph/v0.1.0"
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45654/merlin-subgraph/v0.1.0"
 }
 
 const fetch = (chain: Chain) => {
@@ -52,8 +52,8 @@ const fetch = (chain: Chain) => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.ZKSYNC]: {
-      fetch: fetch(CHAIN.ZKSYNC),
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
       start: async () => 1680274800,
     },
   },

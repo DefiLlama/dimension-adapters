@@ -2,8 +2,8 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-    [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/45654/merlin-subgraph/v0.1.0"
+    [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45654/merlin-subgraph/v0.1.0"
 }, {});
 
-adapters.adapter.zksync.start = async () => 1680274800;
+adapters.adapter.era.start = async () => 1680274800;
 export default adapters;
