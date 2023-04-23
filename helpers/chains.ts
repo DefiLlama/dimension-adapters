@@ -101,7 +101,8 @@ export enum CHAIN {
   POLYGON_ZKEVM = "polygon_zkevm",
   ACALA = "acala",
   SORA = "sora",
-  COSMOS = "cosmos"
+  COSMOS = "cosmos",
+  OAS = "oas"
 }
 
 // Don´t use
