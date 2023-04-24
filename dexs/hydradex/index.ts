@@ -22,10 +22,10 @@ const v3Endpoints = {
 const VOLUME_USD = 'volumeUSD';
 const FEES_USD = 'feesUSD';
 
-const getV2CustomBlock = async () => {
+const getV2CustomBlock = async (timestamp: number) => {
   const blockGraphQuery = gql`
     query get_block {
-      blocks(orderBy: "height", first: 1, orderDirection: "desc") {
+      blocks(orderBy: "height", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
       }
     }
@@ -35,10 +35,10 @@ const getV2CustomBlock = async () => {
   return Number(blocks[0].number);
 };
 
-const getV3CustomBlock = async () => {
+const getV3CustomBlock = async (timestamp: number) => {
   const blockGraphQuery = gql`
     query get_block {
-      blocks(orderBy: "number", first: 1, orderDirection: "desc") {
+      blocks(orderBy: "number", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
       }
     }
@@ -64,12 +64,12 @@ const v2Graph = getGraphDimensions({
   totalVolume: {
     factory: 'hydraswapFactories',
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-    blockGraphType: 'Float!'
+    blockGraphType: 'Float!',
   },
   dailyVolume: {
     factory: 'getHydraswapDayDataById',
     field: DEFAULT_DAILY_VOLUME_FIELD,
-    idGraphType: "String!"
+    idGraphType: 'String!',
   },
   dailyFees: {
     factory: 'hydraswapDayData',
