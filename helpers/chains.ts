@@ -102,7 +102,8 @@ export enum CHAIN {
   ACALA = "acala",
   SORA = "sora",
   COSMOS = "cosmos",
-  OAS = "oas"
+  OAS = "oas",
+  HYDRA = "hydra"
 }
 
 // Don´t use
