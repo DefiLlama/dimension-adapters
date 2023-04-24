@@ -920,7 +920,11 @@ export default ([
             "name":"AlienFi",
             "addresses":{
                 "arbitrum":[
-                    "0x863e9610E9E0C3986DCc6fb2cD335e11D88f7D5f"
+                    "0x863e9610E9E0C3986DCc6fb2cD335e11D88f7D5f",
+                    "0xB8ca857dCd90AfBeD93B30DdCd4E4CC1327c9e5c",
+                    "0xbd796fac59914dB9A7CBC21f1053c7DC1b900fEA",//masterchef
+                    "0x8923d3EFEE38e7bb1E8988B024D5169C962CFB73",//masterchef
+                    "0x4Ad7C3F11ec54d7D066dd114ac403022d3F97E6F",//masterchef
                 ]
             }
         },
@@ -965,7 +969,7 @@ export default ([
             }
         },
         {
-            "id":"2023",
+            "id":"parent#arbswap",
             "name":"Arbswap",
             "addresses":{
                 "arbitrum":[
@@ -975,11 +979,13 @@ export default ([
             }
         },
         {
-            "id":"2341",
-            "name":"Polycat Dex",
+            "id":"parent#polycat-finance",
+            "name":"Polycat Finance",
             "addresses":{
                 "polygon":[
-                    "0x94930a328162957FF1dd48900aF67B5439336cBD"
+                    "0x94930a328162957FF1dd48900aF67B5439336cBD",
+                    "0xfDC8579B2E19B489c4086eDE85A2D71949138be5",//tankchef
+                    "0xfaBC099AD582072d26375F65d659A3792D1740fB",//tankchef
                 ]
             }
         },
