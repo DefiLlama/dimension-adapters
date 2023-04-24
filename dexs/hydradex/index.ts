@@ -8,7 +8,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
-} from '../../helpers/getHydraSubgraph';
+} from '../../helpers/getUniSubgraph';
 import request, { gql } from 'graphql-request';
 
 const v2Endpoints = {
@@ -64,10 +64,12 @@ const v2Graph = getGraphDimensions({
   totalVolume: {
     factory: 'hydraswapFactories',
     field: DEFAULT_TOTAL_VOLUME_FIELD,
+    blockGraphType: 'Float!'
   },
   dailyVolume: {
     factory: 'getHydraswapDayDataById',
     field: DEFAULT_DAILY_VOLUME_FIELD,
+    idGraphType: "String!"
   },
   dailyFees: {
     factory: 'hydraswapDayData',
