@@ -7,6 +7,7 @@ import { ethers } from "ethers";
 import seaport_abi from "./seaport_abi.json"
 import BigNumber from "bignumber.js";
 import { clearInterval } from "timers";
+import { CHAIN } from "../chains";
 
 interface ICollection {
     id: string
@@ -232,21 +233,18 @@ const processAdvancedOrder = (order: any, offerToken: string) => {
     }, {} as IJSON<IJSON<string>>)
 }
 
-export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['breakdown'] => {
-    const graphUrlsEntries = Object.entries(graphUrls)
+export default (start: number): BreakdownAdapter['breakdown'] => {
     return Object.entries(collectionsList).reduce((acc, [collectionAddress, { payoutAddress }]) => {
-        for (const [chain, graphURL] of graphUrlsEntries) {
-            acc[collectionAddress] = {
-                [chain]: {
-                    fetch: collectionFetch(collectionAddress, payoutAddress),
-                    start: async () => start,
-                    meta: {
-                        methodology: {
-                            UserFees: "Fees paid to Opensea",
-                            Fees: "All fees paid: marketplace fees (paid by buyers) + royalty fees (paid by sellers)",
-                            ProtocolRevenue: "Revenue from royalties (paid by sellers)",
-                            Revenue: "Revenue from royalties (paid by sellers)"
-                        }
+        acc[collectionAddress] = {
+            [CHAIN.ETHEREUM]: {
+                fetch: collectionFetch(collectionAddress, payoutAddress),
+                start: async () => start,
+                meta: {
+                    methodology: {
+                        UserFees: "Fees paid to Opensea",
+                        Fees: "All fees paid: marketplace fees (paid by buyers) + royalty fees (paid by sellers)",
+                        ProtocolRevenue: "Revenue from royalties (paid by sellers)",
+                        Revenue: "Revenue from royalties (paid by sellers)"
                     }
                 }
             }
