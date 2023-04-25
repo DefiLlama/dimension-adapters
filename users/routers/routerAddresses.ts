@@ -554,7 +554,7 @@ export default ([
             "name":"Pangolin",
             "addresses":{
                 "avax":[
-                    "0x8B4A45da5B0705Ae4f47EBeFC180C099345cF57e"
+                    "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106"
                 ]
             }
         },
@@ -596,7 +596,8 @@ export default ([
             "name":"Wombat Exchange",
             "addresses":{
                 "bsc":[
-                    "0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7"
+                    "0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7",
+                    "0xE2C07d20AF0Fb50CAE6cDD615CA44AbaAA31F9c8"
                 ]
             }
         },
@@ -653,7 +654,9 @@ export default ([
             "name":"Platypus Finance",
             "addresses":{
                 "avax":[
-                    "0x8B4A45da5B0705Ae4f47EBeFC180C099345cF57e"
+                    "0x7d7E30E269b7C7b447312d3FDE52e6f118F8e39e",
+                    "0x73256EC7575D999C360c1EeC118ECbEFd8DA7D12",
+                    "0x6f6FCbcc00f9AFBD2C266631087798740c685C3B"
                 ]
             }
         },
@@ -662,7 +665,10 @@ export default ([
             "name":"MDEX",
             "addresses":{
                 "bsc":[
-                    "0x62c1A0d92B09D0912F7BB9c96C5ecdC7F2b87059"
+                    "0x7DAe51BD3E3376B8c7c4900E9107f12Be3AF1bA8",
+                    "0x62c1A0d92B09D0912F7BB9c96C5ecdC7F2b87059",
+                    "0x0384E9ad329396C3A6A401243Ca71633B2bC4333",
+                    "0x518a6e9FB2832aDA41415775E5c45dE6EfCF1A3C",
                 ],
                 "heco":[""]
             }
@@ -675,7 +681,7 @@ export default ([
                     "0xF29acE1FE5f36389d0dDe450a0195A30c3770245"
                 ]
             }
-        },
+        },/*
         {
             "id":"238",
             "name":"Ellipsis Finance",
@@ -684,7 +690,7 @@ export default ([
                     "0xE014A89c9788dAfdE603a13F2f01390610382471"
                 ]
             }
-        },
+        },*/
         {
             "id":"1726",
             "name":"Meshswap",
@@ -708,16 +714,18 @@ export default ([
             "name":"Dfyn Network",
             "addresses":{
                 "polygon":[
-                    "0x5ac32A20a5BB6B87AC91E51cA5b7bba9B8846803"
+                    "0x5ac32A20a5BB6B87AC91E51cA5b7bba9B8846803",
+                    "0xA102072A4C07F06EC3B4900FDC4C7B80b6c57429",
+                    "0x712B5c4CEe26c679F3Ddbb9855369B13aA8F3Dec"
                 ],
                 "fantom":[
-                    ""
+                    "0x2724B9497b2cF3325C6BE3ea430b3cec34B5Ef2d"
                 ],
                 "okexchain":[
                     ""
                 ]
             }
-        },
+        },/*
         {
             "id":"133",
             "name":"Shell Protocol",
@@ -726,7 +734,7 @@ export default ([
                     "0xC32eB36f886F638fffD836DF44C124074cFe3584"
                 ]
             }
-        },
+        },*/
         {
             "id":"2644",
             "name":"Maverick Protocol",
@@ -955,7 +963,10 @@ export default ([
             "name":"BurgerSwap",
             "addresses":{
                 "bsc":[
-                    "0xe08Ab553720a46C071475838a6cC8D98D1Afb891"
+                    "0xe08Ab553720a46C071475838a6cC8D98D1Afb891",
+                    "0xEfC254D0cdb1924149382d404A2133532D46A777",
+                    "0xfa9cCB91d28d35E12216e43d8990D31595783600",
+                    "0xE3F08e81Ec8533D6CD7784B672e4237087b2A7c8"
                 ]
             }
         },
@@ -1076,7 +1087,8 @@ export default ([
             "name":"Bearn",
             "addresses":{
                 "bsc":[
-                    "0xC6747954a9B3A074d8E4168B444d7F397FeE76AA"
+                    "0xC6747954a9B3A074d8E4168B444d7F397FeE76AA",
+                    "0x3d695c1607a085773547e07dEf1aD3CE3f518Edb",//bearnchef
                 ]
             }
         },
@@ -1127,7 +1139,10 @@ export default ([
             "name":"Alita Finance",
             "addresses":{
                 "bsc":[
-                    "0x730aCC3bBf2443f2EaEaCFc7ac7b4d8DC9E32dB8"
+                    "0x730aCC3bBf2443f2EaEaCFc7ac7b4d8DC9E32dB8",
+                    "0x4f7b2Be2bc3C61009e9aE520CCfc830612A10694",
+                    "0x28162cda1E767663F68B759AF47801171Aa58815",//incentive
+                    "0x8ED5fABddb6f899f7FaCf461587f4dAd065AAae7",//masterchef
                 ]
             }
         },
@@ -1145,7 +1160,11 @@ export default ([
             "name":"WinerySwap",
             "addresses":{
                 "bsc":[
-                    "0xB115C8392C4C416b227e98d9bbb394bFD03BE965"
+                    "0xB115C8392C4C416b227e98d9bbb394bFD03BE965",
+                    "0x8B07c6CB1b2edA3942369EEC9DF8e12213f99181",
+                    "0x8bfFB5562ff30f555894E101E6DAD31D271EEd5a",
+                    "0xBd27399a5aA720250b37b6864F293A27F3D2A043",//masterchef
+                    "0x21694642bea2D2E0B0f5129a25D753dd9fB9623A",//masterchef
                 ]
             }
         },
@@ -1187,10 +1206,13 @@ export default ([
             "name":"SoulSwap",
             "addresses":{
                 "fantom":[
-                    "0x6b3d631B87FE27aF29efeC61d2ab8CE4d621cCBF"
+                    "0x6b3d631B87FE27aF29efeC61d2ab8CE4d621cCBF",
+                    "0x994889A5a2BcfAB67e5242996e1331b74d777834",
+                    "0x2CDa3B64Da9c1b7F18891E1567bc43eD558D089b"
                 ],
                 "avax":[
-                    "0xa4594460A9d3D41e8B85542D34E23AdAbc3c86Ef"
+                    "0xa4594460A9d3D41e8B85542D34E23AdAbc3c86Ef",
+                    "0xE15d319896038aB76f2bc7cE15CBc2689b498570"
                 ]
             }
         },
@@ -1226,7 +1248,8 @@ export default ([
             "name":"Convergence",
             "addresses":{
                 "ethereum":[
-                    "0x750eD5cF0f5278be9C6562399f0791dD221C4f83"
+                    "0x8Cda39226daf33ae1Aba0C92C34d1a1982Cf0210",
+                    "0x37c7C2ae51E968CEfB82cFF2102727256D36D6eE"
                 ],
                 "moonbeam":[]
             }
@@ -1501,7 +1524,7 @@ export default ([
                     "0x0c17e776CD218252ADFca8D4e761D3fe757e9778",
                     "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
                 ],
-                "bsd":[
+                "bsc":[
                     "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
                 ]
             }
