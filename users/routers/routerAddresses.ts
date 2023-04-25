@@ -612,28 +612,6 @@ export default ([
             }
         },
         {
-            "id":"parent#apeswap",
-            "name":"ApeSwap",
-            "addresses":{
-                "ethereum":[
-                    "0x5f509a3C3F16dF2Fba7bF84dEE1eFbce6BB85587"
-                ],
-                "polygon":[
-                    "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
-                ],
-                "bsc":[
-                    "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7",
-                    "0xad48b2c9dc6709a560018c678e918253a65df86e",//unitroller
-                ],
-                "arbitrum":[
-                    "0x7d13268144adcdbEBDf94F654085CC15502849Ff"
-                ],
-                "telos":[
-                    "0xb9667Cf9A495A123b0C43B924f6c2244f42817BE"
-                ]
-            }
-        },
-        {
             "id":"2332",
             "name":"Equalizer Exchange",
             "addresses":{
