@@ -93,7 +93,7 @@ export const collectionFetch = (collectionAddress: string, payoutAddress: string
         await sql.end({ timeout: 3 })
     }
     // parse transactions of that range using seaport abi
-    const iface = new ethers.Interface(seaport_abi)
+    const iface = new ethers.utils.Interface(seaport_abi)
     // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
     if (processedFees === undefined && !processFeesStarted) {
         processFeesStarted = true
@@ -108,7 +108,7 @@ export const collectionFetch = (collectionAddress: string, payoutAddress: string
     return res
 }
 
-const patientExtractFeesByPayout = async (iface: ethers.Interface): Promise<IJSON<IJSON<string>>> => {
+const patientExtractFeesByPayout = async (iface: ethers.utils.Interface): Promise<IJSON<IJSON<string>>> => {
     return new Promise((resolve) => {
         const intervalid = setInterval(async () => {
             if (rangeSeaportTxs !== undefined) {
@@ -125,7 +125,7 @@ const patientExtractFeesByPayout = async (iface: ethers.Interface): Promise<IJSO
                         // Normally reverted or failed txs
                         console.error("Failed to parse transaction", txhash, (e as Error).message)
                     }
-                }).filter((tx): tx is ethers.TransactionDescription & { tx_hash: string } => !!tx && Object.keys(tx).length > 1)
+                }).filter((tx): tx is ethers.utils.TransactionDescription & { tx_hash: string } => !!tx && Object.keys(tx).length > 1)
                 // extract fees based on payoutAddress and sum them
                 const allPayouts = [] as ReturnType<typeof extractFeesByPayoutAddress>
                 allTxs.forEach(tx => {
@@ -159,12 +159,12 @@ const patientProcessPayouts = async (colletionAddress: string, payoutAddress: st
 }
 
 const DEFAULT_OFFER_TOKEN = "0x0000000000000000000000000000000000000000"
-const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription) => {
+const extractFeesByPayoutAddress = (tx: ethers.utils.TransactionDescription) => {
     let considerationArr: (string | BigInt)[] | undefined
     let fee: BigNumber | undefined
     let response = [] as (IJSON<IJSON<string>> | undefined)[]
     try {
-        switch (tx.fragment.name) {
+        switch (tx.name) {
             case "fulfillAdvancedOrder":
             case "fulfillOrder":
                 response = [processAdvancedOrder(tx.args[0], DEFAULT_OFFER_TOKEN)]
