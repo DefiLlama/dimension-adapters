@@ -416,7 +416,7 @@ export default ([
                     "0x3E48298A5Fe88E4d62985DFf65Dee39a25914975"
                 ]
             }
-        },
+        },/*
         {
             "id":"parent#trader-joe",
             "name":"Trader Joe",
@@ -431,7 +431,7 @@ export default ([
                     "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
                 ]
             }
-        },
+        },*/
         {
             "id":"2307",
             "name":"Camelot",
@@ -609,7 +609,7 @@ export default ([
                     "0xAAA87963EFeB6f7E0a2711F397663105Acb1805e"
                 ]
             }
-        },
+        },/*
         {
             "id":"parent#apeswap",
             "name":"ApeSwap",
@@ -630,7 +630,7 @@ export default ([
                     "0xb9667Cf9A495A123b0C43B924f6c2244f42817BE"
                 ]
             }
-        },
+        },*/
         {
             "id":"2332",
             "name":"Equalizer Exchange",
