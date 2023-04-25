@@ -8,6 +8,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
+import { type } from "os";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -20,8 +21,7 @@ const v2Endpoints = {
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis",
-  [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-dev",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-minimal",
   [CHAIN.POLYGON]:
     "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
@@ -95,6 +95,16 @@ const methodology = {
   HoldersRevenue: "Holders have no revenue."
 }
 
+type TStartTime = {
+  [key: string]: number;
+}
+const startTimeV3:TStartTime = {
+  [CHAIN.ETHEREUM]:  1620172800,
+  [CHAIN.OPTIMISM]:  1636675200,
+  [CHAIN.ARBITRUM]: 1630368000,
+  [CHAIN.POLYGON]:  1640044800,
+  [CHAIN.CELO]: 1657324800,
+}
 const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
@@ -134,11 +144,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: getStartTimestamp({
-          endpoints: v3Endpoints,
-          chain: chain,
-          volumeField: VOLUME_USD,
-        }),
+        start: async () => startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,
