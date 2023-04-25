@@ -15,6 +15,9 @@ const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolumeUSD";
 const DEFAULT_DAILY_DATE_FIELD = "date";
 const DEFAULT_DAILY_PAIR_FACTORY = "pairDayDatas"
 
+const DEFAULT_ID_TYPE = 'ID!'
+const DEFAULT_BLOCK_TYPE = 'Int'
+
 interface IGetChainVolumeParams {
   graphUrls: {
     [chains: string]: string
@@ -24,13 +27,15 @@ interface IGetChainVolumeParams {
   },
   totalVolume?: {
     factory?: string,
-    field?: string
+    field?: string,
+    blockGraphType?: string
   },
   dailyVolume?: {
     factory?: string,
     field?: string,
     dateField?: string,
-    pairs?: string
+    pairs?: string,
+    idGraphType?: string
   },
   totalFees?: {
     factory?: string,
@@ -71,12 +76,14 @@ function getGraphDimensions({
   totalVolume = {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
+    blockGraphType: DEFAULT_BLOCK_TYPE
   },
   dailyVolume = {
     factory: DEFAULT_DAILY_VOLUME_FACTORY,
     field: DEFAULT_DAILY_VOLUME_FIELD,
     dateField: DEFAULT_DAILY_DATE_FIELD,
-    pairs: DEFAULT_DAILY_PAIR_FACTORY
+    pairs: DEFAULT_DAILY_PAIR_FACTORY,
+    idGraphType: DEFAULT_ID_TYPE
   },
   totalFees = {
     factory: DEFAULT_TOTAL_FEES_FACTORY,
@@ -96,11 +103,12 @@ function getGraphDimensions({
     factory: dailyVolume.factory ?? DEFAULT_DAILY_VOLUME_FACTORY,
     field: dailyVolume.field ?? DEFAULT_DAILY_VOLUME_FIELD,
     dateField: dailyVolume.dateField ?? DEFAULT_DAILY_DATE_FIELD, // For alternative query
-    pairs: dailyVolume.pairs ?? DEFAULT_DAILY_PAIR_FACTORY
+    pairs: dailyVolume.pairs ?? DEFAULT_DAILY_PAIR_FACTORY,
+    idGraphType: dailyVolume.idGraphType ?? DEFAULT_ID_TYPE
   }
   // Queries
   const dailyVolumeQuery = gql`
-  query daily_volume ($id: ID!) {
+  query daily_volume ($id: ${graphFieldsDailyVolume.idGraphType}) {
       ${graphFieldsDailyVolume.factory} (id: $id) {
         ${graphFieldsDailyVolume.field}
       }
@@ -118,10 +126,11 @@ function getGraphDimensions({
   const graphFieldsTotalVolume = {
     factory: totalVolume.factory ?? DEFAULT_TOTAL_VOLUME_FACTORY,
     field: totalVolume.field ?? DEFAULT_TOTAL_VOLUME_FIELD,
+    blockGraphType: totalVolume.blockGraphType ?? DEFAULT_BLOCK_TYPE
   }
   // Queries
   const totalVolumeQuery = gql`
-  query total_volume ($block: Int) {
+  query total_volume ($block: ${graphFieldsTotalVolume.blockGraphType}) {
     ${graphFieldsTotalVolume.factory}(block: { number: $block }) {
       ${graphFieldsTotalVolume.field}
     }
