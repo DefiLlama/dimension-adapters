@@ -1,7 +1,6 @@
 import { BreakdownAdapter, FetchResult } from "../../adapters/types";
-import type { ChainEndpoints, IJSON } from "../../adapters/types"
+import type { IJSON } from "../../adapters/types"
 import collectionsList from './collections'
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import postgres from "postgres";
 import { ethers } from "ethers";
 import seaport_abi from "./seaport_abi.json"

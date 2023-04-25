@@ -1,5 +1,4 @@
 import { Adapter, ProtocolType } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import getOpenseaCollections from "../../helpers/getOpenseaCollections"
 
 const adapter: Adapter = {
