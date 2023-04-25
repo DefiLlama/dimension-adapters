@@ -18,7 +18,7 @@ export default {
     "0x5f076e995290f3f9aea85fdd06d8fae118f2b75c": { slug: "utopiaavatars", payoutAddress: "0x3e4ac039bf15c6842569ed300a59b36a6ad2c4f9" },
     "0x19b86299c21505cdf59ce63740b240a9c822b5e4": { slug: "degentoonz-collection", payoutAddress: "0xb047464bd7c66d0553fe7ead00b8ab9a77fd0097" },
     "0x7d8820fa92eb1584636f4f5b8515b5476b75171a": { slug: "murakami-flowers-2022-official", payoutAddress: "0xf50fbf46fd6ec8609c1219bbabf00539836f1a34" },
-    /*"0xe70659b717112ac4e14284d0db2f5d5703df8e43": { slug: "notablepepes", payoutAddress: "0xf7e2f5919081fb9ff8d13fd340351f450cf33095" },
+    "0xe70659b717112ac4e14284d0db2f5d5703df8e43": { slug: "notablepepes", payoutAddress: "0xf7e2f5919081fb9ff8d13fd340351f450cf33095" },
     "0xd57474e76c9ebecc01b65a1494f0a1211df7bcd8": { slug: "the-devs-nft", payoutAddress: "0x09b34e69363d37379e1c5e27fc793fdb5aca893d" },
     "0x24a11e702cd90f034ea44faf1e180c0c654ac5d9": { slug: "trump-digital-trading-cards", payoutAddress: "0x3aa65bdf4c30b8559522a5ee3df61f46c413e19d" },
     "0x98c7fa114b2fe921ba97f628e9dcb72890491721": { slug: "etherpoap-og", payoutAddress: "0xed963059f74f17124943cf9c12bae8f7776c4e4c" },
@@ -75,7 +75,7 @@ export default {
     "0x4b15a9c28034dc83db40cd810001427d3bd7163d": { slug: "hv-mtl", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
     "0xbd3531da5cf5857e7cfaa92426877b022e612cf8": { slug: "pudgypenguins", payoutAddress: "0x1afa64e9b8e3090f2001f66d9c9a74cde646738a" },
     "0xba30e5f9bb24caa003e9f2f0497ad287fdf95623": { slug: "bored-ape-kennel-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
-    "0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38": { slug: "sandbox", payoutAddress: "0x7a9fe22691c811ea339d9b73150e6911a5343dca" } */
+    "0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38": { slug: "sandbox", payoutAddress: "0x7a9fe22691c811ea339d9b73150e6911a5343dca" }
 } as IJSON<{
     slug: string
     payoutAddress: string

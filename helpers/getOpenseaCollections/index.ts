@@ -70,12 +70,13 @@ interface QueryTransactionResult {
 }
 
 let rangeSeaportTxs: QueryTransactionResult[] | undefined
+let processedFees: IJSON<IJSON<string>> | undefined
 let queryStarted = false
+let processFeesStarted = false
 export const collectionFetch = (collectionAddress: string, payoutAddress: string) => async (timestamp: number) => {
     // get range to search
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const startDay = new Date((todaysTimestamp - 60 * 60 * 24) * 1e3);
-    const endDay = new Date(todaysTimestamp * 1e3);
+    const startDay = new Date((timestamp - 60 * 60 * 24) * 1e3);
+    const endDay = new Date(timestamp * 1e3);
     // query seaport 1.4 transactions
     if (rangeSeaportTxs === undefined && !queryStarted) {
         queryStarted = true
@@ -93,19 +94,23 @@ export const collectionFetch = (collectionAddress: string, payoutAddress: string
     // parse transactions of that range using seaport abi
     const iface = new ethers.Interface(seaport_abi)
     // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
+    if (processedFees === undefined && !processFeesStarted) {
+        processFeesStarted = true
+        processedFees = await patientExtractFeesByPayout(iface)
+    }
+
+    const payout = await patientProcessPayouts(collectionAddress, payoutAddress)
     const res = { timestamp } as FetchResult
-    const processedFees = await patientExtractFeesByPayoutFromToken(iface, payoutAddress, collectionAddress)
-    if (Object.keys(processedFees).length > 0) {
-        res["dailyFees"] = processedFees
+    if (Object.keys(payout).length > 0) {
+        res["dailyFees"] = payout
     }
     return res
 }
 
-const patientExtractFeesByPayoutFromToken = async (iface: ethers.Interface, payoutAddress: string, collectionAddress: string): Promise<IJSON<string>> => {
+const patientExtractFeesByPayout = async (iface: ethers.Interface): Promise<IJSON<IJSON<string>>> => {
     return new Promise((resolve) => {
-        const intervalid = setInterval(() => {
+        const intervalid = setInterval(async () => {
             if (rangeSeaportTxs !== undefined) {
-                console.log("Start fees!")
                 clearInterval(intervalid)
                 const allTxs = rangeSeaportTxs.map(tx => {
                     let txhash = ''
@@ -122,93 +127,109 @@ const patientExtractFeesByPayoutFromToken = async (iface: ethers.Interface, payo
                 }).filter((tx): tx is ethers.TransactionDescription & { tx_hash: string } => !!tx && Object.keys(tx).length > 1)
                 // extract fees based on payoutAddress and sum them
                 const allPayouts = [] as ReturnType<typeof extractFeesByPayoutAddress>
-                for (const tx of allTxs) {
-                    allPayouts.push(...extractFeesByPayoutAddress(tx, payoutAddress, collectionAddress))
-                }
-                console.log(allPayouts.length)
-                resolve(allPayouts.reduce((acc, payout) => {
-                    Object.entries(payout).forEach(([token, balance]) => {
-                        let sum = balance
-                        if (acc[token]) sum = BigNumber(acc[token]).plus(BigNumber(balance)).toString()
-                        acc[token] = sum
-                        return acc
+                allTxs.forEach(tx => {
+                    allPayouts.push(...extractFeesByPayoutAddress(tx))
+                })
+                resolve(allPayouts.reduce((acc, addressPayoutObj) => {
+                    Object.entries(addressPayoutObj).forEach(([collectionAddress, payout]) => {
+                        acc[collectionAddress] = Object.entries(payout).reduce((accpout, [token, balance]) => {
+                            let sum = balance
+                            if (accpout[token]) sum = BigNumber(accpout[token]).plus(BigNumber(balance)).toString()
+                            accpout[token] = sum
+                            return accpout
+                        }, acc[collectionAddress] ?? {})
                     })
                     return acc
-                }, {} as IJSON<string>))
-            } else {console.log("Awaiting")
+                }, {} as IJSON<IJSON<string>>))
+            }
+        }, 3000)
+    });
+}
+
+const patientProcessPayouts = async (colletionAddress: string, payoutAddress: string): Promise<IJSON<string>> => {
+    return new Promise((resolve) => {
+        const intervalid = setInterval(() => {
+            if (rangeSeaportTxs && processedFees !== undefined) {
+                clearInterval(intervalid)
+                resolve(processedFees[`${colletionAddress}#${payoutAddress}`] ?? {})
             }
         }, 3000)
     });
 }
 
 const DEFAULT_OFFER_TOKEN = "0x0000000000000000000000000000000000000000"
-const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAddress: string, collectionAddress: string) => {
+const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription) => {
     let considerationArr: (string | BigInt)[] | undefined
     let fee: BigNumber | undefined
-    let response = [] as (IJSON<string> | undefined)[]
+    let response = [] as (IJSON<IJSON<string>> | undefined)[]
     try {
         switch (tx.fragment.name) {
             case "fulfillAdvancedOrder":
             case "fulfillOrder":
-                response = [processAdvancedOrder(tx.args[0], payoutAddress, DEFAULT_OFFER_TOKEN, collectionAddress)]
+                response = [processAdvancedOrder(tx.args[0], DEFAULT_OFFER_TOKEN)]
                 break
             case "fulfillAvailableOrders":
             case "fulfillAvailableAdvancedOrders":
             case "matchAdvancedOrders":
             case "matchOrders":
-                const advancedOrders = [] as (IJSON<string> | undefined)[]
+                // This might be wrong since royalties for a creator are collected from multiple offers (two different offers different collections but same creator then it will count both royalties for one collection)
+                const advancedOrders = [] as (IJSON<IJSON<string>> | undefined)[]
                 tx.args[0].forEach((order: any) => {
-                    advancedOrders.push(processAdvancedOrder(order, payoutAddress, DEFAULT_OFFER_TOKEN, collectionAddress))
+                    advancedOrders.push(processAdvancedOrder(order, DEFAULT_OFFER_TOKEN))
                 })
                 response = advancedOrders
                 break
-            // This might be wrong since royalties for a creator are collected from multiple offers (two different offers different collections but same creator then it will count both royalties for one collection)
             case "fulfillBasicOrder":
-                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
-                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) =>
-                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
-                )
-                if (considerationArr) {
-                    fee = BigNumber(considerationArr[0] as string) // its BigInt but ts complains bc current target has no BigInt support
-                    response = [{
-                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-                    }]
-                }
+                // if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
+                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) => {
+                    fee = BigNumber(consideration[0] as string) // its BigInt but ts complains bc current target has no BigInt support
+                    const payoutAddress = (consideration[1] as string).toLowerCase()
+                    response.push({
+                        [`${tx.args[0][5].toLowerCase()}#${payoutAddress}`]: {
+                            [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                        }
+                    })
+                })
                 break
             case "fulfillBasicOrder_efficient_6GL6yc":
-                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
-                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) =>
-                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
-                )
-                if (considerationArr) {
-                    fee = BigNumber(considerationArr[0] as string) // its BigInt but ts complains bc current target has no BigInt support
-                    response = [{
-                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
-                    }]
-                }
+                // if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
+                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) => {
+                    fee = BigNumber(consideration[0] as string) // its BigInt but ts complains bc current target has no BigInt support
+                    const payoutAddress = (consideration[1] as string).toLowerCase()
+                    response.push({
+                        [`${tx.args[0][5].toLowerCase()}#${payoutAddress}`]: {
+                            [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                        }
+                    })
+                })
                 break
             default:
-                response = []
                 break
         }
     } catch (error) {
         // @ts-ignore
         console.error("Error processing tx (", tx.fragment.name, ") with hash", tx.tx_hash, ", with error", error.message, "and body", tx.args[0][1])
     }
-    return response.filter((el): el is IJSON<string> => el !== undefined)
+    return response.filter((el): el is IJSON<IJSON<string>> => el !== undefined)
 }
 
 
-const processAdvancedOrder = (order: any, payoutAddress: string, offerToken: string, collectionAddress: string) => {
-    if (!order[0][2].some((offer: any[]) => offer[1].toLowerCase() === collectionAddress.toLowerCase())) return undefined
-    const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
-        consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
+const processAdvancedOrder = (order: any, offerToken: string) => {
+    //if (!order[0][2].some((offer: any[]) => offer[1].toLowerCase() === collectionAddress.toLowerCase())) return undefined
+    /* const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
+        consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase())
     )
-    if (!considerationArr) return undefined
-    const fee = BigNumber(considerationArr[4])
-    return {
-        [offerToken]: fee.dividedBy(1e18).toString()
-    }
+    if (!considerationArr) return undefined */
+    return order[0][2].reduce((acc: IJSON<IJSON<string>>, [, address]: string[]) => {
+        order[0][3].forEach((consideration: any) => {
+            const fee = BigNumber(consideration[4])
+            const payoutAddress = consideration[5].toLowerCase()
+            acc[`${address.toLowerCase()}#${payoutAddress}`] = {
+                [offerToken]: fee.dividedBy(1e18).toString()
+            }
+        })
+        return acc
+    }, {} as IJSON<IJSON<string>>)
 }
 
 export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['breakdown'] => {

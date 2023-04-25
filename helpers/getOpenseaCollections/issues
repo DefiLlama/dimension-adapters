@@ -1,0 +1,9 @@
+Payout addresses reported by opensea not always receive royalties on all sales
+for example for https://opensea.io/collection/fluralpha/activity returns this payoutAddress 
+payoutAddress: "0x6d0530de73561c370d649e5edb74cd65172a22f5"
+but checking at txs there's this one receiving also "royalties" (see below tx)
+other royalty address is: https://etherscan.io/tx/0xa31c88b709c84d6c7e978cd5a33c1a2007fd58974c3e4e0a64252fe5ad436354
+_____
+
+Txs with more than 1 NFT sale is imposible to determine which part of the royalty corresponds to each collection
+https://etherscan.io/tx/0x6da55e531a1f1551863dcb0db88ce08f39294ffce23803acdbe0e1b110317125
