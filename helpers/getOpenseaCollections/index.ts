@@ -75,7 +75,7 @@ export const collectionFetch = (collectionAddress: string, payoutAddress: string
     // get range to search
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const startDay = new Date((todaysTimestamp - 60 * 60 * 24) * 1e3);
-    const endDay = new Date((todaysTimestamp + 60 * 60 * 24 * 2) * 1e3);
+    const endDay = new Date(todaysTimestamp * 1e3);
     // query seaport 1.4 transactions
     if (rangeSeaportTxs === undefined && !queryStarted) {
         queryStarted = true
@@ -94,29 +94,32 @@ export const collectionFetch = (collectionAddress: string, payoutAddress: string
     const iface = new ethers.Interface(seaport_abi)
     // patient patientExtractFeesByPayout will await for query to finish (either in this fetch or in another collection fetch)
     const res = { timestamp } as FetchResult
-    const processedFees = await patientExtractFeesByPayoutFrmToken(iface, payoutAddress, collectionAddress)
+    const processedFees = await patientExtractFeesByPayoutFromToken(iface, payoutAddress, collectionAddress)
     if (Object.keys(processedFees).length > 0) {
         res["dailyFees"] = processedFees
     }
     return res
 }
 
-const patientExtractFeesByPayoutFrmToken = async (iface: ethers.Interface, payoutAddress: string, collectionAddress: string): Promise<IJSON<string>> => {
+const patientExtractFeesByPayoutFromToken = async (iface: ethers.Interface, payoutAddress: string, collectionAddress: string): Promise<IJSON<string>> => {
     return new Promise((resolve) => {
         const intervalid = setInterval(() => {
             if (rangeSeaportTxs !== undefined) {
+                console.log("Start fees!")
                 clearInterval(intervalid)
                 const allTxs = rangeSeaportTxs.map(tx => {
+                    let txhash = ''
                     try {
+                        txhash = tx.hash
                         return {
                             ...iface.parseTransaction({ data: `0x${tx.data.toString('hex')}` }),
                             tx_hash: tx.hash
                         }
                     } catch (e) {
-                        // @ts-ignore
-                        console.error("parsetx", e.message)
+                        // Normally reverted or failed txs
+                        console.error("Failed to parse transaction", txhash, (e as Error).message)
                     }
-                }).filter((tx): tx is ethers.TransactionDescription & { tx_hash: string } => !!tx && Object.keys(tx).length>1)
+                }).filter((tx): tx is ethers.TransactionDescription & { tx_hash: string } => !!tx && Object.keys(tx).length > 1)
                 // extract fees based on payoutAddress and sum them
                 const allPayouts = [] as ReturnType<typeof extractFeesByPayoutAddress>
                 for (const tx of allTxs) {
@@ -132,7 +135,7 @@ const patientExtractFeesByPayoutFrmToken = async (iface: ethers.Interface, payou
                     })
                     return acc
                 }, {} as IJSON<string>))
-            } else {
+            } else {console.log("Awaiting")
             }
         }, 3000)
     });
@@ -145,54 +148,24 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
     let response = [] as (IJSON<string> | undefined)[]
     try {
         switch (tx.fragment.name) {
-            /* case "fulfillAdvancedOrder":
-                // check collectionaddress
-                // @ts-ignore
-                // console.log("tx.tx_hash", tx.tx_hash)
-                // if no arg 5, then offer token is ETH
-                let offerToken = DEFAULT_OFFER_TOKEN
-                if (tx.args.length > 5) {
-                    offerToken = tx.args[5]
-                    console.log("offerToken", offerToken)
-                }
-                response = [processAdvancedOrder(tx?.args[0], payoutAddress, offerToken, collectionAddress)]
-                break */
+            case "fulfillAdvancedOrder":
             case "fulfillOrder":
-                if (tx.args[0][0][2][0][1].toLowerCase() !== collectionAddress.toLowerCase()) break
-                // @ts-ignore
-                console.log("tx.tx_hash", tx.tx_hash)
-                console.log(tx?.args[0][0])
-                console.log(tx?.args[0][0][2])
-                console.log(tx?.args[0][0][3])
-                console.log(tx?.args[0][0][4])
-                response = [processAdvancedOrder(tx?.args[0], payoutAddress, tx?.args[5], collectionAddress)]
+                response = [processAdvancedOrder(tx.args[0], payoutAddress, DEFAULT_OFFER_TOKEN, collectionAddress)]
                 break
-            /* case "fulfillAvailableOrders":
+            case "fulfillAvailableOrders":
             case "fulfillAvailableAdvancedOrders":
             case "matchAdvancedOrders":
             case "matchOrders":
                 const advancedOrders = [] as (IJSON<string> | undefined)[]
-                tx?.args[0].forEach((order: any) => {
-                    if (order[0][2][0][1].toLowerCase() !== collectionAddress.toLowerCase()) return
-                    advancedOrders.push(processAdvancedOrder(order, payoutAddress, tx?.args[5]))
+                tx.args[0].forEach((order: any) => {
+                    advancedOrders.push(processAdvancedOrder(order, payoutAddress, DEFAULT_OFFER_TOKEN, collectionAddress))
                 })
                 response = advancedOrders
                 break
+            // This might be wrong since royalties for a creator are collected from multiple offers (two different offers different collections but same creator then it will count both royalties for one collection)
             case "fulfillBasicOrder":
                 if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
-                considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
-                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
-                )
-                if (considerationArr) {
-                    fee = BigNumber(considerationArr[0] as string) // its BigInt but ts complains bc current target has no BigInt support
-                    response = [{
-                        [tx?.args[0][0]]: fee.dividedBy(1e18).toString()
-                    }]
-                }
-                break
-            case "fulfillBasicOrder_efficient_6GL6yc":
-                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
-                considerationArr = tx?.args[0][16].find((consideration: (string | BigInt)[]) =>
+                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) =>
                     consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
                 )
                 if (considerationArr) {
@@ -201,21 +174,33 @@ const extractFeesByPayoutAddress = (tx: ethers.TransactionDescription, payoutAdd
                         [tx.args[0][0]]: fee.dividedBy(1e18).toString()
                     }]
                 }
-                break */
+                break
+            case "fulfillBasicOrder_efficient_6GL6yc":
+                if (tx.args[0][5].toLowerCase() !== collectionAddress.toLowerCase()) break
+                considerationArr = tx.args[0][16].find((consideration: (string | BigInt)[]) =>
+                    consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
+                )
+                if (considerationArr) {
+                    fee = BigNumber(considerationArr[0] as string) // its BigInt but ts complains bc current target has no BigInt support
+                    response = [{
+                        [tx.args[0][0]]: fee.dividedBy(1e18).toString()
+                    }]
+                }
+                break
             default:
                 response = []
                 break
         }
     } catch (error) {
         // @ts-ignore
-        console.error("Error processing tx with hash", tx.tx_hash, ", with error", error.message, "and body", tx)
+        console.error("Error processing tx (", tx.fragment.name, ") with hash", tx.tx_hash, ", with error", error.message, "and body", tx.args[0][1])
     }
     return response.filter((el): el is IJSON<string> => el !== undefined)
 }
 
 
 const processAdvancedOrder = (order: any, payoutAddress: string, offerToken: string, collectionAddress: string) => {
-    if (order[0][2][0][1].toLowerCase() !== collectionAddress.toLowerCase()) return undefined
+    if (!order[0][2].some((offer: any[]) => offer[1].toLowerCase() === collectionAddress.toLowerCase())) return undefined
     const considerationArr = order[0][3].find((consideration: (string | BigInt)[]) =>
         consideration.filter((el): el is string => typeof el === 'string').map(el => el.toLowerCase()).includes(payoutAddress.toLowerCase())
     )

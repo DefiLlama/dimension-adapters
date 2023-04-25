@@ -4,7 +4,7 @@ import { IJSON } from "../../adapters/types"
 // there's a helper to generate this file by providing a list of collections
 export default {
     "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d": { slug: "boredapeyachtclub", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
-   /*  "0x60e4d786628fea6478f785a6d7e704777c86a7c6": { slug: "mutant-ape-yacht-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
+    "0x60e4d786628fea6478f785a6d7e704777c86a7c6": { slug: "mutant-ape-yacht-club", payoutAddress: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1" },
     "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258": { slug: "otherdeed", payoutAddress: "0x37ceb4ba093d40234c6fb312d9791b67c04ef49a" },
     "0xed5af388653567af2f388e6224dc7c4b3241c544": { slug: "azuki", payoutAddress: "0xb4d24dacbdffa1bbf9a624044484b3feeb7fdf74" },
     "0x49cf6f5d44e70224e2e23fdcdd2c053f30ada28b": { slug: "clonex", payoutAddress: "0xe65b6865dbce299ae6a20efcc7543362540741d8" },
@@ -18,7 +18,7 @@ export default {
     "0x5f076e995290f3f9aea85fdd06d8fae118f2b75c": { slug: "utopiaavatars", payoutAddress: "0x3e4ac039bf15c6842569ed300a59b36a6ad2c4f9" },
     "0x19b86299c21505cdf59ce63740b240a9c822b5e4": { slug: "degentoonz-collection", payoutAddress: "0xb047464bd7c66d0553fe7ead00b8ab9a77fd0097" },
     "0x7d8820fa92eb1584636f4f5b8515b5476b75171a": { slug: "murakami-flowers-2022-official", payoutAddress: "0xf50fbf46fd6ec8609c1219bbabf00539836f1a34" },
-    "0xe70659b717112ac4e14284d0db2f5d5703df8e43": { slug: "notablepepes", payoutAddress: "0xf7e2f5919081fb9ff8d13fd340351f450cf33095" },
+    /*"0xe70659b717112ac4e14284d0db2f5d5703df8e43": { slug: "notablepepes", payoutAddress: "0xf7e2f5919081fb9ff8d13fd340351f450cf33095" },
     "0xd57474e76c9ebecc01b65a1494f0a1211df7bcd8": { slug: "the-devs-nft", payoutAddress: "0x09b34e69363d37379e1c5e27fc793fdb5aca893d" },
     "0x24a11e702cd90f034ea44faf1e180c0c654ac5d9": { slug: "trump-digital-trading-cards", payoutAddress: "0x3aa65bdf4c30b8559522a5ee3df61f46c413e19d" },
     "0x98c7fa114b2fe921ba97f628e9dcb72890491721": { slug: "etherpoap-og", payoutAddress: "0xed963059f74f17124943cf9c12bae8f7776c4e4c" },
