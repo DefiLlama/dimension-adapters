@@ -338,8 +338,8 @@ export default ([
                     "0xe4fe6a45f354e845f954cddee6084603cedb9410"
                 ]
             }
-        },
-        {
+        },/*
+        {//added to compoundv2 file
             "id":"parent#quickswap",
             "name":"Quickswap",
             "addresses":{
@@ -348,7 +348,7 @@ export default ([
                     //"Paraswap v5: Augustus Swapper:0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57"
                 ]
             }
-        },
+        },*/
         {
             "id":"parent#kyberswap",
             "name":"KyberSwap",
@@ -1081,8 +1081,8 @@ export default ([
             "addresses":{
                 "core":[]
             }
-        },
-        {
+        },/*
+        {//listed on compound-v2 users file
             "id":"387",
             "name":"Bearn",
             "addresses":{
@@ -1091,7 +1091,7 @@ export default ([
                     "0x3d695c1607a085773547e07dEf1aD3CE3f518Edb",//bearnchef
                 ]
             }
-        },
+        },*/
         {
             "id":"659",
             "name":"JetSwap",
