@@ -465,21 +465,6 @@ const comptrollers = [
         }
     },
     {
-        id:"368",
-        name:"Channels Finance",
-        comptrollers:{
-            "bsc":[
-                "0x8Cd2449Ed0469D90a7C4321DF585e7913dd6E715",
-            ],
-            "heco":[
-                "0x8955aeC67f06875Ee98d69e6fe5BDEA7B60e9770"
-            ],
-            "arbitrum":[
-                "0x3C13b172bf8BE5b873EB38553feC50F78c826284"
-            ]
-        }
-    },
-    {
         id:"996",
         name:"OCP Finance",
         comptrollers:{
