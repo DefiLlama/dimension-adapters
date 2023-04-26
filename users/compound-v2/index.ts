@@ -350,7 +350,7 @@ const comptrollers = [
         }
     },
     {
-        id:"629",
+        id:"2632",
         name:"LendeXe Finance",
         comptrollers:{
             "ethereum":[
@@ -489,7 +489,7 @@ const comptrollers = [
         }
     },
     {
-        id:"996",
+        id:"619",
         name:"Vee Finance",
         comptrollers:{
             "avax":[
