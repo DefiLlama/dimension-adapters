@@ -104,6 +104,7 @@ const startTimeV3:TStartTime = {
   [CHAIN.ARBITRUM]: 1630368000,
   [CHAIN.POLYGON]:  1640044800,
   [CHAIN.CELO]: 1657324800,
+  [CHAIN.BSC]: 1678665600,
 }
 const adapter: BreakdownAdapter = {
   breakdown: {
