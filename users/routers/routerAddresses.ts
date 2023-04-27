@@ -2008,5 +2008,14 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"2899",
+            "name":"Vertex Protocol",
+            "addresses":{
+                "arbitrum":[
+                    "0xbbee07b3e8121227afcfe1e2b82772246226128e", // endpoint
+                ],
+            }
+        },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
