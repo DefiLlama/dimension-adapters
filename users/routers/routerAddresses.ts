@@ -2027,5 +2027,19 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"340",
+            "name":"Olympus DAO",
+            "addresses":{
+                "ethereum":[
+                    "0x007fe7c498a2cf30971ad8f2cbc36bd14ac51156",
+                    "0x0b7ffc1f4ad541a4ed16b40d8c37f0929158d101",
+                    "0x73D7e4BDdEcAd7379d679e60f22788E501493896",
+                    "0xf577c77ee3578c7f216327f41b5d7221ead2b2a3",
+                    "0xB63cac384247597756545b500253ff8E607a8020",
+                    "0x007F7735baF391e207E3aA380bb53c4Bd9a5Fed6",
+                ],
+            }
+        },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
