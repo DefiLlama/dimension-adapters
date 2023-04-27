@@ -11,6 +11,7 @@ const endpoints = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/v0.0.1",
 };
 
 type TStartTime = {
@@ -23,6 +24,7 @@ const startTime: TStartTime = {
   [CHAIN.POLYGON]: 1656028800,
   [CHAIN.ARBITRUM]: 1667520000,
   [CHAIN.OPTIMISM]: 1669161600,
+  [CHAIN.ERA]: 1680652800,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
