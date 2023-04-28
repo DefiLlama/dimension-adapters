@@ -13,11 +13,14 @@ export interface IRunAdapterResponseRejected {
     error: Error
 }
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string) {
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
     const validStart = ((await Promise.all(chains.map(async (chain) => {
-        const start = await volumeAdapter[chain]?.start()
+        const start = await volumeAdapter[chain]?.start().catch(() => {
+            console.error(`Failed to get start time for ${id} ${version} ${chain}`)
+            return Math.trunc(Date.now() / 1000)
+        })
         return [chain, start !== undefined && (start <= cleanPreviousDayTimestamp), start]
     }))) as [string, boolean, number][]).reduce((acc, curr) => ({ ...acc, [curr[0]]: [curr[1], curr[2]] }), {} as IJSON<(boolean | number)[]>)
     return allSettled(chains
@@ -28,7 +31,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                 const startTimestamp = validStart[chain][1]
                 const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
                 if (id)
-                    console.log("Result before cleaning", id, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
+                    console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
                 cleanResult(result)
                 return Promise.resolve({
                     chain,
@@ -36,6 +39,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
                     ...result
                 })
             } catch (e) {
+                console.error(`Failed to get value on ${chain}: ${e}`)
                 return Promise.reject({ chain, error: e, timestamp: cleanPreviousDayTimestamp });
             }
         })) as Promise<PromiseResult<IRunAdapterResponseFulfilled, IRunAdapterResponseRejected>[]>

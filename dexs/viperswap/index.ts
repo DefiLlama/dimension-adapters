@@ -1,6 +1,7 @@
 const { request, gql } = require("graphql-request");
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
@@ -56,6 +57,7 @@ const graphs = getChainVolume({
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.HARMONY]: {
       fetch: graphs(CHAIN.HARMONY),
       start: getStartTimestamp({

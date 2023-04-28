@@ -1,32 +1,20 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { OPTIMISM, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { BorrowFee, BorrowFeeQuery, BorrowResult, ChainMultiEndpoints, CoreFee, CoreFeeQuery, CoreResult, veANGLEQuery } from "./types";
+import { BorrowFee, BorrowFeeQuery, BorrowResult, ChainEndpoint, CoreFee, CoreFeeQuery, CoreResult, veANGLEQuery } from "./types";
 
-const endpoints = {
-    [ETHEREUM]:
-    {
-        "CORE": "https://api.thegraph.com/subgraphs/name/picodes/transaction",
-        "VEANGLE": "https://api.thegraph.com/subgraphs/name/picodes/periphery",
-        "BORROW": "https://api.thegraph.com/subgraphs/name/picodes/borrow",
-    },
-    [OPTIMISM]:
-    {
-        "BORROW": "https://api.thegraph.com/subgraphs/name/picodes/optimism-borrow",
-    },
-    [ARBITRUM]:
-    {
-        "BORROW": "https://api.thegraph.com/subgraphs/name/picodes/arbitrum-borrow",
-    },
-    [POLYGON]:
-    {
-        "BORROW": "https://api.thegraph.com/subgraphs/name/picodes/polygon-borrow",
-    },
+
+const commonPrefixTheGraph = "https://api.thegraph.com/subgraphs/name/guillaumenervoxs/angle";
+
+const endpoints: ChainEndpoint = {
+    [CHAIN.ARBITRUM]: `${commonPrefixTheGraph}-arbitrum`,
+    [CHAIN.AVAX]: `${commonPrefixTheGraph}-avalanche`,
+    [CHAIN.ETHEREUM]: `${commonPrefixTheGraph}-ethereum`,
+    [CHAIN.OPTIMISM]: `${commonPrefixTheGraph}-optimism`,
+    [CHAIN.POLYGON]: `${commonPrefixTheGraph}-polygon`,
 };
 
-const BASE_TOKENS = 1e18;
 const DAY = 3600 * 24;
 const BORROW_FEE_NAMES = ['surplusFromBorrowFees', 'surplusFromInterests', 'surplusFromLiquidationSurcharges', 'surplusFromRepayFees'];
 const CORE_FEE_NAMES = ['totalProtocolFees', 'totalProtocolInterests', 'totalSLPFees', 'totalSLPInterests', 'totalKeeperFees'];
@@ -104,8 +92,8 @@ const getCoreFees = async (graphUrl: string, todayTimestamp: number, yesterdayTi
     processedFees.yesterday.timestamp = queryCoreFees.yesterday[0].timestamp
     processedFees.today.blockNumber = queryCoreFees.today[0].blockNumber
     CORE_FEE_NAMES.forEach((key,) => {
-        processedFees.today[key as keyof CoreFee] = queryCoreFees.today[0][key as keyof CoreFee] / BASE_TOKENS
-        processedFees.yesterday[key as keyof CoreFee] = queryCoreFees.yesterday[0][key as keyof CoreFee] / BASE_TOKENS
+        processedFees.today[key as keyof CoreFee] = Number(queryCoreFees.today[0][key as keyof CoreFee])
+        processedFees.yesterday[key as keyof CoreFee] = Number(queryCoreFees.yesterday[0][key as keyof CoreFee])
     });
 
     const noNewDataPoint = processedFees.today.timestamp === processedFees.yesterday.timestamp;
@@ -128,13 +116,15 @@ const getBorrowFees = async (graphUrl: string, todayTimestamp: number, yesterday
         yesterday: yesterdayTimestamp
     }) as BorrowFeeQuery;
 
+    if (queryBorrowFees.today.length == 0 || queryBorrowFees.yesterday.length == 0) return { totalFees: {} as BorrowFee, deltaFees: {} as BorrowFee };
+
     let processedFees = { today: {} as BorrowFee, yesterday: {} as BorrowFee };
     processedFees.today.timestamp = queryBorrowFees.today[0].timestamp
     processedFees.yesterday.timestamp = queryBorrowFees.yesterday[0].timestamp
     processedFees.today.blockNumber = queryBorrowFees.today[0].blockNumber
     BORROW_FEE_NAMES.forEach((key,) => {
-        processedFees.today[key as keyof BorrowFee] = queryBorrowFees.today[0][key as keyof BorrowFee] / BASE_TOKENS
-        processedFees.yesterday[key as keyof BorrowFee] = queryBorrowFees.yesterday[0][key as keyof BorrowFee] / BASE_TOKENS
+        processedFees.today[key as keyof BorrowFee] = Number(queryBorrowFees.today[0][key as keyof BorrowFee])
+        processedFees.yesterday[key as keyof BorrowFee] = Number(queryBorrowFees.yesterday[0][key as keyof BorrowFee])
     });
 
     const noNewDataPoint = processedFees.today.timestamp === processedFees.yesterday.timestamp;
@@ -157,26 +147,26 @@ const getVEANGLERevenues = async (graphUrl: string, todayTimestamp: number): Pro
     const queryYesterdayTimestamp = Math.floor(todayTimestamp / (DAY * 7)) * (DAY * 7);
     const queryTodayTimestamp = Math.ceil(todayTimestamp / (DAY * 7)) * (DAY * 7);
 
-    let deltaDistributedInterest = getFeeDistribution.feeDistributions.reduce<number>((acc, feeDistributor) => {
+    let deltaDistributedInterest = getFeeDistribution.feeDistributions?.reduce<number>((acc, feeDistributor) => {
         return (
             acc +
             feeDistributor.tokensPerWeek
                 .filter((weeklyReward) => (weeklyReward.week <= queryTodayTimestamp && weeklyReward.week >= queryYesterdayTimestamp))
                 .reduce<number>((acc, weeklyReward) => {
-                    return acc + weeklyReward.distributed / 10 ** getFeeDistribution.feeDistributions[0].tokenDecimals;
+                    return acc + Number(weeklyReward.distributed);
                 }, 0)
         );
     }, 0);
 
     deltaDistributedInterest /= 7;
 
-    const totalDistributedInterest = getFeeDistribution.feeDistributions.reduce<number>((acc, feeDistributor) => {
+    const totalDistributedInterest = getFeeDistribution.feeDistributions?.reduce<number>((acc, feeDistributor) => {
         return (
             acc +
             feeDistributor.tokensPerWeek
                 .filter((weeklyReward) => weeklyReward.week <= todayTimestamp)
                 .reduce<number>((acc, weeklyReward) => {
-                    return acc + weeklyReward.distributed / 10 ** getFeeDistribution.feeDistributions[0].tokenDecimals;
+                    return acc + Number(weeklyReward.distributed);
                 }, 0)
         );
     }, 0);
@@ -209,20 +199,16 @@ function aggregateFee(
 }
 
 
-const graph = (graphUrls: ChainMultiEndpoints) => {
-    return (chain: Chain) => {
+const graph = (graphUrls: ChainEndpoint) => {
+    return (chain: CHAIN) => {
         return async (timestamp: number) => {
 
             const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
             const yesterdayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
 
-            let coreFees: CoreResult = { totalFees: {} as CoreFee, deltaFees: {} as CoreFee };
-            let veANGLEInterest = { totalInterest: 0, deltaInterest: 0 };
-            const borrowFees = await getBorrowFees(graphUrls[chain].BORROW, todayTimestamp, yesterdayTimestamp);
-            if (chain == "ethereum") {
-                coreFees = await getCoreFees(graphUrls[chain].CORE, todayTimestamp, yesterdayTimestamp);
-                veANGLEInterest = await getVEANGLERevenues(graphUrls[chain].VEANGLE, todayTimestamp);
-            }
+            const borrowFees = await getBorrowFees(graphUrls[chain] as string, todayTimestamp, yesterdayTimestamp);
+            const coreFees = await getCoreFees(graphUrls[chain] as string, todayTimestamp, yesterdayTimestamp);
+            const veANGLEInterest = await getVEANGLERevenues(graphUrls[chain] as string, todayTimestamp);
 
             const total = aggregateFee("totalFees", coreFees, borrowFees);
             const daily = aggregateFee("deltaFees", coreFees, borrowFees);
@@ -240,21 +226,25 @@ const graph = (graphUrls: ChainMultiEndpoints) => {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [ETHEREUM]: {
-            fetch: graph(endpoints)(ETHEREUM),
-            start: async ()  => 1636046347,
+        [CHAIN.ARBITRUM]: {
+            fetch: graph(endpoints)(CHAIN.ARBITRUM),
+            start: async () => 1672531200,
         },
-        [OPTIMISM]: {
-            fetch: graph(endpoints)(OPTIMISM),
-            start: async ()  => 1657041547,
+        [CHAIN.AVAX]: {
+            fetch: graph(endpoints)(CHAIN.AVAX),
+            start: async () => 1672531200,
         },
-        [ARBITRUM]: {
-            fetch: graph(endpoints)(ARBITRUM),
-            start: async ()  => 1657041547,
+        [CHAIN.ETHEREUM]: {
+            fetch: graph(endpoints)(CHAIN.ETHEREUM),
+            start: async () => 1672531200,
         },
-        [POLYGON]: {
-            fetch: graph(endpoints)(POLYGON),
-            start: async ()  => 1656782347,
+        [CHAIN.OPTIMISM]: {
+            fetch: graph(endpoints)(CHAIN.OPTIMISM),
+            start: async () => 1672531200,
+        },
+        [CHAIN.POLYGON]: {
+            fetch: graph(endpoints)(CHAIN.POLYGON),
+            start: async () => 1672531200,
         },
     }
 }

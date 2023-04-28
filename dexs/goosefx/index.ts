@@ -5,7 +5,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const dailyVolumeEndpoint = "https://nft-launchpad.goosefx.io/getTotalVolumeTrade";
+const dailyVolumeEndpoint = "https://api-services.goosefx.io/getTotalVolumeTrade";
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));

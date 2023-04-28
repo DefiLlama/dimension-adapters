@@ -1,6 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { gql, GraphQLClient } from "graphql-request";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoint = "https://api.vybenetwork.com/v1/graphql";
 
@@ -50,6 +51,7 @@ const getStartTimestamp = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     solana: {
       fetch,
       start: getStartTimestamp,

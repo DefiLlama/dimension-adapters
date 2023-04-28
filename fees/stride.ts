@@ -1,6 +1,6 @@
 import { Adapter, FetchResult } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import axios from "axios";
+import { CHAIN } from "../helpers/chains";
 
 interface DailyFeeResponse {
   fees: {
@@ -31,11 +31,9 @@ const meta = {
   },
 };
 
-// What value can we pur for the `start` field?
-
 const adapter: Adapter = {
   adapter: {
-    cosmos: {
+    [CHAIN.COSMOS]: {
       fetch: fetch("cosmos"),
       runAtCurrTime: true,
       start: async () => 0,
@@ -59,6 +57,24 @@ const adapter: Adapter = {
       start: async () => 0,
       meta,
     },
+    terra: {
+      fetch: fetch("terra"),
+      runAtCurrTime: true,
+      start: async () => 0,
+      meta,
+    },
+    /*  evmos: {
+       fetch: fetch("evmos"),
+       runAtCurrTime: true,
+       start: async () => 0,
+       meta,
+     },
+     injective: {
+       fetch: fetch("injective"),
+       runAtCurrTime: true,
+       start: async () => 0,
+       meta,
+     }, */
   },
 };
 

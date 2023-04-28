@@ -1,50 +1,67 @@
 import { Adapter } from "../adapters/types";
-import { ARBITRUM, AVAX, ETHEREUM, OPTIMISM } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import { CHAIN } from "../helpers/chains";
 import { Chain } from '@defillama/sdk/build/general';
-import BigNumber from "bignumber.js";
+import * as sdk from "@defillama/sdk";
+import { getBlock } from "../helpers/getBlock";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { getPrices } from "../utils/prices";
 
-const endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/synthetixio-team/mainnet-main",
-  [OPTIMISM]: "https://api.thegraph.com/subgraphs/name/synthetixio-team/optimism-main"
-}
 
 const methodology = {
   UserFees: "Users pay between 10-100 bps (0.1%-1%), usually 30 bps, whenever they exchange a synthetic asset (Synth)",
-  HoldersRevenue: "Fees in the fee pool can be claimed by proportionally by SNX stakers (note: rewards can also be claimed by SNX stakers, which are not included here)",
-  Revenue: "Fees paid by user and claimed by SNX stakers",
+  HoldersRevenue: "Fees are granted proportionally to SNX stakers by automatically burning outstanding debt (note: rewards not included here can also be claimed by SNX stakers)",
+  Revenue: "Fees paid by users and awarded to SNX stakers",
   Fees: "Fees generated on each synthetic asset exchange, between 0.1% and 1% (usually 0.3%)",
 }
 
-const getDailyFee = async (timestamp: number, url: string, exchange: string) => {
-  const from = timestamp - 60 * 60 * 24
-  const to = timestamp
+const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const topic1 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const topic2 = '0x000000000000000000000000feefeefeefeefeefeefeefeefeefeefeefeefeef';
 
-  const graphQuery = gql`{
-    ${exchange}(
-      orderBy:timestamp,
-      orderDirection:desc,
-      where:{timestamp_gt: ${from}, timestamp_lte: ${to}}
-    )
-    {
-      feesInUSD
-    }
-  }`;
-
-  const graphRes = await request(url, graphQuery);
-  return graphRes[exchange].reduce((accumulator: number, dailyTotal: any) => {
-    return accumulator + Number(dailyTotal.feesInUSD)
-  }, 0);
+type IContract = {
+  [l: string | Chain]: string;
+}
+const contract_address: IContract = {
+  [CHAIN.ETHEREUM]: '0x57ab1ec28d129707052df4df418d58a2d46d5f51',
+  [CHAIN.OPTIMISM]: '0x8c6f28f2f1a3c87f0f938b96d27520d9751ec8d9'
+}
+interface ITx {
+  data: string;
+  transactionHash: string;
+}
+interface IFee {
+  amount: number;
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
+const graphs = () => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-      const dailyFee = BigNumber(await getDailyFee(timestamp, graphUrls[chain], 'synthExchanges'))
-        .plus(await getDailyFee(timestamp, graphUrls[chain], 'atomicSynthExchanges'))
-      // Secondary incentives are not included https://docs.synthetix.io/incentives/#secondary-incentives
+      const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+      const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+      const logs: ITx[] = (await sdk.api.util.getLogs({
+        target: contract_address[chain],
+        topic: '',
+        fromBlock: fromBlock,
+        toBlock: toBlock,
+        topics: [topic0, topic1, topic2],
+        keys: [],
+        chain: chain
+      })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash } as ITx});
+
+      const sUSD = `${chain}:${contract_address[chain].toLowerCase()}`;
+      const sUSDPrice = (await getPrices([sUSD], timestamp))[sUSD].price;
+      const fees = logs.map((e: ITx) => {
+        const amount = Number(e.data) / 10 ** 18;
+        return {
+          amount: amount
+        } as IFee;
+      });
+
+      const dailyFee = fees.reduce((a: number, b: IFee) => a+b.amount, 0) * sUSDPrice; // sUSD
+
       return {
         timestamp,
         dailyUserFees: dailyFee.toString(),
@@ -59,15 +76,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
-    [ETHEREUM]: {
-      fetch: graphs(endpoints)(ETHEREUM),
+    [CHAIN.ETHEREUM]: {
+      fetch: graphs()(CHAIN.ETHEREUM),
       start: async () => 1653523200,
       meta: {
         methodology
       }
     },
-    [OPTIMISM]: {
-      fetch: graphs(endpoints)(OPTIMISM),
+    [CHAIN.OPTIMISM]: {
+      fetch: graphs()(CHAIN.OPTIMISM),
       start: async () => 1636606800,
       meta: {
         methodology

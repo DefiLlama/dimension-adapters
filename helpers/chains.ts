@@ -86,7 +86,25 @@ export enum CHAIN {
   THUNDERCORE = "thundercore",
   VECHAIN = "vechain",
   WAX = "wax",
-  MAP = "map"
+  MAP = "map",
+  ARBITRUM_NOVA = "arbitrum_nova",
+  INJECTIVE = "injective",
+  ORAI = "orai",
+  TON = "ton",
+  OBYTE = "obyte",
+  CORE = "core",
+  RPG = "rpg",
+  WEMIX="wemix",
+  ZKSYNC = "zksync",
+  ERA = "era",
+  DFK = "dfk",
+  POLYGON_ZKEVM = "polygon_zkevm",
+  ACALA = "acala",
+  SORA = "sora",
+  COSMOS = "cosmos",
+  OAS = "oas",
+  HYDRA = "hydra",
+  ENULS = "enuls"
 }
 
 // Don´t use

@@ -43,8 +43,8 @@ interface ITx {
   data: string;
 }
 
-const FEE_ADDRESS_POLYGON = "0xb454d8A8C98035C65Bb73FE2a11567b9B044E0fa";
-const FEE_ADDRESS_ARBITRUM = "0x6C612C804c84e3D20E3109c8efD06cD2d8b28F46";
+const FEE_ADDRESS_POLYGON = "0x82e59334da8C667797009BBe82473B55c7A6b311";
+const FEE_ADDRESS_ARBITRUM = "0x298a695906e16aeA0a184A2815A76eAd1a0b7522";
 const FEE_ADDRESS = {
   [CHAIN.POLYGON]: FEE_ADDRESS_POLYGON,
   [CHAIN.ARBITRUM]: FEE_ADDRESS_ARBITRUM
@@ -82,7 +82,8 @@ const fetch = (address: string, chain: Chain) => {
     return {
       timestamp,
       dailyFees,
-      dailyRevenue
+      dailyRevenue,
+      dailyHoldersRevenue: dailyRevenue,
     } as FetchResultFees
   }
 }
