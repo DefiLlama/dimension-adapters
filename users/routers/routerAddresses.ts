@@ -2050,5 +2050,33 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"2907",
+            "name":"Chronos",
+            "addresses":{
+                "arbitrum":[
+                    "0xdd94018F54e565dbfc939F7C44a16e163FaAb331"
+                ],
+            }
+        },
+        {
+            "id":"2903",
+            "name":"Swaprum",
+            "addresses":{
+                "arbitrum":[
+                    "0x1342a24347532DE79372283B3A29c63C31Dd7711",//v2router
+                    "0xEE6cbC97781ff3De7a068D2a6A2dec8CE3a05624",//SwaprumWithdrawals
+                ],
+            }
+        },
+        {
+            "id":"2911",
+            "name":"Aboard Exchange",
+            "addresses":{
+                "arbitrum":[
+                    "0x7a08b29A7Ad4A19A5ECa0c82F5F082872488D135",//PerpetualProxy
+                ],
+            }
+        },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)

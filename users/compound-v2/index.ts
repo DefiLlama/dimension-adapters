@@ -221,13 +221,16 @@ const comptrollers = [
         },
         "extraAddresses":{
             "arbitrum":[
-                "0x7BFd7192E76D950832c77BB412aaE841049D8D9B"
+                "0x7BFd7192E76D950832c77BB412aaE841049D8D9B",
+                "0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30",//v2.1
             ],
             "avax":[
-                "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3"
+                "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3",
+                "0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30",//v2.1
             ],
             "bsc":[
-                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
+                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8",
+                "0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30",//v2.1
             ]
         }
     },
