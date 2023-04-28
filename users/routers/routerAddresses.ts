@@ -2078,5 +2078,52 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"2902",
+            "name":"DAMX",
+            "addresses":{
+                "fantom":[
+                    "0xD093eeE7c968CEef2df96cA9949eba1a1A9b2306",//Vault
+                    "0xeD077045f38f864fba8aD9bdbF1CE8F108e5ddb9",//OrderBook
+                    "0xECef79f974182f4E9c168E751101F23686Bdc6dF",//staking
+                ],
+            }
+        },
+        {
+            "id":"2900",
+            "name":"Wasabi",
+            "addresses":{
+                "ethereum":[
+                    "0xFc68f2130e094C95B6C4F5494158cbeB172e18a0",//Wasabi Option NFTs (WASAB)
+                    "0xF29A66E420C240EbD23F775b93619C8F3cfFf856",//WasabiConduit
+                    "0x8E2b50413a53F50E2a059142a9be060294961e40",//WasabiPoolFactory
+                ],
+            }
+        },
+        {
+            "id":"2898",
+            "name":"LionDEX",
+            "addresses":{
+                "arbitrum":[
+                    "0x8eF99304eb88Af9BDe85d58a35339Cb0e2a557B6",//vault
+                    "0x154E2b1dBE9F493fF7938E5d686366138ddCE017",//staking
+                    "0xFeb9Cc52aB4cb153FF1558F587e444Ac3DC2Ea82",//Escrowed LionDEX Token (esLION)
+                ],
+            }
+        },
+        {
+            "id":"parent#smbswap",
+            "name":"SMBSwap",
+            "addresses":{
+                "bsc":[
+                    "0xBDC5104a3C52A3f49f0324696f9Bb77E41516De7",//MasterChef
+                    "0x009d611490eCfED2dC3F306231Bba7e7F3E9196E",//SMBRouter
+                    "0x63C737E5BD543ECC0A02d91BfCb50845e1be31cF",//SMBRouter
+                    "0x9D4823aa89Dc33ED53d930CB554AFFc58B0c9852",//SMBSwapLottery
+                    "0x85C6129843D120454848F1Da39233AC4fcb50Cb4",//MasterChefV3
+                    "0x92D118350CAD5EbA374486dbe3d16A9FE66DaeBe",// SmartRouter
+                ],
+            }
+        },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
