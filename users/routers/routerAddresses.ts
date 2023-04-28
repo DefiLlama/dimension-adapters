@@ -597,8 +597,15 @@ export default ([
             "addresses":{
                 "bsc":[
                     "0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7",
-                    "0xE2C07d20AF0Fb50CAE6cDD615CA44AbaAA31F9c8"
-                ]
+                    "0xE2C07d20AF0Fb50CAE6cDD615CA44AbaAA31F9c8",
+                    "0x489833311676B566f888119c29bd997Dc6C95830",
+                    "0x04D4e1C1F3D6539071b6D3849fDaED04d48D563d"
+                ],
+                "arbitrum":[
+                    "0xc4B2F992496376C6127e73F1211450322E580668",
+                    "0x62A83C6791A3d7950D823BB71a38e47252b6b6F4",
+                    "0x3f90a5a47364c0467031fB00246192d40E3D2D9D"
+                ],
             }
         },
         {
