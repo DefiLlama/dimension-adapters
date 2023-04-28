@@ -1,6 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL"
+import { CHAIN } from "../../helpers/chains";
 
 const volumeEndpoint = "https://perps-api-staging.polynomial.fi/snx-perps/volume"
 const oneDay = 86400
@@ -14,7 +15,7 @@ const fetch = async (timestamp: number) => {
       timestamp: startDayTimestamp,
     };
   };
-  
+
   const getStartTimestamp = async () => {
     return startTimeStamp;
   }
@@ -41,12 +42,11 @@ const fetch = async (timestamp: number) => {
     volumes.forEach(volume => {historicalVolume += volume})
     return historicalVolume.toString();
   }
-  
+
   const adapter: SimpleAdapter = {
     adapter: {
-      optimism: {
+      [CHAIN.OPTIMISM]: {
         fetch,
-        runAtCurrTime: true,
         start: getStartTimestamp,
       },
     },
