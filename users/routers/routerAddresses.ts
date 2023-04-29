@@ -2116,12 +2116,14 @@ export default ([
             "name":"SMBSwap",
             "addresses":{
                 "bsc":[
-                    "0xBDC5104a3C52A3f49f0324696f9Bb77E41516De7",//MasterChef
+                    "0x3d03d12F95Bdc4509804f9Bcee4139b7789DC516",//Masterchefv1                    
+                    "0xb1c2C30b339C8666530d7E1dbef2F2ba20295Ec2",//Masterchefv2
+                    "0x85C6129843D120454848F1Da39233AC4fcb50Cb4",//MasterChefV3
+                    "0x9D4823aa89Dc33ED53d930CB554AFFc58B0c9852",//SMBSwapLotteryv1
+                    "0xE342Aefc383f2DcD10A52B1e67CF8822aE7a345a",//SMBSwapLotteryv2                                        
                     "0x009d611490eCfED2dC3F306231Bba7e7F3E9196E",//SMBRouter
                     "0x63C737E5BD543ECC0A02d91BfCb50845e1be31cF",//SMBRouter
-                    "0x9D4823aa89Dc33ED53d930CB554AFFc58B0c9852",//SMBSwapLottery
-                    "0x85C6129843D120454848F1Da39233AC4fcb50Cb4",//MasterChefV3
-                    "0x92D118350CAD5EbA374486dbe3d16A9FE66DaeBe",// SmartRouter
+                    "0x92D118350CAD5EbA374486dbe3d16A9FE66DaeBe",//SmartRouter
                 ],
             }
         },
