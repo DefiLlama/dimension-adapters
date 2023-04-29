@@ -2125,5 +2125,36 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"2886",
+            "name":"RabbitX",
+            "addresses":{
+                "ethereum":[
+                    "0xFc7f884DE22a59c0009C91733196b012Aecb8F41",//Rabbit
+                    "0x4973710327eDc6f8238DD2d73cf0B2e081e1B351",//RabbitDeposit
+                ],
+            }
+        },
+        {
+            "id":"2883",
+            "name":"Purple Bridge DEX",
+            "addresses":{
+                "polygon":[
+                    "0x1e2441Fd53C51d9CD1696BE2871eE672A0A01933",
+                ],
+            }
+        },
+        {
+            "id":"2872",
+            "name":"printyfinance",
+            "addresses":{
+                "avax":[
+                    "0x6A8f98d7e34Fd214B428BFc68c9309Ea3C4Fc7F1",//BaseV1Router01
+                    "0xDc72882909252E133a4A46eFB135b3B145366eba",//PrintyV1Router
+                    "0x6902a8ecF99a732e5a73491Afc14e5E135eE4234",//BaseV2
+                ],
+            }
+        },
+        
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
