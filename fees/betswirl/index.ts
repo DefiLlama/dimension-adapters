@@ -212,7 +212,14 @@ function graphs() {
         const tokenDecimals = currentPrices[tokenKey].decimals;
         const tokenPrice = currentPrices[tokenKey].price;
 
-        totalUserFees[tokenKey] = fromWei(
+        if (!totalUserFees[tokenKey]) {
+          totalUserFees[tokenKey] = 0
+          totalSupplySideRevenue[tokenKey] = 0
+          totalProtocolRevenue[tokenKey] = 0
+          totalDailyHoldersRevenue[tokenKey] = 0
+        }
+
+        totalUserFees[tokenKey] += fromWei(
           toBN(token.dividendAmount)
             .plus(token.initiatorAmount)
             .plus(token.treasuryAmount)
@@ -223,21 +230,21 @@ function graphs() {
           .toNumber();
         totalFees[tokenKey] = totalUserFees[tokenKey];
 
-        totalSupplySideRevenue[tokenKey] = fromWei(
+        totalSupplySideRevenue[tokenKey] += fromWei(
           token.initiatorAmount,
           tokenDecimals
         )
           .multipliedBy(tokenPrice)
           .toNumber();
 
-        totalProtocolRevenue[tokenKey] = fromWei(
+        totalProtocolRevenue[tokenKey] += fromWei(
           toBN(token.treasuryAmount).plus(token.teamAmount),
           tokenDecimals
         )
           .multipliedBy(tokenPrice)
           .toNumber();
 
-        totalDailyHoldersRevenue[tokenKey] = fromWei(
+        totalDailyHoldersRevenue[tokenKey] += fromWei(
           token.dividendAmount,
           tokenDecimals
         )
@@ -304,8 +311,14 @@ function graphs() {
         const tokenDecimals = currentPrices[tokenKey].decimals;
         const tokenPrice = currentPrices[tokenKey].price;
 
-        dailyUserFees[tokenKey] =
-          totalUserFees[tokenKey] -
+        if (!dailyUserFees[tokenKey]) {
+          dailyUserFees[tokenKey] = 0
+          dailyHoldersRevenue[tokenKey] = 0
+          dailyProtocolRevenue[tokenKey] = 0
+          dailySupplySideRevenue[tokenKey] = 0
+        }
+
+        dailyUserFees[tokenKey] -=
           fromWei(
             toBN(token.dividendAmount)
               .plus(token.initiatorAmount)
@@ -317,14 +330,12 @@ function graphs() {
             .toNumber();
         dailyFees[tokenKey] = dailyUserFees[tokenKey];
 
-        dailyHoldersRevenue[tokenKey] =
-          totalDailyHoldersRevenue[tokenKey] -
+        dailyHoldersRevenue[tokenKey] -=
           fromWei(token.dividendAmount, tokenDecimals)
             .multipliedBy(tokenPrice)
             .toNumber();
 
-        dailyProtocolRevenue[tokenKey] =
-          totalProtocolRevenue[tokenKey] -
+        dailyProtocolRevenue[tokenKey] -=
           fromWei(
             toBN(token.treasuryAmount).plus(token.teamAmount),
             tokenDecimals
@@ -334,8 +345,7 @@ function graphs() {
         dailyRevenue[tokenKey] =
           dailyHoldersRevenue[tokenKey] + dailyProtocolRevenue[tokenKey];
 
-        dailySupplySideRevenue[tokenKey] =
-          totalSupplySideRevenue[tokenKey] -
+        dailySupplySideRevenue[tokenKey] -=
           fromWei(
             token.initiatorAmount,
             tokenDecimals
