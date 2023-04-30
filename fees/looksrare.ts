@@ -1,6 +1,5 @@
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
-import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
