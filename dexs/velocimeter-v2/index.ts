@@ -20,6 +20,7 @@ const topic_name =
   'Swap(index_topic_1 address sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, index_topic_2 address to)'
 const topic0 =
   '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
+// see https://docs.velocimeter.xyz/security#v2-contract-addresses
 const FACTORY_ADDRESS = '0xF80909DF0A01ff18e4D37BF682E40519B21Def46'
 
 type TABI = {
