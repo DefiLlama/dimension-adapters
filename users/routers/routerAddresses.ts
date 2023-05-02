@@ -2055,7 +2055,9 @@ export default ([
             "name":"Chronos",
             "addresses":{
                 "arbitrum":[
-                    "0xdd94018F54e565dbfc939F7C44a16e163FaAb331"
+                    "0xE708aA9E887980750C040a6A2Cb901c37Aa34f3b",//routerv2
+                    "0x5D9dBA2D0ec06F44Da7e234cBB0d7BA921834AE8",//masterchef
+                    "0xC72b5C6D2C33063E89a50B2F77C99193aE6cEe6c",//voter
                 ],
             }
         },
