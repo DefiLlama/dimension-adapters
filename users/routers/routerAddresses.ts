@@ -2155,6 +2155,44 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"parent#blur",
+            "name":"Blur",
+            "addresses":{
+                "ethereum":[
+                    "0x29469395eAf6f95920E59F858042f0e28D98a20B",//ERC1967Proxy
+                    "0x0000000000A39bb272e79075ade125fd351887Ac",//Blur bidding
+                ],
+            }
+        },
+        {
+            "id":"2919",
+            "name":"Backed",
+            "addresses":{
+                "ethereum":[
+                    "0xF4d4e4ae7fd9CbAfc24b9B0Da2596260c8368314",//paprcontroller
+                    "0x3b29c19ff2fcEa0Ff98D0ef5B184354D74eA74b0",//paprcontroller
+                ],
+            }
+        },
+        {
+            "id":"2918",
+            "name":"DebtDAO",
+            "addresses":{
+                "ethereum":[
+                    "0xc9eF6509A09b92043cedce689DfAA760048aBd7F",//LineFactory
+                ],
+            }
+        },
+        {
+            "id":"2862",
+            "name":"Hyperliquid",
+            "addresses":{
+                "arbitrum":[
+                    "0xC67E9Efdb8a66A4B91b1f3731C75F500130373A4",
+                ],
+            }
+        },
         
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
