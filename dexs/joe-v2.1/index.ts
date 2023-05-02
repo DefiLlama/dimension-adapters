@@ -4,7 +4,9 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers } from "ethers";
+import { ethers,  } from "ethers";
+import { type } from "os";
+import BigNumber from "bignumber.js";
 
 interface ILog {
   data: string;
@@ -22,6 +24,49 @@ const contract_interface = new ethers.utils.Interface([
   event_swap
 ]);
 
+type TPool = {
+  [c: string]: string[];
+}
+const pools: TPool = {
+  [CHAIN.BSC]: [
+    '0xdce12347b429a32a177708646d4024449827a69a',
+    '0x3708d924f627d8109687ce10f6c324445c28347c',
+    '0x7e6857d4b2efaf9ff29f88f6d7d083a160e0849e',
+  ],
+  [CHAIN.AVAX]: [
+    '0xd9fa522f5bc6cfa40211944f2c8da785773ad99d',
+    '0x4224f6f4c9280509724db2dbac314621e4465c29',
+    '0x1901011a39b11271578a1283d620373abed66faa',
+    '0xd446eb1660f766d533beceef890df7a69d26f7d1',
+    '0x87eb2f90d7d0034571f343fb7429ae22c1bd9f72',
+    '0x9b2cc8e6a2bbb56d6be4682891a91b0e48633c72',
+    '0x9f8973fb86b35c307324ec31fd81cf565e2f4a63',
+    '0xa99f186580d88fec124f8a1bb3f29cc610b66b6b',
+    '0xb2a765cbde23b871ffdea95880c8bea979720d36',
+    '0xc0dfc065894b20d79aade34a63b5651061b135cc',
+    '0x9a0a97d8005d9f783a054aa5cd8878bb0ccf414d',
+    '0x51146e0bf2dcc368de6f5201fe7c427da28d05de',
+    '0x2f1da4bafd5f2508ec2e2e425036063a374993b6',
+    '0x6fe050dc81b98e4464d3b4461a7995a8bf3350db',
+    '0x42c701d4e359178412d014506cfac43a67e57d6d',
+    '0xe2b11d3002a2e49f1005e212e860f3b3ec73f985',
+    '0x16396b65d5e0794c44447396f94665d3b9f576a0',
+    '0x7c13d4c3e9dfa683e7a5792a9ff20cb5fd22b0c0',
+    '0x6dbcf39c6686a4088a224a18f63f92fe6535f7a8'
+  ],
+  [CHAIN.ARBITRUM]: [
+    '0x94d53be52706a155d27440c4a2434bea772a6f7c',
+    '0xee1d31ab646056f549a78feacb73be45332fa078',
+    '0x003ad0975250c810ad75fd83e989f54625cac514',
+    '0x4b9bfed1dd4e6780454b2b02213788f31ffba74a',
+    '0xdf34e7548af638cc37b8923ef1139ea98644735a',
+    '0xd387c40a72703b38a5181573724bcaf2ce6038a5',
+    '0x0f475257b6e2fa9a48ef84cb4a91d4288729f39e',
+    '0xf8a60082039a1acbe43b045f87aa0c5f24a358a4',
+    '0xc5a7c9d6653218dccca5633595b8604200f84855',
+    '0x60563686ca7b668e4a2d7d31448e5f10456ecaf8'
+  ]
+}
 type TAddress = {
   [s: string]: string;
 }
@@ -71,7 +116,6 @@ const PAIR_TOKEN_ABI = (token: string): object => {
   }
 };
 
-
 const graph = (chain: Chain) => {
   return async (timestamp: number) => {
     const fromTimestamp = timestamp - 60 * 60 * 24
@@ -92,8 +136,7 @@ const graph = (chain: Chain) => {
         chain: chain
       });
 
-      const lpTokens = poolsRes.output
-        .map(({ output }) => output)
+      const lpTokens = pools[chain]
 
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['getTokenX', 'getTokenY'].map((method: string) =>
@@ -135,13 +178,13 @@ const graph = (chain: Chain) => {
           const log: IAmount[] = logs[index]
             .map((e: ILog) => { return { ...e } })
             .map((p: ILog) => {
-              const a = contract_interface.parseLog(p);
-              const amountIn = token0Decimals ? Number(a.args.amountsIn) / 10 ** token0Decimals : 0;
-              const amountOut = token1Decimals ? Number(a.args.amountsOut) / 10 ** token1Decimals : 0;
+              const value = contract_interface.parseLog(p);
+              const amountIn = token0Decimals ? Number(value.args.amountsIn) / 10 ** token0Decimals : 0;
+              const amountOut = token1Decimals ? Number(value.args.amountsOut) / 10 ** token1Decimals : 0;
               const amount = Math.min(amountOut, amountIn);
               return {
-                amountIn: amount,
-                amountOut: amount,
+                amountIn: amount === amountIn ? amount : 0,
+                amountOut: amount === amountOut ? amount : 0,
               } as IAmount
             }) as IAmount[];
 
@@ -155,10 +198,10 @@ const graph = (chain: Chain) => {
           return untrackAmountUSD;
         });
         const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
+        return {
+          dailyVolume: `${dailyVolume}`,
+          timestamp,
+        };
     } catch(error) {
       console.error(error);
       throw error;
