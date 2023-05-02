@@ -121,23 +121,7 @@ const graph = (chain: Chain) => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
     try {
-      const poolLength = (await sdk.api.abi.call({
-        target: FACTORY_ADDRESS[chain],
-        chain: chain,
-        abi: ABIs.getNumberOfLBPairs,
-      })).output;
-
-      const poolsRes = await sdk.api.abi.multiCall({
-        abi: ABIs.getLBPairAtIndex,
-        calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-          target: FACTORY_ADDRESS[chain],
-          params: i,
-        })),
-        chain: chain
-      });
-
       const lpTokens = pools[chain]
-
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['getTokenX', 'getTokenY'].map((method: string) =>
           sdk.api.abi.multiCall({
