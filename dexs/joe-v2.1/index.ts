@@ -67,14 +67,6 @@ const pools: TPool = {
     '0x60563686ca7b668e4a2d7d31448e5f10456ecaf8'
   ]
 }
-type TAddress = {
-  [s: string]: string;
-}
-const FACTORY_ADDRESS: TAddress = {
-  [CHAIN.ARBITRUM]: "0x8e42f2F4101563bF679975178e880FD87d3eFd4e",
-  [CHAIN.BSC]: "0x8e42f2F4101563bF679975178e880FD87d3eFd4e",
-  [CHAIN.AVAX]: "0x8e42f2F4101563bF679975178e880FD87d3eFd4e",
-}
 
 type TABI = {
   [k: string]: object;
