@@ -16,7 +16,7 @@ type IURL = {
   [l: string | Chain]: string;
 }
 
-interface IValume {
+interface IFees {
   vaultDayData: IData;
   vaults: IData[];
 }
@@ -41,7 +41,7 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const res: IValume = (await request(endpoints[chain], graphQuery));
+    const res: IFees = (await request(endpoints[chain], graphQuery));
     const dailyFees = Number(res.vaultDayData.cumulativeFee) / 10 ** 8;
     const dailySupplySideRevenue = dailyFees * 0.5;
     const dailyProtocolRevenue = dailyFees * 0.3;
