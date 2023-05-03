@@ -5,8 +5,6 @@ import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
 import { ethers,  } from "ethers";
-import { type } from "os";
-import BigNumber from "bignumber.js";
 
 interface ILog {
   data: string;
