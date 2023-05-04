@@ -168,7 +168,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => 1679702400,
+      start: async () => 1682380800,
     },
   }
 };
