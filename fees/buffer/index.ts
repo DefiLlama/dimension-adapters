@@ -7,7 +7,8 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Adapter } from "../../adapters/types"
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/bufferfinance/buffer-mainnet"
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/bufferfinance/buffer-mainnet",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/bufferfinance/polygon-mainnet"
 }
 
 
@@ -50,6 +51,10 @@ const adapter: Adapter = {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
         start: async ()  => 1674993600 ,
     },
+    [CHAIN.POLYGON]: {
+      fetch: graphs(endpoints)(CHAIN.POLYGON),
+      start: async ()  => 1677974400 ,
+  },
   }
 }
 
