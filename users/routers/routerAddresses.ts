@@ -2195,6 +2195,70 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"319",
+            "name":"Convex Finance",
+            "addresses":{
+                "ethereum":[
+                    "0xf403c135812408bfbe8713b5a23a04b3d48aae31",
+                    "0x72a19342e8f1838460ebfccef09f6585e32db86e",
+                ],
+            }
+        },
+        {
+            "id":"270",
+            "name":"Liquity",
+            "addresses":{
+                "ethereum":[
+                    "0x4f9fbb3f1e99b56e0fe2892e623ed36a76fc605d",//staking
+                    "0x66017d22b0f8556afdd19fc67041899eb65a21bb",//stabilitypool
+                    "0x24179cd81c9e782a4096035f7ec97fb8b783e007"
+                ],
+            }
+        },
+        {
+            "id":"144",
+            "name":"dYdX",
+            "addresses":{
+                "ethereum":[
+                    "0xd54f502e184b6b739d7d27a6410a67dc462d69c8",
+                    "0x8e8bd01b5a9eb272cc3892a2e40e64a716aa2a40",
+                    "0x0fd829c3365a225fb9226e75c97c3a114bd3199e",
+                    "0x5aa653a076c1dbb47cec8c1b4d152444cad91941"
+                ],
+            }
+        },
+        {
+            "id":"parent#radiant",
+            "name":"Radiant",
+            "addresses":{
+                "arbitrum":[
+                    "0x8991c4c347420e476f1cf09c03aba224a76e2997",
+                    "0x196bf3a63c50bca1eff5a5809b72dfc58f0c2c1a",
+                    "0xebc85d44cefb1293707b11f707bd3cec34b4d5fa",
+                    "0x2032b9a8e9f7e76768ca9271003d3e43e1616b1f",
+                    "0x5682a39078edce41a65f1bd8733bf9ca2bbe3b1b",
+                    "0xc963ef7d977ecb0ab71d835c4cb1bf737f28d010"
+                ],
+                "bsc":[
+                    "0x13ef2a9e127ae8d9e9b863c7e375ba68e1a42ac6",
+                    "0xd50cf00b6e600dd036ba8ef475677d816d6c4281",
+                    "0x7c16abb090d3fb266e9d17f60174b632f4229933",
+                ]
+            }
+        },
+        {
+            "id":"parent#paraspace",
+            "name":"ParaSpace",
+            "addresses":{
+                "ethereum":[
+                    "0x638a98bbb92a7582d07c52ff407d49664dc8b3ee",
+                    "0x59b72fdb45b3182c8502cc297167fe4f821f332d",
+                    "0xf090eb4c2b63e7b26e8bb09e6fc0cc3a7586263b",
+                    "0xc5c9fb6223a989208df27dcee33fc59ff5c26fff"
+                ],
+            }
+        },
         
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
