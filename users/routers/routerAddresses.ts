@@ -2259,6 +2259,51 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"438",
+            "name":"Tokemak",
+            "addresses":{
+                "ethereum":[
+                    "0x04bda0cf6ad025948af830e75228ed420b0e860d",
+                    "0xd3d13a578a53685b4ac36a1bab31912d2b2a2f36",
+                    "0x8858a739ea1dd3d80fe577ef4e0d03e88561faa3",
+                    "0x41f6a95bacf9bc43704c4a4902ba5473a8b00263"
+                ],
+            }
+        },
+        {
+            "id":"636",
+            "name":"Keep3r Network",
+            "addresses":{
+                "ethereum":[
+                    "0x02777053d6764996e594c3e88af1d58d5363a2e6",
+                    "0x1ceb5cb57c4d4e2b2433641b95dd330a33185a44",
+                    "0xb9d18ab94cf61bb2bcebe6ac8ba8c19ff0cdb0ca",
+                ],
+            }
+        },
+        {
+            "id":"2255",
+            "name":"NFTfi",
+            "addresses":{
+                "ethereum":[
+                    "0xe52cec0e90115abeb3304baa36bc2655731f7934",
+                    "0x8252df1d8b29057d1afe3062bf5a64d503152bc8",
+                ],
+            }
+        },
+        {
+            "id":"483",
+            "name":"NFTX",
+            "addresses":{
+                "ethereum":[
+                    "0x941a6d105802cccaa06de58a13a6f49ebdcd481c",
+                    "0xdc774d5260ec66e5dd4627e1dd800eff3911345c",
+                    "0x688c3e4658b5367da06fd629e41879beab538e37",
+                    "0x3e135c3e981fae3383a5ae0d323860a34cfab893"
+                ],
+            }
+        },
         
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
