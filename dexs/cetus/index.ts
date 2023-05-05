@@ -4,15 +4,12 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-
-const historicalVolumeEndpoint = "https://api.cetus.zone/v1/histogram?date_type=day&typ=vol"
-
 type IUrl = {
   [s: string]: string;
 }
 
 const url: IUrl = {
-  [CHAIN.APTOS]: historicalVolumeEndpoint,
+  [CHAIN.APTOS]: "https://api.cetus.zone/v1/histogram?date_type=day&typ=vol",
   [CHAIN.SUI]: "https://api-sui.cetus.zone/v2/sui/histogram?date_type=day&typ=vol"
 }
 
