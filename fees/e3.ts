@@ -33,7 +33,7 @@ const ABIs: TABI = {
         "internalType": "uint256"
       }
     ],
-    "name": "allPairsLength",
+    "name": "getNumberOfLBPairs",
     "inputs": []
   },
   getLBPairAtIndex: {
@@ -53,7 +53,7 @@ const ABIs: TABI = {
         "internalType": "uint256"
       }
     ],
-    "name": "allPairs",
+    "name": "getLBPairAtIndex",
   }
 };
 
