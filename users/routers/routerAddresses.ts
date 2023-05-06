@@ -2304,6 +2304,68 @@ export default ([
                 ],
             }
         },
+        {
+            "id":"2086",
+            "name":"Rage Trade",
+            "addresses":{
+                "arbitrum":[
+                    "0x1d42783E7eeacae12EbC315D1D2D0E3C6230a068",//Curve Yield Strategy
+                    "0x4b928aFd7CA775C7f4ECdf2c00B7e608962AbbDc",//Rage Trade: Vault Periphery
+                ],
+            }
+        },
+        {
+            "id":"2192",
+            "name":"PlutusDAO",
+            "addresses":{
+                "arbitrum":[
+                    "0x35cD01AaA22Ccae7839dFabE8C6Db2f8e5A7B2E0",//PlutusPrivateTGE
+                    "0x195B6eA50150900A25FA0928b8B65B03C7666D10",//TGEController
+                    "0xc1D8f4109eC84db9b607e2705779142eC8F9534a",//Plutus DAO: TGE Vault ETH
+                    "0xF4790fc873351C624d225269d4d21cF591e441b2",//Plutus DAO: TGE Vault DPX
+                    "0xd6c9fe8dbc50c620222e8679CFf0461994b532DA",//Plutus DAO: TGE Vault JONES
+                    "0x27Aaa9D562237BF8E024F9b21DE177e20ae50c05",//Plutus DAO: 1 Month Plutus Epoch Staking 
+                    "0xE59DADf5F7a9decB8337402Ccdf06abE5c0B2B3E",//Plutus DAO: 3 Month Plutus Epoch Staking 
+                    "0xBEB981021ed9c85AA51d96C0c2edA10ee4404A2e",//Plutus DAO: 6 Month Plutus Epoch Staking
+                    "0x5593473e318F0314Eb2518239c474e183c4cBED5",//Plutus DAO: MasterChef 
+                    "0x66Cd8Cb1bA49f1A07703fa6E5BFE2BEB2eC8c706",//PlutusDAO: Plutus JONES Depositor
+                    "0x4D56D5A417269A5bFa909cc0f67DFFE992272606",//Plutus DAO: Dpx Depositor 
+                    "0x20DF4953BA19c74B2A46B6873803F28Bf640c1B5",//PlutusDAO: Old plsDPX Farm
+                    "0x23B87748b615096d1A0F48870daee203A720723D",//PlutusDAO: plsJONES - Plutus Chef 
+                    "0x6CCD4CFaF4bDa43c09682B3e588B4bd18BFFd603",//PrivateTgeRewards
+                    "0x548C30b0af3CE6D96F1A63AfC05F0fb66495179F",//PlutusDAO: DPX Depositor 
+                    "0x75c143460F6E3e22F439dFf947E25C9CcB72d2e8",//PlutusDAO: plsDPX Farm
+                    "0x04B724389Dd28Ffc9a3A91Ab4149a77530282f04",//PrivateTgeVester
+                    "0xA61f0d1d831BA4Be2ae253c13ff906d9463299c2",//PlutusChef
+                    "0xb059Fc19371691aa7A3EC66dD80684FFE17A7D5c",//PlutusChef
+                    "0x5326E71Ff593Ecc2CF7AcaE5Fe57582D6e74CFF1",//PlvGlpToken
+                    "0x4E5Cf54FdE5E1237e80E87fcbA555d829e1307CE",//PlutusDAO: plvGLP Farm
+                    "0x8c12e3C9b26Ee2e43A1a71cd974e6bF250472129",//SpaDepositor
+                    "0x73e7c78E8a85C074733920f185d1c78163b555C8",//
+                    "0x9F07B8D6DDA7E68260Add1e38447D0Caa6F1BA0d",//PlutusChef
+                    "0xbe68e51f75F34D8BC06D422056af117b8c23fd54",//
+                    "0x13794D30D01c96D6595d1D956f3dd70AEc2C238B",//ArbDepositor
+                    "0xCfc273D86333bF453b847d4D8cb7958307D85196",//
+                    "0x4C2C41cFfC920CA9dD5F13E88DcF5062ceF37455",//
+                ],
+            }
+        },
+        {
+            "id":"916",
+            "name":"Pika Protocol",
+            "addresses":{
+                "optimism":[
+                    "0x365324E5045df8c886EBe6AD5449F5CeB5881A40",//PikaPerpV2
+                    "0x58488bB666d2da33F8E8938Dbdd582D2481D4183",//VaultFeeReward
+                    "0x2FaE8C7Edd26213cA1A88fC57B65352dbe353698",//Pika Protocol: Perpetual V2 
+                    "0x8123DCe565111F64c01864B2ae0F35e3181A0A02",//PositionManager
+                    "0xf9B19D0e62278ec9CBBaD5CcA5e7A270979bEa4E",//OrderBook
+                    "0xD5A8f233CBdDb40368D55C3320644Fb36e597002",//PikaPerpV3
+                    "0x939c11c596B851447e5220584d37F12854bA02ae",//VaultFeeReward
+                    "0x78136EF4BDcbdABb8D7aa09a33C3c16Ca6381910",//VaultTokenReward
+                ],
+            }
+        },
         
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
