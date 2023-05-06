@@ -173,7 +173,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,
-      start: async () => 1681123392,
+      start: async () => 1681130577,
     },
   }
 };
