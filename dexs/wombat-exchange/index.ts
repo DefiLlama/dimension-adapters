@@ -14,7 +14,7 @@ type TEndpoint = {
 
 const endpoints: TEndpoint = {
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange",
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
 };
