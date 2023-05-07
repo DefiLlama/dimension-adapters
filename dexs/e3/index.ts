@@ -4,7 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers } from "ethers";
+import { ethers,  } from "ethers";
 
 interface ILog {
   data: string;
@@ -22,11 +22,14 @@ const contract_interface = new ethers.utils.Interface([
   event_swap
 ]);
 
-type TAddress = {
-  [s: string]: string;
+type TPool = {
+  [c: string]: string[];
 }
-const FACTORY_ADDRESS: TAddress = {
-  [CHAIN.FANTOM]: "0x8597dB3ba8dE6BAAdEDa8cBa4dAC653E24a0e57B"
+const pools: TPool = {
+  [CHAIN.FANTOM]: [
+    '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa',
+    '0x1d766e912b4872eca5172a5792c82ec28b9f894c'
+  ]
 }
 
 type TABI = {
@@ -69,30 +72,12 @@ const PAIR_TOKEN_ABI = (token: string): object => {
   }
 };
 
-
 const graph = (chain: Chain) => {
   return async (timestamp: number) => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
     try {
-      const poolLength = (await sdk.api.abi.call({
-        target: FACTORY_ADDRESS[chain],
-        chain: chain,
-        abi: ABIs.getNumberOfLBPairs,
-      })).output;
-
-      const poolsRes = await sdk.api.abi.multiCall({
-        abi: ABIs.getLBPairAtIndex,
-        calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-          target: FACTORY_ADDRESS[chain],
-          params: i,
-        })),
-        chain: chain
-      });
-
-      const lpTokens = poolsRes.output
-        .map(({ output }) => output)
-
+      const lpTokens = pools[chain]
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['getTokenX', 'getTokenY'].map((method: string) =>
           sdk.api.abi.multiCall({
@@ -133,13 +118,13 @@ const graph = (chain: Chain) => {
           const log: IAmount[] = logs[index]
             .map((e: ILog) => { return { ...e } })
             .map((p: ILog) => {
-              const a = contract_interface.parseLog(p);
-              const amountIn = token0Decimals ? Number(a.args.amountsIn) / 10 ** token0Decimals : 0;
-              const amountOut = token1Decimals ? Number(a.args.amountsOut) / 10 ** token1Decimals : 0;
+              const value = contract_interface.parseLog(p);
+              const amountIn = token0Decimals ? Number(value.args.amountsIn) / 10 ** token0Decimals : 0;
+              const amountOut = token1Decimals ? Number(value.args.amountsOut) / 10 ** token1Decimals : 0;
               const amount = Math.min(amountOut, amountIn);
               return {
-                amountIn: amount,
-                amountOut: amount,
+                amountIn: amount === amountIn ? amount : 0,
+                amountOut: amount === amountOut ? amount : 0,
               } as IAmount
             }) as IAmount[];
 
@@ -153,10 +138,10 @@ const graph = (chain: Chain) => {
           return untrackAmountUSD;
         });
         const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
+        return {
+          dailyVolume: `${dailyVolume}`,
+          timestamp,
+        };
     } catch(error) {
       console.error(error);
       throw error;
@@ -164,10 +149,9 @@ const graph = (chain: Chain) => {
   }
 }
 
-
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.FANTOM]: {
+        [CHAIN.FANTOM]: {
       fetch: graph(CHAIN.FANTOM),
       start: async () => 1681130577,
     }
