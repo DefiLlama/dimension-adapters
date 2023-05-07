@@ -101,8 +101,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     // Templated Call "PAIR_TOKEN_ABI" with method unique to EⅢ DEX
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      //['getTokenX', 'getTokenY'].map((method) =>
-      ['getTokenY', 'getTokenx'].map((method) =>
+      ['getTokenX', 'getTokenY'].map((method) =>
         sdk.api.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: lpTokens.map((address) => ({
