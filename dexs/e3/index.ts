@@ -166,11 +166,11 @@ const graph = (chain: Chain) => {
 
 
 const adapter: SimpleAdapter = {
-  adapter: 
+  adapter: {
     [CHAIN.FANTOM]: {
       fetch: graph(CHAIN.FANTOM),
       start: async () => 1681130577,
-    },
+    }
   }
 };
 
