@@ -12,8 +12,8 @@ interface ILog {
   topics: string[];
 }
 interface IAmount {
-  amountIn: number;
-  amountOut: number;
+  amountInX: number;
+  amountInY: number;
 }
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)';
 const topic0 = '0xad7d6f97abf51ce18e17a38f4d70e975be9c0708474987bb3e26ad21bd93ca70';
@@ -25,10 +25,11 @@ const contract_interface = new ethers.utils.Interface([
 type TPool = {
   [c: string]: string[];
 }
+// These are EⅢ Pools!
 const pools: TPool = {
   [CHAIN.FANTOM]: [
-    '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa',
-    '0x1d766e912b4872eca5172a5792c82ec28b9f894c'
+    '0x1d766e912b4872eca5172a5792c82ec28b9f894c',
+    '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa'
   ]
 }
 
@@ -119,22 +120,21 @@ const graph = (chain: Chain) => {
             .map((e: ILog) => { return { ...e } })
             .map((p: ILog) => {
               const value = contract_interface.parseLog(p);
-              const amountIn = token0Decimals ? Number(value.args.amountsIn) / 10 ** token0Decimals : 0;
-              const amountOut = token1Decimals ? Number(value.args.amountsOut) / 10 ** token1Decimals : 0;
-              const amount = Math.min(amountOut, amountIn);
+              const amountInX = Number('0x'+'0'.repeat(32)+value.args.amountsIn.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
+              const amountInY = Number('0x'+'0'.repeat(32)+value.args.amountsIn.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
               return {
-                amountIn: amount === amountIn ? amount : 0,
-                amountOut: amount === amountOut ? amount : 0,
+                amountInX,
+                amountInY,
               } as IAmount
             }) as IAmount[];
 
             const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
             const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
-          const totalAmountIn = log
-            .reduce((a: number, b: IAmount) => Number(b.amountIn) + a, 0)  * token0Price;
-          const totalAmountOut = log
-            .reduce((a: number, b: IAmount) => Number(b.amountOut) + a, 0)  * token1Price;
-          const untrackAmountUSD = token0Price !== 0 ? totalAmountIn : token1Price !== 0 ? totalAmountOut : 0; // counted only we have price data
+          const totalAmountInX = log
+            .reduce((a: number, b: IAmount) => Number(b.amountInX) + a, 0)  * token1Price;
+          const totalAmountInY = log
+            .reduce((a: number, b: IAmount) => Number(b.amountInY) + a, 0)  * token0Price;
+          const untrackAmountUSD = (totalAmountInX + totalAmountInY); // counted only we have price data
           return untrackAmountUSD;
         });
         const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
@@ -153,7 +153,7 @@ const adapter: SimpleAdapter = {
   adapter: {
         [CHAIN.FANTOM]: {
       fetch: graph(CHAIN.FANTOM),
-      start: async () => 1681130577,
+      start: async () => 1681130543,
     }
   }
 };
