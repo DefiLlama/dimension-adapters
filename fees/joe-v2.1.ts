@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
@@ -86,7 +86,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
     try {
