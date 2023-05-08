@@ -1,179 +1,149 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import { Chain } from "@defillama/sdk/build/general";
+import { ethers } from "ethers";
 
 interface ILog {
   data: string;
   transactionHash: string;
+  topics: string[];
 }
 interface IAmount {
-  amount0: number;
-  amount1: number;
+  protocolFeesX: number;
+  protocolFeesY: number;
+  totalFeesX: number;
+  totalFeesY: number;
 }
-
-// Unique to EⅢ DEX
+const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)';
 const topic0 = '0xad7d6f97abf51ce18e17a38f4d70e975be9c0708474987bb3e26ad21bd93ca70';
-const FACTORY_ADDRESS = '0x8597db3ba8de6baadeda8cba4dac653e24a0e57b';
 
-type TABI = {
-  [k: string]: object;
+const contract_interface = new ethers.utils.Interface([
+  event_swap
+]);
+
+type TPool = {
+  [c: string]: string[];
+}
+// These are EⅢ Pools!
+const pools: TPool = {
+  [CHAIN.FANTOM]: [
+    '0x1d766e912b4872eca5172a5792c82ec28b9f894c',
+    '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa'
+  ]
 }
 
-// Unique to EⅢ DEX
-const ABIs: TABI = {
-  getNumberOfLBPairs: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "getNumberOfLBPairs",
-    "inputs": []
-  },
-  getLBPairAtIndex: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "getLBPairAtIndex",
-  }
-};
-
-// Common Template: String(_token) -> Object(returnObject)
-const PAIR_TOKEN_ABI = (_token: string): object => {
+const PAIR_TOKEN_ABI = (token: string): object => {
   return {
-    "constant": true,
     "inputs": [],
-    "name": _token,
+    "name": token,
     "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+        {
+            "internalType": "contract IERC20",
+            "name": "tokenX",
+            "type": "address"
+        }
     ],
-    "payable": false,
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   }
 };
 
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-    const poolLength = (await sdk.api.abi.call({
-      target: FACTORY_ADDRESS,
-      chain: 'fantom',
-      abi: ABIs.getNumberOfLBPairs,
-    })).output;
+const graph = (chain: Chain) => {
+  return async (timestamp: number) => {
+    const fromTimestamp = timestamp - 60 * 60 * 24
+    const toTimestamp = timestamp
+    try {
+      const lpTokens = pools[chain]
+      const [underlyingToken0, underlyingToken1] = await Promise.all(
+        ['getTokenX', 'getTokenY'].map((method: string) =>
+          sdk.api.abi.multiCall({
+            abi: PAIR_TOKEN_ABI(method),
+            calls: lpTokens.map((address) => ({
+              target: address,
+            })),
+            chain: chain
+          })
+        )
+      );
 
-    const poolsRes = await sdk.api.abi.multiCall({
-      abi: ABIs.getLBPairAtIndex,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: FACTORY_ADDRESS,
-        params: i,
-      })),
-      chain: 'fantom'
-    });
+      const tokens0 = underlyingToken0.output.map((res) => res.output);
+      const tokens1 = underlyingToken1.output.map((res) => res.output);
+      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+      const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-    const lpTokens = poolsRes.output
-      .map(({ output }) => output);
+      const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+        target: address,
+        topic: '',
+        toBlock: toBlock,
+        fromBlock: fromBlock,
+        keys: [],
+        chain: chain,
+        topics: [topic0]
+      }))))
+        .map((p: any) => p)
+        .map((a: any) => a.output);
 
-    // Templated Call "PAIR_TOKEN_ABI" with method unique to EⅢ DEX
-    const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['getTokenX', 'getTokenY'].map((method) =>
-        sdk.api.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address) => ({
-            target: address,
-          })),
-          chain: 'fantom'
-        })
-      )
-    );
+        const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
+        const coins = [...new Set(rawCoins)]
+        const prices = await getPrices(coins, timestamp);
 
-    const tokens0 = underlyingToken0.output.map((res) => res.output);
-    const tokens1 = underlyingToken1.output.map((res) => res.output);
-    const fromBlock = (await getBlock(fromTimestamp, 'fantom', {}));
-    const toBlock = (await getBlock(toTimestamp, 'fantom', {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: 'fantom',
-      topics: [topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output);
 
-    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `fantom:${e}`);
-    const coins = [...new Set(rawCoins)]
-    const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals = (prices[`fantom:${tokens0[index]}`]?.decimals || 0)
-      const token1Decimals = (prices[`fantom:${tokens1[index]}`]?.decimals || 0)
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-        .map((p: ILog) => {
-          const amount0 = Number('0x' + p.data.slice(64*4+32*0, 64*4+32*0+32)) / 10 ** token0Decimals;
-          const amount1 = Number('0x' + p.data.slice(64*4+32*1, 64*4+32*1+32)) / 10 ** token1Decimals
-          return {
-            amount0,
-            amount1
-          } as IAmount
-        }) as IAmount[];
-      const token0Price = (prices[`fantom:${tokens0[index]}`]?.price || 0);
-      const token1Price = (prices[`fantom:${tokens1[index]}`]?.price || 0);
+        const untrackVolumes: any[] = lpTokens.map((_: string, index: number) => {
+          const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
+          const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
+          const log: IAmount[] = logs[index]
+            .map((e: ILog) => { return { ...e } })
+            .map((p: ILog) => {
+              const value = contract_interface.parseLog(p);
+              const protocolFeesX = Number('0x'+'0'.repeat(32)+value.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
+              const protocolFeesY = Number('0x'+'0'.repeat(32)+value.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
+              const totalFeesX = Number('0x'+'0'.repeat(32)+value.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
+              const totalFeesY = Number('0x'+'0'.repeat(32)+value.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
+              return {
+                protocolFeesX,
+                protocolFeesY,
+                totalFeesX,
+                totalFeesY,
+                // tx: p.transactionHash, // for debugging
+                // token0Decimals,
+                // token1Decimals
+              } as IAmount
+            });
 
-      const feesAmount0 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-      const feesAmount1 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
+            const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
+            const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
+          // const protocolFeesX = log
+          //   .reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0)  * token1Price;
+          //   const protocolFeesY = log
+          //   .reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0)  * token0Price;
+          const totalFeesX = log
+            .reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0)  * token1Price;
+            const totalFeesY = log
+            .reduce((a: number, b: IAmount) => Number(b.totalFeesY) + a, 0)  * token0Price;
+          return (totalFeesX + totalFeesY);
+        });
 
-      const feesUSD = feesAmount0 + feesAmount1;
-      return feesUSD;
-    });
-
-    const dailyFees = fees.reduce((a: number, b: number) => a+b,0)
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue:  `${dailyFees}`,
-      dailyHoldersRevenue: `${dailyFees}`,
-      timestamp,
-    };
-  } catch(error) {
-    console.error(error);
-    throw error;
+        const dailyFees = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
+        return {
+          dailyFees: `${dailyFees}`,
+          timestamp,
+        };
+    } catch(error) {
+      console.error(error);
+      throw error;
+    }
   }
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
-      fetch,
-      start: async () => 1681130577,
+      fetch: graph(CHAIN.FANTOM),
+      start: async () => 1681130543,
     },
   }
 };
