@@ -1860,6 +1860,15 @@ export default ([
             }
         },
         {
+            "id":"2618",
+            "name":"OasisSwap",
+            "addresses":{
+                "arbitrum":[
+                    "0xe805977D5Fa2f05e2175507a1f8E44Cd3F22972c",
+                ]
+            }
+        },
+        {
             "id":"582",
             "name":"Ante Finance",
             "addresses":{
