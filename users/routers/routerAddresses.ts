@@ -1865,6 +1865,7 @@ export default ([
             "addresses":{
                 "arbitrum":[
                     "0xe805977D5Fa2f05e2175507a1f8E44Cd3F22972c",
+                    "0x5bf51bf7af925306866d6cf87b4b85189df67970",
                 ]
             }
         },
