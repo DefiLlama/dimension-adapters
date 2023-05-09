@@ -1,4 +1,4 @@
-import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
@@ -71,6 +71,7 @@ const graph = (chain: Chain) => {
         const dailyFees = feesAmount.reduce((a: number, b: number) => a + b, 0);
         return {
           dailyFees: `${dailyFees}`,
+          dailyRevenue: `${dailyFees}`,
           timestamp,
         };
     } catch(error) {
