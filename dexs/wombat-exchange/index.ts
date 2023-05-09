@@ -45,8 +45,7 @@ const fetchVolume = (chain: Chain) => {
           protocols(block: { number: ${todaysBlock} }) {
             totalTradeVolumeUSD
           }
-      }
-      `;
+      }`;
     const response: IData = (await request(endpoints[chain], query));
     const dailyVolume = Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
     const totalTradeVolumeUSD = Number(response.protocols[0].totalTradeVolumeUSD) / 2;
