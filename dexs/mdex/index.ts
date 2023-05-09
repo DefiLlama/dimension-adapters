@@ -17,7 +17,8 @@ type ChainMapId = {
 }
 const mapChainId: ChainMapId = {
   [CHAIN.BSC]: 56,
-  [CHAIN.HECO]: 128
+  [CHAIN.HECO]: 128,
+  [CHAIN.BITTORRENT]: 199
 };
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
