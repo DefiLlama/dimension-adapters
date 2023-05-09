@@ -149,10 +149,6 @@ const graph = (chain: Chain) => {
 
             const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
             const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
-          // const protocolFeesX = log
-          //   .reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0)  * token1Price;
-          //   const protocolFeesY = log
-          //   .reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0)  * token0Price;
           const totalFeesX = log
             .reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0)  * token1Price;
             const totalFeesY = log
