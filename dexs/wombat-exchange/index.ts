@@ -3,9 +3,19 @@ import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "@defillama/sdk/build/general";
+import { getBlock } from "../../helpers/getBlock";
+
 interface IGraph {
   dailyTradeVolumeUSD: string;
   dayID: string;
+}
+
+interface IProtocol {
+  totalTradeVolumeUSD: string;
+}
+interface IData {
+  protocolDayData: IGraph;
+  protocols: IProtocol[];
 }
 
 type TEndpoint = {
@@ -24,21 +34,24 @@ const fetchVolume = (chain: Chain) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(timestamp * 1000)
     );
+    const todaysBlock = (await getBlock(dayTimestamp, chain, {}));
     const dayID = dayTimestamp / 86400;
     const query = gql`
       {
           protocolDayData(id: "${dayID}") {
               dayID
               dailyTradeVolumeUSD
+          },
+          protocols(block: { number: ${todaysBlock} }) {
+            totalTradeVolumeUSD
           }
-      }
-      `;
-    const response: IGraph = (await request(endpoints[chain], query))
-      .protocolDayData;
-    const dailyVolume = Number(response.dailyTradeVolumeUSD) / 2;
-
+      }`;
+    const response: IData = (await request(endpoints[chain], query));
+    const dailyVolume = Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
+    const totalTradeVolumeUSD = Number(response.protocols[0].totalTradeVolumeUSD) / 2;
     return {
       dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
       timestamp: dayTimestamp,
     };
   };
