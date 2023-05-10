@@ -22,11 +22,6 @@ const fetch = async (timestamp: number) => {
       "limit": LIMIT,
       "max_time": toTimestamp
     },
-  }, {
-    headers: {
-      "Content-Type": "application/json",
-      "user-agent": "insomnia/2022.5.0"
-    }
   })))).map((e: any) => e.data.candlesticks).flat();
   const volume = historicalVolume.filter((e: IVolumeall) => Number(e.timestamp) >= fromTimestamp)
     .reduce((acc: number, b: IVolumeall) => acc + (Number(b.volume) * (Number(b.close_x18)) / 10 ** 18), 0)
