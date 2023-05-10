@@ -21,6 +21,11 @@ const fetch = async (timestamp: number) => {
       "granularity": GRANULARITY,
       "limit": LIMIT,
       "max_time": toTimestamp
+    },
+  }, {
+    headers: {
+      "Content-Type": "application/json",
+      "user-agent": "insomnia/2022.5.0"
     }
   })))).map((e: any) => e.data.candlesticks).flat();
   const volume = historicalVolume.filter((e: IVolumeall) => Number(e.timestamp) >= fromTimestamp)
