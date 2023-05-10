@@ -24,8 +24,6 @@ const fetchData = (_: Chain) => {
   }
 }
 
-
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
