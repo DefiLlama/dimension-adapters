@@ -2,7 +2,6 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 
-
 interface IVolumeall {
   timestamp: string;
   volume: string;
