@@ -14,7 +14,7 @@ const v2Endpoints = {
 };
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/defiedge/arbidexsubgraph",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex-v3",
 };
 
 const VOLUME_USD = "volumeUSD";
