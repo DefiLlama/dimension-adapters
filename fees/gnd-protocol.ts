@@ -91,12 +91,21 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  Fees: "total protocol revenue collected from univ3 engine and gmusd.",
+  Revenue: "Revenue allocated for buyback.",
+  SupplySideRevenue: "Revenue allocated for dividends.",
+  HoldersRevenue: "Revenue allocated for buyback."
+}
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1682467200,
+      meta: {
+        methodology
+      }
   },
   }
 }
