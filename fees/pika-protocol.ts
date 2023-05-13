@@ -7,9 +7,19 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getBlock } from "../helpers/getBlock";
 
-interface IData {
-  date: number;
-  cumulativeFee: string;
+interface IVault {
+  txCount: number;
+}
+
+interface ITransaction {
+  id: number;
+  timestamp: number;
+  tradeFee: number;
+  count: number;
+}
+interface ILiquidation {
+  timestamp: number;
+  remainingReward: number;
 }
 
 type IURL = {
@@ -17,8 +27,13 @@ type IURL = {
 }
 
 interface IFees {
-  vaultDayData: IData;
-  vaults: IData[];
+  vaults: IVault[];
+}
+interface ITransactions {
+  transactions: ITransaction[]
+}
+interface ILiquidations {
+  liquidations: ILiquidation[]
 }
 
 const endpoints: IURL = {
@@ -26,26 +41,73 @@ const endpoints: IURL = {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-    const block = (await getBlock(todayTimestamp, chain, {}));
-    const graphQuery = gql
+  return async (): Promise<FetchResultFees> => {
+    let todayLiquidationFee = 0;
+    let todayTradeFee = 0;
+    const timestamp = Math.floor(Date.now() / 1000 - 86400);
+    const graphQuery1 = gql
       `
       {
-        vaultDayData(id: ${dateId}) {
-          date
-          id
-          cumulativeFee
+        vaults(first: 1)
+        {
+          txCount
         }
       }
     `;
+    const res1: IFees = (await request(endpoints[chain], graphQuery1));
+    const totalCount = res1.vaults[0].txCount
+    let skip = totalCount;
+    while(skip > totalCount - 3000) {
+      const graphQuery2 = gql
+        `
+        {
+          transactions(first:1000, where: {count_lt: ${skip}}, orderBy: count, orderDirection: desc)
+          {
+            id
+            singleAmount
+            timestamp
+            tradeFee
+            count
+          }
+        }
+      `;
+      const res2: ITransactions = (await request(endpoints[chain], graphQuery2));
+      const totalCount = res1.vaults[0].txCount
 
-    const res: IFees = (await request(endpoints[chain], graphQuery));
-    const dailyFees = Number(res.vaultDayData.cumulativeFee) / 10 ** 8;
+      if (res2 !== undefined) {
+        let transactions = res2.transactions;
+        transactions.map((item: ITransaction) => {
+          if (item.timestamp > timestamp) {
+            todayTradeFee += item.tradeFee / 100000000
+          }
+        });
+        skip = transactions[transactions.length - 1].count * 1
+      }
+    }
+    const graphQuery3 = gql
+      `
+      {
+        liquidations(where: {
+          timestamp_gt: ${timestamp}
+        })
+        {
+          id
+          remainingReward
+          timestamp
+        }
+      }
+    `;
+    const res3: ILiquidations = (await request(endpoints[chain], graphQuery3));
+    let liquidations = res3.liquidations;
+    liquidations.map((item: ILiquidation) => {
+      if (item.timestamp > timestamp) {
+        todayLiquidationFee += item.remainingReward / 100000000;
+      }
+    });
+
+    const dailyFees = todayTradeFee + todayLiquidationFee;
     const dailySupplySideRevenue = dailyFees * 0.5;
     const dailyProtocolRevenue = dailyFees * 0.3;
-
     return {
       timestamp,
       dailyFees: dailyFees.toString(),
