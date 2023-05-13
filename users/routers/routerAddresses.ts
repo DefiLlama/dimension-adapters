@@ -286,7 +286,7 @@ export default ([
             "id":"parent#pancakeswap",
             "name":"Pancakeswap",
             "addresses":{
-                "etheruem":[
+                "ethereum":[
                     "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4", // v3
                     "0xEfF92A263d31888d860bD50809A8D171709b7b1c"
                 ], 
