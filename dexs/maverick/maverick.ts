@@ -7,11 +7,11 @@ const { request, gql } = require("graphql-request");
 
 const info: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
-    subgraph: "https://api.studio.thegraph.com/query/42519/maverick-v1/v0.0.6",
+    subgraph: "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-mainnet-data",
   },
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/42519/maverick-zksync-data/v0.0.1",
+      "https://api.studio.thegraph.com/query/42519/maverick-zksync-v2-data/v0.0.1",
   },
 };
 
