@@ -2,6 +2,102 @@ import { queryFlipside } from "../../helpers/flipsidecrypto";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
+export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
+    const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
+    const query = await queryFlipside(`
+WITH
+  all_new_users AS (
+    SELECT DISTINCT
+      MIN(block_timestamp) OVER (
+        PARTITION BY
+          from_address
+      ) AS first_seen_timestamp,
+      from_address,
+      COUNT(*) OVER (
+        PARTITION BY
+          from_address
+      ) AS total_txs,
+      FIRST_VALUE(tx_hash) OVER (
+        PARTITION BY
+          from_address
+        ORDER BY
+          block_timestamp ASC
+      ) AS first_seen_tx_hash,
+      FIRST_VALUE(chain) OVER (
+        PARTITION BY
+          from_address
+        ORDER BY
+          block_timestamp ASC
+      ) AS first_seen_chain
+    FROM
+      (
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'bsc' as chain
+        FROM
+          bsc.core.fact_transactions
+        UNION ALL
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'ethereum' as chain
+        FROM
+          ethereum.core.fact_transactions
+        UNION ALL
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'polygon' as chain
+        FROM
+          polygon.core.fact_transactions
+        UNION ALL
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'arbitrum' as chain
+        FROM
+          arbitrum.core.fact_transactions
+        UNION ALL
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'optimism' as chain
+        FROM
+          optimism.core.fact_transactions
+        UNION ALL
+        SELECT
+          block_timestamp,
+          from_address,
+          tx_hash,
+          to_address,
+          'avalanche' as chain
+        FROM
+          avalanche.core.fact_transactions
+      ) t
+    WHERE
+      t.to_address IN (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})
+  )
+SELECT
+  COUNT(*)
+FROM
+  all_new_users
+WHERE
+  first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end});
+`)
+    return query[0][0]
+}
+
 export function countUsers(addresses: ChainAddresses) {
     return async (start: number, end: number) => {
         const chainArray = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain))

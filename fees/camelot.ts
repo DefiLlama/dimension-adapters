@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm"
 }
 
 const fetch = (chain: Chain) => {
@@ -37,12 +37,11 @@ const fetch = (chain: Chain) => {
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.dailyFeeUSD ? new BigNumber(dailyFeeUSD.dailyFeeUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
-
     return {
       timestamp,
       dailyFees: dailyFee.toString(),
       dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.05).toString(),
+      dailyRevenue: dailyFee.multipliedBy(0.4).toString(),
       dailyProtocolRevenue: dailyFee.multipliedBy(0.05).toString(),
       dailyHoldersRevenue: dailyFee.multipliedBy(0.35).toString(),
       dailySupplySideRevenue: dailyFee.multipliedBy(0.60).toString(),

@@ -63,7 +63,7 @@ const adapter: Adapter = {
       start: async () => 0,
       meta,
     },
-    /*  evmos: {
+      evmos: {
        fetch: fetch("evmos"),
        runAtCurrTime: true,
        start: async () => 0,
@@ -74,7 +74,7 @@ const adapter: Adapter = {
        runAtCurrTime: true,
        start: async () => 0,
        meta,
-     }, */
+     }, 
   },
 };
 

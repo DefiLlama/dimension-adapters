@@ -1,7 +1,6 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
 import axios from "axios";
 
 const URL = "https://api.hyperliquid.xyz/info";
@@ -27,6 +26,7 @@ interface IAPIResponse {
   timestamp: number;
   id: string;
   volumeUSD: number;
+  closePrice: string;
 };
 
 const getBody = (coin: string) => {
@@ -36,13 +36,12 @@ const getBody = (coin: string) => {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historical = (await Promise.all(Object.keys(coins).map((coins: string) =>axios.post(URL, getBody(coins)))))
-    .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index]}})).flat()
-  const prices = (await getPrices(Object.values(coins),dayTimestamp))
+    .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, closePrice: e.c, id: Object.values(coins)[index]}})).flat()
 
   const historicalUSD = historical.map((e: IAPIResponse) => {
     return {
       ...e,
-      volumeUSD: Number(e.volume) * prices[e.id]?.price || 0
+      volumeUSD: Number(e.volume) * Number(e.closePrice)
     }
   });
   const dailyVolume = historicalUSD.filter((e: IAPIResponse) => e.timestamp === dayTimestamp)

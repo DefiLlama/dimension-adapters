@@ -277,9 +277,8 @@ export default ([
             "id":"221",
             "name":"Defi Swap",
             "addresses":{
-                "ethereum":["0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"],
-                "arbitrum":[
-                    "0xCeB90E4C17d626BE0fACd78b79c9c87d7ca181b3"
+                "ethereum":[
+                    "0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"
                 ]
             }
         },
@@ -339,8 +338,8 @@ export default ([
                     "0xe4fe6a45f354e845f954cddee6084603cedb9410"
                 ]
             }
-        },
-        {
+        },/*
+        {//added to compoundv2 file
             "id":"parent#quickswap",
             "name":"Quickswap",
             "addresses":{
@@ -349,7 +348,7 @@ export default ([
                     //"Paraswap v5: Augustus Swapper:0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57"
                 ]
             }
-        },
+        },*/
         {
             "id":"parent#kyberswap",
             "name":"KyberSwap",
@@ -417,7 +416,7 @@ export default ([
                     "0x3E48298A5Fe88E4d62985DFf65Dee39a25914975"
                 ]
             }
-        },
+        },/*
         {
             "id":"parent#trader-joe",
             "name":"Trader Joe",
@@ -426,13 +425,13 @@ export default ([
                     "0x7BFd7192E76D950832c77BB412aaE841049D8D9B"
                 ],
                 "avax":[
-                    "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3"
+                    "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3",
                 ],
                 "bsc":[
                     "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
                 ]
             }
-        },
+        },*/
         {
             "id":"2307",
             "name":"Camelot",
@@ -555,7 +554,7 @@ export default ([
             "name":"Pangolin",
             "addresses":{
                 "avax":[
-                    "0x8B4A45da5B0705Ae4f47EBeFC180C099345cF57e"
+                    "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106"
                 ]
             }
         },
@@ -597,8 +596,18 @@ export default ([
             "name":"Wombat Exchange",
             "addresses":{
                 "bsc":[
-                    "0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7"
-                ]
+                    "0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7",
+                    "0x312Bc7eAAF93f1C60Dc5AfC115FcCDE161055fb0",
+                    "0xE2C07d20AF0Fb50CAE6cDD615CA44AbaAA31F9c8",
+                    "0x489833311676B566f888119c29bd997Dc6C95830",
+                    "0x04D4e1C1F3D6539071b6D3849fDaED04d48D563d"
+                ],
+                "arbitrum":[
+                    "0xc4B2F992496376C6127e73F1211450322E580668",
+                    "0x9da4edBed6068666ea8EF6505C909e1ff8eA5725",
+                    "0x62A83C6791A3d7950D823BB71a38e47252b6b6F4",
+                    "0x3f90a5a47364c0467031fB00246192d40E3D2D9D"
+                ],
             }
         },
         {
@@ -609,10 +618,10 @@ export default ([
                     "0xAAA87963EFeB6f7E0a2711F397663105Acb1805e"
                 ]
             }
-        },
+        },/*
         {
-            "id":"398",
-            "name":"ApeSwap AMM",
+            "id":"parent#apeswap",
+            "name":"ApeSwap",
             "addresses":{
                 "ethereum":[
                     "0x5f509a3C3F16dF2Fba7bF84dEE1eFbce6BB85587"
@@ -621,7 +630,7 @@ export default ([
                     "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
                 ],
                 "bsc":[
-                    "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
+                    "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7",
                 ],
                 "arbitrum":[
                     "0x7d13268144adcdbEBDf94F654085CC15502849Ff"
@@ -630,7 +639,7 @@ export default ([
                     "0xb9667Cf9A495A123b0C43B924f6c2244f42817BE"
                 ]
             }
-        },
+        },*/
         {
             "id":"2332",
             "name":"Equalizer Exchange",
@@ -654,7 +663,9 @@ export default ([
             "name":"Platypus Finance",
             "addresses":{
                 "avax":[
-                    "0x8B4A45da5B0705Ae4f47EBeFC180C099345cF57e"
+                    "0x7d7E30E269b7C7b447312d3FDE52e6f118F8e39e",
+                    "0x73256EC7575D999C360c1EeC118ECbEFd8DA7D12",
+                    "0x6f6FCbcc00f9AFBD2C266631087798740c685C3B"
                 ]
             }
         },
@@ -663,7 +674,10 @@ export default ([
             "name":"MDEX",
             "addresses":{
                 "bsc":[
-                    "0x62c1A0d92B09D0912F7BB9c96C5ecdC7F2b87059"
+                    "0x7DAe51BD3E3376B8c7c4900E9107f12Be3AF1bA8",
+                    "0x62c1A0d92B09D0912F7BB9c96C5ecdC7F2b87059",
+                    "0x0384E9ad329396C3A6A401243Ca71633B2bC4333",
+                    "0x518a6e9FB2832aDA41415775E5c45dE6EfCF1A3C",
                 ],
                 "heco":[""]
             }
@@ -676,7 +690,7 @@ export default ([
                     "0xF29acE1FE5f36389d0dDe450a0195A30c3770245"
                 ]
             }
-        },
+        },/*
         {
             "id":"238",
             "name":"Ellipsis Finance",
@@ -685,7 +699,7 @@ export default ([
                     "0xE014A89c9788dAfdE603a13F2f01390610382471"
                 ]
             }
-        },
+        },*/
         {
             "id":"1726",
             "name":"Meshswap",
@@ -709,16 +723,18 @@ export default ([
             "name":"Dfyn Network",
             "addresses":{
                 "polygon":[
-                    "0x5ac32A20a5BB6B87AC91E51cA5b7bba9B8846803"
+                    "0x5ac32A20a5BB6B87AC91E51cA5b7bba9B8846803",
+                    "0xA102072A4C07F06EC3B4900FDC4C7B80b6c57429",
+                    "0x712B5c4CEe26c679F3Ddbb9855369B13aA8F3Dec"
                 ],
                 "fantom":[
-                    ""
+                    "0x2724B9497b2cF3325C6BE3ea430b3cec34B5Ef2d"
                 ],
                 "okexchain":[
                     ""
                 ]
             }
-        },
+        },/*
         {
             "id":"133",
             "name":"Shell Protocol",
@@ -727,7 +743,7 @@ export default ([
                     "0xC32eB36f886F638fffD836DF44C124074cFe3584"
                 ]
             }
-        },
+        },*/
         {
             "id":"2644",
             "name":"Maverick Protocol",
@@ -921,7 +937,11 @@ export default ([
             "name":"AlienFi",
             "addresses":{
                 "arbitrum":[
-                    "0x863e9610E9E0C3986DCc6fb2cD335e11D88f7D5f"
+                    "0x863e9610E9E0C3986DCc6fb2cD335e11D88f7D5f",
+                    "0xB8ca857dCd90AfBeD93B30DdCd4E4CC1327c9e5c",
+                    "0xbd796fac59914dB9A7CBC21f1053c7DC1b900fEA",//masterchef
+                    "0x8923d3EFEE38e7bb1E8988B024D5169C962CFB73",//masterchef
+                    "0x4Ad7C3F11ec54d7D066dd114ac403022d3F97E6F",//masterchef
                 ]
             }
         },
@@ -939,7 +959,11 @@ export default ([
             "name":"Nomiswap",
             "addresses":{
                 "bsc":[
-                    "0xD486D0846812266D21e1Ab6c57FCF202DF836dc8"
+                    "0xD486D0846812266D21e1Ab6c57FCF202DF836dc8",
+                    "0xD654953D746f0b114d1F85332Dc43446ac79413d",
+                    "0x9D15d0d737e06a875F3d46621fB52fe79ffA6136",
+                    "0x4eC3432d9443f05022e2Ff4E54fC7514BE2359e0",
+                    "0xbF4c0d66Db59Ae8276e0cB7E1Ed36fC4Ac8C1d68"
                 ]
             }
         },
@@ -948,7 +972,10 @@ export default ([
             "name":"BurgerSwap",
             "addresses":{
                 "bsc":[
-                    "0xe08Ab553720a46C071475838a6cC8D98D1Afb891"
+                    "0xe08Ab553720a46C071475838a6cC8D98D1Afb891",
+                    "0xEfC254D0cdb1924149382d404A2133532D46A777",
+                    "0xfa9cCB91d28d35E12216e43d8990D31595783600",
+                    "0xE3F08e81Ec8533D6CD7784B672e4237087b2A7c8"
                 ]
             }
         },
@@ -962,7 +989,7 @@ export default ([
             }
         },
         {
-            "id":"2023",
+            "id":"parent#arbswap",
             "name":"Arbswap",
             "addresses":{
                 "arbitrum":[
@@ -972,11 +999,13 @@ export default ([
             }
         },
         {
-            "id":"2341",
-            "name":"Polycat Dex",
+            "id":"parent#polycat-finance",
+            "name":"Polycat Finance",
             "addresses":{
                 "polygon":[
-                    "0x94930a328162957FF1dd48900aF67B5439336cBD"
+                    "0x94930a328162957FF1dd48900aF67B5439336cBD",
+                    "0xfDC8579B2E19B489c4086eDE85A2D71949138be5",//tankchef
+                    "0xfaBC099AD582072d26375F65d659A3792D1740fB",//tankchef
                 ]
             }
         },
@@ -1061,16 +1090,17 @@ export default ([
             "addresses":{
                 "core":[]
             }
-        },
-        {
+        },/*
+        {//listed on compound-v2 users file
             "id":"387",
             "name":"Bearn",
             "addresses":{
                 "bsc":[
-                    "0xC6747954a9B3A074d8E4168B444d7F397FeE76AA"
+                    "0xC6747954a9B3A074d8E4168B444d7F397FeE76AA",
+                    "0x3d695c1607a085773547e07dEf1aD3CE3f518Edb",//bearnchef
                 ]
             }
-        },
+        },*/
         {
             "id":"659",
             "name":"JetSwap",
@@ -1118,7 +1148,10 @@ export default ([
             "name":"Alita Finance",
             "addresses":{
                 "bsc":[
-                    "0x730aCC3bBf2443f2EaEaCFc7ac7b4d8DC9E32dB8"
+                    "0x730aCC3bBf2443f2EaEaCFc7ac7b4d8DC9E32dB8",
+                    "0x4f7b2Be2bc3C61009e9aE520CCfc830612A10694",
+                    "0x28162cda1E767663F68B759AF47801171Aa58815",//incentive
+                    "0x8ED5fABddb6f899f7FaCf461587f4dAd065AAae7",//masterchef
                 ]
             }
         },
@@ -1136,7 +1169,11 @@ export default ([
             "name":"WinerySwap",
             "addresses":{
                 "bsc":[
-                    "0xB115C8392C4C416b227e98d9bbb394bFD03BE965"
+                    "0xB115C8392C4C416b227e98d9bbb394bFD03BE965",
+                    "0x8B07c6CB1b2edA3942369EEC9DF8e12213f99181",
+                    "0x8bfFB5562ff30f555894E101E6DAD31D271EEd5a",
+                    "0xBd27399a5aA720250b37b6864F293A27F3D2A043",//masterchef
+                    "0x21694642bea2D2E0B0f5129a25D753dd9fB9623A",//masterchef
                 ]
             }
         },
@@ -1178,10 +1215,13 @@ export default ([
             "name":"SoulSwap",
             "addresses":{
                 "fantom":[
-                    "0x6b3d631B87FE27aF29efeC61d2ab8CE4d621cCBF"
+                    "0x6b3d631B87FE27aF29efeC61d2ab8CE4d621cCBF",
+                    "0x994889A5a2BcfAB67e5242996e1331b74d777834",
+                    "0x2CDa3B64Da9c1b7F18891E1567bc43eD558D089b"
                 ],
                 "avax":[
-                    "0xa4594460A9d3D41e8B85542D34E23AdAbc3c86Ef"
+                    "0xa4594460A9d3D41e8B85542D34E23AdAbc3c86Ef",
+                    "0xE15d319896038aB76f2bc7cE15CBc2689b498570"
                 ]
             }
         },
@@ -1217,7 +1257,8 @@ export default ([
             "name":"Convergence",
             "addresses":{
                 "ethereum":[
-                    "0x750eD5cF0f5278be9C6562399f0791dD221C4f83"
+                    "0x8Cda39226daf33ae1Aba0C92C34d1a1982Cf0210",
+                    "0x37c7C2ae51E968CEfB82cFF2102727256D36D6eE"
                 ],
                 "moonbeam":[]
             }
@@ -1492,7 +1533,7 @@ export default ([
                     "0x0c17e776CD218252ADFca8D4e761D3fe757e9778",
                     "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
                 ],
-                "bsd":[
+                "bsc":[
                     "0x744A4c9c9F40A443ac2A5747D4f3b773e5d86763"
                 ]
             }
@@ -1827,5 +1868,515 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"1018",
+            "name":"Gains Network",
+            "addresses":{
+                "polygon":[
+                    "0x91993f2101cc758D0dEB7279d41e880F7dEFe827",//gdai
+                    "0xFb06a737f549Eb2512Eb6082A808fc7F16C0819D",//staking
+                    "0x4ba64a81ca50D8B66684C664d75b55eaCcFaCAEb",//trading
+                    "0x8103C0665A544201BBF606d90845d1B2D8005F1c",//nftrewards
+                    "0xd285f881886505b9Ef6684E1aaa7949a56B0C7Da",//gnsmigration
+                    "0xa33f7069f075A54481868e4C0b8D26925A218362",//lockingbridge
+                    "0xDF774A4F3EA5095535f5B8f5b9149caF90FF75Bd",//erc20bridge
+                    "0x2D266A94469d05C9e06D52A4D0d9C23b157767c2",//GFarmNft5
+                    "0x02e2c5825C1a3b69C0417706DbE1327C2Af3e6C2",//GFarmNft4
+                    "0x3378AD81D09DE23725Ee9B9270635c97Ed601921",//GFarmNft3
+                    "0x77cd42B925e1A82f41d852D6BE727CFc88fddBbC",//GFarmNft2
+                    "0x7075cAB6bCCA06613e2d071bd918D1a0241379E2",//GFarm2Token(old)
+                    "0xF9A4c522E327935BD1F5a338c121E14e4cc1f898",//GFarmNft1
+                ],
+                "arbitrum":[
+                    "0xd85E038593d7A098614721EaE955EC2022B9B91B",//gdai
+                    "0x6B8D3C08072a020aC065c467ce922e3A36D3F9d6",//staking
+                    "0x4ba64a81ca50D8B66684C664d75b55eaCcFaCAEb",//trading
+                    "0x8103C0665A544201BBF606d90845d1B2D8005F1c",//nftrewards
+                    "0xd285f881886505b9Ef6684E1aaa7949a56B0C7Da",//gnsmigration
+                    "0x0F9E4375facBeB90DAA850f677819b438ce50827",//ERC721MintingBridge
+                    "0x01cAaaA682Ceba8cd6c02f93BB1393fB415fA5e2",//erc20bridge
+                    "0x5e3b541Ad6AcC4381C110247946C863e05ffc9BE",//GFarmNft5
+                    "0x40F0AeaB6383Be2f254cE40B79089070Fa1a21A1",//GFarmNft4
+                    "0x9834159EAF9811cf4C568294D5C7C9158F84b384",//GFarmNft3
+                    "0xD1F024ba4Dbb1593B486cB5031b3AC5aC28e8A4e",//GFarmNft2
+                    "0x75cbcc5414C539C2B302A5fA60E30B949D2D6F89",//GFarmNft1
+                ],
+                "ethereum":[
+                    "0x14e2f9B0381Af4227D26BEE7d8E4D424466A7F3F",//GFarmNftSwap
+                    "0x151757c2E830C467B28Fe6C09c3174b6c76aA0c5",//GNSPoolV5
+                    "0x1E887E7115321B4ee5d58DD446eC09e12B45d81B",//GFarm
+                    "0x5cA058C1c9E0Bea6b9b5366ADf73BC7f63aDc2d7",//GFarmNFTExchange
+                ]
+            }
+        },
+        {
+            "id":"337",
+            "name":"GMX",
+            "addresses":{
+                "arbitrum":[
+                    "0x489ee077994B6658eAfA855C308275EAd8097C4A",//Vault
+                    "0xaBBc5F99639c9B6bCb58544ddf04EFA6802F4064",//Router
+                    "0xb87a436B93fFE9D75c5cFA7bAcFff96430b09868",//PositionRouter
+                    "0x09f77E8A13De9a35a7231028187e9fD5DB8a2ACB",//OrderBook
+                    "0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf",//StakedGlp
+                    "0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1",//RewardRouterV2
+                ],
+                "avax":[
+                    "0x9ab2De34A33fB459b538c43f251eB825645e8595",//Vault
+                    "0x5F719c2F1095F7B9fc68a68e35B51194f4b6abe8",//Router
+                    "0xffF6D276Bc37c61A23f06410Dce4A400f66420f8",//PositionRouter
+                    "0x4296e307f108B2f583FF2F7B7270ee7831574Ae5",//OrderBook
+                    "0xaE64d55a6f09E4263421737397D1fdFA71896a69",//StakedGlp
+                    "0x82147C5A7E850eA4E28155DF107F2590fD4ba327",//RewardRouterV2
+                ]
+            }
+        },
+        {
+            "id":"2254",
+            "name":"MUX Protocol",
+            "addresses":{
+                "arbitrum":[
+                    "0x917952280770Daa800E1B4912Ea08450Bf71d57e",//Vault
+                    "0x3e0199792Ce69DC29A0a36146bFa68bd7C8D6633",//liquiditypool
+                    "0x02FAe054ACD7FB1615471319c4E3029DFbC2B23C",//liquiditymanager
+                    "0xa19fD5aB6C8DCffa2A295F78a5Bb4aC543AAF5e3",//OrderBook
+                    "0xaf9C4F6A0ceB02d4217Ff73f3C95BbC8c7320ceE",//RewardRouter
+                ],
+                "bsc":[
+                    "0x8D751570BA1Fd8a8ae89E4B27d18bf6C321Aab0a",//Vault
+                    "0x855E99F768FaD76DD0d3EB7c446C0b759C96D520",//liquiditypool
+                    "0xee85CDdCe0CF068091081eA0fcd53f279aa3B09F",//liquiditymanager
+                    "0xa67aA293642C4e02D1b9F360b007C0dBDc451A08",//OrderBook
+                ],
+                "avax":[
+                    "0x29a28cC3FdC128693ef6a596eF45c43ff63B7062",//Vault
+                    "0x0bA2e492e8427fAd51692EE8958eBf936bEE1d84",//liquiditypool
+                    "0x28f16eB86481066Bf63BcBEB05C8474f7120A36C",//liquiditymanager
+                    "0x5898c3E218a8501533d771C86e2fA37743ea2aDd",//OrderBook
+                ],
+                "optimism":[
+                    "0x39d653884B611E0A8dbdb9720Ad5D75642fd544b",//Vault
+                    "0xc6BD76FA1E9e789345e003B361e4A0037DFb7260",//liquiditypool
+                    "0xFEc3704f4A02cB0EE6C7d52Cbf72b11E0441E9d5",//liquiditymanager
+                    "0x6Fde9892Fd5302ac3c68688085BD5b031A63BC9D",//OrderBook
+                ],
+                "fantom":[
+                    "0xdAF2064F52F123EE1D410e97C2df549c23a99683",//Vault
+                    "0x2e81F443A11a943196c88afcB5A0D807721A88E6",//liquiditypool
+                    "0x5898c3E218a8501533d771C86e2fA37743ea2aDd",//liquiditymanager
+                    "0x0c30b10462CdED51C3CA31e7C51019b7d25a965B",//OrderBook
+                ],
+            }
+        },
+        {
+            "id":"2395",
+            "name":"Level Finance",
+            "addresses":{
+                "bsc":[
+                    "0xA5aBFB56a78D2BD4689b25B8A77fd49Bb0675874",//LiquidityPool
+                    "0xB5C42F84Ab3f786bCA9761240546AA9cEC1f8821",//seniorLLP
+                    "0x4265af66537F7BE1Ca60Ca6070D97531EC571BDd",//MezzanineLLP
+                    "0xcC5368f152453D497061CB1fB578D2d3C54bD0A0",//Junior LLP
+                    "0x1Ab33A7454427814a71F128109fE5B498Aa21E5d",//LevelMaster (old farming contract)
+                    "0x5aE081b6647aEF897dEc738642089D4BDa93C0e7",//LevelMasterV2 (farming contract)
+                    "0xf584A17dF21Afd9de84F47842ECEAF6042b1Bb5b",//OrderManager
+                ],
+            }
+        },
+        {
+            "id":"2116",
+            "name":"0x",
+            "addresses":{
+                "ethereum":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                    "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef",//Exchangev3
+                    "0x12459C951127e0c374FF9105DdA097662A027093",//Exchangev1
+                    "0x080bf510FCbF18b91105470639e9561022937712",//Exchangev2.1
+                    "0xa26e80e7Dea86279c6d778D702Cc413E6CFfA777",//StakingProxyv3
+                ],
+                "bsc":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                ],
+                "polygon":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                ],
+                "avax":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                ],
+                "fantom":[
+                    "0xdef189deaef76e379df891899eb5a00a94cbc250",
+                ],
+                "celo":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                ],
+                "optimism":[
+                    "0xdef1abe32c034e558cdd535791643c58a13acc10",
+                ],
+                "arbitrum":[
+                    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+                ],
+            }
+        },
+        {
+            "id":"2899",
+            "name":"Vertex Protocol",
+            "addresses":{
+                "arbitrum":[
+                    "0xbbee07b3e8121227afcfe1e2b82772246226128e", // endpoint
+                ],
+            }
+        },
+        {
+            "id":"1917",
+            "name":"Sudoswap",
+            "addresses":{
+                "ethereum":[
+                    "0x2b2e8cda09bba9660dca5cb6233787738ad68329",
+                    "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
+                ],
+            }
+        },
+        {
+            "id":"340",
+            "name":"Olympus DAO",
+            "addresses":{
+                "ethereum":[
+                    "0x007fe7c498a2cf30971ad8f2cbc36bd14ac51156",
+                    "0x0b7ffc1f4ad541a4ed16b40d8c37f0929158d101",
+                    "0x73D7e4BDdEcAd7379d679e60f22788E501493896",
+                    "0xf577c77ee3578c7f216327f41b5d7221ead2b2a3",
+                    "0xB63cac384247597756545b500253ff8E607a8020",
+                    "0x007F7735baF391e207E3aA380bb53c4Bd9a5Fed6",
+                ],
+            }
+        },
+        {
+            "id":"2907",
+            "name":"Chronos",
+            "addresses":{
+                "arbitrum":[
+                    "0xE708aA9E887980750C040a6A2Cb901c37Aa34f3b",//routerv2
+                    "0x5D9dBA2D0ec06F44Da7e234cBB0d7BA921834AE8",//masterchef
+                    "0xC72b5C6D2C33063E89a50B2F77C99193aE6cEe6c",//voter
+                ],
+            }
+        },
+        {
+            "id":"2903",
+            "name":"Swaprum",
+            "addresses":{
+                "arbitrum":[
+                    "0x1342a24347532DE79372283B3A29c63C31Dd7711",//v2router
+                    "0xEE6cbC97781ff3De7a068D2a6A2dec8CE3a05624",//SwaprumWithdrawals
+                ],
+            }
+        },
+        {
+            "id":"2911",
+            "name":"Aboard Exchange",
+            "addresses":{
+                "arbitrum":[
+                    "0x7a08b29A7Ad4A19A5ECa0c82F5F082872488D135",//PerpetualProxy
+                ],
+            }
+        },
+        {
+            "id":"2902",
+            "name":"DAMX",
+            "addresses":{
+                "fantom":[
+                    "0xD093eeE7c968CEef2df96cA9949eba1a1A9b2306",//Vault
+                    "0xeD077045f38f864fba8aD9bdbF1CE8F108e5ddb9",//OrderBook
+                    "0xECef79f974182f4E9c168E751101F23686Bdc6dF",//staking
+                ],
+            }
+        },
+        {
+            "id":"2900",
+            "name":"Wasabi",
+            "addresses":{
+                "ethereum":[
+                    "0xFc68f2130e094C95B6C4F5494158cbeB172e18a0",//Wasabi Option NFTs (WASAB)
+                    "0xF29A66E420C240EbD23F775b93619C8F3cfFf856",//WasabiConduit
+                    "0x8E2b50413a53F50E2a059142a9be060294961e40",//WasabiPoolFactory
+                ],
+            }
+        },
+        {
+            "id":"2898",
+            "name":"LionDEX",
+            "addresses":{
+                "arbitrum":[
+                    "0x8eF99304eb88Af9BDe85d58a35339Cb0e2a557B6",//vault
+                    "0x154E2b1dBE9F493fF7938E5d686366138ddCE017",//staking
+                    "0xFeb9Cc52aB4cb153FF1558F587e444Ac3DC2Ea82",//Escrowed LionDEX Token (esLION)
+                ],
+            }
+        },
+        {
+            "id":"parent#smbswap",
+            "name":"SMBSwap",
+            "addresses":{
+                "bsc":[
+                    "0xBDC5104a3C52A3f49f0324696f9Bb77E41516De7",//MasterChef
+                    "0x009d611490eCfED2dC3F306231Bba7e7F3E9196E",//SMBRouter
+                    "0x63C737E5BD543ECC0A02d91BfCb50845e1be31cF",//SMBRouter
+                    "0x9D4823aa89Dc33ED53d930CB554AFFc58B0c9852",//SMBSwapLottery
+                    "0x85C6129843D120454848F1Da39233AC4fcb50Cb4",//MasterChefV3
+                    "0x92D118350CAD5EbA374486dbe3d16A9FE66DaeBe",// SmartRouter
+                ],
+            }
+        },
+        {
+            "id":"2886",
+            "name":"RabbitX",
+            "addresses":{
+                "ethereum":[
+                    "0xFc7f884DE22a59c0009C91733196b012Aecb8F41",//Rabbit
+                    "0x4973710327eDc6f8238DD2d73cf0B2e081e1B351",//RabbitDeposit
+                ],
+            }
+        },
+        {
+            "id":"2883",
+            "name":"Purple Bridge DEX",
+            "addresses":{
+                "polygon":[
+                    "0x1e2441Fd53C51d9CD1696BE2871eE672A0A01933",
+                ],
+            }
+        },
+        {
+            "id":"2872",
+            "name":"printyfinance",
+            "addresses":{
+                "avax":[
+                    "0x6A8f98d7e34Fd214B428BFc68c9309Ea3C4Fc7F1",//BaseV1Router01
+                    "0xDc72882909252E133a4A46eFB135b3B145366eba",//PrintyV1Router
+                    "0x6902a8ecF99a732e5a73491Afc14e5E135eE4234",//BaseV2
+                ],
+            }
+        },
+        {
+            "id":"parent#blur",
+            "name":"Blur",
+            "addresses":{
+                "ethereum":[
+                    "0x29469395eAf6f95920E59F858042f0e28D98a20B",//ERC1967Proxy
+                    "0x0000000000A39bb272e79075ade125fd351887Ac",//Blur bidding
+                ],
+            }
+        },
+        {
+            "id":"2919",
+            "name":"Backed",
+            "addresses":{
+                "ethereum":[
+                    "0xF4d4e4ae7fd9CbAfc24b9B0Da2596260c8368314",//paprcontroller
+                    "0x3b29c19ff2fcEa0Ff98D0ef5B184354D74eA74b0",//paprcontroller
+                ],
+            }
+        },
+        {
+            "id":"2918",
+            "name":"DebtDAO",
+            "addresses":{
+                "ethereum":[
+                    "0xc9eF6509A09b92043cedce689DfAA760048aBd7F",//LineFactory
+                ],
+            }
+        },
+        {
+            "id":"2862",
+            "name":"Hyperliquid",
+            "addresses":{
+                "arbitrum":[
+                    "0xC67E9Efdb8a66A4B91b1f3731C75F500130373A4",
+                ],
+            }
+        },
+        {
+            "id":"319",
+            "name":"Convex Finance",
+            "addresses":{
+                "ethereum":[
+                    "0xf403c135812408bfbe8713b5a23a04b3d48aae31",
+                    "0x72a19342e8f1838460ebfccef09f6585e32db86e",
+                ],
+            }
+        },
+        {
+            "id":"270",
+            "name":"Liquity",
+            "addresses":{
+                "ethereum":[
+                    "0x4f9fbb3f1e99b56e0fe2892e623ed36a76fc605d",//staking
+                    "0x66017d22b0f8556afdd19fc67041899eb65a21bb",//stabilitypool
+                    "0x24179cd81c9e782a4096035f7ec97fb8b783e007"
+                ],
+            }
+        },
+        {
+            "id":"144",
+            "name":"dYdX",
+            "addresses":{
+                "ethereum":[
+                    "0xd54f502e184b6b739d7d27a6410a67dc462d69c8",
+                    "0x8e8bd01b5a9eb272cc3892a2e40e64a716aa2a40",
+                    "0x0fd829c3365a225fb9226e75c97c3a114bd3199e",
+                    "0x5aa653a076c1dbb47cec8c1b4d152444cad91941"
+                ],
+            }
+        },
+        {
+            "id":"parent#radiant",
+            "name":"Radiant",
+            "addresses":{
+                "arbitrum":[
+                    "0x8991c4c347420e476f1cf09c03aba224a76e2997",
+                    "0x196bf3a63c50bca1eff5a5809b72dfc58f0c2c1a",
+                    "0xebc85d44cefb1293707b11f707bd3cec34b4d5fa",
+                    "0x2032b9a8e9f7e76768ca9271003d3e43e1616b1f",
+                    "0x5682a39078edce41a65f1bd8733bf9ca2bbe3b1b",
+                    "0xc963ef7d977ecb0ab71d835c4cb1bf737f28d010"
+                ],
+                "bsc":[
+                    "0x13ef2a9e127ae8d9e9b863c7e375ba68e1a42ac6",
+                    "0xd50cf00b6e600dd036ba8ef475677d816d6c4281",
+                    "0x7c16abb090d3fb266e9d17f60174b632f4229933",
+                ]
+            }
+        },
+        {
+            "id":"parent#paraspace",
+            "name":"ParaSpace",
+            "addresses":{
+                "ethereum":[
+                    "0x638a98bbb92a7582d07c52ff407d49664dc8b3ee",
+                    "0x59b72fdb45b3182c8502cc297167fe4f821f332d",
+                    "0xf090eb4c2b63e7b26e8bb09e6fc0cc3a7586263b",
+                    "0xc5c9fb6223a989208df27dcee33fc59ff5c26fff"
+                ],
+            }
+        },
+        {
+            "id":"438",
+            "name":"Tokemak",
+            "addresses":{
+                "ethereum":[
+                    "0x04bda0cf6ad025948af830e75228ed420b0e860d",
+                    "0xd3d13a578a53685b4ac36a1bab31912d2b2a2f36",
+                    "0x8858a739ea1dd3d80fe577ef4e0d03e88561faa3",
+                    "0x41f6a95bacf9bc43704c4a4902ba5473a8b00263"
+                ],
+            }
+        },
+        {
+            "id":"636",
+            "name":"Keep3r Network",
+            "addresses":{
+                "ethereum":[
+                    "0x02777053d6764996e594c3e88af1d58d5363a2e6",
+                    "0x1ceb5cb57c4d4e2b2433641b95dd330a33185a44",
+                    "0xb9d18ab94cf61bb2bcebe6ac8ba8c19ff0cdb0ca",
+                ],
+            }
+        },
+        {
+            "id":"2255",
+            "name":"NFTfi",
+            "addresses":{
+                "ethereum":[
+                    "0xe52cec0e90115abeb3304baa36bc2655731f7934",
+                    "0x8252df1d8b29057d1afe3062bf5a64d503152bc8",
+                ],
+            }
+        },
+        {
+            "id":"483",
+            "name":"NFTX",
+            "addresses":{
+                "ethereum":[
+                    "0x941a6d105802cccaa06de58a13a6f49ebdcd481c",
+                    "0xdc774d5260ec66e5dd4627e1dd800eff3911345c",
+                    "0x688c3e4658b5367da06fd629e41879beab538e37",
+                    "0x3e135c3e981fae3383a5ae0d323860a34cfab893"
+                ],
+            }
+        },
+        {
+            "id":"2086",
+            "name":"Rage Trade",
+            "addresses":{
+                "arbitrum":[
+                    "0x1d42783E7eeacae12EbC315D1D2D0E3C6230a068",//Curve Yield Strategy
+                    "0x4b928aFd7CA775C7f4ECdf2c00B7e608962AbbDc",//Rage Trade: Vault Periphery
+                ],
+            }
+        },
+        {
+            "id":"2192",
+            "name":"PlutusDAO",
+            "addresses":{
+                "arbitrum":[
+                    "0x35cD01AaA22Ccae7839dFabE8C6Db2f8e5A7B2E0",//PlutusPrivateTGE
+                    "0x195B6eA50150900A25FA0928b8B65B03C7666D10",//TGEController
+                    "0xc1D8f4109eC84db9b607e2705779142eC8F9534a",//Plutus DAO: TGE Vault ETH
+                    "0xF4790fc873351C624d225269d4d21cF591e441b2",//Plutus DAO: TGE Vault DPX
+                    "0xd6c9fe8dbc50c620222e8679CFf0461994b532DA",//Plutus DAO: TGE Vault JONES
+                    "0x27Aaa9D562237BF8E024F9b21DE177e20ae50c05",//Plutus DAO: 1 Month Plutus Epoch Staking 
+                    "0xE59DADf5F7a9decB8337402Ccdf06abE5c0B2B3E",//Plutus DAO: 3 Month Plutus Epoch Staking 
+                    "0xBEB981021ed9c85AA51d96C0c2edA10ee4404A2e",//Plutus DAO: 6 Month Plutus Epoch Staking
+                    "0x5593473e318F0314Eb2518239c474e183c4cBED5",//Plutus DAO: MasterChef 
+                    "0x66Cd8Cb1bA49f1A07703fa6E5BFE2BEB2eC8c706",//PlutusDAO: Plutus JONES Depositor
+                    "0x4D56D5A417269A5bFa909cc0f67DFFE992272606",//Plutus DAO: Dpx Depositor 
+                    "0x20DF4953BA19c74B2A46B6873803F28Bf640c1B5",//PlutusDAO: Old plsDPX Farm
+                    "0x23B87748b615096d1A0F48870daee203A720723D",//PlutusDAO: plsJONES - Plutus Chef 
+                    "0x6CCD4CFaF4bDa43c09682B3e588B4bd18BFFd603",//PrivateTgeRewards
+                    "0x548C30b0af3CE6D96F1A63AfC05F0fb66495179F",//PlutusDAO: DPX Depositor 
+                    "0x75c143460F6E3e22F439dFf947E25C9CcB72d2e8",//PlutusDAO: plsDPX Farm
+                    "0x04B724389Dd28Ffc9a3A91Ab4149a77530282f04",//PrivateTgeVester
+                    "0xA61f0d1d831BA4Be2ae253c13ff906d9463299c2",//PlutusChef
+                    "0xb059Fc19371691aa7A3EC66dD80684FFE17A7D5c",//PlutusChef
+                    "0x5326E71Ff593Ecc2CF7AcaE5Fe57582D6e74CFF1",//PlvGlpToken
+                    "0x4E5Cf54FdE5E1237e80E87fcbA555d829e1307CE",//PlutusDAO: plvGLP Farm
+                    "0x8c12e3C9b26Ee2e43A1a71cd974e6bF250472129",//SpaDepositor
+                    "0x73e7c78E8a85C074733920f185d1c78163b555C8",//
+                    "0x9F07B8D6DDA7E68260Add1e38447D0Caa6F1BA0d",//PlutusChef
+                    "0xbe68e51f75F34D8BC06D422056af117b8c23fd54",//
+                    "0x13794D30D01c96D6595d1D956f3dd70AEc2C238B",//ArbDepositor
+                    "0xCfc273D86333bF453b847d4D8cb7958307D85196",//
+                    "0x4C2C41cFfC920CA9dD5F13E88DcF5062ceF37455",//
+                ],
+            }
+        },
+        {
+            "id":"916",
+            "name":"Pika Protocol",
+            "addresses":{
+                "optimism":[
+                    "0x365324E5045df8c886EBe6AD5449F5CeB5881A40",//PikaPerpV2
+                    "0x58488bB666d2da33F8E8938Dbdd582D2481D4183",//VaultFeeReward
+                    "0x2FaE8C7Edd26213cA1A88fC57B65352dbe353698",//Pika Protocol: Perpetual V2 
+                    "0x8123DCe565111F64c01864B2ae0F35e3181A0A02",//PositionManager
+                    "0xf9B19D0e62278ec9CBBaD5CcA5e7A270979bEa4E",//OrderBook
+                    "0xD5A8f233CBdDb40368D55C3320644Fb36e597002",//PikaPerpV3
+                    "0x939c11c596B851447e5220584d37F12854bA02ae",//VaultFeeReward
+                    "0x78136EF4BDcbdABb8D7aa09a33C3c16Ca6381910",//VaultTokenReward
+                ],
+            }
+        },
+        {
+            "id":"2618",
+            "name":"OasisSwap",
+            "addresses":{
+                "arbitrum":[
+                    "0xe805977D5Fa2f05e2175507a1f8E44Cd3F22972c",
+                    "0x5bf51bf7af925306866d6cf87b4b85189df67970",
+                ]
+            }
+        },
+
+        
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
