@@ -2376,6 +2376,47 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"1521",
+            "name":"Horizon Protocol",
+            "addresses":{
+                "bsc":[
+                    "0xFCF3afa6cdA14B438AeEb8FfEd433D196Cd1367F",
+                    "0x9657a0FD98e88464E1159d98b517A4945dbFBFC8",//DelegateApprovals
+                    "0xadA58Cf32276CCD03a1C155688eFF8B3BC282285",//PhbStaking
+                    "0xa1771DCfb7822C8853D7E64B86E58f7f1eB5e33E",//StakingRewards
+                    "0xE21e39c383ABDce3edf13b7233Ad1ad5FEE42099",//RewardEscrowV2
+                ]
+            }
+        },
+        {
+            "id":"2970",
+            "name":"Beluga Dex",
+            "addresses":{
+                "arbitrum":[
+                    "0x7668bcBf650AE69297E411d2A8Ec91e07dd91c0B",
+                    "0x48945A091108bBbd54829B632B1dF94BB50F81D7"
+                ]
+            }
+        },
+        {
+            "id":"2968",
+            "name":"GND Protocol",
+            "addresses":{
+                "arbitrum":[
+                    "0xd8769d8826149B137AF488b1e9Ac0e3AFdbC058a",//UniswapV3LP
+                ]
+            }
+        },
+        {
+            "id":"2957",
+            "name":"Seashell",
+            "addresses":{
+                "arbitrum":[
+                    "0x5BAC5eEfA13696Cf815388021235b215587263Ea",//Blueberry GLP Compounder LP Token (Blueberry...)
+                ]
+            }
+        },
 
         
         
