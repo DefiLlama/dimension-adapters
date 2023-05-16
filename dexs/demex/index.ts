@@ -50,5 +50,10 @@ const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var timestamp = startOfDay.getTime() / 1000;
   return Math.floor(timestamp / 86400) * 86400;
 };
-const exactDateTimestamp = getUniqStartOfTodayTimestamp(new Date(1691107200 * 1000))
+const date = new Date(Date.UTC(2023, 4, 15, 3, 0, 0));
+
+// Get the Unix timestamp (in seconds) for the specified date
+const timestamp = Math.floor(date.getTime() / 1000);
+
+const exactDateTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
 console.log(exactDateTimestamp)
