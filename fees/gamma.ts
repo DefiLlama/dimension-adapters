@@ -208,9 +208,9 @@ const adapter: SimpleAdapter = {
         const fees1 = await fetchFees(CHAIN.POLYGON, registy_address)(timestamp);
         const fees2 = await fetchFees(CHAIN.POLYGON, registy_address_quiswap)(timestamp);
         return {
-          dailyFees: `${Number(fees1.dailyFees) + Number(fees2.dailyFees)}`,
-          dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue)}`,
-          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + Number(fees2.dailySupplySideRevenue)}`,
+          dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees) / 2)}`,
+          dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue) / 2}`,
+          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue)/2)}`,
           timestamp
         }
       },
