@@ -2,73 +2,106 @@ import { Adapter } from "../adapters/types";
 import { CHAIN, POLYGON } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
+import { time } from "console";
 
-const endpoint =
-  "https://api.thegraph.com/subgraphs/name/getprotocol/get-protocol-subgraph";
+const protocolSubgraph =
+  "https://api.thegraph.com/subgraphs/name/efesozen7/test-e";
+const tokenSubgraphPolygon =
+  "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-polygon";
 
-const graphs = (graphUrl: string) => {
+const tokenSubgraphEthereum =
+  "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-ethereum";
+
+const graphs = (
+  graphUrl: string,
+  tokenSubgraphEthereum: string,
+  tokenSubgraphPolygon: string
+) => {
   return async (timestamp: number) => {
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
-    const dateIdIntegratorDay = "4-"+dateId
-    const block = (await getBlock(timestamp, CHAIN.POLYGON, {}));
-    const graphQueryFees = gql`
+    tokenSubgraphEthereum;
+    tokenSubgraphPolygon;
+    // timestamp = timestamp - 600;
+    const beginningOfTheDay = getTimestampAtStartOfDayUTC(timestamp);
+    const dateId = Math.floor(beginningOfTheDay / 86400);
+    const block = await getBlock(timestamp, CHAIN.POLYGON, {});
+    const revenueQuery = gql`
       {
         protocolDay(id: ${dateId}) {
           reservedFuel
           reservedFuelProtocol
+          treasuryRevenue
+          holdersRevenue
         }
       }
     `;
 
-    const graphQueryFeesAllTime = gql`
+    const feesQuery = gql`
       {
-        protocol(id: "1", block: { number: ${block} }) {
-          reservedFuel
-          reservedFuelProtocol
+        stakingRewards(where: { blockTimestamp_gte: ${beginningOfTheDay}, blockTimestamp_lt: ${timestamp} }) {
+          totalRewards
+          type
         }
       }
     `;
-    const graphQueryGutsFees = gql`
-      {
-        integratorDay(id: "${dateIdIntegratorDay}") {
-          reservedFuel
-        }
-      }
-    `;
+    //update block number with "block"
     const graphQueryGETPrice = gql`
       {
-        priceOracle(id: "1", block: { number: ${block} }) {
+        priceOracle(id: "1", block: { number: ${35415201} }) {
           price
         }
       }
     `;
-    const graphRes = await request(graphUrl, graphQueryFees);
-    const graphResAllTime = await request(graphUrl, graphQueryFeesAllTime);
-    const graphGutsFees = await request(graphUrl, graphQueryGutsFees);
+    const graphRevenue = await request(graphUrl, revenueQuery);
+    const graphPolyFees = await request(tokenSubgraphPolygon, feesQuery);
+    const graphEthFees = await request(tokenSubgraphEthereum, feesQuery);
     const graphGETPrice = await request(graphUrl, graphQueryGETPrice);
 
     //GET Price in USD
-    const getPrice = parseFloat(graphGETPrice.priceOracle.price);
+    const getTokenPrice = parseFloat(graphGETPrice.priceOracle.price);
+    const ethPrice = await getPrices(["coingecko:ethereum"], timestamp);
+    console.log(ethPrice);
+    const stakingFees = graphEthFees.stakingRewards
+      .concat(graphPolyFees.stakingRewards)
+      .filter((reward: any) => reward.type != "FUEL_DISTRIBUTION");
+
+    const otherFeesGET = stakingFees
+      .map((reward: any) => BigInt(reward.totalRewards))
+      .reduce(function (result: bigint, reward: bigint) {
+        return result + reward;
+      }, BigInt(0));
+    const otherFeesMinusPOLGET = stakingFees
+      .filter((reward: any) => reward.type != "UNISWAP_LP_FEE")
+      .map((reward: any) => BigInt(reward.totalRewards))
+      .reduce(function (result: bigint, reward: bigint) {
+        return result + reward;
+      }, BigInt(0));
     //total fees
-    const finalDailyFee =
-      parseFloat(graphRes.protocolDay.reservedFuel) * getPrice;
+    const integratorTicketingFeesUSD =
+      parseFloat(graphRevenue.protocolDay.reservedFuel) * getTokenPrice;
 
-    const finalFeeAllTime =
-      parseFloat(graphResAllTime.protocol.reservedFuel) * getPrice;
+    const otherFeesUSD = Number(otherFeesGET / BigInt(10e18)) * getTokenPrice;
 
-    //GUTS fees
-    const gutsFeesDaily =
-      parseFloat(graphGutsFees.integratorDay.reservedFuel) * getPrice;
+    const otherFeesMinusPOLUSD =
+      Number(otherFeesMinusPOLGET / BigInt(10e18)) * getTokenPrice;
 
-    const dailyRevenue = (finalDailyFee - gutsFeesDaily) * 0.8;
+    const dailyFees = integratorTicketingFeesUSD + otherFeesUSD;
+    const dailyUserFees = integratorTicketingFeesUSD + otherFeesMinusPOLUSD;
+    const dailyHoldersRevenue =
+      parseFloat(graphRevenue.protocolDay.holdersRevenue) * getTokenPrice;
+    const dailyProtocolRevenue =
+      parseFloat(graphRevenue.protocolDay.treasuryRevenue) * getTokenPrice;
+
+    const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
 
     return {
       timestamp,
-      totalFees: finalFeeAllTime.toString(),
-      dailyFees: finalDailyFee.toString(),
-      dailyProtocolRevenue: dailyRevenue.toString(),
+      dailyFees: dailyFees.toString(),
+      dailyUserFees: dailyUserFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
+      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
+      dailyProtocolRevenue: dailyProtocolRevenue.toString(),
     };
   };
 };
@@ -76,7 +109,11 @@ const graphs = (graphUrl: string) => {
 const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
-      fetch: graphs(endpoint),
+      fetch: graphs(
+        protocolSubgraph,
+        tokenSubgraphEthereum,
+        tokenSubgraphPolygon
+      ),
       start: async () => 1630468800,
       meta: {
         methodology:
