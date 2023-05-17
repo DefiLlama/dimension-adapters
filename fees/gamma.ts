@@ -64,9 +64,13 @@ type TAddress = {
   [s: Chain | string]: string;
 }
 
+const registy_address_zybswap: TAddress = {
+  [CHAIN.ARBITRUM]: '0x37595FCaF29E4fBAc0f7C1863E3dF2Fe6e2247e9'
+}
 
 const registy_address_quiswap: TAddress = {
-  [CHAIN.POLYGON]: '0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd'
+  [CHAIN.POLYGON]: '0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd',
+  [CHAIN.POLYGON_ZKEVM]: '0xD08B593eb3460B7aa5Ce76fFB0A3c5c938fd89b8'
 }
 
 const registy_address: TAddress = {
@@ -200,13 +204,27 @@ const adapter: SimpleAdapter = {
       start: async () => 1682121600,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM, registy_address),
+    fetch: async (timestamp: number) => {
+        const fees1 = await fetchFees(CHAIN.ARBITRUM, registy_address)(timestamp);
+        const fees2 = await fetchFees(CHAIN.ARBITRUM, registy_address_zybswap)(timestamp);
       start: async () => 1682121600,
     },
     [CHAIN.POLYGON]: {
       fetch: async (timestamp: number) => {
         const fees1 = await fetchFees(CHAIN.POLYGON, registy_address)(timestamp);
         const fees2 = await fetchFees(CHAIN.POLYGON, registy_address_quiswap)(timestamp);
+        return {
+          dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees) / 2)}`,
+          dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue) / 2}`,
+          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue)/2)}`,
+          timestamp
+        }
+      },
+      start: async () => 1682121600,
+    },
+    [CHAIN.POLYGON_ZK_EVM]: {
+      fetch: async (timestamp: number) => {
+        const fees1 = await fetchFees(CHAIN.POLYGON_ZKEVM, registy_address_quiswap)(timestamp);
         return {
           dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees) / 2)}`,
           dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue) / 2}`,
