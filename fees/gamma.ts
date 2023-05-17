@@ -1,7 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general"
 import { FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { getBlock } from "../helpers/getBlock"
-import { ethers } from "ethers";
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
@@ -207,6 +206,13 @@ const adapter: SimpleAdapter = {
     fetch: async (timestamp: number) => {
         const fees1 = await fetchFees(CHAIN.ARBITRUM, registy_address)(timestamp);
         const fees2 = await fetchFees(CHAIN.ARBITRUM, registy_address_zybswap)(timestamp);
+        return {
+          dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees))}`,
+          dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue)}`,
+          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue)/2)}`,
+          timestamp
+        }
+    },
       start: async () => 1682121600,
     },
     [CHAIN.POLYGON]: {
@@ -222,13 +228,13 @@ const adapter: SimpleAdapter = {
       },
       start: async () => 1682121600,
     },
-    [CHAIN.POLYGON_ZK_EVM]: {
+    [CHAIN.POLYGON_ZKEVM]: {
       fetch: async (timestamp: number) => {
         const fees1 = await fetchFees(CHAIN.POLYGON_ZKEVM, registy_address_quiswap)(timestamp);
         return {
-          dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees) / 2)}`,
-          dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue) / 2}`,
-          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue)/2)}`,
+          dailyFees: `${Number(fees1.dailyFees) / 2}`,
+          dailyRevenue: `${Number(fees1.dailyRevenue) / 2}`,
+          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) / 2}`,
           timestamp
         }
       },
