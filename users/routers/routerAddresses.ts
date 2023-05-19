@@ -749,7 +749,11 @@ export default ([
             "name":"Maverick Protocol",
             "addresses":{
                 "ethereum":[
-                    "0xc3B7aF1d8c3ca78F375Eb125F0211164b9071Cc0"
+                    "0xc3B7aF1d8c3ca78F375Eb125F0211164b9071Cc0",
+                    "0xbBF1EE38152E9D8e3470Dc47947eAa65DcA94913"
+                ],
+                "era":[
+                    "0x39E098A153Ad69834a9Dac32f0FCa92066aD03f4",
                 ]
             }
         },
