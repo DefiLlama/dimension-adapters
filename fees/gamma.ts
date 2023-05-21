@@ -175,9 +175,9 @@ const fetchFees = (chain: Chain, address: TAddress) => {
             const amount1 = log
             .reduce((a: number, b: IFeesAmount) => Number(b.amount1) + a, 0)  * token1Price;
             const revAmount0 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount0)/b.fees) + a, 0)  * token0Price;
+            .reduce((a: number, b: IFeesAmount) => (Number(b.amount0)*(1/b.fees)) + a, 0)  * token0Price;
             const revAmount1 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount1)/b.fees) + a, 0)  * token1Price;
+            .reduce((a: number, b: IFeesAmount) => (Number(b.amount1)*(1/b.fees)) + a, 0)  * token1Price;
           return { fees: (amount0+amount1), rev: (revAmount0+revAmount1) }
         });
         const dailyFees = untrackVolumes.reduce((a: number, b: IFees) => a + b.fees, 0);
@@ -209,7 +209,7 @@ const adapter: SimpleAdapter = {
         return {
           dailyFees: `${Number(fees1.dailyFees) + (Number(fees2.dailyFees))}`,
           dailyRevenue: `${Number(fees1.dailyRevenue) + Number(fees2.dailyRevenue)}`,
-          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue)/2)}`,
+          dailySupplySideRevenue: `${Number(fees1.dailySupplySideRevenue) + (Number(fees2.dailySupplySideRevenue))}`,
           timestamp
         }
     },
