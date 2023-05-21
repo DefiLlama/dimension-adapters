@@ -67,7 +67,7 @@ const fetch = (chain: Chain) => {
       dailySupplySideRevenue: supplySideRev.toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       dailyProtocolRevenue: protocolRev.toString(),
-      dailyRevenue: protocolRev.toString(),
+      dailyRevenue: (protocolRev + dailyHoldersRevenue).toString(),
       timestamp
     }
   }
