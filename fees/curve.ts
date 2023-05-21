@@ -51,7 +51,7 @@ const graph = (graphUrls: ChainEndpoints) => {
         timestampEndOfDay
       });
 
-      const blacklist = ['ypaxCrv', 'A3CRV-f', 'steCRV', 'STETHETH_C-f']
+      const blacklist = ['ypaxCrv', 'A3CRV-f', 'STETHETH_C-f']
       const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.totalDailyFeesUSD);
       })
