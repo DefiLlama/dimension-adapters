@@ -75,6 +75,12 @@ const adapter: Adapter = {
        start: async () => 0,
        meta,
      }, 
+     umee: {
+       fetch: fetch("umee"),
+       runAtCurrTime: true,
+       start: async () => 0,
+       meta,
+     }, 
   },
 };
 
