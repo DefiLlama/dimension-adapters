@@ -3,7 +3,7 @@ import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../he
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+
 
 const endpoints = {
   [ETHEREUM]:
@@ -23,14 +23,16 @@ const endpoints = {
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($timestampEndOfDay: Int!)
+  const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)
   {
     dailyPoolSnapshots (
       orderBy: timestamp
       orderDirection: desc
       first: 1000
       where: {
-        timestamp: $timestampEndOfDay
+        timestamp_gte: $timestampFrom
+        timestamp_gte: $timestampTo
+        totalDailyFeesUSD_lte: 1000000
       }
     ) {
       totalDailyFeesUSD
@@ -46,9 +48,11 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      const timestampEndOfDay = getTimestampAtStartOfDayUTC(timestamp + 60 * 60 * 24)
+      const fromTimestamp = timestamp - 60 * 60 * 24
+      const toTimestamp = timestamp
       const graphRes = await request(graphUrls[chain], graphQuery, {
-        timestampEndOfDay
+        timestampFrom: fromTimestamp,
+        timestampTo: toTimestamp
       });
 
       const blacklist = ['ypaxCrv', 'A3CRV-f', 'STETHETH_C-f']
