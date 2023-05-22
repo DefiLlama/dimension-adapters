@@ -69,8 +69,8 @@ const fetchSpots = async (timeStamp: number) => {
 };
 
 const fetchPerps = async (timeStamp: number) => {
-  const spotProductIds = (await fetchProducts()).perp_products;
-  return await computeVolume(timeStamp, spotProductIds);
+  const perpProductIds = (await fetchProducts()).perp_products;
+  return await computeVolume(timeStamp, perpProductIds);
 };
 
 const startTime = 1683504009;
