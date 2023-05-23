@@ -306,6 +306,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   await sql.end({ timeout: 5 })
   return {
     timestamp,
+    dailyRevenue: (dailyFees * 0.5).toString(),
     dailyFees: dailyFees.toString(),
   }
 }
