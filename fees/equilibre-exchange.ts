@@ -76,6 +76,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
+
   try {
     const poolLength = (await sdk.api.abi.call({
       target: FACTORY_ADDRESS,
