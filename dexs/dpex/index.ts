@@ -28,7 +28,7 @@ interface IGraphResponse {
 const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: String(dayTimestamp),
+    id: `${String(dayTimestamp)}:daily`,
     period: 'daily',
   })
   const totalData: IGraphResponse = await request(endpoints[chain], query, {
