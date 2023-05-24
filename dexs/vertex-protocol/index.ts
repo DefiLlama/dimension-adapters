@@ -77,7 +77,7 @@ const startTime = 1683504009;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    swaps: {
+    swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSpots,
         runAtCurrTime: true,
