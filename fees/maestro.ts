@@ -13,10 +13,6 @@ const gasTokenId: TokenId = {
   [CHAIN.ETHEREUM]: "coingecko:ethereum",
   [CHAIN.BSC]: "coingecko:binancecoin",
 }
-const field: TokenId = {
-  [CHAIN.ETHEREUM]: "eth_value",
-  [CHAIN.BSC]: "bnb_value",
-}
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
 
@@ -27,16 +23,18 @@ const graph = (chain: Chain) => {
       const endblock = (await getBlock(toTimestamp, chain, {}));
       const query = `
         select
-          ${field[chain]}
+          ${chain === "bsc"?"tx_json['value']":"eth_value"}
         from
           ${chain}.core.fact_transactions
         WHERE to_address = '0xcac0f1a06d3f02397cfb6d7077321d73b504916e'
-        and ORIGIN_FUNCTION_SIGNATURE = '0x'
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
       `
 
-      const value: number[] = (await queryFlipside(query)).flat();
-      const amount = value.map((_) => 0.01).reduce((a: number, b: number) => a + b, 0)
+      const value: string[] = (await queryFlipside(query)).flat();
+      let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
+      if(chain==="bsc"){
+        amount /= 1e18;
+      }
       const gasId = gasTokenId[chain];
       const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
       const dailyFees = (amount * gasIdPrice)
