@@ -39,18 +39,10 @@ const graph = (chain: Chain) => {
       .reduce((acc, { feesUsd }) => acc + Number(feesUsd), 0)
     const dailyFees = historical
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
-    const totalRevenue = historical
-      .filter(volItem => volItem.timestamp <= dayTimestamp)
-      .reduce((acc, { protocolFeesUsd }) => acc + Number(protocolFeesUsd), 0)
-    const dailyRevenue = historical
-      .find(dayItem => dayItem.timestamp === dayTimestamp)?.protocolFeesUsd
     return {
       dailyUserFees: `${dailyFees}`,
       dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailyProtocolRevenue: `${dailyRevenue}`,
       totalFees: `${totalFees}`,
-      totalRevenue: `${totalRevenue}`,
       timestamp
     }
   }
