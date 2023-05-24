@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general"
 import { CHAIN } from "../helpers/chains";
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchResultFees } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
@@ -18,7 +18,7 @@ const field: TokenId = {
   [CHAIN.BSC]: "bnb_value",
 }
 const graph = (chain: Chain) => {
-  return async (timestamp: number) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
 
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
@@ -42,6 +42,7 @@ const graph = (chain: Chain) => {
       const dailyFees = (amount * gasIdPrice)
       return {
         dailyFees: `${dailyFees}`,
+        dailyRevenue: `${dailyFees}`,
         timestamp
       }
     } catch (err) {
