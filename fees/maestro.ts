@@ -56,11 +56,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graph(CHAIN.ETHEREUM),
-        start: async ()  => 1683849600,
+        start: async ()  => 1656633600,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async ()  => 1683849600,
+      start: async ()  => 1656633600,
   },
   }
 }
