@@ -50,7 +50,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
                                 .reduce((e: number, {amount, odds}) => e+Number(amount) * Number(odds), 0)
 
             const totalPoolProfit = totalBetsAmount - wonAmount;
-            const dailyFees = totalPoolProfit;
+            const dailyFees = Math.abs(totalPoolProfit);
             const dailyRevenue = totalPoolProfit;
 
             return {
