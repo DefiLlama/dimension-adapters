@@ -45,10 +45,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 if (graphRes.bets.length < 1000) break
             }
 
-            const dailyFees = bets.reduce((e: number, {amount}) => e+Number(amount), 0)
+            const totalBetsAmount = bets.reduce((e: number, {amount}) => e+Number(amount), 0)
             const wonAmount = bets.filter(({result}) => result === BetResult.Won)
                                 .reduce((e: number, {amount, odds}) => e+Number(amount) * Number(odds), 0)
-            const dailyRevenue = dailyFees - wonAmount;
+
+            const totalPoolProfit = totalBetsAmount - wonAmount;
+            const dailyFees = Math.abs(totalPoolProfit);
+            const dailyRevenue = totalPoolProfit;
+
             return {
                 timestamp,
                 dailyFees: dailyFees.toString(),
@@ -59,8 +63,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 }
 
 const methodology = {
-    Fees: "all money that users spent taking bets (win or lose)",
-    Revenue: "how much money pool makes, including wins and losses",
+    Fees: "Total pools profits (equals total bets amount minus total won bets amount)",
+    Revenue: "Total pools profits (equals total bets amount minus total won bets amount)",
 }
 
 const adapter: Adapter = {
