@@ -100,13 +100,13 @@ const adapter: Adapter = {
         methodology
       }
     },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch(CHAIN.BSC),
+    //   start: async ()  => 1672531200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
   },
 
 }
