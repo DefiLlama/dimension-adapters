@@ -72,6 +72,7 @@ const graph = (chain: Chain) => {
       const dailyFees = volumeUSD * 0.0085
       return {
         dailyFees: `${dailyFees}`,
+        dailyProtocolRevenue: `${dailyFees}`,
         dailyRevenue: `${dailyFees}`,
         timestamp
       }
