@@ -93,6 +93,20 @@ const adapter: Adapter = {
         methodology
       }
     },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(CHAIN.POLYGON),
+      start: async ()  => 1672531200,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC),
+      start: async ()  => 1672531200,
+      meta: {
+        methodology
+      }
+    },
   },
 
 }
