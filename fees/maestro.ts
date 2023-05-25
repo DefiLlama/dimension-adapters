@@ -12,6 +12,7 @@ type TokenId = {
 const gasTokenId: TokenId = {
   [CHAIN.ETHEREUM]: "coingecko:ethereum",
   [CHAIN.BSC]: "coingecko:binancecoin",
+  [CHAIN.ARBITRUM]: "coingecko:ethereum",
 }
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -61,7 +62,11 @@ const adapter: Adapter = {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: async ()  => 1656633600,
-  },
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: graph(CHAIN.ARBITRUM),
+      start: async ()  => 1675468800,
+    },
   }
 }
 
