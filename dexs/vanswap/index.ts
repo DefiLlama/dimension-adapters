@@ -31,16 +31,16 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.post(historicalVolumeEndpoint))?.data.result;
-  return (new Date(historicalVolume[0].date).getTime());
+  //const historicalVolume: IVolumeall[] = (await axios.post(historicalVolumeEndpoint))?.data.result;
+  //return (new Date(historicalVolume[0].date).getTime());
+  return 1647302400
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VISION]: {
       fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.VISION as Chain, (_chian: string) => fetch)
+      start: getStartTimestamp
     },
   },
 };

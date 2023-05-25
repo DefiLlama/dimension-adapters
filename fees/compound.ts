@@ -10,7 +10,7 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/messari/compound-ethereum"
+    "https://api.thegraph.com/subgraphs/name/messari/compound-v2-ethereum"
 }
 
 
@@ -24,18 +24,34 @@ const graphs = (graphUrls: ChainEndpoints) => {
         financialsDailySnapshot(id: ${dateId}) {
             dailyTotalRevenueUSD
             dailyProtocolSideRevenueUSD
+            dailySupplySideRevenueUSD
+            cumulativeTotalRevenueUSD
+            cumulativeProtocolSideRevenueUSD
+            cumulativeSupplySideRevenueUSD
         }
       }`;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
       const dailyFee = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
-      const dailyRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
+      const dailyProtRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
+      const dailySSRev = new BigNumber(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD);
+      const dailyTotalRev = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
+      const totalFee = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
+      const totalProtRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeProtocolSideRevenueUSD);
+      const totalSSRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeSupplySideRevenueUSD);
+      const totalTotalRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
 
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
+        dailyProtocolRevenue: dailyProtRev.toString(),
+        dailyRevenue: dailyTotalRev.toString(),
+        dailySupplySideRevenue: dailySSRev.toString(),
+        totalFees: totalFee.toString(),
+        totalProtocolRevenue: totalProtRev.toString(),
+        totalRevenue: totalTotalRev.toString(),
+        totalSupplySideRevenue: totalSSRev.toString()
       };
     };
   };

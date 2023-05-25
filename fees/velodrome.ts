@@ -1,9 +1,9 @@
 import request, { gql } from "graphql-request";
-import { Adapter, ChainBlocks } from "../adapters/types";
+import { Adapter } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
 import {
   getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfPreviousDayUTC,
+  getTimestampAtStartOfPreviousDayUTC
 } from "../utils/date";
 import BigNumber from "bignumber.js";
 import { OPTIMISM } from "../helpers/chains";
@@ -14,13 +14,13 @@ const endpoint =
   "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
 
 const getFees = () => {
-  return async (timestamp: number, chainBlocks: ChainBlocks) => {
+  return async (timestamp: number) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const todaysBlock = await getBlock(
       todaysTimestamp,
       "optimism",
-      chainBlocks
+      {}
     );
     const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "optimism", {});
 

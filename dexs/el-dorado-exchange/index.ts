@@ -1,10 +1,11 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import {BreakdownAdapter, Fetch, SimpleAdapter} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/aaronlux/ede-stats",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
 }
 
 const historicalDataSwap = gql`
@@ -12,6 +13,14 @@ const historicalDataSwap = gql`
     volumeStats(where: {period: $period, id: $id}) {
         swap
       }
+  }
+`
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+      liquidation
+      margin
+    }
   }
 `
 
@@ -53,18 +62,47 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.BSC]: 1670198400,
+    [CHAIN.ARBITRUM]: 1678118400,
   }
   return startTimestamps[chain]
 }
 
+//
+// const adapter: SimpleAdapter = {
+//   adapter: {
+//     [CHAIN.BSC]: {
+//       fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
+//       start: async () => getStartTimestamp(CHAIN.BSC),
+//     },
+//     [CHAIN.ARBITRUM]: {
+//       fetch: getFetch(historicalDataSwap)(CHAIN.ARBITRUM),
+//       start: async () => getStartTimestamp(CHAIN.ARBITRUM),
+//     }
+//   },
+// };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
-      start: async () => getStartTimestamp(CHAIN.BSC),
-    },
-  },
-};
+
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    "swap": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataSwap)(chain),
+          start: async () => getStartTimestamp(chain)
+        }
+      }
+    }, {}),
+    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataDerivatives)(chain),
+          start: async () => getStartTimestamp(chain)
+        }
+      }
+    }, {})
+  }
+}
 
 export default adapter;

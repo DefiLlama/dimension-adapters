@@ -2,7 +2,10 @@ import { BreakdownAdapter, FetchResult } from "../../adapters/types";
 import type { ChainEndpoints, IJSON } from "../../adapters/types"
 import { request, gql } from "graphql-request";
 import collectionsList from './collections'
-import { getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
+import { getUniqStartOfTodayTimestamp, getUniswapDateId } from "../../helpers/getUniSubgraph/utils";
+import customBackfill from "../customBackfill";
+import { Chain } from "@defillama/sdk/build/general";
+import { getBlock } from "../getBlock";
 
 interface ICollection {
     id: string
@@ -37,52 +40,46 @@ interface ICollectionDailySnapshot {
     dailyTradedItemCount: number
 }
 const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollectionDailySnapshot> | undefined> => {
-    const dayId = getUniswapDateId(new Date(timestamp * 1000))
+const getCollectionsData = async (timestamp: number, graphUrl: string): Promise<IJSON<ICollection> | undefined> => {
+    const blockTimestamp = await getBlock(timestamp, 'ethereum', {});
     const graphQuery = gql
-        `{
-      collectionDailySnapshots(
-        where:{id_in: [${Object.keys(collectionsList).map(c => `"${c.toLowerCase()}-${dayId}"`).join(',')}]}
-      ) {
-        id
-        timestamp
-        collection {
-          royaltyFee
-          id
-          name
-          nftStandard
-        }
-        creatorRevenueETH
-        totalRevenueETH
-        marketplaceRevenueETH
-      }
-    }`;
+        `
+        {
+            collections(
+              where: {id_in: ["${Object.keys(collectionsList).map(c => c.toLowerCase()).join('","')}"]}
+              block: {number: ${blockTimestamp}}
+            ) {
+              id
+              royaltyFee
+              creatorRevenueETH
+              totalRevenueETH
+              marketplaceRevenueETH
+            }
+          }`;
     const graphRes = await request(graphUrl, graphQuery)
-    const collections = graphRes['collectionDailySnapshots'] as ICollectionDailySnapshot[];
+    const collections = graphRes['collections'] as ICollection[];
     if (!collections || collections.length <= 0) return undefined
 
-    return collections.reduce((acc, curr) => ({ ...acc, [curr.collection.id]: curr }), {} as IJSON<ICollectionDailySnapshot>)
+    return collections.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {} as IJSON<ICollection>)
 }
 
-let collections: IJSON<ICollectionDailySnapshot> | undefined = undefined
+let collections: IJSON<IJSON<ICollection>> = {}
 
 export const collectionFetch = (collectionId: string, graphUrl: string) => async (timestamp: number) => {
-    if (!collections) {
-        collections = await getCollectionsData(timestamp, graphUrl)
+    const cleanTimestampKey = String(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))
+    if (!collections[cleanTimestampKey]) {
+        const response = await getCollectionsData(timestamp, graphUrl)
+        if (response) collections[cleanTimestampKey] = response
     }
     const res = { timestamp } as FetchResult
-    if (!collections || !collections[collectionId]) {
+    if (!collections[cleanTimestampKey] || !collections[cleanTimestampKey][collectionId]) {
         return res
     }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyUserFees'] = { [ethAddress]: collections[collectionId].marketplaceRevenueETH }
-    }
-    if (collections[collectionId].marketplaceRevenueETH !== undefined) {
-        res['dailyFees'] = { [ethAddress]: collections[collectionId].totalRevenueETH }
-    }
-    if (collections[collectionId].creatorRevenueETH !== undefined) {
-        res['dailyRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
-        res['dailyProtocolRevenue'] = { [ethAddress]: collections[collectionId].creatorRevenueETH }
+    if (collections[cleanTimestampKey][collectionId].creatorRevenueETH !== undefined) {
+        res['totalUserFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalFees'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
+        res['totalProtocolRevenue'] = { [ethAddress]: collections[cleanTimestampKey][collectionId].creatorRevenueETH }
     }
     return res
 }
@@ -94,6 +91,7 @@ export default (graphUrls: ChainEndpoints, start: number): BreakdownAdapter['bre
                 [chain]: {
                     fetch: collectionFetch(collectionID, graphURL),
                     start: async () => start,
+                    customBackfill: customBackfill(chain as Chain, () => collectionFetch(collectionID, graphURL)),
                     meta: {
                         methodology: {
                             UserFees: "Fees paid to Opensea",

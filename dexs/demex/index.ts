@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const START_TIME = 1659312000;
-const historicalVolumeEndpoint = (until: number) => `https://api-insights.carbon.network/pool/volume?from=${START_TIME}&interval=day&until=${until}`
+const historicalVolumeEndpoint = (until: number) => `https://api-insights.carbon.network/market/volume?from=${START_TIME}&interval=day&until=${until}`
 
 interface IVolumeall {
   volumeValue: string;

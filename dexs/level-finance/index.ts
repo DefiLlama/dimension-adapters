@@ -1,50 +1,69 @@
-import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import request, { gql } from "graphql-request";
+import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const getDailyVolume = () => {
-  return gql`{
-    poolDailyDatas(first: 1000) {
-      timestamp
-      swapVolume
-    }
-  }`
+const endpoints: { [key: string]: string } = {
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics",
 }
 
-const graphQLClient = new GraphQLClient("https://graph.level.finance/subgraphs/name/level/main");
-const getGQLClient = () => {
-  return graphQLClient
-}
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+        swap
+      }
+  }
+`
 
 interface IGraphResponse {
-  timestamp: string;
-  swapVolume: string;
+  volumeStats: Array<{
+    burn: string,
+    liquidation: string,
+    margin: string,
+    mint: string,
+    swap: string,
+  }>
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).poolDailyDatas;
-  const totalVolume = response
-  .filter(volItem => Number(volItem.timestamp) <= dayTimestamp)
-  .reduce((acc, { swapVolume }) => acc + Number(swapVolume), 0)
-
-  const dailyVolume = response
-  .find(dayItem =>  Number(dayItem.timestamp) === dayTimestamp)?.swapVolume
+const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+    id: `day-${String(dayTimestamp)}`,
+    period: 'daily',
+  })
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+    id: 'total',
+    period: 'total',
+  })
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
-  };
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
+        : undefined,
+    totalVolume:
+      totalData.volumeStats.length == 1
+        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
+        : undefined,
+
+  }
 }
+
+const getStartTimestamp = async (chain: string) => {
+  const startTimestamps: { [chain: string]: number } = {
+    [CHAIN.BSC]: 1670630400,
+  }
+  return startTimestamps[chain]
+}
+
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch,
-      start: async () => 1670630400,
-    },
+      fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
+      start: async () => getStartTimestamp(CHAIN.BSC),
+    }
   },
 };
 
