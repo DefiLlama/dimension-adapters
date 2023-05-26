@@ -2435,6 +2435,37 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"1765",
+            "name":"Unicrypt",
+            "addresses":{
+                "ethereum":[
+                    "0x663a5c229c09b049e36dcc11a9b0d4a8eb9db214",//univ2locker
+                    "0xdba68f07d1b7ca219f78ae8582c213d975c25caf",//tokenvesting
+                    "0x17e00383a843a9922bca3b280c0ade9f8ba48449",//pollocker
+                    "0xed9180976c2a4742c7a57354fd39d8bec6cbd8ab",//sushilocker
+                ],
+                "bsc":[
+                    "0xeaed594b5926a7d5fbbc61985390baaf936a6b8d",//TokenVestingBSC
+                    "0xc765bddb93b0d1c1a88282ba0fa6b2d00e3e0c83",//UniswapV2Locker
+                    "0xc765bddb93b0d1c1a88282ba0fa6b2d00e3e0c83",//pancakev2locker
+                    "0xc8B839b9226965caf1d9fC1551588AaF553a7BE6",//pancakev1locker
+                    "0x74dee1a3e2b83e1d1f144af2b741bbaffd7305e1",//biswaplocker
+                    "0x1391b48c996ba2f4f38aee07e369a8f28d38220e",//safeswaplocker
+                    "0x1f23742D882ace96baCE4658e0947cCCc07B6a75",//julswaplocker
+                    "0xb89a15a4f3518c14c21be04b55546162b0cb39f0",//babydogeswaplocker
+                ],
+                "polygon":[
+                    "0xadb2437e6f65682b85f814fbc12fec0508a7b1d0",//quickswaplocker
+                ],
+                "avax":[
+                    "0xa9f6aefa5d56db1205f36c34e6482a6d4979b3bb",//traderjoelocker
+                ],
+                "xdai":[
+                    "0xe3D32266974f1E8f8549cAf9F54977040e7D1c07",//honeyswaplocker
+                ]
+            }
+        },
 
         
         
