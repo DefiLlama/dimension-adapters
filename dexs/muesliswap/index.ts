@@ -1,7 +1,7 @@
 import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-
+import { getPrices } from "../../utils/prices";
 
 interface IVolumeall {
   time: number;
@@ -18,16 +18,13 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume }) => acc + Number(volume), 0);
   const dailyVolume = vols
     .find((dayItem: IVolumeall) => Number(dayItem.time) === dayTimestamp)?.volume
-  const prices = await axios.post('https://coins.llama.fi/prices', {
-    "coins": [
-      "coingecko:cardano",
-    ],
-    timestamp: dayTimestamp
-  });
+
+  const coinId = "coingecko:cardano";
+  const prices = await getPrices([coinId], dayTimestamp)
   return {
     timestamp: dayTimestamp,
-    totalVolume: totalVolume ? String(totalVolume/1e6 * prices.data.coins["coingecko:cardano"].price) : "0",
-    dailyVolume: dailyVolume ? String(dailyVolume/1e6 * prices.data.coins["coingecko:cardano"].price) : "0"
+    totalVolume: totalVolume ? String(totalVolume/1e6 * prices[coinId].price) : "0",
+    dailyVolume: dailyVolume ? String(dailyVolume/1e6 * prices[coinId].price) : "0"
   }
 }
 
