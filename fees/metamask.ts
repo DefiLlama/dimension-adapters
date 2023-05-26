@@ -4,7 +4,6 @@ import { Adapter, FetchResultFees } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
-import { type } from "os";
 
 type TPrice = {
   [s: string]: {
@@ -68,7 +67,10 @@ const graph = (chain: Chain) => {
         const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
         const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
         return (Number(e.amount) / 10 ** decimals) * price;
-      }).filter((a: number) => !isNaN(a)).reduce((acc: number, a: number) => acc + a, 0)
+      }).filter((a: number) => !isNaN(a))
+        .filter((a: number) => a < 100_000_000)
+        .reduce((a: number, b: number) => a+b,0);
+
       const dailyFees = volumeUSD * 0.0085
       return {
         dailyFees: `${dailyFees}`,
