@@ -68,7 +68,7 @@ const graph = (chain: Chain) => {
         const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
         const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
         return (Number(e.amount) / 10 ** decimals) * price;
-      }).reduce((acc: number, a: number) => acc + a, 0)
+      }).filter((a: number) => !isNaN(a)).reduce((acc: number, a: number) => acc + a, 0)
       const dailyFees = volumeUSD * 0.0085
       return {
         dailyFees: `${dailyFees}`,
