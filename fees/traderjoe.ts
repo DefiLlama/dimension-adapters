@@ -7,7 +7,9 @@ import fetchURL from "../utils/fetchURL";
 
 
 const TOTAL_FEES = 0.003;
+const LP_FEE = 0.0025;
 const PROTOCOL_FEES = 0.0005;
+const HOLDER_REV = 0.0005;
 
 interface IData {
   feesUsd: number;
@@ -27,6 +29,9 @@ const endpointsV2: TEndpoint = {
 const adapterV1 = getDexChainFees({
   totalFees: TOTAL_FEES,
   protocolFees: PROTOCOL_FEES,
+  revenue: PROTOCOL_FEES,
+  supplySideRevenue: LP_FEE,
+  holdersRevenue: HOLDER_REV,
   volumeAdapter: {adapter: volumeAdapter.breakdown.v1}
 });
 
@@ -39,9 +44,14 @@ const graph = (chain: Chain) => {
       .reduce((acc, { feesUsd }) => acc + Number(feesUsd), 0)
     const dailyFees = historical
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
+    const dailyRevenue = historical
+      .find(dayItem => dayItem.timestamp === dayTimestamp)?.protocolFeesUsd
     return {
       dailyUserFees: `${dailyFees}`,
       dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyRevenue}`,
+      dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
+      dailyProtocolRevenue: `${dailyRevenue}`,
       totalFees: `${totalFees}`,
       timestamp
     }
