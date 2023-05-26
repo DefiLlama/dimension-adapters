@@ -2427,6 +2427,11 @@ export default ([
             "addresses":{
                 "kava":[
                     "0xA7544C409d772944017BB95B99484B6E0d7B6388",//router2
+                    "0xa337E9426d080970b026caFfb4a83D185b85A124",//GaugeFactory
+                    "0x7B14b7288D50810a6982149B107238065AA7fcb7",//BribeFactory
+                    "0x35361C9c2a324F5FB8f3aed2d7bA91CE1410893A",//VotingEscrow
+                    "0x553796D20BB387E9b3F91Aa35fD289B753D63baF",//VeArtProxy
+                    "0x8825be873e6578F1703628281600d5887C41C55A",//RewardsDistributor
                 ]
             }
         },
