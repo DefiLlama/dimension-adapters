@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { getPrices } from "../../utils/prices";
 
 const historicalVolumeEndpoint = "https://bisq.markets/bisq/api/markets/volumes?interval=day"
 
@@ -21,16 +21,12 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.period_start === dayTimestamp)?.volume
 
-  const prices = await axios.post('https://coins.llama.fi/prices', {
-    "coins": [
-      "coingecko:bitcoin",
-    ],
-    timestamp: dayTimestamp
-  });
+  const coinId = "coingecko:bitcoin";
+  const prices = await getPrices([coinId], dayTimestamp)
 
   return {
-    totalVolume: totalVolume ? String(Number(totalVolume) * prices.data.coins["coingecko:bitcoin"].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume) * prices.data.coins["coingecko:bitcoin"].price) : "0",
+    totalVolume: totalVolume ? String(Number(totalVolume) * prices[coinId].price) : "0",
+    dailyVolume: dailyVolume ? String(Number(dailyVolume) * prices[coinId].price) : "0",
     timestamp: dayTimestamp,
   };
 };

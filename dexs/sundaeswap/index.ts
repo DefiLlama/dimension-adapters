@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
 import disabledAdapter from "../../helpers/disabledAdapter";
+import { getPrices } from "../../utils/prices";
 
 const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
 
@@ -19,15 +20,12 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.day)) === dayTimestamp)?.volumeLovelace
 
-    const prices = await axios.post("https://coins.llama.fi/prices", {
-    "coins": [
-      "coingecko:cardano",
-    ],
-    timestamp: dayTimestamp
-  });
+    const coinId = "coingecko:cardano";
+    const prices = await getPrices([coinId], timestamp)
+
 
   return {
-    dailyVolume: dailyVolume ? String(Number(dailyVolume) / 1e6 * prices.data.coins["coingecko:cardano"].price) : "0",
+    dailyVolume: dailyVolume ? String(Number(dailyVolume) / 1e6 * prices[coinId].price) : "0",
     timestamp: dayTimestamp,
   };
 };

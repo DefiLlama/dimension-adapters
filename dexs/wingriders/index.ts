@@ -2,20 +2,17 @@ import axios from "axios"
 import BigNumber from "bignumber.js";
 import { Adapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
+import { getPrices } from "../../utils/prices";
 
 const volUrl = 'https://aggregator.mainnet.wingriders.com/volumeInAda';
 
-async function fetchVolume() {
+async function fetchVolume(timestamp: number) {
     const last24hVolInAda = await axios.post(volUrl, { "lastNHours": 24 });
     const totalVolumeInAda = await axios.post(volUrl);
+    const coinId = "coingecko:cardano";
+    const prices = await getPrices([coinId], timestamp)
 
-    const prices = await axios.post('https://coins.llama.fi/prices', {
-        "coins": [
-            "coingecko:cardano",
-        ],
-    });
-
-    const adaPrice = prices.data.coins["coingecko:cardano"].price;
+    const adaPrice = prices[coinId].price;
 
     const dailyVolume = (new BigNumber(last24hVolInAda.data).multipliedBy(adaPrice)).toString();
     const totalVolume = (new BigNumber(totalVolumeInAda.data).multipliedBy(adaPrice)).toString();
