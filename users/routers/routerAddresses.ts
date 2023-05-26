@@ -2421,6 +2421,15 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"2586",
+            "name":"Equilibre",
+            "addresses":{
+                "kava":[
+                    "0xA7544C409d772944017BB95B99484B6E0d7B6388",//router2
+                ]
+            }
+        },
 
         
         
