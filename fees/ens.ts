@@ -20,7 +20,10 @@ const abi_event = {
 };
 const abi_event_interface = new ethers.utils.Interface(Object.values(abi_event));
 
-const fetch = () => {
+const address_v4 = '283af0b28c62c092c9727f1ee09c02ca627eb7f5';
+const address_v5 = '253553366da8546fc250f225fe3d25d0c782303b';
+
+const fetch = (address: string) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
       const sql = postgres(process.env.INDEXA_DB!);
@@ -28,7 +31,6 @@ const fetch = () => {
 
       const now = new Date(timestamp * 1e3)
       const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-
 
       const logs_name_renewed = await sql`
         SELECT
@@ -41,7 +43,7 @@ const fetch = () => {
           ethereum.event_logs
         WHERE
           block_number > 16695555
-          AND contract_address = '\\x283af0b28c62c092c9727f1ee09c02ca627eb7f5'
+          AND encode(contract_address, 'hex') = ${address}
           AND topic_0 = '\\x3da24c024582931cfaf8267d8ed24d13a82a8068d5bd337d30ec45cea4e506ae'
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
       `;
@@ -58,7 +60,7 @@ const fetch = () => {
           ethereum.event_logs
         WHERE
           block_number > 16695555
-          AND contract_address = '\\x283af0b28c62c092c9727f1ee09c02ca627eb7f5'
+          AND encode(contract_address, 'hex') = ${address}
           AND topic_0 = '\\xca6abbe9d7f11422cb6ca7629fbf6fe9efb1c621f71ce8f02b9f2a230097404f'
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
       `
@@ -119,7 +121,15 @@ const methodology = {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(),
+        fetch: async (timestamp: number) => {
+          const fees_v4: FetchResultFees = await fetch(address_v4)(timestamp);
+          const fees_v5: FetchResultFees = await fetch(address_v5)(timestamp);
+          return {
+            dailyFees: (Number(fees_v4.dailyFees) + Number(fees_v5.dailyFees)).toString(),
+            dailyRevenue: (Number(fees_v4.dailyRevenue) + Number(fees_v5.dailyRevenue)).toString(),
+            timestamp
+          }
+        },
         start: async ()  => 1677110400,
         meta: {
           methodology
