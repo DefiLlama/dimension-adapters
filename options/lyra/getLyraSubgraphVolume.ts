@@ -58,10 +58,7 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
         ).catch((e) =>
           console.error(`Failed to get total volume on ${chain}: ${e.message}`)
         );
-        console.log(chain);
-        previousDayVolume.markets.forEach((element) => {
-          console.log(element);
-        });
+        
 
         return previousDayVolume.markets.reduce(
           (acc, obj) => {
