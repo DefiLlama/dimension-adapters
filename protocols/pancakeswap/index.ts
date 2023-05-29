@@ -1,9 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
-import request from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 
@@ -15,6 +13,13 @@ const endpoints = {
 const stablesSwapEndpoints = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap"
 }
+
+const v3Endpoint = {
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc",
+  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-eth"
+}
+
+const VOLUME_USD = "volumeUSD";
 
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
@@ -36,7 +41,7 @@ const graphs = getGraphDimensions({
     HoldersRevenue: 0.0575,
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
-    Revenue: 0.0225// 0.25
+    Revenue: 0.08
   }
 });
 
@@ -59,6 +64,25 @@ const graphsStableSwap = getGraphDimensions({
   }
 });
 
+const v3Graph = getGraphDimensions({
+  graphUrls: v3Endpoint,
+  totalVolume: {
+    factory: "factories",
+
+  },
+  dailyVolume: {
+    factory: "pancakeDayData",
+    field: VOLUME_USD
+  },
+  totalFees:{
+    factory: "factories",
+  },
+  dailyFees: {
+    factory: "pancakeDayData",
+    field: "feesUSD"
+  },
+});
+
 const startTimes = {
   [CHAIN.ETHEREUM]: 1664236800,
   [CHAIN.BSC]: 1619136000
@@ -66,6 +90,11 @@ const startTimes = {
 
 const stableTimes = {
   [CHAIN.BSC]: 1663718400
+} as IJSON<number>
+
+const v3StartTimes = {
+  [CHAIN.BSC]: 1680307200,
+  [CHAIN.ETHEREUM]: 1680307200
 } as IJSON<number>
 
 const methodology = {
@@ -90,6 +119,13 @@ const adapter: BreakdownAdapter = {
         meta: {
           methodology
         }
+      }
+      return acc
+    }, {} as BaseAdapter),
+    v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
+      acc[chain] = {
+        fetch: v3Graph(chain as Chain),
+        start: async () => v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),

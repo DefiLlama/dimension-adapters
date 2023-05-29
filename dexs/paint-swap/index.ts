@@ -3,6 +3,7 @@ import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getPrices } from "../../utils/prices";
 
 const dateFrom = 1630584906;
 const historicalVolumeEndpoint = (dateTo: number) => `https://api.paintswap.finance/v2/marketplaceDayDatas?numToSkip=0&numToFetch=1000&orderDirection=asc&dateFrom=${dateFrom}&dateTo=${dateTo}`;
@@ -22,17 +23,13 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.date).getTime()) === dayTimestamp)?.dailyVolume
 
-  const prices = await axios.post('https://coins.llama.fi/prices', {
-    "coins": [
-      "coingecko:fantom",
-    ],
-    timestamp: dayTimestamp
-  });
+  const coinId = "coingecko:fantom";
+  const prices = await getPrices([coinId], dayTimestamp)
 
   return {
     timestamp: dayTimestamp,
-    totalVolume: totalVolume ? String(totalVolume/1e18 * prices.data.coins["coingecko:fantom"].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e18 * prices.data.coins["coingecko:fantom"].price) : "0"
+    totalVolume: totalVolume ? String(totalVolume/1e18 * prices[coinId].price) : "0",
+    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e18 * prices[coinId].price) : "0"
   };
 };
 

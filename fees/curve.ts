@@ -1,9 +1,9 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchResult } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+
 
 const endpoints = {
   [ETHEREUM]:
@@ -23,14 +23,16 @@ const endpoints = {
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($timestampEndOfDay: Int!) 
+  const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)
   {
     dailyPoolSnapshots (
       orderBy: timestamp
       orderDirection: desc
       first: 1000
       where: {
-        timestamp: $timestampEndOfDay
+        timestamp_gte: $timestampFrom
+        timestamp_gte: $timestampTo
+        totalDailyFeesUSD_lte: 1000000
       }
     ) {
       totalDailyFeesUSD
@@ -46,33 +48,40 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      const timestampEndOfDay = getTimestampAtStartOfDayUTC(timestamp+60*60*24)
+      const fromTimestamp = timestamp - 60 * 60 * 24
+      const toTimestamp = timestamp
       const graphRes = await request(graphUrls[chain], graphQuery, {
-        timestampEndOfDay
+        timestampFrom: fromTimestamp,
+        timestampTo: toTimestamp
       });
-      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+
+      const blacklist = ['ypaxCrv', 'A3CRV-f', 'STETHETH_C-f']
+      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.totalDailyFeesUSD);
       })
-      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.adminFeesUSD);
       });
-      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => v.pool.symbol !== 'A3CRV-f').map((vol: any): number => {
+      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
         return parseFloat(vol.lpFeesUSD);
       });
 
-      const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-      const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-      const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-
-      return {
-        timestamp,
-        dailyUserFees: dailyFee.toString(),
-        dailyFees: dailyFee.toString(),
-        dailyProtocolRevenue: "0",
-        dailyHoldersRevenue: dailyRev.toString(),
-        dailyRevenue: dailyRev.toString(),
-        dailySupplySideRevenue: dailyLPRev.toString()
-      };
+      const res: FetchResult = { timestamp, dailyProtocolRevenue: "0", }
+      if (feesPerPool.length > 0) {
+        const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailyUserFees"] = dailyFee.toString()
+        res["dailyFees"] = dailyFee.toString()
+      }
+      if (revPerPool.length > 0) {
+        const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailyHoldersRevenue"] = dailyRev.toString()
+        res["dailyRevenue"] = dailyRev.toString()
+      }
+      if (revLPPerPool.length > 0) {
+        const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
+        res["dailySupplySideRevenue"] = dailyLPRev.toString()
+      }
+      return res
     }
   }
 };

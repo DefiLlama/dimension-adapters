@@ -32,7 +32,7 @@ const v3graphs = (graphUrls: ChainEndpoints) => {
       );
       const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
 
-      const previousDateUTC = getTimestampAtStartOfPreviousDayUTC(timestamp);
+      const previousDateUTC = timestamp - 60 * 60 * 24;
       const previousDateParts = formatTimestampAsDate(
         previousDateUTC.toString()
       ).split("/");
@@ -59,27 +59,29 @@ const v3graphs = (graphUrls: ChainEndpoints) => {
       }
       `;
       const result = await request(graphUrls[chain], query);
+      let dailyFees: undefined | BigNumber = undefined
+      if (result.lprevenueDaily) {
+        // Set LPT revenue
+        const fee0 = new BigNumber(result.lprevenueDaily.fee0)
+          .times(ethPrice)
+          .div(1e12);
+        const fee1 = new BigNumber(result.lprevenueDaily.fee1);
+        const premiumSupply = new BigNumber(result.lprevenueDaily.premiumSupply);
+        const lptRevenue = fee0.plus(fee1).plus(premiumSupply).div(1e6);
 
-      // Set LPT revenue
-      const fee0 = new BigNumber(result.lprevenueDaily.fee0)
-        .times(ethPrice)
-        .div(1e12);
-      const fee1 = new BigNumber(result.lprevenueDaily.fee1);
-      const premiumSupply = new BigNumber(result.lprevenueDaily.premiumSupply);
-      const lptRevenue = fee0.plus(fee1).plus(premiumSupply).div(1e6);
+        // Set token revenue
+        const supplyInterest0 = new BigNumber(
+          result.lprevenueDaily.supplyInterest0
+        )
+          .times(ethPrice)
+          .div(1e12);
+        const supplyInterest1 = new BigNumber(
+          result.lprevenueDaily.supplyInterest1
+        );
+        const tokenRevenue = supplyInterest0.plus(supplyInterest1).div(1e6);
 
-      // Set token revenue
-      const supplyInterest0 = new BigNumber(
-        result.lprevenueDaily.supplyInterest0
-      )
-        .times(ethPrice)
-        .div(1e12);
-      const supplyInterest1 = new BigNumber(
-        result.lprevenueDaily.supplyInterest1
-      );
-      const tokenRevenue = supplyInterest0.plus(supplyInterest1).div(1e6);
-
-      const dailyFees = lptRevenue.plus(tokenRevenue);
+        dailyFees = lptRevenue.plus(tokenRevenue);
+      }
 
       /* Set daily revenue */
 
@@ -92,35 +94,39 @@ const v3graphs = (graphUrls: ChainEndpoints) => {
           }
       }
       `;
-      const todayResults = await request(graphUrls[chain], query);
 
       query = gql`
       {
-          accumulatedProtocolFeeDaily(id: "${previousDateString}") {
+        accumulatedProtocolFeeDaily(id: "${previousDateString}") {
               accumulatedProtocolFee0
               accumulatedProtocolFee1
+            }
           }
-      }
-      `;
+          `;
+
+      const todayResults = await request(graphUrls[chain], query);
       const previousDayResults = await request(graphUrls[chain], query);
+      let dailyRevenue:undefined | BigNumber = undefined
+      if (todayResults.accumulatedProtocolFeeDaily && todayResults.accumulatedProtocolFeeDaily) {
 
-      const dailyFee0 = new BigNumber(
-        todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
+        const dailyFee0 = new BigNumber(
+          todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
           previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
-      )
-        .times(ethPrice)
-        .div(1e12);
-      const dailyFee1 = new BigNumber(
-        todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
+        )
+          .times(ethPrice)
+          .div(1e12);
+        const dailyFee1 = new BigNumber(
+          todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
           previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
-      );
+        );
 
-      const dailyRevenue = dailyFee0.plus(dailyFee1).div(1e6);
+        dailyRevenue = dailyFee0.plus(dailyFee1).div(1e6);
+      }
 
       return {
         timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
+        dailyFees: dailyFees?.toString(),
+        dailyRevenue: dailyRevenue?.toString(),
       };
     };
   };

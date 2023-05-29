@@ -94,7 +94,19 @@ export enum CHAIN {
   OBYTE = "obyte",
   CORE = "core",
   RPG = "rpg",
-  WEMIX="wemix"
+  WEMIX="wemix",
+  ZKSYNC = "zksync",
+  ERA = "era",
+  DFK = "dfk",
+  POLYGON_ZKEVM = "polygon_zkevm",
+  ACALA = "acala",
+  SORA = "sora",
+  COSMOS = "cosmos",
+  OAS = "oas",
+  HYDRA = "hydra",
+  ENULS = "enuls",
+  SUI = "sui",
+  EVMOS = "evmos"
 }
 
 // Don´t use

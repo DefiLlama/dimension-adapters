@@ -1,10 +1,9 @@
 import { request } from "graphql-request";
 import BigNumber from "bignumber.js";
 
-import { api } from "@defillama/sdk";
 import { Adapter, FetchResultFees } from "../../adapters/types";
-import { BSC, POLYGON, AVAX } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../../utils/prices";
 import { getBlock } from "../../helpers/getBlock";
@@ -22,6 +21,7 @@ const endpoints: any = {
   [POLYGON]:
     "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-polygon",
   [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
+  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-arbitrum",
 };
 
 type TBalance  = {
@@ -36,10 +36,19 @@ interface IToken {
   treasuryAmount: string;
   teamAmount: string;
 }
+interface IPvPToken {
+  id: string;
+  dividendAmount: string;
+  initiatorAmount: string;
+  treasuryAmount: string;
+  teamAmount: string;
+}
 
 interface IGraph {
   todayTokens: IToken[]
   yesterdayTokens: IToken[]
+  todayPvPTokens: IPvPToken[]
+  yesterdayPvPTokens: IPvPToken[]
 }
 
 function graphs() {
@@ -72,8 +81,27 @@ function graphs() {
                 }
             }`
       );
+      const graphPvPRes: IGraph = await request(
+        endpoints[chain],
+        `{
+              todayPvPTokens: pvPTokens(block: { number: ${todaysBlock} }) {
+                  id
+                  dividendAmount
+                  initiatorAmount
+                  treasuryAmount
+                  teamAmount
+              }
+              yesterdayPvPTokens: pvPTokens(block: { number: ${yesterdaysBlock} }) {
+                  id
+                  dividendAmount
+                  initiatorAmount
+                  treasuryAmount
+                  teamAmount
+              }
+            }`
+      );
 
-      const coins = graphRes.todayTokens.map((token: IToken) => {
+      const coins = [...graphRes.todayTokens, ...graphPvPRes.todayPvPTokens].map((token: IToken | IPvPToken) => {
         if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
           return "coingecko:floki";
         } else {
@@ -91,7 +119,15 @@ function graphs() {
         currentPrices["bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e"] =
           currentPrices["coingecko:floki"];
         currentPrices["bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56"] = currentPrices["coingecko:binance-usd"];
-        // Hardcoding MDB+ price
+        // Hardcoding TITANO price since it migrated to SWYCH
+        if (!currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"]) {
+          currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"] = {
+            decimals: 18,
+            symbol: "TITANO",
+            price: 0.000015,
+            timestamp,
+          };
+        }// Hardcoding MDB+ price
         if (!currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"]) {
           currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"] = {
             decimals: 18,
@@ -157,12 +193,64 @@ function graphs() {
         )
           .multipliedBy(tokenPrice)
           .toNumber();
+
         totalDailyHoldersRevenue[tokenKey] = fromWei(
           token.dividendAmount,
           tokenDecimals
         )
           .multipliedBy(tokenPrice)
           .toNumber();
+
+        totalRevenue[tokenKey] =
+          totalProtocolRevenue[tokenKey] + totalDailyHoldersRevenue[tokenKey];
+      }
+      for (const token of graphPvPRes.todayPvPTokens) {
+        let tokenKey = chain + `:` + token.id.split(':')[0];
+        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
+          console.log('not found token: ',tokenKey);
+        }
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
+
+        if (!totalUserFees[tokenKey]) {
+          totalUserFees[tokenKey] = 0
+          totalSupplySideRevenue[tokenKey] = 0
+          totalProtocolRevenue[tokenKey] = 0
+          totalDailyHoldersRevenue[tokenKey] = 0
+        }
+
+        totalUserFees[tokenKey] += fromWei(
+          toBN(token.dividendAmount)
+            .plus(token.initiatorAmount)
+            .plus(token.treasuryAmount)
+            .plus(token.teamAmount),
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
+        totalFees[tokenKey] = totalUserFees[tokenKey];
+
+        totalSupplySideRevenue[tokenKey] += fromWei(
+          token.initiatorAmount,
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
+
+        totalProtocolRevenue[tokenKey] += fromWei(
+          toBN(token.treasuryAmount).plus(token.teamAmount),
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
+
+        totalDailyHoldersRevenue[tokenKey] += fromWei(
+          token.dividendAmount,
+          tokenDecimals
+        )
+          .multipliedBy(tokenPrice)
+          .toNumber();
+
         totalRevenue[tokenKey] =
           totalProtocolRevenue[tokenKey] + totalDailyHoldersRevenue[tokenKey];
       }
@@ -187,7 +275,6 @@ function graphs() {
           )
             .multipliedBy(tokenPrice)
             .toNumber();
-
         dailyFees[tokenKey] = dailyUserFees[tokenKey];
 
         dailyHoldersRevenue[tokenKey] =
@@ -195,6 +282,7 @@ function graphs() {
           fromWei(token.dividendAmount, tokenDecimals)
             .multipliedBy(tokenPrice)
             .toNumber();
+
         dailyProtocolRevenue[tokenKey] =
           totalProtocolRevenue[tokenKey] -
           fromWei(
@@ -210,6 +298,56 @@ function graphs() {
           totalSupplySideRevenue[tokenKey] -
           fromWei(
             toBN(token.bankAmount).plus(token.partnerAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
+      }
+      for (const token of graphPvPRes.yesterdayPvPTokens) {
+        const tokenKey = chain + `:` + token.id;
+        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
+          console.log('not found token: ',tokenKey);
+        }
+        const tokenDecimals = currentPrices[tokenKey].decimals;
+        const tokenPrice = currentPrices[tokenKey].price;
+
+        if (!dailyUserFees[tokenKey]) {
+          dailyUserFees[tokenKey] = 0
+          dailyHoldersRevenue[tokenKey] = 0
+          dailyProtocolRevenue[tokenKey] = 0
+          dailySupplySideRevenue[tokenKey] = 0
+        }
+
+        dailyUserFees[tokenKey] -=
+          fromWei(
+            toBN(token.dividendAmount)
+              .plus(token.initiatorAmount)
+              .plus(token.treasuryAmount)
+              .plus(token.teamAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
+        dailyFees[tokenKey] = dailyUserFees[tokenKey];
+
+        dailyHoldersRevenue[tokenKey] -=
+          fromWei(token.dividendAmount, tokenDecimals)
+            .multipliedBy(tokenPrice)
+            .toNumber();
+
+        dailyProtocolRevenue[tokenKey] -=
+          fromWei(
+            toBN(token.treasuryAmount).plus(token.teamAmount),
+            tokenDecimals
+          )
+            .multipliedBy(tokenPrice)
+            .toNumber();
+        dailyRevenue[tokenKey] =
+          dailyHoldersRevenue[tokenKey] + dailyProtocolRevenue[tokenKey];
+
+        dailySupplySideRevenue[tokenKey] -=
+          fromWei(
+            token.initiatorAmount,
             tokenDecimals
           )
             .multipliedBy(tokenPrice)
@@ -237,12 +375,12 @@ function graphs() {
 
 const meta = {
   methodology: {
-    UserFees: "The player is charged of the fee when a bet is won.",
-    Fees: "All fees (called «house edge» from 2.4% to 3.5% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Dividends, Treasury, and Team.",
+    UserFees: "The player is charged of the fee when a bet is won. Or the PvP game prize pool.",
+    Fees: "All fees (called «house edge» from 2.4% to 3.5% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Dividends, Treasury, and Team. The house edge on PvP games is from 3.5% to 7% allocated to Dividends, Host, Treasury and Team.",
     Revenue: "Dividends, Treasury and Team fee allocations.",
     ProtocolRevenue: "Treasury and Team fee allocations.",
     HoldersRevenue: "Dividends fee allocations.",
-    SupplySideRevenue: "Bank and Partner fee allocations",
+    SupplySideRevenue: "Bank and Partner fee allocations, or Host allocation on PvP games.",
   },
   // hallmarks: [
   //   // Polygon
@@ -306,6 +444,11 @@ const adapter: Adapter = {
     [AVAX]: {
       start: async () => 1658880000,
       fetch: graphs()(AVAX),
+      meta,
+    },
+    [ARBITRUM]: {
+      start: async () => 1658880000,
+      fetch: graphs()(ARBITRUM),
       meta,
     },
   },

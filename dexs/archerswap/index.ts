@@ -3,7 +3,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.CORE]: "https://subgraph.archerswap.finance/subgraphs/name/tomdoeverything/archerswap-subgraph",
+  [CHAIN.CORE]: "https://subgraph.archerswap.finance/subgraphs/name/archerswap-subgraph",
 };
 
 const adapter = univ2Adapter(endpoints, {});
