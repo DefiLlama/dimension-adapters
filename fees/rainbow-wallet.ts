@@ -28,9 +28,9 @@ const fetch = (chain: Chain) => {
         from
           ${chain}.core.fact_event_logs
         WHERE
-          topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+          BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+          and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
           and topics[2] = '0x00000000000000000000000000000000009726632680fb29d3f7a9734e3010e2'
-          and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
       `;
 
 
