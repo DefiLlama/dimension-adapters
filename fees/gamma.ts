@@ -4,6 +4,7 @@ import { getBlock } from "../helpers/getBlock"
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
+import { queryFlipside } from "../helpers/flipsidecrypto";
 
 const abis: any = {
   counter: {
@@ -57,6 +58,12 @@ interface ILog {
   data: string;
   transactionHash: string;
   topics: string[];
+}
+
+interface IReward {
+  user: string;
+  rewardToken: string;
+  amount: number;
 }
 
 type TAddress = {
@@ -195,6 +202,47 @@ const fetchFees = (chain: Chain, address: TAddress) => {
   }
 }
 
+const fetchBSC = async (timestamp: number) => {
+  const fromTimestamp = timestamp - 60 * 60 * 24
+  const toTimestamp = timestamp
+  try {
+    const startblock = (await getBlock(fromTimestamp, CHAIN.BSC, {}));
+    const endblock = (await getBlock(toTimestamp, CHAIN.BSC, {}));
+    const query = `
+      select
+        *
+      from
+        bsc.core.fact_event_logs
+      WHERE
+        BLOCK_NUMBER  > 28305604
+        and topics[0] = '0x540798df468d7b23d11f156fdb954cb19ad414d150722a7b6d55ba369dea792e'
+        and topics[1] = '0x0000000000000000000000000f40a22e8c2ae737f12007cb88e8ef0ff3109483'
+        and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+    `
+    const value: any[] = (await queryFlipside(query))
+    const logs: IReward[] = value.map((a: any) => a[10])
+    const rawCoins = logs.filter((e: IReward) => e.rewardToken).map((e: IReward) => `${CHAIN.BSC}:${e.rewardToken.toLowerCase()}`);
+    const coins = [...new Set(rawCoins)]
+    const prices = await getPrices(coins, timestamp);
+    const dailyFees = logs.map((a: IReward) => {
+      const price = prices[`${CHAIN.BSC}:${a.rewardToken.toLowerCase()}`]?.price || 0;
+      const decimals = prices[`${CHAIN.BSC}:${a.rewardToken.toLowerCase()}`]?.decimals || 0;
+      return (Number(a.amount) / 10 ** decimals) * price;
+    }).reduce((a: number, b: number) => a + b, 0);
+    const dailyRevenue  = dailyFees;
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyRevenue}`,
+      dailySupplySideRevenue: `${dailyRevenue}`,
+      timestamp
+    }
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+
+}
+
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -245,7 +293,7 @@ const adapter: SimpleAdapter = {
       start: async () => 1682121600,
     },
     [CHAIN.BSC]: {
-      fetch: fetchFees(CHAIN.BSC, registy_address),
+      fetch: fetchBSC,
       start: async () => 1682121600,
     },
     [CHAIN.CELO]: {
