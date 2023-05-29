@@ -49,7 +49,10 @@ const fetch = (chain: Chain) => {
         const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
         return (p.volume / 10 ** decimals) * price;
       })
-      const volume = amounts.reduce((a: number, b: number) => a+b, 0);
+      const volume = amounts
+        .filter((e: any) => !isNaN(e))
+        .filter((e: number) => e < 100_000_000)
+        .reduce((a: number, b: number) => a+b, 0);
       const dailyFees = volume * .0085;
 
       return {
@@ -79,34 +82,34 @@ const adapter: Adapter = {
           methodology
         }
     },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
+    // [CHAIN.OPTIMISM]: {
+    //   fetch: fetch(CHAIN.OPTIMISM),
+    //   start: async ()  => 1672531200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch(CHAIN.ARBITRUM),
+    //   start: async ()  => 1672531200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
+    // [CHAIN.POLYGON]: {
+    //   fetch: fetch(CHAIN.POLYGON),
+    //   start: async ()  => 1672531200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch(CHAIN.BSC),
+    //   start: async ()  => 1672531200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
   },
 
 }
