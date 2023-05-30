@@ -25,10 +25,15 @@ const fetch = async (timestamp: number) => {
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
   const volume = historicalVolume
     .find(dayItem => dayItem.time.split('T')[0] === dateString)
-
+  const findIndex = historicalVolume
+  .findIndex(dayItem => dayItem.time.split('T')[0] === dateString)
+  let dailyVolume = volume?.dailyVolume;
+  if (volume && !dailyVolume) {
+    dailyVolume = historicalVolume[findIndex].totalVolume - historicalVolume[findIndex-1].totalVolume
+  }
   return {
     totalVolume: volume ? `${volume.totalVolume}` : undefined,
-    dailyVolume: volume ? `${volume.dailyVolume}` : undefined,
+    dailyVolume: dailyVolume && dailyVolume > 0 ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
 };
