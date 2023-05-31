@@ -1,9 +1,9 @@
 import { Chain } from "@defillama/sdk/build/general"
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchResultFees } from "../adapters/types";
-import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import postgres from "postgres";
 
 type TokenId = {
   [s: string | Chain]: string;
@@ -17,26 +17,27 @@ const graph = (chain: Chain) => {
 
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
+    const sql = postgres(process.env.INDEXA_DB!);
+    const now = new Date(timestamp * 1e3)
+    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
     try {
       const startblock = (await getBlock(fromTimestamp, chain, {}));
       const endblock = (await getBlock(toTimestamp, chain, {}));
-      const query = `
-        SELECT
-          eth_value
-        from
-          ethereum.core.fact_transactions
-        WHERE
-          block_number > 16416220
-          and to_address = '0xc36d36dd4a45f8817a49d3751557fec9871f0e32'
-          and origin_function_signature = '0x'
+      const query = await sql`
+          SELECT value FROM ethereum.transactions
+          WHERE block_number > 16416220
+          and to_address = '\\xc36d36dd4a45f8817a49d3751557fec9871f0e32'
+          and success = true
+          and encode(data, 'hex') = ''
           and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
       `
-
-      const value: string[] = (await queryFlipside(query)).flat();
-      let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
+      const amount = query.map((a: any) => Number(a.value) / 10 ** 18)
+        .reduce((a: number, b: number) => a + b, 0)
       const gasId = gasTokenId[chain];
       const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
       const dailyFees = (amount * gasIdPrice)
+      await sql.end({ timeout: 3 })
       return {
         dailyFees: `${dailyFees}`,
         dailyRevenue: `${dailyFees}`,
@@ -44,6 +45,7 @@ const graph = (chain: Chain) => {
         timestamp
       }
     } catch (err) {
+      await sql.end({ timeout: 3 })
       console.log(err);
       throw err;
     }
