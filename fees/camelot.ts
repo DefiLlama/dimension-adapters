@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm"
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
 }
 
 const fetch = (chain: Chain) => {
