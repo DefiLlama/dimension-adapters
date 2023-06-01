@@ -8,7 +8,7 @@ import {
 } from "../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.POLYGON]: "https://api.fura.org/subgraphs/name/quickswap",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
 }
 const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,
