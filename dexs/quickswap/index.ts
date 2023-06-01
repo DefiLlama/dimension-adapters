@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  [CHAIN.POLYGON]: "https://api.fura.org/subgraphs/name/quickswap",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
 };
 
 const graphs = getChainVolume({
