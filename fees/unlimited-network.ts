@@ -42,15 +42,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
         periodType: 'DAILY',
       })).dataPoint;
 
-      const dailyFees = Number(graphRes.protocolFee) / 10 ** 5;
-      const totalFees = Number(graphRes.protocolFeeTotal) / 10 ** 5
+      const dailyFees = Number(graphRes.protocolFee) / 10 ** 6;
+      const totalFees = Number(graphRes.protocolFeeTotal) / 10 ** 6
       const dailySupplySideRevenue = dailyFees * 0.6;
       const dailyProtocolRevenue = dailyFees * 0.1;
       const dailyHoldersRevenue = dailyFees * 0.18;
       const dailyRevenue = (dailyProtocolRevenue + dailyHoldersRevenue)
 
       const totalSupplySideRevenue = totalFees * 0.6;
-      const totalProtocolRevenue = totalFees * 0.1;
+      const totalProtocolRevenue = totalFees * 0.10;
       const totalHoldersRevenue = totalFees * 0.18;
       const totalRevenue = (totalProtocolRevenue + totalHoldersRevenue)
       return {
