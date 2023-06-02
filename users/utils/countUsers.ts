@@ -1,11 +1,10 @@
 import { queryAllium } from "../../helpers/allium";
-import { queryFlipside } from "../../helpers/flipsidecrypto";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
-    const query = await queryFlipside(`
+    const query = await queryAllium(`
 WITH
   all_new_users AS (
     SELECT DISTINCT
@@ -18,7 +17,7 @@ WITH
         PARTITION BY
           from_address
       ) AS total_txs,
-      FIRST_VALUE(tx_hash) OVER (
+      FIRST_VALUE(hash) OVER (
         PARTITION BY
           from_address
         ORDER BY
@@ -35,68 +34,59 @@ WITH
         SELECT
           block_timestamp,
           from_address,
-          tx_hash,
-          to_address,
-          'bsc' as chain
-        FROM
-          bsc.core.fact_transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          tx_hash,
+          hash,
           to_address,
           'ethereum' as chain
         FROM
-          ethereum.core.fact_transactions
+          ethereum.raw.transactions
         UNION ALL
         SELECT
           block_timestamp,
           from_address,
-          tx_hash,
+          hash,
           to_address,
           'polygon' as chain
         FROM
-          polygon.core.fact_transactions
+          polygon.raw.transactions
         UNION ALL
         SELECT
           block_timestamp,
           from_address,
-          tx_hash,
+          hash,
           to_address,
           'arbitrum' as chain
         FROM
-          arbitrum.core.fact_transactions
+          arbitrum.raw.transactions
         UNION ALL
         SELECT
           block_timestamp,
           from_address,
-          tx_hash,
+          hash,
           to_address,
           'optimism' as chain
         FROM
-          optimism.core.fact_transactions
+          optimism.raw.transactions
         UNION ALL
         SELECT
           block_timestamp,
           from_address,
-          tx_hash,
+          hash,
           to_address,
           'avalanche' as chain
         FROM
-          avalanche.core.fact_transactions
+          avalanche.raw.transactions
       ) t
     WHERE
       t.to_address IN (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})
   )
 SELECT
-  COUNT(*)
+  COUNT(*) as user_count
 FROM
   all_new_users
 WHERE
   first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end});
 `)
-    return query[0][0]
+    return query[0].user_count
 }
 
 function gasPrice(chain:string){
