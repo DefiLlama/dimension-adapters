@@ -2466,6 +2466,16 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"2397",
+            "name":"Gyroscope Protocol",
+            "addresses":{
+                "polygon":[
+                    "0x37b8E1152fB90A867F3dccA6e8d537681B04705E",//Proto Gyro Dollar (p-GYD)
+                    "0x68BDeE1bF95AD730F379A05eB8c51fb5dFA07748",//FreezableTransparentUpgradeableProxy
+                ]
+            }
+        },
 
         
         
