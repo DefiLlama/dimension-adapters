@@ -1,3 +1,4 @@
+require("dotenv").config();
 import { humanizeNumber } from "@defillama/sdk"
 
 async function main(){

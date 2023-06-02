@@ -1,3 +1,4 @@
+import { queryAllium } from "../../helpers/allium";
 import { queryFlipside } from "../../helpers/flipsidecrypto";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
@@ -98,19 +99,26 @@ WHERE
     return query[0][0]
 }
 
+function gasPrice(chain:string){
+  if(["avax", "optimism"].includes(chain)){
+    return "gas_price"
+  }
+  return "receipt_effective_gas_price"
+}
+
 export function countUsers(addresses: ChainAddresses) {
     return async (start: number, end: number) => {
         const chainArray = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain))
-        const query = await queryFlipside(`
+        const query = await queryAllium(`
 WITH
   ${chainArray.map(([chain, chainAddresses])=>
     `${chain} AS (
         SELECT
             FROM_ADDRESS,
-            TX_HASH,
-            TX_FEE
+            HASH,
+            ${gasPrice(chain)} * receipt_gas_used as TX_FEE
         FROM
-            ${convertChainToFlipside(chain)}.core.fact_transactions
+            ${convertChainToFlipside(chain)}.raw.transactions
         WHERE
             ${chainAddresses.length>1?
                 `TO_ADDRESS in (${chainAddresses.map(a=>`'${a.toLowerCase()}'`).join(',')})`:
@@ -120,8 +128,8 @@ WITH
         ),
         ${chain}_total AS (
             SELECT
-              sum(TX_FEE) AS ${chain}_total_gas,
-              count(TX_HASH) AS ${chain}_tx_count
+              sum(TX_FEE)/1e18 AS ${chain}_total_gas,
+              count(HASH) AS ${chain}_tx_count
             FROM
             ${chain}
           ),
@@ -153,20 +161,20 @@ ${chainArray.map(([chain])=>`${chain}_count_col, ${chain}_tx_count, ${chain}_tot
 both_count
 FROM
 both_count CROSS JOIN
-${chainArray.map(([chain])=>`${chain}_total CROSS JOIN ${chain}_count`).join(' CROSS JOIN ')};`
+${chainArray.map(([chain])=>`${chain}_total CROSS JOIN ${chain}_count`).join(' CROSS JOIN ')}`
         )
-        const finalNumbers = Object.fromEntries((chainArray).map(([name], i)=>[name, {
-            users: query[0][i*3],
-            txs: query[0][i*3+1],
-            gas: query[0][i*3+2],
+        const finalNumbers = Object.fromEntries((chainArray).map(([name])=>[name, {
+            users: query[0][`${name}_count_col`],
+            txs: query[0][`${name}_tx_count`],
+            gas: query[0][`${name}_total_gas`]??0,
         }]))
         finalNumbers.all = {
-            users:query[0][query[0].length-1]
+            users:query[0].both_count
         } as any
         return finalNumbers
     }
 }
 
 export const isAddressesUsable = (addresses:ProtocolAddresses)=>{
-    return Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
+    return addresses.addresses.bsc === undefined && Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
 }
