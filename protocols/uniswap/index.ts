@@ -15,7 +15,7 @@ const v1Endpoints = {
 };
 
 const v2Endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswapv2",
+  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v2-dev",
 };
 
 const v3Endpoints = {
