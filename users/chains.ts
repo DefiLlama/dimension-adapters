@@ -73,6 +73,13 @@ function getAlliumUsersChain(chain: string) {
     }
 }
 
+function getAlliumNewUsersChain(chain: string) {
+    return async (start: number, end: number) => {
+        const query = await queryAllium(`select count(DISTINCT from_address) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return query[0].usercount
+    }
+}
+
 export default [
     ...([
         "bsc", "gnosis"
@@ -80,7 +87,7 @@ export default [
     ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
     ...([
         "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron"
-    ].map(c => ({ name: c, getUsers: getAlliumUsersChain(c) }))),
+    ].map(c => ({ name: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain }))),
     {
         name: "solana",
         getUsers: solanaUsers
