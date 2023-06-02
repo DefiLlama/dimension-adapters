@@ -84,7 +84,7 @@ SELECT
 FROM
   all_new_users
 WHERE
-  first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end});
+  first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
 `)
     return query[0].user_count
 }
