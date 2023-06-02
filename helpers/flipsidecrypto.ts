@@ -3,6 +3,7 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 
 const token = {} as IJSON<string>
+const FLIPSIDE_API_KEY = process.env.FLIPSIDE_API_KEY ?? "f3b65679-a179-4983-b794-e41cf40103ed"
 
 export async function queryFlipside(sqlQuery: string) {
   return await retry(
@@ -15,7 +16,7 @@ export async function queryFlipside(sqlQuery: string) {
           "cache": true
         }, {
           headers: {
-            "x-api-key": "f3b65679-a179-4983-b794-e41cf40103ed"
+            "x-api-key": FLIPSIDE_API_KEY
           }
         })
         token[sqlQuery] = query?.data.token
@@ -27,7 +28,7 @@ export async function queryFlipside(sqlQuery: string) {
 
       const results = await axios.get(`https://node-api.flipsidecrypto.com/queries/${token[sqlQuery]}`, {
         headers: {
-          "x-api-key": "f3b65679-a179-4983-b794-e41cf40103ed"
+          "x-api-key": FLIPSIDE_API_KEY
         }
       })
 
