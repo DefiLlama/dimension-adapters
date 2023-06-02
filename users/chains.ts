@@ -128,5 +128,6 @@ export default [
 ].map(chain=>({
     name: chain.name,
     id: `chain#${chain.name}`,
-    getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>({all:{users:u}}))
+    getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>({all:{users:u}})),
+    getNewUsers: (chain as any).getNewUsers,
 }))
