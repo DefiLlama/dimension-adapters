@@ -2,6 +2,7 @@ import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getBlocks } from "../helpers/getBlock";
 import axios from 'axios';
 import { convertChain } from "./utils/convertChain";
+import { queryAllium } from "../helpers/allium";
 
 function getUsersChain(chain: string) {
     return async (start: number, end: number) => {
@@ -51,16 +52,35 @@ function coinmetricsData(assetID: string) {
     }
 }
 
+/*
 // https://tronscan.org/#/data/stats2/accounts/activeAccounts
 async function tronscan(start: number, _end: number) {
     const results = (await axios.get(`https://apilist.tronscanapi.com/api/account/active_statistic?type=day&start_timestamp=${(start - 2*24*3600)*1e3}`)).data.data;
     return findClosestItem(results, start, t=>t.day_time).active_count
 }
+*/
+
+// not used because coinmetrics does some deduplication between users
+async function bitcoinUsers(start: number, end: number) {
+    const query = await queryAllium(`select count(DISTINCT SPENT_UTXO_ID) as usercount from bitcoin.raw.inputs where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+    return query[0].usercount
+}
+
+function getAlliumUsersChain(chain: string) {
+    return async (start: number, end: number) => {
+        const query = await queryAllium(`select count(DISTINCT from_address) as usercount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return query[0].usercount
+    }
+}
 
 export default [
-    "arbitrum", "avalanche", "bsc", "ethereum", "gnosis", "optimism", "polygon",
-    // "terra2", "flow"
-].map(c => ({ name: c, getUsers: getUsersChain(c) })).concat([
+    ...([
+        "bsc", "gnosis"
+        // "terra2", "flow"
+    ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
+    ...([
+        "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron"
+    ].map(c => ({ name: c, getUsers: getAlliumUsersChain(c) }))),
     {
         name: "solana",
         getUsers: solanaUsers
@@ -98,12 +118,7 @@ export default [
         name: "bsv",
         getUsers: coinmetricsData("bsv")
     },
-    // tronscan
-    {
-        name: "tron",
-        getUsers: tronscan
-    },
-]).map(chain=>({
+].map(chain=>({
     name: chain.name,
     id: `chain#${chain.name}`,
     getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>({all:{users:u}}))
