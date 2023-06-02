@@ -67,10 +67,18 @@ const baseAdapter: BaseAdapter = {
       methodology
     }
   },
-  [CHAIN.TELOS]: {
-    ...adapterObj[CHAIN.TELOS],
-    fetch: fetch(CHAIN.TELOS, 0.002, 0.0015),
-    customBackfill: fetch(CHAIN.TELOS, 0.002, 0.0015),
+  // [CHAIN.TELOS]: {
+  //   ...adapterObj[CHAIN.TELOS],
+  //   fetch: fetch(CHAIN.TELOS, 0.002, 0.0015),
+  //   customBackfill: fetch(CHAIN.TELOS, 0.002, 0.0015),
+  //   meta: {
+  //     methodology
+  //   }
+  // }
+  [CHAIN.ARBITRUM]: {
+    ...adapterObj[CHAIN.ARBITRUM],
+    fetch: fetch(CHAIN.ARBITRUM, 0.002, 0.0005),
+    customBackfill: fetch(CHAIN.ARBITRUM, 0.002, 0.0005),
     meta: {
       methodology
     }
