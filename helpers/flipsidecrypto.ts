@@ -96,7 +96,9 @@ export async function queryFlipside(sqlQuery: string) {
           throw e
         }
       } else if (status === "QUERY_STATE_FAILED") {
+        console.log(`Flipside query ${sqlQuery} failed`, queryStatus.data)
         bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus.data)}`))
+        return;
       }
       throw new Error("Still running")
     },

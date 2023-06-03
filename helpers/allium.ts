@@ -49,7 +49,9 @@ export async function queryAllium(sqlQuery: string) {
             throw e
           }
         } else if (status === "failed") {
+          console.log(`Query ${sqlQuery} failed`, statusReq.data)
           bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(statusReq.data)}`))
+          return;
         }
         throw new Error("Still running")
       },
