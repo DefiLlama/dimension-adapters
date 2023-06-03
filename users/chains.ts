@@ -1,30 +1,47 @@
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import { getBlocks } from "../helpers/getBlock";
 import axios from 'axios';
-import { convertChain } from "./utils/convertChain";
 import { queryAllium } from "../helpers/allium";
 
 function getUsersChain(chain: string) {
     return async (start: number, end: number) => {
-        const [startBlock, endBlock] = await getBlocks(convertChain(chain), [start, end])
-        const query = await queryFlipside(`select count(DISTINCT FROM_ADDRESS) from ${chain}.core.fact_transactions where BLOCK_NUMBER > ${startBlock} AND BLOCK_NUMBER < ${endBlock}`)
-        return query[0][0]
+        const query = await queryFlipside(`select count(DISTINCT FROM_ADDRESS), count(tx_hash) from ${chain}.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return {
+            all: {
+                users: query[0][0],
+                txs: query[0][1]
+            }
+        }
     }
 }
 
 async function solanaUsers(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT SIGNERS[0]) from solana.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return query[0][0]
+    const query = await queryAllium(`select count(DISTINCT signer) as uniqueUsers, count(txn_id) as txsnum from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+    return {
+        all: {
+            users: query[0].uniqueUsers,
+            txs: query[0].txsnum
+        }
+    }
 }
 
 async function osmosis(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_FROM) from osmosis.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return query[0][0]
+    const query = await queryFlipside(`select count(DISTINCT TX_FROM), count(tx_id) from osmosis.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+    return {
+        all: {
+            users: query[0][0],
+            txs: query[0][1]
+        }
+    }
 }
 
 async function near(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_SIGNER) from near.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return query[0][0]
+    const query = await queryFlipside(`select count(DISTINCT TX_SIGNER), count(tx_hash) from near.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+    return {
+        all: {
+            users: query[0][0],
+            txs: query[0][1]
+        }
+    }
 }
 
 const timeDif = (d:string, t:number) => Math.abs(new Date(d).getTime() - new Date(t*1e3).getTime())
@@ -130,7 +147,7 @@ export default [
 ].map(chain=>({
     name: chain.name,
     id: `chain#${chain.name}`,
-    getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>({all:{users:u}})),
+    getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>typeof u === "object"?u:({all:{users:u}})),
 })).concat([
     "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron"
 ].map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) })))
