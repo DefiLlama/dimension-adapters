@@ -1,6 +1,7 @@
 import { countUsers, isAddressesUsable } from "../utils/countUsers";
 import * as sdk from "@defillama/sdk";
 import { ChainAddresses } from "../utils/types";
+import { isAcceptedChain } from "../utils/convertChain";
 
 const comptrollers = [
     {
@@ -602,6 +603,9 @@ function findAllAddresses(comptrollers:any, extraAddresses:any): ()=>Promise<Cha
     return async()=> {
         const allChainAddresses = extraAddresses ?? {};
         await Promise.all(Object.entries(comptrollers).map(async ([chain, addressList]:[string, any])=>{
+            if(!isAcceptedChain(chain)){
+                return
+            }
             const extra = allChainAddresses?.[chain] ?? []
             const allAddresses = (await Promise.all(addressList.map((address:string) => sdk.api2.abi.call({
                 target: address,
