@@ -87,7 +87,7 @@ export default [
     ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
     ...([
         "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron"
-    ].map(c => ({ name: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain }))),
+    ].map(c => ({ name: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) }))),
     {
         name: "solana",
         getUsers: solanaUsers
