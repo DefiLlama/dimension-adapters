@@ -86,6 +86,9 @@ export async function queryFlipside(sqlQuery: string) {
                 "x-api-key": FLIPSIDE_API_KEY
               }
             })
+            if(results.data.result.rows === null){
+              return [] // empty result
+            }
             pageNum = results.data.result.page.currentPageNumber + 1;
             maxPages = results.data.result.page.totalPages;
             fullRows = fullRows.concat(results.data.result.rows.map((t: any[]) => t.slice(0, -1)))
