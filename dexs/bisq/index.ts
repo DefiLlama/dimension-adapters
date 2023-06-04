@@ -3,7 +3,8 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getPrices } from "../../utils/prices";
-import historicalData from "./historical.json"
+
+const historicalVolumeEndpoint = "https://bisq.markets/bisq/api/markets/volumes?interval=day"
 
 interface IVolumeall {
   volume: string;
@@ -12,7 +13,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = historicalData;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   const totalVolume = historicalVolume
     .filter(volItem => volItem.period_start <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0)
