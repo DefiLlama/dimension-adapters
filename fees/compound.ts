@@ -36,21 +36,19 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
       const dailyProtRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
       const dailySSRev = new BigNumber(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD);
-      const dailyTotalRev = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
       const totalFee = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
       const totalProtRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeProtocolSideRevenueUSD);
       const totalSSRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeSupplySideRevenueUSD);
-      const totalTotalRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
 
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
         dailyProtocolRevenue: dailyProtRev.toString(),
-        dailyRevenue: dailyTotalRev.toString(),
+        dailyRevenue: dailyProtRev.toString(),
         dailySupplySideRevenue: dailySSRev.toString(),
         totalFees: totalFee.toString(),
         totalProtocolRevenue: totalProtRev.toString(),
-        totalRevenue: totalTotalRev.toString(),
+        totalRevenue: totalProtRev.toString(),
         totalSupplySideRevenue: totalSSRev.toString()
       };
     };
