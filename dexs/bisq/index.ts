@@ -31,16 +31,11 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  return  historicalVolume[0].period_start;
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: getStartTimestamp,
+      start: async () => 1525651200,
     },
   },
 };
