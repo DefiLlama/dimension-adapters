@@ -15,10 +15,10 @@ function getUsersChain(chain: string) {
 }
 
 async function solanaUsers(start: number, end: number) {
-    const query = await queryAllium(`select count(DISTINCT signer) as uniqueUsers, count(txn_id) as txsnum from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+    const query = await queryAllium(`select count(DISTINCT signer) as uniqueusers, count(txn_id) as txsnum from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
     return {
         all: {
-            users: query[0].uniqueUsers,
+            users: query[0].uniqueusers,
             txs: query[0].txsnum
         }
     }
