@@ -5,7 +5,6 @@ import fetchURL from "../utils/fetchURL";
 import * as sdk from "@defillama/sdk"
 import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../utils/prices";
-import BigNumber from "bignumber.js";
 
 const getBridgesVolumeData = (starttimestamp: number, endtimestamp: number, chain: string) => `https://bridges.llama.fi/transactions/12?starttimestamp=${starttimestamp}&endtimestamp=${endtimestamp}&sourcechain=${chain}`;
 interface IBridgesVolumeData {
@@ -27,26 +26,26 @@ const fetch = (chain: Chain) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
     const bridgesVolume: IBridgesVolumeData[] = (await fetchURL(getBridgesVolumeData(todaysTimestamp, endToDayTimestamp, chain === "avax" ? "avalanche" : chain))).data;
-    const tokenAdreess = [...new Set([...bridgesVolume.map((e: IBridgesVolumeData) => e.token)])];
+    const tokenAdreess = [...new Set([...bridgesVolume.map((e: IBridgesVolumeData) => e.token.toLowerCase())])];
     const decimals = (await sdk.api.abi.multiCall({
       abi: 'erc20:decimals',
       calls: tokenAdreess.map((address: string) => { return {  target: address, params: [] }}),
       chain
     })).output.map((e: any) => e.output);
-    const prices = await getPrices(tokenAdreess.map((e: string) => `${chain}:${e}`), todaysTimestamp);
+    const prices = await getPrices(tokenAdreess.map((e: string) => `${chain}:${e.toLowerCase()}`), todaysTimestamp);
     const bridgesVolumeInfo = bridgesVolume.map((e: IBridgesVolumeData) => {
       const index = tokenAdreess.findIndex((i: string) => i === e.token);
-      const _decimals = Number(decimals[index]);
+      const _decimals = Number(decimals[index] || 0);
       // STC not charges fees
-      const price = prices[`${chain}:${e.token.toLowerCase()}`]?.symbol === 'STG' ? 0 : (prices[`${chain}:${e.token.toLowerCase()}`]?.price || 1);
-      const amount = new BigNumber(e.amount).div(new BigNumber(10).pow(_decimals))
-        .times(price);
+      const price = prices[`${chain}:${e.token.toLowerCase()}`]?.symbol === 'STG' ? 0 : (prices[`${chain}:${e.token.toLowerCase()}`]?.price || 0);
+      const amount = (Number(e.amount) / 10 ** _decimals) * price;
       return {
         ...e,
         volumeUsd: amount.toString(),
         amount: e.amount,
       }
-    });
+    })
+    .filter((e: any) => e.volumeUsd < 10_000_000);
     const dailyVolume = bridgesVolumeInfo.reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0);
     const dailyFees = dailyVolume * 0.0006;
     return {
