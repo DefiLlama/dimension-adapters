@@ -2,7 +2,6 @@ import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
-import * as sdk from "@defillama/sdk"
 import { Chain } from "@defillama/sdk/build/general";
 import { getPrices } from "../utils/prices";
 
@@ -27,17 +26,12 @@ const fetch = (chain: Chain) => {
     const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
     const bridgesVolume: IBridgesVolumeData[] = (await fetchURL(getBridgesVolumeData(todaysTimestamp, endToDayTimestamp, chain === "avax" ? "avalanche" : chain))).data;
     const tokenAdreess = [...new Set([...bridgesVolume.map((e: IBridgesVolumeData) => e.token.toLowerCase())])];
-    const decimals = (await sdk.api.abi.multiCall({
-      abi: 'erc20:decimals',
-      calls: tokenAdreess.map((address: string) => { return {  target: address, params: [] }}),
-      chain
-    })).output.map((e: any) => e.output);
     const prices = await getPrices(tokenAdreess.map((e: string) => `${chain}:${e.toLowerCase()}`), todaysTimestamp);
     const bridgesVolumeInfo = bridgesVolume.map((e: IBridgesVolumeData) => {
-      const index = tokenAdreess.findIndex((i: string) => i === e.token);
-      const _decimals = Number(decimals[index] || 0);
+      const _price = prices[`${chain}:${e.token.toLowerCase()}`]?.price || 0;
+      const _decimals = prices[`${chain}:${e.token.toLowerCase()}`]?.decimals || 0;
       // STC not charges fees
-      const price = prices[`${chain}:${e.token.toLowerCase()}`]?.symbol === 'STG' ? 0 : (prices[`${chain}:${e.token.toLowerCase()}`]?.price || 0);
+      const price = prices[`${chain}:${e.token.toLowerCase()}`]?.symbol === 'STG' ? 0 : _price;
       const amount = (Number(e.amount) / 10 ** _decimals) * price;
       return {
         ...e,
@@ -45,12 +39,17 @@ const fetch = (chain: Chain) => {
         amount: e.amount,
       }
     })
-    .filter((e: any) => e.volumeUsd < 10_000_000);
+    .filter((e: any) => Number(e.volumeUsd) < 10_000_000)
+    // .sort((a, b) => Number(b.volumeUsd) - Number(a.volumeUsd));
+
     const dailyVolume = bridgesVolumeInfo.reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0);
     const dailyFees = dailyVolume * 0.0006;
+    const dailyRevenue = dailyVolume * 0.00015;
+    const dailySupplySideRevenue = dailyVolume * 0.00045;
     return {
       dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
       timestamp: todaysTimestamp
     }
   }
