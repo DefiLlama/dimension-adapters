@@ -73,7 +73,7 @@ const fetchPerps = async (timeStamp: number) => {
   return await computeVolume(timeStamp, perpProductIds);
 };
 
-const startTime = 1683504009;
+const startTime = 1682514000;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
