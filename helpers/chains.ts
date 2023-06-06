@@ -106,7 +106,8 @@ export enum CHAIN {
   HYDRA = "hydra",
   ENULS = "enuls",
   SUI = "sui",
-  EVMOS = "evmos"
+  EVMOS = "evmos",
+  PULSECHAIN = "pulsechain",
 }
 
 // Don´t use
