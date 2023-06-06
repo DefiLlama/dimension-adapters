@@ -36,6 +36,9 @@ const fetch = (chain: Chain) => {
     const otherProtocolReveune = protocolRevenue;
 
     const dailyFees = otherFees;
+    if (dailyFees > 1_000_000) {
+      return {} as FetchResultFees;
+    }
     const dailyRevenue = otherProtocolReveune;
     const totalFees = totalPartnerRevenue + totalProtocolRevenue;
     const totalRevenue = totalProtocolRevenue;
