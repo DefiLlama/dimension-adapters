@@ -133,11 +133,19 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  Fees: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees" ,
+  Revenue: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees",
+}
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
     },
   }
 }
