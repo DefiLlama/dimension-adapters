@@ -31,7 +31,7 @@ const graph = (graphUrls: ChainEndpoints) => {
       first: 1000
       where: {
         timestamp_gte: $timestampFrom
-        timestamp_gte: $timestampTo
+        timestamp_lte: $timestampTo
         totalDailyFeesUSD_lte: 1000000
       }
     ) {
