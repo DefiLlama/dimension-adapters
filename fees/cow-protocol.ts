@@ -1,6 +1,5 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
@@ -37,14 +36,14 @@ const gasTokenId: IGasTokenId = {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
       const sql = postgres(process.env.INDEXA_DB!);
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+      const fromTimestamp = timestamp - 60 * 60 * 24
+      const toTimestamp = timestamp
 
       const now = new Date(timestamp * 1e3)
       const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
       try {
-        const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-        const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+        const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+        const toBlock = (await getBlock(toTimestamp, chain, {}));
 
         const logs: ITx[] = (await sdk.api.util.getLogs({
           target: address[chain],
@@ -69,13 +68,23 @@ const fetch = (chain: Chain) => {
         if (chain === CHAIN.ETHEREUM) {
           const gasUsed = await sql`
             SELECT
-              sum(ethereum.transactions.gas_used*ethereum.transactions.gas_price)/10^18 as sum
-              FROM ethereum.transactions
+              sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) / 10 ^ 18 AS sum
+            FROM
+              ethereum.transactions
               INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-              WHERE
+            WHERE
               block_number > 15987241
-              and to_address = '\\x9008d19f58aabd9ed0d60971565aa8510560ab41'
-              and success = true
+              and ethereum.transactions.hash in (
+                SELECT
+                  transaction_hash AS hash
+                FROM
+                  ethereum.event_logs
+                WHERE
+                  block_number > 15987241
+                  and contract_address = '\\x9008d19f58aabd9ed0d60971565aa8510560ab41'
+                  AND topic_0 = '\\x40338ce1a7c49204f0099533b1e9a7ee0a3d261f84974ab7af36105b8c4e9db4'
+                  AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()})
+              AND success = TRUE
               AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
           `
           allGasUsed = gasUsed[0].sum;
@@ -90,20 +99,19 @@ const fetch = (chain: Chain) => {
             allGasUsed = txReceipt.reduce((a: number, b: number) => a + b, 0);
         }
 
-
         const tokenGasId = gasTokenId[chain];
-        const tokens = [...new Set(rawLogsData.map((e: ISaleData) => `${chain}:${e.contract_address}`))]
+        const tokens = [...new Set(rawLogsData.map((e: ISaleData) => `${chain}:${e.contract_address.toLowerCase()}`))]
         const splitIndex = Math.floor(tokens.length/2);
         const firstHalf = tokens.slice(0, splitIndex);
         const secondHalf = tokens.slice(splitIndex);
-        const pricesfirstHalf = (await getPrices([...firstHalf], todaysTimestamp));
-        const pricessecondHalf = (await getPrices([...secondHalf, tokenGasId], todaysTimestamp));
+        const pricesfirstHalf = (await getPrices([...firstHalf], toTimestamp));
+        const pricessecondHalf = (await getPrices([...secondHalf, tokenGasId], toTimestamp));
         const prices = Object.assign(pricesfirstHalf, pricessecondHalf);
         const gasPrice = chain === CHAIN.ETHEREUM ? prices[tokenGasId].price : 1;
         const consumeGas = allGasUsed * gasPrice;
         const amounts = rawLogsData.map((e: ISaleData) => {
-          const price = prices[`${chain}:${e.contract_address}`]?.price || 0;
-          const decimals = prices[`${chain}:${e.contract_address}`]?.decimals || 0;
+          const price = prices[`${chain}:${e.contract_address.toLowerCase()}`]?.price || 0;
+          const decimals = prices[`${chain}:${e.contract_address.toLowerCase()}`]?.decimals || 0;
           return (e.amount / 10 ** decimals) * price;
         });
         const dailyFees = amounts.reduce((a: number, b: number) => a+b, 0);
