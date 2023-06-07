@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import {ARBITRUM, AVAX, BSC, FANTOM} from "../helpers/chains";
+import {ARBITRUM, AVAX, BSC, FANTOM, OPTIMISM} from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 enum CHAIN_ID {
@@ -7,11 +7,13 @@ enum CHAIN_ID {
   BSC = 56,
   FTM = 250,
   AVALANCHE = 43114,
+  OPTIMISM = 10,
 }
 
 interface FeesMetaBaseData {
   fee: number
   chain_id: number
+  total_fee: number
 }
 
 const feesDataEndpoint = 'https://app.mux.network/metabase/api/public/dashboard/a8bbcebe-3ad6-40c0-8afa-0140366024fe/dashcard/150/card/113'
@@ -40,6 +42,16 @@ const computeRevenue = (fee: number, por: number) => {
   return (fee * 0.7 * por) + (fee * 0.3)
 }
 
+const computeHoldersRevenue = (fee: number, por: number) => {
+  // fee × 70% × POR: Allocate for veMUX holders (in ETH)
+  return fee * 0.7 * por
+}
+
+const computeProtocolRevenue = (fee: number) => {
+  // fee × 30%: Purchase MUXLP and add as protocol-owned liquidity
+  return fee * 0.3
+}
+
 const getFees = (chainId: CHAIN_ID) => {
   return async (timestamp: number) => {
     const date = new Date(timestamp * 1000)
@@ -52,10 +64,12 @@ const getFees = (chainId: CHAIN_ID) => {
 
     const result = formatMetaBaseData(feeData.cols, feeData.rows) as FeesMetaBaseData[]
     let dailyFees = 0
+    let totalFees = 0
 
     for (const v of result) {
       if (v.chain_id === chainId) {
         dailyFees = v.fee
+        totalFees = v.total_fee
         break
       }
     }
@@ -64,6 +78,9 @@ const getFees = (chainId: CHAIN_ID) => {
       timestamp,
       dailyFees: dailyFees.toString(),
       dailyRevenue: computeRevenue(dailyFees, por).toString(),
+      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por).toString(),
+      dailyProtocolRevenue: computeProtocolRevenue(dailyFees).toString(),
+      totalFees: totalFees.toString(),
     };
   }
 }
@@ -85,6 +102,10 @@ const adapter: Adapter = {
     [FANTOM]: {
       fetch: getFees(CHAIN_ID.FTM),
       start: async ()  => 1659312000, // 2022-08-01
+    },
+    [OPTIMISM]: {
+      fetch: getFees(CHAIN_ID.OPTIMISM),
+      start: async ()  => 1672876800, // 2023-01-05
     },
   }
 }

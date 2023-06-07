@@ -3,7 +3,7 @@ import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.IOTEX]: "https://graph-cache.mimo.exchange/subgraphs/name/mimo/mainnet"
+    [CHAIN.IOTEX]: "https://graph.mimo.exchange/subgraphs/name/mimo/mainnet"
   },
   totalVolume: {
     factory: "uniswapFactories",

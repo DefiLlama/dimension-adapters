@@ -11,6 +11,7 @@ const endpoints: ChainEndpoints = {
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-polygon-v2",
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
+  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2"
 };
 
 const graphParams = {

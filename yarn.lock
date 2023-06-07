@@ -10,9 +10,9 @@
     "@jridgewell/trace-mapping" "0.3.9"
 
 "@defillama/sdk@^3.0.31":
-  version "3.0.34"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.34.tgz#54dbdccd18b36c1866a3100ceac5bfd57a288c56"
-  integrity sha512-N5cuNuUPOZ4/m7em6sUI/nEdIPhOmY4ohyOGMNE7J7maUEO1HzIxdTFqzjeRwxpO9lRdpEHJxa/EBYv8VS0Vnw==
+  version "3.0.55"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.55.tgz#6b749a187d17cedf643fb2a028f2637e67861bb8"
+  integrity sha512-3JgB081T8mXs1WmiFI4di/PV20YJ1f2748tVBSTk+7LXuRVq0QFkAQWu43uh7m5Agu9lUWB9wBmB3rIhGRk2YA==
   dependencies:
     "@supercharge/promise-pool" "^2.1.0"
     ethers "^5.4.5"
@@ -384,9 +384,9 @@
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
 "@supercharge/promise-pool@^2.1.0":
-  version "2.3.2"
-  resolved "https://registry.yarnpkg.com/@supercharge/promise-pool/-/promise-pool-2.3.2.tgz#6366894a7e7bc699bb65e58d8c828113729cf481"
-  integrity sha512-f5+C7zv+QQivcUO1FH5lXi7GcuJ3CFuJF3Eg06iArhUs5ma0szCLEQwIY4+VQyh7m/RLVZdzvr4E4ZDnLe9MNg==
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@supercharge/promise-pool/-/promise-pool-2.4.0.tgz#6050eea8c2d7f92ddd4ddc582ee328b15c034ad3"
+  integrity sha512-O9CMipBlq5OObdt1uKJGIzm9cdjpPWfj+a+Zw9EgWKxaMNHKC7EU7X9taj3H0EGQNLOSq2jAcOa3EzxlfHsD6w==
 
 "@tsconfig/node10@^1.0.7":
   version "1.0.9"
@@ -956,9 +956,9 @@ node-fetch@2.6.7:
     whatwg-url "^5.0.0"
 
 node-fetch@^2.6.7:
-  version "2.6.9"
-  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.9.tgz#7c7f744b5cc6eb5fd404e0c7a9fec630a55657e6"
-  integrity sha512-DJm/CJkZkRjKKj4Zi4BsKVZh3ValV5IR5s7LVZnW+6YMh0W1BfNA8XSs6DLMGYlId5F3KnA70uu2qepcR08Qqg==
+  version "2.6.11"
+  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.11.tgz#cde7fc71deef3131ef80a738919f999e6edfff25"
+  integrity sha512-4I6pdBY1EthSqDmJkiNk3JIT8cswwR9nfeW/cPdUagJYEQG7R95WRH74wpz7ma8Gh/9dI9FP+OU+0E4FvtA55w==
   dependencies:
     whatwg-url "^5.0.0"
 

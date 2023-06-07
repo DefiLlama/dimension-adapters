@@ -29,7 +29,7 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapte
         const methodology = baseAdapter?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
-        if (element.startTimestamp !== undefined)
+        if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
         if (typeof methodology === 'string') console.log("Methodology:", methodology)
@@ -74,18 +74,3 @@ export function camelCaseToSpaces(s: string) {
         .replace(/^./, function (str) { return str.toUpperCase(); })
     return withSpaces[0] + withSpaces.slice(1).toLowerCase()
 }
-
-export const withTimeout = <T>(millis: number, promise: Promise<T>) => {
-    // this should be error type
-    const timeout: Promise<T> = new Promise((_resolve, reject) => {
-        const id = setTimeout(
-            () => {
-                clearTimeout(id)
-                reject(`Timed out after ${millis} ms.`)
-            }, millis)
-    });
-    return Promise.race([
-        promise,
-        timeout
-    ]);
-};

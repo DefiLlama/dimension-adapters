@@ -2,9 +2,10 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
+import { getPrices } from "../../utils/prices";
 
-const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1633997&to=${to}`
-
+const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=${to}`
+// https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=1682093355
 interface IVolumeall {
   timestampSeconds: string;
   valueHbar: string;
@@ -12,7 +13,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(dayTimestamp), { headers: {
+  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
     'origin': 'https://analytics.saucerswap.finance',
   }}))?.data;
 
@@ -23,16 +24,12 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => Number(dayItem.timestampSeconds) === dayTimestamp)?.valueHbar
 
-  const prices = await axios.post('https://coins.llama.fi/prices', {
-    "coins": [
-      "coingecko:hedera-hashgraph",
-    ],
-    timestamp: dayTimestamp
-  });
+  const coinId = "coingecko:hedera-hashgraph";
+  const prices = await getPrices([coinId], dayTimestamp)
 
   return {
-    totalVolume: totalVolume ? String(totalVolume/1e8 * prices.data.coins["coingecko:hedera-hashgraph"].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e8 * prices.data.coins["coingecko:hedera-hashgraph"].price) : "0",
+    totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
+    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e8 * prices[coinId].price) : "0",
     timestamp: dayTimestamp,
   };
 };

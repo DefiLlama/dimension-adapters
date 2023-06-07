@@ -10,7 +10,7 @@ const USDC_CONTRACT = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8';
 const USDT_CONTRACT = '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9';
 const WBTC_CONTRACT = '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f';
 
-const topic  = 'Transfer (index_topic_1 address from, index_topic_2 address to, uint256 value)';
+const topic = 'Transfer (index_topic_1 address from, index_topic_2 address to, uint256 value)';
 const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const topic1 = '0x000000000000000000000000c32eb36f886f638fffd836df44c124074cfe3584';
 
@@ -51,23 +51,23 @@ const fetch = async (timestamp: number) => {
     fromBlock: fromBlock,
     keys: [],
     chain: 'arbitrum',
-    topics: [topic0,topic1]
-}))))
-  .map((p: any) => p)
-  .map((a: any) => a.output);
-  const coins = tokenList.map(({address}) => `arbitrum:${address}`);
+    topics: [topic0, topic1]
+  }))))
+    .map((p: any) => p)
+    .map((a: any) => a.output);
+  const coins = tokenList.map(({ address }) => `arbitrum:${address}`);
   const prices = await getPrices(coins, timestamp);
   const untrackVolumes = tokenList.map((token: ITokenList, index: number) => {
     const log = logs[index]
-      .map((e:ILog)  => {return  { ...e, data: e.data }})
+      .map((e: ILog) => { return { ...e, data: e.data } })
       .map((p: ILog) => {
-        const {decimals, price} = prices[`arbitrum:${token.address.toLowerCase()}`];
+        const { decimals, price } = prices[`arbitrum:${token.address}`];
         const amountUSD = new BigNumber(p.data)
           .div(new BigNumber(10).pow(decimals))
           .multipliedBy(price);
         return amountUSD.toNumber()
       })
-      return log.reduce((a: number, b: number) => a + b, 0);
+    return log.reduce((a: number, b: number) => a + b, 0);
   });
 
   const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);

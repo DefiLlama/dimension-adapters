@@ -1,49 +1,64 @@
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
-import BigNumber from "bignumber.js";
 
-const endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/messari/looksrare-ethereum",
+import * as sdk from "@defillama/sdk";
+import { getBlock } from "../helpers/getBlock";
+const address  = "0x0000000000e655fae4d56241588680f86e3b2377";
+const topic0_taker_bid = "0x3ee3de4684413690dee6fff1a0a4f92916a1b97d1c5a83cdf24671844306b2e3";
+const topic0_taker_ask = "0x9aaa45d6db2ef74ead0751ea9113263d1dec1b50cea05f0ca2002cb8063564a4";
+
+interface ITx {
+  data: string;
+  transactionHash: string;
+  topics: string[];
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-      const dateId = Math.floor(todaysTimestamp / 86400);
-      const yesDateId = Math.floor(yesterdaysTimestamp / 86400);
+const graphs = (chain: Chain) => {
+  return async (timestamp: number) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
 
-      const graphQuery = gql
-      `{
-        today: marketplaceDailySnapshot(id: ${dateId}) {
-          totalRevenueETH
-          marketplaceRevenueETH
-        },
-        yesterday: marketplaceDailySnapshot(id: ${yesDateId}) {
-          totalRevenueETH
-          marketplaceRevenueETH
-        }
-      }`;
-      const ethAddress = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-      const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-      const latestPrice = new BigNumber(pricesObj[ethAddress]["price"])
+    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
+    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
-      const dailyFee = new BigNumber(graphRes.today.totalRevenueETH).minus(new BigNumber(graphRes.yesterday.totalRevenueETH)).multipliedBy(latestPrice)
-      const dailyRev = new BigNumber(graphRes.today.marketplaceRevenueETH).minus(new BigNumber(graphRes.yesterday.marketplaceRevenueETH)).multipliedBy(latestPrice)
+    const logs_bid: ITx[] = (await sdk.api.util.getLogs({
+      target: address,
+      topic: '',
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      topics: [topic0_taker_bid],
+      keys: [],
+      chain: chain
+    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
 
-      return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-        dailyHoldersRevenue: dailyRev.toString(),
-      };
+    const logs_ask: ITx[] = (await sdk.api.util.getLogs({
+      target: address,
+      topic: '',
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      topics: [topic0_taker_ask],
+      keys: [],
+      chain: chain
+    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    const logs = logs_bid.concat(logs_ask)
+
+    const rawLogsData: number[] = logs.map((tx: ITx) => {
+      const amount = Number('0x' + tx.data.slice(896, 960)) / 10 **  18;
+      return amount;
+    });
+
+    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+    const dailyFee = rawLogsData.reduce((a: number, b: number) => a+b, 0);
+    const dailyFeeUSD = dailyFee * ethPrice;
+    return {
+      timestamp,
+      dailyFees: dailyFeeUSD.toString(),
+      dailyRevenue: dailyFeeUSD.toString(),
+      dailyHoldersRevenue: dailyFeeUSD.toString(),
     };
   };
 };
@@ -52,7 +67,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
-        fetch: graphs(endpoints)(ETHEREUM),
+        fetch: graphs(ETHEREUM),
         start: async ()  => 1640775864,
     },
   }

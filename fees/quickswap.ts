@@ -8,7 +8,7 @@ import {
 } from "../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.POLYGON]: "https://api.fura.org/subgraphs/name/quickswap",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
 }
 const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,
@@ -24,8 +24,21 @@ const v2Graph = getGraphDimensions({
 });
 
 const v3Endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3"
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+  [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
+  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7"
 }
+
+type TStartTime = {
+  [s: string | Chain]: number;
+}
+
+const startTimeV3: TStartTime = {
+  [CHAIN.POLYGON]: 1662425243,
+  [CHAIN.POLYGON_ZKEVM]: 1679875200,
+  [CHAIN.DOGECHAIN]: 1660694400,
+}
+
 const v3Graphs = getGraphDimensions({
   graphUrls: v3Endpoints,
   totalVolume: {
@@ -75,7 +88,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => 1662425243,
+        start: async () => startTimeV3[chain],
         meta: {
           methodology
         }

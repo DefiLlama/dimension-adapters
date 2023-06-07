@@ -2,11 +2,12 @@ import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Adapter } from "../adapters/types";
-import { BSC } from "../helpers/chains";
+import { BSC, ARBITRUM } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
     [BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
+    [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -51,6 +52,17 @@ const adapter: Adapter = {
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
             start: async () => 1670659200,
+            meta: {
+                methodology: {
+                    Fees: "All mint, burn, margin and liquidation and swap fees are collected",
+                    UserFees: "Users pay swap fees and margin and liquidation fees",
+                    Revenue: "Revenue is calculated as 30% of the total fee.",
+                }
+            }
+        },
+        [ARBITRUM]: {
+            fetch: graphs(endpoints)(ARBITRUM),
+            start: async () => 1678147200,
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

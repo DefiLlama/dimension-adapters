@@ -21,7 +21,8 @@ export default {
   adapter: {
     [BSC]: {
       fetch: graphs,
-      runAtCurrTime: true
+      runAtCurrTime: true,
+      start: async () => 0
     },
   },
 } as Adapter;

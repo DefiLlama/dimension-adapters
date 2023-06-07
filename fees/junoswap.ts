@@ -1,10 +1,10 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
+import disabledAdapter from "../helpers/disabledAdapter";
 
-
-const historicalVolumeEndpoint = "https://api-junoswap.enigma-validator.com/volumes/total/historical/999M/d"
+const historicalVolumeEndpoint = "https://api-junoswap.enigma-validator.com/volumes/total/historical/12M/d"
 
 interface IVolumeall {
   volume_total: string;
@@ -21,10 +21,12 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.date)) === dayTimestamp)?.volume_total
   const totalFeesUsd = totalVolume * TOTAL_FEES;
-  const dailyFeesUsd = Number(dailyVolume || 0) * TOTAL_FEES
+  const dailyFeesUsd = dailyVolume ? Number(dailyVolume) * TOTAL_FEES : undefined
   return {
     totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd.toString(),
+    dailyFees: dailyFeesUsd ? dailyFeesUsd.toString(): undefined,
+    dailyVolume: dailyVolume ? dailyVolume.toString() : undefined,
+    totalVolume: `${totalVolume}`,
     timestamp: dayTimestamp,
   };
 };
@@ -32,6 +34,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {
         fetch: fetch,
         start: async ()  => 1646784000,

@@ -1,22 +1,23 @@
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 import fetchURL from "../../utils/fetchURL"
 
 const endpoints = {
-  solana: "https://api.saros.finance/info",
+  [CHAIN.SOLANA]: "https://api.saros.finance/info",
 };
 
-const graphs = (chain: string) => async () => {
+const graphs = (chain: string) => async (timestamp: number) => {
   let res;
   switch (chain) {
-    case "solana":
-      res = await fetchURL(endpoints.solana);
+    case CHAIN.SOLANA:
+      res = await fetchURL(endpoints[CHAIN.SOLANA]);
     default:
-      res = await fetchURL(endpoints.solana);
+      res = await fetchURL(endpoints[CHAIN.SOLANA]);
   }
 
   return {
-    timestamp: 1, // fix
+    timestamp,
     dailyVolume: res.data.volume24h,
     totalVolume: res.data.totalvolume,
   };
@@ -25,8 +26,8 @@ const graphs = (chain: string) => async () => {
 // @TODO check and backfill
 const adapter: SimpleAdapter = {
   adapter: {
-    solana: {
-      fetch: graphs("solana"),
+    [CHAIN.SOLANA]: {
+      fetch: graphs(CHAIN.SOLANA),
       runAtCurrTime: true,
       customBackfill: undefined,
       start: async () => 0,

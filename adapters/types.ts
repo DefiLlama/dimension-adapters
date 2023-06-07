@@ -111,7 +111,8 @@ export enum AdapterType {
   AGGREGATORS = 'aggregators',
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
-  PROTOCOLS = 'protocols'
+  PROTOCOLS = 'protocols',
+  ROYALTIES = 'royalties'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
