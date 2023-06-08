@@ -3,7 +3,7 @@ import {CHAIN} from "../../helpers/chains";
 import {Bet, BetResult} from "./types";
 import {Chain} from "@defillama/sdk/build/general";
 import {request, gql} from "graphql-request";
-import {getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC} from "../../utils/date";
+import {getTimestampAtStartOfDayUTC} from "../../utils/date";
 
 const endpoints = {
     [CHAIN.POLYGON]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-polygon",
@@ -13,8 +13,9 @@ const endpoints = {
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async (timestamp: number) => {
-            const fromTimestamp = timestamp - 60 * 60 * 24
-            const toTimestamp = timestamp
+            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+            const fromTimestamp = todaysTimestamp - 60 * 60 * 24
+            const toTimestamp = todaysTimestamp
             const bets: Bet[] = []
             let skip = 0
 
