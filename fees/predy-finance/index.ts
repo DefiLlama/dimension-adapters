@@ -137,7 +137,7 @@ const v3DailyFees = async (
     dailyFees = (lptRevenue.plus(tokenRevenue)).div(divisor);
     return dailyFees;
   }
-  return undefined;
+  return BigNumber('0');
 };
 
 const v320DailyFeesAndSupplySideRevenue = async (
@@ -208,17 +208,17 @@ const v320DailyFeesAndSupplySideRevenue = async (
     const supplyInterest1 = new BigNumber(result.lprevenueDaily.supplyInterest1)
       .times(ethPrice)
       .div(ETH_DECIMAL)
-      .div(DIVISOR);  
+      .div(DIVISOR);
 
     lptRevenue = premiumSupply
       .plus(fee0)
       .plus(fee1)
       .plus(supplyInterest0)
       .plus(supplyInterest1);
-    
+
     return [usersPaymentFees, lptRevenue];
   }
-  return [undefined, undefined];
+  return [BigNumber('0'), BigNumber('0')];
 };
 
 const v3DailyRevenue = async (
@@ -265,8 +265,8 @@ const v3DailyRevenue = async (
     todayResults.accumulatedProtocolFeeDaily &&
     previousDayResults.accumulatedProtocolFeeDaily
   ) {
-    let dailyFee0 = new BigNumber(0); 
-    let dailyFee1 = new BigNumber(0); 
+    let dailyFee0 = new BigNumber(0);
+    let dailyFee1 = new BigNumber(0);
     if (v320) {
       // USDC
       dailyFee0 = new BigNumber(
@@ -280,7 +280,7 @@ const v3DailyRevenue = async (
       )
         .times(ethPrice)
         .div(ETH_DECIMAL);
-    } else { 
+    } else {
       // ETH
       dailyFee0 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
@@ -297,7 +297,7 @@ const v3DailyRevenue = async (
     dailyRevenue = dailyFee0.plus(dailyFee1);
     return dailyRevenue;
   }
-  return undefined;
+  return BigNumber('0');
 };
 
 const adapter: BreakdownAdapter = {
