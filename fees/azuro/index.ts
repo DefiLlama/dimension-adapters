@@ -26,8 +26,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
                             where: {
                             status: Resolved,
                             isFreebet: false
-                            updatedAt_gte: ${fromTimestamp},
-                            updatedAt_lte: ${toTimestamp},
+                            createdBlockTimestamp_gte: ${fromTimestamp},
+                            createdBlockTimestamp_lte: ${toTimestamp},
                             }
                             first: 1000,
                             skip: ${skip}
