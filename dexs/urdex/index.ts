@@ -8,12 +8,9 @@ const volumeEndpoint = "https://api.urdex.finance/kol/getVolumeData"
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const volumeData = (await fetchURL(`${volumeEndpoint}?date=${dayTimestamp}`))?.data.data;
-
   return {
     totalVolume: `${volumeData.total.TotalTradingVolume}`,
-    totalFees: `${volumeData.total.AccruedFees}`,
-    dailyVolume: volumeData.daily.TotalTradingVolume ? `${volumeData.daily.TotalTradingVolume}` : undefined,
-    dailyFees: volumeData.daily.AccruedFees ? `${volumeData.daily.AccruedFees}` : undefined,
+    dailyVolume: volumeData.daily.TotalTradingVolume ? `${volumeData.daily.TotalTradingVolume}` : '0',
     timestamp: dayTimestamp,
   };
 };
