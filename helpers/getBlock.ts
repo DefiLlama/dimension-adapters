@@ -27,6 +27,10 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://scan.pulsechain.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
+        else if (chain === CHAIN.ONUS)
+            block = Number((await retry(async () => (await axios.get(`https://explorer.onuschain.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
         else if (chain as CHAIN === CHAIN.POLYGON_ZKEVM || chain === CHAIN.VISION || chain as CHAIN === CHAIN.ERA)
             return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
         else if (chain as CHAIN === CHAIN.WAVES)

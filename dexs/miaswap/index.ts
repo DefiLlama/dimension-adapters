@@ -1,7 +1,7 @@
 // https://api.heraswap.finance/report/volume-day?start_time=1677628800&end_time=1686246441
 
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -12,7 +12,7 @@ interface IVolumeall {
   record_date: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(dayTimestamp)))?.data.data;
   const totalVolume = historicalVolume
