@@ -32,6 +32,9 @@ const pools: TPool = {
   [CHAIN.FANTOM]: [
     '0x1d766e912b4872eca5172a5792c82ec28b9f894c',
     '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa'
+  ],
+  [CHAIN.ARBITRUM]: [
+    '0xde5f1668cb5ef56dfb9211694d00252d858082e3'
   ]
 }
 
@@ -145,6 +148,10 @@ const adapter: SimpleAdapter = {
       fetch: graph(CHAIN.FANTOM),
       start: async () => 1681130543,
     },
+    [CHAIN.ARBITRUM]: {
+      fetch: graph(CHAIN.ARBITRUM),
+      start: async () => 1686459416,
+    }
   }
 };
 
