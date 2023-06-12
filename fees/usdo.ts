@@ -34,7 +34,7 @@ const topic0_withdraw = '0xdf273cb619d95419a9cd0ec88123a0538c85064229baa6363788f
 const contract_interface = new ethers.utils.Interface([
   event_increase_value,
 ]);
-// console.log(contract_interface.getEventTopic('Withdrawal'))
+
 const PAIR_TOKEN_ABI = (token: string): object => {
   return {
     "constant": true,
