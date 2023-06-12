@@ -139,8 +139,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const makerFees = makerFee.output.map((res) => Number(res.output) / 10 ** 18);
-    const takerFees = takerFee.output.map((res) => Number(res.output) / 10 ** 18);
+    const makerFees = makerFee.output.map((res: any) => Number(res.output) / 10 ** 18);
+    const takerFees = takerFee.output.map((res: any) => Number(res.output) / 10 ** 18);
 
     const coins = [...new Set(Object.values(coinsId))]
     const prices = await getPrices(coins, timestamp);

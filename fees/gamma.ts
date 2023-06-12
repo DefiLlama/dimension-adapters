@@ -140,8 +140,8 @@ const fetchFees = (chain: Chain, address: TAddress) => {
           })
         )
       );
-      const tokens0 = underlyingToken0.output.map((res) => res.output);
-      const tokens1 = underlyingToken1.output.map((res) => res.output);
+      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
 
       const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
       const coins = [...new Set(rawCoins)]
