@@ -96,7 +96,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ['token0', 'token1'].map((method) =>
         sdk.api.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
-          calls: pools.map((address) => ({
+          calls: pools.map((address: string) => ({
             target: address,
           })),
           chain: CHAIN.ONUS

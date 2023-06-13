@@ -103,7 +103,7 @@ const fetch = async (timestamp: number) => {
       ['token0', 'token1'].map((method) =>
         sdk.api.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address) => ({
+          calls: lpTokens.map((address: string) => ({
             target: address,
           })),
           chain: 'kava'
@@ -111,8 +111,8 @@ const fetch = async (timestamp: number) => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res) => res.output);
-    const tokens1 = underlyingToken1.output.map((res) => res.output);
+    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
     const fromBlock = await getBlock(fromTimestamp, 'kava' as Chain, {});
     const toBlock = await getBlock(toTimestamp, 'kava' as Chain, {});
 

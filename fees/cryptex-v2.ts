@@ -131,7 +131,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ['makerFee', 'takerFee'].map((method: string) =>
         sdk.api.abi.multiCall({
           abi: abis[method],
-          calls: products.map((address) => ({
+          calls: products.map((address: string) => ({
             target: address,
           })),
           chain: CHAIN.ARBITRUM
