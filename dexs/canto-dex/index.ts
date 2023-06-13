@@ -115,7 +115,7 @@ const fetch = async (timestamp: number) => {
     ['token0', 'token1'].map((method) =>
       sdk.api.abi.multiCall({
         abi: PAIR_TOKEN_ABI(method),
-        calls: lpTokens.map((address) => ({
+        calls: lpTokens.map((address: string) => ({
           target: address,
         })),
         chain: 'canto'
