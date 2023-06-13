@@ -68,8 +68,6 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     dailyVolume += vol;
   });
 
-  console.log(dailyVolume);
-
   return {
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
