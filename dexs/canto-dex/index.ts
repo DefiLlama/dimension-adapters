@@ -123,8 +123,8 @@ const fetch = async (timestamp: number) => {
     )
   );
 
-  const tokens0 = underlyingToken0.output.map((res) => res.output);
-  const tokens1 = underlyingToken1.output.map((res) => res.output);
+  const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+  const tokens1 = underlyingToken1.output.map((res: any) => res.output);
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
   const toBlock = (await getBlock(toTimestamp, 'canto', {}));
   const fromBlock = (await getBlock(fromTimestamp, 'canto', {}));
