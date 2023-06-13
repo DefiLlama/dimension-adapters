@@ -94,13 +94,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     });
 
     const lpTokens = poolsRes.output
-      .map(({ output }) => output);
+      .map(({ output }: any) => output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
         sdk.api.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address) => ({
+          calls: lpTokens.map((address: string) => ({
             target: address,
           })),
           chain: 'kava'
@@ -108,8 +108,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res) => res.output);
-    const tokens1 = underlyingToken1.output.map((res) => res.output);
+    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
     const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
     const toBlock = (await getBlock(toTimestamp, 'kava', {}));
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({

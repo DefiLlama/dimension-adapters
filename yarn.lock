@@ -9,14 +9,15 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@defillama/sdk@^3.0.31":
-  version "3.0.55"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-3.0.55.tgz#6b749a187d17cedf643fb2a028f2637e67861bb8"
-  integrity sha512-3JgB081T8mXs1WmiFI4di/PV20YJ1f2748tVBSTk+7LXuRVq0QFkAQWu43uh7m5Agu9lUWB9wBmB3rIhGRk2YA==
+"@defillama/sdk@^4.0.26":
+  version "4.0.26"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-4.0.26.tgz#77071633dbaa585688fec0ee976b2f2e6ec95ae5"
+  integrity sha512-qZ0aZHocHhpWC/Mis/rvc/CCOs1Z+MCbLIVSVfJi/6d4acOzgV5m+oLtxVK1Rz0bsMrPZHdT+kUFkum8EKPodw==
   dependencies:
     "@supercharge/promise-pool" "^2.1.0"
     ethers "^5.4.5"
     node-fetch "^2.6.7"
+    tron-format-address "^0.1.11"
 
 "@ethersproject/abi@5.7.0", "@ethersproject/abi@^5.7.0":
   version "5.7.0"
@@ -1058,6 +1059,11 @@ tr46@~0.0.3:
   version "0.0.3"
   resolved "https://registry.yarnpkg.com/tr46/-/tr46-0.0.3.tgz#8184fd347dac9cdc185992f3a6622e14b9d9ab6a"
   integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
+
+tron-format-address@^0.1.11:
+  version "0.1.11"
+  resolved "https://registry.yarnpkg.com/tron-format-address/-/tron-format-address-0.1.11.tgz#d4b345e4c62f6024976e764d37b2c30666142603"
+  integrity sha512-Jx2i3R1yXrEMQsfc2jueAI71ivnySzdeva6SiSM/pddwj8TK7PVABSP6s/iYcTRI63GxJEgGMmOJXNNKoBmbQw==
 
 ts-node@^10.9.1:
   version "10.9.1"
