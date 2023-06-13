@@ -136,7 +136,8 @@ const fetchFees = (chain: Chain, address: TAddress) => {
             calls: pools.map((address: string) => ({
               target: address,
             })),
-            chain: chain
+            chain: chain,
+            permitFailure: true,
           })
         )
       );
