@@ -44,8 +44,8 @@ const fetchVolume = (chain: Chain) => {
     const coins = [...new Set(historicalData.map((e: IGraph) => `${chain}:${e.makerAssetAddr}`))]
     const prices = await getPrices(coins, toTimestamp);
     const dailyVolume = historicalData.map((e: IGraph) => {
-      const price = prices[`${chain}:${e.makerAssetAddr}`].price;
-      const decimals = prices[`${chain}:${e.makerAssetAddr}`].decimals;
+      const price = prices[`${chain}:${e.makerAssetAddr}`]?.price || 0;
+      const decimals = prices[`${chain}:${e.makerAssetAddr}`]?.decimals || 0;
       return (Number(e.makerAssetAmount) / 10 ** decimals) * price;
     }).filter((e: any) => !isNaN(e))
     .reduce((a: number, b: number) => a + b, 0);
