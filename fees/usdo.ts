@@ -161,7 +161,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ONUS]: {
       fetch,
-      start: async () => 1685577600,
+      start: async () => 1680307200,
     },
   },
 }
