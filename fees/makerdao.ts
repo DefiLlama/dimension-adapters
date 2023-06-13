@@ -13,6 +13,17 @@ const endpoints = {
     "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
 }
 
+// Source: https://makerburn.com/#/rundown
+const collateralYields = {
+  "RWA007-A": 4,
+  "RWA009-A": 0.11,
+  "RWA010-A": 4,
+  "RWA011-A": 4,
+  "RWA014-A": 2.6,
+  "PSM-GUSD-A": 2,
+} as {
+  [rwa:string]:number
+}
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
@@ -51,7 +62,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
       for (const collateral of graphRes["yesterday"]) {
         if (todayDebts[collateral.id]) {
           const avgDebt = todayDebts[collateral.id].plus(new BigNumber(collateral["totalDebt"])).div(2)
-          const accFees = new BigNumber(Math.pow(collateral["stabilityFee"], secondsBetweenDates) - 1)
+          let accFees = new BigNumber(Math.pow(collateral["stabilityFee"], secondsBetweenDates) - 1)
+          if(collateralYields[collateral.id]){
+            accFees = new BigNumber(collateralYields[collateral.id]/365e2)
+          }
           dailyFee = dailyFee.plus(avgDebt.multipliedBy(accFees))
         }
       }

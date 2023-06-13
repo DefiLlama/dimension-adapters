@@ -30,7 +30,11 @@ const pools: TPool = {
   [CHAIN.FANTOM]: [
     '0x1d766e912b4872eca5172a5792c82ec28b9f894c',
     '0x6fea3b68a0666bd77b5c002ceedca0e4eb93f4aa'
-  ]
+  ],
+  [CHAIN.ARBITRUM]: [
+    '0xde5f1668cb5ef56dfb9211694d00252d858082e3',
+  ],
+
 }
 
 type TABI = {
@@ -83,7 +87,7 @@ const graph = (chain: Chain) => {
         ['getTokenX', 'getTokenY'].map((method: string) =>
           sdk.api.abi.multiCall({
             abi: PAIR_TOKEN_ABI(method),
-            calls: lpTokens.map((address) => ({
+            calls: lpTokens.map((address: string) => ({
               target: address,
             })),
             chain: chain
@@ -91,8 +95,8 @@ const graph = (chain: Chain) => {
         )
       );
 
-      const tokens0 = underlyingToken0.output.map((res) => res.output);
-      const tokens1 = underlyingToken1.output.map((res) => res.output);
+      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
@@ -151,9 +155,13 @@ const graph = (chain: Chain) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-        [CHAIN.FANTOM]: {
+    [CHAIN.FANTOM]: {
       fetch: graph(CHAIN.FANTOM),
       start: async () => 1681130543,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: graph(CHAIN.ARBITRUM),
+      start: async () => 1686459416,
     }
   }
 };

@@ -17,7 +17,7 @@ const getAllMarkets = async (
 
 const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   const underlyings = await sdk.api.abi.multiCall({
-    calls: markets.map((market) => ({
+    calls: markets.map((market: string) => ({
       target: market,
     })),
     abi: CTokenABI.underlying,
@@ -25,7 +25,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   });
 
   const reserveFactors = await sdk.api.abi.multiCall({
-    calls: markets.map((market) => ({
+    calls: markets.map((market: string) => ({
       target: market,
     })),
     abi: CTokenABI.reserveFactorMantissa,
@@ -33,8 +33,8 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   });
 
   return {
-    underlyings: underlyings.output.map((x) => x.output),
-    reserveFactors: reserveFactors.output.map((x) => x.output),
+    underlyings: underlyings.output.map((x: any) => x.output),
+    reserveFactors: reserveFactors.output.map((x: any) => x.output),
   };
 };
 

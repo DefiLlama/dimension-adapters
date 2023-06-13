@@ -116,7 +116,7 @@ const graph = (chain: Chain) => {
         ['getTokenX', 'getTokenY'].map((method: string) =>
           sdk.api.abi.multiCall({
             abi: PAIR_TOKEN_ABI(method),
-            calls: lpTokens.map((address) => ({
+            calls: lpTokens.map((address: string) => ({
               target: address,
             })),
             chain: chain
@@ -124,8 +124,8 @@ const graph = (chain: Chain) => {
         )
       );
 
-      const tokens0 = underlyingToken0.output.map((res) => res.output);
-      const tokens1 = underlyingToken1.output.map((res) => res.output);
+      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
+      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
