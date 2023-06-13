@@ -64,8 +64,9 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
       tokenIndex = tokens.findIndex((address) => address === args.toToken);
       vol = args.toAmount / 10 ** decimals[tokenIndex];
     }
-
-    dailyVolume += vol;
+    if (!isNaN(vol)) {
+      dailyVolume += vol;
+    }
   });
 
   return {
