@@ -6,8 +6,9 @@ import {request, gql} from "graphql-request";
 import {getTimestampAtStartOfDayUTC} from "../../utils/date";
 
 const endpoints = {
-    [CHAIN.POLYGON]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-polygon",
-    [CHAIN.XDAI]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-gnosis"
+    [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v2",
+    [CHAIN.XDAI]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v2",
+    [CHAIN.ARBITRUM]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-arbitrum-one-v2"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -25,9 +26,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
                         bets(
                             where: {
                             status: Resolved,
-                            isFreebet: false
-                            createdBlockTimestamp_gte: ${fromTimestamp},
-                            createdBlockTimestamp_lte: ${toTimestamp},
+                            _isFreebet: false
+                            resolvedBlockTimestamp_gte: ${fromTimestamp},
+                            resolvedBlockTimestamp_lte: ${toTimestamp},
                             }
                             first: 1000,
                             skip: ${skip}
@@ -72,18 +73,26 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),
-            start: async () => 1657756800,
+            start: async () => 1675209600,
             meta: {
                 methodology
             }
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
-            start: async () => 1657756800,
+            start: async () => 1654646400,
             meta: {
                 methodology
             }
         },
+        [CHAIN.ARBITRUM]: {
+            fetch: graphs(endpoints)(CHAIN.ARBITRUM),
+            start: async () => 1686009600,
+            meta: {
+                methodology
+            }
+        },
+
     }
 }
 
