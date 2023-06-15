@@ -3,11 +3,12 @@ import { Chain } from '@defillama/sdk/build/general'
 import { gql, GraphQLClient } from 'graphql-request'
 import { ChainEndpoints } from '../adapters/types'
 import { Adapter } from '../adapters/types'
-import { BSC } from '../helpers/chains'
+import { BSC, ARBITRUM } from '../helpers/chains'
 import { getBlock } from '../helpers/getBlock'
 
 const endpoints = {
   [BSC]: 'https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics',
+  [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/level-fi/analytics-arb',
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -25,8 +26,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
       `
       const [startBlock, endBlock] = await Promise.all([
-        getBlock(timestamp - 86400, BSC, {}),
-        getBlock(timestamp, BSC, {}),
+        getBlock(timestamp - 86400, chain, {}),
+        getBlock(timestamp, chain, {}),
       ])
       const graphRes = await client.request(GET_PROTOCOL_STATS, {
         startBlock: startBlock,
@@ -41,10 +42,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
         timestamp,
         dailyFees: dailyFee.toString(),
         dailyUserFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.dividedBy(2).toString(),
+        dailyRevenue: dailyFee.times(55).dividedBy(100).toString(),
         totalFees: totalFee.toString(),
         dailyHoldersRevenue: dailyFee.times(20).dividedBy(100).toString(),
-        dailyTreasuryRevenue: dailyFee.times(30).dividedBy(100).toString()
+        dailyTreasuryRevenue: dailyFee.times(30).dividedBy(100).toString(),
+        dailySupplySideRevenue: dailyFee.times(45).dividedBy(100).toString(),
       }
     }
   }
@@ -60,7 +62,21 @@ const adapter: Adapter = {
           Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
           UserFees:
             'All mint, burn, margin, liquidation and swap fees are collect',
-          Revenue: 'Revenue is 50% of the total fees, which goes to Treasury and LVL/LGO stakers',
+          Revenue: 'Revenue is 55% of the total fees, which goes to Treasury and LVL/LGO stakers',
+          HoldersRevenue: '20% of the total fees goes to LVL/LGO stakers',
+          TreasuryRevenue: '30% of the total fees goes to Treasury'
+        },
+      },
+    },
+    [ARBITRUM]: {
+      fetch: graphs(endpoints)(ARBITRUM),
+      start: async () => 1686344400,
+      meta: {
+        methodology: {
+          Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
+          UserFees:
+            'All mint, burn, margin, liquidation and swap fees are collect',
+          Revenue: 'Revenue is 55% of the total fees, which goes to Treasury and LVL/LGO stakers',
           HoldersRevenue: '20% of the total fees goes to LVL/LGO stakers',
           TreasuryRevenue: '30% of the total fees goes to Treasury'
         },
