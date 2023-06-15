@@ -6,8 +6,9 @@ import {request, gql} from "graphql-request";
 import {getTimestampAtStartOfDayUTC} from "../../utils/date";
 
 const endpoints = {
-    [CHAIN.POLYGON]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-polygon",
-    [CHAIN.XDAI]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-gnosis"
+    [CHAIN.ARBITRUM]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-arbitrum-one-v2",
+    [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v2",
+    [CHAIN.XDAI]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v2",
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -25,7 +26,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
                         bets(
                             where: {
                             status: Resolved,
-                            isFreebet: false
+                            _isFreebet: false
                             createdBlockTimestamp_gte: ${fromTimestamp},
                             createdBlockTimestamp_lte: ${toTimestamp},
                             }
@@ -79,6 +80,13 @@ const adapter: Adapter = {
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
+            start: async () => 1657756800,
+            meta: {
+                methodology
+            }
+        },
+        [CHAIN.ARBITRUM]: {
+            fetch: graphs(endpoints)(CHAIN.ARBITRUM),
             start: async () => 1657756800,
             meta: {
                 methodology
