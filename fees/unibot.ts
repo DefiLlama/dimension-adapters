@@ -28,10 +28,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         block_number > 17341451
         and to_address = '\\x07490d45a33d842ebb7ea8c22cc9f19326443c75'
         AND from_address = '\\x7a250d5630b4cf539739df2c5dacb4c659f2488d'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-    `;
-
-    const router_v3 = await sql`
+      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+    UNION ALL
       SELECT
         block_number,
         block_time,
@@ -41,10 +39,40 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       FROM
         ethereum.traces
       WHERE
-          block_number > 17447804
-          and to_address = '\\x3999D2c5207C06BBC5cf8A6bEa52966cabB76d41'
-        AND from_address = '\\xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-        AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+        block_number > 17341451
+        AND to_address = '\\x7a250d5630b4cf539739df2c5dacb4c659f2488d'
+        and from_address = '\\x07490d45a33d842ebb7ea8c22cc9f19326443c75'
+      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+    `;
+
+    const router_v3 = await sql`
+        SELECT
+          block_number,
+          block_time,
+          "value" / 1e18 as eth_value,
+          encode(transaction_hash, 'hex') AS HASH,
+          encode(to_address, 'hex') AS to_address
+        FROM
+          ethereum.traces
+        WHERE
+            block_number > 17447804
+            and to_address = '\\x3999D2c5207C06BBC5cf8A6bEa52966cabB76d41'
+            AND from_address = '\\xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+            AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+      UNION ALL
+        SELECT
+          block_number,
+          block_time,
+          "value" / 1e18 as eth_value,
+          encode(transaction_hash, 'hex') AS HASH,
+          encode(to_address, 'hex') AS to_address
+        FROM
+          ethereum.traces
+        WHERE
+            block_number > 17447804
+            and from_address = '\\x3999D2c5207C06BBC5cf8A6bEa52966cabB76d41'
+            AND to_address = '\\xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+            AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
     `;
     const transactions: IData[] = [...router_v2, ...router_v3] as IData[]
     const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
