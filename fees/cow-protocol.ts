@@ -68,27 +68,22 @@ const fetch = (chain: Chain) => {
         if (chain === CHAIN.ETHEREUM) {
           const gasUsed = await sql`
             SELECT
-              sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) / 10 ^ 18 AS sum
+              COUNT(ethereum.event_logs.transaction_hash) as _count,
+              ethereum.transactions.gas_used * ethereum.transactions.gas_price / 10 ^ 18 AS sum
             FROM
-              ethereum.transactions
-              INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+              ethereum.event_logs
+              INNER JOIN ethereum.blocks ON ethereum.event_logs.block_number = ethereum.blocks.number
+              INNER JOIN ethereum.transactions on ethereum.event_logs.transaction_hash = ethereum.transactions.hash
             WHERE
-              block_number > 15987241
-              and ethereum.transactions.hash in (
-                SELECT
-                  transaction_hash AS hash
-                FROM
-                  ethereum.event_logs
-                WHERE
-                  block_number > 15987241
-                  and contract_address = '\\x9008d19f58aabd9ed0d60971565aa8510560ab41'
-                  AND topic_0 = '\\x40338ce1a7c49204f0099533b1e9a7ee0a3d261f84974ab7af36105b8c4e9db4'
-                  AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()})
+              ethereum.event_logs.contract_address = '\\x9008d19f58aabd9ed0d60971565aa8510560ab41'
+              AND ethereum.event_logs.topic_0 = '\\xed99827efb37016f2275f98c4bcf71c7551c75d59e9b450f79fa32e60be672c2'
               AND success = TRUE
-              AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+              AND ethereum.event_logs.block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+              GROUP by sum
           `
-          allGasUsed = gasUsed[0].sum;
-
+          allGasUsed = gasUsed.map((e: any) => {
+            return Number(e.sum) / Number(e._count)
+          }).reduce((a: number, b: number) =>a + b,0)
         } else {
           const provider = getProvider(chain);
           const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
