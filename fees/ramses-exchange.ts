@@ -1,57 +1,8 @@
-import { BreakdownAdapter, FetchResultFees, BaseAdapter } from "../adapters/types";
-
-import { ARBITRUM, CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk/build";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
-
-import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-} from "../helpers/getUniSubgraph"
-
-
-// V2 //
-
-const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph",
-};
-
-const VOLUME_USD = "volumeUSD";
-
-const v3Graphs = getGraphDimensions({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
-  },
-  feesPercent: {
-    type: "fees",
-    HoldersRevenue: 100,
-    UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 100 // Revenue is 75% of collected fees
-  }
-});
-
-const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  HoldersRevenue: "User fees are distributed among holders."
-}
-
-// V1 //
-
-type TStartTime = {
-  [key: string]: number;
-}
-const startTimeV3:TStartTime = {
-  [CHAIN.ARBITRUM]: 1685574000,
-}
 
 interface ILog {
   data: string;
@@ -213,28 +164,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v1: {
-        [CHAIN.ARBITRUM]: {
-          fetch,
-          start: async () => 1678838400,
-        },
-        },
-    v2: Object.keys(v3Endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: v3Graphs(ARBITRUM),
-        start: async () => startTimeV3[CHAIN.ARBITRUM],
-        meta: {
-          methodology: {
-            ...methodology,
-            UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
-          }
-        }
-      }
-      return acc
-    }, {} as BaseAdapter)
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: async () => 1678838400,
+    },
   }
-}
+};
 
 export default adapter;
