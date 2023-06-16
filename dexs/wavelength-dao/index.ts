@@ -4,7 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
-const blocksGraph = "https://testeborabora.cyou/subgraphs/name/blocks";
+const blocksGraph = "https://thegraph2.astroswap.app/subgraphs/name/astro";
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 const blockQuery = gql`
   query blocks($timestampFrom: Int!, $timestampTo: Int!) {
     blocks(
@@ -23,15 +24,15 @@ const blockQuery = gql`
 
 
 const getCustomBlock = async (timestamp: number) => {
-  const block = Number(
+  const block =
     (
       await request(blocksGraph, blockQuery, {
-        timestampFrom: timestamp - 30,
-        timestampTo: timestamp + 30,
+        timestampFrom: timestamp - ONE_DAY_IN_SECONDS,
+        timestampTo: timestamp + ONE_DAY_IN_SECONDS,
       })
     ).blocks[0].number
-  );
-  return block;
+  ;
+  return Number(block);
 };
 
 const endpoints = {
