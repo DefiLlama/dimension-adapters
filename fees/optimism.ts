@@ -43,18 +43,53 @@ async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chain
     const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount)
 
     const feeWallet = '0x4200000000000000000000000000000000000011';
-    const startBalance = await getBalance({
-        target: feeWallet,
-        block: yesterdaysBlock,
-        chain: "optimism"
-    })
-    const endBalance = await getBalance({
-        target: feeWallet,
-        block: todaysBlock,
-        chain: "optimism"
-    })
+    const l1FeeVault = '0x420000000000000000000000000000000000001a';
+    const baseFeeVault = '0x4200000000000000000000000000000000000019';
 
-    return (new BigNumber(endBalance.output).plus(dailyFee).minus(startBalance.output)).div(1e18)
+    const [
+        feeWalletStart,
+        feeWalletEnd,
+        l1FeeVaultStart,
+        l1FeeVaultEnd,
+        baseFeeVaultStart,
+        baseFeeVaultEend
+    ] = await Promise.all([
+        getBalance({
+            target: feeWallet,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: feeWallet,
+            block: todaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: l1FeeVault,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: l1FeeVault,
+            block: todaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: baseFeeVault,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: baseFeeVault,
+            block: todaysBlock,
+            chain: "optimism"
+        })
+    ])
+    const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
+        .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
+        .plus((new BigNumber(baseFeeVaultEend.output).minus(baseFeeVaultStart.output)))
+
+    return (ethBalance.plus(dailyFee)).div(1e18)
 }
 
 const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
@@ -64,11 +99,11 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
     const latestPrice = pricesObj[ethAddress]["price"]
-
-    const totalFees = await getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
+    const [totalFees, totalSpentBySequencer] = await Promise.all([
+        getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks),
+        totalSpent(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
+    ]);
     const finalDailyFee = totalFees.times(latestPrice)
-
-    const totalSpentBySequencer = await totalSpent(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
     const revenue = (totalFees.minus(totalSpentBySequencer)).times(latestPrice)
 
     return {
