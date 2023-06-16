@@ -7,6 +7,7 @@ import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestamp24hAgo } from "../utils/date";
+import postgres from "postgres";
 
 async function totalSpent(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
     const todaysBlock = (await getBlock(todaysTimestamp, ETHEREUM, chainBlocks));
@@ -93,25 +94,46 @@ async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chain
 }
 
 const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
-    const todaysTimestamp = timestamp
-    const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
+    const sql = postgres(process.env.INDEXA_DB!);
+    const now = new Date(timestamp * 1e3)
+    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+    try  {
+        const todaysTimestamp = timestamp
+        const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-    const latestPrice = pricesObj[ethAddress]["price"]
-    const [totalFees, totalSpentBySequencer] = await Promise.all([
-        getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks),
-        totalSpent(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
-    ]);
-    const finalDailyFee = totalFees.times(latestPrice)
-    const revenue = (totalFees.minus(totalSpentBySequencer)).times(latestPrice)
+        const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+        const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
+        const latestPrice = pricesObj[ethAddress]["price"]
+        const sequencerGas = sql`
+        SELECT
+            sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) / 10 ^ 18 AS sum
+        FROM
+            ethereum.transactions
+            INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+        WHERE (to_address = '\\x6887246668a3b87F54DeB3b94Ba47a6f63F32985'::bytea
+            OR to_address = '\\xFF00000000000000000000000000000000000010'::bytea
+            OR to_address = '\\x473300df21D047806A082244b417f96b32f13A33'::bytea
+            OR to_address = '\\xdfe97868233d1aa22e815a266982f2cf17685a27'::bytea) AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
+        `
+        const [totalFees, totalSpentBySequencer] = await Promise.all([
+            getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks),
+            sequencerGas
+        ]);
+        const finalDailyFee = totalFees.times(latestPrice)
+        const revenue = (totalFees.minus(totalSpentBySequencer[0].sum)).times(latestPrice)
+        await sql.end({ timeout: 3 })
+        return {
+            timestamp,
+            dailyFees: finalDailyFee.toString(),
+            dailyRevenue: revenue.toString(),
+            dailyHoldersRevenue: '0',
+        };
+    } catch (error) {
+        await sql.end({ timeout: 3 })
+        console.error(error);
+        throw error;
+    }
 
-    return {
-        timestamp,
-        dailyFees: finalDailyFee.toString(),
-        dailyRevenue: revenue.toString(),
-        dailyHoldersRevenue: '0',
-    };
 }
 
 
