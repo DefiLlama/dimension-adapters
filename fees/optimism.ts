@@ -1,5 +1,5 @@
 import { Adapter, ProtocolType } from "../adapters/types";
-import { OPTIMISM, ETHEREUM } from "../helpers/chains";
+import { OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getBalance } from '@defillama/sdk/build/eth';
 import { getPrices } from "../utils/prices";
@@ -7,22 +7,8 @@ import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestamp24hAgo } from "../utils/date";
+import postgres from "postgres";
 
-async function totalSpent(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
-    const todaysBlock = (await getBlock(todaysTimestamp, ETHEREUM, chainBlocks));
-    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, ETHEREUM, {}));
-    const graphQuerySpent = gql
-        `query txFees {
-        yesterday: totalSequencerGas(id: "optimism", block: { number: ${yesterdaysBlock} }) {
-            totalETH
-        }
-        today: totalSequencerGas(id: "optimism", block: { number: ${todaysBlock} }) {
-            totalETH
-        }
-      }`;
-    const graphRes = await request("https://api.thegraph.com/subgraphs/name/0xngmi/sequencers", graphQuerySpent);
-    return (new BigNumber(graphRes["today"].totalETH).minus(graphRes["yesterday"].totalETH)).div(1e18)
-}
 
 async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
     const todaysBlock = (await getBlock(todaysTimestamp, OPTIMISM, chainBlocks));
@@ -43,40 +29,96 @@ async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chain
     const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount)
 
     const feeWallet = '0x4200000000000000000000000000000000000011';
-    const startBalance = await getBalance({
-        target: feeWallet,
-        block: yesterdaysBlock,
-        chain: "optimism"
-    })
-    const endBalance = await getBalance({
-        target: feeWallet,
-        block: todaysBlock,
-        chain: "optimism"
-    })
+    const l1FeeVault = '0x420000000000000000000000000000000000001a';
+    const baseFeeVault = '0x4200000000000000000000000000000000000019';
 
-    return (new BigNumber(endBalance.output).plus(dailyFee).minus(startBalance.output)).div(1e18)
+    const [
+        feeWalletStart,
+        feeWalletEnd,
+        l1FeeVaultStart,
+        l1FeeVaultEnd,
+        baseFeeVaultStart,
+        baseFeeVaultEend
+    ] = await Promise.all([
+        getBalance({
+            target: feeWallet,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: feeWallet,
+            block: todaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: l1FeeVault,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: l1FeeVault,
+            block: todaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: baseFeeVault,
+            block: yesterdaysBlock,
+            chain: "optimism"
+        }),
+        getBalance({
+            target: baseFeeVault,
+            block: todaysBlock,
+            chain: "optimism"
+        })
+    ])
+    const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
+        .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
+        .plus((new BigNumber(baseFeeVaultEend.output).minus(baseFeeVaultStart.output)))
+
+    return (ethBalance.plus(dailyFee)).div(1e18)
 }
 
 const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
-    const todaysTimestamp = timestamp
-    const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
+    const sql = postgres(process.env.INDEXA_DB!);
+    const now = new Date(timestamp * 1e3)
+    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+    try  {
+        const todaysTimestamp = timestamp
+        const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-    const latestPrice = pricesObj[ethAddress]["price"]
+        const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+        const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
+        const latestPrice = pricesObj[ethAddress]["price"]
+        const sequencerGas = sql`
+        SELECT
+            sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) / 10 ^ 18 AS sum
+        FROM
+            ethereum.transactions
+            INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
+        WHERE (to_address = '\\x6887246668a3b87F54DeB3b94Ba47a6f63F32985'::bytea
+            OR to_address = '\\xFF00000000000000000000000000000000000010'::bytea
+            OR to_address = '\\x473300df21D047806A082244b417f96b32f13A33'::bytea
+            OR to_address = '\\xdfe97868233d1aa22e815a266982f2cf17685a27'::bytea) AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
+        `
+        const [totalFees, totalSpentBySequencer] = await Promise.all([
+            getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks),
+            sequencerGas
+        ]);
+        const finalDailyFee = totalFees.times(latestPrice)
+        const revenue = (totalFees.minus(totalSpentBySequencer[0].sum)).times(latestPrice)
+        await sql.end({ timeout: 3 })
+        return {
+            timestamp,
+            dailyFees: finalDailyFee.toString(),
+            dailyRevenue: revenue.toString(),
+            dailyHoldersRevenue: '0',
+        };
+    } catch (error) {
+        await sql.end({ timeout: 3 })
+        console.error(error);
+        throw error;
+    }
 
-    const totalFees = await getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
-    const finalDailyFee = totalFees.times(latestPrice)
-
-    const totalSpentBySequencer = await totalSpent(todaysTimestamp, yesterdaysTimestamp, chainBlocks)
-    const revenue = (totalFees.minus(totalSpentBySequencer)).times(latestPrice)
-
-    return {
-        timestamp,
-        dailyFees: finalDailyFee.toString(),
-        dailyRevenue: revenue.toString(),
-        dailyHoldersRevenue: '0',
-    };
 }
 
 
