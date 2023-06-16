@@ -1,5 +1,5 @@
 import { Adapter, ProtocolType } from "../adapters/types";
-import { OPTIMISM, ETHEREUM } from "../helpers/chains";
+import { OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getBalance } from '@defillama/sdk/build/eth';
 import { getPrices } from "../utils/prices";
@@ -9,21 +9,6 @@ import BigNumber from "bignumber.js";
 import { getTimestamp24hAgo } from "../utils/date";
 import postgres from "postgres";
 
-async function totalSpent(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
-    const todaysBlock = (await getBlock(todaysTimestamp, ETHEREUM, chainBlocks));
-    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, ETHEREUM, {}));
-    const graphQuerySpent = gql
-        `query txFees {
-        yesterday: totalSequencerGas(id: "optimism", block: { number: ${yesterdaysBlock} }) {
-            totalETH
-        }
-        today: totalSequencerGas(id: "optimism", block: { number: ${todaysBlock} }) {
-            totalETH
-        }
-      }`;
-    const graphRes = await request("https://api.thegraph.com/subgraphs/name/0xngmi/sequencers", graphQuerySpent);
-    return (new BigNumber(graphRes["today"].totalETH).minus(graphRes["yesterday"].totalETH)).div(1e18)
-}
 
 async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
     const todaysBlock = (await getBlock(todaysTimestamp, OPTIMISM, chainBlocks));
