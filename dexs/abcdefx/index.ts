@@ -4,6 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import BigNumber from "bignumber.js";
+import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
   data: string;
@@ -15,13 +16,9 @@ interface IAmount {
   amount0Out: string;
   amount1Out: string;
 }
-const topic_name = 'Swap(index_topic_1 address sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, index_topic_2 address to)';
-const topic0 = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
 
-const factories = {
-  kava:   '0x01f43d2a7f4554468f77e06757e707150e39130c',
-  ///zkevm: tbd
-}
+const topic0 = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
+const FACTORY_ADDRESS = '0x01f43d2a7f4554468f77e06757e707150e39130c';
 
 type TABI = {
   [k: string]: object;
@@ -85,15 +82,15 @@ const fetch = async (timestamp: number) => {
   const toTimestamp = timestamp
   try {
     const poolLength = (await sdk.api.abi.call({
-      target: factories.kava,
-      chain: kava,
+      target: FACTORY_ADDRESS,
+      chain: 'kava',
       abi: ABIs.allPairsLength,
     })).output;
 
     const poolsRes = await sdk.api.abi.multiCall({
       abi: ABIs.allPairs,
       calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: factories.kava,
+        target: FACTORY_ADDRESS,
         params: i,
       })),
       chain: 'kava'
@@ -109,22 +106,23 @@ const fetch = async (timestamp: number) => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: kava
+          chain: 'kava'
         })
       )
     );
 
     const tokens0 = underlyingToken0.output.map((res: any) => res.output);
     const tokens1 = underlyingToken1.output.map((res: any) => res.output);
-    const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
-    const toBlock = (await getBlock(toTimestamp, 'kava', {}));
+    const fromBlock = await getBlock(fromTimestamp, 'kava' as Chain, {});
+    const toBlock = await getBlock(toTimestamp, 'kava' as Chain, {});
+
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
-      topic: topic_name,
+      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: kava,
+      chain: 'kava' as Chain,
       topics: [topic0]
     }))))
       .map((p: any) => p)
