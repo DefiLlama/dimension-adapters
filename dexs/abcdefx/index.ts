@@ -80,13 +80,13 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 };
 
 
-const fetch = async (timestamp: number, _chain: Chain) => {
+const fetch = async (timestamp: number) => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
     const poolLength = (await sdk.api.abi.call({
       target: factories.kava,
-      chain: _chain,
+      chain: kava,
       abi: ABIs.allPairsLength,
     })).output;
 
@@ -109,7 +109,7 @@ const fetch = async (timestamp: number, _chain: Chain) => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: _chain
+          chain: kava
         })
       )
     );
@@ -124,7 +124,7 @@ const fetch = async (timestamp: number, _chain: Chain) => {
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: _chain,
+      chain: kava,
       topics: [topic0]
     }))))
       .map((p: any) => p)
