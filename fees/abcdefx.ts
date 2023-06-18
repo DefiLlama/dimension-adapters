@@ -170,11 +170,11 @@ const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
-      fetch: graph(CHAIN.FANTOM),
+      fetch: fetch(CHAIN.FANTOM),
       start: async () => 1677000000,
     },
     [CHAIN.KAVA]: {
-      fetch: graph(CHAIN.ARBITRUM),
+      fetch: fetch(CHAIN.ARBITRUM),
       start: async () => 1677000000,
     }
   }
