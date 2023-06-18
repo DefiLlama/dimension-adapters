@@ -112,8 +112,8 @@ const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> 
 
     const tokens0 = underlyingToken0.output.map((res: any) => res.output);
     const tokens1 = underlyingToken1.output.map((res: any) => res.output);
-    const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
-    const toBlock = (await getBlock(toTimestamp, 'kava', {}));
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
       topic: '',
@@ -126,12 +126,12 @@ const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> 
       .map((p: any) => p)
       .map((a: any) => a.output);
 
-    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `kava:${e}`);
+    const rawCoins = [...tokens0, ...tokens1].map((e: string) => chain+`:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
     const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals = (prices[`kava:${tokens0[index]}`]?.decimals || 0)
-      const token1Decimals = (prices[`kava:${tokens1[index]}`]?.decimals || 0)
+      const token0Decimals = (prices[chain+`:${tokens0[index]}`]?.decimals || 0)
+      const token1Decimals = (prices[chain+`:${tokens1[index]}`]?.decimals || 0)
       const log: IAmount[] = logs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
         .map((p: ILog) => {
@@ -142,8 +142,8 @@ const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> 
             amount1
           } as IAmount
         }) as IAmount[];
-      const token0Price = (prices[`kava:${tokens0[index]}`]?.price || 0);
-      const token1Price = (prices[`kava:${tokens1[index]}`]?.price || 0);
+      const token0Price = (prices[chain+`:${tokens0[index]}`]?.price || 0);
+      const token1Price = (prices[chain+`:${tokens1[index]}`]?.price || 0);
 
       const feesAmount0 = log
         .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
@@ -169,8 +169,14 @@ const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> 
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.KAVA]: { fetch(CHAIN.KAVA), start: async () => 1676000000, },
-    [CHAIN.FANTOM]: { fetch(CHAIN.FANTOM), start: async () => 1676000000, },
+    [CHAIN.FANTOM]: {
+      fetch: graph(CHAIN.FANTOM),
+      start: async () => 1677000000,
+    },
+    [CHAIN.KAVA]: {
+      fetch: graph(CHAIN.ARBITRUM),
+      start: async () => 1677000000,
+    }
   }
 };
 
