@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
   data: string;
@@ -14,6 +15,7 @@ interface IAmount {
 }
 
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
+//const chains = ['fantom', 'kcc', 'echelon', 'multivac', 'kava']
 const FACTORY_ADDRESS = '0x01f43d2a7f4554468f77e06757e707150e39130c';
 
 type TABI = {
@@ -73,14 +75,14 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 };
 
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async (timestamp: number, chain: Chain): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
 
   try {
     const poolLength = (await sdk.api.abi.call({
       target: FACTORY_ADDRESS,
-      chain: 'kava',
+      chain: chain,
       abi: ABIs.allPairsLength,
     })).output;
 
@@ -90,7 +92,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         target: FACTORY_ADDRESS,
         params: i,
       })),
-      chain: 'kava'
+      chain: chain
     });
 
     const lpTokens = poolsRes.output
@@ -103,7 +105,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: 'kava'
+          chain: chain
         })
       )
     );
@@ -118,7 +120,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: 'kava',
+      chain: chain,
       topics: [topic0]
     }))))
       .map((p: any) => p)
@@ -167,10 +169,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.KAVA]: {
-      fetch,
-      start: async () => 1675000000,
-    },
+    [CHAIN.KAVA]: { fetch(CHAIN.KAVA), start: async () => 1676000000, },
+    [CHAIN.FANTOM]: { fetch(CHAIN.FANTOM), start: async () => 1676000000, },
   }
 };
 
