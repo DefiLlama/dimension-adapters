@@ -43,8 +43,8 @@ const graphs = (chain: Chain) => {
       const coins = [...new Set(graphRes.map((e: ISwap) => `${chain}:${e.pool.quote.toLowerCase()}`))]
       const prices = await getPrices(coins, todaysTimestamp);
       const dailyVolume = graphRes.map((e: ISwap) => {
-        const decimals = prices[`${chain}:${e.pool.quote.toLowerCase()}`].decimals;
-        const price = prices[`${chain}:${e.pool.quote.toLowerCase()}`].price;
+        const decimals = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.decimals || 0;
+        const price = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.price || 0;
         return (Number(e.quoteFlow.replace('-','')) / 10 ** decimals) * price
       }).reduce((a: number, b: number) => a + b, 0)
       return {
