@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetchZKEVM,
-      start: async () => 1687335466,
+      start: async () => 1687132800,
       runAtCurrTime: true
     },
   },
