@@ -2,10 +2,9 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ethers } from "ethers";
 import { getBlock } from "../helpers/getBlock";
-import { queryFlipside } from "../helpers/flipsidecrypto";
 import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { type } from "os";
+import * as sdk from "@defillama/sdk";
 
 const contract: string[] = [
   '0xcbc72d92b2dc8187414f6734718563898740c0bc',
@@ -60,20 +59,19 @@ const fetch = (chain: Chain) => {
     const toTimestamp = timestamp
     const startblock = (await getBlock(fromTimestamp, chain, {}));
     const endblock = (await getBlock(toTimestamp, chain, {}));
-    const query = `
-      SELECT TOPICS as topics, tx_hash as transactionHash, data from ${chain}.core.fact_event_logs
-      WHERE topics[0] = '0x2193aa20a3717f5f4ac79482f4f553e5f0afe8f4e6ec3e3d1aa2e138adc4763f'
-      and contract_address IN (${contract_address[chain].map(a => `'${a.toLowerCase()}'`).join(',')})
-      and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-    `
-    const value: any[] = (await queryFlipside(query));
-    const logs: ILog[] = value.map(([topics, transactionHash, data]:any) => {
-      return {
-        topics,
-        transactionHash,
-        data
-      }
-    })
+
+    const logs: ILog[][] = (await Promise.all(contract_address[chain].map((address: string) => sdk.api.util.getLogs({
+      target: address,
+      topic: '',
+      toBlock: endblock,
+      fromBlock: startblock,
+      keys: [],
+      chain: chain,
+      topics: ['0x2193aa20a3717f5f4ac79482f4f553e5f0afe8f4e6ec3e3d1aa2e138adc4763f']
+    }))))
+      .map((p: any) => p)
+      .map((a: any) => a.output).flat();
+
     const raws = logs.map((e: any) => {
       const value = contract_interface.parseLog(e);
       return {
