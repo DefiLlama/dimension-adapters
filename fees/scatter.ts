@@ -28,12 +28,13 @@ const graph = (chain: Chain) => {
       const total_amount_mint: number = Number(value[0] || 0);
       const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
       const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-      const dailyFees = total_amount_mint * ethPrice;
-      const dailyRevenue = dailyFees * 0.05;
+      const _dailyFees = total_amount_mint * ethPrice;
+      const dailyRevenue = _dailyFees * 0.05;
+      const dailyFees = dailyRevenue;
       const dailyProtocolRevenue = dailyRevenue;
       return {
         dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyRevenue}`,
+        dailyRevenue: `${dailyFees}`,
         dailyProtocolRevenue: `${dailyProtocolRevenue}`,
         timestamp
       }
