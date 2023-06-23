@@ -78,10 +78,10 @@ const adapter: Adapter = {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
       start: async () => 1669852800
     },
-    [CHAIN.FANTOM]: {
-      fetch: graph(endpoints)(CHAIN.FANTOM),
-      start: async () => 1669852800
-    },
+    // [CHAIN.FANTOM]: {
+    //   fetch: graph(endpoints)(CHAIN.FANTOM),
+    //   start: async () => 1669852800
+    // },
     [CHAIN.OPTIMISM]: {
       fetch: graph(endpoints)(CHAIN.OPTIMISM),
       start: async () => 1669852800
