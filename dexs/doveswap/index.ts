@@ -13,7 +13,7 @@ import { type } from "os";
 
 const v3Endpoints = {
   [CHAIN.POLYGON_ZKEVM]:
-    "https://api.studio.thegraph.com/query/47443/v3-test/v0.0.3/graphql",
+    "https://api.studio.thegraph.com/query/47443/v3-test/v0.0.5/graphql",
 
 };
 
