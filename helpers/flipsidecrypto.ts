@@ -3,11 +3,13 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 
 const token = {} as IJSON<string>
-const FLIPSIDE_API_KEY = process.env.FLIPSIDE_API_KEY ?? "f3b65679-a179-4983-b794-e41cf40103ed"
+const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
+let API_KEY_INDEX = 0;
 
 export async function queryFlipside(sqlQuery: string) {
   return await retry(
     async (bail) => {
+      const FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX]
       let query: undefined | AxiosResponse<any, any> = undefined
       if (!token[sqlQuery]) {
         try{
@@ -35,7 +37,15 @@ export async function queryFlipside(sqlQuery: string) {
             }
           })
           token[sqlQuery] = query?.data.result.queryRun.id
-        } catch(e){
+        } catch(e:any){
+          if(e.response.statusText === 'Payment Required'){
+            if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)){
+              API_KEY_INDEX++;
+              throw "Increasing API_KEY_INDEX";
+            } else {
+              bail(new Error(`Payment Required`))
+            }
+          }
           console.log("make query flipside", e)
           throw e
         }
