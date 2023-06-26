@@ -2580,6 +2580,18 @@ export default ([
                 ]
             }
         },
+        {
+            "id":"2952",
+            "name":"Archi Finance",
+            "addresses":{
+                "arbitrum":[
+                    "0x7674Ccf6cAE51F20d376644C42cd69EC7d4324f4",//WETHVaultProxy
+                    "0x179bD8d1d654DB8aa1603f232E284FF8d53a0688",//USDTVaultProxy
+                    "0xa7490e0828Ed39DF886b9032ebBF98851193D79c",//USDCVaultProxy
+                    "0xee54A31e9759B0F7FDbF48221b72CD9F3aEA00AB",//WBTCVaultProxy
+                ]
+            }
+        },
 
         
         
