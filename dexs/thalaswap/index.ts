@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const thalaDappURL = 'https://app.thala.fi/';
 const volumeQueryURL = `${thalaDappURL}/api/trading-volume-chart?timeframe=`;
@@ -14,6 +15,7 @@ const volumeEndpoint = (startTimestamp: number, timeframe: string) =>
 const feesEndpoint = (startTimestamp: number, timeframe: string) => 
 startTimestamp ? feesQueryURL + timeframe + `&startTimestamp=${startTimestamp}` : feesQueryURL + timeframe;
 
+const historicalEndpoint = "https://app.thala.fi/api/trading-volume-chart?startTimestamp=1680480000";
 interface IVolumeall {
   value: number;
   timestamp: string;
@@ -52,7 +54,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: async () => 1680652406 
+      start: async () => 1680480000
     },
   },
 };
