@@ -101,7 +101,9 @@ const fetch = (chain: Chain) => {
     `
 
     const value: string[] = (await queryFlipside(query)).flat();
-    const query_tx_ether = `
+    let withdrawFeesAmount = 0;
+    if (value.length !== 0) {
+      const query_tx_ether = `
       SELECT data from arbitrum.core.fact_event_logs
       WHERE topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
       and topics[2] = '0x0000000000000000000000005c84cf4d91dc0acde638363ec804792bb2108258'
@@ -109,9 +111,9 @@ const fetch = (chain: Chain) => {
       and tx_hash in (${value.map(a => `'${a.toLowerCase()}'`).join(',')})
       and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
-    const ether_tx_value: string[] = (await queryFlipside(query_tx_ether)).flat();
-    const withdrawFeesAmount: number = ether_tx_value.map((e: string) => Number(e) / 1e18).reduce((a: number, b: number) => a + b, 0)
-
+      const ether_tx_value: string[] = (await queryFlipside(query_tx_ether)).flat();
+      withdrawFeesAmount = ether_tx_value.map((e: string) => Number(e) / 1e18).reduce((a: number, b: number) => a + b, 0)
+    }
 
     const rawLogsData: number[] = logs.map((tx: ITx) => {
       const insrFinalTvl = Number('0x' + tx.data.slice(256, 320)) / 10 **  18; // 4

@@ -32,6 +32,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     chain: CHAIN.ARBITRUM
   })).output as ITx[];
   const transactionHash = [...new Set(logs.map((e:ITx) => e.transactionHash.toLowerCase()))]
+  if (transactionHash.length == 0) {
+    return {
+      dailyFees: `${0}`,
+      dailyRevenue: `${0}`,
+      timestamp
+    }
+  }
 
     const query_tx_ether = `
     SELECT contract_address, raw_amount from arbitrum.core.fact_token_transfers
