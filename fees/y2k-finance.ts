@@ -82,7 +82,7 @@ const fetch = (chain: Chain) => {
 
     const vaultRes = (await sdk.api.abi.multiCall({
       abi: abis.getVaults,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
+      calls: Array.from(Array(Number(poolLength)).keys()).map((i: any) => ({
         target: vault_factory,
         params: i,
       })),
@@ -90,13 +90,13 @@ const fetch = (chain: Chain) => {
     }))
 
     const vaults_address = vaultRes.output
-      .map(({ output }) => output).flat().map((e: string) => e.toLowerCase());
+      .map(({ output }: any) => output).flat().map((e: string) => e.toLowerCase());
 
 
     const query = `
       SELECT tx_hash from arbitrum.core.fact_event_logs
       WHERE topics[0] = '0xbbbdee62287b5bf3bee13cab60a29ad729cf38109bccbd2a986a11c99b8ca704'
-      and contract_address in (${vaults_address.map(a => `'${a.toLowerCase()}'`).join(',')})
+      and contract_address in (${vaults_address.map((a: string) => `'${a.toLowerCase()}'`).join(',')})
       and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
 
