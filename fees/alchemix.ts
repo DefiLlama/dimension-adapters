@@ -60,7 +60,7 @@ const graph = (graphUrls: ChainEndpoints) => {
         return amount;
       }).reduce((a: number, b: number) => a + b, 0);
       const dailyFee = feesAmount;
-      const dailyRevenue = dailyFee;
+      const dailyRevenue = dailyFee * 0.1;
 
       return {
         dailyFees: `${dailyFee}`,
