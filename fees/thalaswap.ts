@@ -1,6 +1,7 @@
 import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const thalaDappURL = 'https://app.thala.fi/';
 const volumeQueryURL = `${thalaDappURL}/api/trading-volume-chart?timeframe=`;
@@ -16,8 +17,8 @@ interface IVolumeall {
 }
 
 const fetch = async (timestamp: number) => {
-
-    const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data.data;
+    const dayTime = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const dayFeesQuery = (await fetchURL(feesEndpoint(dayTime, "1D")))?.data.data;
     const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
     const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data.data;
