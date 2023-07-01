@@ -7,7 +7,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange",
+    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official",
 };
 
 const methodology = {
@@ -20,7 +20,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
       const graphQuery = gql`
         {
-          dailyGlobalInfos(where: { id: "global-day-${todaysTimestamp}" }) {
+          dailyGlobalInfos(where: { timestamp: ${todaysTimestamp} }) {
             fees
           }
         }
@@ -39,7 +39,7 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1674864612,
+      start: async () => 1687806000,
       meta: {
         methodology,
       },
