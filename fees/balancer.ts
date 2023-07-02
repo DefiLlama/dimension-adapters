@@ -15,7 +15,7 @@ const v1Endpoints = {
 
 const v2Endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2",
+    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2-beta",
   [ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
   [POLYGON]:
