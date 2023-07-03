@@ -64,7 +64,6 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: getFetch(chain),
         start: async () => getStartTimestamp(chain),
-        runAtCurrTime: true
       }
     }
   }, {})
