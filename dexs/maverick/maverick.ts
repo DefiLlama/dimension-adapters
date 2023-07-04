@@ -13,6 +13,10 @@ const info: { [key: string]: any } = {
     subgraph:
       "https://api.studio.thegraph.com/query/42519/maverick-zksync-new-2/version/latest",
   },
+  [CHAIN.BSC]: {
+    subgraph:
+      "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-bnb-app",
+  },
 };
 
 const getData = async (chain: string, timestamp: number) => {
