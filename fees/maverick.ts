@@ -26,6 +26,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
+    [CHAIN.BSC]: {
+      fetch: fetchFee(CHAIN.BSC),
+      start: async () => 29241049,
+      meta: {
+        methodology,
+      },
+    },
   },
 };
 

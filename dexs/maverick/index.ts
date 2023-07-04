@@ -13,6 +13,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.ERA),
       start: async () => 1681257600,
     },
+    [CHAIN.BSC]: {
+      fetch: fetchVolume(CHAIN.BSC),
+      start: async () => 29241049,
+    },
   },
 };
 
