@@ -32,11 +32,11 @@ const v3Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
+    ProtocolRevenue: 25,
+    HoldersRevenue: 0, // Holders get no revenue directly for now because buy and burn mechanism is in place
     UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
+    SupplySideRevenue: 75, // 75% of fees are going to LPs
+    Revenue: 100 // Revenue is 100% of collected fees
   }
 });
 
