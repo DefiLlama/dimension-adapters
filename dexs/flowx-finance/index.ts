@@ -14,6 +14,9 @@ const getDailyVolume = () => {
         volume7D
         totalLiquidityInUSD
       }
+      exchangeTotalVolume {
+        totalVolume
+      }
     }
   `;
 };
@@ -21,6 +24,7 @@ const getDailyVolume = () => {
 const graphQLClient = new GraphQLClient(
   "https://api.flowx.finance/flowx-be/graphql"
 );
+
 const getGQLClient = () => {
   return graphQLClient;
 };
@@ -29,19 +33,23 @@ export interface IExchangeStats {
   fee24H: string;
   totalLiquidity: string;
   totalLiquidityInUSD: string;
-  transaction24H: number;
+  transaction24H: string;
   volume24H: string;
   volume7D: string;
 }
 
+export interface IExchangeTotalVolume {
+  totalVolume: string;
+}
+
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const historicalVolume: IExchangeStats = (
-    await getGQLClient().request(getDailyVolume())
-  ).exchangeStats;
+  const statsRes = await getGQLClient().request(getDailyVolume());
+  const historicalVolume: IExchangeStats = statsRes.exchangeStats;
+  const cumulativeVolume: IExchangeTotalVolume = statsRes.exchangeTotalVolume;
   return {
-    totalVolume: historicalVolume.totalLiquidityInUSD
-      ? historicalVolume.totalLiquidityInUSD
+    totalVolume: cumulativeVolume.totalVolume
+      ? cumulativeVolume.totalVolume
       : undefined,
     dailyVolume: historicalVolume.volume24H
       ? `${historicalVolume.volume24H}`
