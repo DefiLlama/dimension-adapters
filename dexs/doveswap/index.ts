@@ -41,9 +41,9 @@ const v3Graphs = getGraphDimensions({
 });
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
+  UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap.",
+  ProtocolRevenue: "Protocol has revenue.",
+  SupplySideRevenue: "75% of user fees are distributed among LPs.",
   HoldersRevenue: "Holders have no revenue."
 }
 
@@ -63,7 +63,7 @@ const adapter: BreakdownAdapter = {
         meta: {
           methodology: {
             ...methodology,
-            UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
+            UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap."
           }
         }
       }
