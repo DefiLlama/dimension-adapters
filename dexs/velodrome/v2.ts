@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
-import BigNumber from "bignumber.js";
 
 interface ILog {
   data: string;
@@ -76,7 +75,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 };
 
 
-const fetch = async (timestamp: number) => {
+export const fetchV2 = async (timestamp: number) => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
@@ -133,11 +132,10 @@ const fetch = async (timestamp: number) => {
       const log: IAmount[] = logs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
         .map((p: ILog) => {
-          BigNumber.config({ POW_PRECISION: 100 });
-          const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
-          const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
-          const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
-          const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
+          const amount0In = Number('0x' + p.data.slice(0, 64)).toString();
+          const amount1In = Number('0x' + p.data.slice(64, 128)).toString();
+          const amount0Out = Number('0x' + p.data.slice(128, 192)).toString();
+          const amount1Out = Number('0x' + p.data.slice(192, 256)).toString();
           return {
             amount0In,
             amount1In,
@@ -168,14 +166,3 @@ const fetch = async (timestamp: number) => {
     throw error;
   }
 }
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: async () => 1687305600,
-    },
-  }
-};
-
-export default adapter;
