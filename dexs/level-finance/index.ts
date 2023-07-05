@@ -5,23 +5,20 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/level-fi/analytics-arb",
 }
 
-const historicalDataSwap = gql`
+const historicalData = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: {period: $period, id: $id}) {
-        swap
-      }
+        total
+    }
   }
 `
 
 interface IGraphResponse {
   volumeStats: Array<{
-    burn: string,
-    liquidation: string,
-    margin: string,
-    mint: string,
-    swap: string,
+    total: string,
   }>
 }
 
@@ -53,6 +50,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.BSC]: 1670630400,
+    [CHAIN.ARBITRUM]: 1686344400,
   }
   return startTimestamps[chain]
 }
@@ -61,8 +59,12 @@ const getStartTimestamp = async (chain: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
+      fetch: getFetch(historicalData)(CHAIN.BSC),
       start: async () => getStartTimestamp(CHAIN.BSC),
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: getFetch(historicalData)(CHAIN.ARBITRUM),
+      start: async () => getStartTimestamp(CHAIN.ARBITRUM),
     }
   },
 };
