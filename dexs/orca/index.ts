@@ -1,23 +1,15 @@
 import axios from 'axios';
 import { CHAIN } from '../../helpers/chains';
 
-const endpoint = "https://api.mainnet.orca.so/v1/standard-pool/list";
 const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";
 
 async function fetch() {
-    const [pools, whirlpools] = await Promise.all([axios.get(endpoint), axios.get(wpEndpoint)]);
-    const poolsVol = Object.keys(pools.data).map((index) => {
-        return {
-            volume_24h: Number(pools.data[index].volume.day)
-        }
-    }).reduce((sum: number, pool: any) =>
-        sum + pool.volume_24h
-        , 0);
+    const [whirlpools] = await Promise.all([axios.get(wpEndpoint)]);
     const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
         sum + (pool?.volume?.day || 0)
         , 0);
     return {
-        dailyVolume: wpVol + poolsVol,
+        dailyVolume: wpVol,
         timestamp: Date.now() / 1e3
     }
 }

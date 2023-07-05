@@ -7,15 +7,18 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Adapter } from "../../adapters/types"
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/bufferfinance/buffer-mainnet",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/bufferfinance/polygon-mainnet"
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/e66b06ce96d2/bufferfinance/arbitrum-mainnet/api"
 }
 
+export function _getDayId(timestamp: number): string {
+  let dayTimestamp = Math.floor((timestamp - 16 * 3600) / 86400);
+  return dayTimestamp.toString();
+}
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+      const dateId = _getDayId(timestamp);
 
       const graphQuery = gql
       `{
@@ -49,12 +52,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1674993600 ,
+        start: async ()  => 1685654697,
     },
-    [CHAIN.POLYGON]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async ()  => 1677974400 ,
-  },
   }
 }
 
