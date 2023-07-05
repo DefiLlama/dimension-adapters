@@ -1,19 +1,18 @@
 import request, { gql } from "graphql-request";
-import { Adapter } from "../adapters/types";
-import { getBlock } from "../helpers/getBlock";
+import { Adapter } from "../../adapters/types";
+import { getBlock } from "../../helpers/getBlock";
 import {
   getTimestampAtStartOfDayUTC,
   getTimestampAtStartOfPreviousDayUTC
-} from "../utils/date";
+} from "../../utils/date";
 import BigNumber from "bignumber.js";
-import { OPTIMISM } from "../helpers/chains";
 
 const STABLE_FEES = 0.0002;
 const VOLATILE_FEES = 0.0005;
 const endpoint =
   "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
 
-const getFees = () => {
+export const fetchV1 = () => {
   return async (timestamp: number) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
@@ -66,13 +65,13 @@ const getFees = () => {
   };
 };
 
-const adapter: Adapter = {
-  adapter: {
-    [OPTIMISM]: {
-      fetch: getFees(),
-      start: async () => 1677110400, // TODO: Add accurate timestamp
-    },
-  },
-};
+// const adapter: Adapter = {
+//   adapter: {
+//     [OPTIMISM]: {
+//       fetch: getFees(),
+//       start: async () => 1677110400, // TODO: Add accurate timestamp
+//     },
+//   },
+// };
 
-export default adapter;
+// export default adapter;
