@@ -11,8 +11,8 @@ const endpoints = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/v0.0.3",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/v0.0.2",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/version/latest",
 };
 
 type TStartTime = {
