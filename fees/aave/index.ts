@@ -71,8 +71,8 @@ const v1Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+      const todaysTimestamp = timestamp
+      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
 
       const todaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -124,7 +124,7 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
           + originationFeesUSD
           + flashloanProtocolFeesUSD
       }, 0);
-      
+
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
@@ -169,8 +169,8 @@ const v2Reserves = async (graphUrls: ChainEndpoints, poolId: string, chain: stri
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+      const todaysTimestamp = timestamp
+      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
 
       let poolID = poolIDs.V2
       if (chain == "avax") {
@@ -226,25 +226,25 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
         const ammTodaysReserves: V2Reserve[] = await v2Reserves(graphUrls, ammPoolID, chain, todaysTimestamp);
         const ammYesterdaysReserves: V2Reserve[] = await v2Reserves(graphUrls, ammPoolID, chain, yesterdaysTimestamp);
-        
+
         dailyFee += ammTodaysReserves.reduce((acc: number, reserve: V2Reserve) => {
           const yesterdaysReserve = ammYesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-  
+
           if (!yesterdaysReserve) {
             return acc;
           }
-  
+
           const priceInUsd = parseFloat(reserve.priceInUsd)
-  
+
           const depositorInterest = parseFloat(reserve.lifetimeDepositorsInterestEarned) - (parseFloat(yesterdaysReserve?.lifetimeDepositorsInterestEarned) || 0);
           const depositorInterestUSD = depositorInterest * priceInUsd / (10 ** reserve.reserve.decimals);
-  
+
           const flashloanPremium = parseFloat(reserve.lifetimeFlashLoanPremium) - (parseFloat(yesterdaysReserve?.lifetimeFlashLoanPremium) || 0);
           const flashloanPremiumUSD = flashloanPremium * priceInUsd / (10 ** reserve.reserve.decimals);
-  
+
           const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
           const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-  
+
           return acc
             + depositorInterestUSD
             + flashloanPremiumUSD
@@ -253,20 +253,20 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
         dailyRev += ammTodaysReserves.reduce((acc: number, reserve: V2Reserve) => {
           const yesterdaysReserve = ammYesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-  
+
           if (!yesterdaysReserve) {
             return acc;
           }
-  
+
           const priceInUsd = parseFloat(reserve.priceInUsd)
-  
+
           const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
           const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-  
+
           return acc + reserveFactorUSD;
         }, 0);
       }
-      
+
       return {
         timestamp,
         dailyFees: dailyFee.toString(),
@@ -315,8 +315,8 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 const v3Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+      const todaysTimestamp = timestamp
+      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
 
       const todaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -370,7 +370,6 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
         treasuryIncomeUSD: 0,
         outstandingTreasuryIncomeUSD: 0
       });
-
       const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.flashloanLPPremiumUSD + feeBreakdown.portalLPFeeUSD
       const dailyRev = feeBreakdown.treasuryIncomeUSD + feeBreakdown.outstandingTreasuryIncomeUSD
 
