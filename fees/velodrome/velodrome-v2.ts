@@ -1,8 +1,8 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { FetchResultFees } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
+import { getBlock } from "../../helpers/getBlock";
+import { getPrices } from "../../utils/prices";
 import BigNumber from "bignumber.js";
 
 interface ILog {
@@ -74,7 +74,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 };
 
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+export const fetchV2 = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
@@ -153,6 +153,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const dailyFees = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
     return {
       dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyFees}`,
+      dailyHoldersRevenue: `${dailyFees}`,
       timestamp,
     };
   } catch(error) {
@@ -160,14 +162,3 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     throw error;
   }
 }
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: async () => 1687305600,
-    },
-  }
-};
-
-export default adapter;
