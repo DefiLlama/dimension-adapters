@@ -8,17 +8,17 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/level-fi/analytics-arb",
 }
 
-const historicalData = gql`
+const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: {period: $period, id: $id}) {
-        total
+        swap
     }
   }
 `
 
 interface IGraphResponse {
   volumeStats: Array<{
-    total: string,
+    swap: string,
   }>
 }
 
@@ -59,11 +59,11 @@ const getStartTimestamp = async (chain: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: getFetch(historicalData)(CHAIN.BSC),
+      fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
       start: async () => getStartTimestamp(CHAIN.BSC),
     },
     [CHAIN.ARBITRUM]: {
-      fetch: getFetch(historicalData)(CHAIN.ARBITRUM),
+      fetch: getFetch(historicalDataSwap)(CHAIN.ARBITRUM),
       start: async () => getStartTimestamp(CHAIN.ARBITRUM),
     }
   },
