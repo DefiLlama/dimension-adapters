@@ -413,10 +413,10 @@ const adapter: Adapter = {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
         start: async ()  => 1647230400
       },
-      [ARBITRUM]: {
-        fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: async ()  => 1647230400
-      },
+      // [ARBITRUM]: {
+      //   fetch: v3Graphs(v3Endpoints)(ARBITRUM),
+      //   start: async ()  => 1647230400
+      // },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
         start: async ()  => 1647230400
