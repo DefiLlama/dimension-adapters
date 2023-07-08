@@ -13,12 +13,8 @@ const info: { [key: string]: any } = {
 
 const getData = async (chain: string, timestamp: number) => {
 
-  const starDexDaytTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(1684842780 * 1000)
-  );
-  const todayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
+  const starDexDaytTimestamp = getUniqStartOfTodayTimestamp(new Date(1684842780 * 1000));
+  const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   let returnCount = 1000;
   let daySum = 0;
@@ -28,7 +24,10 @@ const getData = async (chain: string, timestamp: number) => {
     const graphQL = `{
       pairDayDatas(
           first: 1000
-          where: {date_gt: ${starDexDaytTimestamp}}
+          where: {
+            date_gte: ${starDexDaytTimestamp}
+            date_lte: ${todayTimestamp}
+          }
         ) {
           token0 {
             id
@@ -60,9 +59,7 @@ const getData = async (chain: string, timestamp: number) => {
       let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
       let price1 = prices[token1Id] === undefined ? 0 : prices[token1Id].price;
 
-      const dayMiliseconds = 24 * 60 * 60
-
-      if(dailyData.date > todayTimestamp && dailyData.date <= todayTimestamp + dayMiliseconds){
+      if(dailyData.date === todayTimestamp){
         daySum += Number(dailyData.dailyVolumeToken0) * price0;
         daySum += Number(dailyData.dailyVolumeToken1) * price1;
       }
