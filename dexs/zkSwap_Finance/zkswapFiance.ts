@@ -12,7 +12,8 @@ const info: { [key: string]: any } = {
 };
 
 const getData = async (chain: string, timestamp: number) => {
-  const starDaytTimestamp = getUniqStartOfTodayTimestamp(
+
+  const starDexDaytTimestamp = getUniqStartOfTodayTimestamp(
     new Date(1684842780 * 1000)
   );
   const todayTimestamp = getUniqStartOfTodayTimestamp(
@@ -22,14 +23,12 @@ const getData = async (chain: string, timestamp: number) => {
   let returnCount = 1000;
   let daySum = 0;
   let totalSum = 0;
-  let dayFee = 0;
-  let totalFee = 0;
   let step = 0;
   while (returnCount == 1000) {
     const graphQL = `{
       pairDayDatas(
           first: 1000
-          where: {date_gt: ${starDaytTimestamp}}
+          where: {date_gt: ${starDexDaytTimestamp}}
         ) {
           token0 {
             id
@@ -58,15 +57,18 @@ const getData = async (chain: string, timestamp: number) => {
     for (const dailyData of data.pairDayDatas) {
       const token0Id = chain + ":" + dailyData.token0.id;
       const token1Id = chain + ":" + dailyData.token1.id;
-      let aPrice = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
-      let bPrice = prices[token1Id] === undefined ? 0 : prices[token1Id].price;
-      if(dailyData.date > todayTimestamp){
-        daySum += Number(dailyData.dailyVolumeToken0) * aPrice;
-        daySum += Number(dailyData.dailyVolumeToken1) * bPrice;
+      let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
+      let price1 = prices[token1Id] === undefined ? 0 : prices[token1Id].price;
+
+      const dayMiliseconds = 24 * 60 * 60
+
+      if(dailyData.date > todayTimestamp && dailyData.date <= todayTimestamp + dayMiliseconds){
+        daySum += Number(dailyData.dailyVolumeToken0) * price0;
+        daySum += Number(dailyData.dailyVolumeToken1) * price1;
       }
 
-      totalSum += Number(dailyData.dailyVolumeToken0) * aPrice;
-      totalSum += Number(dailyData.dailyVolumeToken1) * bPrice;
+      totalSum += Number(dailyData.dailyVolumeToken0) * price0;
+      totalSum += Number(dailyData.dailyVolumeToken1) * price1;
     }
   }
 
