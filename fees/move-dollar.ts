@@ -2,11 +2,11 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const thalaDappURL = 'https://app.thala.fi/';
+const thalaDappURL = 'http://localhost:3000';
 const feesQueryURL = `${thalaDappURL}/api/protocol-fee-chart?timeframe=`;
 
-const feesEndpoint = (startTimestamp: number, timeframe: string) => 
-startTimestamp ? feesQueryURL + timeframe + `&startTimestamp=${startTimestamp}` : feesQueryURL + timeframe;
+const feesEndpoint = (endTimestamp: number, timeframe: string) => 
+endTimestamp ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}` : feesQueryURL + timeframe;
 
 interface IVolumeall {
   value: number;

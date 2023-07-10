@@ -2,17 +2,17 @@ import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const thalaDappURL = 'https://app.thala.fi/';
+const thalaDappURL = 'http://localhost:3000';
 const volumeQueryURL = `${thalaDappURL}/api/trading-volume-chart?timeframe=`;
 const feesQueryURL = `${thalaDappURL}/api/trading-fee-chart?timeframe=`;
 const protocolRatioQueryURL = `${thalaDappURL}/api/protocol-revenue-ratio`;
 
 // if we include a startTimestamp, then pass this in, else don't
-const volumeEndpoint = (startTimestamp: number, timeframe: string) => 
-    startTimestamp ? volumeQueryURL + timeframe + `&startTimestamp=${startTimestamp}` : volumeQueryURL + timeframe;
+const volumeEndpoint = (endTimestamp: number, timeframe: string) => 
+endTimestamp ? volumeQueryURL + timeframe + `&endTimestamp=${endTimestamp}` : volumeQueryURL + timeframe;
 
-const feesEndpoint = (startTimestamp: number, timeframe: string) => 
-startTimestamp ? feesQueryURL + timeframe + `&startTimestamp=${startTimestamp}` : feesQueryURL + timeframe;
+const feesEndpoint = (endTimestamp: number, timeframe: string) => 
+endTimestamp ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}` : feesQueryURL + timeframe;
 
 interface IVolumeall {
   value: number;
