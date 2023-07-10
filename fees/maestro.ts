@@ -14,6 +14,7 @@ const gasTokenId: TokenId = {
   [CHAIN.BSC]: "coingecko:binancecoin",
   [CHAIN.ARBITRUM]: "coingecko:ethereum",
 }
+
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
 
@@ -24,7 +25,7 @@ const graph = (chain: Chain) => {
       const endblock = (await getBlock(toTimestamp, chain, {}));
       const query = `
         select
-          ${chain === "bsc"?"tx_json['value']":"eth_value"}
+          ${chain === "bsc"?"BNB_VALUE":"eth_value"}
         from
           ${chain}.core.fact_transactions
         WHERE to_address = '0xcac0f1a06d3f02397cfb6d7077321d73b504916e'
@@ -33,9 +34,6 @@ const graph = (chain: Chain) => {
 
       const value: string[] = (await queryFlipside(query)).flat();
       let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
-      if(chain==="bsc"){
-        amount /= 1e18;
-      }
       const gasId = gasTokenId[chain];
       const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
       const dailyFees = (amount * gasIdPrice)

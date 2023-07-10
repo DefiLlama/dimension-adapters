@@ -7,7 +7,7 @@ const { request, gql } = require("graphql-request");
 const info: { [key: string]: any } = {
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/49271/zkswap_finance/0.0.2",
+      "https://api.studio.thegraph.com/query/49271/zkswap_finance/0.0.5",
   },
 };
 
