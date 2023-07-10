@@ -29,7 +29,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }`;
     
       const graphRes = await request(graphUrls[chain], graphQuery);
-      console.log(graphRes);
 
       const dailyFee = new BigNumber(graphRes.feeStat.fee).div(1000000);
       // const protocolRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.05);
