@@ -8,11 +8,12 @@ import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestamp24hAgo } from "../utils/date";
 import postgres from "postgres";
+import { queryFlipside } from "../helpers/flipsidecrypto";
 
 
-async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chainBlocks: ChainBlocks){
-    const todaysBlock = (await getBlock(todaysTimestamp, OPTIMISM, chainBlocks));
-    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, OPTIMISM, {}));
+async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: ChainBlocks){
+    const todaysBlock = (await getBlock(toTimestamp, OPTIMISM, chainBlocks));
+    const yesterdaysBlock = (await getBlock(fromTimestamp, OPTIMISM, {}));
 
     const graphQuery = gql
         `query txFees {
@@ -26,7 +27,22 @@ async function getFees(todaysTimestamp:number, yesterdaysTimestamp:number, chain
 
     const graphRes = await request("https://api.thegraph.com/subgraphs/name/ap0calyp/optimism-fee-withdrawn", graphQuery);
 
-    const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount)
+    const query = `
+        SELECT
+            sum(eth_value) as sum
+        from
+            optimism.core.fact_traces
+        WHERE
+            from_address in (
+                '0x420000000000000000000000000000000000001a',
+                '0x4200000000000000000000000000000000000019'
+            )
+            and to_address = '0x4200000000000000000000000000000000000010'
+            and BLOCK_NUMBER > ${yesterdaysBlock} AND BLOCK_NUMBER < ${todaysBlock}
+    `
+    const value: string[] = (await queryFlipside(query)).flat();
+    const feeWalletAndBase = new BigNumber(value[0] || '0').multipliedBy(1e18);
+    const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount).plus(feeWalletAndBase);
 
     const feeWallet = '0x4200000000000000000000000000000000000011';
     const l1FeeVault = '0x420000000000000000000000000000000000001a';
@@ -83,11 +99,11 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
     const now = new Date(timestamp * 1e3)
     const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
     try  {
-        const todaysTimestamp = timestamp
-        const yesterdaysTimestamp = getTimestamp24hAgo(timestamp)
+        const fromTimestamp = timestamp - 60 * 60 * 24
+        const toTimestamp = timestamp
 
         const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-        const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
+        const pricesObj: any = await getPrices([ethAddress], toTimestamp);
         const latestPrice = pricesObj[ethAddress]["price"]
         const sequencerGas = sql`
         SELECT
@@ -101,7 +117,7 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
             OR to_address = '\\xdfe97868233d1aa22e815a266982f2cf17685a27'::bytea) AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
         `
         const [totalFees, totalSpentBySequencer] = await Promise.all([
-            getFees(todaysTimestamp, yesterdaysTimestamp, chainBlocks),
+            getFees(toTimestamp, fromTimestamp, chainBlocks),
             sequencerGas
         ]);
         const finalDailyFee = totalFees.times(latestPrice)

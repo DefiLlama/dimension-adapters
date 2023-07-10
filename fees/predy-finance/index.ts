@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
 import type { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { formatTimestampAsDate } from "../../utils/date";
+import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
 
 const v3endpoints = {
@@ -23,19 +23,20 @@ const DIVISOR = 1e18;
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
+      const dayTime = getTimestampAtStartOfDayUTC(timestamp);
       const graphUrl = graphUrls[chain];
 
       // ETH oracle price
       const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-      const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress]
+      const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
         .price;
 
       // Set date string parmas which are used by queries
-      const todaysDateParts = formatTimestampAsDate(timestamp.toString()).split(
+      const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split(
         "/"
       );
       const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
-      const previousDateUTC = timestamp - 60 * 60 * 24;
+      const previousDateUTC = dayTime - 60 * 60 * 24;
       const previousDateParts = formatTimestampAsDate(
         previousDateUTC.toString()
       ).split("/");
@@ -302,12 +303,12 @@ const v3DailyRevenue = async (
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    v3: {
-      [CHAIN.ARBITRUM]: {
-        fetch: graphs(v3endpoints)(CHAIN.ARBITRUM),
-        start: async () => 1671092333,
-      },
-    },
+    // v3: {
+    //   [CHAIN.ARBITRUM]: {
+    //     fetch: graphs(v3endpoints)(CHAIN.ARBITRUM),
+    //     start: async () => 1671092333,
+    //   },
+    // },
     v320: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(v320endpoints)(CHAIN.ARBITRUM),

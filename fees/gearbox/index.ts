@@ -43,13 +43,6 @@ const registyContract: any = {
 type IMapDieselToken = {
   [l: string]: string;
 }
-const dieselTokenList = [
-  '0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA',
-  '0xc411dB5f5Eb3f7d552F9B8454B2D74097ccdE6E3',
-  '0xF21fc650C1B34eb0FDE786D52d23dA99Db3D6278',
-  '0xe753260F1955e8678DCeA8887759e07aa57E8c54',
-  '0x2158034dB06f06dcB9A786D2F1F8c38781bA779d'
-];
 
 const mapDieselToken: IMapDieselToken = {
   "0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA": "0x6b175474e89094c44da98b954eedeac495271d0f",
@@ -62,7 +55,9 @@ const mapDieselToken: IMapDieselToken = {
   '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
   '0x6b175474e89094c44da98b954eedeac495271d0f': '0x6b175474e89094c44da98b954eedeac495271d0f',
   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-  '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0': '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'
+  '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0': '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0',
+  '0x8a1112afef7f4fc7c066a77aabbc01b3fff31d47': '0x853d955aCEf822Db058eb8505911ED77F175b99e',
+  '0x853d955aCEf822Db058eb8505911ED77F175b99e': '0x853d955aCEf822Db058eb8505911ED77F175b99e'
 };
 
 
@@ -274,7 +269,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     } as ITx
   });
 
-  const coins = Object.values(mapDieselToken).map((address: string) => `ethereum:${address}`);
+  const coins = Object.values(mapDieselToken).map((address: string) => `ethereum:${address.toLowerCase()}`);
   const prices = await getPrices(coins, timestamp);
 
   const logHashs: string[] = logEventRepayCreditAccount
@@ -283,7 +278,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     .concat(logEventCloseCreditAccount)
     .concat(logEventReturnCreditAccount).map((e: ITx) => e.transactionHash);
   const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
-  // const token = [...new Set(logEventTranfer.map(e => e.token))] // debug check token address
+  // const token = [...new Set(logEventTranfer.map(e => e?.token))] // debug check token address
+
   const txAmountUSD: IAmount[] = logEventTranfer.filter((e: ITx) => hashEvent.includes(e.transactionHash)).map((transfer_events: ITx, _: number) => {
       if(tokenBlacklist.includes(transfer_events?.token || '')) {
         return {
@@ -294,7 +290,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       }
       const indexTokenMap = Object.keys(mapDieselToken).map((e: any) => e.toLowerCase()).findIndex((e: string) => e === transfer_events?.token);
       const token = Object.values(mapDieselToken)[indexTokenMap];
-      const { price, decimals } = prices[`ethereum:${token.toLocaleLowerCase()}`];
+      const { price, decimals } = prices[`ethereum:${token.toLowerCase()}`];
         const amount = new BigNumber(transfer_events.data).toNumber();
         return {
           amount: amount / 10 ** decimals,

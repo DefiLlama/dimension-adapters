@@ -29,7 +29,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
     return {
         dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
-        totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
+        // totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
         timestamp: dayTimestamp,
     };
 }
