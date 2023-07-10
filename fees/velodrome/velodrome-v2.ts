@@ -74,9 +74,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
 };
 
 
-export const fetchV2 = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: number): Promise<FetchResultFees> => {
   try {
     const poolLength = (await sdk.api.abi.call({
       target: FACTORY_ADDRESS,
@@ -111,8 +109,6 @@ export const fetchV2 = async (timestamp: number): Promise<FetchResultFees> => {
 
     const tokens0 = underlyingToken0.output.map((res: any) => res.output);
     const tokens1 = underlyingToken1.output.map((res: any) => res.output);
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
     const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
       topic: topic_name,
