@@ -2,7 +2,7 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const thalaDappURL = 'http://localhost:3000';
+const thalaDappURL = 'https://app.thala.fi';
 const feesQueryURL = `${thalaDappURL}/api/protocol-fee-chart?timeframe=`;
 
 const feesEndpoint = (endTimestamp: number, timeframe: string) => 
