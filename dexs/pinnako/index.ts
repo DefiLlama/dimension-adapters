@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
 }
 
 const historicalDataSwap = gql`
@@ -60,7 +60,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ZKSYNC]: 1688529600,
+    [CHAIN.ERA]: 1688529600,
   }
   return startTimestamps[chain]
 }

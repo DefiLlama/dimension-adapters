@@ -79,29 +79,28 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   })
   const dis_coin: string[] = [...new Set(query_tx_event_raw.map((e: ITransfer) => `${CHAIN.ARBITRUM}:${e.contract}`))];
   const transactionHash = [...new Set(logs.map((e:ITx) => e.transactionHash.toLowerCase()))]
-  if (transactionHash.length == 0) {
-    return {
-      dailyFees: `${0}`,
-      dailyRevenue: `${0}`,
-      timestamp
-    }
-  }
 
-  const query_tx_ether = `
+  let dailyFeesCollect = 0;
+  let ether_tx_value: any[] = [];
+  if (transactionHash.length != 0) {
+    const query_tx_ether = `
     SELECT contract_address, raw_amount from arbitrum.core.fact_token_transfers
     WHERE contract_address in ('0x912ce59144191c1204e64559fe8253a0e49e6548', '0x82af49447d8a07e3bd95bd0d56f35241523fbab1')
     and to_address = '0x5c84cf4d91dc0acde638363ec804792bb2108258'
     and tx_hash in (${transactionHash.map((a: string) => `'${a.toLowerCase()}'`).join(',')})
     and BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}
   `
-  const ether_tx_value: any[] = (await queryFlipside(query_tx_ether));
+    ether_tx_value = (await queryFlipside(query_tx_ether));
+    dailyFeesCollect = ether_tx_value.map((e: any[]) => {
+      const price = prices[`${CHAIN.ARBITRUM}:${e[0]}`].price;
+      const decimals = prices[`${CHAIN.ARBITRUM}:${e[0]}`].decimals;
+      return (Number(e[1]) / 10 ** decimals) * price;
+    }).reduce((a: number, b:number) => a + b, 0)
+  }
+
   const coins = [...new Set([...ether_tx_value.map((e: any[]) => `${CHAIN.ARBITRUM}:${e[0]}`), ...dis_coin])];
   const prices = await getPrices(coins, timestamp);
-  const dailyFeesCollect = ether_tx_value.map((e: any[]) => {
-    const price = prices[`${CHAIN.ARBITRUM}:${e[0]}`].price;
-    const decimals = prices[`${CHAIN.ARBITRUM}:${e[0]}`].decimals;
-    return (Number(e[1]) / 10 ** decimals) * price;
-  }).reduce((a: number, b:number) => a + b, 0)
+
   const disposit_fees = query_tx_event_raw.map((e: ITransfer) => {
     const price = prices[`${CHAIN.ARBITRUM}:${e.contract}`].price;
     const decimals = prices[`${CHAIN.ARBITRUM}:${e.contract}`].decimals;
