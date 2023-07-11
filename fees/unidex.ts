@@ -48,31 +48,56 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  Fees: "Fees collected from user trading fees",
+  Revenue: "Fees going to the treasury + holders",
+  HoldersRevenue: "Fees going to token holders",
+  SupplySideRevenue: "Fees going to liquidity providers of counter party pools"
+};
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
         fetch: fetch(CHAIN.OPTIMISM),
         start: async ()  => 1675382400,
+        meta: {
+          methodology
+        }
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1675382400,
+      start: async ()  => 1648792800,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.BOBA]: {
       fetch: fetch(CHAIN.BOBA),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: async ()  => 1675382400,
+      meta: {
+        methodology
+      }
     },
   }
 }
