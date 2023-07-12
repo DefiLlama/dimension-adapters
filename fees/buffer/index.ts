@@ -18,23 +18,22 @@ export function _getDayId(timestamp: number): string {
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const dayTimestamp = timestamp - 86400;
-      const dateId = _getDayId(dayTimestamp);
+      const dateId = _getDayId(timestamp);
 
       const graphQuery = gql
       `{
-        feeStat(id: ${dateId}) {
+        defillamaFeeStat(id: ${dateId}) {
           fee
         }
       }`;
     
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = new BigNumber(graphRes.feeStat.fee).div(1000000);
+      const dailyFee = new BigNumber(graphRes.defillamaFeeStat.fee).div(1000000);
       // const protocolRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.05);
       // const userHolderRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.4);
       // const supplySideRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.55);
-      const dailyRev = new BigNumber(graphRes.feeStat.fee).div(1000000);
+      const dailyRev = new BigNumber(graphRes.defillamaFeeStat.fee).div(1000000);
 
       return {
         timestamp,
