@@ -2,11 +2,11 @@ import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Adapter } from "../adapters/types";
-import { ZKSYNC } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-    [ZKSYNC]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
+    [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
 
 };
 
@@ -49,8 +49,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
     adapter: {
-        [ZKSYNC]: {
-            fetch: graphs(endpoints)(ZKSYNC),
+        [CHAIN.ZKSYNC]: {
+            fetch: graphs(endpoints)(CHAIN.ZKSYNC),
             start: async () => 1670659200,
             meta: {
                 methodology: {
