@@ -7,10 +7,18 @@ type TMarket = {
     volumeUsd24h: number;
 }
 
+type TVolume = {
+    volume_usd24h: number;
+}
+
 const fetch = (chain: string) => async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const { markets }: { markets: TMarket[] } = (await fetchURL(`https://prod.clober-api.com/${chain}/markets`)).data;
-    const dailyVolume = markets.map(market => market.volumeUsd24h).reduce((acc, cur) => acc + cur, 0)
+    let dailyVolume = markets.map(market => market.volumeUsd24h).reduce((acc, cur) => acc + cur, 0)
+    if (chain === '1101') {
+        const {result}: {result: TVolume} = (await fetchURL(`https://pathfinder.clober-api.com/status`)).data;
+        dailyVolume += result.volume_usd24h;
+    }
     return {
         dailyVolume: `${dailyVolume}`,
         timestamp: dayTimestamp,
