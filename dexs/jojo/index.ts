@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = (symbol: string) => `https://api.arbitrum.jojo.exchange/v1/klines?marketId=${symbol}&interval=1D&startTime=1681776000000&limit=500`
+const historicalVolumeEndpoint = (symbol: string) => `https://api.zksync.jojo.exchange/v1/klines?marketId=${symbol}&interval=1D&startTime=1687017600000&limit=500`
 
 const coins = {
     'ethusdc': 'coingecko:ethereum',
@@ -13,18 +13,18 @@ const coins = {
 interface IVolumeall {
     id: string;
     volume: string;
-    close: string;
     timestamp: number;
+    quoteVolume: string;
 }
 const fetch = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpoint(coins)))))
-        .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.time / 1000, volume: e.volume, id: Object.values(coins)[index], close: e.close } })).flat()
+        .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.time / 1000, volume: e.volume, id: Object.values(coins)[index], quoteVolume: e.quote_volume } })).flat()
 
     const historicalUSD = historical.map((e: IVolumeall) => {
         return {
             ...e,
-            volumeUSD: Number(e.volume) * Number(e.close)
+            volumeUSD: Number(e.quoteVolume)
         }
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
@@ -40,9 +40,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [CHAIN.ARBITRUM]: {
+        [CHAIN.ERA]: {
             fetch,
-            start: async () => 1682035200,
+            start: async () => 1687017600,
         },
     },
 };
