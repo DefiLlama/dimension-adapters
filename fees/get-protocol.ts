@@ -4,10 +4,9 @@ import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
-import { time } from "console";
 
 const protocolSubgraph =
-  "https://api.thegraph.com/subgraphs/name/efesozen7/test-e";
+  "https://api.thegraph.com/subgraphs/name/efesozen7/test-matic";
 const tokenSubgraphPolygon =
   "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-polygon";
 
@@ -22,7 +21,6 @@ const graphs = (
   return async (timestamp: number) => {
     tokenSubgraphEthereum;
     tokenSubgraphPolygon;
-    // timestamp = timestamp - 600;
     const beginningOfTheDay = getTimestampAtStartOfDayUTC(timestamp);
     const dateId = Math.floor(beginningOfTheDay / 86400);
     const block = await getBlock(timestamp, CHAIN.POLYGON, {});
@@ -45,10 +43,9 @@ const graphs = (
         }
       }
     `;
-    //update block number with "block"
     const graphQueryGETPrice = gql`
       {
-        priceOracle(id: "1", block: { number: ${35415201} }) {
+        priceOracle(id: "1", block: { number: ${block} }) {
           price
         }
       }
@@ -61,33 +58,38 @@ const graphs = (
     //GET Price in USD
     const getTokenPrice = parseFloat(graphGETPrice.priceOracle.price);
     const ethPrice = await getPrices(["coingecko:ethereum"], timestamp);
-    console.log(ethPrice);
+
     const stakingFees = graphEthFees.stakingRewards
       .concat(graphPolyFees.stakingRewards)
       .filter((reward: any) => reward.type != "FUEL_DISTRIBUTION");
 
-    const otherFeesGET = stakingFees
+    const withdrawalRedistributionPOLFeesGET = stakingFees
       .map((reward: any) => BigInt(reward.totalRewards))
       .reduce(function (result: bigint, reward: bigint) {
         return result + reward;
       }, BigInt(0));
-    const otherFeesMinusPOLGET = stakingFees
+    const withdrawalRedistributionFeesGET = stakingFees
       .filter((reward: any) => reward.type != "UNISWAP_LP_FEE")
       .map((reward: any) => BigInt(reward.totalRewards))
       .reduce(function (result: bigint, reward: bigint) {
         return result + reward;
       }, BigInt(0));
+
     //total fees
     const integratorTicketingFeesUSD =
       parseFloat(graphRevenue.protocolDay.reservedFuel) * getTokenPrice;
 
-    const otherFeesUSD = Number(otherFeesGET / BigInt(10e18)) * getTokenPrice;
+    const withdrawalRedistributionPOLFeesUSD =
+      Number(withdrawalRedistributionPOLFeesGET / BigInt(10e18)) *
+      getTokenPrice;
 
-    const otherFeesMinusPOLUSD =
-      Number(otherFeesMinusPOLGET / BigInt(10e18)) * getTokenPrice;
+    const withdrawalRedistributionFeesUSD =
+      Number(withdrawalRedistributionFeesGET / BigInt(10e18)) * getTokenPrice;
 
-    const dailyFees = integratorTicketingFeesUSD + otherFeesUSD;
-    const dailyUserFees = integratorTicketingFeesUSD + otherFeesMinusPOLUSD;
+    const dailyFees =
+      integratorTicketingFeesUSD + withdrawalRedistributionPOLFeesUSD;
+    const dailyUserFees =
+      integratorTicketingFeesUSD + withdrawalRedistributionFeesUSD;
     const dailyHoldersRevenue =
       parseFloat(graphRevenue.protocolDay.holdersRevenue) * getTokenPrice;
     const dailyProtocolRevenue =
