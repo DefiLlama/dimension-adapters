@@ -1,4 +1,4 @@
-import { Adapter } from '../../adapters/types';
+import { Adapter, Fetch, FetchResultFees } from '../../adapters/types';
 import { CHAIN, OPTIMISM } from '../../helpers/chains';
 import { fetchV1 } from './velodrome';
 import { fetchV2 } from './velodrome-v2';
@@ -6,7 +6,7 @@ import { fees_bribes } from './bribes';
 import { getBlock } from '../../helpers/getBlock';
 
 
-const getFees = async (timestamp: number) => {
+const getFees = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}));
@@ -19,6 +19,7 @@ const getFees = async (timestamp: number) => {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
     dailyHoldersRevenue: `${dailyHoldersRevenue}`,
+    dailyBribesRevenue: `${bribes}`,
     timestamp
   }
 }
