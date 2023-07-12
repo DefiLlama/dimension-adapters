@@ -6,7 +6,7 @@ import { ZKSYNC } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-    [ZKSYNC]: "https://graph.pinnako.io/subgraphs/name/ekmanss/stats",
+    [ZKSYNC]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
 
 };
 
