@@ -33,7 +33,7 @@ const fetch = (chain: Chain) => {
     const graphRes: IDTrade[] = (await request(endpoints[chain], graphQuery)).dayDatas;
     const dailyFee = Number(graphRes[0]?.cumulativeFees || 0) / 10 ** 8;
     const dailyHoldersRevenue = dailyFee * 0.35;
-    const dailyProtocolRevenue = dailyFee * 0.35;
+    const dailyProtocolRevenue = dailyFee * 0.70;
     const dailySupplySideRevenue = dailyFee * 0.3;
     return {
       dailyFees: dailyFee.toString(),
@@ -46,23 +46,42 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  Fees: "Fees collected from user trading fees",
+  Revenue: "Fees going to the treasury + holders",
+  HoldersRevenue: "Fees going to token holders",
+  SupplySideRevenue: "Fees going to liquidity providers of counter party pools"
+};
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
         fetch: fetch(CHAIN.OPTIMISM),
         start: async ()  => 1687422746,
+        meta: {
+          methodology
+        }
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
       start: async ()  => 1687422746,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
       start: async ()  => 1687422746,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
       start: async ()  => 1687898060,
+      meta: {
+        methodology
+      }
     },
   }
 }
