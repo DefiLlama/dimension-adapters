@@ -39,36 +39,38 @@ const graphs = (graphUrls: ChainEndpoints) => {
           ) / 1e30;
 
         // Get daily trading volume
-        const hourIndexes: Array<number> = [];
+        const ids: Array<string> = [];
         let latestHourIndex = Math.floor(
           getTimestampAtStartOfHour(timestamp) / HOUR
         );
         for (let i = 0; i < 24; i++) {
-          hourIndexes.push(latestHourIndex - i);
+          for (const marketStat of totalMarketStats) {
+            ids.push(`"${latestHourIndex - i}_${marketStat.id}"`);
+          }
         }
-        let last24hrVolume: number = 0;
-        for (const marketStat of totalMarketStats) {
-          const filter = hourIndexes
-            .map((h) => `"${h}_${marketStat.id}"`)
-            .join(",");
-          const last24hrVolumeQuery = gql`
+        const filter = ids.join(",");
+        // first 2400 should covers 100 markets last 24 hours
+        // which virtually covers all markets
+        const last24hrVolumeQuery = gql`
             {
-              marketHourlyStats(where: {
-                id_in: [${filter}]
-              }) {
+              marketHourlyStats(
+                first: 2400
+                where: {
+                  id_in: [${filter}]
+                }
+              ) {
                 tradingVolume
               }
             }
           `;
-          const last24hrMarketStats = (
-            await request(graphUrls[chain], last24hrVolumeQuery)
-          ).marketHourlyStats as Array<{ tradingVolume: string }>;
-          last24hrVolume +=
-            last24hrMarketStats.reduce(
-              (accum, t) => accum + parseInt(t.tradingVolume),
-              0 as number
-            ) / 1e30;
-        }
+        const last24hrMarketStats = (
+          await request(graphUrls[chain], last24hrVolumeQuery)
+        ).marketHourlyStats as Array<{ tradingVolume: string }>;
+        const last24hrVolume =
+          last24hrMarketStats.reduce(
+            (accum, t) => accum + parseInt(t.tradingVolume),
+            0 as number
+          ) / 1e30;
 
         return {
           timestamp,
