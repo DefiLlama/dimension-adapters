@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-    [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
+    [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
 
 };
 
@@ -49,8 +49,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
     adapter: {
-        [CHAIN.ZKSYNC]: {
-            fetch: graphs(endpoints)(CHAIN.ZKSYNC),
+        [CHAIN.ERA]: {
+            fetch: graphs(endpoints)(CHAIN.ERA),
             start: async () => 1670659200,
             meta: {
                 methodology: {
