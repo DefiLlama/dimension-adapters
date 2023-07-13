@@ -37,7 +37,7 @@ const getData = async (chain: string, timestamp: number) => {
   }`;
 
   const data = await request(info[chain].subgraph, graphQLTotalVolume);
-  const dexscreener = await axios.get(`https://api.dexscreener.com/latest/dex/pairs/zksync/0x7642e38867860d4512fcce1116e2fb539c5cdd21`)
+  const dexscreener = await axios.get(`https://api.dexscreener.com/latest/dex/pairs/zksync/0x7642e38867860d4512fcce1116e2fb539c5cdd21,0xf100ff84B363aF74e3FcdFF554E3dA3309159458`)
 
 
   // let token0rray = [] as string[];
@@ -91,8 +91,13 @@ const getData = async (chain: string, timestamp: number) => {
   //   }
   // }
 
+  const pairs = dexscreener.data.pairs
+  for (const pair of pairs){
+    daySum += pair.volume.h24
+  }
+
   return {
-    dailyVolume: `${dexscreener.data.pair.volume.h24}`,
+    dailyVolume: `${daySum}`,
     timestamp: todayTimestamp,
   };
 };
