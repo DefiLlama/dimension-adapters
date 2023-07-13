@@ -26,7 +26,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
           fee
         }
       }`;
-    
+
       const graphRes = await request(graphUrls[chain], graphQuery);
 
       const dailyFee = new BigNumber(graphRes.defillamaFeeStat.fee).div(1000000);
@@ -52,7 +52,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1688735879 ,
+        start: async ()  => 1674950400 ,
     },
   }
 }
