@@ -80,7 +80,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dis_coin: string[] = [...new Set(query_tx_event_raw.map((e: ITransfer) => `${CHAIN.ARBITRUM}:${e.contract}`))];
   const transactionHash = [...new Set(logs.map((e:ITx) => e.transactionHash.toLowerCase()))]
 
-  let dailyFeesCollect = 0;
+
   let ether_tx_value: any[] = [];
   if (transactionHash.length != 0) {
     const query_tx_ether = `
@@ -91,15 +91,16 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     and BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}
   `
     ether_tx_value = (await queryFlipside(query_tx_ether));
-    dailyFeesCollect = ether_tx_value.map((e: any[]) => {
-      const price = prices[`${CHAIN.ARBITRUM}:${e[0]}`].price;
-      const decimals = prices[`${CHAIN.ARBITRUM}:${e[0]}`].decimals;
-      return (Number(e[1]) / 10 ** decimals) * price;
-    }).reduce((a: number, b:number) => a + b, 0)
+
   }
 
   const coins = [...new Set([...ether_tx_value.map((e: any[]) => `${CHAIN.ARBITRUM}:${e[0]}`), ...dis_coin])];
   const prices = await getPrices(coins, timestamp);
+  const dailyFeesCollect = ether_tx_value.map((e: any[]) => {
+    const price = prices[`${CHAIN.ARBITRUM}:${e[0]}`].price;
+    const decimals = prices[`${CHAIN.ARBITRUM}:${e[0]}`].decimals;
+    return (Number(e[1]) / 10 ** decimals) * price;
+  }).reduce((a: number, b:number) => a + b, 0)
 
   const disposit_fees = query_tx_event_raw.map((e: ITransfer) => {
     const price = prices[`${CHAIN.ARBITRUM}:${e.contract}`].price;
