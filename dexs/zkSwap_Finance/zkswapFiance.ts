@@ -7,7 +7,7 @@ const { request, gql } = require("graphql-request");
 const info: { [key: string]: any } = {
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/49271/zkswap_finance/0.0.2",
+      "https://api.studio.thegraph.com/query/49271/zkswap_finance/0.0.5",
   },
 };
 
@@ -61,7 +61,7 @@ const getData = async (chain: string, timestamp: number) => {
           orderDirection: desc
           first: 1000
           skip: ${step * 1000}
-          where: {timestamp_gt: ${todayTimestamp - dayMiliseconds}, , timestamp_lt: ${todayTimestamp} }
+          where: {timestamp_gt: ${todayTimestamp}, , timestamp_lt: ${todayTimestamp + dayMiliseconds} }
         ) {
           amount0In
           amount0Out
