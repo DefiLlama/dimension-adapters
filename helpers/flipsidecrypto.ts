@@ -36,17 +36,27 @@ export async function queryFlipside(sqlQuery: string) {
               'Content-Type': 'application/json'
             }
           })
-          token[sqlQuery] = query?.data.result.queryRun.id
+          if(query?.data?.result?.queryRun?.id){
+            token[sqlQuery] = query?.data.result.queryRun.id
+          } else {
+            console.log("error query data", query?.data)
+            throw query?.data.error.message
+          }
         } catch(e:any){
-          if(e.response.statusText === 'Payment Required'){
+          if(e?.response?.statusText === 'Payment Required'){
             if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)){
-              API_KEY_INDEX++;
+              const nextIndex = FLIPSIDE_API_KEYS.findIndex(k=>k===FLIPSIDE_API_KEY) + 1
+              if(API_KEY_INDEX < nextIndex){
+                API_KEY_INDEX = nextIndex;
+              }
               throw "Increasing API_KEY_INDEX";
             } else {
-              bail(new Error(`Payment Required`))
+              const error = new Error(`Payment Required`)
+              bail(error)
+              throw error
             }
           }
-          console.log("make query flipside", e)
+          console.log("make query flipside", e.response)
           throw e
         }
       }

@@ -32,18 +32,18 @@ const v3Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
+    ProtocolRevenue: 25,
+    HoldersRevenue: 0, // Holders get no revenue directly for now because buy and burn mechanism is in place
     UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
+    SupplySideRevenue: 75, // 75% of fees are going to LPs
+    Revenue: 100 // Revenue is 100% of collected fees
   }
 });
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
+  UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap.",
+  ProtocolRevenue: "Protocol has revenue.",
+  SupplySideRevenue: "75% of user fees are distributed among LPs.",
   HoldersRevenue: "Holders have no revenue."
 }
 
@@ -63,7 +63,7 @@ const adapter: BreakdownAdapter = {
         meta: {
           methodology: {
             ...methodology,
-            UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
+            UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap."
           }
         }
       }
