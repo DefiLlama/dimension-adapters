@@ -2,6 +2,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
+import axios from "axios";
 const { request, gql } = require("graphql-request");
 
 const info: { [key: string]: any } = {
@@ -36,62 +37,62 @@ const getData = async (chain: string, timestamp: number) => {
   }`;
 
   const data = await request(info[chain].subgraph, graphQLTotalVolume);
+  const dexscreener = await axios.get(`https://api.dexscreener.com/latest/dex/pairs/zksync/0x7642e38867860d4512fcce1116e2fb539c5cdd21`)
 
 
-  let token0rray = [] as string[];
-  for (const pair of data.pairs) {
-    token0rray.push(chain + ":" + pair.token0.id);
-  }
-  let unique = [...new Set(token0rray)] as string[];
-  const prices = await getPrices(unique, todayTimestamp);
+  // let token0rray = [] as string[];
+  // for (const pair of data.pairs) {
+  //   token0rray.push(chain + ":" + pair.token0.id);
+  // }
+  // let unique = [...new Set(token0rray)] as string[];
+  // const prices = await getPrices(unique, todayTimestamp);
 
 
-  for (const pair of data.pairs) {
-    const token0Id = chain + ":" + pair.token0.id;
-    let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
+  // for (const pair of data.pairs) {
+  //   const token0Id = chain + ":" + pair.token0.id;
+  //   let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
 
-    totalSum += Number(pair.volumeToken0) * price0
-  }
-
-
-  while (returnCount == 1000) {
-    const graphQL = `{
-      swaps(
-          orderBy: id
-          orderDirection: desc
-          first: 1000
-          skip: ${step * 1000}
-          where: {timestamp_gt: ${todayTimestamp}, timestamp_lt: ${todayTimestamp + dayMiliseconds} }
-        ) {
-          amount0In
-          amount0Out
-          pair {
-            token0 {
-              id
-            }
-          }
-          timestamp
-        }
-      }`;
-
-    const data = await request(info[chain].subgraph, graphQL);
-    returnCount = data.swaps.length;
-    step++;
+  //   totalSum += Number(pair.volumeToken0) * price0
+  // }
 
 
-    for (const swap of data.swaps) {
+  // while (returnCount == 1000) {
+  //   const graphQL = `{
+  //     swaps(
+  //         orderBy: id
+  //         orderDirection: desc
+  //         first: 1000
+  //         skip: ${step * 1000}
+  //         where: {timestamp_gt: ${todayTimestamp - dayMiliseconds}, , timestamp_lt: ${todayTimestamp} }
+  //       ) {
+  //         amount0In
+  //         amount0Out
+  //         pair {
+  //           token0 {
+  //             id
+  //           }
+  //         }
+  //         timestamp
+  //       }
+  //     }`;
 
-      const token0Id = chain + ":" + swap.pair.token0.id;
-      let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
+  //   const data = await request(info[chain].subgraph, graphQL);
+  //   returnCount = data.swaps.length;
+  //   step++;
 
-      daySum += Number(swap.amount0In) * price0;
-      daySum += Number(swap.amount0Out) * price0;
-    }
-  }
+
+  //   for (const swap of data.swaps) {
+
+  //     const token0Id = chain + ":" + swap.pair.token0.id;
+  //     let price0 = prices[token0Id] === undefined ? 0 : prices[token0Id].price;
+
+  //     daySum += Number(swap.amount0In) * price0;
+  //     daySum += Number(swap.amount0Out) * price0;
+  //   }
+  // }
 
   return {
-    totalVolume: `${totalSum}`,
-    dailyVolume: `${daySum}`,
+    dailyVolume: `${dexscreener.data.pair.volume.h24}`,
     timestamp: todayTimestamp,
   };
 };
@@ -101,7 +102,6 @@ export const fetchVolume = (chain: string) => {
     const data = await getData(chain, timestamp);
 
     return {
-      totalVolume: data.totalVolume,
       dailyVolume: data.dailyVolume,
       timestamp: data.timestamp,
     };
