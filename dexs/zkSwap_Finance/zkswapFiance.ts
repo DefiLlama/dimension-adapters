@@ -61,7 +61,7 @@ const getData = async (chain: string, timestamp: number) => {
           orderDirection: desc
           first: 1000
           skip: ${step * 1000}
-          where: {timestamp_gt: ${todayTimestamp}, , timestamp_lt: ${todayTimestamp + dayMiliseconds} }
+          where: {timestamp_gt: ${todayTimestamp}, timestamp_lt: ${todayTimestamp + dayMiliseconds} }
         ) {
           amount0In
           amount0Out
