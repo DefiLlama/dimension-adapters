@@ -25,28 +25,18 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
   try {
     const query = `
       SELECT
-        output
+        to_address
       from
         optimism.core.fact_traces
       WHERE
-        block_number > 10078668
-        and type = 'CALL'
-        and tx_hash in (
-          SELECT
-            tx_hash
-          from
-            optimism.core.fact_transactions
-          WHERE
-            block_number > 10078668
-            and to_address in (
-              '0xfc1aa395ebd27664b11fc093c07e10ff00f0122c',
-              '0x7955519e14fdf498e28831f4cc06af4b8e3086a8'
-            )
-            and ORIGIN_FUNCTION_SIGNATURE = '0x6bd1a72c'
-            and status = 'SUCCESS'
-        )
+      block_number > 17505890
+      and from_address in (
+          '0xfc1aa395ebd27664b11fc093c07e10ff00f0122c',
+          '0x7955519e14fdf498e28831f4cc06af4b8e3086a8'
+      )
+      and type = 'CREATE'
     `
-    const value: string[] = [...new Set((await queryFlipside(query)).flat().map((e: string) => e.replace('0x000000000000000000000000', '0x')))];
+    const value: string[] = [...new Set((await queryFlipside(query)).flat())].filter(e => e);
     const query_split: string[] = [];
     for(let i = 0; i < value.length; i+=150) {
       const query_logs: string = `
