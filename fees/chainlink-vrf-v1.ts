@@ -65,23 +65,12 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
 
-let chainBlocksStore: IJSON<ChainBlocks> | undefined = undefined
-
 const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
-    if (!chainBlocksStore)
-      chainBlocksStore = {
-        [timestamp]: chainBlocks
-      }
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-    if (!chainBlocksStore[todaysTimestamp])
-      chainBlocksStore[todaysTimestamp] = {}
-    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
-    if (!chainBlocksStore[yesterdaysTimestamp])
-      chainBlocksStore[yesterdaysTimestamp] = {}
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
+  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
+    const fromTimestamp = timestamp - 60 * 60 * 24
+    const toTimestamp = timestamp
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
     const logs_1: ITx[] = (await getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       topic: '',
@@ -102,8 +91,9 @@ const fetch = (chain: Chain, version: number) => {
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const provider = getProvider(chain);
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all([...logs_1, ...logs_2].map(async (e: ITx) =>
-      provider.getTransactionReceipt(e.transactionHash)
+    const tx_hash: string[] = [...new Set([...logs_1, ...logs_2].map((e: ITx) => e.transactionHash))]
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
+      provider.getTransactionReceipt(transactionHash)
     ).map(p => p.catch(() => undefined))))
       .map((e: any) => {
         if (!e) return
