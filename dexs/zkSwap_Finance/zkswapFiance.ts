@@ -16,7 +16,7 @@ const getData = async (chain: string, timestamp: number) => {
   const starDexDaytTimestamp = getUniqStartOfTodayTimestamp(
     new Date(1684842780 * 1000)
   );
-  const todayTimestamp = getUniqStartOfTodayTimestamp(
+  const startDayTimestamp = getUniqStartOfTodayTimestamp(
     new Date(timestamp * 1000)
   );
 
@@ -43,7 +43,7 @@ const getData = async (chain: string, timestamp: number) => {
     token0rray.push(chain + ":" + pair.token0.id);
   }
   let unique = [...new Set(token0rray)] as string[];
-  const prices = await getPrices(unique, todayTimestamp);
+  const prices = await getPrices(unique, startDayTimestamp);
 
 
   for (const pair of data.pairs) {
@@ -61,7 +61,7 @@ const getData = async (chain: string, timestamp: number) => {
           orderDirection: desc
           first: 1000
           skip: ${step * 1000}
-          where: {timestamp_gt: ${todayTimestamp - dayMiliseconds}, , timestamp_lt: ${todayTimestamp} }
+          where: {timestamp_gt: ${startDayTimestamp}, timestamp_lt: ${startDayTimestamp + dayMiliseconds} }
         ) {
           amount0In
           amount0Out
@@ -92,7 +92,7 @@ const getData = async (chain: string, timestamp: number) => {
   return {
     totalVolume: `${totalSum}`,
     dailyVolume: `${daySum}`,
-    timestamp: todayTimestamp,
+    timestamp: startDayTimestamp,
   };
 };
 
