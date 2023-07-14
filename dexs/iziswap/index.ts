@@ -19,7 +19,7 @@ type TChains = {
 
 const chains: TChains =  {
   [CHAIN.BSC]: 56,
-  [CHAIN.ZKSYNC]: 324,
+  [CHAIN.ERA]: 324,
 };
 
 const fetch = (chain: Chain) => {
@@ -55,10 +55,10 @@ const adapter: SimpleAdapter = {
       start: () => getStartTimestamp(chains[CHAIN.BSC]),
       customBackfill: customBackfill(CHAIN.BSC as Chain, fetch)
     },
-    [CHAIN.ZKSYNC]: {
-      fetch: fetch(CHAIN.ZKSYNC),
-      start: () => getStartTimestamp(chains[CHAIN.ZKSYNC]),
-      customBackfill: customBackfill(CHAIN.ZKSYNC as Chain, fetch)
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
+      start: () => getStartTimestamp(chains[CHAIN.ERA]),
+      customBackfill: customBackfill(CHAIN.ERA as Chain, fetch)
     },
   },
 };
