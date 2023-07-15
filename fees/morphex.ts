@@ -1,10 +1,14 @@
 import { Adapter } from "../adapters/types";
-import { FANTOM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoint =
-  "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats";
+const endpoints: { [key: string]: string } = {
+  [CHAIN.FANTOM]:
+    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats",
+  [CHAIN.BSC]:
+    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
+};
 
 const methodology = {
   Fees: "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
@@ -17,7 +21,7 @@ const methodology = {
   ProtocolRevenue: "10% of all collected fees are distributed to the treasury",
 };
 
-const graphs = async (timestamp: number) => {
+const graphs = (chain: string) => async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
@@ -30,7 +34,7 @@ const graphs = async (timestamp: number) => {
         }
       }`;
 
-  const graphRes = await request(endpoint, graphQuery);
+  const graphRes = await request(endpoints[chain], graphQuery);
 
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
@@ -56,9 +60,16 @@ const graphs = async (timestamp: number) => {
 
 const adapter: Adapter = {
   adapter: {
-    [FANTOM]: {
-      fetch: graphs,
+    [CHAIN.FANTOM]: {
+      fetch: graphs(CHAIN.FANTOM),
       start: async () => 1677883020,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.BSC]: {
+      fetch: graphs(CHAIN.BSC),
+      start: async () => 1686783600,
       meta: {
         methodology,
       },
