@@ -1,10 +1,10 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { FetchResultFees } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
+import { getPrices } from "../../utils/prices";
+import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { queryFlipside } from "../helpers/flipsidecrypto";
+import { queryFlipside } from "../../helpers/flipsidecrypto";
 
 const topic0 = '0x4c48fdcd7e3cb84b81aa54aa5dd04105736ae1bc179d84611c6fa5a642e803f2';
 
@@ -135,21 +135,4 @@ const fetch = (chain: Chain) => {
   }
 }
 
-const methodology = {
-  Fees: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees" ,
-  Revenue: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees",
-}
-
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1675382400,
-      meta: {
-        methodology
-      }
-    },
-  }
-}
-
-export default adapter;
+export default fetch;

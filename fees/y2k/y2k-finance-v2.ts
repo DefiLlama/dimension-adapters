@@ -1,9 +1,9 @@
-import { Adapter, FetchResultFees } from "../adapters/types"
-import { CHAIN } from "../helpers/chains";
+import { FetchResultFees } from "../../adapters/types"
+import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { queryFlipside } from "../helpers/flipsidecrypto";
-import { getPrices } from "../utils/prices";
+import { getBlock } from "../../helpers/getBlock";
+import { queryFlipside } from "../../helpers/flipsidecrypto";
+import { getPrices } from "../../utils/prices";
 import { ethers } from "ethers";
 
 
@@ -116,14 +116,4 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 
-
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: async ()  => 1685404800,
-    },
-  }
-}
-
-export default adapter;
+export default fetch;
