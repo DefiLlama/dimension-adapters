@@ -104,8 +104,6 @@ const fetch = (chain: Chain) => {
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock})
       and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
-    console.log(query_tx_event_deposit);
-
     const query_tx_event_raw: ITransfer[] = (await queryFlipside(query_tx_event_deposit)).map(([data, contract_address]: [string, string]) => {
       return {
         contract: contract_address,

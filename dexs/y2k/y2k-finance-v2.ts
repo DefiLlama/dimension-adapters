@@ -60,8 +60,6 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     and BLOCK_NUMBER > ${fromBlock} AND BLOCK_NUMBER < ${toBlock}
   `
 
-  console.log(query_tx_event_deposit);
-
   const query_tx_event_raw: ITransfer[] = (await queryFlipside(query_tx_event_deposit)).map(([data, contract_address]: [string, string]) => {
     return {
       contract: contract_address,
