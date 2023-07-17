@@ -42,22 +42,17 @@ const fetch = (chain: Chain) => {
   }
 };
 
-const getStartTimestamp = async (chain_id: number) => {
-  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chain_id)))?.data.data;
-  const historicalVolume = historical.filter(e => e.chainId === chain_id);
-  return (new Date(historicalVolume[historicalVolume.length - 1].timestamp).getTime());
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: () => getStartTimestamp(chains[CHAIN.BSC]),
+      start: async  () => 1680739200,
       customBackfill: customBackfill(CHAIN.BSC as Chain, fetch)
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: () => getStartTimestamp(chains[CHAIN.ERA]),
+      start: async  () => 1680739200,
       customBackfill: customBackfill(CHAIN.ERA as Chain, fetch)
     },
   },
