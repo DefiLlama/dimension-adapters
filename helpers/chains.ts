@@ -109,7 +109,8 @@ export enum CHAIN {
   EVMOS = "evmos",
   PULSECHAIN = "pulse",
   ONUS = "onus",
-  OASIS = "oasis"
+  OASIS = "oasis",
+  MANTLE = "mantle"
 }
 
 // Don´t use
