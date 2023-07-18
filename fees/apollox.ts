@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
@@ -24,7 +24,7 @@ interface ILog {
 
 const address = '0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0'
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
 
