@@ -50,7 +50,6 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     tokenToVaults[e.underlyingAsset].push(e.collateral);
   })
   const tokens: string[] = [...new Set(underlyings)];
-  console.log(tokens);
 
   let dailyVolume = 0;
   for (const token of tokens) {
