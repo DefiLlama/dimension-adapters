@@ -16,6 +16,12 @@ type TPrice = {
     decimals: number
   };
 }
+type IToken = {
+  [s: string | Chain]: string;
+}
+const tokens: IToken = {
+  [CHAIN.ETHEREUM]: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+}
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -31,14 +37,19 @@ const fetch = (chain: Chain) => {
       const query =`
         SELECT
           data,
-          contract_address
+          contract_address,
+          tx_hash
         from
           ${chain}.core.fact_event_logs
         WHERE
           BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+          and contract_address in ('${tokens[chain]}')
           and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
           and topics[2] = '0x00000000000000000000000004bda42de3bc32abb00df46004204424d4cf8287'
+          and ORIGIN_FUNCTION_SIGNATURE = '0xcdd1b25d'
       `;
+      // 0xcdd1b25d - replay
+      // 0x3593564c - ex
 
 
       const logs: [string, string][] = (await queryFlipside(query))
@@ -89,15 +100,7 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
         start: async ()  => 1672531200,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1672531200,
-    },
-    // [CHAIN.POLYGON]: {
-    //   fetch: fetch(CHAIN.POLYGON),
-    //   start: async ()  => 1672531200,
-    // },
+    }
   },
 
 }
