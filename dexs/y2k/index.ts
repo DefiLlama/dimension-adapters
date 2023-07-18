@@ -3,10 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import v1Fetch from "./y2k-finance";
 import v2Fetch from "./y2k-finance-v2";
 
-const methodology = {
-  Fees: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees",
-  Revenue: "5% of Hedge Vault deposits, 5% of Risk Vault deposits upon a depeg event and withdraw fees",
-};
 
 const adapter: Adapter = {
   breakdown: {
@@ -14,9 +10,6 @@ const adapter: Adapter = {
       [CHAIN.ARBITRUM]: {
         fetch: v1Fetch(CHAIN.ARBITRUM),
         start: async () => 1675382400,
-        meta: {
-          methodology,
-        },
       },
     },
     v2: {
