@@ -3,14 +3,14 @@ import { CHAIN } from '../../helpers/chains';
 
 const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";
 
-async function fetch() {
+async function fetch(timestamp: number) {
     const [whirlpools] = await Promise.all([axios.get(wpEndpoint)]);
     const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
         sum + (pool?.volume?.day || 0)
         , 0);
     return {
         dailyVolume: wpVol,
-        timestamp: Date.now() / 1e3
+        timestamp: timestamp
     }
 }
 
@@ -19,7 +19,7 @@ export default {
         [CHAIN.SOLANA]: {
             fetch: fetch,
             runAtCurrTime: true,
-            start: async () => 0,
+            start: async () => 1663113600,
         }
     }
 }
