@@ -30,8 +30,8 @@ export const getFees = async (
 
   let dailyFees = 0;
   for (const token of tokens) {
-    const price = prices[`${CHAIN.ARBITRUM}:${token}`].price;
-    const decimals = prices[`${CHAIN.ARBITRUM}:${token}`].decimals;
+    const price = prices[`${CHAIN.ARBITRUM}:${token}`]?.price || 0;
+    const decimals = prices[`${CHAIN.ARBITRUM}:${token}`]?.decimals || 0;
     for (const vault of vaults) {
       const logs_transfer_treasury: ITx[] = (
         await sdk.api.util.getLogs({
