@@ -85,8 +85,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     }))))
       .map((p: any) => p)
       .map((a: any) => a.output).flat();
-
-    const logs_liq: ILog[] = (await Promise.all(contracts.map((address: string) => sdk.api.util.getLogs({
+    const contract_active: string[] = [...new Set(logs_modify.map((e: ILog) => e.address))]
+    const logs_liq: ILog[] = (await Promise.all(contract_active.map((address: string) => sdk.api.util.getLogs({
         target: address,
         topic: '',
         toBlock: toBlock,
@@ -97,6 +97,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       }))))
         .map((p: any) => p)
         .map((a: any) => a.output).flat();
+
     const tradeVolume = logs_modify.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
       const tradeSize = Number(value.args.tradeSize._hex.replace('-', '')) / 10 ** 18;
