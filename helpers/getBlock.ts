@@ -37,6 +37,10 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${timestamp}`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.height)));
+        if (chain === CHAIN.LINEA)
+            block = Number((await retry(async () => (await axios.get("https://explorer.linea.build/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before").catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
         else
             block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
