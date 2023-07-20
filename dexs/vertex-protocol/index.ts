@@ -57,7 +57,25 @@ const computeVolume = async (timestamp: number, productIds: number[]) => {
       0
     );
   const dailyVolume = volume / 10 ** 18;
+  const cumulativeVolumes: Record<string, string> = (
+    await axios.post(`${baseUrl}/indexer`, {
+      market_snapshots: {
+        interval: {
+          count: 1,
+          granularity: 3600,
+        },
+        product_ids: productIds,
+      },
+    })
+  ).data.snapshots[0].cumulative_volumes;
+  const totalVolume = Number(
+    Object.values(cumulativeVolumes).reduce(
+      (acc, current) => acc + BigInt(current),
+      BigInt(0)
+    ) / BigInt(10 ** 18)
+  );
   return {
+    totalVolume: totalVolume ? `${totalVolume}` : undefined,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: timestamp,
   };
