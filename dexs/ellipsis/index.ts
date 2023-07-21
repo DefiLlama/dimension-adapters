@@ -1,18 +1,18 @@
 import { SimpleAdapter } from "../../adapters/types";
 
-import fetchURL from "../../utils/fetchURL"
+import fetchURL from "../../utils/fetchURL";
 
 const endpoints: { [chain: string]: string } = {
   bsc: "https://api.ellipsis.finance/api/getAll",
 };
 
 interface IAPIResponse {
-  success: boolean
+  success: boolean;
   getVolume: {
-    total: string,
-    day: string,
-    generatedTimeMs: number
-  }
+    total: string;
+    day: string;
+    generatedTimeMs: number;
+  };
 }
 
 const fetch = (chain: string) => async () => {
@@ -31,9 +31,9 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: fetch(chain),
         start: async () => 0,
-        runAtCurrTime: true
-      }
-    }
-  }, {})
+        runAtCurrTime: true,
+      },
+    };
+  }, {}),
 };
 export default adapter;

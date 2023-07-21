@@ -3,25 +3,26 @@ import { Adapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from "@defillama/sdk/build/general";
 import customBackfill from "../../helpers/customBackfill";
 import { getPrices } from "../../utils/prices";
 const { request, gql } = require("graphql-request");
 
-const info: {[key: string]: any} = {
+const info: { [key: string]: any } = {
   polygon: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/polygon-v1',
+    subgraph: "https://api.thegraph.com/subgraphs/name/synfutures/polygon-v1",
   },
   ethereum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/ethereum-v1',
+    subgraph: "https://api.thegraph.com/subgraphs/name/synfutures/ethereum-v1",
   },
   bsc: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/bsc-v1',
+    subgraph: "https://api.thegraph.com/subgraphs/name/synfutures/bsc-v1",
   },
   arbitrum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/arbitrum-one-v1',
+    subgraph:
+      "https://api.thegraph.com/subgraphs/name/synfutures/arbitrum-one-v1",
   },
-}
+};
 
 interface DailyVolume {
   timestamp: number;
@@ -35,9 +36,11 @@ export function dayIdFromTimestamp(timestamp: number): number {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
-    const totdayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const totdayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1000)
+    );
     const endDayId = dayIdFromTimestamp(totdayTimestamp);
-  
+
     const graphQL = `{
       quoteDataDailySnapshots(first: 1000, where: {dayId: ${endDayId}}) {
         id
@@ -54,9 +57,10 @@ const fetch = (chain: Chain) => {
 
     let sum = 0;
     for (const dailyData of data.quoteDataDailySnapshots) {
-      const tokenId = chain+':'+dailyData.quote.id;
+      const tokenId = chain + ":" + dailyData.quote.id;
       const prices = await getPrices([tokenId], totdayTimestamp);
-      sum += Number(dailyData.dayTradeVolume) / 10 ** 18 * prices[tokenId].price;
+      sum +=
+        (Number(dailyData.dayTradeVolume) / 10 ** 18) * prices[tokenId].price;
     }
 
     return {
@@ -64,7 +68,7 @@ const fetch = (chain: Chain) => {
       dailyVolume: `${sum}`,
       timestamp: totdayTimestamp,
     };
-  }
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -84,10 +88,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: async () => 1628128417,
-    },    
+    },
   },
 };
 
 export default adapter;
-
-
