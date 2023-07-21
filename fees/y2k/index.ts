@@ -13,7 +13,7 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ARBITRUM]: {
         fetch: v1Fetch(CHAIN.ARBITRUM),
-        start: async () => 1675382400,
+        start: async () => 1667088000,
         meta: {
           methodology,
         },
