@@ -32,7 +32,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const amountHETH = Number('0x' + tx.data.slice(64, 128)) / 10 **  18;
     const amountETHForMintingCalc = Number('0x' + tx.data.slice(128, 192)) / 10 **  18;
     const diffExecLayerRewardsForFeelCalc = Number('0x' + tx.data.slice(192, 256)) / 10 **  18;
-    return amountHETH + amountETHForMintingCalc;
+    return amountHETH;
   }).reduce((a: number, b: number) => a + b, 0);
 
   const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
