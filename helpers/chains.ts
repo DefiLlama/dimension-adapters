@@ -111,8 +111,9 @@ export enum CHAIN {
   ONUS = "onus",
   OASIS = "oasis",
   MANTLE = "mantle",
-  ICP="icp",
-  LINEA = "linea"
+  ICP = "icp",
+  LINEA = "linea",
+  NEON = "neon",
 }
 
 // Don´t use
@@ -131,7 +132,7 @@ const POLYGON = "polygon";
 const RONIN = "ronin";
 const XDAI = "xdai";
 const AURORA = "aurora";
-const MOONRIVER = "moonriver"
+const MOONRIVER = "moonriver";
 const BITCOIN = "bitcoin";
 const LITECOIN = "litecoin";
 const DOGE = "doge";
@@ -157,5 +158,5 @@ export {
   MOONRIVER,
   BITCOIN,
   LITECOIN,
-  DOGE
+  DOGE,
 };
