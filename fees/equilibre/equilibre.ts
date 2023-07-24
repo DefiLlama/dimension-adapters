@@ -65,7 +65,7 @@ export const fetchV1 = () => {
 
 // const adapter: Adapter = {
 //   adapter: {
-//     [OPTIMISM]: {
+//     [KAVA]: {
 //       fetch: getFees(),
 //       start: async () => 1677110400, // TODO: Add accurate timestamp
 //     },

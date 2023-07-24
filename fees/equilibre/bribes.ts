@@ -33,7 +33,7 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
       toBlock: toBlock,
       topic: '',
       topics: [topic0_geuge_created],
-      chain: CHAIN.OPTIMISM,
+      chain: CHAIN.KAVA,
       keys: []
     })).output as ILog[];
     const bribes_contract: string[] = logs_geuge_created.map((e: ILog) => {
@@ -47,7 +47,7 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: CHAIN.OPTIMISM,
+      chain: CHAIN.KAVA,
       topics: ['0x52977ea98a2220a03ee9ba5cb003ada08d394ea10155483c95dc2dc77a7eb24b']
     }))))
       .map((p: any) => p)
@@ -60,11 +60,11 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
         amount: Number(value.args.amount._hex)
       } as IBribes
     })
-    const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`))]
+    const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.KAVA}:${e.token.toLowerCase()}`))]
     const prices = await getPrices(coins, timestamp);
     const fees_bribes_usd = logs_bribes.map((e: IBribes) => {
-      const price = prices[`${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`]?.price || 0;
-      const decimals = prices[`${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`]?.decimals || 0;
+      const price = prices[`${CHAIN.KAVA}:${e.token.toLowerCase()}`]?.price || 0;
+      const decimals = prices[`${CHAIN.KAVA}:${e.token.toLowerCase()}`]?.decimals || 0;
       return (Number(e.amount) / 10 ** decimals) * price;
     }).reduce((a: number, b: number) => a+b, 0);
     return fees_bribes_usd;
