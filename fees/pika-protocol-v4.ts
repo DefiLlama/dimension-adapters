@@ -121,7 +121,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1658534400,
+      start: async () => 1687910400,
     },
   },
 };
