@@ -1,6 +1,5 @@
 import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain, getProvider } from "@defillama/sdk/build/general";
@@ -41,23 +40,12 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
 
-let chainBlocksStore: IJSON<ChainBlocks> | undefined = undefined
-
 const fetchKeeper = (chain: Chain) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
-    if (!chainBlocksStore)
-      chainBlocksStore = {
-        [timestamp]: chainBlocks
-      }
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-    if (!chainBlocksStore[todaysTimestamp])
-      chainBlocksStore[todaysTimestamp] = {}
-    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
-    if (!chainBlocksStore[yesterdaysTimestamp])
-      chainBlocksStore[yesterdaysTimestamp] = {}
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
+  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
+    const fromTimestamp = timestamp - 60 * 60 * 24
+    const toTimestamp = timestamp
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
     const logs: ITx[] = (await getLogs({
       target: address_keeper[chain],
       topic: '',
@@ -69,8 +57,9 @@ const fetchKeeper = (chain: Chain) => {
     })).output.map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
       .filter((e: ITx) => e.topics.includes(success_topic));
     const provider = getProvider(chain);
+    const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
     const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : ((await Promise.all(
-      logs.map((e: ITx) => retry(() => provider.getTransactionReceipt(e.transactionHash), { retries: 3 })
+      tx_hash.map((transactionHash: string) => retry(() => provider.getTransactionReceipt(transactionHash), { retries: 3 })
       ).map(p => p.catch(() => undefined)))))
       .map((e: any) => {
         const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18

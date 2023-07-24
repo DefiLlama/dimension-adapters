@@ -1,19 +1,40 @@
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL"
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const endpoints = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/0xhans1/metropolis-v2",
+const historicalVolumeEndpoint = "https://api.swapline.com/api/v1/protocol-chartdata?aggregate=true"
+
+interface IVolumeall {
+  volumeUSD: number;
+  date: number;
+}
+
+const fetch = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const totalVolume = historicalVolume
+    .filter(volItem => volItem.date <= dayTimestamp)
+    .reduce((acc, { volumeUSD }) => acc + Number(volumeUSD), 0)
+
+  const dailyVolume = historicalVolume
+    .find(dayItem =>  dayItem.date  === dayTimestamp)?.volumeUSD
+
+  return {
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    timestamp: dayTimestamp,
+  };
 };
 
-const adapter = univ2Adapter(endpoints, {
-  factoriesName: "lbfactories",
-  dayData: "traderJoeDayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "volumeUSD",
-  dailyVolumeTimestampField: "date"
-});
 
-// setting start time to day metropolis adapter was disabled + started tracking swapline
-// after swapline acquisition of metropolis
-adapter.adapter.fantom.start = async () => 1680048000;
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.FANTOM]: {
+      fetch,
+      start: async () => 1680048000,
+    },
+  },
+};
+
 export default adapter;

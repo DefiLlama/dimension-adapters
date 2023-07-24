@@ -3,15 +3,18 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 
 const token = {} as IJSON<string>
-const FLIPSIDE_API_KEY = process.env.FLIPSIDE_API_KEY ?? "f3b65679-a179-4983-b794-e41cf40103ed"
+const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
+let API_KEY_INDEX = 0;
+const MAX_RETRIES = 20;
 
 export async function queryFlipside(sqlQuery: string) {
   return await retry(
-    async (bail) => {
+    async (bail, attempt: number) => {
+      const FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX]
       let query: undefined | AxiosResponse<any, any> = undefined
       if (!token[sqlQuery]) {
         try{
-          query = await axios.post("https://api-v2.flipsidecrypto.xyz/json-rpc", 
+          query = await axios.post("https://api-v2.flipsidecrypto.xyz/json-rpc",
           {
             "jsonrpc": "2.0",
             "method": "createQueryRun",
@@ -34,9 +37,27 @@ export async function queryFlipside(sqlQuery: string) {
               'Content-Type': 'application/json'
             }
           })
-          token[sqlQuery] = query?.data.result.queryRun.id
-        } catch(e){
-          console.log("make query flipside", e)
+          if(query?.data?.result?.queryRun?.id){
+            token[sqlQuery] = query?.data.result.queryRun.id
+          } else {
+            console.log("error query data", query?.data)
+            throw query?.data.error.message
+          }
+        } catch(e:any){
+          if(e?.response?.statusText === 'Payment Required'){
+            if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)){
+              const nextIndex = FLIPSIDE_API_KEYS.findIndex(k=>k===FLIPSIDE_API_KEY) + 1
+              if(API_KEY_INDEX < nextIndex){
+                API_KEY_INDEX = nextIndex;
+              }
+              throw "Increasing API_KEY_INDEX";
+            } else {
+              const error = new Error(`Payment Required`)
+              bail(error)
+              throw error
+            }
+          }
+          console.log("make query flipside", e.response)
           throw e
         }
       }
@@ -102,11 +123,28 @@ export async function queryFlipside(sqlQuery: string) {
         console.log(`Flipside query ${sqlQuery} failed`, queryStatus.data)
         bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus.data)}`))
         return []; // not returned but just there to make typescript happy
+      } else if (status ===  "QUERY_STATE_RUNNING" && (attempt === MAX_RETRIES)) {
+        console.log(`Flipside queryRunId ${token[sqlQuery]} still run will cancel!!`)
+        await axios.post(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
+          "jsonrpc": "2.0",
+          "method": "cancelQueryRun",
+          "params": [
+              {
+                "queryRunId": token[sqlQuery]
+              }
+          ],
+          "id": 1
+        }, {
+          headers: {
+            "x-api-key": FLIPSIDE_API_KEY
+          }
+        })
+        bail(new Error('max retries exceeded'))
       }
       throw new Error("Still running")
     },
     {
-      retries: 20,
+      retries: MAX_RETRIES,
       maxTimeout: 1000 * 60 * 5
     }
   );

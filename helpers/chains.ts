@@ -70,11 +70,11 @@ export enum CHAIN {
   FUNCTIONX = "functionx",
   ENERGYWEB = "energyweb",
   MIXIN = "mixin",
-  THORCHAIN ="thorchain",
+  THORCHAIN = "thorchain",
   MILKOMEDA = "milkomeda",
   FLOW = "flow",
   FUSION = "fusion",
-  CANTO="canto",
+  CANTO = "canto",
   APTOS = "aptos",
   NEO = "neo",
   PHANTASMA = "phantasma",
@@ -94,7 +94,7 @@ export enum CHAIN {
   OBYTE = "obyte",
   CORE = "core",
   RPG = "rpg",
-  WEMIX="wemix",
+  WEMIX = "wemix",
   ZKSYNC = "zksync",
   ERA = "era",
   DFK = "dfk",
@@ -108,7 +108,11 @@ export enum CHAIN {
   SUI = "sui",
   EVMOS = "evmos",
   PULSECHAIN = "pulse",
-  ONUS = "onus"
+  ONUS = "onus",
+  OASIS = "oasis",
+  MANTLE = "mantle",
+  ICP="icp",
+  LINEA = "linea"
 }
 
 // Don´t use
@@ -131,9 +135,10 @@ const MOONRIVER = "moonriver"
 const BITCOIN = "bitcoin";
 const LITECOIN = "litecoin";
 const DOGE = "doge";
-
+const ZKSYNC = "zksync";
 // Don't use
 export {
+  ZKSYNC,
   ARBITRUM,
   AVAX,
   BOBA,

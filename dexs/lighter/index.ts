@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 var lighterVolumeEndpoint =
-  "https://mensa.elliot.ai/volume?blockchain_id=42161";
+  "https://api.lighter.xyz/volume?blockchain_id=42161";
 
 interface IVolumeall {
   totalVolume: number;

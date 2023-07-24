@@ -7,30 +7,33 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Adapter } from "../../adapters/types"
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/bufferfinance/buffer-mainnet",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/bufferfinance/polygon-mainnet"
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/e66b06ce96d2/bufferfinance/arbitrum-mainnet/api"
 }
 
+export function _getDayId(timestamp: number): string {
+  let dayTimestamp = Math.floor((timestamp - 16 * 3600) / 86400);
+  return dayTimestamp.toString();
+}
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+      const dateId = _getDayId(timestamp);
 
       const graphQuery = gql
       `{
-        dailyRevenueAndFee(id: ${dateId}) {
-          totalFee
-          settlementFee
+        defillamaFeeStat(id: ${dateId}) {
+          fee
         }
       }`;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
-      const dailyFee = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
+
+      const dailyFee = new BigNumber(graphRes.defillamaFeeStat.fee).div(1000000);
       // const protocolRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.05);
       // const userHolderRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.4);
       // const supplySideRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000).times(0.55);
-      const dailyRev = new BigNumber(graphRes.dailyRevenueAndFee.settlementFee).div(1000000);
+      const dailyRev = new BigNumber(graphRes.defillamaFeeStat.fee).div(1000000);
 
       return {
         timestamp,
@@ -49,12 +52,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1674993600 ,
+        start: async ()  => 1674950400 ,
     },
-    [CHAIN.POLYGON]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async ()  => 1677974400 ,
-  },
   }
 }
 

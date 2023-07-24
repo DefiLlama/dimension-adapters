@@ -6,7 +6,7 @@ import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
-const historicalVolumeEndpoint = (chain_id: number) => `https://izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000`
+const historicalVolumeEndpoint = (chain_id: number) => `https://api.izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000`
 
 interface IVolumeall {
   volDay: number;
@@ -19,6 +19,7 @@ type TChains = {
 
 const chains: TChains =  {
   [CHAIN.BSC]: 56,
+  [CHAIN.ERA]: 324,
 };
 
 const fetch = (chain: Chain) => {
@@ -41,18 +42,18 @@ const fetch = (chain: Chain) => {
   }
 };
 
-const getStartTimestamp = async (chain_id: number) => {
-  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chain_id)))?.data.data;
-  const historicalVolume = historical.filter(e => e.chainId === chain_id);
-  return (new Date(historicalVolume[historicalVolume.length - 1].timestamp).getTime());
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: () => getStartTimestamp(chains[CHAIN.BSC]),
+      start: async  () => 1680739200,
       customBackfill: customBackfill(CHAIN.BSC as Chain, fetch)
+    },
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
+      start: async  () => 1680739200,
+      customBackfill: customBackfill(CHAIN.ERA as Chain, fetch)
     },
   },
 };

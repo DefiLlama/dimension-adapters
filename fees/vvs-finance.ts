@@ -1,18 +1,26 @@
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../dexs/vvs-finance";
-import { Adapter, BaseAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
-const TOTAL_FEES = 0.003;
-const PROTOCOL_FEES = 0.001;
-
-const feeAdapter: BaseAdapter = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  volumeAdapter
+const adapters = univ2DimensionAdapter({
+  graphUrls: {
+    [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange"
+  },
+  dailyVolume: {
+    factory: "vvsDayData"
+  },
+  totalVolume: {
+    factory: "vvsFactories"
+  },
+  feesPercent: {
+    type: "volume",
+    Fees: 0.2,
+    UserFees: 0.2,
+    Revenue: 0,
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    SupplySideRevenue: 0,
+  }
+}, {
 });
-
-const adapter: Adapter = {
-  adapter: feeAdapter
-};
-
-export default adapter;
+adapters.adapter.cronos.start = async () => 1632035122;
+export default adapters;
