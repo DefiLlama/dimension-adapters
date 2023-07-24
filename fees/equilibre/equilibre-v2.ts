@@ -15,7 +15,7 @@ interface IAmount {
 }
 const topic_name = 'Swap(index_topic_1 address sender, index_topic_2 address to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)';
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
-const FACTORY_ADDRESS = '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a';
+const FACTORY_ADDRESS = '0xA138FAFc30f6Ec6980aAd22656F2F11C38B56a95';
 
 type TABI = {
   [k: string]: object;
@@ -78,7 +78,7 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
   try {
     const poolLength = (await sdk.api.abi.call({
       target: FACTORY_ADDRESS,
-      chain: CHAIN.OPTIMISM,
+      chain: CHAIN.KAVA,
       abi: ABIs.allPoolsLength,
     })).output;
 
@@ -88,7 +88,7 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
         target: FACTORY_ADDRESS,
         params: i,
       })),
-      chain: CHAIN.OPTIMISM
+      chain: CHAIN.KAVA
     });
 
     const lpTokens = poolsRes.output
@@ -101,8 +101,8 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: CHAIN.OPTIMISM,
-          permitFailure: true,
+          chain: CHAIN.KAVA,
+          //permitFailure: true,
         })
       )
     );
@@ -115,12 +115,12 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      chain: CHAIN.OPTIMISM,
+      chain: CHAIN.KAVA,
       topics: [topic0]
     }))))
       .map((p: any) => p)
       .map((a: any) => a.output);
-    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
+    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.KAVA}:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
     const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
@@ -135,10 +135,10 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
             amount1,
           } as IAmount
         }) as IAmount[];
-      const token0Price = (prices[`${CHAIN.OPTIMISM}:${tokens0[index]}`]?.price || 0);
-      const token1Price = (prices[`${CHAIN.OPTIMISM}:${tokens1[index]}`]?.price || 0);
-      const token0Decimals = (prices[`${CHAIN.OPTIMISM}:${tokens0[index]}`]?.decimals || 0)
-      const token1Decimals = (prices[`${CHAIN.OPTIMISM}:${tokens1[index]}`]?.decimals || 0)
+      const token0Price = (prices[`${CHAIN.KAVA}:${tokens0[index]}`]?.price || 0);
+      const token1Price = (prices[`${CHAIN.KAVA}:${tokens1[index]}`]?.price || 0);
+      const token0Decimals = (prices[`${CHAIN.KAVA}:${tokens0[index]}`]?.decimals || 0)
+      const token1Decimals = (prices[`${CHAIN.KAVA}:${tokens1[index]}`]?.decimals || 0)
       const totalAmount0 = log
         .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0) / 10 ** token0Decimals * token0Price;
       const totalAmount1 = log

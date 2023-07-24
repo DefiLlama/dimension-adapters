@@ -1,5 +1,4 @@
 import request, { gql } from "graphql-request";
-import { Adapter } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
 import {
   getTimestampAtStartOfDayUTC,
@@ -9,8 +8,7 @@ import BigNumber from "bignumber.js";
 
 const STABLE_FEES = 0.0002;
 const VOLATILE_FEES = 0.0005;
-const endpoint =
-  "https://graph.equilibrefinance.com/subgraphs/name/dmihal/velodrome";
+const endpoint = "https://graph.equilibrefinance.com/subgraphs/name/equilibre/subgraph1/graphql";
 
 export const fetchV1 = () => {
   return async (timestamp: number) => {
@@ -18,10 +16,10 @@ export const fetchV1 = () => {
     const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const todaysBlock = await getBlock(
       todaysTimestamp,
-      "optimism",
+      "kava",
       {}
     );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "optimism", {});
+    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "kava", {});
 
     const query = gql`
       query fees {
