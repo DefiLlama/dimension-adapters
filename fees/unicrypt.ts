@@ -17,10 +17,10 @@ type TPrice = {
   };
 }
 type IToken = {
-  [s: string | Chain]: string;
+  [s: string | Chain]: string[];
 }
 const tokens: IToken = {
-  [CHAIN.ETHEREUM]: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+  [CHAIN.ETHEREUM]: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', '0xdac17f958d2ee523a2206206994597c13d831ec7'],
 }
 
 const fetch = (chain: Chain) => {
@@ -43,10 +43,9 @@ const fetch = (chain: Chain) => {
           ${chain}.core.fact_event_logs
         WHERE
           BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-          and contract_address in ('${tokens[chain]}')
+          and contract_address in (${tokens[chain].map((a: string) => `'${a.toLowerCase()}'`).join(',')})
           and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
           and topics[2] = '0x00000000000000000000000004bda42de3bc32abb00df46004204424d4cf8287'
-          and ORIGIN_FUNCTION_SIGNATURE = '0xcdd1b25d'
       `;
       // 0xcdd1b25d - replay
       // 0x3593564c - ex
