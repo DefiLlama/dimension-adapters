@@ -75,22 +75,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
     `;
 
-    const revFromToken: IData[] = await sql`
-        SELECT
-          block_number,
-          block_time,
-          "value" / 1e18 as eth_value,
-          encode(transaction_hash, 'hex') AS HASH,
-          encode(to_address, 'hex') AS to_address
-        FROM
-          ethereum.traces
-        WHERE
-          block_number > 17277183
-          AND from_address = '\\xf819d9cb1c2a819fd991781a822de3ca8607c3c9'
-          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
-    `
-
-    const rev_gen_token: number = revFromToken.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
     const transactions: IData[] = [...router_v2, ...router_v3] as IData[]
     const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
 
@@ -98,8 +82,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
     const amountUSD = amount * ethPrice;
     // ref https://dune.com/queries/2621049/4349967
-    const tokenRev = rev_gen_token * ethPrice;
-    const dailyFees = ((amountUSD * 0.01) * 0.4) + tokenRev;
+    const dailyFees = ((amountUSD * 0.01) * 0.4);
     const dailyRevenue = dailyFees;
     await sql.end({ timeout: 3 })
     return {
