@@ -112,7 +112,8 @@ export enum CHAIN {
   OASIS = "oasis",
   MANTLE = "mantle",
   ICP="icp",
-  LINEA = "linea"
+  LINEA = "linea",
+  BASE = "base"
 }
 
 // Don´t use
