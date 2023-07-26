@@ -82,7 +82,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
     const amountUSD = amount * ethPrice;
     // ref https://dune.com/queries/2621049/4349967
-    const dailyFees = ((amountUSD * 0.01) * 0.4);
+    const dailyFees = (amountUSD * 0.01);
     const dailyRevenue = dailyFees;
     await sql.end({ timeout: 3 })
     return {
