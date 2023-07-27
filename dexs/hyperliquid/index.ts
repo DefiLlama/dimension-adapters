@@ -11,7 +11,7 @@ interface Response {
 }
 
 const fetch = async (timestamp: number) => {
-  const {totalVolume, dailyVolume}: Response = await axios.post(URL, {"type":"globalStats"});
+  const {totalVolume, dailyVolume}: Response = (await axios.post(URL, {"type":"globalStats"})).data;
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   return {
