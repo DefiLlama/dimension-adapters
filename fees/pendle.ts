@@ -28,6 +28,9 @@ const gqlQuery = gql`
   }
 `
 
+const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84"
+const SY_WSTETH_ARBITRUM = "0x80c12d5b6cc494632bf11b03f09436c8b61cc5df";
+
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
     endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-mainnet-may-11',
@@ -94,7 +97,7 @@ const fetch = (chain: Chain) => {
     const rewardTokensSet = new Set(rewardTokens)
     const allRewardTokens: string[] = Array.from(rewardTokensSet)
 
-    const prices = await getPrices(allRewardTokens.concat(allAssets).map((a) => `${chain}:${a.toLowerCase()}`), timestamp)
+    const prices = await getPrices(allRewardTokens.concat(allAssets).map((a) => `${chain}:${a.toLowerCase()}`).concat([STETH_ETHEREUM]), timestamp)
 
     function getPriceFor(token: string) {
       if (!prices[`${chain}:${token.toLowerCase()}`]) return null;
@@ -130,8 +133,7 @@ const fetch = (chain: Chain) => {
         if (idAll === -1) {
           continue;
         }
-
-        const assetPrice = getPriceFor(assetInfos[idAll].assetAddress)
+        const assetPrice = e.address == SY_WSTETH_ARBITRUM ? prices[STETH_ETHEREUM] : getPriceFor(assetInfos[idAll].assetAddress)
         if (!assetPrice) {
           continue;
         }
