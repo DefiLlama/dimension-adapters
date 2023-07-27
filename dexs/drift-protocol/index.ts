@@ -31,14 +31,14 @@ const adapter = {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("spot"),
         runAtCurrTime: true,
-        start: async () => 0,
+        start: async () => 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("perp"),
         runAtCurrTime: true,
-        start: async () => 0,
+        start: async () => 1690239600,
       },
     },
   },
