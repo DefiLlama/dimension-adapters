@@ -91,6 +91,9 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     return {
         timestamp: timestamp,
         dailyFees: dailyFees.toString(),
+        // 100% of the revenue going to holders, hence, fees = revenue, fees = holdersRevenue
+        dailyHoldersRevenue: dailyFees.toString(),
+        dailyProtocolRevenue: dailyFees.toString()
     };
 };
 
@@ -102,7 +105,7 @@ const adapter: Adapter = {
             start: async () => 1685386800,
             meta: {
                 methodology: {
-                    Fees: "0x0 collects a 0.9% fee on deposits",
+                    Fees: "0x0 collects a 0.9% fee on deposits"
                 }
             }
         }
