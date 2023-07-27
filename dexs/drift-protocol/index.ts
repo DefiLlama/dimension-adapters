@@ -2,10 +2,14 @@ import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 
 const dailyVolEndpoint =
-  "https://mainnet-beta.api.drift.trade/stats/24HourVolume?allMarkets=true";
+  "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
-async function fetch() {
-  const volumeResponse = await axios.get(dailyVolEndpoint);
+async function fetch(type: "perp" | "spot") {
+  const volumeResponse = await axios.get(
+    `${dailyVolEndpoint}?${
+      type === "perp" ? "perpMarkets" : "spotMarkets"
+    }=true`
+  );
 
   const rawVolumeQuotePrecision = volumeResponse.data.data.volume;
 
@@ -21,12 +25,23 @@ async function fetch() {
   };
 }
 
-export default {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: async () => 0,
+const adapter = {
+  breakdown: {
+    swap: {
+      [CHAIN.SOLANA]: {
+        fetch: () => fetch("spot"),
+        runAtCurrTime: true,
+        start: async () => 0,
+      },
+    },
+    derivatives: {
+      [CHAIN.SOLANA]: {
+        fetch: () => fetch("perp"),
+        runAtCurrTime: true,
+        start: async () => 0,
+      },
     },
   },
 };
+
+export default adapter;
