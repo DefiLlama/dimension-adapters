@@ -5,9 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 interface IAevoVolumeResponse {
   daily_volume: string;
-  daily_volume_premium: string;
   total_volume: string;
-  total_volume_premium: string;
 }
 
 export const aevoVolumeEndpoint = "https://api.aevo.xyz/statistics";
@@ -27,18 +25,14 @@ export async function fetchAevoVolumeData(
 ) {
   const aevoVolumeData = await getAevoVolumeData(aevoVolumeEndpoint);
 
-  const dailyNotionalVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
-  const dailyPremiumVolume =  Number(aevoVolumeData.daily_volume_premium).toFixed(2);
-  const totalNotionalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
-  const totalPremiumVolume = Number(aevoVolumeData.total_volume_premium).toFixed(2);
+  const dailyVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
+  const totalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   return {
     timestamp: dayTimestamp,
-    dailyNotionalVolume,
-    dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
+    dailyVolume,
+    totalVolume,
   };
 }
 
