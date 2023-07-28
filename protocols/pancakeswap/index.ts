@@ -8,7 +8,8 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest"
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest"
 };
 
 const stablesSwapEndpoints = {
@@ -18,7 +19,8 @@ const stablesSwapEndpoints = {
 const v3Endpoint = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest"
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest"
 }
 
 const VOLUME_USD = "volumeUSD";
@@ -89,6 +91,7 @@ const startTimes = {
   [CHAIN.ETHEREUM]: 1664236800,
   [CHAIN.BSC]: 1619136000,
   [CHAIN.POLYGON_ZKEVM]: 1687910400,
+  [CHAIN.ERA]: 1690156800,
 } as IJSON<number>
 
 const stableTimes = {
@@ -99,6 +102,7 @@ const v3StartTimes = {
   [CHAIN.BSC]: 1680307200,
   [CHAIN.ETHEREUM]: 1680307200,
   [CHAIN.POLYGON_ZKEVM]: 1686182400,
+  [CHAIN.ERA]: 1690156800,
 } as IJSON<number>
 
 const methodology = {

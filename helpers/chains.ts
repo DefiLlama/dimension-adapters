@@ -111,8 +111,9 @@ export enum CHAIN {
   ONUS = "onus",
   OASIS = "oasis",
   MANTLE = "mantle",
-  ICP = "icp",
+  ICP="icp",
   LINEA = "linea",
+  BASE = "base",
   NEON = "neon",
 }
 
