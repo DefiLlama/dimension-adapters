@@ -35,9 +35,9 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
       const dailyFee = currentTotalSwapFees.minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"]))
 
-      // Currently on 0% Fee Revenue
-      const dailyRevenue = dailyFee;
-      const totalRevenue = currentTotalSwapFees;
+      // Currently 50% of Fees
+      const dailyRevenue = dailyFee.multipliedBy(0.5);
+      const totalRevenue = currentTotalSwapFees.multipliedBy(0.5);
 
       return {
         timestamp,
