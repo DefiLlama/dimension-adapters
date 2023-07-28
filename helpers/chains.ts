@@ -114,7 +114,7 @@ export enum CHAIN {
   ICP="icp",
   LINEA = "linea",
   BASE = "base",
-  NEON = "neon",
+  NEON = "neon_evm",
 }
 
 // Don´t use
