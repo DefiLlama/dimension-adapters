@@ -1,14 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IAevoVolumeResponse {
   daily_volume: string;
   total_volume: string;
 }
 
-export const aevoVolumeEndpoint = "https://api.aevo.xyz/statistics";
+// endTime is in nanoseconds
+export const aevoVolumeEndpoint = (endTime: number) => {
+  return "https://api.aevo.xyz/statistics?end_time=" + endTime;
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -23,14 +25,14 @@ export async function fetchAevoVolumeData(
   /** Timestamp representing the end of the 24 hour period */
   timestamp: number
 ) {
-  const aevoVolumeData = await getAevoVolumeData(aevoVolumeEndpoint);
+  const timestampInNanoSeconds = timestamp * 1e9
+  const aevoVolumeData = await getAevoVolumeData(aevoVolumeEndpoint(timestampInNanoSeconds));
 
   const dailyVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
   const totalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   return {
-    timestamp: dayTimestamp,
+    timestamp,
     dailyVolume,
     totalVolume,
   };
