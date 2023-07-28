@@ -11,6 +11,20 @@ const FEES = {
   [CHAIN.ARBITRUM]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
 } as { [chain: string]: { LP_FEES: number; POOL_FEES: number } };
 
+const poolFeesPercent = (FEES[CHAIN.ETHEREUM].POOL_FEES * 100).toFixed(2);
+const lpFeesPercent = (FEES[CHAIN.ETHEREUM].LP_FEES * 100).toFixed(2);
+
+const FEES_METHODOLOGY = `A minor fee is collected on each swap, functioning as a trading fees. The fees are set at ${
+  FEES[CHAIN.ETHEREUM]
+}% on Ethereum, and 0.1% on other chains. Please note, on these other networks, the fees can be revised and may vary between different pairs and chains. Refer to the tab marked https://docs.smardex.io/overview/what-is-smardex/fees for a comprehensive list of these details.`;
+const methodology = {
+  UserFees: FEES_METHODOLOGY,
+  Fees: FEES_METHODOLOGY,
+  Revenue: `${poolFeesPercent}% of each swap on Ethereum, is collected for the staking pool (SDEX holders that staked)`,
+  ProtocolRevenue: `Protocol has no revenue.`,
+  SupplySideRevenue: `${lpFeesPercent}% of each swap is collected for the liquidity providers.`,
+  HoldersRevenue: `${poolFeesPercent}% of each swap is collected for the staking pool (SDEX holders that staked).`,
+};
 const adapter: Adapter = {
   adapter: {},
 };
@@ -32,15 +46,6 @@ for (let chain in FEES) {
     holdersRevenue: POOL_FEES,
     volumeAdapter,
   });
-
-  const methodology = {
-    UserFees: `${totalFeesPercent}% of each swap is collected from the user that swaps as trading fees.`,
-    Fees: `${totalFeesPercent}% of each swap is collected from the user that swaps as trading fees.`,
-    Revenue: `${poolFeesPercent}% of each swap is collected for the staking pool (SDEX holders that staked).`,
-    ProtocolRevenue: `Protocol has no revenue.`,
-    SupplySideRevenue: `${lpFeesPercent}% of each swap is collected for the liquidity providers.`,
-    HoldersRevenue: `${poolFeesPercent}% of each swap is collected for the staking pool (SDEX holders that staked).`,
-  };
 
   adapter.adapter[chain] = {
     ...baseAdapter[chain],
