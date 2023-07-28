@@ -1,24 +1,25 @@
 import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
+import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 const endpoints: ChainEndpoints = {
   [CHAIN.PULSECHAIN]: "https://sub.phatty.io/subgraphs/name/phux/pools-v2",
 };
 
-const graphParams = {
+
+const graphs = getGraphDimensions({
+  graphUrls: endpoints,
+  graphRequestHeaders: {
+    [CHAIN.PULSECHAIN]: {
+      "origin": "https://phux.io",
+    },
+  },
   totalVolume: {
     factory: "balancers",
-    field: "totalSwapVolume",
+    field: "totalSwapVolume"
   },
-  hasDailyVolume: false,
-}
-
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  ...graphParams,
 });
 
 const adapter: SimpleAdapter = {
