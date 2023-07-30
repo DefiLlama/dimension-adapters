@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchVolume } from "./zkswapFiance";
+import { fetchVolume } from "./zkswapFinance";
 
 const adapter: SimpleAdapter = {
   adapter: {
