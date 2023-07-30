@@ -56,7 +56,6 @@ const getData = async (chain: string, timestamp: number) => {
   let lasTimestampQuery = startDayTimestamp
 
   while (returnCount == 1000) {
-    console.log("aaa", lasTimestampQuery, startDayTimestamp + dayMiliseconds)
     const graphQL = `{
       swaps(
         orderBy: timestamp
