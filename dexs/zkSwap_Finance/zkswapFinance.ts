@@ -59,9 +59,9 @@ const getData = async (chain: string, timestamp: number) => {
     const graphQL = `{
       swaps(
         orderBy: timestamp
-        orderDirection: desc
+        orderDirection: asc
         first: 1000
-        where: {timestamp_gt: ${lasTimestampQuery}, timestamp_lt: ${startDayTimestamp + dayMiliseconds} }
+        where: {timestamp_gte: ${lasTimestampQuery}, timestamp_lt: ${startDayTimestamp + dayMiliseconds} }
         ) {
           amount0In
           amount0Out
@@ -71,13 +71,12 @@ const getData = async (chain: string, timestamp: number) => {
               id
             }
           }
-          timestamp
         }
       }`;
 
     const data = await request(info[chain].subgraph, graphQL);
     returnCount = data.swaps.length;
-    lasTimestampQuery = data?.swaps[0]?.timestamp | 0
+    lasTimestampQuery = data?.swaps[returnCount-1]?.timestamp
 
     for (const swap of data.swaps) {
 
