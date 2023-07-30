@@ -1,7 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, SimpleAdapter } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
@@ -64,15 +64,13 @@ const methodology = {
   SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs, set by the pool creator or managed by protocol.",
 }
 
-const adapter: Adapter = {
-  breakdown: {
-    v2: {
-      [CHAIN.NEON]: {
-        fetch: v2Graphs(v2Endpoints)(CHAIN.NEON),
-        start: async () => 1689613200, // 17TH JULY 5PM GMT
-        meta: {
-          methodology
-        }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.NEON]: {
+      fetch: v2Graphs(v2Endpoints)(CHAIN.NEON),
+      start: async () => 1689613200, // 17TH JULY 5PM GMT
+      meta: {
+        methodology
       }
     }
   }

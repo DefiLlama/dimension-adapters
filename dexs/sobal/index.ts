@@ -1,13 +1,11 @@
-import { ChainEndpoints, BreakdownAdapter, BaseAdapter } from "../../adapters/types";
+import { ChainEndpoints, BreakdownAdapter, BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
 import { Chain } from "@defillama/sdk/build/general";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.NEON]:
-  "https://neon-subgraph.sobal.fi/sobal-pools",
+  [CHAIN.NEON]: "https://neon-subgraph.sobal.fi/sobal-pools",
 };
 
 const graphParams = {
@@ -23,24 +21,13 @@ const graphs = getChainVolume({
   ...graphParams
 });
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: graphs(chain as Chain),
-          customBackfill: customBackfill(chain as Chain, graphs),
-          start: getStartTimestamp({
-            endpoints,
-            chain: chain,
-            dailyDataField: `balancerSnapshots`,
-            dateField: 'timestamp',
-            volumeField: 'totalSwapVolume'
-          }),
-        }
-      }
-    }, {} as BaseAdapter)
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.NEON]: {
+      fetch: graphs(CHAIN.NEON),
+      start: async () => 1689613200, // 17TH JULY 5PM GMT
+      customBackfill: customBackfill(CHAIN.NEON as Chain, graphs),
+    }
   }
 }
 
