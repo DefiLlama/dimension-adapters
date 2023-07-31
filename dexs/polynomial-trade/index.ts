@@ -10,8 +10,8 @@ const startTimeStamp = 1679875200
 const fetch = async (timestamp: number) => {
     const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     return {
-        dailyVolume: await getDailyVolume(startDayTimestamp),
-        totalVolume: await getTotalVolume(timestamp),
+      dailyVolume: await getDailyVolume(startDayTimestamp),
+        // totalVolume: await getTotalVolume(timestamp),
       timestamp: startDayTimestamp,
     };
   };
