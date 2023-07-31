@@ -11,7 +11,7 @@ const fetch = async (timestamp: number) => {
     const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     return {
       dailyVolume: await getDailyVolume(startDayTimestamp),
-        // totalVolume: await getTotalVolume(timestamp),
+      totalVolume: await getTotalVolume(timestamp),
       timestamp: startDayTimestamp,
     };
   };
