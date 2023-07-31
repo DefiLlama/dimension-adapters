@@ -70,9 +70,19 @@ type IMap = {
 }
 
 const mapTokenPrice: IMap = {
-  '0x101816545f6bd2b1076434b54383a1e633390a2e': 'coingecko:ethereum',
-  '0x915a55e36a01285a14f05de6e81ed9ce89772f8e': 'coingecko:ethereum',
-  '0xd22363e3762ca7339569f3d33eade20127d5f98c': 'coingecko:ethereum',
+  ['0x101816545f6bd2b1076434b54383a1e633390a2e'.toLowerCase()]: 'ethereum:0x0000000000000000000000000000000000000000',
+  ['0x915a55e36a01285a14f05de6e81ed9ce89772f8e'.toLowerCase()]: 'ethereum:0x0000000000000000000000000000000000000000',
+  ['0xd22363e3762ca7339569f3d33eade20127d5f98c'.toLowerCase()]: 'ethereum:0x0000000000000000000000000000000000000000',
+  ['0x892785f33CdeE22A30AEF750F285E18c18040c3e'.toLowerCase()]: 'ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  ['0xB6CfcF89a7B22988bfC96632aC2A9D6daB60d641'.toLowerCase()]: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  ['0x38EA452219524Bb87e18dE1C24D3bB59510BD783'.toLowerCase()]: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+  ['0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56'.toLowerCase()]: 'ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+  ['0x1205f31718499dBf1fCa446663B532Ef87481fe1'.toLowerCase()]: 'ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  ['0x29e38769f23701A2e4A8Ef0492e19dA4604Be62c'.toLowerCase()]: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  ['0x9aA83081AA06AF7208Dcc7A4cB72C94d057D2cda'.toLowerCase()]: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  ['0x98a5737749490856b401DB5Dc27F522fC314A4e1'.toLowerCase()]: 'bsc:0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+  ['0x12edeA9cd262006cC3C4E77c90d2CD2DD4b1eb97'.toLowerCase()]: 'ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  ['0xDecC0c09c3B5f6e92EF4184125D5648a66E35298'.toLowerCase()]: 'ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 }
 
 const fetch = (chain: Chain) => {
@@ -120,13 +130,11 @@ const fetch = (chain: Chain) => {
         contract: e.address
       }
     });
-    const coins = [...new Set(logs_swap.concat(swap_remote).map((e: IFee) => mapTokenPrice[e.contract.toLowerCase()] || `${chain}:${e.contract.toLowerCase()}`))];
+    const coins = [...new Set(logs_swap.concat(swap_remote).map((e: IFee) =>  mapTokenPrice[e.contract.toLowerCase()]))];
     const prices = await getPrices(coins, timestamp);
-    if(prices['coingecko:ethereum'])
-      prices['coingecko:ethereum'].decimals = 18;
     const dailyFees = [...logs_swap, ...swap_remote].map((e: IFee) => {
-      const price = prices[mapTokenPrice[e.contract.toLowerCase()] || `${chain}:${e.contract.toLowerCase()}`].price;
-      const decimals = prices[mapTokenPrice[e.contract.toLowerCase()] || `${chain}:${e.contract.toLowerCase()}`].decimals;
+      const price = prices[mapTokenPrice[e.contract.toLowerCase()]].price;
+      const decimals = prices[mapTokenPrice[e.contract.toLowerCase()]].decimals;
       return (Number(e.amount) / 10 ** decimals) * price;
     }).reduce((a: number, b: number) => a + b, 0)
 
@@ -162,6 +170,10 @@ const adapter: Adapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
+      start: async ()  => 1661990400,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(CHAIN.POLYGON),
       start: async ()  => 1661990400,
     },
   }
