@@ -11,7 +11,7 @@ interface IAevoVolumeResponse {
 
 // endTime is in nanoseconds
 export const aevoVolumeEndpoint = (endTime: number) => {
-  return "https://api.aevo.xyz/statistics?end_time=" + endTime;
+  return "https://api.aevo.xyz/statistics?instrument_type=OPTION&end_time=" + endTime;
 }
 
 const adapter: SimpleAdapter = {
