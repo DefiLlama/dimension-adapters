@@ -24,14 +24,6 @@ const historicalDataDerivatives = gql`
   }
 `
 
-const historicalDataGll = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeStats(where: {period: $period, id: $id}) {
-        mint
-        burn
-      }
-  }
-`
 
 interface IGraphResponse {
     volumeStats: Array<{
@@ -91,15 +83,6 @@ const adapter: BreakdownAdapter = {
                 ...acc,
                 [chain]: {
                     fetch: getFetch(historicalDataDerivatives)(chain),
-                    start: async () => getStartTimestamp(chain)
-                }
-            }
-        }, {}),
-        "gll": Object.keys(endpoints).reduce((acc, chain) => {
-            return {
-                ...acc,
-                [chain]: {
-                    fetch: getFetch(historicalDataGll)(chain),
                     start: async () => getStartTimestamp(chain)
                 }
             }
