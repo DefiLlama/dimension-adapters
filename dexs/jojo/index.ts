@@ -17,7 +17,6 @@ interface IVolumeall {
 }
 const getVolume = async (timestamp: number, chain: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    console.log(chain);
     const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, chain)))))
         .map((a: any, index: number) => a.data.map((e: any) => { return { timestamp: e.time / 1000, volume: e.volume, id: Object.values(coins)[index], quoteVolume: e.quote_volume } })).flat()
 
