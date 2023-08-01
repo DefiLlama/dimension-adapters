@@ -70,9 +70,11 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       const graphQuery = gql
         `query fees($dayId: String!, $yesterdayId: String!) {
         today: balancerSnapshot(id: $dayId) {
+          totalProtocolFee
           totalSwapFee
         }
         yesterday: balancerSnapshot(id: $yesterdayId) {
+          totalProtocolFee
           totalSwapFee
         }
         tenPcFeeChange: balancerSnapshot(id: "2-18972") {
@@ -104,14 +106,17 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       const totalRevenue = startTimestamp < tenPcFeeTimestamp ? "0" : (
         startTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
 
+      const currentTotalProtocolFee = new BigNumber(graphRes["today"]["totalProtocolFee"])
+      const dailyProtocolFee = currentTotalProtocolFee.minus(new BigNumber(graphRes["yesterday"]["totalProtocolFee"]))
+
       return {
         timestamp,
         totalUserFees: graphRes["today"]["totalSwapFee"],
         dailyUserFees: dailyFee.toString(),
         totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee.toString(),
-        totalRevenue: totalRevenue.toString(), // balancer v2 subgraph does not flash loan fees yet
-        dailyRevenue: dailyRevenue.toString(), // balancer v2 subgraph does not flash loan fees yet
+        totalRevenue: graphRes["today"]["totalProtocolFee"], // balancer v2 subgraph does not flash loan fees yet
+        dailyRevenue: dailyProtocolFee.toString(), // balancer v2 subgraph does not flash loan fees yet
         totalProtocolRevenue: totalRevenue.toString(),
         dailyProtocolRevenue: dailyRevenue.toString(),
         totalSupplySideRevenue: new BigNumber(graphRes["today"]["totalSwapFee"]).minus(totalRevenue.toString()).toString(),
