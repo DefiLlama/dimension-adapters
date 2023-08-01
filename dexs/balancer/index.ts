@@ -12,7 +12,8 @@ const endpoints: ChainEndpoints = {
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest"
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
+  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2"
 };
 
 const graphParams = {
