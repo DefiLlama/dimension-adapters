@@ -66,7 +66,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ERA]: 1688256000,
+    [CHAIN.ERA]: 1682035200,
   }
   return startTimestamps[chain]
 }
