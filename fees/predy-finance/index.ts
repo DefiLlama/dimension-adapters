@@ -29,21 +29,13 @@ const WBTC_DECIMAL = 1e8;
 const GYEN_DECIMAL = 1e6;
 const DIVISOR = 1e18;
 
-// addressに対するdecimalの対応表を作る
-
+// Set decimals for each token
 let decimalByAddress: { [key: string]: number } = {
   "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": USDC_DECIMAL,
   "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": ETH_DECIMAL,
   "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": WBTC_DECIMAL,
   "0x589d35656641d6aB57A545F08cf473eCD9B6D5F7": GYEN_DECIMAL,
 };
-
-// const addressToDecimal = {
-//   "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": USDC_DECIMAL,
-//   "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": ETH_DECIMAL,
-//   "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": WBTC_DECIMAL,
-//   "0x589d35656641d6aB57A545F08cf473eCD9B6D5F7": GYEN_DECIMAL,
-// };
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
