@@ -120,7 +120,7 @@ async function getChainData(timestamp: string): Promise<ChainData> {
     dailyNotionalVolume = deliverySizeUSD.value;
   }
 
-  console.log(deliverySizeUSDs);
+  // console.log(deliverySizeUSDs);
 
   let premiumUSDs = await getDataFromSentio(
     "premiumUSD",
@@ -138,7 +138,7 @@ async function getChainData(timestamp: string): Promise<ChainData> {
     dailyPremiumVolume = premiumUSD.value;
   }
 
-  console.log(premiumUSDs);
+  // console.log(premiumUSDs);
 
   return {
     timestamp,
