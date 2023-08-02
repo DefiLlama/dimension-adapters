@@ -1,11 +1,12 @@
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
-import type { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
 import { getAsset } from "./queries";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
@@ -422,18 +423,14 @@ const v3DailyRevenue = async (
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    // v3: {
-    //   [CHAIN.ARBITRUM]: {
-    //     fetch: graphs(v3endpoints)(CHAIN.ARBITRUM),
-    //     start: async () => 1671092333,
-    //   },
-    // },
-    // v320: {
-    //   [CHAIN.ARBITRUM]: {
-    //     fetch: graphs(v320endpoints)(CHAIN.ARBITRUM),
-    //     start: async () => 1678734774,
-    //   },
-    // },
+    v3: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [CHAIN.ARBITRUM]: disabledAdapter,
+    },
+    v320: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [CHAIN.ARBITRUM]: disabledAdapter,
+    },
     v5: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
