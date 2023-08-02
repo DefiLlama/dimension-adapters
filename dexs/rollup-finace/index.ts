@@ -36,8 +36,13 @@ interface IGraphResponse {
 
 const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+  const fromTimestamp = dayTimestamp - 60 * 60 * 24
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
     id: String(dayTimestamp),
+    period: 'daily',
+  })
+  const yesterDay: IGraphResponse = await request(endpoints[chain], query, {
+    id: String(fromTimestamp),
     period: 'daily',
   })
   const totalData: IGraphResponse = await request(endpoints[chain], query, {
@@ -45,12 +50,12 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     period: 'total',
   })
 
+  const  todayVolume = Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
+  const  yesterdayVolume = Number(Object.values(yesterDay.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
+  const dailyVolume = (todayVolume - yesterdayVolume);
   return {
     timestamp: dayTimestamp,
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+    dailyVolume: `${dailyVolume}`,
     totalVolume:
       totalData.volumeStats.length == 1
         ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)

@@ -14,6 +14,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+      const fromTimestamp = todaysTimestamp - 60 * 60 * 24
       const searchTimestamp  = todaysTimestamp;
 
       const graphQuery = gql
@@ -25,18 +26,36 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
       }`;
 
+      const graphQueryYesterday = gql
+      `{
+        feeStat(id: "${fromTimestamp}") {
+          mint
+          burn
+          marginAndLiquidation
+        }
+      }`;
+
+
       const graphRes = await request(graphUrls[chain], graphQuery);
-      console.log(graphRes)
+      const graphResYesterday = await request(graphUrls[chain], graphQueryYesterday);
+
 
       const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation);
       const finalDailyFee = (dailyFee / 1e30);
       const userFee = parseInt(graphRes.feeStat.marginAndLiquidation)
       const finalUserFee = (userFee / 1e30);
 
+      const dailyFeePrev = parseInt(graphResYesterday.feeStat.mint) + parseInt(graphResYesterday.feeStat.burn) + parseInt(graphResYesterday.feeStat.marginAndLiquidation);
+      const finalDailyFeePrev = (dailyFeePrev / 1e30);
+      const userFeePrev = parseInt(graphResYesterday.feeStat.marginAndLiquidation)
+      const finalUserFeePrev = (userFeePrev / 1e30);
+      const dailyFees = finalDailyFee - finalDailyFeePrev;
+      const dailyUserFees = finalUserFee - finalUserFeePrev;
+
       return {
         timestamp,
-        dailyFees: finalDailyFee.toString(),
-        dailyUserFees: finalUserFee.toString(),
+        dailyFees: dailyFees ? dailyFees.toString() : undefined,
+        dailyUserFees: dailyUserFees ?  dailyUserFees.toString() : undefined,
       };
     };
   };
