@@ -21,7 +21,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": true,
     "lib": [
-      "ES2019",
+      "ES2019",  
       "DOM"
     ]
   },
