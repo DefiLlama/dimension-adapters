@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: async () => 1690850000, // 1ST AUG 12:00 AM GMT
+      start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
       customBackfill: customBackfill(CHAIN.BASE as Chain, graphs),
     }
   }

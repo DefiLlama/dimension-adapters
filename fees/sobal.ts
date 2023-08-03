@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BASE]: {
       fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-      start: async () => 1690850000, // 1ST AUG 12:00 AM GMT
+      start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
       meta: {
         methodology
       }
