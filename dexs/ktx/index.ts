@@ -37,7 +37,7 @@ interface IGraphResponse {
 const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: chain === CHAIN.ARBITRUM
+    id: chain === CHAIN.BSC
       ? String(dayTimestamp)
       : String(dayTimestamp) + ':daily',
     period: 'daily',
@@ -63,8 +63,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1630368000,
-    [CHAIN.AVAX]: 1640131200,
+    [CHAIN.BSC]: 1682870400,
   }
   return startTimestamps[chain]
 }

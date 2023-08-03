@@ -22,7 +22,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
+      const searchTimestamp = chain == "bsc" ? todaysTimestamp : todaysTimestamp + ":daily"
 
       const graphQuery = gql
       `{
