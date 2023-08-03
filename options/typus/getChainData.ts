@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const apiUrl = "https://app.sentio.xyz/api/v1/insights/wayne/typus/query";
 
 const headers = {
@@ -71,17 +73,12 @@ export async function getDataFromSentio(
 
   requestData.queries[0].metricsQuery.query = query;
 
-  const jsonData = JSON.stringify(requestData);
 
-  let response = await fetch(apiUrl, {
-    method: "POST",
-    headers,
-    body: jsonData,
-  });
+  const response = await axios.post(apiUrl, requestData, { headers: headers});
 
-  let data = await response.json();
+  const data = response.data;
 
-  let r: Value[] = data.results[0].matrix.samples[0].values;
+  const r: Value[] = data.results[0].matrix.samples[0].values;
 
   return r;
 }
