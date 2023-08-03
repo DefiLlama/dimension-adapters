@@ -21,7 +21,7 @@ const v2Endpoints = {
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-minimal",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-arbitrum-one",
   [CHAIN.POLYGON]:
     "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
