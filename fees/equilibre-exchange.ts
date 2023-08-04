@@ -144,31 +144,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const feesUSD = feesAmount0 + feesAmount1;
       return feesUSD;
     });
-    // const fees: number[] = lpTokens.map((_: string, index: number) => {
-    //   const token0Decimals = (prices[`kava:${tokens0[index]}`]?.decimals || 0)
-    //   const token1Decimals = (prices[`kava:${tokens1[index]}`]?.decimals || 0)
-    //   const log: IAmount[] = logs[index]
-    //     .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-    //     .map((p: ILog) => {
-    //       const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
-    //       const amount1 = Number('0x' + p.data.slice(64, 128)) / 10 ** token1Decimals
-    //       return {
-    //         amount0,
-    //         amount1
-    //       } as IAmount
-    //     }) as IAmount[];
-    //   const token0Price = (prices[`kava:${tokens0[index]}`]?.price || 0);
-    //   const token1Price = (prices[`kava:${tokens1[index]}`]?.price || 0);
-
-    //   const feesAmount0 = log
-    //     .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-    //   const feesAmount1 = log
-    //     .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
-
-    //   const feesUSD = feesAmount0 + feesAmount1;
-    //   return feesUSD;
-    // });
-
     const dailyFees = fees.reduce((a: number, b: number) => a+b,0)
     return {
       dailyFees: `${dailyFees}`,
