@@ -7,10 +7,7 @@ import { getPrices } from "../utils/prices";
 interface ILog {
   data: string;
   transactionHash: string;
-}
-interface IAmount {
-  amount0: number;
-  amount1: number;
+  address: string;
 }
 
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
@@ -90,7 +87,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         target: FACTORY_ADDRESS,
         params: i,
       })),
-      chain: 'kava'
+      chain: 'kava',
+      permitFailure: true,
     });
 
     const lpTokens = poolsRes.output
@@ -103,7 +101,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: 'kava'
+          chain: 'kava',
+          permitFailure: true,
         })
       )
     );
@@ -112,45 +111,63 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const tokens1 = underlyingToken1.output.map((res: any) => res.output);
     const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
     const toBlock = (await getBlock(toTimestamp, 'kava', {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: 'kava',
-      topics: [topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output);
+
+    const _logs: ILog[] = [];
+    const split_size: number = 55;
+    for(let i = 0; i < lpTokens.length; i+=split_size) {
+      const logs: ILog[] = (await Promise.all(lpTokens.slice(i, i + split_size).map((address: string) => sdk.api.util.getLogs({
+        target: address,
+        topic: '',
+        toBlock: toBlock,
+        fromBlock: fromBlock,
+        keys: [],
+        chain: 'kava',
+        topics: [topic0]
+      }))))
+        .map((p: any) => p)
+        .map((a: any) => a.output).flat();
+      _logs.push(...logs)
+    }
 
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `kava:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals = (prices[`kava:${tokens0[index]}`]?.decimals || 0)
-      const token1Decimals = (prices[`kava:${tokens1[index]}`]?.decimals || 0)
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-        .map((p: ILog) => {
-          const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
-          const amount1 = Number('0x' + p.data.slice(64, 128)) / 10 ** token1Decimals
-          return {
-            amount0,
-            amount1
-          } as IAmount
-        }) as IAmount[];
-      const token0Price = (prices[`kava:${tokens0[index]}`]?.price || 0);
-      const token1Price = (prices[`kava:${tokens1[index]}`]?.price || 0);
-
-      const feesAmount0 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-      const feesAmount1 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
-
+    const fees: number[] = _logs.map((e: ILog) => {
+      const data =  e.data.replace('0x', '');
+      const findIndex = lpTokens.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
+      const token0Price = (prices[`kava:${tokens0[findIndex]}`]?.price || 0);
+      const token1Price = (prices[`kava:${tokens1[findIndex]}`]?.price || 0);
+      const token0Decimals = (prices[`kava:${tokens0[findIndex]}`]?.decimals || 0)
+      const token1Decimals = (prices[`kava:${tokens1[findIndex]}`]?.decimals || 0)
+      const feesAmount0 = (Number('0x' + data.slice(0, 64)) / 10 ** token0Decimals) * token0Price;
+      const feesAmount1 = (Number('0x' + data.slice(64, 128)) / 10 ** token1Decimals) * token1Price;
       const feesUSD = feesAmount0 + feesAmount1;
       return feesUSD;
     });
+    // const fees: number[] = lpTokens.map((_: string, index: number) => {
+    //   const token0Decimals = (prices[`kava:${tokens0[index]}`]?.decimals || 0)
+    //   const token1Decimals = (prices[`kava:${tokens1[index]}`]?.decimals || 0)
+    //   const log: IAmount[] = logs[index]
+    //     .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
+    //     .map((p: ILog) => {
+    //       const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
+    //       const amount1 = Number('0x' + p.data.slice(64, 128)) / 10 ** token1Decimals
+    //       return {
+    //         amount0,
+    //         amount1
+    //       } as IAmount
+    //     }) as IAmount[];
+    //   const token0Price = (prices[`kava:${tokens0[index]}`]?.price || 0);
+    //   const token1Price = (prices[`kava:${tokens1[index]}`]?.price || 0);
+
+    //   const feesAmount0 = log
+    //     .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
+    //   const feesAmount1 = log
+    //     .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
+
+    //   const feesUSD = feesAmount0 + feesAmount1;
+    //   return feesUSD;
+    // });
 
     const dailyFees = fees.reduce((a: number, b: number) => a+b,0)
     return {
