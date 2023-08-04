@@ -98,14 +98,12 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSpots,
-        runAtCurrTime: true,
         start: async () => startTime,
       },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        runAtCurrTime: true,
         start: async () => startTime,
       },
     },
