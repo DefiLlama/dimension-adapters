@@ -95,7 +95,12 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [CHAIN.ETHEREUM]: {fetch: getData(CHAIN.ETHEREUM), start: async () => START_TIMESTAMP, meta: {methodology}},
+        [CHAIN.ETHEREUM]: {
+            fetch: getData(CHAIN.ETHEREUM),
+            start: async () => START_TIMESTAMP,
+            runAtCurrTime: true,
+            meta: {methodology}
+        },
     }
 };
 
