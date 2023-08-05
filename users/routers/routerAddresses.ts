@@ -444,7 +444,10 @@ export default ([
                 "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3",
             ],
             "bsc":[
-                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
+                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8",
+            ],
+            "ethereum":[
+                "0x9A93a421b74F1c5755b83dD2C211614dC419C44b"//Lbrouter
             ]
         }
     },*/
