@@ -54,6 +54,7 @@ const elasticEndpoints = elasticChains.reduce((acc, chain)=>({
     ethereum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
     arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum",
     polygon: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
+    [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea"
 } as any);
 elasticEndpoints.fantom = "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom"
 
@@ -76,6 +77,8 @@ const classicEndpoints = [...elasticChains, "aurora"].reduce((acc, chain)=>({
 }), {
     cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-cronos",
     arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-arbitrum",
+    [CHAIN.ERA]: "https://zksync-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-zksync",
+    [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/kybernetwork/kyberswap-classic-linea"
 } as any);
 
 const classicGraphs = getChainVolume({
