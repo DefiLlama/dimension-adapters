@@ -2153,13 +2153,18 @@ export default ([
         }
     },
     {
-        "id":"2907",
+        "id":"parent#chronos",
         "name":"Chronos",
         "addresses":{
             "arbitrum":[
                 "0xE708aA9E887980750C040a6A2Cb901c37Aa34f3b",//routerv2
                 "0x5D9dBA2D0ec06F44Da7e234cBB0d7BA921834AE8",//masterchef
                 "0xC72b5C6D2C33063E89a50B2F77C99193aE6cEe6c",//voter
+                //univ3 fork
+                "0xE0aBdFD837D451640CF43cB1Ec4eE87976eFbb41",//swapRouter
+                "0x9aAb66944D66516FEFa26D27267E02af03d17c02",//nftDescriptor
+                "0x5e74e05771f0d1222834e66DE5326C82a2C852e0",//nonfungibleTokenPositionDescriptor
+                "0x520CAF43e3C6481b71DB95711802ED9179ccA403",//nonfungiblePositionManager
             ],
         }
     },
@@ -2630,10 +2635,7 @@ export default ([
         "name":"Chronos V2",
         "addresses":{
             "arbitrum":[
-                "0xE0aBdFD837D451640CF43cB1Ec4eE87976eFbb41",//swapRouter
-                "0x9aAb66944D66516FEFa26D27267E02af03d17c02",//nftDescriptor
-                "0x5e74e05771f0d1222834e66DE5326C82a2C852e0",//nonfungibleTokenPositionDescriptor
-                "0x520CAF43e3C6481b71DB95711802ED9179ccA403",//nonfungiblePositionManager
+
             ]
         }
     },        
