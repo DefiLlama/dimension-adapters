@@ -3,36 +3,17 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://dydx.metabaseapp.com/api/public/dashboard/5fa0ea31-27f7-4cd2-8bb0-bc24473ccaa3/dashcard/322/card/234?parameters=%5B%5D"
+const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/stats?days=1"
 
 interface IVolumeall {
-  totalVolume: number;
-  dailyVolume: number;
-  time: string;
+  quoteVolume: string;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.data.rows
-    .map(([time, totalVolume, dailyVolume]: [string, number, number]) => {
-      return {
-        totalVolume,
-        dailyVolume,
-        time,
-      }
-    });
-
-  const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const volume = historicalVolume
-    .find(dayItem => dayItem.time.split('T')[0] === dateString)
-  const findIndex = historicalVolume
-  .findIndex(dayItem => dayItem.time.split('T')[0] === dateString)
-  let dailyVolume = volume?.dailyVolume;
-  if (volume && !dailyVolume) {
-    dailyVolume = historicalVolume[findIndex].totalVolume - historicalVolume[findIndex-1].totalVolume
-  }
+  const historicalVolume: IVolumeall[] = Object.values((await fetchURL(historicalVolumeEndpoint))?.data.markets);
+  const dailyVolume = historicalVolume.reduce((a: number, b: IVolumeall) => a+Number(b.quoteVolume), 0)
   return {
-    totalVolume: volume ? `${volume.totalVolume}` : undefined,
     dailyVolume: dailyVolume && dailyVolume > 0 ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
@@ -42,6 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
+      runAtCurrTime: true,
       start: async () => 1614211200,
     },
   },
