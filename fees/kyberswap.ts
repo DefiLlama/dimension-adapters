@@ -29,8 +29,28 @@ const elasticEndpoints: TEndpoint = elasticChains.reduce((acc, chain) => ({
 }), {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-one",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic"
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
+  [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea"
+  // [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
+  // [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos",
+  // [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas",
+  // [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis",
 } as any);
+
+const elasticEndpointsV2: TEndpoint =  {
+  [CHAIN.ETHEREUM]: "https://ethereum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-ethereum-legacy",
+  [CHAIN.BSC]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
+  [CHAIN.POLYGON]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
+  [CHAIN.AVAX]: "https://avalanche-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-avalanche-legacy",
+  [CHAIN.ARBITRUM]: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-legacy",
+  [CHAIN.OPTIMISM]: "https://optimism-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-optimism-legacy",
+  [CHAIN.FANTOM]: "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom-legacy",
+  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc-legacy",
+  [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos-legacy",
+  // [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas-legacy",
+  // [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis-legacy",
+};
+
 
 const classicEndpoints: TEndpoint = [...elasticChains, "aurora"].reduce((acc, chain) => ({
   [chain]: `https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-exchange-${normalizeChain[chain] ?? chain}`,
@@ -38,6 +58,8 @@ const classicEndpoints: TEndpoint = [...elasticChains, "aurora"].reduce((acc, ch
 }), {
   cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-cronos",
   arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-arbitrum",
+  [CHAIN.ERA]: "https://zksync-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-zksync",
+  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/kybernetwork/kyberswap-classic-linea"
 } as any);
 
 const methodology = {
@@ -59,6 +81,33 @@ const methodology = {
   }
 }
 
+const graphsElasticV2 = (chain: Chain) => {
+  return async (timestamp: number): Promise<FetchResultFees> => {
+    const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+
+    const graphQuery = gql
+      `{
+      kyberSwapDayData(id: ${dateId}) {
+        feesUSD
+      }
+    }`;
+
+    if (!elasticEndpointsV2[chain]) return { timestamp };
+    const graphRes = await request(elasticEndpointsV2[chain], graphQuery);
+    const dailyFee = new BigNumber(graphRes.kyberSwapDayData?.feesUSD || '0');
+
+    return {
+      timestamp,
+      dailyUserFees: dailyFee.toString(),
+      dailyFees: dailyFee.toString(),
+      dailyRevenue: dailyFee.multipliedBy(0.1).toString(),
+      dailyProtocolRevenue: "0",
+      dailyHoldersRevenue: dailyFee.multipliedBy(0.1).toString(),
+      dailySupplySideRevenue: dailyFee.multipliedBy(0.9).toString(),
+    };
+  };
+};
+
 const graphsElastic = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
@@ -71,16 +120,17 @@ const graphsElastic = (chain: Chain) => {
     }`;
 
     const graphRes = await request(elasticEndpoints[chain], graphQuery);
-    const dailyFee = new BigNumber(graphRes.kyberSwapDayData.feesUSD);
+    const elasticV2 = (await graphsElasticV2(chain)(timestamp))
+    const dailyFee = Number(graphRes.kyberSwapDayData?.feesUSD || '0') + Number(elasticV2?.dailyFees || '0');
 
     return {
       timestamp,
       dailyUserFees: dailyFee.toString(),
       dailyFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.1).toString(),
+      dailyRevenue: (dailyFee * 0.1).toString(),
       dailyProtocolRevenue: "0",
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.1).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.9).toString(),
+      dailyHoldersRevenue: (dailyFee * 0.1).toString(),
+      dailySupplySideRevenue: (dailyFee * 0.9).toString(),
     };
   };
 };
@@ -95,7 +145,7 @@ const graphsClassic = (chain: Chain) => {
     const graphQuery = gql
       `
       {
-        poolDayDatas(first:1000) {
+        poolDayDatas(first:1000, orderBy:dailyFeeUSD, orderDirection: desc) {
           date
           dailyFeeUSD
         }

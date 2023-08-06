@@ -444,7 +444,10 @@ export default ([
                 "0xE3Ffc583dC176575eEA7FD9dF2A7c65F7E23f4C3",
             ],
             "bsc":[
-                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8"
+                "0xb66A2704a0dabC1660941628BE987B4418f7a9E8",
+            ],
+            "ethereum":[
+                "0x9A93a421b74F1c5755b83dD2C211614dC419C44b"//Lbrouter
             ]
         }
     },*/
@@ -2151,12 +2154,13 @@ export default ([
     },
     {
         "id":"2907",
-        "name":"Chronos",
+        "name":"Chronos V1",
         "addresses":{
             "arbitrum":[
                 "0xE708aA9E887980750C040a6A2Cb901c37Aa34f3b",//routerv2
                 "0x5D9dBA2D0ec06F44Da7e234cBB0d7BA921834AE8",//masterchef
                 "0xC72b5C6D2C33063E89a50B2F77C99193aE6cEe6c",//voter
+
             ],
         }
     },
@@ -2627,6 +2631,7 @@ export default ([
         "name":"Chronos V2",
         "addresses":{
             "arbitrum":[
+                 //univ3 fork
                 "0xE0aBdFD837D451640CF43cB1Ec4eE87976eFbb41",//swapRouter
                 "0x9aAb66944D66516FEFa26D27267E02af03d17c02",//nftDescriptor
                 "0x5e74e05771f0d1222834e66DE5326C82a2C852e0",//nonfungibleTokenPositionDescriptor
