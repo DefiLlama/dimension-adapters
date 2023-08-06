@@ -3,7 +3,7 @@ import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/stats?days=1"
+const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/markets"
 const candles = (market: string, fromISO: string) => `https://api.dydx.exchange/v3/candles/${market}?resolution=1DAY&fromISO=${fromISO}`
 
 interface IVolumeall {
