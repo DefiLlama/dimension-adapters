@@ -7,7 +7,7 @@ const endpoints = {
 
 const adapter = univ2Adapter(endpoints, {
   factoriesName: "syncSwapFactories",
-  dayData: "syncSwapSwitchDayData",
+  dayData: "dayData",
   dailyVolume: "dailyVolumeUSD",
   totalVolume: "totalVolumeUSD",
   dailyVolumeTimestampField: "date",
