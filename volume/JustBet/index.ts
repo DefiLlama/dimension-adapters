@@ -5,9 +5,8 @@ import axios from 'axios';
 
 const getGameVolumes = async () => {
   const { data } = await axios.get(
-    'https://jb-dev-backend-qa3ja.ondigitalocean.app/defillama/games-volumes',
+    'https://web2.just.bet/defillama/games-volumes',
   );
-  console.log(data);
   return data;
 };
 
@@ -20,7 +19,7 @@ const fetch = async (): Promise<FetchResultVolume> => {
   );
 
   return {
-    totalVolume: totalVolume.toString(),
+    totalVolume: totalVolume.toFixed(2),
     timestamp: Date.now(),
   };
 };
