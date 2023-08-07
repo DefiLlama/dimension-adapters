@@ -27,7 +27,7 @@ const v3Endpoints = {
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/v0.0.1"
+  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base"
 };
 
 const VOLUME_USD = "volumeUSD";
