@@ -27,6 +27,7 @@ const v3Endpoints = {
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/v0.0.1"
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -107,6 +108,7 @@ const startTimeV3:TStartTime = {
   [CHAIN.CELO]: 1657324800,
   [CHAIN.BSC]: 1678665600,
   [CHAIN.AVAX]: 1689033600,
+  [CHAIN.BASE]: 1691280000
 }
 const adapter: BreakdownAdapter = {
   breakdown: {
