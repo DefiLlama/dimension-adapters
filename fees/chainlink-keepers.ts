@@ -44,45 +44,50 @@ const fetchKeeper = (chain: Chain) => {
   return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs: ITx[] = (await getLogs({
-      target: address_keeper[chain],
-      topic: '',
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0_keeper],
-      keys: [],
-      chain: chain
-    })).output.map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
-      .filter((e: ITx) => e.topics.includes(success_topic));
-    const provider = getProvider(chain);
-    const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : ((await Promise.all(
-      tx_hash.map((transactionHash: string) => retry(() => provider.getTransactionReceipt(transactionHash), { retries: 3 })
-      ).map(p => p.catch(() => undefined)))))
-      .map((e: any) => {
-        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
-        return amount
-      })
-    const payAmount: number[] = logs.map((tx: ITx) => {
-      const amount = Number('0x' + tx.data.slice(0, 64)) / 10 ** 18
-      return amount;
-    });
-    const linkAddress = "coingecko:chainlink";
-    const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp))
-    const linkPrice = prices[linkAddress].price
-    const gagPrice = prices[gasToken].price
-    const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
-    const dailyFeesUsd = dailyFees * linkPrice;
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
-    const dailyGasUsd = dailyGas * gagPrice;
-    const dailyRevenue = dailyFeesUsd - dailyGasUsd;
-    return {
-      dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
+    try {
+      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+      const toBlock = (await getBlock(toTimestamp, chain, {}));
+      const logs: ITx[] = (await getLogs({
+        target: address_keeper[chain],
+        topic: '',
+        fromBlock: fromBlock,
+        toBlock: toBlock,
+        topics: [topic0_keeper],
+        keys: [],
+        chain: chain
+      })).output.map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
+        .filter((e: ITx) => e.topics.includes(success_topic));
+      const provider = getProvider(chain);
+      const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
+      const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : ((await Promise.all(
+        tx_hash.map((transactionHash: string) => retry(() => provider.getTransactionReceipt(transactionHash), { retries: 3 })
+        ).map(p => p.catch(() => undefined)))))
+        .map((e: any) => {
+          const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
+          return amount
+        })
+      const payAmount: number[] = logs.map((tx: ITx) => {
+        const amount = Number('0x' + tx.data.slice(0, 64)) / 10 ** 18
+        return amount;
+      });
+      const linkAddress = "coingecko:chainlink";
+      const gasToken = gasTokenId[chain];
+      const prices = (await getPrices([linkAddress, gasToken], timestamp))
+      const linkPrice = prices[linkAddress].price
+      const gagPrice = prices[gasToken].price
+      const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
+      const dailyFeesUsd = dailyFees * linkPrice;
+      const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
+      const dailyGasUsd = dailyGas * gagPrice;
+      const dailyRevenue = dailyFeesUsd - dailyGasUsd;
+      return {
+        dailyFees: dailyFeesUsd.toString(),
+        dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+        timestamp
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
   }
 }
