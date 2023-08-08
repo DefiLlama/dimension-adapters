@@ -21,30 +21,6 @@ interface IDTrade {
   cumulativeVolume: string;
 }
 
-const fetchReferralVolume = async (timestamp: number): Promise<number> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
-  const referralQuery = gql`
-    {
-      referrerStats(
-        where: {referrer: "0x8c128f336b479b142429a5f351af225457a987fa", timestamp_gt: "${todaysTimestamp}"}
-      ) {
-        volume
-      }
-    }
-  `;
-
-  const referralEndpoint = 'https://api.thegraph.com/subgraphs/name/gmx-io/gmx-arbitrum-referrals';
-  const referralRes = await request(referralEndpoint, referralQuery);
-
-  // If there's no volume data, return 0
-  if (!referralRes.referrerStats || referralRes.referrerStats.length === 0) {
-    return 0;
-  }
-
-  return Number(referralRes.referrerStats[0].volume) / 10 ** 30;
-};
-
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
@@ -103,11 +79,6 @@ const fetch = (chain: Chain) => {
       const dailyVolume = Number(trade.cumulativeVolume || 0) / 10 ** 8;
       dailyVolumeUSD += dailyVolume * tokenPrice; // Convert to USD
     });
-
-    if (chain === CHAIN.ARBITRUM) {
-      const referralVolumeUSD = await fetchReferralVolume(timestamp);
-      dailyVolumeUSD += referralVolumeUSD;
-    }
 
     return {
       dailyVolume: dailyVolumeUSD.toString(),
