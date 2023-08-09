@@ -17,6 +17,7 @@ const endpointsV3 = {
     [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-polygon',
     [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
+    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1"
 }
 
 const v3Graphs = getGraphDimensions({
@@ -53,7 +54,8 @@ const startTimeV3: {[key: string]: number} = {
     [CHAIN.OPTIMISM]: 85432013,
     [CHAIN.POLYGON]: 41024971,
     [CHAIN.POLYGON_ZKEVM]: 80860,
-    [CHAIN.THUNDERCORE]: 132536332
+    [CHAIN.THUNDERCORE]: 132536332,
+    [CHAIN.BASE]: 1691020800,
 }
 
 const v3 = Object.keys(endpointsV3).reduce(
