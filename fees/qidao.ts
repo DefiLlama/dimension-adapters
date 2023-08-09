@@ -42,7 +42,7 @@ const contract_interface = new ethers.utils.Interface([
   event_token_earned
 ]);
 
-interface IWithdraw {
+interface IRAW {
   token: string;
   amount: number;
 }
@@ -76,29 +76,29 @@ const fetch = (chain: Chain) => {
         topics: [topic0_token_earned]
       })).output as ILog[]
 
-      const raw_withdraw: IWithdraw[] = log_withdraw_fees.map((e: ILog) => {
+      const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
         const value = contract_interface.parseLog(e);
         const token = value.args.token;
         const amount = Number(value.args.amount._hex);
         return {
           token: token,
           amount: amount,
-        } as IWithdraw
+        } as IRAW
       })
 
-      const raw_token_earned: IWithdraw[] = log_token_earned.map((e: ILog) => {
+      const raw_token_earned: IRAW[] = log_token_earned.map((e: ILog) => {
         const value = contract_interface.parseLog(e);
         const token = value.args.perfToken;
         const amount = Number(value.args.amount._hex);
         return {
           token: token,
           amount: amount,
-        } as IWithdraw
+        } as IRAW
       })
 
-      const coins = [...new Set([...raw_withdraw,...raw_token_earned].map((e: IWithdraw) => `${chain}:${e.token}`.toLowerCase()))]
+      const coins = [...new Set([...raw_withdraw,...raw_token_earned].map((e: IRAW) => `${chain}:${e.token}`.toLowerCase()))]
       const prices = await getPrices(coins, timestamp);
-      const dailyFeesUSD = [...raw_withdraw, ...raw_token_earned].map((e: IWithdraw) => {
+      const dailyFeesUSD = [...raw_withdraw, ...raw_token_earned].map((e: IRAW) => {
         const price = (prices[`${chain}:${e.token}`.toLowerCase()]?.price || 0);
         const decimals = (prices[`${chain}:${e.token}`.toLowerCase()]?.decimals || 0);
         return (Number(e.amount) / 10 ** decimals) * price;
