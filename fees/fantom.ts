@@ -7,10 +7,9 @@ const adapter: Adapter = {
     [CHAIN.FANTOM]: {
         fetch:  async (timestamp: number) => {
             const usdFees = await getEtherscanFees(timestamp, `https://ftmscan.com/chart/transactionfee?output=csv`, "coingecko:fantom")
-
             return {
                 timestamp,
-                dailyFees: usdFees.toString(), 
+                dailyFees: usdFees.toString(),
                 dailyRevenue: (usdFees*0.3).toString(),
             };
         },
