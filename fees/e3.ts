@@ -202,6 +202,11 @@ const adapter: SimpleAdapter = {
 			fetch: graph(CHAIN.ARBITRUM),
 			start: async () => 1686459416,
 			meta: { methodology }
+		},
+		[CHAIN.BASE]: {
+			fetch: graph(CHAIN.BASE),
+			start: async () => 1691703800,
+			meta: { methodology }
 		}
 	}
 };
