@@ -1,12 +1,14 @@
 import { Adapter, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getEtherscanFees } from "../helpers/etherscanFees";
+import { queryDune } from "../helpers/dune";
+import { getPrices } from "../utils/prices";
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
         fetch:  async (timestamp: number) => {
-            const usdFees = await getEtherscanFees(timestamp, `https://ftmscan.com/chart/transactionfee?output=csv`, "coingecko:fantom")
+            const fees = (await queryDune("2843395"))[0]._col0
+            const usdFees = fees * (await getPrices(["coingecko:fantom"], timestamp))["coingecko:fantom"].price;
 
             return {
                 timestamp,
