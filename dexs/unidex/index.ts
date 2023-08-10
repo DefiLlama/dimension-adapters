@@ -14,6 +14,7 @@ const endpoints: TUrl = {
   [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/fantomleveragev2',
   [CHAIN.METIS]: 'https://unidexcronos.xyz/subgraphs/name/unidex-finance/leveragev2',
   [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/arbitrumleveragev2',
+  [CHAIN.BASE]: 'https://base.tempsubgraph.xyz/subgraphs/name/unidex-finance/baseleveragev2',
 }
 
 interface IDTrade {
@@ -54,6 +55,11 @@ const fetch = (chain: Chain) => {
           "arbitrum:0x0Ae38f7E10A43B5b2fB064B42a2f4514cbA909ef",
         ];
         break;
+      case CHAIN.BASE:
+          tokenIds = [
+            "base:0x0000000000000000000000000000000000000000",
+          ];
+          break;
       // Add cases for other chains if needed
     }
 
@@ -109,6 +115,13 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
+      start: async ()  => 1687422746,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
       start: async ()  => 1687422746,
       meta: {
         methodology
