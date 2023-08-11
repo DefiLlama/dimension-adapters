@@ -166,6 +166,10 @@ const adapter: SimpleAdapter = {
 		[CHAIN.ARBITRUM]: {
 			fetch: graph(CHAIN.ARBITRUM),
 			start: async () => 1686459416,
+		},
+		[CHAIN.BASE]: {
+			fetch: graph(CHAIN.BASE),
+			start: async () => 1691547000,
 		}
 	}
 };
