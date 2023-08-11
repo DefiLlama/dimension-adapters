@@ -1,7 +1,6 @@
 import { Adapter } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
-import axios from "axios"
 import { CHAIN } from "../helpers/chains";
 
 const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical"
@@ -14,6 +13,7 @@ interface IChartItem {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
   const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))?.data
+  console.log(historicalFees)
 
   const totalFee = historicalFees
     .filter(feeItem => (new Date(feeItem.time).getTime() / 1000) <= dayTimestamp)
@@ -31,17 +31,12 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await axios.get(feeEndpoint))?.data
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
-
 const adapter: Adapter = {
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
-      start: getStartTimestamp,
+      start: async () => 1665964800,
     },
   }
 }
