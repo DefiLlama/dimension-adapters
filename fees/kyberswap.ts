@@ -100,10 +100,10 @@ const graphsElasticV2 = (chain: Chain) => {
       timestamp,
       dailyUserFees: dailyFee.toString(),
       dailyFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.1).toString(),
+      dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
       dailyProtocolRevenue: "0",
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.1).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.9).toString(),
+      dailyHoldersRevenue: dailyFee.multipliedBy(0.16).toString(),
+      dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
     };
   };
 };
@@ -127,10 +127,10 @@ const graphsElastic = (chain: Chain) => {
       timestamp,
       dailyUserFees: dailyFee.toString(),
       dailyFees: dailyFee.toString(),
-      dailyRevenue: (dailyFee * 0.1).toString(),
+      dailyRevenue: (dailyFee * 0.16).toString(),
       dailyProtocolRevenue: "0",
-      dailyHoldersRevenue: (dailyFee * 0.1).toString(),
-      dailySupplySideRevenue: (dailyFee * 0.9).toString(),
+      dailyHoldersRevenue: (dailyFee * 0.16).toString(),
+      dailySupplySideRevenue: (dailyFee * 0.84).toString(),
     };
   };
 };
@@ -161,10 +161,10 @@ const graphsClassic = (chain: Chain) => {
       timestamp,
       dailyUserFees: dailyFee.toString(),
       dailyFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.1).toString(),
+      dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
       dailyProtocolRevenue: "0",
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.1).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.9).toString(),
+      dailyHoldersRevenue: dailyFee.multipliedBy(0.16).toString(),
+      dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
     };
   };
 };
