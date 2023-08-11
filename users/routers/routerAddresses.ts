@@ -2638,6 +2638,16 @@ export default ([
                 "0x520CAF43e3C6481b71DB95711802ED9179ccA403",//nonfungiblePositionManager
             ]
         }
-    },        
+    },  
+    {
+        "id":"3346", // todo?
+        "name": "Drift",
+        "addresses":{
+            "solana":[
+                "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH", // dex program id
+                "VAULtLeTwwUxpwAw98E6XmgaDeQucKgV5UaiAuQ655D", // vaults program id
+            ]
+        }
+    },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
