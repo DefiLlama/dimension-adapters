@@ -169,7 +169,7 @@ const adapter: SimpleAdapter = {
 		},
 		[CHAIN.BASE]: {
 			fetch: graph(CHAIN.BASE),
-			start: async () => 1691703800,
+			start: async () => 1691547000,
 		}
 	}
 };
