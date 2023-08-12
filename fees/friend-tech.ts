@@ -73,7 +73,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
         fetch: fetch,
-        start: async ()  => 1691625600,
+        start: async ()  => 1691539200,
     },
   }
 }
