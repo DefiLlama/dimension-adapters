@@ -7,14 +7,16 @@ const API_KEYS = process.env.DUNE_API_KEYS?.split(',') ?? ["L0URsn5vwgyrWbBpQo9y
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
 
-export async function queryDune(queryId: string) {
+export async function queryDune(queryId: string, query_parameters={}) {
   return await retry(
-    async (_bail, _attempt: number) => {
+    async (bail, _attempt: number) => {
       const API_KEY = API_KEYS[API_KEY_INDEX]
       let query: undefined | AxiosResponse<any, any> = undefined
       if (!token[queryId]) {
         try{
-          query = await axios.post(`https://api.dune.com/api/v1/query/${queryId}/execute`, {}, {
+          query = await axios.post(`https://api.dune.com/api/v1/query/${queryId}/execute`, {
+            query_parameters
+          }, {
             headers: {
               "x-dune-api-key": API_KEY,
               'Content-Type': 'application/json'
@@ -45,6 +47,11 @@ export async function queryDune(queryId: string) {
       const status = queryStatus.data.state
       if (status === "QUERY_STATE_COMPLETED") {
         return queryStatus.data.result.rows
+      } else if (status === "QUERY_STATE_FAILED"){
+        console.log(queryStatus.data)
+        const error = new Error("Dune query failed")
+        bail(error)
+        throw error
       }
       throw new Error("Still running")
     },
