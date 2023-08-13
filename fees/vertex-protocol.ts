@@ -90,13 +90,13 @@ const get24hrRevenue = async (max_time: number): Promise<number> => {
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyFees = await get24hrFees(timestamp);
   const dailyRevenue = await get24hrRevenue(timestamp);
-  // const totalFees = await getCumulativeFees(timestamp);
-  // const totalRev = await getCumulativeRevenue(timestamp);
+  const totalFees = await getCumulativeFees(timestamp);
+  const totalRev = await getCumulativeRevenue(timestamp);
   return {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
-    // totalRevenue: `${totalRev}`,
-    // totalFees: `${totalFees}`,
+    totalRevenue: `${totalRev}`,
+    totalFees: `${totalFees}`,
     timestamp
   }
 }
@@ -105,6 +105,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
+      runAtCurrTime: true,
       start: async ()  => 1682514000,
     },
   }
