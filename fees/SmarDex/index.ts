@@ -23,7 +23,7 @@ const FEES = {
 
 // SDEX contract creation timestamps for each chain
 const CHAIN_STARTS = {
-  [CHAIN.ETHEREUM]: 1593561600,
+  [CHAIN.ETHEREUM]: 1678404995,
   [CHAIN.BSC]: 1688978540,
   [CHAIN.POLYGON]: 1682085480,
   [CHAIN.ARBITRUM]: 1688976153,
