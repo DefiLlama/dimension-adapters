@@ -40,10 +40,10 @@ Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed info
 const methodology = {
   UserFees: FEES_METHODOLOGY,
   Fees: FEES_METHODOLOGY,
-  Revenue: `0.02% of each swap on Ethereum is collected for the staking pool (SDEX holders that staked).`,
+  Revenue: `0.02% of each swap on Ethereum is collected for the staking pool (SDEX holders that staked). On the other chains, the fees are collected for the liquidity providers and fees may vary between different pairs and chains. Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed information.`,
   ProtocolRevenue: `Protocol has no revenue.`,
-  SupplySideRevenue: `0.05% of each swap on Ethereum is collected for the liquidity providers.`,
-  HoldersRevenue: `0.02% of each swap on Ethereum is collected for the staking pool (SDEX holders that staked).`,
+  SupplySideRevenue: `0.05% of each swap on Ethereum is collected for the liquidity providers. On the other chains, the fees collected for the liquidity providers and fees may vary between different pairs and chains. Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed information.`,
+  HoldersRevenue: `0.02% of each swap on Ethereum is collected for the staking pool (SDEX holders that staked). On other chains the staking is not available and the fees are collected for buybacks SDEX and burns.`,
 };
 
 // Define the adapter
