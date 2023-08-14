@@ -61,7 +61,7 @@ for (let chain in FEES) {
  * Fetch fees from the subgraph for a given timestamp and chain.
  *
  * @param time - the timestamp to fetch fees at.
- * @param chain - the blockchain chain.
+ * @param chain - the blockchain tag.
  * @returns Promise containing fetch results.
  */
 export async function feesFromSubgraph(
