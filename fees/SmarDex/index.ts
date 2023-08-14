@@ -1,9 +1,19 @@
-import { getDexChainFees } from "../../helpers/getUniSubgraphFees";
-import volumeAdapter from "../../dexs/SmarDex";
 import { CHAIN } from "../../helpers/chains";
-import type { Adapter } from "../../adapters/types";
+import type { Adapter, FetchResult } from "../../adapters/types";
+import { request, gql } from "graphql-request";
+import BigNumber from "bignumber.js";
 
-// Define fees for each chain
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+
+const SMARDEX_SUBGRAPH_API_KEY = process.env.SMARDEX_SUBGRAPH_API_KEY || "";
+const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
+
+// Headers for GraphQL requests that require an API key
+const defaultHeaders = {
+  "x-api-key": SMARDEX_SUBGRAPH_API_KEY,
+};
+
+// Default fees for each chain
 const FEES = {
   [CHAIN.ETHEREUM]: { LP_FEES: 0.0005, POOL_FEES: 0.0002 },
   [CHAIN.BSC]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
@@ -11,42 +21,87 @@ const FEES = {
   [CHAIN.ARBITRUM]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
 } as { [chain: string]: { LP_FEES: number; POOL_FEES: number } };
 
-const adapter: Adapter = {
-  adapter: {},
+// SDEX contract creation timestamps for each chain
+const CHAIN_STARTS = {
+  [CHAIN.ETHEREUM]: 1678404995,
+  [CHAIN.BSC]: 1688978540,
+  [CHAIN.POLYGON]: 1682085480,
+  [CHAIN.ARBITRUM]: 1688976153,
+} as { [chain: string]: number };
+
+// Methodology descriptions
+const FEES_METHODOLOGY = `
+A minor fee is collected on each swap, functioning as trading fees.
+The fees are set at 0.07% on Ethereum and 0.1% on other chains.
+On other networks, fees may vary between different pairs and chains.
+Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed information.
+`;
+
+const methodology = {
+  UserFees: FEES_METHODOLOGY,
+  Fees: FEES_METHODOLOGY,
+  Revenue: `0.02% of each swap on Ethereum is collected for staking pool (SDEX holders that staked). On other chains, fees are collected for liquidity providers and fees may vary between different pairs and chains. Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed information.`,
+  ProtocolRevenue: `Protocol has no revenue.`,
+  SupplySideRevenue: `0.05% of each swap on Ethereum is collected for liquidity providers. On other chains, fees collected for liquidity providers and fees may vary between different pairs and chains. Refer to https://docs.smardex.io/overview/what-is-smardex/fees for detailed information.`,
+  HoldersRevenue: `0.02% of each swap on Ethereum is collected for staking pool (SDEX holders that staked). On other chains staking is not available and fees are collected for buybacks SDEX and burns.`,
 };
 
+// Define the adapter
+const adapter: Adapter = { adapter: {} };
 for (let chain in FEES) {
-  const { LP_FEES, POOL_FEES } = FEES[chain];
-  const TOTAL_FEES = LP_FEES + POOL_FEES;
-
-  // Convert fees to percentages and round to two decimal places
-  const totalFeesPercent = (TOTAL_FEES * 100).toFixed(2);
-  const lpFeesPercent = (LP_FEES * 100).toFixed(2);
-  const poolFeesPercent = (POOL_FEES * 100).toFixed(2);
-
-  const baseAdapter = getDexChainFees({
-    userFees: TOTAL_FEES,
-    totalFees: TOTAL_FEES,
-    supplySideRevenue: LP_FEES,
-    revenue: POOL_FEES,
-    holdersRevenue: POOL_FEES,
-    volumeAdapter,
-  });
-
-  const methodology = {
-    UserFees: `${totalFeesPercent}% of each swap is collected from the user that swaps as trading fees.`,
-    Fees: `${totalFeesPercent}% of each swap is collected from the user that swaps as trading fees.`,
-    Revenue: `${poolFeesPercent}% of each swap is collected for the staking pool (SDEX holders that staked).`,
-    ProtocolRevenue: `Protocol has no revenue.`,
-    SupplySideRevenue: `${lpFeesPercent}% of each swap is collected for the liquidity providers.`,
-    HoldersRevenue: `${poolFeesPercent}% of each swap is collected for the staking pool (SDEX holders that staked).`,
-  };
-
   adapter.adapter[chain] = {
-    ...baseAdapter[chain],
-    meta: {
-      methodology,
-    },
+    fetch: (timestamp: number) =>
+      feesFromSubgraph(timestamp, chain.toLocaleLowerCase()),
+    start: async () => CHAIN_STARTS[chain],
+    meta: { methodology },
+  };
+}
+
+/**
+ * Fetch fees from the subgraph for a given timestamp and chain.
+ *
+ * @param time - the timestamp to fetch fees at.
+ * @param chain - the blockchain tag.
+ * @returns Promise containing fetch results.
+ */
+export async function feesFromSubgraph(
+  time: number,
+  chain: string
+): Promise<FetchResult> {
+  const dayId = Math.floor(time / 86400);
+  const timestamp = getTimestampAtStartOfDayUTC(time);
+  const graphQuery = gql`
+    {
+      feeDayDatas(first: 1, where: { dayId_lte: ${dayId} }) {
+        dailyFeesPoolUSD
+        dailyFeesLpUSD
+        totalFeesPoolUSD
+        totalFeesLpUSD
+      }
+    }
+  `;
+
+  const url = `${SMARDEX_SUBGRAPH_GATEWAY}/${chain}`;
+  const graphRes = await request(url, graphQuery, undefined, defaultHeaders);
+  const fees = graphRes["feeDayDatas"][0];
+
+  if (!fees) return { timestamp };
+
+  const dailyFees = new BigNumber(fees.dailyFeesPoolUSD)
+    .plus(new BigNumber(fees.dailyFeesLpUSD))
+    .toString();
+  const totalFees = new BigNumber(fees.totalFeesPoolUSD)
+    .plus(new BigNumber(fees.totalFeesLpUSD))
+    .toString();
+  const dailyRevenue = new BigNumber(fees.dailyFeesLpUSD).toString();
+  const totalRevenue = new BigNumber(fees.totalFeesLpUSD).toString();
+
+  return {
+    timestamp,
+    dailyFees,
+    totalFees,
+    dailyRevenue,
+    totalRevenue,
   };
 }
 
