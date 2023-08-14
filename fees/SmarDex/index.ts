@@ -74,9 +74,9 @@ export async function feesFromSubgraph(
     {
       feeDayDatas(first: 1, where: { dayId_lte: ${dayId} }) {
         dailyFeesPoolUSD
-        dailyFeesLPUSD
+        dailyFeesLpUSD
         totalFeesPoolUSD
-        totalFeesLPUSD
+        totalFeesLpUSD
       }
     }
   `;
