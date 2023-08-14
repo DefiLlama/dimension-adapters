@@ -16,8 +16,8 @@ interface IData  {
   signerToken: string;
 }
 
-const event_swap = 'event Swap(uint256 indexed nonce,uint256 timestamp,address indexed signerWallet,address signerToken,uint256 signerAmount,uint256 protocolFee,address indexed senderWallet,address senderToken,uint256 senderAmount)';
-const topic0 = '0x06dfeb25e76d44e08965b639a9d9307df8e1c3dbe2a6364194895e9c3992f033';
+const event_swap = 'event SwapERC20(uint256 indexed nonce,address indexed signerWallet,address signerToken,uint256 signerAmount,uint256 protocolFee,address indexed senderWallet,address senderToken,uint256 senderAmount)';
+const topic0 = '0xb651f2787ff61b5ab14f3936f2daebdad3d84aeb74438e82870cc3b7aee71e90';
 
 const contract_interface = new ethers.utils.Interface([
   event_swap
@@ -27,10 +27,11 @@ type TAddress = {
   [c: string]: string;
 }
 const address: TAddress = {
-  [CHAIN.ETHEREUM]: '0x522d6f36c95a1b6509a14272c17747bbb582f2a6',
-  [CHAIN.POLYGON]: '0x6713C23261c8A9B7D84Dd6114E78d9a7B9863C1a',
-  [CHAIN.AVAX]: '0xEc08261ac8b3D2164d236bD499def9f82ba9d13F',
-  [CHAIN.BSC]: '0x132F13C3896eAB218762B9e46F55C9c478905849'
+  [CHAIN.ETHEREUM]: '0xd82fa167727a4dc6d6f55830a2c47abbb4b3a0f8',
+  [CHAIN.POLYGON]: '0xd82fa167727a4dc6d6f55830a2c47abbb4b3a0f8',
+  [CHAIN.AVAX]: '0xd82FA167727a4dc6D6F55830A2c47aBbB4b3a0F8',
+  [CHAIN.BSC]: '0xd82fa167727a4dc6d6f55830a2c47abbb4b3a0f8',
+  [CHAIN.ARBITRUM]: '0xd82FA167727a4dc6D6F55830A2c47aBbB4b3a0F8'
 }
 
 const graph = (chain: Chain) => {
@@ -96,6 +97,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: async () => 1680307200,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: graph(CHAIN.ARBITRUM),
+      start: async () => 1689811200,
     },
   }
 };

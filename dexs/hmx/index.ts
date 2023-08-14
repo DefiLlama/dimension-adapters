@@ -1,13 +1,12 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
+import { request, gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]:
-    "https://subgraph.satsuma-prod.com/6350b8b3ceb3/92d146b1e22261b5990c85a8b277ed8804ce4906c5e095f5311b4e4ce8ce4bf8/arbitrum-one-stats/version/v.0.0.4/api",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/2eb3a0530326/92d146b1e22261b5990c85a8b277ed8804ce4906c5e095f5311b4e4ce8ce4bf8/arbitrum-one-stats/api",
 };
 
 type MarketStat = {
@@ -28,8 +27,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           }
         `;
+        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+        graphQLClient.setHeader('origin', 'https://hmx.org')
         const totalMarketStats = (
-          await request(graphUrls[chain], totalTradingVolumeQuery)
+          await graphQLClient.request(totalTradingVolumeQuery)
         ).marketStats as Array<MarketStat>;
         const totalVolume =
           totalMarketStats.reduce(
@@ -64,7 +65,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           `;
         const last24hrMarketStats = (
-          await request(graphUrls[chain], last24hrVolumeQuery)
+          await graphQLClient.request(last24hrVolumeQuery)
         ).marketHourlyStats as Array<{ tradingVolume: string }>;
         const last24hrVolume =
           last24hrMarketStats.reduce(

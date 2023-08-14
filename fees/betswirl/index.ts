@@ -119,6 +119,8 @@ function graphs() {
         currentPrices["bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e"] =
           currentPrices["coingecko:floki"];
         currentPrices["bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56"] = currentPrices["coingecko:binance-usd"];
+        currentPrices['bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56'].decimals = 18;
+        currentPrices['bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e'].decimals = 9;
         // Hardcoding TITANO price since it migrated to SWYCH
         if (!currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"]) {
           currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"] = {
@@ -159,14 +161,13 @@ function graphs() {
       const totalProtocolRevenue: TBalance = {};
       const totalDailyHoldersRevenue: TBalance = {};
       const totalSupplySideRevenue: TBalance = {};
-
       for (const token of graphRes.todayTokens) {
         let tokenKey = chain + `:` + token.id.split(':')[0];
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
           console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
 
         totalUserFees[tokenKey] = fromWei(
           toBN(token.dividendAmount)
@@ -209,8 +210,8 @@ function graphs() {
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
           console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
 
         if (!totalUserFees[tokenKey]) {
           totalUserFees[tokenKey] = 0
@@ -260,8 +261,8 @@ function graphs() {
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
           console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
 
         dailyUserFees[tokenKey] =
           totalUserFees[tokenKey] -
@@ -308,8 +309,8 @@ function graphs() {
         if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
           console.log('not found token: ',tokenKey);
         }
-        const tokenDecimals = currentPrices[tokenKey].decimals;
-        const tokenPrice = currentPrices[tokenKey].price;
+        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
+        const tokenPrice = currentPrices[tokenKey]?.price || 0;
 
         if (!dailyUserFees[tokenKey]) {
           dailyUserFees[tokenKey] = 0
@@ -353,7 +354,6 @@ function graphs() {
             .multipliedBy(tokenPrice)
             .toNumber();
       }
-
       return {
         timestamp,
         dailyFees: Object.values(dailyFees).reduce((a: number, b: number) => a + b, 0).toString(),

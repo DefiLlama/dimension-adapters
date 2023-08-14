@@ -17,6 +17,10 @@ const info: { [key: string]: any } = {
     subgraph:
       "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-bnb-app",
   },
+  [CHAIN.BASE]: {
+    subgraph:
+      "https://api.studio.thegraph.com/query/42519/maverick-base/version/latest",
+  },
 };
 
 const getData = async (chain: string, timestamp: number) => {
