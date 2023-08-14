@@ -1,5 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter, IJSON } from "../../adapters/types";
+import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
@@ -30,18 +29,15 @@ const v3Graph = getGraphDimensions({
 });
 
 const v3StartTimes = {
-  [CHAIN.BASE]: 2146977,
+  [CHAIN.BASE]: 1691712000,
 } as IJSON<number>;
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: v3Graph(chain as Chain),
-        start: async () => v3StartTimes[chain],
-      };
-      return acc;
-    }, {} as BaseAdapter),
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: v3Graph(CHAIN.BASE),
+      start: async () => v3StartTimes[CHAIN.BASE]
+    },
   },
 };
 
