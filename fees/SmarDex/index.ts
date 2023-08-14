@@ -88,13 +88,13 @@ export async function feesFromSubgraph(
   if (!fees) return { timestamp };
 
   const dailyFees = new BigNumber(fees.dailyFeesPoolUSD)
-    .plus(new BigNumber(fees.dailyFeesLPUSD))
+    .plus(new BigNumber(fees.dailyFeesLpUSD))
     .toString();
   const totalFees = new BigNumber(fees.totalFeesPoolUSD)
-    .plus(new BigNumber(fees.totalFeesLPUSD))
+    .plus(new BigNumber(fees.totalFeesLpUSD))
     .toString();
-  const dailyRevenue = new BigNumber(fees.dailyFeesLPUSD).toString();
-  const totalRevenue = new BigNumber(fees.totalFeesLPUSD).toString();
+  const dailyRevenue = new BigNumber(fees.dailyFeesLpUSD).toString();
+  const totalRevenue = new BigNumber(fees.totalFeesLpUSD).toString();
 
   return {
     timestamp,
