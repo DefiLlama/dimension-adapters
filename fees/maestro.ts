@@ -34,6 +34,7 @@ const graph = (chain: Chain) => {
 
       const value: string[] = (await queryFlipside(query)).flat();
       let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
+      amount = chain === CHAIN.ARBITRUM  ? (amount / 10 ** 18) : amount;
       const gasId = gasTokenId[chain];
       const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
       const dailyFees = (amount * gasIdPrice)

@@ -1,16 +1,24 @@
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, CHAIN, POLYGON } from "../helpers/chains";
-import { request, gql } from "graphql-request";
+import { request, gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getBlock } from "../helpers/getBlock";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/perp88/plp-pool",
-  [ARBITRUM]: "https://subgraph.satsuma-prod.com/6350b8b3ceb3/92d146b1e22261b5990c85a8b277ed8804ce4906c5e095f5311b4e4ce8ce4bf8/arbitrum-one-stats/version/v.0.0.4/api",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/perp88/plp-pool",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/2eb3a0530326/92d146b1e22261b5990c85a8b277ed8804ce4906c5e095f5311b4e4ce8ce4bf8/arbitrum-one-stats/api",
 };
 
+interface IData {
+  totalFees: string;
+}
+interface IGraph {
+  yesterday: IData;
+  today: IData;
+  statistic: IData;
+}
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
@@ -38,8 +46,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
         `
 
-        const graphRes = await request(graphUrls[chain], graphQuery);
-        const graphResDaily = await request(graphUrls[chain], queryDaily);
+        const graphRes: IGraph = await request(graphUrls[chain], graphQuery);
+        const graphResDaily: IGraph = await request(graphUrls[chain], queryDaily);
         const dailyFee = (Number(graphResDaily.yesterday.totalFees) - Number(graphResDaily.today.totalFees))/1e30;
         const totalFees = parseInt(graphRes.statistic.totalFees) / 1e30;
 
@@ -64,9 +72,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           }
         `
-
-        const totalFeeResp = await request(graphUrls[chain], totalFeeQuery);
-        const dailyFeeResp = await request(graphUrls[chain], dailyFeeQuery);
+        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+        graphQLClient.setHeader('origin', 'https://hmx.org')
+        const totalFeeResp = await graphQLClient.request(totalFeeQuery);
+        const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
 
         return {
           timestamp,

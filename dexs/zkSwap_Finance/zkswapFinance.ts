@@ -53,31 +53,30 @@ const getData = async (chain: string, timestamp: number) => {
     totalSum += Number(pair.volumeToken0) * price0
   }
 
+  let lasTimestampQuery = startDayTimestamp
 
   while (returnCount == 1000) {
     const graphQL = `{
       swaps(
-          orderBy: id
-          orderDirection: desc
-          first: 1000
-          skip: ${step * 1000}
-          where: {timestamp_gt: ${startDayTimestamp}, timestamp_lt: ${startDayTimestamp + dayMiliseconds} }
+        orderBy: timestamp
+        orderDirection: asc
+        first: 1000
+        where: {timestamp_gte: ${lasTimestampQuery}, timestamp_lt: ${startDayTimestamp + dayMiliseconds} }
         ) {
           amount0In
           amount0Out
+          timestamp
           pair {
             token0 {
               id
             }
           }
-          timestamp
         }
       }`;
 
     const data = await request(info[chain].subgraph, graphQL);
     returnCount = data.swaps.length;
-    step++;
-
+    lasTimestampQuery = data?.swaps[returnCount-1]?.timestamp
 
     for (const swap of data.swaps) {
 

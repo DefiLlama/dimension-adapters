@@ -9,12 +9,11 @@ const adapterObj = volumeAdapter.adapter;
 const fetch = (chain: string, totalFees: number, revenueFee: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks) => {
     const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-    const chainDailyVolume = fetchedResult.dailyVolume;
-    const chainTotalVolume = fetchedResult.totalVolume;
+    const chainDailyVolume = fetchedResult.dailyVolume || '0';
+    const chainTotalVolume = fetchedResult.totalVolume || '0';
     const ssrFee = totalFees - revenueFee
     const protocolFee = chain === CHAIN.TELOS ? 0.000375 : revenueFee / 2
     const buybackFee = revenueFee / 2
-
     return {
       timestamp,
       totalUserFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,

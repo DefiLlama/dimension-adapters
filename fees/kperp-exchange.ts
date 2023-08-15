@@ -1,9 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
   [CHAIN.KAVA]: "https://graph-node.kperp.exchange/subgraphs/name/kperp/core",
@@ -44,6 +45,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
       start: async () => 2578000,
