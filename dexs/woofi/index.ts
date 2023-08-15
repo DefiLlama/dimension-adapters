@@ -13,6 +13,8 @@ const endpoints = {
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/version/latest",
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/version/latest",
+  [CHAIN.LINEA]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-linea",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45576/woofi-base/version/latest",
 };
 
 type TStartTime = {
@@ -27,6 +29,8 @@ const startTime: TStartTime = {
   [CHAIN.OPTIMISM]: 1669161600,
   [CHAIN.ERA]: 1680652800,
   [CHAIN.POLYGON_ZKEVM]: 1688515200,
+  [CHAIN.LINEA]: 1691625600,
+  [CHAIN.BASE]: 1692057600,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
