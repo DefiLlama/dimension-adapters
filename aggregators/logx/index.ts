@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = "https://logx-data-analytics-hmgpdxppma-uc.a.run.app/";
+const URL = "https://logx-data-analytics-xmxmxbqxaq-uc.a.run.app/";
 const endpoint = "defillama/defillama/";
 const startTimestamp = 1686205277; // 08.06.2023
 
