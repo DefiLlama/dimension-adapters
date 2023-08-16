@@ -33,6 +33,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                         AND from_address IN ('\\xf414d478934c29d9a80244a3626c681a71e53bb2', '\\x37aab97476ba8dc785476611006fd5dda4eed66b')
                         AND "type" = 'create'
                 )
+                and error is null
 
             UNION ALL
 
@@ -52,6 +53,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                         AND from_address IN ('\\xf414d478934c29d9a80244a3626c681a71e53bb2', '\\x37aab97476ba8dc785476611006fd5dda4eed66b')
                         AND "type" = 'create'
                 )
+                and error is null
         )
 
         SELECT
@@ -66,7 +68,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
-    const amountUSD = amount * ethPrice;
+    const amountUSD = Math.abs(amount * ethPrice);
     const dailyFees = amountUSD;
     const dailyRevenue = dailyFees;
     await sql.end({ timeout: 3 })
