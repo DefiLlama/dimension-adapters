@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import { ARBITRUM, ETHEREUM, POLYGON } from "../helpers/chains";
+import { CHAIN }from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
@@ -9,17 +9,25 @@ import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
-  [ETHEREUM]:
+  [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer",
 }
 
 const v2Endpoints = {
-  [ETHEREUM]:
+  [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2-beta",
-  [ARBITRUM]:
+  [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
-  [POLYGON]:
+  [CHAIN.POLYGON]:
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-polygon-v2",
+  [CHAIN.AVAX]:
+    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2",
+  [CHAIN.XDAI]:
+    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
+  [CHAIN.BASE]:
+    "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
+  [CHAIN.POLYGON_ZKEVM]:
+    "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
 };
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
@@ -137,8 +145,8 @@ const methodology = {
 const adapter: Adapter = {
   breakdown: {
     v1: {
-      [ETHEREUM]: {
-        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
+      [CHAIN.ETHEREUM]: {
+        fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
         start: async () => 1582761600,
         meta: {
           methodology: {
@@ -152,23 +160,51 @@ const adapter: Adapter = {
       },
     },
     v2: {
-      [ETHEREUM]: {
-        fetch: v2Graphs(v2Endpoints)(ETHEREUM),
+      [CHAIN.ETHEREUM]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
         start: async () => 1619136000,
         meta: {
           methodology
         }
       },
-      [POLYGON]: {
-        fetch: v2Graphs(v2Endpoints)(POLYGON),
+      [CHAIN.POLYGON]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
         start: async () => 1624492800,
         meta: {
           methodology
         }
       },
-      [ARBITRUM]: {
-        fetch: v2Graphs(v2Endpoints)(ARBITRUM),
+      [CHAIN.ARBITRUM]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
         start: async () => 1630368000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.AVAX]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
+        start: async () => 1676592000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.XDAI]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
+        start: async () => 1670803200,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.BASE]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
+        start: async () => 1689120000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.POLYGON_ZKEVM]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
+        start: async () => 1683504000,
         meta: {
           methodology
         }
