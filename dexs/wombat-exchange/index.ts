@@ -27,6 +27,8 @@ const endpoints: TEndpoint = {
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
+  [CHAIN.ETHEREUM]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-eth",
 };
 
 const fetchVolume = (chain: Chain) => {
