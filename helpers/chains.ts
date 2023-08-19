@@ -115,6 +115,7 @@ export enum CHAIN {
   LINEA = "linea",
   BASE = "base",
   NEON = "neon_evm",
+  OP_BNB = "op_bnb"
 }
 
 // Don´t use

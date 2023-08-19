@@ -9,10 +9,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@defillama/sdk@^4.0.43":
-  version "4.0.43"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-4.0.43.tgz#ec06eae162afeaad762be28f9e0997a31f6e5206"
-  integrity sha512-SS311nPgkIOEbqWe3n2kT8n3UKyLQhQmJcEhlMhv6XnPhIBk4l7kLQXQmOYHpetAZmvUxOVnQwZbl75vh2EM5w==
+"@defillama/sdk@^4.0.46":
+  version "4.0.46"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-4.0.46.tgz#b8d761fe58fdc30cb70a7645a4f0257362ffc719"
+  integrity sha512-CC3dnZg9xYQP5gyx5CeKI0YF1877SH7pEwVn1hHguMJbOUJQERmbXSCI6yDDBUBoBB/Ai8o8yhdPgrFRT8Wt4A==
   dependencies:
     "@supercharge/promise-pool" "^2.1.0"
     ethers "^5.4.5"
