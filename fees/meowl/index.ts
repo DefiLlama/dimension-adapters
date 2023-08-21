@@ -18,8 +18,7 @@ const adapter: Adapter = {
             },
             start: async () => 1685332595
         },
-    },
-    protocolType: ProtocolType.CHAIN
+    }
 }
 
 export default adapter;
