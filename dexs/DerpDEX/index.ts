@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.6",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.10",
 };
 
 const v3Graphs = getGraphDimensions({
