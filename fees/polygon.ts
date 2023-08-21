@@ -2,86 +2,58 @@ import postgres from "postgres";
 import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
-const { request, gql } = require("graphql-request");
-
-
-const URL = 'https://api.thegraph.com/subgraphs/name/dmihal/polygon-fees'
-interface IValue {
-  totalFeesUSD: string;
-}
-interface IDailyResponse {
-  yesterday: IValue;
-  today: IValue;
-}
+import { queryFlipside } from "../helpers/flipsidecrypto";
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
         fetch:  async (timestamp: number, _: ChainBlocks) => {
           const sql = postgres(process.env.INDEXA_DB!);
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+          const fromTimestamp = timestamp - 60 * 60 * 24
+          const toTimestamp = timestamp
           try {
-            const now = new Date(timestamp * 1e3)
-            const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-
-
-            const todaysBlock = (await getBlock(todaysTimestamp, "polygon", {}));
-            const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "polygon", {}));
-
-            const graphQueryDaily = gql
-            `query fees {
-              yesterday: fee(id: "1", block: {number: ${yesterdaysBlock}}) {
-                totalFeesUSD
-              }
-              today: fee(id: "1", block: {number: ${todaysBlock}}) {
-                totalFeesUSD
-              }
-            }`;
-
-            const graphQueryTotal = gql
-            `query fees_total {
-              fees(block: {number: ${todaysBlock}}) {
-                totalFeesUSD
-              }
-            }`;
-
-            const burnTx = await sql`
+            const startblock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
+            const endblock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
+            const query_tx_fee = `
               SELECT
-                encode(transaction_hash, 'hex') AS HASH,
-                encode(data, 'hex') AS data
-              FROM
-                ethereum.event_logs
-              WHERE
-                block_number > 13982478
-                AND contract_address = '\\x7d1afa7b718fb893db30a3abc0cfc608aacfebb0'
-                AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-                AND topic_1 = '\\x00000000000000000000000070bca57f4579f58670ab2d18ef16e02c17553c38'
-                AND topic_2 = '\\x000000000000000000000000000000000000000000000000000000000000dead'
-                AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-          `
-            const maticAddress = "ethereum:0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0";
+                SUM(tx_fee) AS total_tx_fee,
+                SUM(burned) AS total_burned
+              FROM (
+                  SELECT
+                      BLOCK_NUMBER,
+                      COALESCE(SUM(tx_fee), 0) AS tx_fee
+                  FROM
+                      polygon.core.fact_transactions
+                  WHERE BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+                  GROUP BY BLOCK_NUMBER
+              ) AS t
+              LEFT JOIN (
+                  SELECT
+                      BLOCK_NUMBER,
+                      SUM(COALESCE(BLOCK_HEADER_JSON['baseFeePerGas'], 0) * BLOCK_HEADER_JSON['gasUsed']) / 1e18 AS burned
+                  FROM
+                      polygon.core.fact_blocks
+                  WHERE BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+                  GROUP BY BLOCK_NUMBER
+              ) AS b
+              ON t.BLOCK_NUMBER = b.BLOCK_NUMBER;
+            `
 
-            const pricesObj = await getPrices([maticAddress], todaysTimestamp);
-            const latestPrice = pricesObj[maticAddress].price;
-            const decimals =   pricesObj[maticAddress].decimals;
-            const maticBurn = burnTx.map((a: any) => Number('0x'+a.data)).reduce((a: number, b: number) => a+b,0) / 10 ** decimals;
-            const dailyRevenue = maticBurn * latestPrice;
+          const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee)).flat();
+          const maticAddress = "ethereum:0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0";
 
-            const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily);
-            const graphResTotal: IValue[] = (await request(URL, graphQueryTotal)).fees;
+          const pricesObj = await getPrices([maticAddress], toTimestamp);
+          const latestPrice = pricesObj[maticAddress].price;
+          const maticBurn = burn_fee;
+          const dailyRevenue = maticBurn * latestPrice;
 
-            const dailyFee = Number(graphResDaily.yesterday.totalFeesUSD) - Number(graphResDaily.today.totalFeesUSD)
-            const totalFees = Number(graphResTotal[0].totalFeesUSD);
-            await sql.end({ timeout: 3 })
-            return {
-                timestamp,
-                totalFees: totalFees.toString(),
-                dailyFees: dailyFee.toString(),
-                dailyRevenue: dailyRevenue.toString(),
-            };
+          const dailyFee = tx_fee * latestPrice;
+          return {
+              timestamp,
+              dailyFees: dailyFee.toString(),
+              dailyRevenue: dailyRevenue.toString(),
+          };
         } catch(error) {
           await sql.end({ timeout: 3 })
           throw error
