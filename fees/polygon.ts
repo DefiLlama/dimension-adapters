@@ -7,7 +7,7 @@ import { queryFlipside } from "../helpers/flipsidecrypto";
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.POLYGON]: {
+    [CHAIN.POLYGON]: {    [CHAIN.POLYGON]: {
         fetch:  async (timestamp: number, _: ChainBlocks) => {
           const sql = postgres(process.env.INDEXA_DB!);
           const fromTimestamp = timestamp - 60 * 60 * 24
