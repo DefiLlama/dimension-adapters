@@ -21,12 +21,12 @@ const adapter: Adapter = {
           const endblock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
           // Flipside doesn't currently support zkSync Era so collect fee data from fee collecting address's on L1
           const feeQuery = await queryFlipside(`
-            SELECT 
+            SELECT
               SUM(AMOUNT)
-            FROM ethereum.core.ez_eth_transfers 
+            FROM ethereum.core.ez_eth_transfers
             WHERE (
                 eth_to_address = lower('0xfeeE860e7AAE671124e9a4E61139f3A5085dFEEE')
-             OR eth_to_address = lower('0xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
+                OR eth_to_address = lower('0xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
             )
             AND BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
           `)
@@ -34,16 +34,19 @@ const adapter: Adapter = {
           const fees = Number(feeQuery[0][0])
 
           const sequencerGas = await sql`
-            SELECT
-              sum(t.gas_used * t.gas_price)/10^18 as sum
-            FROM ethereum.transactions
-            INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-            WHERE from_address = '\\x3527439923a63F8C13CF72b8Fe80a77f6e572092'::bytea -- zkSync Era: Validator
-            AND to_address = '\\x3dB52cE065f728011Ac6732222270b3F2360d919'::bytea -- zkSync Era: Validator Timelock
-            AND (
-                 input LIKE E'\\x0c4dd810%'::bytea -- commitBlocks method
-              OR input LIKE E'\\x7739cbe7%'::bytea -- proveBlocks method
-              OR input LIKE E'\\xce9dcf16%'::bytea -- executeBlocks method
+              SELECT
+              sum(t.gas_used * t.gas_price) / (10 ^ 18) AS sum
+            FROM
+              ethereum.transactions t
+            WHERE
+              from_address = '\\x3527439923a63F8C13CF72b8Fe80a77f6e572092'::bytea -- zkSync Era: Validator
+              AND to_address = '\\x3dB52cE065f728011Ac6732222270b3F2360d919'::bytea -- zkSync Era: Validator Timelock
+              AND(encode("data", 'hex')
+                LIKE '0c4dd810%' -- commitBlocks method
+                OR encode("data", 'hex')
+                LIKE '7739cbe7%' -- proveBlocks method
+                OR encode("data", 'hex')
+                LIKE 'ce9dcf16%' -- executeBlocks method
             )
             AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
           `
