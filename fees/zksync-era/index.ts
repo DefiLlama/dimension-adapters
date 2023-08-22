@@ -17,8 +17,8 @@ const adapter: Adapter = {
           const fromTimestamp = timestamp - 60 * 60 * 24
           const toTimestamp = timestamp
 
-          const startblock = (await getBlock(fromTimestamp, CHAIN.ERA, {}));
-          const endblock = (await getBlock(toTimestamp, CHAIN.ERA, {}));
+          const startblock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
+          const endblock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
           // Flipside doesn't currently support zkSync Era so collect fee data from fee collecting address's on L1
           const feeQuery = await queryFlipside(`
             SELECT 
