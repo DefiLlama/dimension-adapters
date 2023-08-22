@@ -1,5 +1,5 @@
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { CHAIN, XDAI } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
@@ -21,7 +21,8 @@ const Vault_Fee_Manager_Contracts: TAddress = {
   [CHAIN.ARBITRUM]: '0xdCC1c692110E0e53Bd57D5B2234867E9C5B98158',
   [CHAIN.POLYGON]: '0x11606d99AD8aAC49E033B14c89552F585028bA7d',
   [CHAIN.OPTIMISM]: '0xbdef6DAD6841aA60Caf462baAee0AA912EeF817A',
-  // [CHAIN.AVAX]: '0xca3eb45fb186ed4e75b9b22a514ff1d4abadd123',
+  [CHAIN.AVAX]: '0xca3eb45fb186ed4e75b9b22a514ff1d4abadd123',
+  [CHAIN.XDAI]: '0xAe09281c842EbfDb2E606F32bd5048183652B4D8'
 }
 
 const Performance_Fee_Management_Contracts: TAddress = {
@@ -56,7 +57,7 @@ const fetch = (chain: Chain) => {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const log_withdraw_fees: ILog[] = (await sdk.api.util.getLogs({
+      const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.api.util.getLogs({
         target: Vault_Fee_Manager_Contracts[chain],
         topic: '',
         toBlock: toBlock,
@@ -64,9 +65,9 @@ const fetch = (chain: Chain) => {
         keys: [],
         chain: chain,
         topics: [topic0_fees_withdraw]
-      })).output as ILog[]
+      })).output as ILog[] : [];
 
-      const log_token_earned: ILog[] = (await sdk.api.util.getLogs({
+      const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.api.util.getLogs({
         target: Performance_Fee_Management_Contracts[chain],
         topic: '',
         toBlock: toBlock,
@@ -74,7 +75,7 @@ const fetch = (chain: Chain) => {
         keys: [],
         chain: chain,
         topics: [topic0_token_earned]
-      })).output as ILog[]
+      })).output as ILog[] : [];
 
       const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
         const value = contract_interface.parseLog(e);
@@ -133,6 +134,14 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
+      start: async () => 1691193600,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetch(CHAIN.AVAX),
+      start: async () => 1691193600,
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetch(CHAIN.XDAI),
       start: async () => 1691193600,
     },
   }
