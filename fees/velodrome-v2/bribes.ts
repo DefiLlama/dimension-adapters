@@ -12,6 +12,12 @@ const contract_interface = new ethers.utils.Interface([
   event_geuge_created
 ]);
 
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
 interface ILog {
   data: string;
   transactionHash: string;
@@ -61,7 +67,13 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
       } as IBribes
     })
     const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`))]
-    const prices = await getPrices(coins, timestamp);
+    const coins_split: string[][] = [];
+    for(let i = 0; i < coins.length; i+=100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
     const fees_bribes_usd = logs_bribes.map((e: IBribes) => {
       const price = prices[`${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`]?.price || 0;
       const decimals = prices[`${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`]?.decimals || 0;
