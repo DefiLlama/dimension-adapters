@@ -17,12 +17,24 @@ interface IAmount {
   isHaveMPFees: boolean;
 }
 
-// const contract_v1_1 = '0x00000000006c3852cbef3e08e8df289169ede581';
+interface IConrtact {
+  adddress: string;
+  startBlcok: number;
+}
+
 const contract_v1_4 = '0x00000000000001ad428e4906ae43d8f9852d0dd6';
 const contract_v1_5 = '0x00000000000000adc04c56bf30ac9d3c0aaf14dc';
 
-const group_1 = [contract_v1_5, contract_v1_4];
-
+const contracts: IConrtact[] = [
+  {
+    adddress: contract_v1_4,
+    startBlcok: 16655960,
+  },
+  {
+    adddress: contract_v1_5,
+    startBlcok: 17129405,
+  }
+]
 const topic0 = '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31';
 const fees_collector = '0x0000a26b00c1f0df003000390027140000faa719';
 
@@ -32,9 +44,8 @@ export const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-
-    const logs: ILog[] = (await Promise.all(group_1.map((address: string) => sdk.api.util.getLogs({
-      target: address,
+    const logs: ILog[] = (await Promise.all(contracts.filter(e => e.startBlcok <= fromBlock).map((contract: IConrtact) => sdk.api.util.getLogs({
+      target: contract.adddress,
       topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
