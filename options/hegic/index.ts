@@ -78,8 +78,7 @@ function getNotionalVolumeUSD(positions: Position[]) {
   return positions
     .map(
       (position) =>
-        position.amount *
-        position.spotPrice *
+        position.amountUSD *
         StrategyVolumeCoefficients[position.type]
     )
     .reduce((sumVolume, positionVolume) => sumVolume + positionVolume, 0);
