@@ -87,6 +87,7 @@ export async function feesFromSubgraph(
   const graphRes = await request(url, graphQuery, undefined, defaultHeaders);
   const fees = graphRes["feeDayData"];
 
+  // If the day is not available, fees are 0
   if (!fees) return { timestamp };
 
   const dailyFees = new BigNumber(fees.dailyFeesPoolUSD)
