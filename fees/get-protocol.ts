@@ -1,27 +1,20 @@
 import { Adapter } from "../adapters/types";
-import { CHAIN, POLYGON } from "../helpers/chains";
+import { POLYGON } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
+import { getPrices } from "../utils/prices";
 
-const protocolSubgraph =
-  "https://api.thegraph.com/subgraphs/name/efesozen7/test-matic";
+const PROTOCOL_SUBGRAPH = "https://api.thegraph.com/subgraphs/name/getprotocol/get-protocol-subgraph";
+const TOKEN_SUBGRAPH_POLYGON = "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-polygon";
+const TOKEN_SUBGRAPH_ETHEREUM = "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-ethereum";
+const PRICE_ID = "coingecko:get-token";
 
-const tokenSubgraphPolygon =
-  "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-polygon";
+const sumKeys = (keys: string[], obj: any) => keys.reduce((tally: number, key: string) => tally + (obj[key] || 0), 0);
 
-const tokenSubgraphEthereum =
-  "https://api.thegraph.com/subgraphs/name/getprotocol/get-token-ethereum";
-
-const graphs = (
-  graphUrl: string,
-  tokenSubgraphEthereum: string,
-  tokenSubgraphPolygon: string
-) => {
+const graphs = () => {
   return async (timestamp: number) => {
-    const beginningOfTheDay = getTimestampAtStartOfDayUTC(timestamp);
-    const dateId = Math.floor(beginningOfTheDay / 86400);
-    const block = await getBlock(beginningOfTheDay, CHAIN.POLYGON, {});
+    const beginningOfDay = getTimestampAtStartOfDayUTC(timestamp);
+    const dateId = Math.floor(beginningOfDay / 86400);
 
     const revenueQuery = gql`
       {
@@ -36,65 +29,35 @@ const graphs = (
 
     const feesQuery = gql`
       {
-        stakingRewards(where: { blockTimestamp_gte: ${beginningOfTheDay}, blockTimestamp_lt: ${timestamp} }) {
+        stakingRewards(where: { blockTimestamp_gte: ${beginningOfDay}, blockTimestamp_lt: ${timestamp} }) {
           totalRewards
           type
         }
       }
     `;
 
-    const graphQueryGETPrice = gql`
-      {
-        priceOracle(id: "1", block: { number: ${block} }) {
-          price
-        }
-      }
-    `;
+    const graphRevenue = await request(PROTOCOL_SUBGRAPH, revenueQuery);
+    const graphPolyFees = await request(TOKEN_SUBGRAPH_POLYGON, feesQuery);
+    const graphEthFees = await request(TOKEN_SUBGRAPH_ETHEREUM, feesQuery);
+    const getUSD = (await getPrices([PRICE_ID], beginningOfDay))[PRICE_ID].price;
 
-    const graphRevenue = await request(graphUrl, revenueQuery);
-    const graphPolyFees = await request(tokenSubgraphPolygon, feesQuery);
-    const graphEthFees = await request(tokenSubgraphEthereum, feesQuery);
-    const graphGETPrice = await request(graphUrl, graphQueryGETPrice);
-
-    //GET Price in USD
-    const getTokenPrice = parseFloat(graphGETPrice.priceOracle.price);
-
-    const stakingFees = graphEthFees.stakingRewards
-      .concat(graphPolyFees.stakingRewards)
-      .filter((reward: any) => reward.type != "FUEL_DISTRIBUTION");
-
-    const feesMinusIntegrator = stakingFees
-      .map((reward: any) => BigInt(reward.totalRewards))
-      .reduce(function (result: bigint, reward: bigint) {
-        return result + reward;
-      }, BigInt(0));
-
-    const userFeesMinusIntegrator = stakingFees
-      .filter((reward: any) => reward.type != "UNISWAP_LP_FEE")
-      .map((reward: any) => BigInt(reward.totalRewards))
-      .reduce(function (result: bigint, reward: bigint) {
-        return result + reward;
-      }, BigInt(0));
-
-    //integrator fees in USD
-    const integratorTicketingFeesUSD =
-      parseFloat(graphRevenue.protocolDay.reservedFuel) * getTokenPrice;
-    //daily fees w/o integrator fees
-    const feesMinusIntegratorUSD =
-      Number(feesMinusIntegrator / BigInt(10e18)) * getTokenPrice;
-    //daily user fees w/o integrator fees
-    const userFeesMinusIntegratorUSD =
-      Number(userFeesMinusIntegrator / BigInt(10e18)) * getTokenPrice;
-
-    const dailyFees = integratorTicketingFeesUSD + feesMinusIntegratorUSD;
-    const dailyUserFees =
-      integratorTicketingFeesUSD + userFeesMinusIntegratorUSD;
-    const dailyHoldersRevenue =
-      parseFloat(graphRevenue.protocolDay.holdersRevenue) * getTokenPrice;
-    const dailyProtocolRevenue =
-      parseFloat(graphRevenue.protocolDay.treasuryRevenue) * getTokenPrice;
-
+    const integratorFees = parseFloat(graphRevenue.protocolDay.reservedFuel) * getUSD;
+    const dailyHoldersRevenue = parseFloat(graphRevenue.protocolDay.holdersRevenue) * getUSD;
+    const dailyProtocolRevenue = parseFloat(graphRevenue.protocolDay.treasuryRevenue) * getUSD;
     const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+
+    // Transform staking rewards from both Polygon and Ethereum networks into an object indexed by the reward type.
+    // The value of the each type will be the USD amount of GET rewarded using the price at that point in time.
+    const stakingFees = graphEthFees.stakingRewards.concat(graphPolyFees.stakingRewards).reduce(
+      (tally: any, reward: any) => ({
+        [reward.type]: ((tally[reward.type] || 0) + BigInt(reward.totalRewards) / BigInt(10e18)) * getUSD,
+      }),
+      {}
+    );
+
+    // dailyFees includes the Uniswap LP collected fees, the dailyUserFees does not.
+    const dailyFees = integratorFees + sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE", "UNISWAP_LP_FEE"], stakingFees);
+    const dailyUserFees = integratorFees + sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees);
 
     return {
       timestamp,
@@ -110,15 +73,11 @@ const graphs = (
 const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
-      fetch: graphs(
-        protocolSubgraph,
-        tokenSubgraphEthereum,
-        tokenSubgraphPolygon
-      ),
+      fetch: graphs(),
       start: async () => 1630468800,
       meta: {
         methodology:
-          "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol",
+          "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
       },
     },
   },
