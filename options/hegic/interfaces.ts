@@ -7,7 +7,7 @@ export interface Position {
   type: StrategyType;
   purchaseDate: string;
   amount: number;
-  spotPrice: number;
+  amountUsd: number; // changed from SpotPrice, to amountUsd which is SpotPrice * amount
   premiumPaid: number;
 }
 
