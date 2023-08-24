@@ -19,6 +19,7 @@ const FEES = {
   [CHAIN.BSC]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
   [CHAIN.POLYGON]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
   [CHAIN.ARBITRUM]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
+  [CHAIN.BASE]: { LP_FEES: 0.0007, POOL_FEES: 0.0003 },
 } as { [chain: string]: { LP_FEES: number; POOL_FEES: number } };
 
 // SDEX contract creation timestamps for each chain
@@ -27,6 +28,7 @@ const CHAIN_STARTS = {
   [CHAIN.BSC]: 1688978540,
   [CHAIN.POLYGON]: 1682085480,
   [CHAIN.ARBITRUM]: 1688976153,
+  [CHAIN.BASE]: 1691491872,
 } as { [chain: string]: number };
 
 // Methodology descriptions
@@ -72,7 +74,7 @@ export async function feesFromSubgraph(
   const timestamp = getTimestampAtStartOfDayUTC(time);
   const graphQuery = gql`
     {
-      feeDayDatas(first: 1, where: { dayId_lte: ${dayId} }) {
+      feeDayData(id: ${dayId}) {
         dailyFeesPoolUSD
         dailyFeesLpUSD
         totalFeesPoolUSD
@@ -83,8 +85,9 @@ export async function feesFromSubgraph(
 
   const url = `${SMARDEX_SUBGRAPH_GATEWAY}/${chain}`;
   const graphRes = await request(url, graphQuery, undefined, defaultHeaders);
-  const fees = graphRes["feeDayDatas"][0];
+  const fees = graphRes["feeDayData"];
 
+  // If the day is not available, fees are 0
   if (!fees) return { timestamp };
 
   const dailyFees = new BigNumber(fees.dailyFeesPoolUSD)
