@@ -45,7 +45,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 timestamp,
                 dailyFees: finalDailyFee.toString(),
                 dailyUserFees: finalUserFee.toString(),
-                dailyRevenue: (finalDailyFee * 0.3).toString(),
+                dailyRevenue: (finalDailyFee * 0.4).toString(),
                 dailyProtocolRevenue: (finalDailyFee * 0.1).toString(),
                 dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
                 dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
