@@ -3,6 +3,15 @@ import { ProtocolAddresses } from "../utils/types";
 
 export default ([
     {
+        "id":"3429",
+        "name":"YFX",
+        "addresses":{
+            "arbitrum":[
+                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028"
+            ]
+        }
+    },
+    {
         "id":"parent#uniswap",
         "name":"Uniswap",
         "addresses":{
