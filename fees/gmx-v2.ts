@@ -45,7 +45,40 @@ const fetch = (chain: Chain) => {
           target: contract[chain],
         })
       ).output as ILog[];
+
+      const logs_2: ILog[] = (
+        await sdk.api.util.getLogs({
+          fromBlock: fromBlock,
+          toBlock: toBlock,
+          keys: [],
+          topic: '',
+          topics: [topic0_des, topic1_des],
+          chain: chain,
+          target: contract[chain],
+        })
+      ).output as ILog[];
+
+      const raw_in = logs.map((e: ILog) => {
+        const data = e.data.replace('0x', '');
+        const volume = Number('0x'+data.slice(50 * 64, (50 * 64) + 64)) / 1e30;
+        const fees = twosComplementHexToDecimal('0x'+data.slice(123 * 64, (123 * 64) + 64)) / 1e30;
+        return (volume * 0.0007) + fees
+      })
+
+      const raw_des = logs_2.map((e: ILog) => {
+        const data = e.data.replace('0x', '');
+        const fees = twosComplementHexToDecimal('0x'+data.slice(129 * 64, (129 * 64) + 64)) / 1e30;
+        return fees
+      })
+
+      const trading_fees = [...raw_in, ...raw_des]
+        .filter((e: number) => !isNaN(e))
+        .filter((e: number) => e < 1_000_000)
+        .reduce((a: number, b: number) => a + b, 0);
+      const dailyFees = trading_fees;
+      // not include swap fees
       return {
+        dailyFees: dailyFees.toString(),
         timestamp,
       };
     } catch (error) {
@@ -54,11 +87,30 @@ const fetch = (chain: Chain) => {
     }
   };
 };
+
+const twosComplementHexToDecimal = (hexValue: string): number => {
+  if (!hexValue.startsWith('0xf')) {
+    return Number(hexValue);
+  }
+  const binaryValue = BigInt(hexValue).toString(2);
+  const flippedBinary = binaryValue
+    .split('')
+    .map((bit: string) => (bit === '0' ? '1' : '0'))
+    .join('');
+  const twoComplementBinary = (BigInt(`0b${flippedBinary}`) + BigInt(1)).toString(2);
+  const decimalValue = parseInt(twoComplementBinary, 2);
+  return decimalValue;
+}
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 0,
+      start: async () => 1688428800,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetch(CHAIN.AVAX),
+      start: async () => 1688428800,
     },
   },
 };
