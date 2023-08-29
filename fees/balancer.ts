@@ -230,13 +230,13 @@ const adapter: Adapter = {
           methodology
         }
       },
-      // [CHAIN.BASE]: {
-      //   fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-      //   start: async () => 1690329600,
-      //   meta: {
-      //     methodology
-      //   }
-      // },
+      [CHAIN.BASE]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
+        start: async () => 1690329600,
+        meta: {
+          methodology
+        }
+      },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
         start: async () => 1686614400,
