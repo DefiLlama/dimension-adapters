@@ -1,10 +1,12 @@
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
-import type { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { formatTimestampAsDate } from "../../utils/date";
+import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
+import { getAsset } from "./queries";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
@@ -16,26 +18,43 @@ const v320endpoints = {
     "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v320-arbitrum",
 };
 
+const v5endpoints = {
+  [CHAIN.ARBITRUM]:
+    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v4-arbitrum",
+};
+
 const USDC_DECIMAL = 1e6;
 const ETH_DECIMAL = 1e18;
+const ERC20_DECIMAL = 1e18;
+const WBTC_DECIMAL = 1e8;
+const GYEN_DECIMAL = 1e6;
 const DIVISOR = 1e18;
+
+// Set decimals for each token
+let decimalByAddress: { [key: string]: number } = {
+  "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": USDC_DECIMAL,
+  "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": ETH_DECIMAL,
+  "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": WBTC_DECIMAL,
+  "0x589d35656641d6aB57A545F08cf473eCD9B6D5F7": GYEN_DECIMAL,
+};
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
+      const dayTime = getTimestampAtStartOfDayUTC(timestamp);
       const graphUrl = graphUrls[chain];
 
       // ETH oracle price
       const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-      const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress]
+      const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
         .price;
 
       // Set date string parmas which are used by queries
-      const todaysDateParts = formatTimestampAsDate(timestamp.toString()).split(
+      const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split(
         "/"
       );
       const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
-      const previousDateUTC = timestamp - 60 * 60 * 24;
+      const previousDateUTC = dayTime - 60 * 60 * 24;
       const previousDateParts = formatTimestampAsDate(
         previousDateUTC.toString()
       ).split("/");
@@ -68,6 +87,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
           ethPrice,
           true
         );
+      } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) { 
+        dailyFees = await v5DailyFees(todaysDateString, graphUrl);
+        dailyRevenue = undefined;
+        dailySupplySideRevenue = undefined;
       }
 
       return {
@@ -221,6 +244,104 @@ const v320DailyFeesAndSupplySideRevenue = async (
   return [BigNumber('0'), BigNumber('0')];
 };
 
+const v5DailyFees = async (
+  todaysDateString: string,
+  graphUrl: string
+): Promise<BigNumber | undefined> => {
+
+  // Get latest pair number
+  let query;
+  query = gql`
+    {
+      pairEntities(first: 1, orderBy: createdAt, orderDirection: desc) {
+        id
+      }
+    }
+  `;
+  let result;
+  result = await request(graphUrl, query);
+
+  if (!result.pairEntities[0].id) {
+    throw new Error(`No pair entities found`);
+  }
+  const latestPairNumber = result.pairEntities[0].id;
+
+  const controllerAddress = "0x06a61e55d4d4659b1a23c0f20aedfc013c489829";
+  
+  let usersPaymentFees: BigNumber = BigNumber(0);
+  
+  // Retrieve daily fees for each pair
+  for (let i = 1; i <= latestPairNumber; i++) {
+    const pairId = i;
+    const pairStatus = await getAsset(controllerAddress, pairId);
+
+    // Each pair has two tokens, stableToken and underlyingToken.
+    // Several tokens have different decimals, we need to set decimals for each token.
+    const stableTokenAddress: string = pairStatus.stablePool.token;
+    const stableDecimal = decimalByAddress[stableTokenAddress] ?? ERC20_DECIMAL;
+
+    const underlyingTokenAddress: string = pairStatus.underlyingPool.token;
+    const underlyingDecimal =
+      decimalByAddress[underlyingTokenAddress] ?? ERC20_DECIMAL;
+
+    // Set fee0Decimal and fee1Decimal, if isMergeZero is true then token0 is stableToken
+    const isMarginZero = pairStatus.isMarginZero;
+    const fee0Decimal = isMarginZero ? stableDecimal : underlyingDecimal;
+    const fee1Decimal = isMarginZero ? underlyingDecimal : stableDecimal;
+
+    // Set todaysEntityId, for example: 0x06a61e55d4d4659b1a23c0f20aedfc013c489829-1-2023-07-31
+    const todaysEntityId =
+      controllerAddress + "-" + pairId + "-" + todaysDateString;
+
+    // Get daily fee
+    query = gql`
+      {
+          feeDaily(id: "${todaysEntityId}") {
+            id
+            supplyStableFee
+            supplyUnderlyingFee
+            borrowStableFee
+            borrowUnderlyingFee
+            supplySqrtFee0
+            supplySqrtFee1
+            borrowSqrtFee0
+            borrowSqrtFee1
+            supplyStableInterestGrowth
+            supplyUnderlyingInterestGrowth
+            borrowStableInterestGrowth
+            borrowUnderlyingInterestGrowth
+            updatedAt
+          }
+      }
+      `;
+    result = await request(graphUrl, query);
+
+    if (result.feeDaily) {
+      const feeDaily = result.feeDaily;
+      // Calculate user payment fees
+      const borrowStableFee = new BigNumber(feeDaily.borrowStableFee).div(
+        stableDecimal
+      );
+      const borrowUnderlyingFee = new BigNumber(
+        feeDaily.borrowUnderlyingFee
+      ).div(underlyingDecimal);
+      const borrowSqrtFee0 = new BigNumber(feeDaily.borrowSqrtFee0).div(
+        fee0Decimal
+      );
+      const borrowSqrtFee1 = new BigNumber(feeDaily.borrowSqrtFee1).div(
+        fee1Decimal
+      );
+
+      const borrowPremium = borrowStableFee
+        .plus(borrowUnderlyingFee)
+        .plus(borrowSqrtFee0)
+        .plus(borrowSqrtFee1);
+      usersPaymentFees = usersPaymentFees.plus(borrowPremium);
+    }
+  }
+  
+  return usersPaymentFees;
+}
 const v3DailyRevenue = async (
   todaysDateString: string,
   previousDateString: string,
@@ -303,15 +424,17 @@ const v3DailyRevenue = async (
 const adapter: BreakdownAdapter = {
   breakdown: {
     v3: {
-      [CHAIN.ARBITRUM]: {
-        fetch: graphs(v3endpoints)(CHAIN.ARBITRUM),
-        start: async () => 1671092333,
-      },
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [CHAIN.ARBITRUM]: disabledAdapter,
     },
     v320: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      [CHAIN.ARBITRUM]: disabledAdapter,
+    },
+    v5: {
       [CHAIN.ARBITRUM]: {
-        fetch: graphs(v320endpoints)(CHAIN.ARBITRUM),
-        start: async () => 1678734774,
+        fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
+        start: async () => 1688490168,
       },
     },
   },

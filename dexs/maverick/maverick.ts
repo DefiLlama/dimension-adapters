@@ -11,7 +11,15 @@ const info: { [key: string]: any } = {
   },
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/42519/maverick-zksync-v2-data/v0.0.1",
+      "https://api.studio.thegraph.com/query/42519/maverick-zksync-new-2/version/latest",
+  },
+  [CHAIN.BSC]: {
+    subgraph:
+      "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-bnb-app",
+  },
+  [CHAIN.BASE]: {
+    subgraph:
+      "https://api.studio.thegraph.com/query/42519/maverick-base/version/latest",
   },
 };
 

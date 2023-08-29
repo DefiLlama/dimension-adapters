@@ -18,12 +18,40 @@ const fetch = async (timestamp: number) => {
   };
 };
 
+const fetchZKEVM = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const volume24hrOnlySwap = (await fetchURL('https://prod.kokonut-api.com/zkevm-24hr-volume'))?.data;
+  return {
+    dailyVolume: volume24hrOnlySwap,
+    timestamp: dayTimestamp,
+  };
+};
+
+const fetchBASE = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const volume24hrOnlySwap = (await fetchURL('https://prod.kokonut-api.com/base-24hr-volume'))?.data;
+  return {
+    dailyVolume: volume24hrOnlySwap,
+    timestamp: dayTimestamp,
+  };
+};
+
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
       start: async () => 1672358400,
+      runAtCurrTime: true
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      fetch: fetchZKEVM,
+      start: async () => 1687132800,
+      runAtCurrTime: true
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchBASE,
+      start: async () => 1691570805,
       runAtCurrTime: true
     },
   },

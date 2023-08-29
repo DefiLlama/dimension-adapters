@@ -74,6 +74,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             AND to_address = '\\xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
             AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
     `;
+
     const transactions: IData[] = [...router_v2, ...router_v3] as IData[]
     const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
 
@@ -81,7 +82,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
     const amountUSD = amount * ethPrice;
     // ref https://dune.com/queries/2621049/4349967
-    const dailyFees = amountUSD * 0.01;
+    const dailyFees = (amountUSD * 0.01);
     const dailyRevenue = dailyFees;
     await sql.end({ timeout: 3 })
     return {

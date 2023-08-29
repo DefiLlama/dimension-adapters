@@ -3,7 +3,7 @@ import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 
 const endpoints = {
@@ -31,8 +31,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const dailyFee = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
       const totalFee = new BigNumber(graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD);
-      const dailyRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
-      const totalRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeProtocolSideRevenueUSD);
+      const dailyRev = new BigNumber(dailyFee).multipliedBy(0.1);
+      const totalRev = new BigNumber(totalFee).multipliedBy(0.1);
       const dailySSRev = new BigNumber(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD);
       const totalSSRev = new BigNumber(graphRes.financialsDailySnapshot.cumulativeSupplySideRevenueUSD);
 

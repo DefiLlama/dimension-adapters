@@ -65,23 +65,12 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.OPTIMISM]: "coingecko:ethereum"
 }
 
-let chainBlocksStore: IJSON<ChainBlocks> | undefined = undefined
-
 const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
-    if (!chainBlocksStore)
-      chainBlocksStore = {
-        [timestamp]: chainBlocks
-      }
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-    if (!chainBlocksStore[todaysTimestamp])
-      chainBlocksStore[todaysTimestamp] = {}
-    const fromBlock = (await getBlock(todaysTimestamp, chain, chainBlocksStore[todaysTimestamp]));
-    if (!chainBlocksStore[yesterdaysTimestamp])
-      chainBlocksStore[yesterdaysTimestamp] = {}
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, chainBlocksStore[yesterdaysTimestamp]));
+  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
+    const fromTimestamp = timestamp - 60 * 60 * 24
+    const toTimestamp = timestamp
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
     const logs_1: ITx[] = (await getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       topic: '',
@@ -101,9 +90,27 @@ const fetch = (chain: Chain, version: number) => {
       chain: chain
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
+    const request_fees: any[] = logs_2.map((e: ITx) => {
+      const fees = Number('0x'+e.data.slice(192, 256)) / 10 ** 18;
+      const id = e.data.slice(256, 320).toUpperCase();
+      return {
+        fees: fees,
+        id: id
+      };
+    })
+
+    const fees_amount = logs_1.map((e: ITx) => {
+      const id =  e.data.slice(0, 64).toUpperCase()
+      const fees = request_fees.find(e => e.id === id);
+      return fees.fees;
+    }).reduce((a: number, b: number) => a+b, 0)
+
+
+
     const provider = getProvider(chain);
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all([...logs_1, ...logs_2].map(async (e: ITx) =>
-      provider.getTransactionReceipt(e.transactionHash)
+    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
+      provider.getTransactionReceipt(transactionHash)
     ).map(p => p.catch(() => undefined))))
       .map((e: any) => {
         if (!e) return
@@ -113,12 +120,11 @@ const fetch = (chain: Chain, version: number) => {
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = await getPrices([linkAddress, gasToken], timestamp);
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
+    const dailyGas =  txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyGasUsd = dailyGas * gagPrice;
-    const fees = version === 1 ? feesV1[chain] : feesV2[chain]
-    const dailyFees = ((logs_1.length + logs_2.length) * fees) * linkPrice;
+    const dailyFees =(fees_amount * linkPrice);
     const dailyRevenue = dailyFees - dailyGasUsd;
     return {
       dailyFees: dailyFees.toString(),

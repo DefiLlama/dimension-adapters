@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/dmihal/velodrome",
@@ -19,16 +19,22 @@ const graphs = getChainVolume({
   },
 });
 
+const fetch = (chain: Chain) => {
+  return async (timestamp: number) => {
+    const [v1] = await Promise.all([graphs(chain)(timestamp, {})])
+    const dailyVolume = Number(v1.dailyVolume);
+    return {
+      dailyVolume: `${dailyVolume}`,
+      timestamp
+    }
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: graphs(CHAIN.OPTIMISM),
-      start: getStartTimestamp({
-        endpoints: endpoints,
-        chain: CHAIN.OPTIMISM,
-        volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-        dailyDataField: "dayDatas"
-      })
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: async () => 1677110400
     },
   },
 };

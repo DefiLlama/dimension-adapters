@@ -6,6 +6,8 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
     "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats",
+  [CHAIN.BSC]:
+    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
 };
 
 const historicalDataSwap = gql`
@@ -81,6 +83,7 @@ const getFetch =
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.FANTOM]: 1677883020,
+    [CHAIN.BSC]: 1686783600,
   };
   return startTimestamps[chain];
 };
@@ -92,11 +95,19 @@ const adapter: BreakdownAdapter = {
         fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
         start: async () => getStartTimestamp(CHAIN.FANTOM),
       },
+      [CHAIN.BSC]: {
+        fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
+        start: async () => getStartTimestamp(CHAIN.BSC),
+      },
     },
     derivatives: {
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.FANTOM),
         start: async () => getStartTimestamp(CHAIN.FANTOM),
+      },
+      [CHAIN.BSC]: {
+        fetch: getFetch(historicalDataDerivatives)(CHAIN.BSC),
+        start: async () => getStartTimestamp(CHAIN.BSC),
       },
     },
   },

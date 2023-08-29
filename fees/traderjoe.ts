@@ -39,9 +39,6 @@ const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: IData[] = (await fetchURL(endpointsV2[chain]))?.data;
-    const totalFees = historical
-      .filter(volItem => volItem.timestamp <= dayTimestamp)
-      .reduce((acc, { feesUsd }) => acc + Number(feesUsd), 0)
     const dailyFees = historical
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
     const dailyRevenue = historical
@@ -52,7 +49,6 @@ const graph = (chain: Chain) => {
       dailyRevenue: `${dailyRevenue}`,
       dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
       dailyProtocolRevenue: `${dailyRevenue}`,
-      totalFees: `${totalFees}`,
       timestamp
     }
   }

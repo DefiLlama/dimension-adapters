@@ -27,6 +27,8 @@ const endpoints: TEndpoint = {
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
+  [CHAIN.ETHEREUM]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-eth",
 };
 
 const fetchVolume = (chain: Chain) => {
@@ -66,6 +68,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
       start: async () => 1679809928,
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchVolume(CHAIN.ETHEREUM),
+      start: async () => 1691290453,
     },
   },
 };
