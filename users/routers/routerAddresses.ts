@@ -16,7 +16,7 @@ export default ([
                 "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
                 "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5",//universalrouter
                 "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",//universalrouter
-            ],
+            ],d9a4718513eebff0e728836bcf5333ff97ad2da7
             "bsc":[
                 "0x5Dc88340E1c5c6366864Ee415d6034cadd1A9897"
             ],
