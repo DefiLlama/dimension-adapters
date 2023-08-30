@@ -3,7 +3,6 @@ import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock";
 import BigNumber from "bignumber.js";
-import { eth } from "@defillama/sdk/build/api";
 import { getPrices } from "../utils/prices";
 
 
