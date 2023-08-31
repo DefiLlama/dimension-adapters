@@ -122,10 +122,11 @@ const fetch = (chain: Chain) => {
         }
       })
 
-      const dailyFees = [...fees_perp, ...fees_option].reduce((e: number, acc: IFees) => e+acc.daoFees+acc.burnFees+acc.refFees+acc.botFees, 0);
-      const dailyRev = [...fees_perp, ...fees_option].reduce((e: number, acc: IFees) => e+acc.daoFees+acc.burnFees, 0);
-      const dailyHolder = [...fees_perp, ...fees_option].reduce((e: number, acc: IFees) => e+acc.burnFees, 0);
-      const dailyProtocol = [...fees_perp, ...fees_option].reduce((e: number, acc: IFees) => e+acc.daoFees, 0);
+      const fees_logs = [...fees_perp, ...fees_option]
+      const dailyFees = fees_logs.reduce((e: number, acc: IFees) => e+acc.daoFees+acc.burnFees+acc.refFees+acc.botFees, 0);
+      const dailyRev = fees_logs.reduce((e: number, acc: IFees) => e+acc.daoFees+acc.burnFees, 0);
+      const dailyHolder = fees_logs.reduce((e: number, acc: IFees) => e+acc.burnFees, 0);
+      const dailyProtocol = fees_logs.reduce((e: number, acc: IFees) => e+acc.daoFees, 0);
       return {
         dailyFees: dailyFees.toString(),
         dailyRevenue: dailyRev.toString(),
