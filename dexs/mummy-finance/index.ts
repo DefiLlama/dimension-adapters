@@ -2,9 +2,10 @@ import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats",
+  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats-v2",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/op-stats",
 }
 
