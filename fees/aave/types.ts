@@ -35,5 +35,6 @@ export type V3Reserve = {
   reserve: {
     decimals: number
     symbol: string
+    underlyingAsset: string;
   }
 }
