@@ -10,7 +10,7 @@ const fetch = async (timestamp: number) => {
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyVolumeItem[dayTimestamp.toString()],
+    dailyVolume: dailyVolumeItem ? dailyVolumeItem[dayTimestamp.toString()]: undefined,
   }
 }
 

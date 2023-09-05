@@ -1,9 +1,9 @@
 import { Adapter } from "../../adapters/types";
-import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON } from "../../helpers/chains";
+import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON, CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -13,7 +13,8 @@ const poolIDs = {
   V2_AMM: '0xacc030ef66f9dfeae9cbb0cd1b25654b82cfa8d5',
   V2_POLYGON: '0xd05e3e715d945b59290df0ae8ef85c1bdb684744',
   V2_AVALANCHE: '0xb6a86025f0fe1862b372cb0ca18ce3ede02a318f',
-  V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb'
+  V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb',
+  V3_ETH: '0x2f39d218133afab8f2b819b1066c7e434ad94e9e',
 }
 
 const ONE_DAY = 24 * 60 * 60;
@@ -34,7 +35,8 @@ const v3Endpoints = {
   [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-arbitrum',
   [OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-optimism',
   [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
-  [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony'
+  [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
+  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
 }
 
 
@@ -279,9 +281,9 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
 
 const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
-  const graphQuery = gql
+  const graphQuery =
   `{
-    reserves(where: { pool: "${poolIDs.V3}" }) {
+    reserves(where: { pool: "${chain === CHAIN.ETHEREUM ? poolIDs.V3_ETH : poolIDs.V3}" }) {
         id
         paramsHistory(
           where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
@@ -295,6 +297,7 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
           reserve {
             decimals
             symbol
+            underlyingAsset
           }
           lifetimeFlashLoanLPPremium
           lifetimeFlashLoanProtocolPremium
@@ -306,7 +309,6 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
         }
       }
     }`;
-
   const graphRes = await request(graphUrls[chain], graphQuery);
   const reserves = graphRes.reserves.map((r: any) => r.paramsHistory[0]).filter((r: any) => r)
   return reserves
@@ -315,14 +317,15 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 const v3Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = timestamp
-      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
+      const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+      const todaysTimestamp = _timestamp
+      const yesterdaysTimestamp = _timestamp - 60 * 60 * 24
 
       const todaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, yesterdaysTimestamp);
 
       const feeBreakdown: any = todaysReserves.reduce((acc, reserve: V3Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
+        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.underlyingAsset === reserve.reserve.underlyingAsset)
 
         if (!yesterdaysReserve) {
           return acc;
@@ -370,7 +373,7 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
         treasuryIncomeUSD: 0,
         outstandingTreasuryIncomeUSD: 0
       });
-      const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.flashloanLPPremiumUSD + feeBreakdown.portalLPFeeUSD
+      const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.outstandingTreasuryIncomeUSD + feeBreakdown.treasuryIncomeUSD
       const dailyRev = feeBreakdown.treasuryIncomeUSD + feeBreakdown.outstandingTreasuryIncomeUSD
 
       return {
@@ -413,10 +416,10 @@ const adapter: Adapter = {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
         start: async ()  => 1647230400
       },
-      // [ARBITRUM]: {
-      //   fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-      //   start: async ()  => 1647230400
-      // },
+      [ARBITRUM]: {
+        fetch: v3Graphs(v3Endpoints)(ARBITRUM),
+        start: async ()  => 1647230400
+      },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
         start: async ()  => 1647230400
@@ -427,6 +430,10 @@ const adapter: Adapter = {
       },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
+        start: async ()  => 1647230400
+      },
+      [CHAIN.ETHEREUM]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
         start: async ()  => 1647230400
       },
     }

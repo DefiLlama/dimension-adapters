@@ -3,6 +3,15 @@ import { ProtocolAddresses } from "../utils/types";
 
 export default ([
     {
+        "id":"3429",
+        "name":"YFX",
+        "addresses":{
+            "arbitrum":[
+                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028"
+            ]
+        }
+    },
+    {
         "id":"parent#uniswap",
         "name":"Uniswap",
         "addresses":{
@@ -2638,6 +2647,18 @@ export default ([
                 "0x520CAF43e3C6481b71DB95711802ED9179ccA403",//nonfungiblePositionManager
             ]
         }
-    },        
+    },
+    {
+        "id":"3450",
+        "name":"Aerodrome",
+        "addresses":{
+            "base":[
+                 //velodrome v2 fork
+                "0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4",//VotingEscrow
+                "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",//Voter
+                "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",//Router
+            ]
+        }
+    },         
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)

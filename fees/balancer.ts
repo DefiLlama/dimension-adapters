@@ -7,7 +7,6 @@ import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
-import { ChainApi } from "@defillama/sdk";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -69,21 +68,42 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
     };
   };
 };
+interface IPool {
+  id: string;
+  swapFees: string;
+  protocolFee: string;
+}
+
+interface IPoolSnapshot {
+  today: IPool[];
+  yesterday: IPool[];
+  tenPcFeeChange: {
+    totalSwapFee: string;
+    timestamp: number;
+  }
+  fiftyPcFeeChange: {
+    totalSwapFee: string;
+    timestamp: number;
+  }
+}
 
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const dayId = Math.floor(startTimestamp / 86400)
+      const fromTimestamp = startTimestamp - 60 * 60 * 24
+      const toTimestamp = startTimestamp
       const graphQuery = gql
-        `query fees($dayId: String!, $yesterdayId: String!) {
-        today: balancerSnapshot(id: $dayId) {
-          totalProtocolFee
-          totalSwapFee
+      `query fees {
+        today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+          id
+          swapFees
+          protocolFee
         }
-        yesterday: balancerSnapshot(id: $yesterdayId) {
-          totalProtocolFee
-          totalSwapFee
+        yesterday:poolSnapshots(where: {timestamp:${fromTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+          id
+          swapFees
+          protocolFee
         }
         tenPcFeeChange: balancerSnapshot(id: "2-18972") {
           totalSwapFee
@@ -95,19 +115,22 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
         }
       }`;
 
-      const graphRes = await request(graphUrls[chain], graphQuery, {
-        dayId: `2-${dayId}`,
-        yesterdayId: `2-${dayId - 1}`
-      });
+      const graphRes: IPoolSnapshot = await request(graphUrls[chain], graphQuery);
+      const dailyFee = graphRes["today"].map((e: IPool) => {
+          const yesterdayValue = new BigNumber(graphRes["yesterday"].find((p: IPool) => p.id.split('-')[0] === e.id.split('-')[0])?.swapFees || 0);
+          if(yesterdayValue.toNumber()) return new BigNumber('0')
+          return new BigNumber(e.swapFees).minus(yesterdayValue);
+      }).filter(e => new BigNumber(e).toNumber() < 10000).reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
 
-      const currentTotalSwapFees = new BigNumber(graphRes["today"]["totalSwapFee"])
-      const dailyFee = currentTotalSwapFees.minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"]))
+
+      const currentTotalSwapFees = graphRes["today"].map((e: IPool) => new BigNumber(e.swapFees)).reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
+
 
       let tenPcFeeTimestamp = 0
       let fiftyPcFeeTimestamp = 0
       let tenPcTotalSwapFees = new BigNumber(0)
       let fiftyPcTotalSwapFees = new BigNumber(0)
-      
+
       if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
         tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
         fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
@@ -122,20 +145,24 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       const totalRevenue = startTimestamp < tenPcFeeTimestamp ? "0" : (
         startTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
 
-      const currentTotalProtocolFee = new BigNumber(graphRes["today"]["totalProtocolFee"])
-      const dailyProtocolFee = currentTotalProtocolFee.minus(new BigNumber(graphRes["yesterday"]["totalProtocolFee"]))
+      const dailyProtocolFee = graphRes["today"].map((e: IPool) => {
+        const yesterdayValue = new BigNumber(graphRes["yesterday"].find((p: IPool) => p.id.split('-')[0] === e.id.split('-')[0])?.protocolFee || 0);
+        if (yesterdayValue.toNumber() === 0) return new BigNumber('0')
+        return new BigNumber(e.protocolFee).minus(yesterdayValue);
+      }).filter(e => new BigNumber(e).toNumber() < 10000)
+        .reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
 
       return {
         timestamp,
-        totalUserFees: graphRes["today"]["totalSwapFee"],
+        // totalUserFees: currentTotalSwapFees.toString(),
         dailyUserFees: dailyFee.toString(),
-        totalFees: graphRes["today"]["totalSwapFee"],
+        // totalFees: currentTotalSwapFees.toString(),
         dailyFees: dailyFee.toString(),
-        totalRevenue: graphRes["today"]["totalProtocolFee"], // balancer v2 subgraph does not flash loan fees yet
+        // totalRevenue: dailyProtocolFee.toString(), // balancer v2 subgraph does not flash loan fees yet
         dailyRevenue: dailyProtocolFee.toString(), // balancer v2 subgraph does not flash loan fees yet
-        totalProtocolRevenue: totalRevenue.toString(),
+        // totalProtocolRevenue: totalRevenue.toString(),
         dailyProtocolRevenue: dailyRevenue.toString(),
-        totalSupplySideRevenue: new BigNumber(graphRes["today"]["totalSwapFee"]).minus(totalRevenue.toString()).toString(),
+        // totalSupplySideRevenue: currentTotalSwapFees.minus(totalRevenue.toString()).toString(),
         dailySupplySideRevenue: new BigNumber(dailyFee.toString()).minus(dailyRevenue.toString()).toString(),
       };
     };
