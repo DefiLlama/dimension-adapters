@@ -35,14 +35,14 @@ const graphs = (chain: string) => async (timestamp: number) => {
   const graphRes = await request(endpoints[chain], graphQuery);
 
   const dailyFee =
-    parseInt(graphRes.feeStat.mint) +
-    parseInt(graphRes.feeStat.burn) +
-    parseInt(graphRes.feeStat.marginAndLiquidation) +
-    parseInt(graphRes.feeStat.swap);
+    parseInt(graphRes.feeStat?.mint || '0') +
+    parseInt(graphRes.feeStat?.burn || '0') +
+    parseInt(graphRes.feeStat?.marginAndLiquidation || '0') +
+    parseInt(graphRes.feeStat?.swap || '0');
   const finalDailyFee = dailyFee / 1e30;
   const userFee =
-    parseInt(graphRes.feeStat.marginAndLiquidation) +
-    parseInt(graphRes.feeStat.swap);
+    parseInt(graphRes.feeStat?.marginAndLiquidation || '0') +
+    parseInt(graphRes.feeStat?.swap || '0');
   const finalUserFee = userFee / 1e30;
 
   return {
