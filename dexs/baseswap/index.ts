@@ -119,7 +119,7 @@ const derivativesMethodology = {
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    v2: Object.keys(v2Endpoints).reduce((acc, chain) => {
+    swap: Object.keys(v2Endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
