@@ -77,10 +77,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
         const totalFeeResp = await graphQLClient.request(totalFeeQuery);
         const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
 
+        const finalizedDailyFee = (Number(dailyFeeResp.dailyFeesStat.totalFeePaid) / 1e30);
+        const finalizedTotalFee = (Number(totalFeeResp.globalFeesStat.totalFeePaid) / 1e30);
+
         return {
           timestamp,
-          dailyFees: (Number(dailyFeeResp.dailyFeesStat.totalFeePaid) / 1e30).toString(),
-          totalFees: (Number(totalFeeResp.globalFeesStat.totalFeePaid) / 1e30).toString(),
+          dailyFees: finalizedDailyFee.toString(),
+          totalFees: finalizedTotalFee.toString(),
+          dailyHoldersRevenue: (finalizedDailyFee * 0.25).toString(),
+          dailySupplySideRevenue: (finalizedDailyFee * 0.75).toString(),
         }
       }
 
