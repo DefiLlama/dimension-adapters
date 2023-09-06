@@ -11,14 +11,29 @@ interface Market {
     contract: string;
 }
 
-type DailyTradeVolume = Record<string, string>;
-type DailyTradeVolumeResp = Record<string, DailyTradeVolume>;
+type TradeVolume = Record<string, string>;
+type TradeVolumeResp = Record<string, TradeVolume>;
 
-async function getTotalVolume(marketAddrs: string[]) {
-    const path = '/total-trade-volume';
-    const marketQueryString = marketAddrs.map(market => `market=${market}`).join('&')
-    const url = `${indexer}${path}?${marketQueryString}`;
-    return (await fetchURL(url)).data;
+async function getTotalVolume(timestamp: number, markets: string[]) {
+    const prevDayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+    const prevDayDate = dateStr(prevDayTimestamp);
+    const url = `${indexer}/cumulative-trade-volume?scope=daily&start_date=${prevDayDate}&end_date=${prevDayDate}`;
+    const resp: TradeVolumeResp = (await fetchURL(url)).data;
+
+    let totalVolume: BigNumber = BigNumber(0);
+    let volumes = resp[prevDayDate];
+
+    if (volumes === undefined) {
+        throw Error(`unable to retrieve daily volume for ${prevDayDate}`)
+    }
+
+    for (const market in volumes) {
+        if (markets.includes(market)) {
+            totalVolume = totalVolume.plus(BigNumber(volumes[market]));
+        }
+    }
+
+    return totalVolume.toString();
 }
 
 async function getDailyVolume(timestamp: number, markets: string[]) {
@@ -27,7 +42,7 @@ async function getDailyVolume(timestamp: number, markets: string[]) {
     const startDate = dateStr(startTimestamp);
     const endDate = dateStr(endTimestamp);
     const url = `${indexer}/trade-volume?scope=daily&start_date=${startDate}&end_date=${endDate}`;
-    const resp: DailyTradeVolumeResp = (await fetchURL(url)).data;
+    const resp: TradeVolumeResp = (await fetchURL(url)).data;
 
     let totalVolume: BigNumber = BigNumber(0);
     let volumes = resp[startDate];
@@ -62,7 +77,7 @@ function dateStr(timestamp: number): string {
 const fetch = async (timestamp: number, chainId: string) => {
     const marketAddrs = await getMarketAddrs(chainId);
     const dimensionRequests = [
-        getTotalVolume(marketAddrs),
+        getTotalVolume(timestamp, marketAddrs),
         getDailyVolume(timestamp, marketAddrs)
     ]
     const [totalVolume, dailyVolume] = await Promise.all(dimensionRequests);
