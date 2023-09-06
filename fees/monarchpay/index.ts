@@ -1,8 +1,8 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { Adapter, FetchResultFees } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
+import { getBlock } from "../../helpers/getBlock";
 
 const address = '0xE36333147B20D887c2b3E0a3abe9Be34A101B07E';
 
