@@ -83,6 +83,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         return {
           timestamp,
           dailyFees: finalizedDailyFee.toString(),
+          dailyRevenue: (finalizedDailyFee * 0.25).toString(),
           totalFees: finalizedTotalFee.toString(),
           dailyHoldersRevenue: (finalizedDailyFee * 0.25).toString(),
           dailySupplySideRevenue: (finalizedDailyFee * 0.75).toString(),
