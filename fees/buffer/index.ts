@@ -7,7 +7,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Adapter } from "../../adapters/types"
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/e66b06ce96d2/bufferfinance/arbitrum-mainnet/api"
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/e66b06ce96d2/bufferfinance/v2.5-arbitrum-mainnet/api"
 }
 
 export function _getDayId(timestamp: number): string {
