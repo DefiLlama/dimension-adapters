@@ -37,7 +37,7 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: async (ts: string) => await getV2Data(v2Endpoints[chain], ts),
+          fetch: async (ts: number) => await getV2Data(v2Endpoints[chain], ts),
           start: async () => v2StartTimes[chain],
           meta: {
             methodology: {
@@ -57,7 +57,7 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: async (ts: string) => await getV3Data(v3Endpoints[chain], ts),
+          fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
           start: async () => v3StartTimes[chain],
           meta: {
             methodology: {
