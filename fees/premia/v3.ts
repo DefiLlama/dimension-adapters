@@ -47,7 +47,6 @@ async function getFeeRevenueData(
       }
   }
   `
-  console.log(query)
 
   const {factoryDayData, factories} = (await request(url, query));
 
