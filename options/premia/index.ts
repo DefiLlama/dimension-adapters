@@ -16,10 +16,10 @@ const v2Endpoints: ChainEndpoints = {
 };
 
 const v2StartTimes: { [chain: string]: number } = {
-  [CHAIN.ETHEREUM]: 13507998,
-  [CHAIN.ARBITRUM]: 3304692,
-  [CHAIN.FANTOM]: 35347280,
-  [CHAIN.OPTIMISM]: 16597180,
+  [CHAIN.ETHEREUM]: 1656201600,
+  [CHAIN.ARBITRUM]: 1656201600,
+  [CHAIN.FANTOM]: 1656201600,
+  [CHAIN.OPTIMISM]: 1659744000,
 };
 
 const v3Endpoints: ChainEndpoints = {
@@ -28,7 +28,7 @@ const v3Endpoints: ChainEndpoints = {
 };
 
 const v3StartTimes: { [chain: string]: number } = {
-  [CHAIN.ARBITRUM]: 119998935,
+  [CHAIN.ARBITRUM]: 1692576000,
 };
 
 const adapter: BreakdownAdapter = {
