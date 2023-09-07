@@ -3,10 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 
 // TODO: update with mainnet subgraph urls
 export const endpoints: ChainEndpoints = {
-  [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/nickadamson/test-goerli2",
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/nickadamson/test-goerli2",
+    "https://api.thegraph.com/subgraphs/name/valorem-labs-inc/valorem-v1-arbitrum",
 };
 
 export const methodology = {
@@ -23,8 +21,6 @@ export const methodology = {
     "Premium Volume is calculated with the market price an Option/Claim position is trading for on the Exchange.",
 };
 
-// TODO: update with mainnet deploy timestamps
 export const OSE_DEPLOY_TIMESTAMP_BY_CHAIN = {
-  [CHAIN.ETHEREUM]: 1672722780,
-  [CHAIN.ARBITRUM]: 1672722780,
+  [CHAIN.ARBITRUM]: 1693583626,
 };
