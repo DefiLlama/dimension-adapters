@@ -4,7 +4,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 
-const address = '0xE36333147B20D887c2b3E0a3abe9Be34A101B07E';
+const address = '0x73ba25f109356902515d677dD5E143E73c1cAd08';
 
 interface ITx {
   data: string;
