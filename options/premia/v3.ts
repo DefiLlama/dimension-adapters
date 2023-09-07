@@ -2,7 +2,11 @@ import { utils } from "ethers";
 import { request, gql } from "graphql-request";
 
 interface GqlResult {
-  factoryDayDatas: Array<{
+  factoryDayData: {
+    volumeUSD: string;
+    premiumsUSD: string;
+  };
+  factories: Array<{
     volumeUSD: string;
     premiumsUSD: string;
   }>;
@@ -27,7 +31,7 @@ interface ChainData {
   dailyPremiumVolume: number;
   totalNotionalVolume: number;
   dailyNotionalVolume: number;
-  timestamp: string;
+  timestamp: number;
 }
 
 function get2Days(array: Array<any>, key: string): [string, string] {
@@ -45,21 +49,26 @@ function calcLast24hrsVolume(values: [string, string]): number {
 
 async function getChainData(
   url: string,
-  timestamp: string
+  timestamp: number
 ): Promise<ChainData> {
-  const { factoryDayDatas }: GqlResult = await request(url, chainDataQuery, {
-    timestamp: timestamp,
-  });
-
-  const totalPremiumVolume = toNumber(factoryDayDatas[0].premiumsUSD);
-  const dailyPremiumVolume = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "premiumsUSD")
-  );
-
-  const totalNotionalVolume = toNumber(factoryDayDatas[0].volumeUSD);
-  const dailyNotionalVolume = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "volumeUSD")
-  );
+  const dailyId = Math.floor(timestamp / 86400);
+  const query = gql`
+  {
+      factoryDayData(id: ${dailyId}) {
+        volumeUSD
+        premiumsUSD
+      }
+      factories{
+        volumeUSD
+        premiumsUSD
+      }
+  }
+  `
+  const { factoryDayData, factories }: GqlResult = await request(url, query);
+  const dailyPremiumVolume = toNumber(factoryDayData?.premiumsUSD || '0');
+  const dailyNotionalVolume = toNumber(factoryDayData?.volumeUSD || '0');
+  const totalPremiumVolume = toNumber(factories[0]?.premiumsUSD || '0');
+  const totalNotionalVolume = toNumber(factories[0]?.volumeUSD || '0');
 
   return {
     timestamp,
