@@ -1,13 +1,13 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
-const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
+const { getChainVolumeWithGasToken } = require("../../helpers/getUniSubgraphVolume");
 const { FANTOM } = require("../../helpers/chains");
 const endpoints = {
   [FANTOM]: "https://api.thegraph.com/subgraphs/name/eerieeight/spookyswap",
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolumeWithGasToken({
   graphUrls: {
     [FANTOM]: endpoints[FANTOM],
   },

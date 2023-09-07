@@ -4,6 +4,9 @@ import {
   CHAIN,
 } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import {
+  getChainVolumeWithGasToken,
+}  from "../../helpers/getUniSubgraphVolume";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -49,7 +52,7 @@ const endpointsClassic = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
+  //[CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
@@ -126,6 +129,15 @@ const classic = Object.keys(endpointsClassic).reduce(
     },
   }),
   {}
-);
+) as any;
+
+classic[CHAIN.FANTOM] = {
+  fetch: getChainVolumeWithGasToken({
+    graphUrls: {
+      [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
+    }
+  } as any)("fantom"),
+  start: async()=>0
+}
 
 export default classic
