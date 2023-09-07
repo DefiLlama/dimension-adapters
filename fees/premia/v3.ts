@@ -47,14 +47,15 @@ async function getFeeRevenueData(
       }
   }
   `
+  console.log(query)
 
   const {factoryDayData, factories} = (await request(url, query));
 
-  const dailyFees = toNumber(factoryDayData.feeRevenueUSD);
-  const dailyProtocolFees = toNumber(factoryDayData.protocolFeeRevenueUSD);
+  const dailyFees = toNumber(factoryDayData?.feeRevenueUSD || 0);
+  const dailyProtocolFees = toNumber(factoryDayData?.protocolFeeRevenueUSD || 0);
   const dailyMakerRebates = dailyFees - dailyProtocolFees;
-  const dailyPremiums = toNumber(factoryDayData.premiumsUSD);
-  const dailyExercisePayouts = toNumber(factoryDayData.exercisePayoutsUSD);
+  const dailyPremiums = toNumber(factoryDayData?.premiumsUSD || 0);
+  const dailyExercisePayouts = toNumber(factoryDayData?.exercisePayoutsUSD || 0);
 
   const totalFees = toNumber(factories[0]?.feeRevenueUSD || '0');
   const totalProtocolFees = toNumber(factories[0]?.protocolFeeRevenueUSD || '0');
