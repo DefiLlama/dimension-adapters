@@ -135,7 +135,16 @@ classic[CHAIN.FANTOM] = {
   fetch: getChainVolumeWithGasToken({
     graphUrls: {
       [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
-    }
+    },
+    totalVolume: {
+      factory: "factories",
+      field: 'volumeETH',
+    },
+    dailyVolume: {
+      factory: "dayData",
+      field: 'volumeETH',
+      dateField: "date"
+    },
   } as any)("fantom"),
   start: async()=>0
 }
