@@ -40,6 +40,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 timestamp,
                 dailyFees: dailyFee.toString(),
                 dailyUserFees: dailyUserFees.toString(),
+                dailyRevenue: (dailyFee * 0.3).toString()
             };
         };
     };
