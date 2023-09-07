@@ -1,5 +1,5 @@
-import { Adapter, BreakdownAdapter } from "../../adapters/types";
-import { ETHEREUM, ARBITRUM } from "../../helpers/chains";
+import { Adapter } from "../../adapters/types";
+import { ARBITRUM } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -10,24 +10,6 @@ import {
 } from "./constants";
 import { IValoremDayData } from "./interfaces";
 import { getAllDailyRecords } from "./helpers";
-
-const graphExchange = (_graphUrls: ChainEndpoints) => {
-  return (_chain: Chain) => {
-    return async (timestamp: number) => {
-      return {
-        timestamp,
-        dailyFees: undefined,
-        dailyUserFees: undefined,
-        dailyRevenue: undefined,
-        dailyProtocolRevenue: undefined,
-        totalFees: undefined,
-        totalUserFees: undefined,
-        totalRevenue: undefined,
-        totalProtocolRevenue: undefined,
-      };
-    };
-  };
-};
 
 const graphOptions = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
@@ -122,62 +104,16 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
   };
 };
 
-// breakdown adapter, provides views for different segments
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    ["Options"]: {
-      [ETHEREUM]: {
-        fetch: graphOptions(endpoints)(ETHEREUM),
-        start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
-        meta: {
-          methodology,
-        },
-      },
-      [ARBITRUM]: {
-        fetch: graphOptions(endpoints)(ARBITRUM),
-        start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-        meta: {
-          methodology,
-        },
-      },
-    },
-    ["Exchange"]: {
-      [ETHEREUM]: {
-        fetch: graphExchange(endpoints)(ETHEREUM),
-        start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
-        meta: {
-          methodology,
-        },
-      },
-      [ARBITRUM]: {
-        fetch: graphExchange(endpoints)(ARBITRUM),
-        start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-        meta: {
-          methodology,
-        },
+const adapter: Adapter = {
+  adapter: {
+    [ARBITRUM]: {
+      fetch: graphOptions(endpoints)(ARBITRUM),
+      start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
+      meta: {
+        methodology,
       },
     },
   },
 };
 
 export default adapter;
-
-// simple adapter, no segmenting OSE/Quay Exchange
-// const adapter: Adapter = {
-//   adapter: {
-//     [ETHEREUM]: {
-//       fetch: graphOptions(endpoints)(ETHEREUM),
-//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ETHEREUM],
-//       meta: {
-//         methodology,
-//       },
-//     },
-//     [ARBITRUM]: {
-//       fetch: graphOptions(endpoints)(ARBITRUM),
-//       start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-//       meta: {
-//         methodology,
-//       },
-//     },
-//   },
-// };

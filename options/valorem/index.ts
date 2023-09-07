@@ -1,5 +1,5 @@
-import { Adapter, BreakdownAdapter } from "../../adapters/types";
-import { ETHEREUM, ARBITRUM } from "../../helpers/chains";
+import { Adapter } from "../../adapters/types";
+import { ARBITRUM } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../../adapters/types";
