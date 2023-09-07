@@ -3,13 +3,8 @@ import { request, gql } from "graphql-request";
 import { utils } from "ethers";
 
 const dailyFeesQuery = gql`
-  query V3FeeRevenue($timestamp: Int!) {
-    factoryDayDatas(
-      first: 2
-      orderDirection: desc
-      orderBy: periodStart
-      where: { periodStart_lte: $timestamp }
-    ) {
+  query V3FeeRevenue($id: Int!) {
+    factoryDayData(id: $id) {
       premiumsUSD
       exercisePayoutsUSD
       feeRevenueUSD
@@ -35,44 +30,52 @@ async function getFeeRevenueData(
   url: string,
   timestamp: number
 ): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
-  const { factoryDayDatas } = await request(url, dailyFeesQuery, {
-    timestamp,
-  });
+  const dailyId = Math.floor(timestamp / 86400);
+  const query = gql`
+  {
+      factoryDayData(id: ${dailyId}) {
+        premiumsUSD
+        exercisePayoutsUSD
+        feeRevenueUSD
+        protocolFeeRevenueUSD
+      }
+      factories{
+        premiumsUSD
+        exercisePayoutsUSD
+        feeRevenueUSD
+        protocolFeeRevenueUSD
+      }
+  }
+  `
 
-  const dailyFees = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "feeRevenueUSD")
-  );
-  const dailyProtocolFees = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "protocolFeeRevenueUSD")
-  );
+  const {factoryDayData, factories} = (await request(url, query));
+
+  const dailyFees = toNumber(factoryDayData.feeRevenueUSD);
+  const dailyProtocolFees = toNumber(factoryDayData.protocolFeeRevenueUSD);
   const dailyMakerRebates = dailyFees - dailyProtocolFees;
-  const dailyPremiums = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "premiumsUSD")
-  );
-  const dailyExercisePayouts = calcLast24hrsVolume(
-    get2Days(factoryDayDatas, "exercisePayoutsUSD")
-  );
+  const dailyPremiums = toNumber(factoryDayData.premiumsUSD);
+  const dailyExercisePayouts = toNumber(factoryDayData.exercisePayoutsUSD);
 
-  const totalFees = toNumber(factoryDayDatas[0].feeRevenueUSD);
-  const totalProtocolFees = toNumber(factoryDayDatas[0].protocolFeeRevenueUSD);
+  const totalFees = toNumber(factories[0]?.feeRevenueUSD || '0');
+  const totalProtocolFees = toNumber(factories[0]?.protocolFeeRevenueUSD || '0');
   const totalMakerRebates = totalFees - totalProtocolFees;
-  const totalPremiums = toNumber(factoryDayDatas[0].premiumsUSD);
-  const totalExercisePayouts = toNumber(factoryDayDatas[0].exercisePayoutsUSD);
+  const totalPremiums = toNumber(factories[0]?.premiumsUSD || '0');
+  const totalExercisePayouts = toNumber(factories[0]?.exercisePayoutsUSD || '0');
 
   return {
     timestamp: timestamp,
     dailyFees: dailyFees.toString(),
     dailyUserFees: dailyFees.toString(),
-    dailyRevenue: (dailyFees + dailyPremiums + dailyExercisePayouts).toString(),
-    dailyProtocolRevenue: (dailyProtocolFees * 0.2).toString(),
-    dailyHoldersRevenue: (dailyProtocolFees * 0.8).toString(),
-    dailySupplySideRevenue: (dailyPremiums + dailyMakerRebates).toString(),
+    dailyRevenue: ((dailyFees) * .5).toString(),
+    dailyProtocolRevenue: (dailyProtocolFees * 0.1).toString(),
+    dailyHoldersRevenue: (dailyProtocolFees * 0.4).toString(),
+    dailySupplySideRevenue: (dailyMakerRebates).toString(),
     totalFees: totalFees.toString(),
     totalUserFees: totalFees.toString(),
-    totalRevenue: (totalFees + totalPremiums + totalExercisePayouts).toString(),
+    totalRevenue: (totalFees * .5).toString(),
     totalProtocolRevenue: (totalProtocolFees * 0.2).toString(),
-    totalDailyHoldersRevenue: (totalProtocolFees * 0.8).toString(),
-    totalSupplySideRevenue: (totalPremiums + totalMakerRebates).toString(),
+    totalDailyHoldersRevenue: (totalProtocolFees * 0.4).toString(),
+    totalSupplySideRevenue: (totalMakerRebates).toString(),
   };
 }
 
