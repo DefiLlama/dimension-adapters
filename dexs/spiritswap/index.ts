@@ -1,9 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 
 const {
-  getChainVolume,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FIELD,
+  getChainVolumeWithGasToken,
 } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
@@ -11,17 +9,17 @@ const endpoints = {
     "https://api.thegraph.com/subgraphs/name/layer3org/spiritswap-analytics",
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolumeWithGasToken({
   graphUrls: {
     fantom: endpoints.fantom,
   },
   totalVolume: {
     factory: "spiritswapFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
+    field: 'totalVolumeFTM',
   },
   dailyVolume: {
     factory: "spiritswapDayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
+    field: 'dailyVolumeFTM',
   },
 });
 

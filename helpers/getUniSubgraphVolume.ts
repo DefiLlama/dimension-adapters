@@ -4,6 +4,7 @@ import { getBlock } from "./getBlock";
 import { BaseAdapter, ChainBlocks } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
+import { getPrices } from "../utils/prices";
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var date_utc = Date.UTC(
@@ -133,6 +134,41 @@ function getChainVolume({
   };
 }
 
+function getChainVolumeWithGasToken({
+  graphUrls,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: 'totalVolumeETH',
+  },
+  dailyVolume = {
+    factory: DEFAULT_DAILY_VOLUME_FACTORY,
+    field: 'dailyVolumeETH',
+    dateField: DEFAULT_DAILY_DATE_FIELD
+  },
+  customDailyVolume = undefined,
+  hasDailyVolume = true,
+  hasTotalVolume = true,
+  getCustomBlock = undefined,
+  priceToken = "coingecko:fantom"
+}: IGetChainVolumeParams & {priceToken:string}) {
+  const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
+  return (chain: Chain) => {
+    return async (timestamp: number, chainBlocks: ChainBlocks) => {
+      const {
+        block,
+        totalVolume,
+        dailyVolume,
+      } = await basic(chain)(timestamp, chainBlocks);
+      const price = await getPrices([priceToken], timestamp)
+      return {
+        timestamp,
+        block,
+        dailyVolume: dailyVolume*price[priceToken].price
+      }
+    };
+  };
+}
+
 function univ2Adapter(endpoints: {
   [chain: string]: string
 }, {
@@ -141,9 +177,10 @@ function univ2Adapter(endpoints: {
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
   dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
   dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
-  hasTotalVolume = true
+  hasTotalVolume = true,
+  gasToken = null as string|null
 }) {
-  const graphs = getChainVolume({
+  const graphs = (gasToken === null?getChainVolume:getChainVolumeWithGasToken as typeof getChainVolume)({
     graphUrls: endpoints,
     hasTotalVolume,
     totalVolume: {
@@ -155,7 +192,8 @@ function univ2Adapter(endpoints: {
       field: dailyVolume,
       dateField: dailyVolumeTimestampField
     },
-  });
+    priceToken: gasToken
+  } as any);
 
   const adapter: SimpleAdapter = {
     adapter: Object.keys(endpoints).reduce((acc, chain) => {
@@ -181,6 +219,7 @@ function univ2Adapter(endpoints: {
 export {
   getUniqStartOfTodayTimestamp,
   getChainVolume,
+  getChainVolumeWithGasToken,
   univ2Adapter,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
