@@ -14,12 +14,12 @@ const endpoints: ChainEndpoints = {
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
   totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
+    factory: "pancakeFactories",
+    field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
+    factory: "pancakeDayData",
+    field: "dailyVolumeUSD",
   },
   feesPercent: {
     type: "volume",
