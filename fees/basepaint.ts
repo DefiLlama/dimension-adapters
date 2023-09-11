@@ -63,7 +63,7 @@ const adapterFees: SimpleAdapter  = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: async ()  => 1691539200,
+      start: async ()  => 1691625600,
     }
   }
 }
