@@ -22,7 +22,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
-    topics: [0xfee17e5caac7cbef9c34199cc11ac3c5a17abb3b07d5835053be283278606e43],
+    topics: ['0xfee17e5caac7cbef9c34199cc11ac3c5a17abb3b07d5835053be283278606e43'],
     keys: [],
     chain: CHAIN.KAVA
   })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
