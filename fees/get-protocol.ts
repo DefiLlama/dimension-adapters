@@ -50,7 +50,7 @@ const graphs = () => {
     // The value of the each type will be the USD amount of GET rewarded using the price at that point in time.
     const stakingFees = graphEthFees.stakingRewards.concat(graphPolyFees.stakingRewards).reduce(
       (tally: any, reward: any) => ({
-        [reward.type]: ((tally[reward.type] || 0) + BigInt(reward.totalRewards) / BigInt(10e18)) * getUSD,
+        [reward.type]: ((tally[reward.type] || 0) + Number(BigInt(reward.totalRewards) / BigInt(10e18))) * getUSD,
       }),
       {}
     );
