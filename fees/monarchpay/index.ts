@@ -27,13 +27,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     chain: CHAIN.KAVA
   })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
   const dailyFees = logs.map((tx: ITx) => {
-    //const amount = Number('0x' + tx.data.slice(192, 256)) / 10 **  18;
-    const amount = Number('0x' + tx.data);
+    const amount = Number('0x' + tx.data) / 10 ** 6;
     return amount;
   }).reduce((a: number, b: number) => a+b,0);
   return {
     timestamp: timestamp,
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
+    dailyFees: `${dailyFees}`
   };
 }
 
@@ -41,7 +40,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
-      start: async () => 1653134400
+      start: async () => 1694044800
     },
   }
 }
