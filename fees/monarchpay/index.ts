@@ -12,11 +12,11 @@ interface ITx {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+  const fromTimestamp = timestamp - 60 * 60 * 24
+  const toTimestamp = timestamp
 
-  const fromBlock = (await getBlock(todaysTimestamp, CHAIN.KAVA, {}));
-  const toBlock = (await getBlock(yesterdaysTimestamp, CHAIN.KAVA, {}));
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.KAVA, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.KAVA, {}));
   const logs: ITx[] = (await sdk.api.util.getLogs({
     target: address,
     topic: '',
