@@ -9,4 +9,4 @@ export const convertChainToFlipside = (chain: string) => ({
 }[chain] ?? chain)
 
 //export const isAcceptedChain = (chain:string) => ["arbitrum", "avax", "bsc", "ethereum", "xdai", "optimism", "polygon"].includes(chain)
-export const isAcceptedChain = (chain:string) => ["arbitrum", "avax", "ethereum", "optimism", "polygon"].includes(chain)
+export const isAcceptedChain = (chain:string) => ["arbitrum", "avax", "ethereum", "optimism", "polygon", "base", "bsc"].includes(chain)

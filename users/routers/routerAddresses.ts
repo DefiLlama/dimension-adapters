@@ -2659,6 +2659,15 @@ export default ([
                 "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",//Router
             ]
         }
-    },         
+    },
+    {
+        "id":"3377",
+        "name":"Friend.tech",
+        "addresses":{
+            "base":[
+                "0xcf205808ed36593aa40a44f10c7f7c2f67d4a4d4"
+            ]
+        }
+    }, 
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
