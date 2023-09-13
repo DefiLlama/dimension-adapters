@@ -9,7 +9,7 @@ type TEndpoint = {
   [s: Chain | string]: string;
 }
 const endpoints: TEndpoint = {
-    [CHAIN.BASE]: "https://subgraphs.blazebot.io/subgraphs/name/blazebot/statss",
+    [CHAIN.BASE]: "https://subgraphs.blazebot.io/subgraphs/name/blazebot/stats",
 }
 
 interface ISwap {
