@@ -1,6 +1,5 @@
 import { Adapter } from "../adapters/types";
 import { BSC } from "../helpers/chains";
-import { BSC } from "../helpers/chains";
 import { MANTLE } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
@@ -10,7 +9,6 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 const endpoints = {
   [BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
   [MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
-
 }
 
 const methodology = {
@@ -26,7 +24,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = (chain == "bsc" || chain == "bsc")  ? todaysTimestamp : todaysTimestamp + ":daily"
+      const searchTimestamp = (chain == "bsc" || chain == "mantle")  ? todaysTimestamp : todaysTimestamp + ":daily"
 
       const graphQuery = gql
       `{
@@ -69,7 +67,7 @@ const adapter: Adapter = {
         methodology
       }
     [MANTLE]: {
-      fetch: graphs(endpoints)(BSC),
+      fetch: graphs(endpoints)(MANTLE),
       start: async () => 1693843200,
       meta: {
         methodology
