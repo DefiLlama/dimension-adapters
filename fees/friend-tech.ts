@@ -31,17 +31,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
   try {
-    const logs: ILog[] = (await sdk.api.util.getLogs({
-      target: FriendtechSharesAddress,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: CHAIN.BASE,
-      topics: [topic0_trade]
-    })).output as ILog[];
+    let _logs: ILog[] = [];
+    for(let i = fromBlock; i < toBlock; i += 5000) {
+      const logs: ILog[] = (await sdk.api.util.getLogs({
+        target: FriendtechSharesAddress,
+        topic: '',
+        toBlock: i + 5000,
+        fromBlock: i,
+        keys: [],
+        chain: CHAIN.BASE,
+        topics: [topic0_trade]
+      })).output as ILog[];
+      _logs = _logs.concat(logs);
+    }
 
-    const fees_details: IFee[] = logs.map((e: ILog) => {
+    const fees_details: IFee[] = _logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
       const protocolEthAmount = Number(value.args.protocolEthAmount._hex) / 10 ** 18;
       const subjectEthAmount = Number(value.args.subjectEthAmount._hex) / 10 ** 18;
