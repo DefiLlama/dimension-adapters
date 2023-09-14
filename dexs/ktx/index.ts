@@ -66,7 +66,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.BSC]: 1682870400,
-    [CHAIN.MANTLE]: 1682870400,
+    [CHAIN.MANTLE]: 1693843200,
   }
   return startTimestamps[chain]
 }
@@ -78,7 +78,6 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          console.log(chain)
           start: async () => getStartTimestamp(chain)
         }
       }
