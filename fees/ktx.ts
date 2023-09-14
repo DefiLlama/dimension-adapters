@@ -66,6 +66,7 @@ const adapter: Adapter = {
       meta: {
         methodology
       }
+    },
     [MANTLE]: {
       fetch: graphs(endpoints)(MANTLE),
       start: async () => 1693843200,
@@ -75,5 +76,6 @@ const adapter: Adapter = {
     },
   }
 }
+
 
 export default adapter;
