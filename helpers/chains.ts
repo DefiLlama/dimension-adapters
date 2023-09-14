@@ -140,6 +140,7 @@ const BITCOIN = "bitcoin";
 const LITECOIN = "litecoin";
 const DOGE = "doge";
 const ZKSYNC = "zksync";
+const MANTLE = "mantle";
 // Don't use
 export {
   ZKSYNC,
@@ -162,4 +163,5 @@ export {
   BITCOIN,
   LITECOIN,
   DOGE,
+  MANTLE,
 };
