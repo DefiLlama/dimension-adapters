@@ -9,10 +9,15 @@ interface DailyFeeResponse {
   };
 }
 
+const chainOverrides: { [key: string]: string } = {
+  "terra": "terra2",
+};
+
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
+    const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
     const response = await axios.get<DailyFeeResponse>(
-      `https://edge.stride.zone/api/${chain}/stats/fees`
+      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
     );
 
     return {
@@ -22,6 +27,7 @@ const fetch = (chain: string) => {
     };
   };
 };
+
 
 const meta = {
   methodology: {
