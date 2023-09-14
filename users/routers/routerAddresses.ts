@@ -905,7 +905,8 @@ export default ([
                 "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
             ],
             "arbitrum":[
-                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
+                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c",
+                "0x9E233DD6a90678BaaCd89c05ce5C48f43fCc106E"
             ],
             "optimism":[
                 "0x5130f6cE257B8F9bF7fac0A0b519Bd588120ed40", //ClipperPackedVerifiedExchange
