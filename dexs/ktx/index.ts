@@ -5,6 +5,8 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
+  [CHAIN.MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
+
 }
 
 const historicalDataSwap = gql`
@@ -37,7 +39,7 @@ interface IGraphResponse {
 const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: chain === CHAIN.BSC
+    id: chain === CHAIN.BSC || chain === CHAIN.MANTLE
       ? String(dayTimestamp)
       : String(dayTimestamp) + ':daily',
     period: 'daily',
