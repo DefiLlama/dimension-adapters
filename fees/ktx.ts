@@ -1,6 +1,6 @@
+import { MANTLE } from "../helpers/chains";
 import { Adapter } from "../adapters/types";
 import { BSC } from "../helpers/chains";
-import { MANTLE } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
