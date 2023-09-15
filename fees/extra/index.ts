@@ -1,5 +1,4 @@
-import * as sdk from "@defillama/sdk";
-import { Adapter, ChainBlocks, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 import request, { gql } from "graphql-request";
@@ -98,6 +97,7 @@ const graphs = (chain: CHAIN) => {
 
     return {
       dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyFees * 0.5}`,
       timestamp,
     };
   };
