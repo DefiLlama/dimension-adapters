@@ -18,7 +18,6 @@ const historicalDataDerivatives = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: { period: $period, id: $id }) {
       liquidation
-
       margin
     }
   }
@@ -43,7 +42,6 @@ const getFetch =
       id: dailyId,
       period: "daily",
     });
-
     const totalData: IGraphResponse = await request(graphEndpoint, query, {
       id: "total",
       period: "total",

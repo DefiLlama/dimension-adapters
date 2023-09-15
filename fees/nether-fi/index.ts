@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -16,18 +16,18 @@ const methodology = {
   ProtocolRevenue: "Treasury has no revenue",
 };
 
-const getFetch = () => async (timestamp: number) => {
+const getFetch = (): Fetch => async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
   const graphQuery = gql`{
-        feeStat(id: "${searchTimestamp}") {
-          mint
-          burn
-          marginAndLiquidation
-          swap
-        }
-      }`;
+    feeStat(id: "${searchTimestamp}") {
+      mint
+      burn
+      marginAndLiquidation
+      swap
+    }
+  }`;
 
   const graphRes = await request(subgraphEndpoint, graphQuery);
 
