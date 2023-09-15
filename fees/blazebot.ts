@@ -26,14 +26,14 @@ const graphs = (chain: Chain) => {
             fees(where: {
               timestamp_gte: ${fromTimestamp}
               timestamp_lte: ${toTimestamp}
-            }, orderBy:timestamp, orderDirection: desc) {
+            }, orderBy:fee, orderDirection: desc) {
               id
               fee
             }
           }
         `
       const graphRes: ISwap[] = (await request(endpoints[chain], query)).fees;
-  
+
       const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
       const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
       const dailyFees = graphRes.map((e: ISwap) => {
