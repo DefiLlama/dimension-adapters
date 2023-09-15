@@ -58,6 +58,7 @@ const fetch = (chain: Chain) => {
       case CHAIN.BASE:
           tokenIds = [
             "base:0x0000000000000000000000000000000000000000",
+            "base:0x78a087d713Be963Bf307b18F2Ff8122EF9A63ae9",
           ];
           break;
       // Add cases for other chains if needed
