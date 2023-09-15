@@ -107,12 +107,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: async () => 1664582400,
+      start: async () => 1683450630,
       runAtCurrTime: true,
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: async () => 1664582400,
+      start: async () => 1693449471,
       runAtCurrTime: true,
     },
   },
