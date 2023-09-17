@@ -37,12 +37,17 @@ const graph = (graphUrls: ChainEndpoints) => {
       })).dailyRevenueAggregators;
 
       const prices = await getPrices(["ethereum:0x0000000000000000000000000000000000000000"], timestamp);
-      console.log("AA");
-      console.log(prices);
-      console.log(graphRes);
-      const dailyRevenue = (Number(graphRes[0].todayETHRevenue))/10**18 * prices["ethereum:0x0000000000000000000000000000000000000000"].price;
+      try {
+        const dailyRevenue = (Number(graphRes[0].todayETHRevenue))/10**18 * prices["ethereum:0x0000000000000000000000000000000000000000"].price;
       return {
         dailyRevenue: `${dailyRevenue}`,
+        timestamp
+      }
+      } catch (error) {
+    
+      }
+      return {
+        dailyRevenue: `${0}`,
         timestamp
       }
     }
