@@ -80,7 +80,7 @@ const getFetch =
 
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BASE]: 3007377,
+    [CHAIN.BASE]: 1694304000,
   };
   return startTimestamps[chain];
 };
