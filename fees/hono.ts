@@ -18,7 +18,7 @@ const endpoints = {
 const graph = (graphUrls: ChainEndpoints) => {
   const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)
   {
-    dailyRevenueAggregators(first:1, where:{id_gte:$timestampFrom, id_lte:$timestampTo})
+    dailyRevenueAggregators(where:{id_gte:$timestampFrom, id_lte:$timestampTo})
     {
       id
       todayETHRevenue
@@ -31,24 +31,25 @@ const graph = (graphUrls: ChainEndpoints) => {
       const fromTimestamp = timestamp - 60 * 60 * 24
       const toTimestamp = timestamp
 
-      const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
-        timestampFrom: fromTimestamp,
-        timestampTo: toTimestamp
-      })).dailyRevenueAggregators;
 
-      const prices = await getPrices(["ethereum:0x0000000000000000000000000000000000000000"], timestamp);
       try {
-        const dailyRevenue = (Number(graphRes[0].todayETHRevenue))/10**18 * prices["ethereum:0x0000000000000000000000000000000000000000"].price;
+        const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
+          timestampFrom: fromTimestamp,
+          timestampTo: toTimestamp
+        })).dailyRevenueAggregators;
+
+        const prices = await getPrices(["ethereum:0x0000000000000000000000000000000000000000"], timestamp);
+        const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue)/10**18, 0);
+        const dailyRevenue = (value) * prices["ethereum:0x0000000000000000000000000000000000000000"].price;
+        const dailyFees = dailyRevenue;
       return {
+        dailyFees: `${dailyFees}`,
         dailyRevenue: `${dailyRevenue}`,
         timestamp
       }
       } catch (error) {
-    
-      }
-      return {
-        dailyRevenue: `${0}`,
-        timestamp
+        console.error(error);
+        throw error;
       }
     }
   }
