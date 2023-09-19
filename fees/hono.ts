@@ -27,20 +27,18 @@ const graph = (graphUrls: ChainEndpoints) => {
 
   return (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultFees> => {
-
       const fromTimestamp = timestamp - 60 * 60 * 24
       const toTimestamp = timestamp
-
 
       try {
         const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
           timestampFrom: fromTimestamp,
           timestampTo: toTimestamp
         })).dailyRevenueAggregators;
-
-        const prices = await getPrices(["ethereum:0x0000000000000000000000000000000000000000"], timestamp);
+        const ethcoinID = "ethereum:0x0000000000000000000000000000000000000000";
+        const prices = await getPrices([ethcoinID], timestamp);
         const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue)/10**18, 0);
-        const dailyRevenue = (value) * prices["ethereum:0x0000000000000000000000000000000000000000"].price;
+        const dailyRevenue = (value) * prices[ethcoinID].price;
         const dailyFees = dailyRevenue;
       return {
         dailyFees: `${dailyFees}`,
