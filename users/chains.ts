@@ -185,5 +185,5 @@ export default [
     id: `chain#${chain.name}`,
     getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>typeof u === "object"?u:({all:{users:u}})),
 })).concat([
-    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron"
+    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base"
 ].map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) })))
