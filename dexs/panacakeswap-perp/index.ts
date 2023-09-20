@@ -38,8 +38,8 @@ const fetchVolume = (chain: Chain) => {
     try {
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
       const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-      // const query: IData[] = (await queryDune(contract_address[chain]))
-      const query: IData[] = require(`./${chain}.json`);
+      const query: IData[] = (await queryDune(contract_address[chain]))
+      // const query: IData[] = require(`./${chain}.json`);
       const dailyVolume = query.find((e: IData) => e.dt.split(' ')[0] === dateString)?.volume;
 
       return {
