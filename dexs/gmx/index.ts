@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-stats",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-stats",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api",
+  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api",
 }
 
 const historicalDataSwap = gql`
