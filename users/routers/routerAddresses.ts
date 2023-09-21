@@ -918,6 +918,9 @@ export default ([
             ],
             "moonbeam":[
                 "0xCE37051a3e60587157DC4c0391B4C555c6E68255"
+            ],
+            "mantle":[
+                "0x769728b5298445BA2828c0f3F5384227fbF590C5" //ClipperPackedVerifiedExchange
             ]
         }
     },
