@@ -90,13 +90,13 @@ async function getFeeRevenueData(
     dailyRevenue: ((dailyFees) * .5).toString(),
     dailyProtocolRevenue: (dailyProtocolFees * 0.1).toString(),
     dailyHoldersRevenue: (dailyProtocolFees * 0.4).toString(),
-    dailySupplySideRevenue: (dailyMakerRebates).toString(),
+    // dailySupplySideRevenue: (dailyMakerRebates).toString(),
     totalFees: totalFees.toString(),
     totalUserFees: totalFees.toString(),
     totalRevenue: (totalFees * .5).toString(),
     totalProtocolRevenue: (totalProtocolFees * 0.2).toString(),
     totalDailyHoldersRevenue: (totalProtocolFees * 0.4).toString(),
-    totalSupplySideRevenue: (totalMakerRebates).toString(),
+    // totalSupplySideRevenue: (totalMakerRebates).toString(),
   };
 }
 
