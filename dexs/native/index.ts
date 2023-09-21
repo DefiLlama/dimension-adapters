@@ -15,9 +15,10 @@ interface ResEntry {
   tvlUSD: number;
 }
 
+
 const getStartTime = async (chain: string) => {
   const response = await axios.get(
-    `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain}`
+    `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
   );
 
   const smallestDate = response.data.reduce(
@@ -41,7 +42,7 @@ const adapter: SimpleAdapter = {
           );
 
           const response = await axios.get(
-            `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain}`
+            `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
           );
 
           const totalVol = response.data.reduce(
