@@ -1,5 +1,4 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
