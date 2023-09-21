@@ -1,7 +1,9 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, type SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
+
 
 const URL = "https://api.darkcrypto.finance/api/darkness"
 
@@ -22,6 +24,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.CRONOS]: {
       fetch,
       runAtCurrTime: true,
