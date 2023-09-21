@@ -1,4 +1,6 @@
+import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
@@ -10,5 +12,5 @@ const adapters = univ2Adapter({
 });
 adapters.adapter.bitgert.start = async () => 1655917200;
 adapters.adapter.core.start = async () => 1675814400;
-
+adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;
