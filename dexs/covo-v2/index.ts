@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/covo-v2-2",
@@ -74,6 +75,7 @@ const adapter: BreakdownAdapter = {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: async () => getStartTimestamp(chain)
@@ -83,6 +85,7 @@ const adapter: BreakdownAdapter = {
     "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: async () => getStartTimestamp(chain)

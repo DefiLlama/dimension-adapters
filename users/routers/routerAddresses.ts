@@ -905,7 +905,8 @@ export default ([
                 "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
             ],
             "arbitrum":[
-                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
+                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c",
+                "0x9E233DD6a90678BaaCd89c05ce5C48f43fCc106E"
             ],
             "optimism":[
                 "0x5130f6cE257B8F9bF7fac0A0b519Bd588120ed40", //ClipperPackedVerifiedExchange
@@ -2659,6 +2660,15 @@ export default ([
                 "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",//Router
             ]
         }
-    },         
+    },
+    {
+        "id":"3377",
+        "name":"Friend.tech",
+        "addresses":{
+            "base":[
+                "0xcf205808ed36593aa40a44f10c7f7c2f67d4a4d4"
+            ]
+        }
+    }, 
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)

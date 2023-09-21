@@ -98,17 +98,17 @@ const fetch = (chain: Chain, version: number) => {
         id: id
       };
     })
-
+    const exclude: string[] = [];
     const fees_amount = logs_1.map((e: ITx) => {
       const id =  e.data.slice(0, 64).toUpperCase()
       const fees = request_fees.find(e => e.id === id);
-      return fees.fees;
+      if (!fees?.fees) exclude.push(e.transactionHash);
+      return fees?.fees || 0;
     }).reduce((a: number, b: number) => a+b, 0)
 
 
-
     const provider = getProvider(chain);
-    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
+    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash).filter(e => !exclude.includes(e)))]
     const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
       provider.getTransactionReceipt(transactionHash)
     ).map(p => p.catch(() => undefined))))

@@ -1,7 +1,8 @@
 import axios from "axios";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const API = "https://nomics.com/data/exchange-volume-history?convert=USD&exchange=defikingdoms&interval=all"
 
@@ -16,6 +17,7 @@ interface IAPIResponse {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.HARMONY]: {
       start: async () => {
         const data = (await axios.get(API)).data as IAPIResponse

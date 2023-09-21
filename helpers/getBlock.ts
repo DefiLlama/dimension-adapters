@@ -45,11 +45,6 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://base.blockscout.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
-        else if (chain === CHAIN.OP_BNB)
-            block = Number((await retry(async () => (await await sdk.api.util.lookupBlock(timestamp, { chain }).catch((e) => {
-                console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-            }))?.block)));
         else
             block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
                 console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
