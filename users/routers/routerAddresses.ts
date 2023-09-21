@@ -2332,6 +2332,8 @@ export default ([
             ],
         }
     },
+    /*
+    Only bridge addresses, not actual users
     {
         "id":"144",
         "name":"dYdX",
@@ -2344,6 +2346,7 @@ export default ([
             ],
         }
     },
+    */
     {
         "id":"parent#radiant",
         "name":"Radiant",
