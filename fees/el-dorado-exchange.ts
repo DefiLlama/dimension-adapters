@@ -49,17 +49,17 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
     adapter: {
-        [BSC]: {
-            fetch: graphs(endpoints)(BSC),
-            start: async () => 1670659200,
-            meta: {
-                methodology: {
-                    Fees: "All mint, burn, margin and liquidation and swap fees are collected",
-                    UserFees: "Users pay swap fees and margin and liquidation fees",
-                    Revenue: "Revenue is calculated as 30% of the total fee.",
-                }
-            }
-        },
+        // [BSC]: {
+        //     fetch: graphs(endpoints)(BSC),
+        //     start: async () => 1670659200,
+        //     meta: {
+        //         methodology: {
+        //             Fees: "All mint, burn, margin and liquidation and swap fees are collected",
+        //             UserFees: "Users pay swap fees and margin and liquidation fees",
+        //             Revenue: "Revenue is calculated as 30% of the total fee.",
+        //         }
+        //     }
+        // },
         [ARBITRUM]: {
             fetch: graphs(endpoints)(ARBITRUM),
             start: async () => 1678147200,
