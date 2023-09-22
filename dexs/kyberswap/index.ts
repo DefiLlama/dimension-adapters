@@ -54,7 +54,8 @@ const elasticEndpoints = elasticChains.reduce((acc, chain)=>({
     ethereum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
     arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum",
     polygon: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
-    [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea"
+    [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
+    [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base"
 } as any);
 elasticEndpoints.fantom = "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom"
 

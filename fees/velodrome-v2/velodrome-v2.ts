@@ -13,6 +13,13 @@ interface IAmount {
   amount0: string;
   amount1: string;
 }
+
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
 const topic_name = 'Swap(index_topic_1 address sender, index_topic_2 address to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)';
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
 const FACTORY_ADDRESS = '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a';
@@ -120,9 +127,15 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
     }))))
       .map((p: any) => p)
       .map((a: any) => a.output);
-    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
-    const coins = [...new Set(rawCoins)]
-    const prices = await getPrices(coins, timestamp);
+    const rawCoins: string[] = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
+    const coins: string[] = [...new Set(rawCoins)]
+    const coins_split: string[][] = [];
+    for(let i = 0; i < coins.length; i+=100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
     const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
       const log: IAmount[] = logs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })

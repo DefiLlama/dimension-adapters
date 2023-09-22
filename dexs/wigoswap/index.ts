@@ -6,6 +6,7 @@ const adapters = univ2Adapter({
 }, {
   factoriesName: "wigoswapFactories",
   dayData: "wigoDayData",
+  gasToken: "coingecko:fantom"
 });
 
 adapters.adapter.fantom.start = async () => 1642982400;

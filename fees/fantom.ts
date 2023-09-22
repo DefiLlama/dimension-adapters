@@ -7,7 +7,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
         fetch:  async (timestamp: number) => {
-            const fees = (await queryDune("2843395"))[0]._col0
+            // select sum(gas_price*(gas_used/1e18)) from fantom.transactions where block_time > from_unixtime({{endTime}}) - interval '1' day and block_time < from_unixtime({{endTime}})
+            const fees = (await queryDune("2849077", {
+              endTime: timestamp
+            }))[0]._col0
             const usdFees = fees * (await getPrices(["coingecko:fantom"], timestamp))["coingecko:fantom"].price;
 
             return {

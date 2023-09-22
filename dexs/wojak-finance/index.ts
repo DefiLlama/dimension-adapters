@@ -1,5 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import disabledAdapter from "../../helpers/disabledAdapter";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 const { request, gql } = require("graphql-request");
 const {
@@ -61,6 +62,7 @@ const graphs = getChainVolume({
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.DOGECHAIN]: {
       fetch: graphs(CHAIN.DOGECHAIN),
       start: async () => 1661731200,

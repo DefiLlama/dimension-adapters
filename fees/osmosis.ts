@@ -13,7 +13,6 @@ interface IChartItem {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
   const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))?.data
-  console.log(historicalFees)
 
   const totalFee = historicalFees
     .filter(feeItem => (new Date(feeItem.time).getTime() / 1000) <= dayTimestamp)

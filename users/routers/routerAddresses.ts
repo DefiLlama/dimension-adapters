@@ -3,6 +3,15 @@ import { ProtocolAddresses } from "../utils/types";
 
 export default ([
     {
+        "id":"3429",
+        "name":"YFX",
+        "addresses":{
+            "arbitrum":[
+                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028"
+            ]
+        }
+    },
+    {
         "id":"parent#uniswap",
         "name":"Uniswap",
         "addresses":{
@@ -896,7 +905,8 @@ export default ([
                 "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
             ],
             "arbitrum":[
-                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c"
+                "0xE7b0CE0526fbE3969035a145C9e9691d4d9D216c",
+                "0x9E233DD6a90678BaaCd89c05ce5C48f43fCc106E"
             ],
             "optimism":[
                 "0x5130f6cE257B8F9bF7fac0A0b519Bd588120ed40", //ClipperPackedVerifiedExchange
@@ -908,6 +918,9 @@ export default ([
             ],
             "moonbeam":[
                 "0xCE37051a3e60587157DC4c0391B4C555c6E68255"
+            ],
+            "mantle":[
+                "0x769728b5298445BA2828c0f3F5384227fbF590C5" //ClipperPackedVerifiedExchange
             ]
         }
     },
@@ -2319,6 +2332,8 @@ export default ([
             ],
         }
     },
+    /*
+    Only bridge addresses, not actual users
     {
         "id":"144",
         "name":"dYdX",
@@ -2331,6 +2346,7 @@ export default ([
             ],
         }
     },
+    */
     {
         "id":"parent#radiant",
         "name":"Radiant",
@@ -2638,9 +2654,30 @@ export default ([
                 "0x520CAF43e3C6481b71DB95711802ED9179ccA403",//nonfungiblePositionManager
             ]
         }
-    },  
+    },
     {
-        "id":"3346", // todo?
+        "id":"3450",
+        "name":"Aerodrome",
+        "addresses":{
+            "base":[
+                 //velodrome v2 fork
+                "0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4",//VotingEscrow
+                "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",//Voter
+                "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",//Router
+            ]
+        }
+    },
+    {
+        "id":"3377",
+        "name":"Friend.tech",
+        "addresses":{
+            "base":[
+                "0xcf205808ed36593aa40a44f10c7f7c2f67d4a4d4"
+            ]
+        }
+    }, 
+    {
+        "id":"3388", // todo?
         "name": "Drift",
         "addresses":{
             "solana":[

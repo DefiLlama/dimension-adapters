@@ -30,6 +30,7 @@ const gqlQuery = gql`
 
 const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84"
 const SY_WSTETH_ARBITRUM = "0x80c12d5b6cc494632bf11b03f09436c8b61cc5df";
+const SY_WSTETH_OP = "0x96a528f4414ac3ccd21342996c93f2ecdec24286"
 
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
@@ -42,7 +43,11 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BSC]: {
     endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-bsc-jun-28',
-    treasury: '0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e'
+    treasury: '0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e', 
+  },
+  [CHAIN.OPTIMISM]: {
+    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-optimism-aug-11',
+    treasury: '0xe972d450ec5b11b99d97760422e0e054afbc8042', 
   }
 }
 
@@ -133,7 +138,7 @@ const fetch = (chain: Chain) => {
         if (idAll === -1) {
           continue;
         }
-        const assetPrice = e.address == SY_WSTETH_ARBITRUM ? prices[STETH_ETHEREUM] : getPriceFor(assetInfos[idAll].assetAddress)
+        const assetPrice = [SY_WSTETH_ARBITRUM, SY_WSTETH_OP].includes(e.address) ? prices[STETH_ETHEREUM] : getPriceFor(assetInfos[idAll].assetAddress)
         if (!assetPrice) {
           continue;
         }
@@ -170,6 +175,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: async () => 1686268800,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: async () => 1691733600,
     }
   }
 };

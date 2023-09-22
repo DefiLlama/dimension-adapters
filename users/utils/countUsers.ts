@@ -90,7 +90,7 @@ WHERE
 }
 
 function gasPrice(chain:string){
-  if(["avax", "optimism"].includes(chain)){
+  if(["avax", "optimism", "base"].includes(chain)){
     return "gas_price"
   }
   return "receipt_effective_gas_price"

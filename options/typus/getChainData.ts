@@ -9,48 +9,28 @@ const headers = {
 
 const requestData = {
   timeRange: {
-    start: "1677918120",
+    start: "-1M",
     end: "now",
     step: 86400,
-    timezone: "UTC",
+    timezone: "Asia/Taipei",
   },
   limit: 20,
   queries: [
     {
       metricsQuery: {
         query: "deliverySizeUSD",
+        alias: "SUM",
         id: "a",
         labelSelector: {},
         aggregate: {
           op: "SUM",
-          grouping: ["coin_symbol"],
+          grouping: [],
         },
-        functions: [
-          {
-            name: "sum_over_time",
-            arguments: [
-              {
-                durationValue: {
-                  value: 1,
-                  unit: "d",
-                },
-              },
-            ],
-          },
-        ],
-        disabled: true,
+        functions: [],
+        disabled: false,
       },
       dataSource: "METRICS",
       sourceName: "",
-    },
-  ],
-  formulas: [
-    {
-      expression: "sum(a)",
-      alias: "Total",
-      id: "A",
-      disabled: false,
-      functions: [],
     },
   ],
 };
@@ -98,7 +78,7 @@ interface ChainData {
 
 async function getChainData(timestamp: string): Promise<ChainData> {
   let ts = Number(timestamp);
-  ts = ts - (ts % (24 * 60 * 60));
+  ts = ts - (ts % (24 * 60 * 60)) + 16 * 60 * 60;
   timestamp = ts.toString();
 
   let deliverySizeUSDs = await getDataFromSentio(

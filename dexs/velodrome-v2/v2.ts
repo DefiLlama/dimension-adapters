@@ -8,6 +8,13 @@ interface ILog {
   data: string;
   transactionHash: string;
 }
+
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
 interface IAmount {
   amount0In: string;
   amount1In: string;
@@ -126,8 +133,14 @@ export const fetchV2 = async (timestamp: number) => {
       .map((p: any) => p)
       .map((a: any) => a.output);
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
-    const coins = [...new Set(rawCoins)]
-    const prices = await getPrices(coins, timestamp);
+    const coins: string[] = [...new Set(rawCoins)]
+    const coins_split: string[][] = [];
+    for(let i = 0; i < coins.length; i+=100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
     const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
       const log: IAmount[] = logs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })

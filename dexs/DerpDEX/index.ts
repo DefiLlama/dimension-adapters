@@ -3,7 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.6",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.10",
+  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/geckocoding/derpdex-amm-base"
 };
 
 const v3Graphs = getGraphDimensions({
@@ -31,11 +32,16 @@ const v3Graphs = getGraphDimensions({
     Revenue: 0 // Revenue is 100% of collected fees
   }
 });
+
 const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
           fetch: v3Graphs(CHAIN.ERA),
           start:  async () => 1688515200
+        },
+        [CHAIN.BASE]: {
+          fetch: v3Graphs(CHAIN.BASE),
+          start:  async () => 1692296100
         }
     }
 };
