@@ -4,7 +4,7 @@ import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
-    const query = await queryAllium(`
+    return { queryId: await startAlliumQuery(`
 WITH
   all_new_users AS (
     SELECT DISTINCT
@@ -86,7 +86,8 @@ FROM
 WHERE
   first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
 `)
-    return query[0].user_count
+    }
+    //return query[0].user_count
 }
 
 function gasPrice(chain:string){
