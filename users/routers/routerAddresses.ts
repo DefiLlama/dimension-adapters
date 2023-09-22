@@ -2676,5 +2676,15 @@ export default ([
             ]
         }
     }, 
+    {
+        "id":"970",
+        "name": "Drift",
+        "addresses":{
+            "solana":[
+                "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH", // dex program id
+                "VAULtLeTwwUxpwAw98E6XmgaDeQucKgV5UaiAuQ655D", // vaults program id
+            ]
+        }
+    },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
