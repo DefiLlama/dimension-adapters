@@ -7,7 +7,7 @@ const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
 
-export async function queryFlipside(sqlQuery: string) {
+export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
   return await retry(
     async (bail, attempt: number) => {
       const FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX]
@@ -21,7 +21,7 @@ export async function queryFlipside(sqlQuery: string) {
             "params": [
                 {
                     "resultTTLHours": 5,
-                    "maxAgeMinutes": 90,
+                    "maxAgeMinutes": maxAgeMinutes,
                     "sql": sqlQuery,
                     "tags": {
                         "source": "api"
