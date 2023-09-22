@@ -20,9 +20,9 @@ export async function queryFlipside(sqlQuery: string) {
             "method": "createQueryRun",
             "params": [
                 {
-                    "resultTTLHours": 1,
-                    "maxAgeMinutes": 20,
-                    "sql":sqlQuery,
+                    "resultTTLHours": 5,
+                    "maxAgeMinutes": 60,
+                    "sql": sqlQuery,
                     "tags": {
                         "source": "api"
                     },
