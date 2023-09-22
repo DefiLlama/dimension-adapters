@@ -21,7 +21,7 @@ export async function queryFlipside(sqlQuery: string) {
             "params": [
                 {
                     "resultTTLHours": 5,
-                    "maxAgeMinutes": 60,
+                    "maxAgeMinutes": 90,
                     "sql": sqlQuery,
                     "tags": {
                         "source": "api"
