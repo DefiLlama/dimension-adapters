@@ -2677,7 +2677,7 @@ export default ([
         }
     }, 
     {
-        "id":"3388", // todo?
+        "id":"970",
         "name": "Drift",
         "addresses":{
             "solana":[
