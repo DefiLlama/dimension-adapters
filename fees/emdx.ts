@@ -33,7 +33,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }).reduce((a: number, b: number) => a+b,0);
   return {
     timestamp: timestamp,
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
+    dailyFees: `${dailyFees}`,
   };
 }
 
