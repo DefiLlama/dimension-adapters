@@ -97,10 +97,10 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       const index = poolAddresses.indexOf(e.address);
       const token0 = tokens0[index];
       const token1 = tokens1[index];
-      const price0 = prices[`${CHAIN.ARBITRUM}:${token0}`].price;
-      const price1 = prices[`${CHAIN.ARBITRUM}:${token1}`].price;
-      const decimals0 = prices[`${CHAIN.ARBITRUM}:${token0}`].decimals;
-      const decimals1 = prices[`${CHAIN.ARBITRUM}:${token1}`].decimals;
+      const price0 = prices[`${CHAIN.ARBITRUM}:${token0}`]?.price || 0;
+      const price1 = prices[`${CHAIN.ARBITRUM}:${token1}`]?.price || 0;
+      const decimals0 = prices[`${CHAIN.ARBITRUM}:${token0}`]?.decimals || 0;
+      const decimals1 = prices[`${CHAIN.ARBITRUM}:${token1}`]?.decimals || 0;
       return price0 ? (amount0 / 10 ** decimals0) * price0 : (amount1/10**decimals1) * price1;
     }).reduce((a: number, b: number) => a + b, 0)
 
