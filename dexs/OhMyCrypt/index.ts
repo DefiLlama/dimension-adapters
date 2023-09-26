@@ -22,7 +22,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
         const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
         const graphQueryusdcday = gql`
           query {
-            activeOrders(where: {timestamp_gte: ${todaysTimestamp}, t2:"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" }) {
+            activeOrders(
+            where: {
+            timestamp_gte: ${todaysTimestamp}, 
+            t2:"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" 
+            }
+            ) {
               t2a
             }
           }
@@ -36,14 +41,23 @@ const graphs = (graphUrls: ChainEndpoints) => {
           `;
            const graphQuerydaiday = gql`
            query {
-             activeOrders(where: {timestamp_gte: ${todaysTimestamp}, t2:"0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb" }) {
+             activeOrders(
+             where: {
+             timestamp_gte: ${todaysTimestamp},
+             t2:"0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb"
+             }
+             ) {
                t2a
              }
            }
            `;
            const graphQuerydaialltime = gql`
            query {
-             activeOrders(where: {t2:"0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb"}) {
+             activeOrders(
+             where: {
+             t2:"0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb"
+             }
+             ) {
                t2a
              }
            }
