@@ -12,7 +12,7 @@ const endpoints: ChainEndpoints = {
 
 function formatEthers(weiAmount:string, decimals = 18) {
     const etherValue = parseFloat(weiAmount) / 10 ** decimals;
-    return etherValue.toString() + ' Ether';
+    return etherValue.toString();
 }
 
 // Fetch function to query the subgraphs
