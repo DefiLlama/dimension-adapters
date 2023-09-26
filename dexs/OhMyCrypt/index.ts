@@ -10,8 +10,8 @@ const endpoints: ChainEndpoints = {
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/ohmycrypt/omcoff",
 };
 
-function formatEthers(weiAmount, decimals = 18) {
-    const etherValue = weiAmount / 10 ** decimals;
+function formatEthers(weiAmount:string, decimals = 18) {
+    const etherValue = parseFloat(weiAmount) / 10 ** decimals;
     return etherValue.toString() + ' Ether';
 }
 
