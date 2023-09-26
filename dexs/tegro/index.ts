@@ -9,15 +9,12 @@ const endpoints = {
   arbitrum: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro-arbitrum',
 }
 
-const getNumberOfDay = (date: Date) => {
-  const now: Date = new Date()
-  const timeDifference = now.getTime() - date.getTime()
-  return Math.floor(timeDifference / (24 * 60 * 60 * 1000))
+const getNumberOfDay = (timestamp: number) => {
+  return Math.floor(timestamp / (24 * 60 * 60))
 }
 
-const getVolume = async (queryUrl: string) => {
-  const start = new Date('1970-01-01T00:00:00Z')
-  const todayDayNumber = getNumberOfDay(start)
+const getVolume = async (queryUrl: string, timestamp: number) => {
+  const todayDayNumber = getNumberOfDay(timestamp)
 
   const volumeQuery = gql`
     query TotalAndDailyVolumes {
@@ -41,7 +38,7 @@ const adapter: Adapter = {
   adapter: {
     ethereum: {
       fetch: async (timestamp: number) => {
-        const res = await getVolume(endpoints.ethereum)
+        const res = await getVolume(endpoints.ethereum, timestamp)
         return {
           timestamp,
           ...res,
@@ -51,7 +48,7 @@ const adapter: Adapter = {
     },
     polygon: {
       fetch: async (timestamp: number) => {
-        const res = await getVolume(endpoints.polygon)
+        const res = await getVolume(endpoints.polygon, timestamp)
         return {
           timestamp,
           ...res,
@@ -61,7 +58,7 @@ const adapter: Adapter = {
     },
     avax: {
       fetch: async (timestamp: number) => {
-        const res = await getVolume(endpoints.avax)
+        const res = await getVolume(endpoints.avax, timestamp)
         return {
           timestamp,
           ...res,
@@ -71,7 +68,7 @@ const adapter: Adapter = {
     },
     bsc: {
       fetch: async (timestamp: number) => {
-        const res = await getVolume(endpoints.bsc)
+        const res = await getVolume(endpoints.bsc, timestamp)
         return {
           timestamp,
           ...res,
@@ -81,7 +78,7 @@ const adapter: Adapter = {
     },
     arbitrum: {
       fetch: async (timestamp: number) => {
-        const res = await getVolume(endpoints.arbitrum)
+        const res = await getVolume(endpoints.arbitrum, timestamp)
         return {
           timestamp,
           ...res,
