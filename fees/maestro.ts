@@ -32,7 +32,7 @@ const graph = (chain: Chain) => {
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
       `
 
-      const value: string[] = (await queryFlipside(query, 210)).flat();
+      const value: string[] = (await queryFlipside(query, 260)).flat();
       let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
       amount = chain === CHAIN.ARBITRUM  ? (amount / 10 ** 18) : amount;
       const gasId = gasTokenId[chain];
