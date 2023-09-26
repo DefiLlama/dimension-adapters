@@ -12,7 +12,8 @@ const endpoints = {
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
   [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest"
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
+  [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v2"
 };
 
 const stablesSwapEndpoints = {
@@ -26,7 +27,8 @@ const v3Endpoint = {
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest",
   [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-arbitrum/version/latest",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v3-base/version/latest"
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v3-base/version/latest",
+  [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v3"
 }
 
 const VOLUME_USD = "volumeUSD";
@@ -100,7 +102,8 @@ const startTimes = {
   [CHAIN.ERA]: 1690156800,
   [CHAIN.ARBITRUM]: 1691452800,
   [CHAIN.LINEA]: 1692835200,
-  [CHAIN.BASE]: 1693440000
+  [CHAIN.BASE]: 1693440000,
+  [CHAIN.OP_BNB]: 1695081600
 } as IJSON<number>
 
 const stableTimes = {
@@ -114,7 +117,8 @@ const v3StartTimes = {
   [CHAIN.ERA]: 1690156800,
   [CHAIN.ARBITRUM]: 1691452800,
   [CHAIN.LINEA]: 1692835200,
-  [CHAIN.BASE]: 1692576000
+  [CHAIN.BASE]: 1692576000,
+  [CHAIN.OP_BNB]: 1693440000
 } as IJSON<number>
 
 const methodology = {
