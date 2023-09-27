@@ -15,28 +15,28 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
     try {
       const feeWallet = '0x4200000000000000000000000000000000000011';
       const l1FeeVault = '0x420000000000000000000000000000000000001a';
-
-      const feeWalletStart = await getBalance({
-        target: feeWallet,
-        block: yesterdaysBlock,
-        chain:CHAIN.OP_BNB
-      });
-      const feeWalletEnd = await getBalance({
-        target: feeWallet,
-        block: todaysBlock,
-        chain:CHAIN.OP_BNB
-      });
-
-      const l1FeeVaultStart = await getBalance({
-        target: l1FeeVault,
-        block: yesterdaysBlock,
-        chain:CHAIN.OP_BNB
-      });
-      const l1FeeVaultEnd = await getBalance({
-        target: l1FeeVault,
-        block: todaysBlock,
-        chain:CHAIN.OP_BNB
-      });
+      const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = await Promise.all([
+        getBalance({
+          target: feeWallet,
+          block: yesterdaysBlock,
+          chain:CHAIN.OP_BNB
+        }),
+        getBalance({
+          target: feeWallet,
+          block: todaysBlock,
+          chain:CHAIN.OP_BNB
+        }),
+        getBalance({
+          target: l1FeeVault,
+          block: yesterdaysBlock,
+          chain:CHAIN.OP_BNB
+        }),
+        getBalance({
+          target: l1FeeVault,
+          block: todaysBlock,
+          chain:CHAIN.OP_BNB
+        })
+      ]);
 
       const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
           .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
