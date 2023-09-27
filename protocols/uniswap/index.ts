@@ -149,7 +149,8 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        // start: async () => startTimeV3[chain],
+        start: async () => 1692230400,
         meta: {
           methodology: {
             ...methodology,
