@@ -128,7 +128,7 @@ const adapter: BreakdownAdapter = {
             }, {} as FetchResultGeneric)
           } as FetchResultGeneric
         },
-        start: async () => 1692230400,
+        start: async () => 1541203200,
         meta: {
           methodology
         },
@@ -137,7 +137,10 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graph(CHAIN.ETHEREUM),
-        start: async () => 1692230400,
+        start: getStartTimestamp({
+          endpoints: v2Endpoints,
+          chain: CHAIN.ETHEREUM,
+        }),
         meta: {
           methodology
         },
@@ -146,8 +149,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        // start: async () => startTimeV3[chain],
-        start: async () => 1692230400,
+        start: async () => startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,
