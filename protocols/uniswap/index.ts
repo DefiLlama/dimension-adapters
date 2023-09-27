@@ -128,7 +128,7 @@ const adapter: BreakdownAdapter = {
             }, {} as FetchResultGeneric)
           } as FetchResultGeneric
         },
-        start: async () => 1541203200,
+        start: async () => 1692230400,
         meta: {
           methodology
         },
