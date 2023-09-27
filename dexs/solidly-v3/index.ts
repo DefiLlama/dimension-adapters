@@ -10,5 +10,5 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.ethereum.start = async () => 18044650;
+adapters.adapter.ethereum.start = async () => 1693526400;
 export default adapters;
