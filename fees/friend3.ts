@@ -78,7 +78,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
         fetch: fetch,
-        start: async ()  => 31133042,
+        start: async ()  => 1692835200,
     },
   }
 }
