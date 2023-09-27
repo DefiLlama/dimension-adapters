@@ -42,7 +42,7 @@ const fetch = (chain: Chain) => {
       timestamp,
       dailyFees: dailyFee.toString(),
       dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.toString(),
+      dailyRevenue: dailyFee.times(0.2).toString(),
       dailyHoldersRevenue: dailyFee.times(0.2).toString(),
     };
   };
