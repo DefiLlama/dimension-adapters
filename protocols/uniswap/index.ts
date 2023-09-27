@@ -137,10 +137,7 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graph(CHAIN.ETHEREUM),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: CHAIN.ETHEREUM,
-        }),
+        start: async () => 1692230400,
         meta: {
           methodology
         },
