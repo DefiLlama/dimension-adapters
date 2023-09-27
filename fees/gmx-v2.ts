@@ -45,19 +45,21 @@ const fetch = (chain: Chain) => {
       const fromBlock = await getBlock(fromTimestamp, chain, {});
       const toBlock = await getBlock(toTimestamp, chain, {});
 
-      const logs: ILog[] = (
-        await sdk.api.util.getLogs({
-          fromBlock: fromBlock,
-          toBlock: toBlock,
+      let _logs: ILog[] = [];
+      for(let i = fromBlock; i < toBlock; i += 5000) {
+        const logs: ILog[] = (await sdk.api.util.getLogs({
+          toBlock: i + 5000,
+          fromBlock: i,
           keys: [],
           topic: '',
           topics: [topic0_fes, topic1_fee],
           chain: chain,
           target: contract[chain],
-        })
-      ).output as ILog[];
+        })).output as ILog[];
+        _logs = _logs.concat(logs);
+      }
 
-      const raw_in: IFee[] = logs.map((e: ILog) => {
+      const raw_in: IFee[] = _logs.map((e: ILog) => {
         const data = e.data.replace('0x', '');
         const borrowing_fees_usd = twosComplementHexToDecimal('0x' + data.slice(64 *131, (131*64) + 64)) / 1e30;
         const position_fee_amount = twosComplementHexToDecimal('0x' + data.slice(64 *171, (171*64) + 64))
