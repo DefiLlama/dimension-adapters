@@ -57,7 +57,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     })
     const dailyFees = fees_details.reduce((a: number, b: IFee) => a+b.fees, 0)
     const dailyRev = fees_details.reduce((a: number, b: IFee) => a+b.rev, 0)
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = "bsc:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const dailyFeesUSD = (dailyFees) * ethPrice;
     const dailyRevUSD = (dailyRev) * ethPrice;
