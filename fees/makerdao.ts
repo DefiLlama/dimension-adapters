@@ -20,6 +20,7 @@ const collateralYields = {
   "RWA010-A": 4,
   "RWA011-A": 4,
   "RWA014-A": 2.6,
+  "RWA015-A": 4.5,
   "PSM-GUSD-A": 2,
 } as {
   [rwa:string]:number
