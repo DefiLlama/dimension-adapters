@@ -11,8 +11,7 @@ const adapters = univ2Adapter({
   factoriesName: "totalVolumes",
   dailyVolume: "volume",
   totalVolume: "volume",
-  dayData: "dailyVolume",
-  hasTotalVolume: false,
+  dayData: "dailyVolume"
 });
 
 adapters.adapter.ethereum.start = async () => (24 * 60 * 60) * 19600;
