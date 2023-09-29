@@ -220,8 +220,14 @@ const fetchBSC = async (timestamp: number) => {
         and topics[1] = '0x0000000000000000000000000f40a22e8c2ae737f12007cb88e8ef0ff3109483'
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
-    const value: any[] = (await queryFlipside(query))
-    const logs: IReward[] = value.map((a: any) => a[10])
+    const value: any[] = (await queryFlipside(query, 260))
+    const logs: IReward[] = value.map((a: any) => {
+      return {
+        user: a[8][0],
+        rewardToken: '0x'+a[8][2].slice(26, 66),
+        amount: a[9]
+      }
+    })
     const rawCoins = logs.filter((e: IReward) => e.rewardToken).map((e: IReward) => `${CHAIN.BSC}:${e.rewardToken.toLowerCase()}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
