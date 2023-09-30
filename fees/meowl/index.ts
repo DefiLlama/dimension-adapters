@@ -8,7 +8,7 @@ const adapter: Adapter = {
             fetch: async (timestamp: number) => {
                 const fees = (await queryDune("2921978", {
                     endTime: timestamp
-                }))[0].fee_usd
+                }))[0]?.fee_usd || 0
 
                 return {
                     timestamp,
