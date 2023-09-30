@@ -1,9 +1,10 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import type { ChainEndpoints } from "../../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints = {
   [CHAIN.NEO]: "https://api-external.ghostmarket.io/defillama/fees?chain=n3&timestamp=",
@@ -55,6 +56,7 @@ const apis = (apiUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch: apis(endpoints)(CHAIN.NEO),
       start: async () => 1629813600,

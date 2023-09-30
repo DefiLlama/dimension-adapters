@@ -628,5 +628,6 @@ export const addresses = comptrollers.map(addresses=>({
 export default addresses.map(addresses=>({
     name: addresses.name,
     id: addresses.id,
+    getAddresses: addresses.getAddresses,
     getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end)
 }))

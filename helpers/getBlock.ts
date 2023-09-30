@@ -37,8 +37,8 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${timestamp}`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.height)));
-        else if (chain === CHAIN.LINEA)
-            block = Number((await retry(async () => (await axios.get("https://explorer.linea.build/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before").catch((e) => {
+        else if (chain === CHAIN.BASE)
+            block = Number((await retry(async () => (await axios.get(`https://base.blockscout.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
         else
@@ -48,6 +48,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             }))?.data?.height)));
         if (block) chainBlocks[chain] = block
         return block
+        // https://base.blockscout.com
         // https://explorer.kava.io
         //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
     }

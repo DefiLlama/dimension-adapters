@@ -90,8 +90,25 @@ const fetch = (chain: Chain, version: number) => {
       chain: chain
     })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
+    const request_fees: any[] = logs_2.map((e: ITx) => {
+      const fees = Number('0x'+e.data.slice(192, 256)) / 10 ** 18;
+      const id = e.data.slice(256, 320).toUpperCase();
+      return {
+        fees: fees,
+        id: id
+      };
+    })
+    const exclude: string[] = [];
+    const fees_amount = logs_1.map((e: ITx) => {
+      const id =  e.data.slice(0, 64).toUpperCase()
+      const fees = request_fees.find(e => e.id === id);
+      if (!fees?.fees) exclude.push(e.transactionHash);
+      return fees?.fees || 0;
+    }).reduce((a: number, b: number) => a+b, 0)
+
+
     const provider = getProvider(chain);
-    const tx_hash: string[] = [...new Set([...logs_1, ...logs_2].map((e: ITx) => e.transactionHash))]
+    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash).filter(e => !exclude.includes(e)))]
     const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
       provider.getTransactionReceipt(transactionHash)
     ).map(p => p.catch(() => undefined))))
@@ -103,12 +120,11 @@ const fetch = (chain: Chain, version: number) => {
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = await getPrices([linkAddress, gasToken], timestamp);
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
+    const dailyGas =  txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyGasUsd = dailyGas * gagPrice;
-    const fees = version === 1 ? feesV1[chain] : feesV2[chain]
-    const dailyFees = ((logs_1.length + logs_2.length) * fees) * linkPrice;
+    const dailyFees =(fees_amount * linkPrice);
     const dailyRevenue = dailyFees - dailyGasUsd;
     return {
       dailyFees: dailyFees.toString(),

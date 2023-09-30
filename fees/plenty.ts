@@ -5,12 +5,12 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const plentyData = (await fetchURL("https://api.analytics.plenty.network/analytics/plenty")).data;
-  const dailyFeesItem = plentyData.fees.history.find((feesItem : any) => Object.keys(feesItem)[0] === dayTimestamp.toString());
+  const plentyData = (await fetchURL("https://analytics.plenty.network/api/v1/overall")).data;
+  const dailyFeesItem = plentyData.fees_24hours_dollar;
 
   return {
     timestamp: dayTimestamp,
-    dailyFees: dailyFeesItem[dayTimestamp.toString()] ?? undefined,
+    dailyFees: dailyFeesItem ?? undefined,
   };
 };
 
@@ -23,7 +23,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: getStartTime,
+      start: async () => 1672531200,
+      runAtCurrTime: true,
     },
   },
 };

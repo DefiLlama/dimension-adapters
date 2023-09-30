@@ -1,10 +1,10 @@
-import { queryAllium } from "../../helpers/allium";
+import { queryAllium, retrieveAlliumResults, startAlliumQuery } from "../../helpers/allium";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
-    const query = await queryAllium(`
+    return { queryId: await startAlliumQuery(`
 WITH
   all_new_users AS (
     SELECT DISTINCT
@@ -86,11 +86,12 @@ FROM
 WHERE
   first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
 `)
-    return query[0].user_count
+    }
+    //return query[0].user_count
 }
 
 function gasPrice(chain:string){
-  if(["avax", "optimism"].includes(chain)){
+  if(["avax", "optimism", "base"].includes(chain)){
     return "gas_price"
   }
   return "receipt_effective_gas_price"
@@ -99,7 +100,9 @@ function gasPrice(chain:string){
 export function countUsers(addresses: ChainAddresses) {
     return async (start: number, end: number) => {
         const chainArray = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain))
-        const query = await queryAllium(`
+        return {
+          params: chainArray,
+          queryId: await startAlliumQuery(`
 WITH
   ${chainArray.map(([chain, chainAddresses])=>
     `${chain} AS (
@@ -153,16 +156,21 @@ FROM
 both_count CROSS JOIN
 ${chainArray.map(([chain])=>`${chain}_total CROSS JOIN ${chain}_count`).join(' CROSS JOIN ')}`
         )
-        const finalNumbers = Object.fromEntries((chainArray).map(([name])=>[name, {
-            users: query[0][`${name}_count_col`],
-            txs: query[0][`${name}_tx_count`],
-            gas: query[0][`${name}_total_gas`]??0,
-        }]))
-        finalNumbers.all = {
-            users:query[0].both_count
-        } as any
-        return finalNumbers
+        }
     }
+}
+
+export async function parseUserResponse(queryId:string, chainArray:string[]){
+  const query = await retrieveAlliumResults(queryId)
+  const finalNumbers = Object.fromEntries((chainArray).map(([name])=>[name, {
+    users: query[0][`${name}_count_col`],
+    txs: query[0][`${name}_tx_count`],
+    gas: query[0][`${name}_total_gas`]??0,
+}]))
+finalNumbers.all = {
+    users:query[0].both_count
+} as any
+return finalNumbers
 }
 
 export const isAddressesUsable = (addresses:ProtocolAddresses)=>{

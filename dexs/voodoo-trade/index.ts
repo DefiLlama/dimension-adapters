@@ -10,8 +10,9 @@
 /// kind for perpetual DEXs.
 
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
@@ -61,7 +62,7 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+        : '0',
     totalVolume:
       totalData.volumeStats.length == 1
         ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -80,26 +81,16 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         ...acc,
-        [chain]: {
-          fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain),
-          meta: {
-            methodology: "Volume from FTM <-> stablecoin swaps. Includes both market swaps and limit orders."
-          }
-        }
+        [chain]: disabledAdapter
       }
     }, {}),
     "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
       return {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         ...acc,
-        [chain]: {
-          fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain),
-          meta: {
-            methodology: "Volume from leveraged long and short positions on FTM. Includes liquidations and margin fee from market and limit orders."
-          }
-        }
+        [chain]: disabledAdapter
       }
     }, {})
   }

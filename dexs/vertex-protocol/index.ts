@@ -11,6 +11,7 @@ interface IVolumeall {
 interface IProducts {
   spot_products: number[];
   perp_products: number[];
+  margined_products: number[];
 }
 
 const baseUrl = "https://prod.vertexprotocol-backend.com";
@@ -25,6 +26,9 @@ const fetchProducts = async (): Promise<IProducts> => {
     perp_products: allProducts.perp_products.map(
       (product: { product_id: number }) => product.product_id
     ),
+    margined_products: allProducts.spot_products
+      .map((product: { product_id: number }) => product.product_id)
+      .filter((id: number) => id > 0),
   };
 };
 
@@ -88,7 +92,11 @@ const fetchSpots = async (timeStamp: number) => {
 
 const fetchPerps = async (timeStamp: number) => {
   const perpProductIds = (await fetchProducts()).perp_products;
-  return await computeVolume(timeStamp, perpProductIds);
+  const marginedProductIds = (await fetchProducts()).margined_products;
+  return await computeVolume(
+    timeStamp,
+    perpProductIds.concat(marginedProductIds)
+  );
 };
 
 const startTime = 1682514000;
@@ -98,14 +106,12 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSpots,
-        runAtCurrTime: true,
         start: async () => startTime,
       },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        runAtCurrTime: true,
         start: async () => startTime,
       },
     },

@@ -5,13 +5,15 @@ import {
   getGraphDimensions,
 } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
 
 const SMARDEX_SUBGRAPH_API_KEY = process.env.SMARDEX_SUBGRAPH_API_KEY;
 const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
 
-if (!SMARDEX_SUBGRAPH_API_KEY) {
-  throw new Error("Missing SMARDEX_SUBGRAPH_API_KEY env variable");
-}
+// if (!SMARDEX_SUBGRAPH_API_KEY) {
+//   console.error('')
+//   // throw new Error("Missing SMARDEX_SUBGRAPH_API_KEY env variable");
+// }
 
 const defaultHeaders = {
   "x-api-key": SMARDEX_SUBGRAPH_API_KEY,
@@ -19,13 +21,18 @@ const defaultHeaders = {
 
 const graphUrls = {
   [CHAIN.ARBITRUM]: `${SMARDEX_SUBGRAPH_GATEWAY}/arbitrum`,
+  [CHAIN.BASE]: `${SMARDEX_SUBGRAPH_GATEWAY}/base`,
   [CHAIN.BSC]: `${SMARDEX_SUBGRAPH_GATEWAY}/bsc`,
   [CHAIN.ETHEREUM]: `${SMARDEX_SUBGRAPH_GATEWAY}/ethereum`,
   [CHAIN.POLYGON]: `${SMARDEX_SUBGRAPH_GATEWAY}/polygon`,
 };
 
-const graphRequestHeaders = {
+type IMap = {
+  [s: string | Chain]: any;
+}
+const graphRequestHeaders:IMap = {
   [CHAIN.ARBITRUM]: defaultHeaders,
+  [CHAIN.BASE]: defaultHeaders,
   [CHAIN.BSC]: defaultHeaders,
   [CHAIN.ETHEREUM]: defaultHeaders,
   [CHAIN.POLYGON]: defaultHeaders,
@@ -67,6 +74,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),
       start: async () => 1689582249,
+    },
+    [CHAIN.BASE]: {
+      fetch: graphs(CHAIN.BASE),
+      start: async () => 1691491872,
     },
   },
 };

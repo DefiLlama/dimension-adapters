@@ -6,29 +6,40 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 interface IGraph {
   dayId: number;
   date: string;
+  pairId: string;
   totalVolumeUSD: string;
   dailyVolumeUSD: string;
+  reserveUSD: string;
 }
 const URL = 'https://api.jediswap.xyz/graphql';
+const blackList: string[] = [
+  "0x7c97816efc03e21264ce90006777c3680df15c24f034809dcfc75c15147eccb",
+  "0x3d56e63387bc55426941a47d6e8b7571d3b98c72253275d8c449a5f216e75a5"
+]
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dayID = (dayTimestamp / 86400);
     const query = gql`
     {
-      exchangeDayDatas(first: 1000, skip: 0, where: { dateGt: 1669593600 }, orderBy: "date", orderByDirection: "asc") {
-        date
+      pairDayDatas(first: 1000 where:{dateGt:1669593600}, orderBy:"date", orderByDirection:"dese") {
         dayId
-        totalVolumeUSD
+        pairId
+        totalSupply
         dailyVolumeUSD
+        reserveUSD
       }
     }
     `
-    const response: IGraph[] = (await request(URL, query)).exchangeDayDatas;
-    const volume = response.find((e: IGraph) => e.dayId === dayID);
+    const response: IGraph[] = (await request(URL, query)).pairDayDatas;
+    const volume = response.filter(e =>Number(e.reserveUSD) > 10000)
+      .filter((e: IGraph) => e.dayId === dayID)
+      .sort((a: IGraph, b: IGraph) => Number(b.dailyVolumeUSD) - Number(a.dailyVolumeUSD))
+      .filter((e: IGraph) => !blackList.includes(e.pairId))
+      .reduce((acc: number, e: IGraph) => e.dailyVolumeUSD ? acc + Number(e.dailyVolumeUSD) : acc, 0);
 
     return {
-        dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
+        dailyVolume: volume ? `${volume}` : undefined,
         // totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
         timestamp: dayTimestamp,
     };

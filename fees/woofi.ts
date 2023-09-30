@@ -73,6 +73,11 @@ interface ITx  {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const nextDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+    if (new Date((nextDayTimestamp + 8400) * 1000).getTime() > new Date().getTime()) {
+      return {
+        timestamp
+      }
+    }
     const fromBlock = (await getBlock(nextDayTimestamp, chain, {}));
     const toBlock = (await getBlock(nextDayTimestamp + 8400, chain, {}));
 

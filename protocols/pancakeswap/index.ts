@@ -8,7 +8,12 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest"
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
+  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
+  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
+  [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v2"
 };
 
 const stablesSwapEndpoints = {
@@ -18,7 +23,12 @@ const stablesSwapEndpoints = {
 const v3Endpoint = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest"
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest",
+  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-arbitrum/version/latest",
+  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v3-base/version/latest",
+  [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v3"
 }
 
 const VOLUME_USD = "volumeUSD";
@@ -89,6 +99,11 @@ const startTimes = {
   [CHAIN.ETHEREUM]: 1664236800,
   [CHAIN.BSC]: 1619136000,
   [CHAIN.POLYGON_ZKEVM]: 1687910400,
+  [CHAIN.ERA]: 1690156800,
+  [CHAIN.ARBITRUM]: 1691452800,
+  [CHAIN.LINEA]: 1692835200,
+  [CHAIN.BASE]: 1693440000,
+  [CHAIN.OP_BNB]: 1695081600
 } as IJSON<number>
 
 const stableTimes = {
@@ -99,6 +114,11 @@ const v3StartTimes = {
   [CHAIN.BSC]: 1680307200,
   [CHAIN.ETHEREUM]: 1680307200,
   [CHAIN.POLYGON_ZKEVM]: 1686182400,
+  [CHAIN.ERA]: 1690156800,
+  [CHAIN.ARBITRUM]: 1691452800,
+  [CHAIN.LINEA]: 1692835200,
+  [CHAIN.BASE]: 1692576000,
+  [CHAIN.OP_BNB]: 1693440000
 } as IJSON<number>
 
 const methodology = {

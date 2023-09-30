@@ -10,7 +10,7 @@ interface IVolumeall {
   time: number;
 }
 
-const NUMBER_OF_POOL = 4;
+const NUMBER_OF_POOL = 8;
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
@@ -33,7 +33,7 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume }) => acc + Number(volume), 0);
 
   return {
-    totalVolume: `${totalVolume}`,
+    // totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
