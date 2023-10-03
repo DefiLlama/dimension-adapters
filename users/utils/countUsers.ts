@@ -1,8 +1,9 @@
-import { queryAllium, retrieveAlliumResults, startAlliumQuery } from "../../helpers/allium";
+import { retrieveAlliumResults, startAlliumQuery } from "../../helpers/allium";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
+    const chainArray = Object.keys(addresses).filter((chain)=>isAcceptedChain(chain))
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
     return { queryId: await startAlliumQuery(`
 WITH
@@ -31,50 +32,15 @@ WITH
       ) AS first_seen_chain
     FROM
       (
-        SELECT
+        ${chainArray.map(chain=>
+        `SELECT
           block_timestamp,
           from_address,
           hash,
           to_address,
-          'ethereum' as chain
+          '${chain}' as chain
         FROM
-          ethereum.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'polygon' as chain
-        FROM
-          polygon.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'arbitrum' as chain
-        FROM
-          arbitrum.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'optimism' as chain
-        FROM
-          optimism.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'avalanche' as chain
-        FROM
-          avalanche.raw.transactions
+          ${chain}.raw.transactions`).join('\nUNION ALL\n')}
       ) t
     WHERE
       t.to_address IN (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})
