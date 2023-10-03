@@ -3,7 +3,7 @@ import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
-    const chainArray = Object.keys(addresses).filter((chain)=>isAcceptedChain(chain))
+    const chainArray = Object.keys(addresses).filter((chain)=>isAcceptedChain(chain)).map(convertChainToFlipside)
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
     return { queryId: await startAlliumQuery(`
 WITH
