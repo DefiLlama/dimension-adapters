@@ -2689,5 +2689,43 @@ export default ([
             ]
         }
     },
+    {
+        "id":"3333",
+        "name": "BaseSwap V2",
+        "addresses":{
+            "base":[
+                "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86", // router
+                "0xc102505248c36f933934d4B2d7579D962a342eBC",
+                "0x2B0A43DCcBD7d42c18F6A83F86D1a19fA58d541A"
+            ]
+        }
+    },
+    {
+        "id":"3575",
+        "name": "Scale",
+        "addresses":{
+            "base":[
+                "0x5E9d25014D01323d6F8c0C6640572e4444d11C94", // router
+                "0x3f0458FfB6D106d2F5CdeC9CEdc9054A69275489",
+                "0x2F87Bf58D5A9b2eFadE55Cdbd46153a0902be6FA"
+            ]
+        }
+    },
+    {
+        "id":"parent#swapbased",
+        "name": "SwapBased",
+        "addresses":{
+            "base":[
+                "0xaaa3b1F1bd7BCc97fD1917c18ADE665C5D31F066", // router
+                "0xcb9665E990027e115ccF22230b042e4E7eaBFDB2", // SingleStakingRewardsBase
+                "0xE39226E0864252E0fC9bD668FB796FD63a1B75A4", // SingleStakingRewardsBase
+                "0x2168eb98C6D416Afb85E7beef5abDc4FB4177dfE", // BlpToken
+                "0x265a30f14E34248567B5B0a83978C38dF38D0C60", // RewardRouter
+                "0xEfE632dB3A07FeBcEc04f76Ea54D9d49f27bCd57", // SingleStakingRewardsXBase
+                "0x272A9acB288915Bb52A0659c8F9f7bFeBA06fae5", // SingleStakingRewardsOtherTokens
+                "0x86dAbE269B1c5Ff7fCFf1eA32545489DF66C29EA", // SingleStakingRewardsOtherTokens
+            ]
+        }
+    },
         
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
