@@ -746,6 +746,18 @@ export default ([
         "addresses":{
             "ethereum":[
                 "0x9a5132e149c547F254C73226DA7f770d43D9EA44"
+            ],
+            "base":[
+                "0x5C622Dcc96b6D96ac6c154f99CF081815094CBC9", //SmardexRouter
+            ],
+            "arbitrum":[
+                "0xdd4536dD9636564D891c919416880a3e250f975A", //SmardexRouter
+            ],
+            "polygon":[
+                "0xA8EF6FEa013034E62E2C4A9Ec1CDb059fE23Af33", //SmardexRouter
+            ],
+            "bsc":[
+                "0x391BeCc8DAaf32b9ba8e602e9527Bf9DA04C8deb", //SmardexRouter
             ]
         }
     },
@@ -2690,7 +2702,7 @@ export default ([
         }
     },
     {
-        "id":"parent#",
+        "id":"parent#baseswap",
         "name": "BaseSwap",
         "addresses":{
             "base":[
@@ -2743,5 +2755,55 @@ export default ([
             ]
         }
     },
-        
+    {
+        "id":"3348",
+        "name": "Soswap",
+        "addresses":{
+            "base":[
+                "0x53BAE026d9a503d46a58aF4b65FCcbb7B904A911", // SOFIProxy
+                "0xBC097E42BF1E6531C32C5cEe945E0c014fA21964", // PortfolioFactory
+                "0x1e6Dbd0E827cd243d458ed73B9Ae1a6Db89B8668", // PortfolioModule
+                "0x4E69553b0aEf0949Fd38Bbf3EbeD866B431C9E68", // ManagerModule
+                "0x73Ada4aE37Ba1DF45Ba12c4478a27029e24cF2d7", // SOFITrading
+            ]
+        }
+    },
+    {
+        "id":"3314",
+        "name": "RocketSwap Base",
+        "addresses":{
+            "base":[
+                "0x4cf76043B3f97ba06917cBd90F9e3A2AAC1B306e", // UniswapV2Router02
+                "0x234Ccb5c64FDB3958C47E8efBe122b2d54633a96", // RcktLocker
+                "0x32C9ACE2d1eB47C3968660De9eF20569f850814D", //
+                "0xE20d24cf9fAF458b98B6F34e5346361e6492aA5F",
+                "0x304063953727b53048500dfd877A17d1C4f6EaFf", // RcktMasterChef
+                "0x2ec62d08277FfC42eB5af71c7595C1a9f9458A3c", // RcktVault
+            ]
+        }
+    },
+    {
+        "id":"3540",
+        "name": "MoonBase",
+        "addresses":{
+            "base":[
+                "0x99554FA8B48F735D4Ccce5E077742cF2D084b258", // MoonChef
+                "0x4617695387bE48c3202a0A9165549c790C4A08Af", // UniswapRouter
+            ]
+        }
+    },
+    {
+        "id":"3380",
+        "name": "Baso Finance",
+        "addresses":{
+            "base":[
+                "0x5568e4F19B9063E0e0386bF66B3eeF2b65327486", // Router
+                "0x84B5897A23B067D87Be550e440a3436f6d149fe2", // VotingEscrow
+                "0xf11432A2754fCf7BFA1725d37e65840776e39ec7", // RewardsDistributor
+                "0xb670568C84C541eacBee2EF7209A6Ba2Ab349BEC", // Voter
+                "0xF0FfC7cd3C15EF94C7c5CAE3F39d53206170Fc01", // BasoStaking
+            ]
+        }
+    },
+    
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
