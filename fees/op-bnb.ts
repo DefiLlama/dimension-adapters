@@ -45,7 +45,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
     } catch (e) {
       throw e;
     }
-  }, { retries: 3, minTimeout: 10000  });
+  }, { retries: 5, minTimeout: 1000 * 60 * 5  });
 }
 
 const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
