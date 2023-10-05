@@ -2690,13 +2690,14 @@ export default ([
         }
     },
     {
-        "id":"3333",
-        "name": "BaseSwap V2",
+        "id":"parent#",
+        "name": "BaseSwap",
         "addresses":{
             "base":[
                 "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86", // router
                 "0xc102505248c36f933934d4B2d7579D962a342eBC",
-                "0x2B0A43DCcBD7d42c18F6A83F86D1a19fA58d541A"
+                "0x2B0A43DCcBD7d42c18F6A83F86D1a19fA58d541A",
+                "0xDe151D5c92BfAA288Db4B67c21CD55d5826bCc93", // NonfungiblePositionManager
             ]
         }
     },
@@ -2724,6 +2725,21 @@ export default ([
                 "0xEfE632dB3A07FeBcEc04f76Ea54D9d49f27bCd57", // SingleStakingRewardsXBase
                 "0x272A9acB288915Bb52A0659c8F9f7bFeBA06fae5", // SingleStakingRewardsOtherTokens
                 "0x86dAbE269B1c5Ff7fCFf1eA32545489DF66C29EA", // SingleStakingRewardsOtherTokens
+            ]
+        }
+    },
+    {
+        "id":"parent#alien-base",
+        "name": "Alien Base",
+        "addresses":{
+            "base":[
+                "0x52eaeCAC2402633d98b95213d0b473E069D86590", // BasedDistributorV2
+                "0x7f2ff89d3C45010c976Ea6bb7715DC7098AF786E", // UniswapV2Router02
+                "0x927860797d07b1C46fbBe7f6f73D45C7E1BFBb27", // SwapFlashLoan
+                "0x8c1A3cF8f83074169FE5D7aD50B978e1cD6b37c7", // UniswapV2Router02
+                "0x3485F8E155973cC247CBEa9E77C0dBBB4BBb79E7", // UniswapV2Router02
+                "0xe0808b8e2bDD70D70e540f977cF40E26e5811054", // AlienbaseZapV1
+                "0xFBE87Ee1Ee62244A2dF80a8093Eab829C52863e8", // PredictionETH
             ]
         }
     },
