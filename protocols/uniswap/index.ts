@@ -22,12 +22,12 @@ const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis?source=uniswap",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-arbitrum-one",
-  [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
+  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base"
+  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
+  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -108,7 +108,8 @@ const startTimeV3:TStartTime = {
   [CHAIN.CELO]: 1657324800,
   [CHAIN.BSC]: 1678665600,
   [CHAIN.AVAX]: 1689033600,
-  [CHAIN.BASE]: 1691280000
+  [CHAIN.BASE]: 1691280000,
+  [CHAIN.ERA]: 1693440000
 }
 const adapter: BreakdownAdapter = {
   breakdown: {
