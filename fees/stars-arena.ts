@@ -1,15 +1,5 @@
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
-import * as sdk from "@defillama/sdk";
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
 
 interface IFee {
   day: string;
