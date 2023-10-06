@@ -67,8 +67,8 @@ const query = `
 const graphs = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IHistory[] = (await request(url, query)).dailyStatisticsByChain;
-    // const historical: IHistory[] = require('./historical.json');
+    // const historical: IHistory[] = (await request(url, query)).dailyStatisticsByChain;
+    const historical: IHistory[] = require('./historical.json');
     const historicalVolume = historical
     const date = new Date(timestamp * 1000);
     const dateStr = date.toISOString().split('T')[0];
