@@ -1,5 +1,6 @@
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { queryDune } from "../helpers/dune";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
 import * as sdk from "@defillama/sdk";
@@ -11,58 +12,110 @@ interface ILog {
 }
 
 interface IFee {
-  fees: number;
-  rev: number;
+  day: string;
+  fees_usd: number;
+  rev_usd: number;
 }
 
-const topic0_trade = '0xc9d4f93ded9b42fa24561e02b2a40f720f71601eb1b3f7b3fd4eff20877639ee'
-const contract = '0xa481b139a1a654ca19d2074f174f17d7534e8cec';
+const temp: IFee[] = [
+  {
+    day: '2023-09-30 00:00:00.000 UTC',
+    fees_usd: 13414.972766868883,
+    rev_usd: 2682.9945533737764
+  },
+  {
+    day: '2023-09-26 00:00:00.000 UTC',
+    fees_usd: 11021.596894875598,
+    rev_usd: 2204.3193789751194
+  },
+  {
+    day: '2023-09-23 00:00:00.000 UTC',
+    fees_usd: 828.1602036458277,
+    rev_usd: 165.63204072916554
+  },
+  {
+    day: '2023-09-21 00:00:00.000 UTC',
+    fees_usd: 11.914631625000027,
+    rev_usd: 2.3829263250000055
+  },
+  {
+    day: '2023-09-28 00:00:00.000 UTC',
+    fees_usd: 14598.780457770625,
+    rev_usd: 2919.756091554125
+  },
+  {
+    day: '2023-10-06 00:00:00.000 UTC',
+    fees_usd: 139593.08623694192,
+    rev_usd: 27918.61724738838
+  },
+  {
+    day: '2023-09-20 00:00:00.000 UTC',
+    fees_usd: 0.1363260416666671,
+    rev_usd: 0.02726520833333342
+  },
+  {
+    day: '2023-09-22 00:00:00.000 UTC',
+    fees_usd: 0.1827763611111108,
+    rev_usd: 0.036555272222222164
+  },
+  {
+    day: '2023-10-03 00:00:00.000 UTC',
+    fees_usd: 266255.0058238868,
+    rev_usd: 53251.00116477736
+  },
+  {
+    day: '2023-10-02 00:00:00.000 UTC',
+    fees_usd: 49775.03070912491,
+    rev_usd: 9955.006141824982
+  },
+  {
+    day: '2023-09-29 00:00:00.000 UTC',
+    fees_usd: 13817.619084208302,
+    rev_usd: 2763.5238168416604
+  },
+  {
+    day: '2023-09-25 00:00:00.000 UTC',
+    fees_usd: 3038.7214484722117,
+    rev_usd: 607.7442896944424
+  },
+  {
+    day: '2023-10-01 00:00:00.000 UTC',
+    fees_usd: 18424.2631963534,
+    rev_usd: 3684.8526392706804
+  },
+  {
+    day: '2023-10-05 00:00:00.000 UTC',
+    fees_usd: 210307.60343831958,
+    rev_usd: 42061.52068766391
+  },
+  {
+    day: '2023-09-27 00:00:00.000 UTC',
+    fees_usd: 7569.906683250134,
+    rev_usd: 1513.9813366500268
+  },
+  {
+    day: '2023-09-24 00:00:00.000 UTC',
+    fees_usd: 1922.3830129166604,
+    rev_usd: 384.47660258333207
+  },
+  {
+    day: '2023-10-04 00:00:00.000 UTC',
+    fees_usd: 365731.42286171776,
+    rev_usd: 73146.28457234355
+  }
+]
 
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
-    const toTimestamp = timestamp
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toBlock = (await getBlock(toTimestamp, CHAIN.AVAX, {}));
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.AVAX, {}));
-    let _logs: ILog[] = [];
-    for(let i = fromBlock; i < toBlock; i += 5000) {
-      try {
-        const logs: ILog[] = (await sdk.api.util.getLogs({
-          target: contract,
-          topic: '',
-          toBlock: i + 5000 > toBlock ? toBlock : i + 5000,
-          fromBlock: i,
-          keys: [],
-          chain: CHAIN.AVAX,
-          topics: [topic0_trade]
-        })).output as ILog[];
-        _logs = _logs.concat(logs);
-        console.log(i)
-      } catch {
-        console.log(`Failed to fetch logs for block ${i}`)
-        continue;
-      }
-    }
-    console.log(_logs.length)
-
-    const fees: IFee[] = _logs.map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const protocolEthAmount = Number('0x'+data.slice(5*64, (5*64)+64)) / 10 ** 18;
-      const subjectEthAmount = Number('0x'+data.slice(6*64, (6*64)+64)) / 10 ** 18;
-      const creatorEthAmount = Number('0x'+data.slice(7*64, (7*64)+64)) / 10 ** 18;
-      return {
-        fees: protocolEthAmount+subjectEthAmount+creatorEthAmount,
-        rev: protocolEthAmount
-      }
-    })
-
-    const avaxID = "avax:0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
-    const avaxPrice = (await getPrices([avaxID], timestamp))[avaxID].price;
-    const dailyFees = fees.reduce((a: number, b: IFee) => a+b.fees, 0) * avaxPrice
-    const dailyRevenue = fees.reduce((a: number, b: IFee) => a+b.rev, 0) * avaxPrice
+    // const fees: IFee[] = (await queryDune("3083702"));
+    const fees = temp;
+    const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
+    const daily = fees.find((e: IFee) => e.day.split(' ')[0] === dateStr);
+    const dailyFees = daily?.fees_usd || 0;
+    const dailyRevenue = daily?.rev_usd || 0;
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyRevenue}`,
       timestamp
     }
   } catch (e) {
@@ -75,7 +128,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchFees,
-      start: async () => 1630454400,
+      start: async () => 1695081600,
     }
   }
 }
