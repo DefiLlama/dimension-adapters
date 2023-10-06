@@ -1,5 +1,6 @@
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { queryDune } from "../helpers/dune";
 
 interface IFee {
   day: string;
@@ -97,8 +98,8 @@ const temp: IFee[] = [
 
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
-    // const fees: IFee[] = (await queryDune("3083702"));
-    const fees = temp;
+    const fees: IFee[] = (await queryDune("3083702"));
+    // const fees = temp;
     const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
     const daily = fees.find((e: IFee) => e.day.split(' ')[0] === dateStr);
     const dailyFees = daily?.fees_usd || 0;
