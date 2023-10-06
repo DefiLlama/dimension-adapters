@@ -305,7 +305,12 @@ export default ([
                 "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F",
                 "0x749fc0E64A3680531d31ACC1dAa8dda0bE438B02"
             ],
-            "aptos":["0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa"]
+            "aptos":[
+                "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa"
+            ],
+            "base":[
+                "0x678Aa4bF4E210cf2166753e054d5b7c31cc7fa86", // smartrouter
+            ]
         }
     },
     {
