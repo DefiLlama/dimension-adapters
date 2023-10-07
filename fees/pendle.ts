@@ -43,11 +43,11 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BSC]: {
     endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-bsc-jun-28',
-    treasury: '0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e', 
+    treasury: '0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e',
   },
   [CHAIN.OPTIMISM]: {
     endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-optimism-aug-11',
-    treasury: '0xe972d450ec5b11b99d97760422e0e054afbc8042', 
+    treasury: '0xe972d450ec5b11b99d97760422e0e054afbc8042',
   }
 }
 
@@ -78,14 +78,6 @@ const fetch = (chain: Chain) => {
       })),
       chain: chain,
     })).output.map((output: any) => output.output)
-
-    const syDecimals = (await sdk.api.abi.multiCall({
-      abi: decimalsABI,
-      calls: allSy.map((sy: string) => ({
-        target: sy,
-      })),
-      chain: chain,
-    })).output.map((output: any) => parseInt(output.output))
 
     const allAssets: string[] = assetInfos.map((assetInfo: any) => assetInfo.assetAddress)
 
