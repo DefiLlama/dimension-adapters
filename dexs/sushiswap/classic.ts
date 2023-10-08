@@ -57,7 +57,7 @@ const endpointsClassic = {
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
   [CHAIN.HARMONY]: "https://api.thegraph.com/subgraphs/name/sushiswap/harmony-exchange",
-  [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
+  // [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
   // [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
   [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',

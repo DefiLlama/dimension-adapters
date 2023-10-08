@@ -12,7 +12,7 @@ const endpointsV3 = {
     [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fantom',
     [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fuse',
     [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-gnosis',
-    [CHAIN.MOONRIVER]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-moonriver',
+    // [CHAIN.MOONRIVER]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-moonriver',
     [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-optimism',
     [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-polygon',
     [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
