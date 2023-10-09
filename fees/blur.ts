@@ -100,14 +100,19 @@ const methodology = {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(),
+        fetch: async (timestamp: number) => {
+          return {
+            timestamp,
+            dailyFees: '0',
+          }
+        },
         start: async ()  => 1669852800,
         meta: {
           methodology
         }
     },
   },
-  
+
 }
 
 export default adapter;
