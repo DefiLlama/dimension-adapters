@@ -39,16 +39,13 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data.intervals;
-  return Number(historicalVolume[0]?.startTime);
-}
+
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch,
-      start: getStartTimestamp,
+      start: async () => 1662508800,
     },
   },
 };
