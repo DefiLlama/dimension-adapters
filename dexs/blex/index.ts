@@ -11,7 +11,6 @@ const allData=gql`
     query get_summary($period: String!, $id: String!){
         summaries(where: {period: $period, id: $id}){
             tradingLPVolume
-            tradingVolume
         }
     }
 `
@@ -25,9 +24,9 @@ const derivativesData=gql`
 
 interface IGraphResponse {
     summaries: Array<{
-        tradingVolume: string 
+        tradingVolume: string
         tradingLPVolume: string
-        trades: string            
+        trades: string
         openInterest: string
         uniqueUsers: string
         fees: string
@@ -45,16 +44,16 @@ interface IGraphResponse {
       id: 'total',
       period: 'total',
     })
-  
+
     return {
       timestamp: dayTimestamp,
       dailyVolume:
         dailyData.summaries.length == 1
-          ? String(Number(Object.values(dailyData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10  ** -30)
+          ? String(Number(Object.values(dailyData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10  ** -18)
           : undefined,
       totalVolume:
         totalData.summaries.length == 1
-          ? String(Number(Object.values(totalData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+          ? String(Number(Object.values(totalData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
           : undefined,
     }
   }
