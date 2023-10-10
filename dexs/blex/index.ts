@@ -50,11 +50,11 @@ interface IGraphResponse {
       timestamp: dayTimestamp,
       dailyVolume:
         dailyData.summaries.length == 1
-          ? String(Number(Object.values(dailyData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10  )
+          ? String(Number(Object.values(dailyData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10  ** -30)
           : undefined,
       totalVolume:
         totalData.summaries.length == 1
-          ? String(Number(Object.values(totalData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 )
+          ? String(Number(Object.values(totalData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
           : undefined,
     }
   }
