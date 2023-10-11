@@ -4,8 +4,8 @@ import axios from "axios";
 import BigNumber from "bignumber.js";
 
 const url_config = {
-  "arb": "https://dapi.api.arbitrum-prod.firefly.exchange/candlestickData",
-  "sui": "https://dapi.api.sui-prod.bluefin.io/candlestickData",
+  "arb": "https://dapi.api.arbitrum-prod.firefly.exchange/marketData",
+  "sui": "https://dapi.api.sui-prod.bluefin.io/marketData",
 }
 
 const product_config = {
@@ -13,27 +13,16 @@ const product_config = {
   "sui": ["ETH-PERP", "BTC-PERP"],
 }
 
-const fetchURL = (baseURL: string, product: string, toTimestamp: number, fromTimestamp: number, limit: number, ) => {
+const fetchURL = (baseURL: string, product: string) => {
   baseURL = `${baseURL}` + `?symbol=${product}`;
-  baseURL = `${baseURL}` + `&interval=3m`;
-  baseURL = `${baseURL}` + `&startTime=${fromTimestamp}`;
-  baseURL = `${baseURL}` + `&endTime=${toTimestamp}`;
-  baseURL = `${baseURL}` + `&limit=${limit}`;
   return baseURL;
 }
 
 const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]) => {
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const GRANULARITY = 180; // 3m
-  const LIMIT = 86400 / GRANULARITY; // MAX exchange limit is 500.
-
   const dailyVolume = (await Promise.all(productIds.map((productId: string) => 
-    axios.get(fetchURL(baseUrl, productId, toTimestamp * 1000, fromTimestamp * 1000, LIMIT))
+    axios.get(fetchURL(baseUrl, productId))
   )))
-  .map((e: any) => e.data)
-  .flat()
-  .map((e: any[]) => (Number(e[5]) / 10 ** 18) * (Number(e[4]) / 10 ** 18))
+  .map((e: any) => (Number(e.data._24hrClosePrice) / 10 ** 18) * (Number(e.data._24hrVolume) / 10 ** 18))
   .reduce((volume: number, sum: number) => sum + volume, 0);
 
   return {
