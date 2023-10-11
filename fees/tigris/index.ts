@@ -12,7 +12,6 @@ interface ApiResponse {
   day: number;
   totalFees: number;
   totalNotionalVolume: number;
-  totalVolume: number;
   dailyRevenue: number;
   dailyHoldersRevenue: number;
   dailyProtocolRevenue: number;
@@ -52,57 +51,51 @@ const fetch = (chain: Chain) => {
     try {
       const dataPoints = await fetchFromAPI(chain, timestamp);
 
-      // Find the closest data point to the requested timestamp
-      let closestData: ApiResponse | null = null;
-      let minDifference = Number.MAX_SAFE_INTEGER;
-      for (const data of dataPoints) {
-        const difference = Math.abs(data.day - timestamp);
-        if (difference < minDifference) {
-          closestData = data;
-          minDifference = difference;
+      // First, try to find an exact match
+      const matchingData = dataPoints.find(e => e.day === timestamp);
+
+      if (matchingData) {
+        return {
+          dailyFees: matchingData.dailyFees.toString(),
+          dailyRevenue: matchingData.dailyRevenue.toString(),
+          dailyProtocolRevenue: matchingData.dailyProtocolRevenue.toString(),
+          dailyHoldersRevenue: matchingData.dailyHoldersRevenue.toString(),
+          timestamp: matchingData.day,
+          totalFees: matchingData.totalFees.toString()
+        };
+      } else {
+        // If no exact match, find the closest data point
+        let closestData: ApiResponse | null = null;
+        let minDifference = Number.MAX_SAFE_INTEGER;
+        for (const data of dataPoints) {
+          const difference = Math.abs(data.day - timestamp);
+          if (difference < minDifference) {
+            closestData = data;
+            minDifference = difference;
+          }
         }
-      }
 
-      if (!closestData) {
-        throw new Error("No close data point found");
-      }
-
-      const data = closestData;
-
-      // Guard Clauses
-      if (!data) {
-        throw new Error("Data is undefined");
-      }
-
-      if (typeof data.dailyFees !== "number" ||
-          typeof data.dailyRevenue !== "number" ||
-          typeof data.dailyProtocolRevenue !== "number" ||
-          typeof data.dailyHoldersRevenue !== "number" ||
-          typeof data.day !== "number") {
-        console.error("Unexpected data structure:", data);
-        throw new Error("API returned unexpected data structure");
-      }
-
-      // Explicit Logging
-      console.log("dailyFees:", data.dailyFees);
-      console.log("dailyRevenue:", data.dailyRevenue);
-      console.log("dailyProtocolRevenue:", data.dailyProtocolRevenue);
-      console.log("dailyHoldersRevenue:", data.dailyHoldersRevenue);
-      console.log("day:", data.day);
-
-      return {
-        dailyFees: data.dailyFees.toString(),
-        dailyRevenue: data.dailyRevenue.toString(),
-        dailyProtocolRevenue: data.dailyProtocolRevenue.toString(),
-        dailyHoldersRevenue: data.dailyHoldersRevenue.toString(),
-        timestamp: data.day
+        if (closestData) {
+          console.warn(`Using closest data point for timestamp ${timestamp}. Closest match: ${closestData.day}`);
+          return {
+            dailyFees: closestData.dailyFees.toString(),
+            dailyRevenue: closestData.dailyRevenue.toString(),
+            dailyProtocolRevenue: closestData.dailyProtocolRevenue.toString(),
+            dailyHoldersRevenue: closestData.dailyHoldersRevenue.toString(),
+            timestamp: closestData.day,
+            totalFees: closestData.totalFees.toString()
+          };
+        } else {
+          throw new Error("No matching or close data found for the given timestamp");
+        }
       }
     } catch (e) {
       console.error(e);
       throw e;
     }
-  }
-}
+  };
+};
+
 
 const testFetch = async () => {
   console.log("Testing Arbitrum Fetch:");
@@ -138,6 +131,7 @@ const adapter: Adapter = {
 }
 
 export default adapter;
+
 
 
 
