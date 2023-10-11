@@ -18,7 +18,7 @@ interface ApiResponse {
   dailyProtocolRevenue: number;
 }
 
-const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse> => {
+const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
   try {
     let endpoint;
     if (chain === CHAIN.POLYGON) {
@@ -50,7 +50,24 @@ const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiRespons
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     try {
-      const data = await fetchFromAPI(chain, timestamp);
+      const dataPoints = await fetchFromAPI(chain, timestamp);
+
+      // Find the closest data point to the requested timestamp
+      let closestData: ApiResponse | null = null;
+      let minDifference = Number.MAX_SAFE_INTEGER;
+      for (const data of dataPoints) {
+        const difference = Math.abs(data.day - timestamp);
+        if (difference < minDifference) {
+          closestData = data;
+          minDifference = difference;
+        }
+      }
+
+      if (!closestData) {
+        throw new Error("No close data point found");
+      }
+
+      const data = closestData;
 
       // Guard Clauses
       if (!data) {
@@ -121,6 +138,7 @@ const adapter: Adapter = {
 }
 
 export default adapter;
+
 
 
 
