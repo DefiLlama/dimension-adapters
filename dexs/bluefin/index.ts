@@ -13,12 +13,18 @@ const product_config = {
   "sui": ["ETH-PERP", "BTC-PERP"],
 }
 
+interface Volume {
+  totalVolume: string | undefined,
+  dailyVolume: string | undefined,
+  timestamp: number,     
+}
+
 const fetchURL = (baseURL: string, product: string) => {
   baseURL = `${baseURL}` + `?symbol=${product}`;
   return baseURL;
 }
 
-const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]) => {
+const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]): Promise<Volume> => {
   const dailyVolume = (await Promise.all(productIds.map((productId: string) => 
     axios.get(fetchURL(baseUrl, productId))
   )))
