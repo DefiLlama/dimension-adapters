@@ -19,9 +19,8 @@ interface Volume {
   timestamp: number,     
 }
 
-const fetchURL = (baseURL: string, product: string) => {
-  baseURL = `${baseURL}` + `?symbol=${product}`;
-  return baseURL;
+const fetchURL = (baseURL: string, product: string): string => {
+  return `${baseURL}?symbol=${product}`;
 }
 
 const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]): Promise<Volume> => {
