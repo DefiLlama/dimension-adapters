@@ -18,6 +18,14 @@ const v2Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v2-dev",
 };
 
+const blacklisted = {
+  [CHAIN.ETHEREUM]: [
+    '0x637f415687b7b2545ef2cd8dcc1614e1cc175850',
+    '0xb94acdf8662cd955f137e0c9c9fba535c87b57b4',
+    '0xb504035a11e672e12a099f32b1672b9c4a78b22f'
+  ]
+}
+
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis?source=uniswap",
@@ -67,7 +75,8 @@ const v2Graph = getGraphDimensions({
     HoldersRevenue: 0,
     Revenue: 0,
     Fees: 0.3
-  }
+  },
+  blacklistTokens: blacklisted
 });
 
 const v3Graphs = getGraphDimensions({
