@@ -12,6 +12,7 @@ interface ApiResponse {
   day: number;
   totalFees: number;
   totalNotionalVolume: number;
+  totalVolume: number;
   dailyRevenue: number;
   dailyHoldersRevenue: number;
   dailyProtocolRevenue: number;
@@ -46,56 +47,51 @@ const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiRespons
   }
 }
 
+function startOfDayTimestamp(timestamp: number): number {
+    const date = new Date(timestamp * 1000); 
+    date.setUTCHours(0, 0, 0, 0);
+    return Math.floor(date.getTime() / 1000);
+}
+
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     try {
       const dataPoints = await fetchFromAPI(chain, timestamp);
+      dataPoints.forEach(d => d.day += 3600);
 
-      // First, try to find an exact match
-      const matchingData = dataPoints.find(e => e.day === timestamp);
+      const adjustedTimestamp = startOfDayTimestamp(timestamp);
+      
+      console.log("Adjusted Timestamp:", adjustedTimestamp);
+      console.log("Days in fetched data:", dataPoints.map(d => d.day));
 
-      if (matchingData) {
+      const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+
+      if (!matchingData) {
+        console.warn(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
         return {
-          dailyFees: matchingData.dailyFees.toString(),
-          dailyRevenue: matchingData.dailyRevenue.toString(),
-          dailyProtocolRevenue: matchingData.dailyProtocolRevenue.toString(),
-          dailyHoldersRevenue: matchingData.dailyHoldersRevenue.toString(),
-          timestamp: matchingData.day,
-          totalFees: matchingData.totalFees.toString()
+          dailyFees: '0',
+          dailyRevenue: '0',
+          dailyProtocolRevenue: '0',
+          dailyHoldersRevenue: '0',
+          timestamp: adjustedTimestamp,
+          totalFees: '0'
         };
-      } else {
-        // If no exact match, find the closest data point
-        let closestData: ApiResponse | null = null;
-        let minDifference = Number.MAX_SAFE_INTEGER;
-        for (const data of dataPoints) {
-          const difference = Math.abs(data.day - timestamp);
-          if (difference < minDifference) {
-            closestData = data;
-            minDifference = difference;
-          }
-        }
+      }
 
-        if (closestData) {
-          console.warn(`Using closest data point for timestamp ${timestamp}. Closest match: ${closestData.day}`);
-          return {
-            dailyFees: closestData.dailyFees.toString(),
-            dailyRevenue: closestData.dailyRevenue.toString(),
-            dailyProtocolRevenue: closestData.dailyProtocolRevenue.toString(),
-            dailyHoldersRevenue: closestData.dailyHoldersRevenue.toString(),
-            timestamp: closestData.day,
-            totalFees: closestData.totalFees.toString()
-          };
-        } else {
-          throw new Error("No matching or close data found for the given timestamp");
-        }
+      return {
+        dailyFees: matchingData.dailyFees.toString(),
+        dailyRevenue: matchingData.dailyRevenue.toString(),
+        dailyProtocolRevenue: matchingData.dailyProtocolRevenue.toString(),
+        dailyHoldersRevenue: matchingData.dailyHoldersRevenue.toString(),
+        timestamp: matchingData.day,
+        totalFees: matchingData.totalFees.toString()
       }
     } catch (e) {
       console.error(e);
       throw e;
     }
-  };
-};
-
+  }
+}
 
 const testFetch = async () => {
   console.log("Testing Arbitrum Fetch:");
@@ -131,10 +127,4 @@ const adapter: Adapter = {
 }
 
 export default adapter;
-
-
-
-
-
-
 
