@@ -85,7 +85,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetch(FEE_ADDRESS[CHAIN.ERA], CHAIN.ERA),
-      start: async () => 10004574,
+      start: async () => 1684324400,
     }
   }
 }
