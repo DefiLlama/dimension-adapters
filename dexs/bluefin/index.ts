@@ -59,6 +59,16 @@ const adapter: BreakdownAdapter = {
         start: async () => startTime,
       },
     },
+    derivatives: {
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchArb,
+        start: async () => startTime,
+      },
+      [CHAIN.SUI]: {
+        fetch: fetchSUI,
+        start: async () => startTime,
+      },
+    },
   },
 };
 
