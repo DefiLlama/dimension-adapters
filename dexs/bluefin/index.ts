@@ -49,15 +49,23 @@ const startTime = 1695600000; // 25th September when SUI trading starts
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    sui: {
+    swap: {
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchArb,
+        start: async () => startTime,
+      },
       [CHAIN.SUI]: {
         fetch: fetchSUI,
         start: async () => startTime,
       },
     },
-    arb: {
+    derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchArb,
+        start: async () => startTime,
+      },
+      [CHAIN.SUI]: {
+        fetch: fetchSUI,
         start: async () => startTime,
       },
     },
