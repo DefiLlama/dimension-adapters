@@ -6,17 +6,17 @@ import axios from 'axios';
 const API_ENDPOINT = "http://127.0.0.1:5000";
 
 interface ApiResponse {
-  dailyVolume: number;
+  dailyNotionalVolume: number;
   day: number;
-  totalVolume: number;
+  totalNotionalVolume: number;
 }
 
 const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
   let endpoint;
   if (chain === CHAIN.POLYGON) {
-    endpoint = "/fetch-polygon-data";
+    endpoint = "/fetch-polygon-data"; // Note: Ensure your API endpoint is correct for options data
   } else if (chain === CHAIN.ARBITRUM) {
-    endpoint = "/fetch-arbitrum-data";
+    endpoint = "/fetch-arbitrum-data"; // Note: Ensure your API endpoint is correct for options data
   } else {
     throw new Error(`Unsupported chain: ${chain}`);
   }
@@ -50,15 +50,15 @@ const fetch = (chain: Chain) => {
 
     if (!matchingData) {
       return {
-        dailyVolume: '0',
-        totalVolume: '0',
+        dailyNotionalVolume: '0',
+        totalNotionalVolume: '0',
         timestamp: adjustedTimestamp
       };
     }
 
     return {
-      dailyVolume: matchingData.dailyVolume.toString(),
-      totalVolume: matchingData.totalVolume.toString(),
+      dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
+      totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
       timestamp: matchingData.day
     };
   }
