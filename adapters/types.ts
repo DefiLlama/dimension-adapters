@@ -83,6 +83,7 @@ export type FetchResultFees = FetchResultBase & {
   totalSupplySideRevenue?: string | IJSON<string>;
   totalUserFees?: string | IJSON<string>;
   dailyBribesRevenue?: string | IJSON<string>;
+  dailyTokenTaxes?: string | IJSON<string>;
 };
 
 // INCENTIVES

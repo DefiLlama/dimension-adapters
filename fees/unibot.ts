@@ -78,9 +78,26 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const transactions: IData[] = [...router_v2, ...router_v3] as IData[]
     const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
 
+    const revFromToken: IData[] = await sql`
+        SELECT
+          block_number,
+          block_time,
+          "value" / 1e18 as eth_value,
+          encode(transaction_hash, 'hex') AS HASH,
+          encode(to_address, 'hex') AS to_address
+        FROM
+          ethereum.traces
+        WHERE
+          block_number > 17277183
+          AND from_address = '\\xf819d9cb1c2a819fd991781a822de3ca8607c3c9'
+          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+    `
+    const rev_gen_token: number = revFromToken.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
+
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
     const amountUSD = amount * ethPrice;
+    const tokenRev = rev_gen_token * ethPrice;
     // ref https://dune.com/queries/2621049/4349967
     const dailyFees = (amountUSD * 0.01);
     const dailyRevenue = dailyFees;
@@ -88,6 +105,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyRevenue}`,
+      dailyTokenTaxes: `${tokenRev}`,
       timestamp
     }
   } catch (error) {
