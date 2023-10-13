@@ -67,6 +67,9 @@ export type Adapter = SimpleAdapter | BreakdownAdapter;
 export type FetchResultVolume = FetchResultBase & {
   dailyVolume?: string // | IJSON<string>;
   totalVolume?: string // | IJSON<string>;
+  dailyShortOpenInterest?: string // | IJSON<string>;
+  dailyLongOpenInterest?: string;
+  dailyOpenInterest?: string;
 };
 
 // FEES
@@ -103,6 +106,9 @@ export type FetchResultOptions = FetchResultBase & {
   totalNotionalVolume?: string // | IJSON<string>
   dailyPremiumVolume?: string // | IJSON<string>
   dailyNotionalVolume?: string // | IJSON<string>
+  dailyShortOpenInterest?: string // | IJSON<string>;
+  dailyLongOpenInterest?: string;
+  dailyOpenInterest?: string;
 };
 
 
