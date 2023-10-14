@@ -117,6 +117,7 @@ export enum CHAIN {
   NEON = "neon_evm",
   OP_BNB = "op_bnb",
   HYDRADX = "hydradx",
+  ERGO = "ergo",
 }
 
 // Don´t use
