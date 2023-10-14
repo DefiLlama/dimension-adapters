@@ -16,7 +16,7 @@ const PRODUCT_CONFIG = {
 interface Volume {
   totalVolume: string | undefined,
   dailyVolume: string | undefined,
-  timestamp: number,     
+  timestamp: number,
 }
 
 const fetchURL = (baseURL: string, product: string): string => {
@@ -24,7 +24,7 @@ const fetchURL = (baseURL: string, product: string): string => {
 }
 
 const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]): Promise<Volume> => {
-  const dailyVolume = (await Promise.all(productIds.map((productId: string) => 
+  const dailyVolume = (await Promise.all(productIds.map((productId: string) =>
     axios.get(fetchURL(baseUrl, productId))
   )))
   .map((e: any) => (Number(e.data._24hrClosePrice) / 10 ** 18) * (Number(e.data._24hrVolume) / 10 ** 18))
@@ -53,10 +53,12 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ARBITRUM]: {
         fetch: fetchArb,
         start: async () => startTime,
+        runAtCurrTime: true
       },
       [CHAIN.SUI]: {
         fetch: fetchSUI,
         start: async () => startTime,
+        runAtCurrTime: true
       },
     },
   },
