@@ -2,6 +2,7 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type IUrl = {
   [s: string]: string;
@@ -20,13 +21,14 @@ interface IVolume {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const volume: IVolume = (await fetchURL(url[chain]))?.data;
     return {
       totalVolume: `${volume?.totalVolume || undefined}`,
       dailyVolume: `${volume?.dailyVolume || undefined}`,
       weekVolume: `${volume?.weekVolume || undefined}`,
       monthVolume: `${volume?.monthVolume || undefined}`,
-      timestamp: Math.ceil(Date.now() / 1000),
+      timestamp: dayTimestamp,
     };
   };
 }
