@@ -50,7 +50,7 @@ const fetchVolume = async (timestamp: number) => {
     const yesterday = response.yesterday.find((e: IAssetTotals) => e.id === asset.id);
     const totalVolume = Number(asset.totalVolume) - Number(yesterday?.totalVolume || 0);
     const totalFees = Number(asset.totalFees) - Number(yesterday?.totalFees || 0);
-    const openInterest = Number(asset.openInterest) - Number(yesterday?.openInterest || 0);
+    const openInterest = Math.abs(Number(asset.openInterest) - Number(yesterday?.openInterest || 0));
     return {
       id: asset.id,
       openInterest: openInterest ? `${openInterest}` : 0,
