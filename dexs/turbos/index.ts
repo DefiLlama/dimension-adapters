@@ -8,7 +8,7 @@ type IUrl = {
 }
 
 const url: IUrl = {
-  [CHAIN.SUI]: "https://api.turbos.finance/info/vol"
+  [CHAIN.SUI]: "https://api.turbos.finance/dex/volume"
 }
 
 interface IVolume {
