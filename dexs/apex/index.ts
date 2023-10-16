@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://pro.apex.exchange/api/v1/klines?end=${endTime}&interval=D&start=1664928000&symbol=${symbol}`
-
+const allTiker = (symbol: string) => `https://pro.apex.exchange/api/v1/ticker?symbol=${symbol}`
 interface IVolumeall {
     id: string;
     volume: string;
@@ -24,11 +24,20 @@ const symbol: string[] = [
   'BCHUSDC',   'ETCUSDC',
   'WLDUSDC'
 ]
+interface IOpenInterest {
+    id: string;
+    openInterest: string;
+    lastPrice: string;
+}
+
 const getVolume = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: any[] = (await Promise.all(symbol.map((coins: string) => fetchURL(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24)))))
         .map((e: any) => Object.values(e.data.data)).flat().flat()
         .map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, price: e.c } });
+    const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => fetchURL(allTiker(coins)))))
+        .map((e: any) => e.data.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
+    const dailyOpenInterest = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
     const historicalUSD = historical.map((e: IVolumeall) => {
         return {
             ...e,
@@ -41,6 +50,7 @@ const getVolume = async (timestamp: number) => {
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
     return {
         totalVolume: `${totalVolume}`,
+        dailyOpenInterest: `${dailyOpenInterest}`,
         dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
         timestamp: dayTimestamp,
     };
