@@ -84,7 +84,7 @@ const fetchVolume = async (timestamp: number) => {
   return {
     dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
     dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    // dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     totalFees: totalFees ? `${totalFees}` : undefined,
     totalVolume: totalVolume ? `${totalVolume}` : undefined,
     timestamp
