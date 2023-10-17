@@ -6,6 +6,8 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const endpoints: { [key: string]: string } = {
   [CHAIN.CRONOS]:
     "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
+  [CHAIN.ERA]:
+    "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
 };
 
 const historicalDataSwap = gql`
@@ -78,6 +80,14 @@ const getFetch =
     };
   };
 
+const getStartTimestamp = async (chain: string) => {
+  const startTimestamps: { [chain: string]: number } = {
+    [CHAIN.CRONOS]: 1677470400,
+    [CHAIN.ERA]: 1696496400,
+  };
+  return startTimestamps[chain];
+};
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: Object.keys(endpoints).reduce((acc, chain) => {
@@ -85,7 +95,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => 1677470400,
+          start: async () => getStartTimestamp(chain),
         },
       };
     }, {}),
@@ -94,7 +104,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => 1677470400,
+          start: async () => getStartTimestamp(chain),
         },
       };
     }, {}),
