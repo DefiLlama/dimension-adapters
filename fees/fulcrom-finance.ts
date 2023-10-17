@@ -14,7 +14,7 @@ const endpoints = {
 const methodology = {
   Fees: "Fees from open/close position (0.07% to 0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   UserFees:
-    "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+    "Fees from open/close position (0.07% to 0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   HoldersRevenue: "20% of all collected fees goes to FUL stakers",
   SupplySideRevenue: "60% of all collected fees goes to FLP holders",
   Revenue: "Revenue is 20% of all collected fees, which goes to FUL stakers",
