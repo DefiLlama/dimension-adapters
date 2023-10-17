@@ -38,12 +38,12 @@ const adapter: Adapter = {
         [CHAIN.FANTOM]: {
             fetch: getFetch(CHAIN.FANTOM),
             start: async () => 0,
-            // runAtCurrTime: true
+            runAtCurrTime: true
         },
         [CHAIN.OPTIMISM]: {
             fetch: getFetch(CHAIN.OPTIMISM),
             start: async () => 0,
-            // runAtCurrTime: true
+            runAtCurrTime: true
         },
     },
 }
