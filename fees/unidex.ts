@@ -16,7 +16,7 @@ const endpoints: TUrl = {
   [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/arbitrumleveragev2',
 }
 // hot fix era CERT_HAS_EXPIRED
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 interface IDTrade {
   id: string; // Add this line
