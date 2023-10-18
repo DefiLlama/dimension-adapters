@@ -59,9 +59,6 @@ const fetch = (chain: Chain) => {
       const dataPoints = await fetchFromAPI(chain, timestamp);
       
       const adjustedTimestamp = startOfDayTimestamp(timestamp);
-      
-      console.log("Adjusted Timestamp:", adjustedTimestamp);
-      console.log("Days in fetched data:", dataPoints.map(d => d.day));
 
       const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
