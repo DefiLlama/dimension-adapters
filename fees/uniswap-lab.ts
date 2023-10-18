@@ -21,7 +21,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
           WHERE
             block_number > 18323016
             AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-            AND topic_2 = '\\x00000000000000000000000037a8f295612602f2774d331e562be9e61b83a327'
+            AND topic_2 in ('\\x00000000000000000000000037a8f295612602f2774d331e562be9e61b83a327','\\x0000000000000000000000006460d14dbaeb27aefec8ebef85db35defa31c3b9')
             AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
         `;
 
