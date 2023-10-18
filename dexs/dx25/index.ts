@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { SimpleAdapter } from '../../adapters/types'
+import { CHAIN } from "../../helpers/chains";
 
 const POOLS_SERVICE_URL = 'https://liquidity-pool.dx25.com/v1/rpc'
 
@@ -29,7 +30,7 @@ const rpc = (url: string, method: string, params: any) =>
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.ELROND]: {
       start: async () => 1697544000,
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
