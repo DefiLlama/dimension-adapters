@@ -30,7 +30,7 @@ const rpc = (url: string, method: string, params: any) =>
 const adapter: SimpleAdapter = {
   adapter: {
     elrond: {
-      start: async () => 1697628619,
+      start: async () => 1697544000,
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
           timestamp: ts,
