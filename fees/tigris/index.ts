@@ -57,8 +57,7 @@ const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     try {
       const dataPoints = await fetchFromAPI(chain, timestamp);
-      dataPoints.forEach(d => d.day += 3600);
-
+      
       const adjustedTimestamp = startOfDayTimestamp(timestamp);
       
       console.log("Adjusted Timestamp:", adjustedTimestamp);
@@ -93,26 +92,6 @@ const fetch = (chain: Chain) => {
   }
 }
 
-const testFetch = async () => {
-  console.log("Testing Arbitrum Fetch:");
-  try {
-    const arbitrumData = await fetchFromAPI(CHAIN.ARBITRUM, 1663023600);
-    console.log("Arbitrum Data:", arbitrumData);
-  } catch (err) {
-    console.error("Error fetching Arbitrum data:", err);
-  }
-
-  console.log("\nTesting Polygon Fetch:");
-  try {
-    const polygonData = await fetchFromAPI(CHAIN.POLYGON, 1663023600);
-    console.log("Polygon Data:", polygonData);
-  } catch (err) {
-    console.error("Error fetching Polygon data:", err);
-  }
-}
-
-testFetch();
-
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
@@ -127,4 +106,3 @@ const adapter: Adapter = {
 }
 
 export default adapter;
-
