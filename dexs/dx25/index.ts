@@ -29,7 +29,7 @@ const rpc = (url: string, method: string, params: any) =>
 
 const adapter: SimpleAdapter = {
   adapter: {
-    concordium: {
+    elrond: {
       start: async () => 1697628619,
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
