@@ -2,19 +2,19 @@ import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
-const endpointsV3 = {
+const endpointsV2 = {
   [CHAIN.AVAX]:
-    "https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova",
+    "https://api.thegraph.com/subgraphs/name/thehitesh172/vapordex-v2-avalanche-test",
 };
 
-const v3Graphs = getGraphDimensions({
-  graphUrls: endpointsV3,
+const v2Graphs = getGraphDimensions({
+  graphUrls: endpointsV2,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: "uniswapDayData",
+    factory: "poolDayDatas",
     field: "volumeUSD",
   },
   feesPercent: {
@@ -27,30 +27,19 @@ const v3Graphs = getGraphDimensions({
   },
 });
 
-const startTimeV3: { [key: string]: number } = {
-  [CHAIN.AVAX]: 1680566400,
+const startTimeV2: { [key: string]: number } = {
+  [CHAIN.AVAX]: 36522958,
 };
 
-const v3 = Object.keys(endpointsV3).reduce(
+const v2 = Object.keys(endpointsV2).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
-      meta: {
-        methodology: {
-          Fees: "Each pool charge between 0.01% to 1% fee",
-          UserFees: "Users pay between 0.01% to 1% fee",
-          Revenue: "0 to 1/4 of the fee goes to treasury",
-          HoldersRevenue: "None",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue:
-            "Liquidity providers get most of the fees of all trades in their pools",
-        },
-      },
+      fetch: v2Graphs(chain as Chain),
+      start: async () => startTimeV2[chain],
     },
   }),
   {}
 );
 
-export default v3;
+export default v2;
