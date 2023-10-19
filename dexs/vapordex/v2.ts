@@ -14,8 +14,12 @@ const v2Graphs = getGraphDimensions({
     field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: "poolDayDatas",
+    factory: "poolDayData",
     field: "volumeUSD",
+  },
+  dailyFees: {
+    factory: "vaporDEXDayData",
+    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
