@@ -39,8 +39,6 @@ const adapter: SimpleAdapter = {
           timestamp: ts,
           dailyVolume: data.daily_volume,
           totalVolume: data.total_volume,
-          dailyFees: data.daily_fees,
-          totalFees: data.total_fees,
         }
       }
     }
