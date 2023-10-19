@@ -14,7 +14,7 @@ const v2Graphs = getGraphDimensions({
     field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: "poolDayData",
+    factory: "vaporDEXDayData",
     field: "volumeUSD",
   },
   dailyFees: {
@@ -32,7 +32,7 @@ const v2Graphs = getGraphDimensions({
 });
 
 const startTimeV2: { [key: string]: number } = {
-  [CHAIN.AVAX]: 36522958,
+  [CHAIN.AVAX]: 1697500800,
 };
 
 const v2 = Object.keys(endpointsV2).reduce(
