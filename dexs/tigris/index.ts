@@ -41,7 +41,7 @@ const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiRespons
 }
 
 function startOfDayTimestamp(timestamp: number): number {
-    const date = new Date(timestamp * 1000);
+    const date = new Date(timestamp * 1000); 
     date.setUTCHours(0, 0, 0, 0);
     return Math.floor(date.getTime() / 1000);
 }
@@ -49,10 +49,10 @@ function startOfDayTimestamp(timestamp: number): number {
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     try {
-      const dataPoints = require(`./${chain}.json`) as ApiResponse[];
-
+      const dataPoints = await fetchFromAPI(chain, timestamp);
+      
       const adjustedTimestamp = startOfDayTimestamp(timestamp);
-
+      
 
       const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
