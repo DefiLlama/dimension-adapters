@@ -41,7 +41,7 @@ const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiRespons
 }
 
 function startOfDayTimestamp(timestamp: number): number {
-  const date = new Date(timestamp * 1000); 
+  const date = new Date(timestamp * 1000);
   date.setUTCHours(0, 0, 0, 0);
   return Math.floor(date.getTime() / 1000);
 }
@@ -50,9 +50,8 @@ const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     try {
       const dataPoints = await fetchFromAPI(chain, timestamp);
-      
+
       const adjustedTimestamp = startOfDayTimestamp(timestamp);
-      
 
       const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
@@ -61,11 +60,15 @@ const fetch = (chain: Chain) => {
         return {
           dailyNotionalVolume: '0',
           totalNotionalVolume: '0',
+          dailyPremiumVolume: '0',
+          totalPremuimVolume: '0',
           timestamp: adjustedTimestamp
         };
       }
 
       return {
+        dailyPremiumVolume: '0',
+        totalPremuimVolume: '0',
         dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
         totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
         timestamp: matchingData.day
@@ -91,4 +94,3 @@ const adapter: Adapter = {
 }
 
 export default adapter;
-
