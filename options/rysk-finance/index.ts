@@ -78,7 +78,7 @@ query trades($timestampFrom: Int!, $timestampTo: Int!) {
 const normalizeValues = (value: string, decimals: number) => BigNumber(value).dividedBy(10 ** decimals)
 
 const endpoints = {
-    [CHAIN.ARBITRUM]: "https://api.goldsky.com/api/public/project_clhf7zaco0n9j490ce421agn4/subgraphs/arbitrum-one/0.1.17/gn",
+    [CHAIN.ARBITRUM]: "https://api.goldsky.com/api/public/project_clhf7zaco0n9j490ce421agn4/subgraphs/arbitrum-one/1.3.3/gn",
 };
 
 const prices = {} as IJSON<number>
