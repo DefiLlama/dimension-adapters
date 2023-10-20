@@ -9,7 +9,7 @@ type IUrl = {
 }
 
 const url: IUrl = {
-    [CHAIN.SUI]: "https://tkmw8dmcp8.execute-api.ap-southeast-1.amazonaws.com/prod/volume"
+    [CHAIN.SUI]: `https://tkmw8dmcp8.execute-api.ap-southeast-1.amazonaws.com/prod/volume/`
 }
 
 interface IVolume {
@@ -21,13 +21,13 @@ interface IVolume {
 
 const fetch = (chain: Chain) => {
     return async (timestamp: number) => {
-        const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-        const volume: IVolume = (await fetchURL(url[chain]))?.data;
+        const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+        // fetch for the passed timestamp.
+        const volumeUrl = url[chain] + String(timestamp);
+        const volume: IVolume = (await fetchURL(volumeUrl))?.data;
         return {
             totalVolume: `${volume?.totalVolume || undefined}`,
             dailyVolume: `${volume?.dailyVolume || undefined}`,
-            weekVolume: `${volume?.weeklyVolume || undefined}`,
-            monthVolume: `${volume?.monthlyVolume || undefined}`,
             timestamp: dayTimestamp,
         };
     };
@@ -37,8 +37,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetch(CHAIN.SUI),
-            runAtCurrTime: true,
-            start: async () => 1697595431,
+            start: async () => 1683604174,
         }
     },
 };
