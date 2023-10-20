@@ -11,7 +11,7 @@ const config: { [chain: string]: ChainConfig } = {
   [CHAIN.POLYGON]: {
     swapManager: '0x0AaDC2Eae6963ED983d85cbF088b0c294f4c26ff',
     positionManager: '0x02bcaA4633E466d151b34112608f60A82a4F6035',
-    start: 1697673600,
+    start: 1697587200,
     tokens: [
       '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
       '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6',
