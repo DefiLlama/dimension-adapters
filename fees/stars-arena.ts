@@ -5,7 +5,7 @@ import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
 import { ethers } from "ethers";
 
-const address = '0x9C8574779468125975F370b7746fb2aF7CB13fdb';
+const address = '0x563395a2a04a7ae0421d34d62ae67623caf67d03';
 const topic0_trade = '0xc9d4f93ded9b42fa24561e02b2a40f720f71601eb1b3f7b3fd4eff20877639ee';
 const event_trade = 'event Trade(address trader,address subject,bool isBuy,uint256 shareAmount,uint256 amount,uint256 protocolAmount,uint256 subjectAmount,uint256 referralAmount,uint256 supply,uint256 buyPrice,uint256 myShares)'
 const contract_interface = new ethers.utils.Interface([
