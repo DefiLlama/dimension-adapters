@@ -36,7 +36,19 @@ const event: IEvent[] = [
   {
     name: 'LpFeeCharged(address indexed trader, uint valueDai)',
     topic: '0xf3dd1b8102b506743ce65a97636e91051e861f4f8f7e3eb87f2d95d0a616cea2'
-  }
+  },
+  {
+    name: 'TriggerFeeCharged(address indexed trader, uint valueDai)',
+    topic: '0x17fa86cf4833d28c6224a940e6bd001f2db0cb3d89d69727765679b3efee6559'
+  },
+  {
+    name: 'GovFeeCharged(address indexed trader, uint valueDai, bool distributed)',
+    topic: '0xccd80d359a6fbe0bfa5cbb1ecf0854adbe8c67b4ed6bf10d3c0d78c2be0f48cb'
+  },
+  {
+    name: 'BorrowingFeeCharged(address indexed trader, uint tradeValueDai, uint feeValueDai)',
+    topic: '0xe7d34775bf6fd7b34e703a903ef79ab16166ebdffce96a66f4d2f84b6263bb29'
+  },
 ];
 
 interface ITx {
@@ -59,7 +71,7 @@ const fetch = (address: string, chain: Chain) => {
 
     const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
     const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall]: any = await Promise.all(
+    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall, triggerFeeCall, govFeeCall, borrowingFeeCall]: any = await Promise.all(
       event.map((e:IEvent) => sdk.api.util.getLogs({
         target: address,
         topic: e.name,
@@ -69,21 +81,31 @@ const fetch = (address: string, chain: Chain) => {
         chain: chain,
         topics: [e.topic]
     })));
-    const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const nftBotFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const daiVaultVol = daiVaultCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const lpFeeVol = lpFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+
+    const mapper = (p: ITx) => new BigNumber(p.data);
+    const reducer = (a:BigNumber, c:BigNumber) => a.plus(c);
+    const devFeeValume = devFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const ssFeeVol = ssFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const referralFeeVol = referralFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const nftBotFeeVol = nftBotFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const daiVaultVol = daiVaultCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const lpFeeVol = lpFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const triggerFeeVol = triggerFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
+    const govFeeVol = govFeeCall.output.map((p: ITx) => new BigNumber(p.data.slice(0, 66))).reduce(reducer, new BigNumber('0'));
+    const borrowingFeeVol = borrowingFeeCall.output.map((p: ITx) => new BigNumber('0x' + p.data.slice(66, 130))).reduce(reducer, new BigNumber('0'));
     const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
     const daiPrice = prices['coingecko:dai']?.price || 1;
-    const dailyRevenue = devFeeValume.plus(ssFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
-    const dailyFees =  devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol).plus(lpFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+
+    const dailyHoldersRevenue = ssFeeVol.times(daiPrice).div(BIG_TEN.pow(18)).toString();
+    const dailyRevenue = devFeeValume.plus(ssFeeVol).plus(govFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+    const dailyFees =  devFeeValume.plus(ssFeeVol).plus(govFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol)
+        .plus(lpFeeVol).plus(triggerFeeVol).plus(borrowingFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+
     return {
       timestamp,
       dailyFees,
       dailyRevenue,
-      dailyHoldersRevenue: dailyRevenue,
+      dailyHoldersRevenue,
     } as FetchResultFees
   }
 }
