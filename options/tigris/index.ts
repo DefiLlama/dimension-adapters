@@ -49,7 +49,8 @@ function startOfDayTimestamp(timestamp: number): number {
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     try {
-      const dataPoints = await fetchFromAPI(chain, timestamp);
+      // const dataPoints = await fetchFromAPI(chain, timestamp);
+      const dataPoints = require(`../../dexs/tigris/${chain}.json`) as ApiResponse[];
 
       const adjustedTimestamp = startOfDayTimestamp(timestamp);
 
