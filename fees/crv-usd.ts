@@ -45,7 +45,7 @@ const fetchFees = (chain: Chain) => {
       .map((a: any) => a.output).flat();
       const crvUSDAddress = `${CHAIN.ETHEREUM}:0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E`
       const prices = await getPrices([crvUSDAddress], timestamp);
-      const crvUSDPrice = prices[crvUSDAddress].price;
+      const crvUSDPrice = prices[crvUSDAddress]?.price || 1;
       const dailyFees = logs.reduce((acc: number, log: ILog) => {
         const data = log.data.replace('0x', '');
         const fee = (Number('0x' + data.slice(0, 64)) / 1e18) * crvUSDPrice;
