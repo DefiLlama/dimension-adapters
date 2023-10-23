@@ -54,6 +54,8 @@ const fetchFees = (chain: Chain) => {
 
       return {
         dailyFees: `${dailyFees}`,
+        dailyHoldersRevenue: `${dailyFees}`,
+        dailyRevenue: `${dailyFees}`,
         timestamp
       }
     } catch (e) {
