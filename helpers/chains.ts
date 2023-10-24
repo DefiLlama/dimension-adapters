@@ -118,7 +118,8 @@ export enum CHAIN {
   OP_BNB = "op_bnb",
   HYDRADX = "hydradx",
   ERGO = "ergo",
-  SHIMMER_EVM = "shimmer_evm"
+  SHIMMER_EVM = "shimmer_evm",
+  MEER = "meer",
 }
 
 // Don´t use
