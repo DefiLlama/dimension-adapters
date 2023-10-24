@@ -130,7 +130,6 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     permitFailure: true,
   });
   const _underlyings =  underlyings.output.map((x: any) => x.output);
-  // _underlyings[0]  = '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
   return {
     underlyings: _underlyings,
     reserveFactors: reserveFactors.output.map((x: any) => x.output),
@@ -179,13 +178,13 @@ const getDailyProtocolFees = async ({
 
     const interestTokens = +ethers.utils.formatUnits(
       log.interestAccumulated,
-      price?.decimals || 0
+      price.decimals
     );
     const reserveFactor = +ethers.utils.formatUnits(
       reserveFactors[marketIndex],
       18
     );
-    const interestUSD = interestTokens * price?.price || 0;
+    const interestUSD = interestTokens * price.price;
 
     dailyProtocolFees += interestUSD;
     dailyProtocolRevenue += interestUSD * reserveFactor;
