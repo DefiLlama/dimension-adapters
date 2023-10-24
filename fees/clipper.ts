@@ -77,8 +77,10 @@ const fetchFees = (chain: Chain) => {
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyRevenue}`,
+      dailyProtocolRevenue: `${dailyRevenue}`,
       totalFees: `${totalFees}`,
       totalRevenue: `${totalRevenue}`,
+      totalProtocolRevenue: `${totalRevenue}`,
       timestamp
     }
   }
