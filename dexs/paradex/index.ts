@@ -8,8 +8,6 @@ const marketsEndpoint = "https://api.prod.paradex.trade/v1/markets"
 interface IVolumeall {
   volume_24h: string;
   total_volume: string;
-  last_traded_price: string;
-  open_interest: string;
 }
 
 
@@ -35,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: async () => 1693612800,
+      start: async () => 1693526400,
     },
   },
 };
