@@ -2,28 +2,79 @@ import { Adapter } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import type { ChainEndpoints } from "../../adapters/types";
+import type { ChainEndpoints, FetchResultOptions } from "../../adapters/types";
 import {
   endpoints,
   OSE_DEPLOY_TIMESTAMP_BY_CHAIN,
   methodology,
 } from "../../fees/valorem/constants";
-import { IValoremDayData } from "../../fees/valorem/interfaces";
-import { getAllDailyRecords } from "../../fees/valorem/helpers";
+import {
+  IValoremDayData,
+  IValoremTokenDayData,
+} from "../../fees/valorem/interfaces";
+import {
+  DailyTokenRecords,
+  getAllDailyRecords,
+  getAllDailyTokenRecords,
+} from "../../fees/valorem/helpers";
 
 const graphOptions = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
+    return async (timestamp: number): Promise<any /* FetchResultOptions */> => {
       const formattedTimestamp = getUniqStartOfTodayTimestamp(
         new Date(timestamp * 1000)
       );
 
+      /** Daily Token Metrics */
+
+      const allDailyTokenRecords = await getAllDailyTokenRecords(
+        graphUrls,
+        chain,
+        timestamp
+      );
+
+      let filteredTokenRecords: DailyTokenRecords = {};
+
+      Object.keys(allDailyTokenRecords).forEach((tokenDayDataKey) => {
+        const filteredTokenDayDatas = allDailyTokenRecords[tokenDayDataKey]
+          .map((tokenDayData) => {
+            if (tokenDayData.date <= formattedTimestamp) {
+              return tokenDayData;
+            }
+          })
+          .filter((x) => x !== undefined);
+        filteredTokenRecords[tokenDayDataKey] =
+          filteredTokenDayDatas as IValoremTokenDayData[];
+      });
+
+      const getTodaysStats = () => {
+        let todayStats = {
+          dailyNotionalVolume: {} as Record<string, string | undefined>,
+          dailyPremiumVolume: undefined,
+        };
+
+        Object.keys(filteredTokenRecords).forEach((key) => {
+          const todaysDataForToken = filteredTokenRecords[key].find(
+            (dayData) => dayData.date === formattedTimestamp
+          );
+          todayStats.dailyNotionalVolume[key] =
+            todaysDataForToken?.notionalVolCoreSum ?? undefined;
+        });
+
+        return todayStats;
+      };
+
+      const todaysStats = getTodaysStats();
+
+      /** Backfilled USD Metrics */
+      // add up totals from each individual preceding day
       // get all daily records and filter out any that are after the timestamp
       const allDailyRecords = await getAllDailyRecords(
         graphUrls,
         chain,
         timestamp
       );
+
       const filteredRecords = allDailyRecords
         .map((dayData) => {
           if (dayData.date <= formattedTimestamp) {
@@ -31,42 +82,20 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
           }
         })
         .filter((x) => x !== undefined) as IValoremDayData[];
-
-      const getTodaysStats = () => {
-        let todayStats = filteredRecords.find(
-          (dayData) => dayData.date === formattedTimestamp
-        );
-
-        // return with values set to 0 if not found
-        if (!todayStats) {
-          return {
-            dailyNotionalVolume: undefined,
-            dailyPremiumVolume: undefined,
-          };
-        }
-
-        return {
-          dailyNotionalVolume: todayStats.notionalVolCoreSumUSD,
-          dailyPremiumVolume: undefined,
-        };
-      };
-
-      const todaysStats = getTodaysStats();
-
       // add up totals from each individual preceding day
       const totalStatsUpToToday = filteredRecords.reduce(
         (acc, dayData) => {
           return {
-            totalNotionalVolume:
-              acc.totalNotionalVolume + Number(dayData.notionalVolCoreSumUSD),
-            totalPremiumVolume:
-              acc.totalPremiumVolume +
-              Number(/** dayData.premiumVolCoreSumUSD */ "0"),
+            totalNotionalVolume: (
+              Number(acc.totalNotionalVolume) +
+              Number(dayData.notionalVolCoreSumUSD)
+            ).toString(),
+            totalPremiumVolume: undefined,
           };
         },
         {
-          totalNotionalVolume: 0,
-          totalPremiumVolume: 0,
+          totalNotionalVolume: "0",
+          totalPremiumVolume: undefined,
         }
       );
 
@@ -74,14 +103,8 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
         timestamp,
         dailyNotionalVolume: todaysStats.dailyNotionalVolume,
         dailyPremiumVolume: todaysStats.dailyPremiumVolume,
-        totalNotionalVolume:
-          totalStatsUpToToday.totalNotionalVolume > 0
-            ? totalStatsUpToToday.totalNotionalVolume.toString()
-            : undefined,
-        totalPremiumVolume:
-          totalStatsUpToToday.totalPremiumVolume > 0
-            ? totalStatsUpToToday.totalPremiumVolume.toString()
-            : undefined,
+        totalNotionalVolume: totalStatsUpToToday.totalNotionalVolume,
+        totalPremiumVolume: totalStatsUpToToday.totalPremiumVolume,
       };
     };
   };

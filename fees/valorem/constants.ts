@@ -21,5 +21,5 @@ export const methodology = {
 };
 
 export const OSE_DEPLOY_TIMESTAMP_BY_CHAIN = {
-  [CHAIN.ARBITRUM]: 1693583626,
+  [CHAIN.ARBITRUM]: 1693526399,
 };
