@@ -30,7 +30,7 @@ const graphs = () => {
       // go to the lenders, and 10% is routed to the treasury as revenue
       const fees = pools
         .map(pool => pool.tvlUsd * pool.apyBase / 100 / 365)
-        .reduce((prev, curr) => prev + curr, 1698019200) / .9;
+        .reduce((prev, curr) => prev + curr, 0) / .9;
       const revenue = fees * .1;
       return {
         timestamp,
