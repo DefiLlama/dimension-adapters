@@ -6,7 +6,7 @@ import { Adapter, ProtocolType } from "../adapters/types";
 
 export async function getEtherscanFees(timestamp: number, url:string, coin:string) {
     const ts = getTimestampAtStartOfDayUTC(timestamp)
-    const dailyFees = await axios.get(url, { responseType: 'blob', headers: {
+    const dailyFees = await axios.post(url, { responseType: 'blob', headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
             "Content-Type": "text/csv; charset=utf-8",
             "Accept" : "text/csv; charset=utf-8"
