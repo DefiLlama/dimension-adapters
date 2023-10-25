@@ -25,12 +25,12 @@ const graphs = () => {
       const pools = poolsCall
         .filter((e: IYield) => e.project === "impermax-finance")
         .filter((e: IYield) => e.chain.toLowerCase() === chain.toLowerCase());
-      
+
       // Fees and revenue is derived from borrowing fees: 90% of the borrowing fees
       // go to the lenders, and 10% is routed to the treasury as revenue
       const fees = pools
         .map(pool => pool.tvlUsd * pool.apyBase / 100 / 365)
-        .reduce((prev, curr) => prev + curr, 0) / .9;
+        .reduce((prev, curr) => prev + curr, 1698019200) / .9;
       const revenue = fees * .1;
       return {
         timestamp,
@@ -45,64 +45,65 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs()(CHAIN.ETHEREUM),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: graphs()(CHAIN.POLYGON),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
     },
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
       fetch: graphs()(CHAIN.AVAX),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
     },
-    [CHAIN.MOONRIVER]: {
-      fetch: graphs()(CHAIN.MOONRIVER),
-      runAtCurrTime: true,
-      start: async () => 0,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.CANTO]: {
-      fetch: graphs()(CHAIN.CANTO),
-      runAtCurrTime: true,
-      start: async () => 0,
-      meta: {
-        methodology
-      }
-    },
+    // disable beacause api is not include chain moonriver and canto yet
+    // [CHAIN.MOONRIVER]: {
+    //   fetch: graphs()(CHAIN.MOONRIVER),
+    //   // runAtCurrTime: true,
+    //   start: async () => 1698019200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
+    // [CHAIN.CANTO]: {
+    //   fetch: graphs()(CHAIN.CANTO),
+    //   // runAtCurrTime: true,
+    //   start: async () => 1698019200,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
     [CHAIN.ERA]: {
       fetch: graphs()(CHAIN.ERA),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
     },
     [CHAIN.FANTOM]: {
       fetch: graphs()(CHAIN.FANTOM),
-      runAtCurrTime: true,
-      start: async () => 0,
+      // runAtCurrTime: true,
+      start: async () => 1698019200,
       meta: {
         methodology
       }
