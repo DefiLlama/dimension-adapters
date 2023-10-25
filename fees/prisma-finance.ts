@@ -1,52 +1,51 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
-
-const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const topic1 = '0x0000000000000000000000000000000000000000000000000000000000000000';
-const topic2 = '0x000000000000000000000000fdce0267803c6a0d209d3721d2f01fd618e9cbf8';
-
-const mkUSDAddress = '0x4591dbff62656e7859afe5e45f6f47d3669fbb28';
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
+import postgres from "postgres";
+interface IFee {
+  value: number;
+  contract_address: string;
 }
-
-const fetch = async (timestamp: number) => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+  const sql = postgres(process.env.INDEXA_DB!);
   try {
-      const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
-      const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-      const logs: ILog[] = (await sdk.api.util.getLogs({
-        target: mkUSDAddress,
-        topic: '',
-        fromBlock: fromBlock,
-        toBlock: toBlock,
-        topics: [topic0, topic1, topic2],
-        keys: [],
-        chain: CHAIN.ETHEREUM
-      })).output as ILog[];
-
-      const mkUSD = `${CHAIN.ETHEREUM}:${mkUSDAddress.toLowerCase()}`;
-      const mkUSDPrice = (await getPrices([mkUSD], timestamp))[mkUSD]?.price | 1;
-      const fees: number[] = logs.map((e: ILog) => {
-        const amount = Number(e.data) / 10 ** 18;
-        return amount;
+      const now = new Date(timestamp * 1e3);
+      const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
+      const logsTranferERC20: any[] = (await sql`
+        SELECT
+          '0x' || encode(data, 'hex') AS value,
+          '0x' || encode(contract_address, 'hex') AS contract_address
+        FROM
+          ethereum.event_logs
+        WHERE
+          block_number > 17913327
+          AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+          AND topic_2 = '\\x000000000000000000000000fdce0267803c6a0d209d3721d2f01fd618e9cbf8'
+          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+      `)
+      const rawData: IFee[] = logsTranferERC20.map((p: any) => {
+        return {
+          value: Number(p.value),
+          contract_address: p.contract_address
+        } as IFee
       });
-
-      const dailyFee = fees.reduce((a: number, b: number) => a+b, 0) * mkUSDPrice; // mkUSD
+      const coins = [...new Set(rawData.map((p: any) => `${CHAIN.ETHEREUM}:${p.contract_address}`))];
+      const prices = await getPrices(coins, timestamp);
+      const dailyFees = rawData.reduce((a: number, b: IFee) => {
+        const price = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`].price;
+        const decimals = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`].decimals;
+        const value = b.value / 10 ** decimals;
+        return a + (value * price);
+      }, 0);
+      sql.end({ timeout: 3 })
       return {
-        dailyUserFees: dailyFee.toString(),
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
+        dailyFees: dailyFees.toString(),
         timestamp
       }
   } catch (error) {
+    sql.end({ timeout: 3 })
     console.error(error);
     throw error;
   }
