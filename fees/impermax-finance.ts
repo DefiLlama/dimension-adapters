@@ -6,6 +6,11 @@ import fetchURL from "../utils/fetchURL";
 // may result in calculated fees and revenue being lower than what is real
 const yieldPool = "https://yields.llama.fi/pools";
 
+const methodology = {
+  Fees: "Fees are calculated as 90% of the borrowing fees for qualified pools, paid by the borrowers to the lenders.",
+  Revenue: "Revenue is the remaining 10% of all collected borrowing fees and go to the protocol.",
+}
+
 interface IYield {
   apyBase: number;
   project: string;
@@ -42,41 +47,65 @@ const adapter: Adapter = {
       fetch: graphs()(CHAIN.ETHEREUM),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.POLYGON]: {
       fetch: graphs()(CHAIN.POLYGON),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.AVAX]: {
       fetch: graphs()(CHAIN.AVAX),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.MOONRIVER]: {
       fetch: graphs()(CHAIN.MOONRIVER),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.CANTO]: {
       fetch: graphs()(CHAIN.CANTO),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.ERA]: {
       fetch: graphs()(CHAIN.ERA),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.FANTOM]: {
       fetch: graphs()(CHAIN.FANTOM),
       runAtCurrTime: true,
       start: async () => 0,
+      meta: {
+        methodology
+      }
     },
   },
 }
