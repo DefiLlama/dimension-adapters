@@ -67,7 +67,6 @@ export const tokensQuery = gql`
   query {
     tokens(first: 1000) {
       id
-      name
       decimals
     }
   }
@@ -105,19 +104,13 @@ export const getAllDailyTokenRecords = async (
   chain: Chain,
   timestamp: number
 ): Promise<DailyTokenRecords> => {
-  const {
-    tokens,
-  }: { tokens: { name: string; id: string; decimals: number }[] } =
+  const { tokens }: { tokens: { id: string; decimals: number }[] } =
     await request(graphUrls[chain], tokensQuery);
 
   let allDailyTokenRecords: DailyTokenRecords = {};
 
   const promises = tokens.map(async (token) => {
-    let tokenName = token.name;
-    while (tokenName.includes(" ") || tokenName.includes(" (Arb1)")) {
-      tokenName = tokenName.replace(" (Arb1)", "").replace(" ", "-");
-    }
-    const key = `${tokenName.toLowerCase()}:${token.id}`;
+    const key = `${chain}:${token.id}`;
 
     allDailyTokenRecords[key] = [];
 
