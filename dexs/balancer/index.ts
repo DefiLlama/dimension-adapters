@@ -1,10 +1,10 @@
-import { ChainEndpoints, BreakdownAdapter, BaseAdapter, FetchResultVolume } from "../../adapters/types";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
-import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import request, { gql } from "graphql-request";
+import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
@@ -15,7 +15,8 @@ const endpoints: ChainEndpoints = {
     "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2"
+  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest"
 };
 
 const graphParams = {

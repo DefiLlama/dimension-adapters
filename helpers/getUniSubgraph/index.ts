@@ -168,7 +168,7 @@ function getGraphDimensions({
 
     const dailyVolumePairsQuery = blacklistTokens[chain] ? gql`
     query daily_volume_byPair ($timestamp_gt: Int, $timestamp_lte: Int) {
-      pairDayDatas(where:{${graphFieldsDailyVolume.dateField}_gt: $timestamp_gt, ${graphFieldsDailyVolume.dateField}_lte: $timestamp_lte}){
+      pairDayDatas(where:{${graphFieldsDailyVolume.dateField}_gt: $timestamp_gt, ${graphFieldsDailyVolume.dateField}_lte: $timestamp_lte, ${graphFieldsDailyVolume.field}_not: 0}, orderBy: ${graphFieldsDailyVolume.field}, orderDirection: desc, first: 1000){
         date
         token0{
           symbol

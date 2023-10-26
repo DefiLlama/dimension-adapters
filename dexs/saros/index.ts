@@ -1,5 +1,6 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 import fetchURL from "../../utils/fetchURL"
 
@@ -26,6 +27,7 @@ const graphs = (chain: string) => async (timestamp: number) => {
 // @TODO check and backfill
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {
       fetch: graphs(CHAIN.SOLANA),
       runAtCurrTime: true,

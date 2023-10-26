@@ -2,7 +2,11 @@ import { utils } from "ethers";
 import { request, gql } from "graphql-request";
 
 interface GqlResult {
-  factoryDayData: {
+  today: {
+    volumeUSD: string;
+    premiumsUSD: string;
+  };
+  yesterday: {
     volumeUSD: string;
     premiumsUSD: string;
   };
@@ -10,6 +14,7 @@ interface GqlResult {
     volumeUSD: string;
     premiumsUSD: string;
   }>;
+
 }
 
 const chainDataQuery = gql`
@@ -51,10 +56,16 @@ async function getChainData(
   url: string,
   timestamp: number
 ): Promise<ChainData> {
+  const fromTimestamp = timestamp - 60 * 60 * 24;
   const dailyId = Math.floor(timestamp / 86400);
+  const yesterdayId = Math.floor(fromTimestamp / 86400);
   const query = gql`
   {
-      factoryDayData(id: ${dailyId}) {
+      today:factoryDayData(id: ${dailyId}) {
+        volumeUSD
+        premiumsUSD
+      }
+      yesterday:factoryDayData(id: ${yesterdayId}) {
         volumeUSD
         premiumsUSD
       }
@@ -64,11 +75,11 @@ async function getChainData(
       }
   }
   `
-  const { factoryDayData, factories }: GqlResult = await request(url, query);
-  const dailyPremiumVolume = toNumber(factoryDayData?.premiumsUSD || '0');
-  const dailyNotionalVolume = toNumber(factoryDayData?.volumeUSD || '0');
-  const totalPremiumVolume = toNumber(factories[0]?.premiumsUSD || '0');
-  const totalNotionalVolume = toNumber(factories[0]?.volumeUSD || '0');
+  const  response :GqlResult = await request(url, query);
+  const dailyPremiumVolume = toNumber(response.today?.premiumsUSD || '0') - toNumber(response.yesterday?.premiumsUSD || '0');
+  const dailyNotionalVolume = toNumber(response.today?.volumeUSD || '0') - toNumber(response.yesterday?.volumeUSD || '0');
+  const totalPremiumVolume = toNumber(response.factories[0]?.premiumsUSD || '0') - toNumber(response.factories[1]?.premiumsUSD || '0');
+  const totalNotionalVolume = toNumber(response.factories[0]?.volumeUSD || '0') - toNumber(response.factories[1]?.volumeUSD || '0');
 
   return {
     timestamp,

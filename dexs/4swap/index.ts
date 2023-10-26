@@ -1,7 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, type SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const URL = "https://mtgswap-api.fox.one/api/pairs"
 
@@ -23,6 +24,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.MIXIN]: {
       fetch,
       runAtCurrTime: true,

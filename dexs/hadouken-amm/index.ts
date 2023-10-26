@@ -1,11 +1,12 @@
-import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
+import { ChainEndpoints, DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import customBackfill from "../../helpers/customBackfill";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.GODWOKEN_V1]: "https://graph-multi-http-hadouken.hadouken.finance/subgraphs/name/balancer-mainnet",
+  [CHAIN.GODWOKEN_V1]: "https://graph-prod-http-hadouken-prod.hadouken.finance/subgraphs/name/balancer-godwoken-mainnet",
 };
 
 const graphParams = {

@@ -1,8 +1,9 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { FANTOM } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains"
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";;
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const yieldPool = "https://api.geist.finance/api/dailyFees";
 
@@ -39,6 +40,7 @@ const graphs = () => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
         start: async () => 1633478400,

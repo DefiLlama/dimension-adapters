@@ -22,8 +22,7 @@ const rtokenCreationAbi =
 const deployerInterface = new ethers.utils.Interface([rtokenCreationAbi]);
 
 const endpoints = {
-  [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/lcamargof/reserve-test",
+  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/lcamargof/reserve",
 };
 
 const graphQuery = gql`

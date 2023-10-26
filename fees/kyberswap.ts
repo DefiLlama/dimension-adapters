@@ -30,8 +30,9 @@ const elasticEndpoints: TEndpoint = elasticChains.reduce((acc, chain) => ({
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-one",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
-  [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea"
-  // [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
+  [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
+  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
+  [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base",
   // [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos",
   // [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas",
   // [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis",
@@ -59,7 +60,9 @@ const classicEndpoints: TEndpoint = [...elasticChains, "aurora"].reduce((acc, ch
   cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-cronos",
   arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-arbitrum",
   [CHAIN.ERA]: "https://zksync-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-zksync",
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/kybernetwork/kyberswap-classic-linea"
+  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/kybernetwork/kyberswap-classic-linea",
+  [CHAIN.POLYGON_ZKEVM]: "https://polygon-zkevm-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-polygon-zkevm",
+  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-bttc"
 } as any);
 
 const methodology = {
@@ -142,10 +145,21 @@ interface IPoolData {
 const graphsClassic = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const fromTimestamp = todayTimestamp - 60 * 60 * 24
+    const toTimestamp = todayTimestamp
     const graphQuery = gql
       `
       {
-        poolDayDatas(first:1000, orderBy:dailyFeeUSD, orderDirection: desc) {
+        poolDayDatas(
+          first:1000
+          orderBy:dailyFeeUSD
+          orderDirection: desc
+          where: {
+            date_gte: ${fromTimestamp}
+            date_lte: ${toTimestamp}
+            dailyFeeUSD_gt:0
+          }
+        ) {
           date
           dailyFeeUSD
         }
@@ -153,8 +167,8 @@ const graphsClassic = (chain: Chain) => {
     `;
 
     const graphRes: IPoolData[] = (await request(classicEndpoints[chain], graphQuery)).poolDayDatas;
-    const dailyFeeUSD = graphRes.find(e => Number(e.date) === todayTimestamp)
-    const dailyFee = dailyFeeUSD?.dailyFeeUSD ? new BigNumber(dailyFeeUSD.dailyFeeUSD) : undefined
+    const dailyFeeUSD = graphRes.reduce((a: number, b: IPoolData) => a + Number(b.dailyFeeUSD), 0)
+    const dailyFee = new BigNumber(dailyFeeUSD)
     if (dailyFee === undefined) return { timestamp }
 
     return {
