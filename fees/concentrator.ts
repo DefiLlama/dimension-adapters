@@ -24,28 +24,36 @@ const graph = (graphUrls: ChainEndpoints) => {
                     }
                 }`;
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
-      Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
-        graphRes.dailyRevenueSnapshot[k] = new BigNumber(
-          graphRes.dailyRevenueSnapshot[k]
-        );
-      });
-      const snapshot = graphRes.dailyRevenueSnapshot;
+      try {
+        const graphRes = await request(graphUrls[chain], graphQuery);
+        Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
+          graphRes.dailyRevenueSnapshot[k] = new BigNumber(
+            graphRes.dailyRevenueSnapshot[k]
+          );
+        });
+        const snapshot = graphRes.dailyRevenueSnapshot;
 
-      const coins = ["aladdin-cvxcrv"].map((item) => `coingecko:${item}`);
-      const coinsUnique = [...new Set(coins)];
-      const prices = await getPrices(coinsUnique, timestamp);
-      const aCRVPrice = prices["coingecko:aladdin-cvxcrv"];
+        const coins = ["aladdin-cvxcrv"].map((item) => `coingecko:${item}`);
+        const coinsUnique = [...new Set(coins)];
+        const prices = await getPrices(coinsUnique, timestamp);
+        const aCRVPrice = prices["coingecko:aladdin-cvxcrv"];
 
-      const dailyRevenue = snapshot.aCRVRevenue.times(aCRVPrice.price);
+        const dailyRevenue = snapshot.aCRVRevenue.times(aCRVPrice.price);
 
-      const dailyFees = dailyRevenue * 2;
+        const dailyFees = dailyRevenue * 2;
 
-      return {
-        timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-      };
+        return {
+          timestamp,
+          dailyFees: dailyFees.toString(),
+          dailyRevenue: dailyRevenue.toString(),
+        };
+      } catch (error) {
+        return {
+          timestamp,
+          dailyFees: "0",
+          dailyRevenue: "0",
+        };
+      }
     };
   };
 };

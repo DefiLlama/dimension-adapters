@@ -25,34 +25,42 @@ const graph = (graphUrls: ChainEndpoints) => {
                     }
                 }`;
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
-      Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
-        graphRes.dailyRevenueSnapshot[k] = new BigNumber(
-          graphRes.dailyRevenueSnapshot[k]
+      try {
+        const graphRes = await request(graphUrls[chain], graphQuery);
+        Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
+          graphRes.dailyRevenueSnapshot[k] = new BigNumber(
+            graphRes.dailyRevenueSnapshot[k]
+          );
+        });
+        const snapshot = graphRes.dailyRevenueSnapshot;
+
+        const coins = ["convex-finance", "frax"].map(
+          (item) => `coingecko:${item}`
         );
-      });
-      const snapshot = graphRes.dailyRevenueSnapshot;
+        const coinsUnique = [...new Set(coins)];
+        const prices = await getPrices(coinsUnique, timestamp);
+        const cvxPrice = prices["coingecko:convex-finance"];
+        const fraxPrice = prices["coingecko:frax"];
 
-      const coins = ["convex-finance", "frax"].map(
-        (item) => `coingecko:${item}`
-      );
-      const coinsUnique = [...new Set(coins)];
-      const prices = await getPrices(coinsUnique, timestamp);
-      const cvxPrice = prices["coingecko:convex-finance"];
-      const fraxPrice = prices["coingecko:frax"];
+        const cvxRevenue = snapshot.cvxRevenue.times(cvxPrice.price);
+        const fraxRevenue = snapshot.fraxRevenue.times(fraxPrice.price);
 
-      const cvxRevenue = snapshot.cvxRevenue.times(cvxPrice.price);
-      const fraxRevenue = snapshot.fraxRevenue.times(fraxPrice.price);
+        const dailyRevenue = cvxRevenue.plus(fraxRevenue);
 
-      const dailyRevenue = cvxRevenue.plus(fraxRevenue);
+        const dailyFees = dailyRevenue * 2;
 
-      const dailyFees = dailyRevenue * 2;
-
-      return {
-        timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-      };
+        return {
+          timestamp,
+          dailyFees: dailyFees.toString(),
+          dailyRevenue: dailyRevenue.toString(),
+        };
+      } catch (error) {
+        return {
+          timestamp,
+          dailyFees: "0",
+          dailyRevenue: "0",
+        };
+      }
     };
   };
 };
