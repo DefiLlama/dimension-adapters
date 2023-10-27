@@ -16,7 +16,6 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
-      console.log(timestamp, dateId);
 
       const graphQuery = gql`{
                     dailyRevenueSnapshot(id: ${dateId}) {
