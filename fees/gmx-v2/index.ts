@@ -23,6 +23,9 @@ const fetch = (chain: Chain) => {
       const total_fees = daily?.total_fees;
       return {
         dailyFees:`${dailyFees}`,
+        dailyRevenue: `${dailyFees*0.37}`,
+        dailyProtocolRevenue: `${dailyFees*0.1}`,
+        dailyHoldersRevenue: `${dailyFees*0.27}`,
         totalFees: `${total_fees}`,
         timestamp,
       };
