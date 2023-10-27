@@ -65,10 +65,22 @@ const endpointsPerps: { [key: string]: string } = {
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: {period: $period, id: $id}) {
-        swap
+        liquidation
+        margin
       }
   }
 `
+
+const historicalOI = gql`
+  query get_trade_stats($period: String!, $id: String!) {
+    tradingStats(where: {period: $period, id: $id}) {
+      id
+      longOpenInterest
+      shortOpenInterest
+    }
+  }
+`
+
 
 interface IGraphResponse {
   volumeStats: Array<{
@@ -80,10 +92,18 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+interface IGraphResponseOI {
+  tradingStats: Array<{
+    id: string,
+    longOpenInterest: string,
+    shortOpenInterest: string,
+  }>
+}
+
+const getFetch = (query: string)=> (chain: string): any => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpointsPerps[chain], query, {
-    id: String(dayTimestamp),
+    id: String(dayTimestamp) + ':daily',
     period: 'daily',
   })
   const totalData: IGraphResponse = await request(endpointsPerps[chain], query, {
@@ -91,8 +111,20 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     period: 'total',
   })
 
+  const tradingStats: IGraphResponseOI = await request(endpointsPerps[chain], historicalOI, {
+    id: String(dayTimestamp) + ':daily',
+    period: 'daily',
+  })
+
+  const dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
+  const dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
+  const dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+
   return {
     timestamp: dayTimestamp,
+    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
+    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+    dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
