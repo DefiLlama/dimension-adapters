@@ -1,9 +1,10 @@
 import customBackfill from "../../helpers/customBackfill";
-import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
-import type { Chain } from "@defillama/sdk/build/general";
+import type { Fetch, ChainEndpoints, BreakdownAdapter } from "../../adapters/types";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import request, { gql } from "graphql-request";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
@@ -23,34 +24,110 @@ const graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "volume",
-    UserFees: 0.25,
-    SupplySideRevenue: 0.17,
-    ProtocolRevenue: 0.08,
+    UserFees: 0.30,
+    SupplySideRevenue: 0.25,
+    ProtocolRevenue: 0.05,
     Revenue: 0.25,
-    Fees: 0.25,
+    Fees: 0.30,
   }
 });
 
+const endpointsV3 = {
+  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/chimpydev/swapbased-algebra-core",
+};
+const graphsV3 = getChainVolume({
+  graphUrls: endpointsV3,
+  totalVolume: {
+    factory: "factories",
+    field: "totalVolumeUSD",
+  },
+  dailyVolume: {
+    factory: "algebraDayData",
+    field: "volumeUSD",
+    dateField: "date"
+  },
+});
+
 const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  SupplySideRevenue: "LPs receive 0.17% of each swap.",
-  ProtocolRevenue: "Treasury receives 0.08% of each swap.",
+  UserFees: "User pays 0.30% fees on each swap.",
+  SupplySideRevenue: "LPs receive 0.25% of each swap.",
+  ProtocolRevenue: "Treasury receives 0.05% of each swap.",
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user.",
 };
 
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: graphs(chain as Chain),
+/* PERPS */
+
+const endpointsPerps: { [key: string]: string } = {
+  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/chimpydev/swapbased-perps-core",
+}
+
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+        swap
+      }
+  }
+`
+
+interface IGraphResponse {
+  volumeStats: Array<{
+    burn: string,
+    liquidation: string,
+    margin: string,
+    mint: string,
+    swap: string,
+  }>
+}
+
+const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+  const dailyData: IGraphResponse = await request(endpointsPerps[chain], query, {
+    id: String(dayTimestamp),
+    period: 'daily',
+  })
+  const totalData: IGraphResponse = await request(endpointsPerps[chain], query, {
+    id: 'total',
+    period: 'total',
+  })
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+    totalVolume:
+      totalData.volumeStats.length == 1
+        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+
+  }
+}
+
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    v2: {
+      [CHAIN.BASE]: {
+        fetch: graphs(CHAIN.BASE),
         start: async () => 1690495200,
-        customBackfill: customBackfill(chain, graphs),
+        customBackfill: customBackfill(CHAIN.BASE, graphs),
         meta: { methodology },
       }
+    },
+    v3: {
+      [CHAIN.BASE]: {
+        fetch: graphsV3(CHAIN.BASE),
+        start: async () => 1690443269,
+      }
+    },
+    perps: {
+      [CHAIN.BASE]: {
+        fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
+        start: async () => 1688913853,
+      }
     }
-  }, {})
+  },
 };
 
 export default adapter;
