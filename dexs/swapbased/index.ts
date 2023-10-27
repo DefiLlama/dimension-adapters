@@ -116,9 +116,9 @@ const getFetch = (query: string)=> (chain: string): any => async (timestamp: num
     period: 'daily',
   })
 
-  const dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
-  const dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
-  const dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+  const dailyOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
+  const dailyLongOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
+  const dailyShortOpenInterest = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
 
   return {
     timestamp: dayTimestamp,
