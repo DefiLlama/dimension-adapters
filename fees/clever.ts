@@ -16,7 +16,7 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
-      console.log(dateId);
+      console.log(timestamp, dateId);
 
       const graphQuery = gql`{
                     dailyRevenueSnapshot(id: ${dateId}) {
@@ -25,42 +25,42 @@ const graph = (graphUrls: ChainEndpoints) => {
                     }
                 }`;
 
-      try {
-        const graphRes = await request(graphUrls[chain], graphQuery);
-        Object.keys(graphRes.dailyRevenueSnapshot).map(function (k) {
-          graphRes.dailyRevenueSnapshot[k] = new BigNumber(
-            graphRes.dailyRevenueSnapshot[k]
-          );
-        });
-        const snapshot = graphRes.dailyRevenueSnapshot;
-
-        const coins = ["convex-finance", "frax"].map(
-          (item) => `coingecko:${item}`
-        );
-        const coinsUnique = [...new Set(coins)];
-        const prices = await getPrices(coinsUnique, timestamp);
-        const cvxPrice = prices["coingecko:convex-finance"];
-        const fraxPrice = prices["coingecko:frax"];
-
-        const cvxRevenue = snapshot.cvxRevenue.times(cvxPrice.price);
-        const fraxRevenue = snapshot.fraxRevenue.times(fraxPrice.price);
-
-        const dailyRevenue = cvxRevenue.plus(fraxRevenue);
-
-        const dailyFees = dailyRevenue * 2;
-
-        return {
-          timestamp,
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: dailyRevenue.toString(),
-        };
-      } catch (error) {
+      const { dailyRevenueSnapshot } = await request(
+        graphUrls[chain],
+        graphQuery
+      );
+      if (!dailyRevenueSnapshot) {
         return {
           timestamp,
           dailyFees: "0",
           dailyRevenue: "0",
         };
       }
+      Object.keys(dailyRevenueSnapshot).map(function (k) {
+        dailyRevenueSnapshot[k] = new BigNumber(dailyRevenueSnapshot[k]);
+      });
+      const snapshot = dailyRevenueSnapshot;
+
+      const coins = ["convex-finance", "frax"].map(
+        (item) => `coingecko:${item}`
+      );
+      const coinsUnique = [...new Set(coins)];
+      const prices = await getPrices(coinsUnique, timestamp);
+      const cvxPrice = prices["coingecko:convex-finance"];
+      const fraxPrice = prices["coingecko:frax"];
+
+      const cvxRevenue = snapshot.cvxRevenue.times(cvxPrice.price);
+      const fraxRevenue = snapshot.fraxRevenue.times(fraxPrice.price);
+
+      const dailyRevenue = cvxRevenue.plus(fraxRevenue);
+
+      const dailyFees = dailyRevenue * 2;
+
+      return {
+        timestamp,
+        dailyFees: dailyFees.toString(),
+        dailyRevenue: dailyRevenue.toString(),
+      };
     };
   };
 };
