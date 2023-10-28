@@ -14,8 +14,11 @@ interface IFee {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     try {
-      const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3084798" : "3084801"))
-      // const fees: IFee[] = require(`./${chain}.json`);
+      // const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3084798" : "3084801"))
+      // const fs = require('fs');
+      // const path = require('path');
+      // fs.writeFileSync(path.resolve(__dirname, `./${chain}.json`), JSON.stringify(fees));
+      const fees: IFee[] = require(`./${chain}.json`);
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
       const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
       const daily = fees.find(fee => fee.time.split(' ')[0] === dateString);
