@@ -14,7 +14,8 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: async (ts: string) => await getChainData(ts),
         start: async () => 1697700660,
-        customBackfill: async (ts: string) => await getChainData(ts),
+        customBackfill: async (ts: string) =>
+          await getChainData(ts, "1697700660"),
       },
     };
   }, {}),
