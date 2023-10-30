@@ -120,6 +120,7 @@ export enum CHAIN {
   ERGO = "ergo",
   SHIMMER_EVM = "shimmer_evm",
   MEER = "meer",
+  SCROLL = "scroll"
 }
 
 // Don´t use
