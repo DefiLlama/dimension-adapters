@@ -61,7 +61,7 @@ const adapter: Adapter = {
                     dailyFees: dailyFees.toString(),
                 };
             },
-            start: async () => 1633478400, //Wed Oct 06 2021 00:00:00 GMT+0000
+            start: async () => 1690070400,
         },
     },
 }
