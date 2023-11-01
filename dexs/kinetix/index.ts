@@ -4,8 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.KAVA]:
-    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kfi-subgraph",
+  [CHAIN.KAVA]: "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kfi-subgraph",
 };
 
 const historicalData = gql`
@@ -78,7 +77,7 @@ const getFetch =
 
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.KAVA]: 1654041600,
+    [CHAIN.KAVA]: 1693267200,
   };
   return startTimestamps[chain];
 };
@@ -90,7 +89,6 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: getFetch(chain),
         start: async () => getStartTimestamp(chain),
-        runAtCurrTime: true,
       },
     };
   }, {}),
