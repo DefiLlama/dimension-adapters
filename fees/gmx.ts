@@ -6,8 +6,8 @@ import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-stats",
-  [AVAX]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-stats"
+  [ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api",
+  [AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api"
 }
 
 const methodology = {

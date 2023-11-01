@@ -5,59 +5,47 @@ import { getBalance } from "@defillama/sdk/build/eth";
 import { Adapter, ChainBlocks, FetchResultFees, ProtocolType } from "../adapters/types";
 import { getPrices } from "../utils/prices";
 import { queryFlipside } from "../helpers/flipsidecrypto";
+const retry = require("async-retry")
 
 async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: ChainBlocks){
   const todaysBlock = (await getBlock(toTimestamp,CHAIN.OP_BNB, chainBlocks));
   const yesterdaysBlock = (await getBlock(fromTimestamp,CHAIN.OP_BNB, {}));
 
-  const feeWallet = '0x4200000000000000000000000000000000000011';
-  const l1FeeVault = '0x420000000000000000000000000000000000001a';
-  const baseFeeVault = '0x4200000000000000000000000000000000000019';
-
-  const [
-      feeWalletStart,
-      feeWalletEnd,
-      l1FeeVaultStart,
-      l1FeeVaultEnd,
-      baseFeeVaultStart,
-      baseFeeVaultEend
-  ] = await Promise.all([
-      getBalance({
+  return await retry(async () => {
+    try {
+      const feeWallet = '0x4200000000000000000000000000000000000011';
+      const l1FeeVault = '0x420000000000000000000000000000000000001a';
+      const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = await Promise.all([
+        getBalance({
           target: feeWallet,
           block: yesterdaysBlock,
           chain:CHAIN.OP_BNB
-      }),
-      getBalance({
+        }),
+        getBalance({
           target: feeWallet,
           block: todaysBlock,
           chain:CHAIN.OP_BNB
-      }),
-      getBalance({
+        }),
+        getBalance({
           target: l1FeeVault,
           block: yesterdaysBlock,
           chain:CHAIN.OP_BNB
-      }),
-      getBalance({
+        }),
+        getBalance({
           target: l1FeeVault,
           block: todaysBlock,
           chain:CHAIN.OP_BNB
-      }),
-      getBalance({
-          target: baseFeeVault,
-          block: yesterdaysBlock,
-          chain:CHAIN.OP_BNB
-      }),
-      getBalance({
-          target: baseFeeVault,
-          block: todaysBlock,
-          chain:CHAIN.OP_BNB
-      })
-  ])
-  const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
-      .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
-      .plus((new BigNumber(baseFeeVaultEend.output).minus(baseFeeVaultStart.output)))
+        })
+      ]);
 
-  return (ethBalance.plus(0)).div(1e18)
+      const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
+          .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
+
+      return (ethBalance.plus(0)).div(1e18)
+    } catch (e) {
+      throw e;
+    }
+  }, { retries: 5, minTimeout: 1000 * 60 * 5  });
 }
 
 const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {

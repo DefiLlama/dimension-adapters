@@ -5,7 +5,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats",
+    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats-new",
   [CHAIN.BSC]:
     "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
 };
@@ -62,7 +62,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: async () => 1677883020,
+      start: async () => 1690020000,
       meta: {
         methodology,
       },

@@ -55,7 +55,7 @@ const fetchRequests = (chain: Chain) => {
         logs.TOPICS[0] = '0x9e9bc7616d42c2835d05ae617e508454e63b30b934be8aa932ebc125e0e58a64'
         AND logs.BLOCK_NUMBER > ${fromBlock} AND logs.BLOCK_NUMBER < ${toBlock}`
 
-    const linkPaid_logs: ILog[] = (await queryFlipside(query_paid))
+    const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 260))
       .map(([data, topics, transactionHash]: [string, string[], string]) => {
         return {
           data,
@@ -69,7 +69,7 @@ const fetchRequests = (chain: Chain) => {
       const payments = Number('0x'+data.slice(128, 192)) / 10 ** 18;
       return payments;
     }).reduce((a: number, b: number) => a + b, 0);
-    const ethGas = await queryFlipside(gas_query)
+    const ethGas = await queryFlipside(gas_query, 210)
 
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];

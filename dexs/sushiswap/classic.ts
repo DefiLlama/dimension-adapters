@@ -4,6 +4,9 @@ import {
   CHAIN,
 } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import {
+  getChainVolumeWithGasToken,
+}  from "../../helpers/getUniSubgraphVolume";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -42,6 +45,9 @@ const blacklistTokens = {
     "0xf842a419bad027e962918ab795964f169f4c1692", // COCO
     "0x52d8ca895d215843886324899d8855a95e60456c", // ARB SCAM
     "0xde204d12c04188c5b069887fc4aed5a61df51496" // MEEET
+  ],
+  [CHAIN.ETHEREUM]: [
+    "0xcbaf9d3e0cae494cd77e49621995062107848a5b"
   ]
 }
 
@@ -49,14 +55,14 @@ const endpointsClassic = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
+  //[CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
   [CHAIN.HARMONY]: "https://api.thegraph.com/subgraphs/name/sushiswap/harmony-exchange",
-  [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
+  // [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
-  [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
+  // [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
   [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
   [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
 };
@@ -126,6 +132,24 @@ const classic = Object.keys(endpointsClassic).reduce(
     },
   }),
   {}
-);
+) as any;
+
+classic[CHAIN.FANTOM] = {
+  fetch: getChainVolumeWithGasToken({
+    graphUrls: {
+      [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
+    },
+    totalVolume: {
+      factory: "factories",
+      field: 'volumeETH',
+    },
+    dailyVolume: {
+      factory: "dayData",
+      field: 'volumeETH',
+      dateField: "date"
+    },
+  } as any)("fantom"),
+  start: async()=>0
+}
 
 export default classic

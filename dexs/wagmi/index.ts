@@ -3,7 +3,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/4540/wagmi-zksync-era/v0.05",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/0xfantaholic/wagmi-fantom-backup"
+  [CHAIN.KAVA]: "https://kava.graph.wagmi.com/subgraphs/name/v3"
 }, {
   factoriesName: "factories",
   dayData: "uniswapDayData",
@@ -12,5 +12,5 @@ const adapters = univ2Adapter({
 });
 
 adapters.adapter.era.start = async () => 1681257600;
-adapters.adapter.fantom.start = async () => 1681603200;
+adapters.adapter.kava.start = async () => 1694476800;
 export default adapters;

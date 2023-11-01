@@ -44,7 +44,7 @@ const graph = (chain: Chain) => {
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
       `
 
-      const value: string[] = (await queryFlipside(query)).flat();
+      const value: string[] = (await queryFlipside(query, 210)).flat();
       const rawData = value.map((a: string) => {
         const data = a.replace('0x5f575529', '');
         const address = data.slice(64, 128);
@@ -67,6 +67,7 @@ const graph = (chain: Chain) => {
       const volumeUSD: number = rawData.map((e: IVolume) => {
         const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
         const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
+        if (!price || !decimals) return 0;
         return (Number(e.amount) / 10 ** decimals) * price;
       }).filter((a: number) => !isNaN(a))
         .filter((a: number) => a < 100_000_000)

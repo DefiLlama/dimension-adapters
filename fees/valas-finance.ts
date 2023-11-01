@@ -1,7 +1,8 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const yieldPool = "https://api.valasfinance.com/api/dailyFees";
 
@@ -38,6 +39,7 @@ const graphs = () => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
         fetch: graphs()(CHAIN.BSC),
         start: async () => 1647734400,
