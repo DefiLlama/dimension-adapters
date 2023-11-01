@@ -19,7 +19,7 @@ const adapters: BreakdownAdapter = {
       [CHAIN.RADIXDLT]: {
         fetch: fetchSpot,
         start: async () => 1698710400,
-        runAtCurrTime: true
+        // runAtCurrTime: true
       }
     },
     aggregator: {
@@ -35,7 +35,7 @@ const adapters: BreakdownAdapter = {
           }
         },
         start: async () => 1698710400,
-        runAtCurrTime: true
+        // runAtCurrTime: true
       }
     }
   }
