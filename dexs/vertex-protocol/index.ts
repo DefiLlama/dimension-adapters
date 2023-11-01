@@ -14,11 +14,13 @@ interface IProducts {
   margined_products: number[];
 }
 
-const baseUrl = "https://api.prod.vertexprotocol.com";
+const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
+const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 
 const fetchProducts = async (): Promise<IProducts> => {
-  const allProducts = (await axios.get(`${baseUrl}/query?type=all_products`))
-    .data.data;
+  const allProducts = (
+    await axios.get(`${gatewayBaseUrl}/query?type=all_products`)
+  ).data.data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
@@ -34,7 +36,7 @@ const fetchProducts = async (): Promise<IProducts> => {
 
 const computeVolume = async (timestamp: number, productIds: number[]) => {
   const snapshots = (
-    await axios.post(`${baseUrl}/indexer`, {
+    await axios.post(archiveBaseUrl, {
       market_snapshots: {
         interval: {
           count: 2,

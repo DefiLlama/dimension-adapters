@@ -36,8 +36,8 @@ const query = async (max_time: number): Promise<Response> => {
     },
   };
 
-  const url = "https://api.prod.vertexprotocol.com";
-  const response = await axios.post(url + "/indexer", body);
+  const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
+  const response = await axios.post(archiveBaseUrl, body);
   return response.data;
 };
 
