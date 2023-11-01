@@ -134,7 +134,16 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      [CHAIN.BSC]: disabledAdapter
+      [CHAIN.BSC]: {
+        fetch: async (timestamp: number) => {
+          const totalVolume = 1033944000;
+          return {
+            totalVolume: `${totalVolume}`,
+            timestamp: timestamp
+          }
+        },
+        start: async () => 0,
+      }
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
