@@ -1,8 +1,8 @@
 import request, { gql } from "graphql-request";
-import { CHAIN } from "../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
