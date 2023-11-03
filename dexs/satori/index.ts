@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 
-const ZKEVM_URL = 'https://zk.satori.finance/api/data-center/pub/analytics/integration'
+const ZKEVM_URL = 'https://zksync.satori.finance/api/data-center/pub/overview/integration'
 const ZkSYNC_URL = 'https://zksync.satori.finance/api/data-center/pub/overview/integration'
 const SCROLL_URL = 'https://scroll.satori.finance/api/data-center/pub/overview/integration'
 const LINEA_URL = 'https://linea.satori.finance/api/data-center/pub/overview/integration'
