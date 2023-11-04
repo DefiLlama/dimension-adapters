@@ -4,7 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.KAVA]: "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kfi-subgraph",
+  [CHAIN.KAVA]:
+    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kfi-subgraph",
 };
 
 const historicalData = gql`
