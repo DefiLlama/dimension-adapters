@@ -139,7 +139,6 @@ const fetch = (chain: Chain) => {
       const decimals = prices[mapTokenPrice[e.contract.toLowerCase()]].decimals;
       return (Number(e.amount) / 10 ** decimals) * price;
     }).reduce((a: number, b: number) => a + b, 0)
-
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyFees.toString(),
@@ -166,10 +165,10 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.BSC),
       start: async ()  => 1661990400,
     },
-    [CHAIN.FANTOM]: {
-      fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1661990400,
-    },
+    // [CHAIN.FANTOM]: {
+    //   fetch: fetch(CHAIN.FANTOM),
+    //   start: async ()  => 1661990400,
+    // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: async ()  => 1661990400,
