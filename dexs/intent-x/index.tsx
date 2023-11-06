@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/base_analytics_8"
+const endpoint = "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base"
 
 const query = gql`
   query stats($from: String!, $to: String!) {
