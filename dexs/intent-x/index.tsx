@@ -73,8 +73,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: _dailyVolume,
-    totalVolume: _totalVolume,
+    dailyVolume: _dailyVolume ?? "0",
+    totalVolume: _totalVolume ?? "0",
   }
 
 }
@@ -83,7 +83,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: async () => 1698537600
+      start: async () => 1698796800
     }
   }
 }

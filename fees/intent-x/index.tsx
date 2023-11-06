@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: async () => 1698537600,
+      start: async () => 1698796800,
     },
   },
 };
