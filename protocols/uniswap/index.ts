@@ -65,7 +65,7 @@ const v3Endpoints = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-arbitrum-one",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
+  // [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
