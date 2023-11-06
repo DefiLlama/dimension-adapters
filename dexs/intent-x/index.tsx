@@ -10,7 +10,7 @@ const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/base_analy
 
 const query = gql`
   query stats($from: String!, $to: String!) {
-    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x5dE6949717F3AA8E0Fbed5Ce8B611Ebcf1e44AE9"}){
+    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x724796d2e9143920B1b58651B04e1Ed201b8cC98"}){
       timestamp
       platformFee
       accountSource
