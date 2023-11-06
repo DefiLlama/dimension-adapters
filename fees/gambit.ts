@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, BreakdownAdapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -35,9 +35,12 @@ interface ITx {
   data: string;
 }
 
-const FEE_ADDRESS_ERA = "0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d";
+const FEE_ADDRESS_V1 = {
+  [CHAIN.ERA]: "0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d",
+};
 const FEE_ADDRESS = {
-  [CHAIN.ERA]: FEE_ADDRESS_ERA
+  [CHAIN.ERA]: "0x50853A14cD14CC6A891BF034A204A15d294AF056",
+  [CHAIN.ARBITRUM]: "0x8d85f4615ea5F2Ea8D91C196aaD4C04D8416865C",
 };
 
 const BIG_TEN = new BigNumber('10');
@@ -61,15 +64,12 @@ const fetch = (address: string, chain: Chain) => {
         chain: chain,
         topics: [e.topic]
       })));
-
     const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
     const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
     const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
     const usdcVaultFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-
     const prices = await getPrices(['coingecko:usdc'], todaysTimestamp);
     const usdcPrice = prices['coingecko:usdc']?.price || 1;
-
     const dailyRevenue = devFeeValume.plus(ssFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
     const dailyFees = devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(usdcVaultFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
     return {
@@ -81,13 +81,25 @@ const fetch = (address: string, chain: Chain) => {
   }
 }
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ERA]: {
-      fetch: fetch(FEE_ADDRESS[CHAIN.ERA], CHAIN.ERA),
-      start: async () => 1684324400,
-    }
-  }
-}
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    v1: {
+      [CHAIN.ERA]: {
+        fetch: fetch(FEE_ADDRESS_V1[CHAIN.ERA], CHAIN.ERA),
+        start: async () => 1690761600, // 2023/07/31 00:00:00
+      }
+    },
+    v2: {
+      [CHAIN.ERA]: {
+        fetch: fetch(FEE_ADDRESS[CHAIN.ERA], CHAIN.ERA),
+        start: async () => 1698883200, // 2023/11/02 00:00:00
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetch(FEE_ADDRESS[CHAIN.ARBITRUM], CHAIN.ARBITRUM),
+        start: async () => 1698883200, // 2023/11/02 00:00:00
+      },
+    },
+  },
+};
 
 export default adapter;
