@@ -1,16 +1,16 @@
 import request, { gql } from "graphql-request";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/symmioanalytics_base_8"
+const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/base_analytics_8"
 
 const query = gql`
   query stats($from: String!, $to: String!) {
-    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x724796d2e9143920B1b58651B04e1Ed201b8cC98"}){
+    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x5dE6949717F3AA8E0Fbed5Ce8B611Ebcf1e44AE9"}){
       timestamp
       platformFee
       accountSource
@@ -46,68 +46,46 @@ const toString = (x: BigNumber) => {
   return x.toString()
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const response: IGraphResponse = await request(endpoint, query, {
     from: String(timestamp - ONE_DAY_IN_SECONDS),
     to: String(timestamp)
   })
 
 
-  let dailyFees = new BigNumber(0);
+  let dailyVolume = new BigNumber(0);
   response.dailyHistories.forEach(data => {
-    dailyFees = dailyFees.plus(new BigNumber(data.platformFee))
+    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume))
   });
 
-  let totalFees = new BigNumber(0);
+  let totalVolume = new BigNumber(0);
   response.totalHistories.forEach(data => {
-    totalFees = totalFees.plus(new BigNumber(data.platformFee))
+    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume))
   });
 
-  dailyFees = dailyFees.dividedBy(new BigNumber(1e18))
-  totalFees = totalFees.dividedBy(new BigNumber(1e18))
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18))
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18))
 
-  const _dailyFees = toString(dailyFees)
-  const _totalFees = toString(totalFees)
-
-  const dailyUserFees = _dailyFees;
-  const dailyRevenue = _dailyFees;
-  const dailyProtocolRevenue = '0';
-  const dailyHoldersRevenue = _dailyFees;
-  const dailySupplySideRevenue = '0';
-
-  const totalUserFees = _totalFees;
-  const totalRevenue = _totalFees;
-  const totalProtocolRevenue = '0';
-  const totalSupplySideRevenue = '0';
+  const _dailyVolume = toString(dailyVolume)
+  const _totalVolume = toString(totalVolume)
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
 
   return {
     timestamp: dayTimestamp,
-
-    dailyFees: _dailyFees,
-    totalFees: _totalFees,
-
-    dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
-    totalUserFees,
-    totalRevenue,
-    totalProtocolRevenue,
-    totalSupplySideRevenue,
+    dailyVolume: _dailyVolume,
+    totalVolume: _totalVolume,
   }
 
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: async () => 1691332847
+      start: async () => 1698537600
     }
   }
 }
+
 export default adapter;
