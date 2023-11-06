@@ -66,7 +66,7 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
           and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
         `
 
-      const value: number[] = (await queryFlipside(query)).flat();
+      const value: number[] = (await queryFlipside(query, 260)).flat();
       const cost_to_l1 = value[0]
       const bnbAddress = "bsc:0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
       const pricesObj: any = await getPrices([bnbAddress], toTimestamp);

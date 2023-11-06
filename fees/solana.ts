@@ -7,7 +7,7 @@ import { getPrices } from "../utils/prices";
 
 interface IFees {
   date: string;
-  total_tx_fees: number;
+  totalTxFees: number;
 }
 
 const adapter: Adapter = {
@@ -16,10 +16,9 @@ const adapter: Adapter = {
       fetch: async (timestamp: number) => {
         const ts = getTimestampAtStartOfDayUTC(timestamp)
         const today = new Date(ts * 1000).toISOString().split('T')[0].split('-').reverse().join('-');
+        const dailyFees: IFees = (await axios.get(`https://api.solana.fm/v0/stats/tx-fees?date=${today}`)).data.result;
 
-        const dailyFees: IFees = (await axios.get(`https://hyper.solana.fm/v3/tx-fees?date=${today}`)).data;
-
-        const solanaFee = dailyFees.total_tx_fees / 1e9;
+        const solanaFee = dailyFees.totalTxFees / 1e9;
         const pricesObj = await getPrices(["coingecko:solana"], ts);
         const usdFees = (solanaFee * pricesObj["coingecko:solana"].price);
         const dailyRevenue = usdFees * 0.5;
