@@ -91,17 +91,22 @@ const fetchOpbnb = async (timestamp: number): Promise<FetchResultFees> => {
 
 
     let _logs: ILog[] = [];
-    for(let i = fromBlock; i < toBlock; i += 5000) {
-      const logs: ILog[] = (await sdk.api.util.getLogs({
-        target: FriendV2Address,
-        topic: '',
-        toBlock: i + 5000,
-        fromBlock: i,
-        keys: [],
-        chain: CHAIN.OP_BNB,
-        topics: [topic0_trade_V2]
-      })).output as ILog[];
-      _logs = _logs.concat(logs);
+    for(let i = fromBlock; i < toBlock; i += 3400) {
+      try {
+        const logs: ILog[] = (await sdk.api.util.getLogs({
+          target: FriendV2Address,
+          topic: '',
+          toBlock: i + 3400,
+          fromBlock: i,
+          keys: [],
+          chain: CHAIN.OP_BNB,
+          topics: [topic0_trade_V2]
+        })).output as ILog[];
+        _logs = _logs.concat(logs);
+      } catch (error) {
+        // console.error(error)
+        // skip error
+      }
     }
 
     const fees_details: IFee[] = _logs.map((e: ILog) => {
