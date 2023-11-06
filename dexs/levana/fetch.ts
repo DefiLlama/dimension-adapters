@@ -10,7 +10,7 @@ export async function fetchVolume(marketAddrs: MarketAddr[], kind: "daily" | "cu
     const resp: TradeVolumeResp = (await fetchURL(url)).data;
 
     if (!resp || !resp[startDate]) {
-        throw Error(`unable to retrieve daily volume for ${startDate}`)
+        return 0;
     }
 
     const totalVolume = Object.entries(resp[startDate]).reduce((totalVolume, [marketAddr, volumePerMarket]) => {
