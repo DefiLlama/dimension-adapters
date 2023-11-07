@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
@@ -11,7 +11,7 @@ const USDC_DECIMAL = 6
 const LEVERAGE_DECIMAL = 18
 
 type IAddress = {
-  [s: string | Chain]: string
+  [s: string | Chain]: string[]
 }
 
 interface ILog {
@@ -20,53 +20,68 @@ interface ILog {
   topics: string[];
 }
 
-const contract_address_v1: IAddress = {
-  [CHAIN.ERA]: '0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d'
+const CONTRACT_ADDRESS: IAddress = {
+  [CHAIN.ERA]: ['0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d', "0x6cf71FaeA3771D56e72c72501e7172e79116E2A3", '0x50853A14cD14CC6A891BF034A204A15d294AF056'],
+  [CHAIN.ARBITRUM]: ['0x8d85f4615ea5F2Ea8D91C196aaD4C04D8416865C'],
 }
 
-const contract_address: IAddress = {
-  [CHAIN.ERA]: '0x50853A14cD14CC6A891BF034A204A15d294AF056',
-  [CHAIN.ARBITRUM]: '0x8d85f4615ea5F2Ea8D91C196aaD4C04D8416865C',
-}
-
-const fetch = (chain: Chain, contractAddress: string = contract_address[chain], decimal = LEVERAGE_DECIMAL) => {
+const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
 
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const contractAddressList = CONTRACT_ADDRESS[chain];
     try {
-      const logs_limit_ex: ILog[] = (await sdk.api.util.getLogs({
-        target: contractAddress,
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain: chain,
-        topics: [topic0_limit_ex]
-      })).output as ILog[];
+      const logs_limit_ex: ILog[] = (
+        await Promise.all(
+          contractAddressList.map(async (address) => {
+            return sdk.api.util.getLogs({
+              target: address,
+              topic: '',
+              toBlock: toBlock,
+              fromBlock: fromBlock,
+              keys: [],
+              chain: chain,
+              topics: [topic0_limit_ex],
+            });
+          })
+        )
+      ).flatMap((response) => (response as any).output) as ILog[];
 
-      const logs_market_ex: ILog[] = (await sdk.api.util.getLogs({
-        target: contractAddress,
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain: chain,
-        topics: [topic0_market_ex]
-      })).output as ILog[];
+      const logs_market_ex: ILog[] = (
+        await Promise.all(
+          contractAddressList.map(async (address) => {
+            return sdk.api.util.getLogs({
+              target: address,
+              topic: '',
+              toBlock: toBlock,
+              fromBlock: fromBlock,
+              keys: [],
+              chain: chain,
+              topics: [topic0_market_ex],
+            });
+          })
+        )
+      ).flatMap((response) => (response as any).output) as ILog[];
 
       const limit_volume = logs_limit_ex.map((e: ILog) => {
         const data = e.data.replace('0x', '');
-        const leverage = Number('0x' + data.slice(512, 576)) / 10 ** decimal;
+        let leverage = Number('0x' + data.slice(448, 512));
+        if (leverage > 1000) {
+          leverage = leverage / 10 ** LEVERAGE_DECIMAL
+        }
         const positionSizeUsdc = Number('0x' + data.slice(896, 960)) / 10 ** USDC_DECIMAL;
         return (leverage * positionSizeUsdc)
       }).reduce((a: number, b: number) => a + b, 0);
 
       const market_volume = logs_market_ex.map((e: ILog) => {
         const data = e.data.replace('0x', '');
-        const leverage = decimal != 0 ? Number('0x' + data.slice(448, 512)) / 10 ** decimal : Number('0x' + data.slice(448, 512));
+        let leverage = Number('0x' + data.slice(448, 512));
+        if (leverage > 1000) {
+          leverage = leverage / 10 ** LEVERAGE_DECIMAL
+        }
         const positionSizeUsdc = Number('0x' + data.slice(832, 896)) / 10 ** USDC_DECIMAL;
         return (leverage * positionSizeUsdc)
       }).reduce((a: number, b: number) => a + b, 0);
@@ -83,25 +98,16 @@ const fetch = (chain: Chain, contractAddress: string = contract_address[chain], 
   }
 }
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v1: {
-      [CHAIN.ERA]: {
-        fetch: fetch(CHAIN.ERA, contract_address_v1[CHAIN.ERA], 0),
-        start: async () => 1690761600, // 2023/07/31 00:00:00
-      }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
+      start: async () => 1690848000, // 2023/08/01 00:00:00
     },
-    v2: {
-      [CHAIN.ERA]: {
-        fetch: fetch(CHAIN.ERA),
-        start: async () => 1698883200, // 2023/11/02 00:00:00
-      },
-      [CHAIN.ARBITRUM]: {
-        fetch: fetch(CHAIN.ARBITRUM),
-        start: async () => 1698883200, // 2023/11/02 00:00:00
-      }
-    },
-  },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: async () => 1698883200, // 2023/11/02 00:00:00
+    }
+  }
 };
-
 export default adapter;
