@@ -6,7 +6,7 @@ const address = 'EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa'
 export default {
     adapter: {
         [CHAIN.TON]: {
-            runAtCurrTime: false,
+            runAtCurrTime: true,
             start: async () => 1698685200,
             meta: {
                 hallmarks: [
