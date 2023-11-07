@@ -6,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/2eb3a0530326/92d146b1e22261b5990c85a8b277ed8804ce4906c5e095f5311b4e4ce8ce4bf8/arbitrum-one-stats/api",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
 };
 
 type MarketStat = {
