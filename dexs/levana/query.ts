@@ -20,7 +20,7 @@ export async function queryMarketInfos({chain}:{chain: Chain}):Promise<MarketInf
     }
     const factoryAddr = factories[chain]
 
-    const marketIds = []
+    const marketIds: string[] = []
     while(true) {
         const resp:MarketsResp = await queryContract({
             chain,
