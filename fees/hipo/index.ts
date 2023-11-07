@@ -35,8 +35,6 @@ export default {
                     throw new Error('Expected a zero exit code, but got ' + getTreasuryState.exit_code)
                 }
 
-                await sleep(1000)
-
                 const response2 = await postURL('https://toncenter.com/api/v2/runGetMethod', {
                     address,
                     method: 'get_times',
@@ -89,8 +87,4 @@ function normalizer(durationInSeconds: number): ((x: number) => string) {
     return (x: number): string => {
         return (x * oneDayInSeconds / durationInSeconds).toFixed(9)
     }
-}
-
-function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
 }
