@@ -1,19 +1,19 @@
-import {Adapter, BaseAdapter, FetchResultVolume, SimpleAdapter} from "../../adapters/types";
-import {getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC} from "../../utils/date";
-import { fetchMarketAddrs, fetchVolume } from "./fetch";
-import { ChainId } from "./types";
-import { dateStr } from "./utils";
+import {FetchResultVolume, SimpleAdapter} from "../../adapters/types";
+import { fetchVolume } from "./fetch";
+import { queryMarketInfos } from "./query";
 
 const adapter: SimpleAdapter = {
-    // each of these is the time of factory instantiation
+    // start times are factory instantiation
     adapter: {
         osmosis: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
-                const marketAddrs = await fetchMarketAddrs("osmosis-1");
-                const [totalVolume, dailyVolume] = await Promise.all([
-                    getTotalVolume(marketAddrs, timestamp),
-                    getDailyVolume(marketAddrs, timestamp)
+                const marketInfos = await queryMarketInfos({chain: "osmosis"});
+
+                const [dailyVolume, totalVolume] = await Promise.all([
+                    fetchVolume("daily", marketInfos, timestamp),
+                    fetchVolume("total", marketInfos, timestamp)
                 ]);
+
                 return {
                     timestamp,
                     dailyVolume: dailyVolume.toString(),
@@ -24,11 +24,13 @@ const adapter: SimpleAdapter = {
         },
         sei: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
-                const marketAddrs = await fetchMarketAddrs("pacific-1");
-                const [totalVolume, dailyVolume] = await Promise.all([
-                    getTotalVolume(marketAddrs, timestamp),
-                    getDailyVolume(marketAddrs, timestamp)
+                const marketInfos = await queryMarketInfos({chain: "sei"});
+
+                const [dailyVolume, totalVolume] = await Promise.all([
+                    fetchVolume("daily", marketInfos, timestamp),
+                    fetchVolume("total", marketInfos, timestamp)
                 ]);
+
                 return {
                     timestamp,
                     dailyVolume: dailyVolume.toString(),
@@ -39,11 +41,13 @@ const adapter: SimpleAdapter = {
         },
         injective: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
-                const marketAddrs = await fetchMarketAddrs("injective-1");
-                const [totalVolume, dailyVolume] = await Promise.all([
-                    getTotalVolume(marketAddrs, timestamp),
-                    getDailyVolume(marketAddrs, timestamp)
+                const marketInfos = await queryMarketInfos({chain: "injective"});
+
+                const [dailyVolume, totalVolume] = await Promise.all([
+                    fetchVolume("daily", marketInfos, timestamp),
+                    fetchVolume("total", marketInfos, timestamp)
                 ]);
+
                 return {
                     timestamp,
                     dailyVolume: dailyVolume.toString(),
@@ -54,20 +58,5 @@ const adapter: SimpleAdapter = {
         }
     }
 }
-
-
-async function getTotalVolume(marketAddrs: string[], timestamp: number) {
-    const startDate = dateStr(getTimestampAtStartOfPreviousDayUTC(timestamp))
-    const endDate = dateStr(getTimestampAtStartOfDayUTC(timestamp));
-
-    return fetchVolume(marketAddrs, "cumulative", startDate, endDate);
-}
-
-async function getDailyVolume(marketAddrs: string[], timestamp: number) {
-    const startDate = dateStr(getTimestampAtStartOfPreviousDayUTC(timestamp))
-    const endDate = dateStr(getTimestampAtStartOfDayUTC(timestamp));
-    return fetchVolume(marketAddrs, "daily", startDate, endDate);
-}
-
 
 export default adapter;
