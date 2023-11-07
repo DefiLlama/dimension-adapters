@@ -1,6 +1,7 @@
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL"
 
 const endpoints = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
@@ -38,6 +39,24 @@ const graphsV3 = getChainVolume({
 });
 
 
+const fetchLiquidityHub = () => {
+  return async () => {
+    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1')).data;
+
+    let rows = dailyResult.result.rows;
+    let lastDay = rows[rows.length - 1];
+    let dailyVolume = lastDay.daily_received_calculated_value;
+    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).data.result.rows[0].total_calculated_value;
+
+    return {
+        dailyVolume: `${dailyVolume}`,
+        totalVolume: `${totalVolume}`,
+        timestamp: Math.floor((new Date(lastDay.day)).getTime()/1000),
+    };
+  };
+}
+
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     v2: {
@@ -59,7 +78,13 @@ const adapter: BreakdownAdapter = {
         fetch: graphsV3(CHAIN.POLYGON_ZKEVM),
         start: async () => 1679875200
       },
-    }
+    },
+    liquidityHub: {
+      [CHAIN.POLYGON]: {
+        fetch: fetchLiquidityHub(),
+        start: async () => 1695042000
+      },
+    },
   },
 };
 
