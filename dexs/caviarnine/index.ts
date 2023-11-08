@@ -4,9 +4,12 @@ import fetchURL from "../../utils/fetchURL";
 
 const url_aggregator = 'https://api-core.caviarnine.com/v1.0/stats/product/aggregator';
 const url_orderbook = 'https://api-core.caviarnine.com/v1.0/stats/product/orderbook';
+const url_trades = 'https://api-core.caviarnine.com/v1.0/stats/product/shapeliquidity';
 
 const fetchSpot = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dailyVolume = (await fetchURL(url_orderbook)).data.summary.volume.interval_1d.usd;
+  const orderbookVolume = (await fetchURL(url_orderbook)).data.summary.volume.interval_1d.usd;
+  const dailyVolumeTrades = (await fetchURL(url_trades)).data.summary.volume.interval_1d.usd;
+  const dailyVolume = Number(orderbookVolume) + Number(dailyVolumeTrades);
   return {
     dailyVolume: `${dailyVolume}`,
     timestamp
