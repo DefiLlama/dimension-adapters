@@ -38,7 +38,7 @@ const adapters: BreakdownAdapter = {
           }
         },
         start: async () => 1698710400,
-        // runAtCurrTime: true
+        runAtCurrTime: true
       }
     }
   }
