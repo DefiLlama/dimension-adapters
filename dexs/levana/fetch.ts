@@ -2,7 +2,7 @@ import BigNumber from "bignumber.js";
 import fetchURL from "../../utils/fetchURL";
 import { MarketInfo} from "./types";
 
-const INDEXER_URL = 'https://indexer.levana.finance';
+const INDEXER_URL = 'https://indexer-mainnet.levana.finance';
 
 export async function fetchVolume(kind: "daily" | "total", marketInfos: MarketInfo[], timestampSeconds: number) {
     const marketsStr = marketInfos.map(({addr}) => `market=${addr}`).join("&");
