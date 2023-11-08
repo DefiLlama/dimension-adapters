@@ -13,10 +13,10 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const startTimeStr = new Date(startTime * 1000).toISOString().split("T")[0];
   const toDayTime = new Date(timestamp * 1000).toISOString().split("T")[0];
   const toDayTimeStr = new Date(beforeTime * 1000).toISOString().split("T")[0];
-  // const response: IRaw[] = (await axios.get(`https://proxy-api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`)).data;
+  const response: IRaw[] = (await axios.get(`https:///proxy-api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`)).data;
   // const fs = require('fs');
   // fs.writeFileSync('./xoxno.json', JSON.stringify(response));
-  const response: IRaw[] = require('./xoxno.json');
+  // const response: IRaw[] = require('./xoxno.json');
 
   const toDayStr = toDayTime.split('-')[1] +'-'+ toDayTime.split('-')[2];
   const dayData = response.find((item) => item.Day === toDayStr);
