@@ -1,6 +1,8 @@
 import { utils } from "ethers";
 import { request, gql } from "graphql-request";
-
+import { Chain } from "@defillama/sdk/build/general";
+import { getBlock } from "../../helpers/getBlock";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 interface GqlResult {
   today: {
     volumeUSD: string;
@@ -54,11 +56,14 @@ function calcLast24hrsVolume(values: [string, string]): number {
 
 async function getChainData(
   url: string,
-  timestamp: number
+  timestamp: number,
+  chain: Chain
 ): Promise<ChainData> {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const dailyId = Math.floor(timestamp / 86400);
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const fromTimestamp = dayTimestamp - 60 * 60 * 24;
+  const dailyId = Math.floor(dayTimestamp / 86400);
   const yesterdayId = Math.floor(fromTimestamp / 86400);
+  const block = (await getBlock(fromTimestamp,chain, {}))
   const query = gql`
   {
       today:factoryDayData(id: ${dailyId}) {
@@ -69,17 +74,17 @@ async function getChainData(
         volumeUSD
         premiumsUSD
       }
-      factories{
+      factories(block:{number: ${block}}) {
         volumeUSD
         premiumsUSD
       }
   }
   `
   const  response :GqlResult = await request(url, query);
-  const dailyPremiumVolume = toNumber(response.today?.premiumsUSD || '0') - toNumber(response.yesterday?.premiumsUSD || '0');
-  const dailyNotionalVolume = toNumber(response.today?.volumeUSD || '0') - toNumber(response.yesterday?.volumeUSD || '0');
-  const totalPremiumVolume = toNumber(response.factories[0]?.premiumsUSD || '0') - toNumber(response.factories[1]?.premiumsUSD || '0');
-  const totalNotionalVolume = toNumber(response.factories[0]?.volumeUSD || '0') - toNumber(response.factories[1]?.volumeUSD || '0');
+  const dailyPremiumVolume = Math.abs(toNumber(response.today?.premiumsUSD || '0') - toNumber(response.yesterday?.premiumsUSD || '0'));
+  const dailyNotionalVolume = Math.abs(toNumber(response.today?.volumeUSD || '0') - toNumber(response.yesterday?.volumeUSD || '0'));
+  const totalPremiumVolume = Math.abs(toNumber(response.factories[0]?.premiumsUSD || '0'));
+  const totalNotionalVolume = Math.abs(toNumber(response.factories[0]?.volumeUSD || '0'));
 
   return {
     timestamp,

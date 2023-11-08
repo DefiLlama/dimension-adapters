@@ -57,7 +57,7 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
+          fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts, chain),
           start: async () => v3StartTimes[chain],
           meta: {
             methodology: {
