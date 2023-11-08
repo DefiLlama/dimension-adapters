@@ -31,8 +31,8 @@ const v3Graphs = getGraphDimensions({
 });
 
 const startTimeV3: { [key: string]: number } = {
-  [CHAIN.SCROLL]: 77008,
-  [CHAIN.LINEA]: 652486,
+  [CHAIN.SCROLL]: 1699056000,
+  [CHAIN.LINEA]: 1699056000,
 };
 
 const v3 = Object.keys(endpointsV3).reduce(
