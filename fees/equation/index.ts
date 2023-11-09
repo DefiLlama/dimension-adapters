@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.ARBITRUM]: "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum/graphql",
+    [CHAIN.ARBITRUM]: "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum",
 }
 
 const methodology = {
@@ -14,20 +14,24 @@ const methodology = {
     ProtocolRevenue: "Revenue is 50% of all collected fees"
 }
 
-const queryFee = gql`{
-    protocolStatistic($id: String!) {
-        protocolFee
-        architectFee
+const queryFee = gql`
+query query_volume($id: String!) {
+  protocolStatistics(where: {id: $id}) {
         stakeFee
-      }
-}`
+        architectFee
+        protocolFee
+    }
+}
+`
 
 interface IDailyResponse {
-    protocolStatistic: {
-        protocolFee: string,
-        architectFee: string,
-        stakeFee: string,
-    }
+    protocolStatistics: [
+        {
+            protocolFee: string,
+            architectFee: string,
+            stakeFee: string,
+        }
+    ]
 }
 
 const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
@@ -35,12 +39,11 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
     const graphRes: IDailyResponse = await request(endpoints[chain], queryFee, {
         id: 'Daily:' + todaysTimestamp,
     })
-
-    const dailyFee = parseInt(graphRes.protocolStatistic.protocolFee)
-    const dailyProtocolRevenue = parseInt(graphRes.protocolStatistic.architectFee) + parseInt(graphRes.protocolStatistic.stakeFee)
+    const dailyFee = graphRes.protocolStatistics[0].protocolFee
+    const dailyProtocolRevenue = parseFloat(graphRes.protocolStatistics[0].architectFee) + parseFloat(graphRes.protocolStatistics[0].stakeFee)
 
     return {
-        timestamp,
+        timestamp: todaysTimestamp,
         dailyFees: dailyFee.toString(),
         dailyProtocolRevenue: dailyProtocolRevenue.toString(),
     };

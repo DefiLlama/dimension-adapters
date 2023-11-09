@@ -5,21 +5,25 @@ import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.ARBITRUM]: "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum/graphql",
+    [CHAIN.ARBITRUM]: "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum",
+}
+
+const methodology = {
+    dailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
 }
 
 const queryVolume = gql`
   query query_volume($id: String!) {
-    protocolStatistic(id: $id) {
+    protocolStatistics(where: {id: $id}) {
         volumeUSD
-    }
+      }
   }
 `
 
 interface IDailyResponse {
-    protocolStatistic: {
+    protocolStatistics: [{
         volumeUSD: string,
-    }
+    }]
 }
 
 
@@ -31,7 +35,7 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
 
     return {
         timestamp: dayTimestamp,
-        dailyVolume: dailyData.protocolStatistic.volumeUSD,
+        dailyVolume: dailyData.protocolStatistics[0].volumeUSD,
     }
 }
 
@@ -40,6 +44,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
             start: async () => 1697760000,
+            meta:{
+                methodology: methodology,
+            },
         },
     },
 }
