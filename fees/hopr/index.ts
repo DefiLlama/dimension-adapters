@@ -22,11 +22,6 @@ interface ITx {
   transactionHash: string;
 }
 
-const toString = (x: BigNumber) => {
-  if (x.isEqualTo(0)) return undefined
-  return x.toString()
-}
-
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
@@ -73,6 +68,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     timestamp: timestamp,
     dailyFees: `0`,
+    dailyUserFees: `0`,
     dailyRevenue: `${dailyRevenueUSD}`
   };
 }
