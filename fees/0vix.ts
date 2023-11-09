@@ -10,7 +10,7 @@ const endpoints = {
   [CHAIN.POLYGON]:
     "https://api.thegraph.com/subgraphs/name/0vix/ovix-lending-subgraph",
   [CHAIN.POLYGON_ZKEVM]:
-    "https://api.studio.thegraph.com/query/30443/0vix-zkevm-test/v0.0.1",
+    "https://api.studio.thegraph.com/query/30443/0vix-zkevm/v0.0.1",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -59,10 +59,10 @@ const adapter: Adapter = {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
       start: async () => 1648157552,
     },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-      start: async () => 1679923169,
-    },
+    // [CHAIN.POLYGON_ZKEVM]: {
+    //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
+    //   start: async () => 1679923169,
+    // },
   },
 };
 
