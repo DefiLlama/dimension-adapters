@@ -14,7 +14,7 @@ interface IFee {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     try {
-      const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3084798" : "3084801"))
+      const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3186689" : "3186714"))
       // const fees: IFee[] = require(`./${chain}.json`);
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
       const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
