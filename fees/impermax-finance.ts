@@ -45,7 +45,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs()(CHAIN.ETHEREUM),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
@@ -53,7 +53,7 @@ const adapter: Adapter = {
     },
     [CHAIN.POLYGON]: {
       fetch: graphs()(CHAIN.POLYGON),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
@@ -61,7 +61,7 @@ const adapter: Adapter = {
     },
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
@@ -69,7 +69,7 @@ const adapter: Adapter = {
     },
     [CHAIN.AVAX]: {
       fetch: graphs()(CHAIN.AVAX),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
@@ -94,7 +94,7 @@ const adapter: Adapter = {
     // },
     [CHAIN.ERA]: {
       fetch: graphs()(CHAIN.ERA),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
@@ -102,7 +102,7 @@ const adapter: Adapter = {
     },
     [CHAIN.FANTOM]: {
       fetch: graphs()(CHAIN.FANTOM),
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1698019200,
       meta: {
         methodology
