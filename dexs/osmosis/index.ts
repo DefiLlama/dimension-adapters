@@ -35,7 +35,7 @@ const getStartTimestamp = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.COSMOS]: {
+    [CHAIN.OSMOSIS]: {
       fetch,
       runAtCurrTime: true,
       start: getStartTimestamp,
