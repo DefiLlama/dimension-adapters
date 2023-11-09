@@ -1,10 +1,11 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import * as sdk from "@defillama/sdk";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints = {
   [ARBITRUM]:
@@ -33,8 +34,8 @@ const abis = {
   }
 }
 
-async function lpPrice() { 
-  return (await sdk.api.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' })).output; 
+async function lpPrice() {
+  return (await sdk.api.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' })).output;
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -62,6 +63,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
       start: async () => 1686614400,
