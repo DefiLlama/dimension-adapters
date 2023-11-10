@@ -15,6 +15,7 @@ const fetch = async (timestamp: number) => {
   // const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   // const fs = require('fs');
   // fs.writeFileSync('osmosis.json', JSON.stringify(historicalVolume, null, 2));
+  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
   const historicalVolume: IChartItem[] = require('./osmosis.json');
 
   const totalVolume = historicalVolume
@@ -22,7 +23,7 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { value }) => acc + value, 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.value
+    .find(dayItem => dayItem.time === dateStr)?.value
 
   return {
     totalVolume: `${totalVolume}`,
