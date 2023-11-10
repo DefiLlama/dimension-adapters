@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
-import BigNumber from "bignumber.js";
 
 const channels_address = '0x693Bac5ce61c720dDC68533991Ceb41199D8F8ae';
 const wxHOPR_address = '0xd4fdec44db9d44b8f2b6d529620f9c0c7066a2c1';
@@ -14,7 +13,7 @@ const topic1 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3
 
 const methodology = {
   Fees: "Protocol has no supply-side fees, only user fees which are Sum of all ticket values redeemed in wxHOPR",
-  Revenue: "Sum of number of all tickets times ticket price in wxHOPR",
+  Revenue: "Sum of number of all tickets redeemed multiplied by ticket price in wxHOPR",
 }
 
 interface ITx {
@@ -67,7 +66,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   return {
     timestamp: timestamp,
-    dailyFees: `0`,
+    dailyFees: `${dailyRevenueUSD}`,
     dailyUserFees: `${dailyRevenueUSD}`,
     dailyRevenue: `${dailyRevenueUSD}`
   };
