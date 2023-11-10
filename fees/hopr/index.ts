@@ -10,7 +10,7 @@ const wxHOPR_address = '0xd4fdec44db9d44b8f2b6d529620f9c0c7066a2c1';
 const xHOPR_address = '0xd057604a14982fe8d88c5fc25aac3267ea142a08';
 const chain = 'xdai';
 const topic0 = '0x7165e2ebc7ce35cc98cb7666f9945b3617f3f36326b76d18937ba5fecf18739a'; //TicketRedeemed
-const topic1 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'; //Sent 
+const topic1 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'; //Transfer 
 
 const methodology = {
   Fees: "Protocol has no supply-side fees, only user fees which are Sum of all ticket values redeemed in wxHOPR",
