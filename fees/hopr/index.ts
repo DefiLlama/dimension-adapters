@@ -13,7 +13,7 @@ const topic0 = '0x7165e2ebc7ce35cc98cb7666f9945b3617f3f36326b76d18937ba5fecf1873
 const topic1 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'; //Sent 
 
 const methodology = {
-  Fees: "Protocol has no fees",
+  Fees: "Protocol has no supply-side fees, only user fees which are Sum of all ticket values redeemed in wxHOPR",
   Revenue: "Sum of number of all tickets times ticket price in wxHOPR",
 }
 
@@ -68,7 +68,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     timestamp: timestamp,
     dailyFees: `0`,
-    dailyUserFees: `0`,
+    dailyUserFees: `${dailyRevenueUSD}`,
     dailyRevenue: `${dailyRevenueUSD}`
   };
 }
