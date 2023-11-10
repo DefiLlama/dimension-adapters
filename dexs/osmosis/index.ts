@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OSMOSIS]: {
       fetch,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       start: getStartTimestamp,
     },
   },
