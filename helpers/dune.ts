@@ -29,19 +29,8 @@ export async function queryDune(queryId: string, query_parameters={}) {
             throw query?.data
           }
         } catch(e:any){
-          if(e?.response?.statusText === 'Payment Required'){
-            if(API_KEY_INDEX < (API_KEYS.length-1)){
-              const nextIndex = API_KEYS.findIndex(k=>k===API_KEY) + 1
-              if(API_KEY_INDEX < nextIndex){
-                API_KEY_INDEX = nextIndex;
-              }
-              throw "Increasing API_KEY_INDEX";
-            } else {
-              const error = new Error(`Payment Required`)
-              bail(error)
-              throw error
-            }
-          }
+          console.log("make query dune", e)
+          throw e.error
         }
       }
 
