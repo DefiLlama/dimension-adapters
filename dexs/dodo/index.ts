@@ -6,20 +6,20 @@ import dailyVolumePayload from "./dailyVolumePayload";
 import totalVolumePayload from "./totalVolumePayload";
 
 /* const endpoints = {
-  [CHAIN.ARBITRUM]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  [CHAIN.AURORA]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  [CHAIN.BSC]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  [CHAIN.ETHEREUM]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  [CHAIN.POLYGON]: "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData",
+  [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
+  [CHAIN.AURORA]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
+  [CHAIN.BSC]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
+  [CHAIN.ETHEREUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
+  [CHAIN.POLYGON]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   // [MOONRIVER]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-moonriver",
   // [AVAX]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-avax",
   // [BOBA]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-boba"
   // [HECO]: "https://n10.hg.network/subgraphs/name/dodoex-mine-v3-heco/heco",
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */
-const dailyEndpoint = "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData"
-const totalEndpoint = "https://gateway.dodoex.io/graphql?opname=FetchDashboardInfoData"
-const chains = [CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.POLYGON]
+const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
+const totalEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardInfoData&apikey=graphqldefiLlamadodoYzj5giof"
+const chains = [CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.LINEA, CHAIN.SCROLL]
 
 interface IDailyResponse {
   data: {
@@ -60,12 +60,16 @@ const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
   return firstDay?.timestamp ?? 0
 }
 
+const chainConversion = (chain: string): string => {
+    return chain === CHAIN.SCROLL ? 'scr' : chain;
+}
+
 const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: getFetch(chain),
-      start: getStartTimestamp(chain)
+      fetch: getFetch(chainConversion(chain)),
+      start: getStartTimestamp(chainConversion(chain))
     },
   }),
   {}
