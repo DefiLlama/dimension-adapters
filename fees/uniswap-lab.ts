@@ -24,7 +24,11 @@ const fetchFees =  (chain: Chain) => {
           WHERE
             contract_address = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
             and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-            and topics[2] = '0x0000000000000000000000006460d14dbaeb27aefec8ebef85db35defa31c3b9'
+            and (
+              topics[2] = '0x0000000000000000000000006460d14dbaeb27aefec8ebef85db35defa31c3b9'
+              or 
+              topics[2] = '0x000000000000000000000000163c5e051049e92915017fe7bb9b8ce6182bcbb1'
+              )
             AND BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'
           union all
           SELECT
