@@ -9,7 +9,7 @@ const endpoints: { [key: string]: string } = {
 }
 
 const methodology = {
-    dailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
+    DailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
 }
 
 const queryVolume = gql`
@@ -20,10 +20,24 @@ const queryVolume = gql`
   }
 `
 
+const queryTotalVolume = gql`
+  query query_total {
+    protocolState(id: "protocol_state") {
+        totalVolumeUSD
+    }
+  }
+`
+
 interface IDailyResponse {
     protocolStatistics: [{
         volumeUSD: string,
     }]
+}
+
+interface ITotalResponse {
+    protocolState: {
+        totalVolumeUSD: string,
+    }
 }
 
 
@@ -32,10 +46,11 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
     const dailyData: IDailyResponse = await request(endpoints[chain], queryVolume, {
         id: 'Daily:' + dayTimestamp,
     })
-
+    const totalData: ITotalResponse = await request(endpoints[chain], queryTotalVolume)
     return {
         timestamp: dayTimestamp,
         dailyVolume: dailyData.protocolStatistics[0].volumeUSD,
+        totalVolume: totalData.protocolState.totalVolumeUSD,
     }
 }
 
