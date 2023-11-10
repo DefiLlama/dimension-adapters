@@ -9,7 +9,7 @@ const endpoints: { [key: string]: string } = {
 }
 
 const methodology = {
-    dailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
+    DailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
 }
 
 const queryVolume = gql`
