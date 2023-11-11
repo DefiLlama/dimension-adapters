@@ -13,12 +13,12 @@ interface ISwapEventData {
 
 const account = '0xbd35135844473187163ca197ca93b2ab014370587bb0ed3befff9e902d6bb541';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const fullnodeurl = 'https://aptos-mainnet.pontem.network/v1';
+const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 
 const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = timestamp - 86400;
   const toTimestamp = timestamp;
-  const account_resource: any[] = (await axios.get(`${fullnodeurl}/accounts/${account}/resources`)).data
+  const account_resource: any[] = (await axios.get(`${APTOS_PRC}/v1/accounts/${account}/resources`)).data
   const pools = account_resource.filter(e => e.type?.includes('amm::Pool'))
     .map((e: any) => {
       const [token0, token1] = getToken(e.type);
@@ -59,7 +59,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number): Promise<ISwapEven
   let start = (pool.swap_events.counter - 25) < 0 ? 0 : pool.swap_events.counter - 25;
   while (true) {
     if (start < 0) break;
-    const getEventByCreation = `${fullnodeurl}/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=25`;
+    const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=25`;
     try {
       const event: any[] = (await axios.get(getEventByCreation)).data;
       const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
