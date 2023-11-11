@@ -84,7 +84,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch: fetchVolume,
       start: async () => 1699488000,
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
     },
   },
 };
