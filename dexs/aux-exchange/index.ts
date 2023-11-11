@@ -13,9 +13,9 @@ interface ISwapEventData {
 
 const account = '0xbd35135844473187163ca197ca93b2ab014370587bb0ed3befff9e902d6bb541';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const fullnodeurl = 'https://fullnode.mainnet.aptoslabs.com/v1';
+const fullnodeurl = 'https://aptos-mainnet.pontem.network/v1';
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = timestamp - 86400;
   const toTimestamp = timestamp;
   const account_resource: any[] = (await axios.get(`${fullnodeurl}/accounts/${account}/resources`)).data
@@ -56,11 +56,11 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const getSwapEvent = async (pool: any, fromTimestamp: number): Promise<ISwapEventData[]> => {
   const swap_events: any[] = [];
-  let start = (pool.swap_events.counter - 100) < 0 ? 0 : pool.swap_events.counter - 100;
+  let start = (pool.swap_events.counter - 25) < 0 ? 0 : pool.swap_events.counter - 25;
   while (true) {
     if (start < 0) break;
+    const getEventByCreation = `${fullnodeurl}/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=25`;
     try {
-      const getEventByCreation = `${fullnodeurl}/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=100`;
       const event: any[] = (await axios.get(getEventByCreation)).data;
       const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
       swap_events.push(...event)
@@ -69,9 +69,10 @@ const getSwapEvent = async (pool: any, fromTimestamp: number): Promise<ISwapEven
       const lastTimestamp = event.find(e => Number(e.sequence_number) === lastMin)?.data.timestamp
       const lastTimestampNumber = Number((Number(lastTimestamp)/1e6).toString().split('.')[0])
       if (lastTimestampNumber < fromTimestamp) break;
-      start = lastMin - 101 > 0 ? lastMin - 101 : 0;
+      start = lastMin - 26 > 0 ? lastMin - 26 : 0;
     } catch {
-      start = start - 101 > 0 ? start - 101 : 0;
+      break;
+      // start = start - 26 > 0 ? start - 26 : 0;
     }
   }
   return swap_events.map(e => e.data)
@@ -81,7 +82,7 @@ const toUnixTime = (timestamp: string) => Number((Number(timestamp)/1e6).toStrin
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetch,
+      fetch: fetchVolume,
       start: async () => 1699488000,
       // runAtCurrTime: true,
     },
