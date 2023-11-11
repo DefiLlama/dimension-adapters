@@ -54,7 +54,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   }
 }
 
-const getSwapEvent = async (pool: any, fromTimestamp: number) => {
+const getSwapEvent = async (pool: any, fromTimestamp: number): Promise<ISwapEventData[]> => {
   const swap_events: any[] = [];
   let start = (pool.swap_events.counter - 100) < 0 ? 0 : pool.swap_events.counter - 100;
   while (true) {
