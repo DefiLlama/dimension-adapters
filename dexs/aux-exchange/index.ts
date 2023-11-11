@@ -62,16 +62,15 @@ const getSwapEvent = async (pool: any, fromTimestamp: number) => {
     try {
       const getEventByCreation = `${fullnodeurl}/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=100`;
       const event: any[] = (await axios.get(getEventByCreation)).data;
-      swap_events.push(...event)
       const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
-      const last = Math.min(...listSequence)
-      if (last >= Infinity || last <= -Infinity) break;
-      const lastTimestamp = event.find(e => Number(e.sequence_number) === last)?.data.timestamp
+      swap_events.push(...event)
+      const lastMin = Math.min(...listSequence)
+      if (lastMin >= Infinity || lastMin <= -Infinity) break;
+      const lastTimestamp = event.find(e => Number(e.sequence_number) === lastMin)?.data.timestamp
       const lastTimestampNumber = Number((Number(lastTimestamp)/1e6).toString().split('.')[0])
       if (lastTimestampNumber < fromTimestamp) break;
-      swap_events.push(...event)
       if (start < 100) break;
-      start = last - 101 > 0 ? last - 101 : 0;
+      start = lastMin - 101 > 0 ? lastMin - 101 : 0;
     } catch {
       start = start - 101;
     }
@@ -84,7 +83,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: async () => 0,
+      start: async () => 1699488000,
+      runAtCurrTime: true,
     },
   },
 };
