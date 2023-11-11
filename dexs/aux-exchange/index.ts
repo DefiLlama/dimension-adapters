@@ -1,41 +1,90 @@
-import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import axios from "axios";
+import { getPrices } from "../../utils/prices";
 
-const getDailyVolume = () => {
-  return gql`{
-    summaryStatistics {
-      volume24h
-    }
-  }`
+interface ISwapEventData {
+  in_au: string;
+  out_au: string,
+  out_coin_type: string;
+  in_coin_type: string;
+  timestamp: string;
 }
 
-const graphQLClient = new GraphQLClient("https://mainnet.aux.exchange/graphql");
-const getGQLClient = () => {
-  return graphQLClient
-}
+const account = '0xbd35135844473187163ca197ca93b2ab014370587bb0ed3befff9e902d6bb541';
+const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
+const fullnodeurl = 'https://fullnode.mainnet.aptoslabs.com/v1';
 
-interface IGraphResponse {
-  volume24h: string;
-}
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+  const fromTimestamp = timestamp - 86400;
+  const toTimestamp = timestamp;
+  const account_resource: any[] = (await axios.get(`${fullnodeurl}/accounts/${account}/resources`)).data
+  const pools = account_resource.filter(e => e.type?.includes('amm::Pool'))
+    .map((e: any) => {
+      const [token0, token1] = getToken(e.type);
+      return {
+        type: e.type,
+        token0,
+        token1,
+        swap_events: {
+          counter: e.data.swap_events.counter,
+          creation_num: e.data.swap_events.guid.id.creation_num,
+        },
+        timestamp: e.data.timestamp,
+      }
+    })
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IGraphResponse = (await getGQLClient().request(getDailyVolume())).summaryStatistics;
+    const logs_swap: ISwapEventData[] = (await Promise.all(pools.map(p => getSwapEvent(p, fromTimestamp)))).flat()
+      .filter(e => toUnixTime(e.timestamp) > fromTimestamp && toUnixTime(e.timestamp) < toTimestamp)
+    const coins = [...new Set([...logs_swap.map(p => `${CHAIN.APTOS}:${p.in_coin_type}`), ...logs_swap.map(p => `${CHAIN.APTOS}:${p.out_coin_type}`)])]
+    const price = (await getPrices(coins, timestamp));
+    const dailyVolume = logs_swap.map((e: ISwapEventData) => {
+      const token0Price = price[`${CHAIN.APTOS}:${e.in_coin_type}`]?.price || 0;
+      const token1Price = price[`${CHAIN.APTOS}:${e.out_coin_type}`]?.price || 0;
+      const token0Decimals = price[`${CHAIN.APTOS}:${e.in_coin_type}`]?.decimals || 0;
+      const token1Decimals = price[`${CHAIN.APTOS}:${e.out_coin_type}`]?.decimals || 0;
+      const in_au = (Number(e.in_au) / 10 ** token0Decimals) * token0Price;
+      const out_au = (Number(e.out_au) / 10 ** token1Decimals) * token1Price;
+      return token0Price ? in_au : out_au;
+    }).reduce((a: number, b: number) => a + b, 0)
 
   return {
-    timestamp: dayTimestamp,
-    dailyVolume: response.volume24h
+    timestamp,
+    dailyVolume: dailyVolume.toString(),
   }
 }
+
+const getSwapEvent = async (pool: any, fromTimestamp: number) => {
+  const swap_events: any[] = [];
+  let start = (pool.swap_events.counter - 100) <= 0 ? pool.swap_events.counter : pool.swap_events.counter - 100;
+  while (true) {
+    if (start < 0) break;
+    try {
+      const getEventByCreation = `${fullnodeurl}/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=100`;
+      const event: any[] = (await axios.get(getEventByCreation)).data;
+      swap_events.push(...event)
+      const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
+      const last = Math.min(...listSequence)
+      if (last >= Infinity || last <= -Infinity) break;
+      const lastTimestamp = event.find(e => Number(e.sequence_number) === last)?.data.timestamp
+      const lastTimestampNumber = Number((Number(lastTimestamp)/1e6).toString().split('.')[0])
+      if (lastTimestampNumber < fromTimestamp) break;
+      swap_events.push(...event)
+      if (start < 100) break;
+      start = last - 101 > 0 ? last - 101 : 0;
+    } catch {
+      start = start - 101;
+    }
+  }
+  return swap_events.map(e => e.data)
+}
+const toUnixTime = (timestamp: string) => Number((Number(timestamp)/1e6).toString().split('.')[0])
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: async () => 0,
-      runAtCurrTime: true
     },
   },
 };
