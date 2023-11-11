@@ -56,7 +56,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const getSwapEvent = async (pool: any, fromTimestamp: number) => {
   const swap_events: any[] = [];
-  let start = (pool.swap_events.counter - 100) <= 0 ? pool.swap_events.counter : pool.swap_events.counter - 100;
+  let start = (pool.swap_events.counter - 100) < 0 ? 0 : pool.swap_events.counter - 100;
   while (true) {
     if (start < 0) break;
     try {
@@ -69,10 +69,9 @@ const getSwapEvent = async (pool: any, fromTimestamp: number) => {
       const lastTimestamp = event.find(e => Number(e.sequence_number) === lastMin)?.data.timestamp
       const lastTimestampNumber = Number((Number(lastTimestamp)/1e6).toString().split('.')[0])
       if (lastTimestampNumber < fromTimestamp) break;
-      if (start < 100) break;
       start = lastMin - 101 > 0 ? lastMin - 101 : 0;
     } catch {
-      start = start - 101;
+      start = start - 101 > 0 ? start - 101 : 0;
     }
   }
   return swap_events.map(e => e.data)
