@@ -39,8 +39,7 @@ const graphsV3 = getChainVolume({
 });
 
 
-const fetchLiquidityHub = () => {
-  return async () => {
+const fetchLiquidityHub = async (timestamp: number) => {
     let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1')).data;
 
     let rows = dailyResult.result.rows;
@@ -51,9 +50,9 @@ const fetchLiquidityHub = () => {
     return {
         dailyVolume: `${dailyVolume}`,
         totalVolume: `${totalVolume}`,
-        timestamp: Math.floor((new Date(lastDay.day)).getTime()/1000),
+        timestamp: timestamp,
     };
-  };
+
 }
 
 
@@ -81,7 +80,7 @@ const adapter: BreakdownAdapter = {
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
-        fetch: fetchLiquidityHub(),
+        fetch: fetchLiquidityHub,
         start: async () => 1695042000
       },
     },
