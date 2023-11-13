@@ -6,7 +6,12 @@ import { ethers } from "ethers";
 import { getPrices } from "../../utils/prices";
 
 const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
-
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
 const abis: any = {
   forSwaps:{
     "stateMutability": "view",
@@ -99,7 +104,13 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
       ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token1}`)
     ])]
 
-    const prices = await getPrices(coins, timestamp);
+    const coins_split: string[][] = [];
+    for(let i = 0; i < coins.length; i+=100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
     const volumeUSD: number = logs.map((log: ILog) => {
       const value = contract_interface.parseLog(log);
       const amount0In = Number(value.args.amount0In._hex);
