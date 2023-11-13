@@ -18,7 +18,6 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .reduce((acc, { volume24Hour }) => acc + Number(volume24Hour), 0) / 1e6;
 
-
   return {
     // totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
