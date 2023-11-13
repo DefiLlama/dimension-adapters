@@ -159,6 +159,8 @@ const graph = (chain: Chain) => {
         const dailyFees = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
         return {
           dailyFees: `${dailyFees}`,
+          dailyRevenue: `${dailyFees}`,
+          dailyHoldersRevenue: `${dailyFees}`,
           timestamp,
         };
     } catch(error) {

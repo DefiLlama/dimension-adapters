@@ -47,6 +47,7 @@ const graph = (chain: Chain) => {
       dailyUserFees: `${dailyFees}`,
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyRevenue}`,
+      dailyHoldersRevenue: `${dailyRevenue}`,
       dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
       dailyProtocolRevenue: `${dailyRevenue}`,
       timestamp
