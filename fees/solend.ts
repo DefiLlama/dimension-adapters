@@ -31,16 +31,16 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
   const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
   const stats: DailyStats = (await fetchURL(url)).data;
 
-  const userFees = parseFloat(stats.liquidityProviderInterest) + 
-    parseFloat(stats.hostOriginationFees) + 
-    parseFloat(stats.hostFlashLoanFees) + 
-    parseFloat(stats.protocolSpreadFees) + 
+  const userFees =
+    parseFloat(stats.hostOriginationFees) +
+    parseFloat(stats.hostFlashLoanFees) +
+    parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.hostOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
 
-  const dailyRevenue = parseFloat(stats.protocolSpreadFees) + 
+  const dailyRevenue = parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
@@ -50,7 +50,7 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
     dailyUserFees: userFees.toString(),
     dailyRevenue: dailyRevenue.toString(),
     dailyProtocolRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: stats.liquidityProviderInterest,
+    // dailySupplySideRevenue: stats.liquidityProviderInterest,
   };
 };
 
@@ -61,7 +61,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchSolendStats,
-      start: async () => 1675123053, 
+      start: async () => 1675123053,
       meta: {
         methodology,
       },
