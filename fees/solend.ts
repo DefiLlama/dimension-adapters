@@ -50,7 +50,7 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
     dailyUserFees: userFees.toString(),
     dailyRevenue: dailyRevenue.toString(),
     dailyProtocolRevenue: dailyRevenue.toString(),
-    // dailySupplySideRevenue: stats.liquidityProviderInterest,
+    // dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
   };
 };
 
