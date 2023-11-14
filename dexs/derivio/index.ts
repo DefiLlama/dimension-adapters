@@ -47,6 +47,8 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
 
   let dailyData;
   let totalData;
+  let dailyNotionalVolume: number | undefined = undefined;
+  let totalNotionalVolume: number | undefined = undefined;
   if (query === historicalDataSwap) {
     const dailySwapVolume = Number(toBlockData.systemInfo.swapVolume) - Number(fromBlockData.systemInfo.swapVolume);
     dailyData = {
@@ -60,12 +62,13 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
     const dailyOptionVolume = Number(toBlockData.systemInfo.optionVolume) - Number(fromBlockData.systemInfo.optionVolume);
     const dailyPerpVolume = Number(toBlockData.systemInfo.perpVolume) - Number(fromBlockData.systemInfo.perpVolume);
     dailyData = {
-      volume: (dailyOptionVolume + dailyPerpVolume) * 10 ** -18,
+      volume: (dailyPerpVolume) * 10 ** -18,
     };
-    const totalOptionVolume = Number(toBlockData.systemInfo.optionVolume);
+    dailyNotionalVolume = dailyOptionVolume * 10 ** -18;
+    totalNotionalVolume = Number(toBlockData.systemInfo.optionVolume) * 10 ** -18;
     const totalPerpVolume = Number(toBlockData.systemInfo.perpVolume);
     totalData = {
-      volume: (totalOptionVolume + totalPerpVolume) * 10 ** -18,
+      volume: (totalPerpVolume) * 10 ** -18,
     };
   } else {
     throw new Error("Unknown query");
@@ -74,6 +77,8 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
   return {
     timestamp,
     dailyVolume: dailyData.volume.toString(),
+    dailyNotionalVolume: dailyNotionalVolume ? dailyNotionalVolume.toString() : undefined,
+    totalNotionalVolume: totalNotionalVolume ? totalNotionalVolume.toString() : undefined,
     totalVolume: totalData.volume.toString(),
   }
 }
