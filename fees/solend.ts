@@ -31,7 +31,7 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
   const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
   const stats: DailyStats = (await fetchURL(url)).data;
 
-  const userFees = parseFloat(stats.liquidityProviderInterest) +
+  const userFees =
     parseFloat(stats.hostOriginationFees) +
     parseFloat(stats.hostFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
@@ -50,7 +50,7 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
     dailyUserFees: userFees.toString(),
     dailyRevenue: dailyRevenue.toString(),
     dailyProtocolRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: stats.liquidityProviderInterest, // TODO: check if this is correct some day is negative
+    // dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
   };
 };
 
