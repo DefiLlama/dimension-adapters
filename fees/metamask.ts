@@ -92,19 +92,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: async ()  => 1656633600,
+      start: async ()  => 1675209600,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: async ()  => 1656633600,
+      start: async ()  => 1675209600,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async ()  => 1656633600,
+      start: async ()  => 1675209600,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async ()  => 1691798400,
+      start: async ()  => 1675209600,
     }
   }
 }
