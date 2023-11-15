@@ -3,9 +3,9 @@ import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://api.testnet.rabbitx.io/markets"
+const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/markets"
 const candles = (market: string, timestampFrom: number, timestampTo: number) => 
-    `https://api.testnet.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
+    `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
 
 interface IVolumeall {
   volume: string;
