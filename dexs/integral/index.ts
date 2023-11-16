@@ -9,14 +9,14 @@ import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
 const chains = [
-  // CHAIN.ARBITRUM,
+  CHAIN.ARBITRUM,
   CHAIN.ETHEREUM
 ];
 const endpoints = {
   [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/integralhq/integral-size",
-  // [CHAIN.ARBITRUM]:
-  //   "https://api.thegraph.com/subgraphs/name/integralhq/integral-size-arbitrum",
+  [CHAIN.ARBITRUM]:
+    "https://api.thegraph.com/subgraphs/name/integralhq/integral-size-arbitrum",
 };
 
 const graphs = getChainVolume({
