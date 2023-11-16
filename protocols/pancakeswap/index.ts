@@ -192,7 +192,8 @@ const fetchVolume = async (timestamp: number) => {
       '0x70d2d370d4f17ccb70e4047e4f327550f2bda6c3d20c23225dec4e1005ab8dc1',
       '0x5fbfe849d110feecd7cfbe7529fda2ce691a3ecea08af66851d793180ea01a92',
       '0x67c928210094bec6f61849175ec986e514d5c2dab5ad6c00e0561d0706b0a9d5',
-      '0x2389a6fccfb39fff5d07dfe02fe69ea94306b6fc50afb5e6391237ae48f09043'
+      '0x2389a6fccfb39fff5d07dfe02fe69ea94306b6fc50afb5e6391237ae48f09043',
+      '0xd53b715700748751ce6944839fc64fb059ec949b66c3831e037813dd5a4caf5a',
     ]
     const logs_swap: ISwapEventData[] = (await Promise.all(pools.filter(e => creation_num.includes(Number(e.swap_events.creation_num))).map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
     const numberOfTrade: any = {};
@@ -219,6 +220,7 @@ const fetchVolume = async (timestamp: number) => {
       return token0Price ? in_au : out_au;
     })
     const dailyVolume = [...new Set(untrackVolume)].reduce((a: number, b: number) => a + b, 0)
+    // console.log(Object.values(numberOfTrade).sort((a: any, b: any) => b.volume - a.volume))
 
   return {
     timestamp,
