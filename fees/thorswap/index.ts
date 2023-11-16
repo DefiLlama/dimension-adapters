@@ -53,17 +53,17 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const url1 = "https://api.flipsidecrypto.com/api/v2/queries/1d13d4a1-d073-4a73-a46b-d7aadf060672/data/latest"
   const url2 = "https://api.flipsidecrypto.com/api/v2/queries/46dc4fa4-a362-420e-97ec-d3a58d46b9e7/data/latest"
   const url3 = "https://midgard.ninerealms.com/v2/history/earnings"
-  // const [reveune, fees, earnings]: any = (await Promise.all([
-  //   axios.get(url1),
-  //   axios.get(url2),
-  //   // axios.get(url3, { headers: {"x-client-id": "defillama"}})
-  // ])).map(res => res.data)
+  const [reveune, fees, earnings]: any = (await Promise.all([
+    axios.get(url1),
+    axios.get(url2),
+    // axios.get(url3, { headers: {"x-client-id": "defillama"}})
+  ])).map(res => res.data)
   // const fs = require('fs');
   // fs.writeFileSync('reveune.json', JSON.stringify(reveune));
   // fs.writeFileSync('fees.json', JSON.stringify(fees));
 
-  const reveuneData: IRevenue[] = require('./reveune.json');
-  const feesData: IFees[] = require('./fees.json');
+  const reveuneData: IRevenue[] = reveune;
+  const feesData: IFees[] = fees;
   // const earningData: IEarning = earnings.meta;
 
   const dayTimestamp = new Date(timestamp * 1000).toISOString().split("T")[0]
@@ -73,6 +73,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyUsersFees = dailyFeesData?.LIQUIDITY_FEES || 0 + dailyRevenueData?.OUTBOUND_FEE || 0;
   const dailyRevenue = dailyRevenueData.REVENUE;
   const dailyProtocolRev = dailyRevenueData.REVENUE;
+
 
   return {
     dailyFees: dailyFees ? `${dailyFees}` : undefined,
