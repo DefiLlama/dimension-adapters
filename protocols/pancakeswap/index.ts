@@ -160,7 +160,7 @@ const  getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolume = async (timestamp: number) => {
   const fromTimestamp = timestamp - 86400;
   const toTimestamp = timestamp;
   const account_resource: any[] = (await getResources(account))
@@ -223,6 +223,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   return {
     timestamp,
     dailyVolume: dailyVolume.toString(),
+    dailyFees: "0",
   }
 }
 
