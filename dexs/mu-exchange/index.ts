@@ -54,11 +54,19 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   };
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.XDAI]: {
-      fetch: getFetch(CHAIN.XDAI),
-      start: async () => 1699488000,
+const adapter = {
+  breakdown: {
+    swap: {
+      [CHAIN.XDAI]: {
+        fetch: getFetch(CHAIN.XDAI),
+        start: async () => 1699488000,
+      },
+    },
+    derivatives: {
+      [CHAIN.XDAI]: {
+        fetch: getFetch(CHAIN.XDAI),
+        start: async () => 1699488000,
+      },
     },
   },
 };
