@@ -125,6 +125,7 @@ export enum CHAIN {
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  EON= "eon",
 }
 
 // Don´t use
