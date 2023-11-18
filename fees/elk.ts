@@ -19,7 +19,7 @@ const adapter = univ2DimensionAdapter({
     // [CHAIN.CRONOS]: "https://cronos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-cronos",
     // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
     // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",
-    [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
+    // [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
   },
   dailyVolume: {
     factory: "elkDayData"
@@ -53,13 +53,13 @@ adapter.adapter.bsc.start = async () => 1629251617;
 adapter.adapter.fantom.start = async () => 1621562017;
 adapter.adapter.polygon.start = async () => 1618019617;
 adapter.adapter.xdai.start = async () => 1629251617;
-adapter.adapter.elastos.start = async () => 1634954017;
-adapter.adapter.okexchain.start = async () => 1649555617;
-adapter.adapter.kcc.start = async () => 1634954017;
+// adapter.adapter.elastos.start = async () => 1634954017;
+// adapter.adapter.okexchain.start = async () => 1649555617;
+// adapter.adapter.kcc.start = async () => 1634954017;
 adapter.adapter.ethereum.start = async () => 1619747617;
 adapter.adapter.optimism.start = async () => 1651542817;
-adapter.adapter.fuse.start = async () => 1639187617;
-adapter.adapter.iotex.start = async () => 1639792417;
-adapter.adapter.telos.start = async () => 1648684800;
+// adapter.adapter.fuse.start = async () => 1639187617;
+// adapter.adapter.iotex.start = async () => 1639792417;
+// adapter.adapter.telos.start = async () => 1648684800;
 
 export default adapter;
