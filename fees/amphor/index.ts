@@ -1,11 +1,11 @@
 import { getProvider } from "@defillama/sdk/build/general";
+import { getLogs } from "@defillama/sdk/build/util";
 import { BigNumber, ethers, EventFilter, utils } from 'ethers';
 
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
 
-//const provider = ethers.getDefaultProvider();
 const provider = getProvider(CHAIN.ETHEREUM);
 const AmphorILHedgedUSDC_contractAddress: string = '0x3b022EdECD65b63288704a6fa33A8B9185b5096b';
 const AmphorILHedgedWSTETH_contractAddress: string = '0x2791EB5807D69Fe10C02eED6B4DC12baC0701744';
@@ -75,6 +75,7 @@ const data = async () => {
     let totalFeesUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let totalRevenueWSTETH: BigNumber = ethers.BigNumber.from(0.0);
     let totalFeesWSTETH: BigNumber = ethers.BigNumber.from(0.0);
+
     let dailyFeesUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let dailyFeesWSTETH: BigNumber = ethers.BigNumber.from(0.0);
     let dailyRevenueUSDC: BigNumber = ethers.BigNumber.from(0.0);
