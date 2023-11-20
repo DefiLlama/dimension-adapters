@@ -75,20 +75,38 @@ const data = async () => {
     let totalFeesUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let totalRevenueWSTETH: BigNumber = ethers.BigNumber.from(0.0);
     let totalFeesWSTETH: BigNumber = ethers.BigNumber.from(0.0);
+    let dailyFeesUSDC: BigNumber = ethers.BigNumber.from(0.0);
+    let dailyFeesWSTETH: BigNumber = ethers.BigNumber.from(0.0);
+    let dailyRevenueUSDC: BigNumber = ethers.BigNumber.from(0.0);
+    let dailyRevenueWSTETH: BigNumber = ethers.BigNumber.from(0.0);
+    const todaysDate: Date = new Date();
     eventsUSDC.forEach(event => {
-        totalRevenueUSDC = totalRevenueUSDC.add(ethers.BigNumber.from(event.args![2]).sub(ethers.BigNumber.from(event.args![1])));
-        totalFeesUSDC = totalFeesUSDC.add(event.args![3]);
+        totalRevenueUSDC = totalRevenueUSDC.add(ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance)));
+        totalFeesUSDC = totalFeesUSDC.add(event.args!.fees);
+        console.log(event.args!.timestamp * 1000, todaysDate.getTime());
+        if (event.args!.timestamp * 1000 > todaysDate.getTime()) {
+            dailyFeesUSDC = dailyFeesUSDC.add(event.args!.fees);
+            dailyRevenueUSDC = ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance));
+        }
     });
     eventsWSTETH.forEach(event => {
-        totalRevenueWSTETH = totalRevenueWSTETH.add(ethers.BigNumber.from(event.args![2]).sub(ethers.BigNumber.from(event.args![1])));
-        totalFeesWSTETH = totalFeesWSTETH.add(event.args![3]);
+        totalRevenueWSTETH = totalRevenueWSTETH.add(ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance)));
+        totalFeesWSTETH = totalFeesWSTETH.add(event.args!.fees);
+        if (event.args!.timestamp * 1000 > todaysDate.getTime()) {
+            dailyFeesWSTETH = dailyFeesWSTETH.add(event.args!.fees);
+            dailyRevenueWSTETH = ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance));
+        }
     });
     const totalFeesUSDCStr = ethers.utils.formatUnits(totalFeesUSDC, 6); // usdc has 6 decimals
     const totalRevenueUSDCStr = ethers.utils.formatUnits(totalRevenueUSDC, 6); // usdc has 6 decimals
+    const dailyFeesUSDCStr = ethers.utils.formatUnits(dailyFeesUSDC, 6); // usdc has 6 decimals
+    const dailyRevenueUSDCStr = ethers.utils.formatUnits(dailyRevenueUSDC, 6); // usdc has 6 decimals
     const totalFeesWSTETHStr = ethers.utils.formatUnits(totalFeesWSTETH, 18); // wseth has 18 decimals
     const totalRevenueWSTETHStr = ethers.utils.formatUnits(totalRevenueWSTETH, 18); // wseth has 18 decimals
+    const dailyFeesWSTETHStr = ethers.utils.formatUnits(dailyFeesWSTETH, 18); // wseth has 18 decimals
+    const dailyRevenueWSTETHStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 18); // wseth has 18 decimals
     return {
-        timestamp: new Date().getTime(),
+        timestamp: todaysDate.getTime(),
         totalFees: {
             "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
             "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
@@ -104,6 +122,14 @@ const data = async () => {
         totalUserFees: {
             "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
             "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
+        },
+        dailyFees: {
+            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyFeesUSDCStr,
+            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyFeesWSTETHStr,
+        },
+        dailyProtocolRevenue: {
+            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
+            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
         },
     };
 }
