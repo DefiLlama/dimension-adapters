@@ -1,7 +1,6 @@
 import fetchURL from "../utils/fetchURL"
-import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/markets"
 const stats = (market: string) => `https://api.dydx.exchange/v3/stats/${market}?days=1`
@@ -11,8 +10,6 @@ interface IStats {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const fromTimestamp = dayTimestamp - 60 * 60 * 24
   const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint))?.data.markets);
   const historical: IStats[] = (await Promise.all(markets.map((market: string) => fetchURL(stats(market))))).map((e: any) => Object.values(e.data.markets) as unknown as IStats).flat()
   const dailyFees = historical.filter((e: IStats) => e.fees !== '0')
