@@ -19,7 +19,7 @@ import totalVolumePayload from "./totalVolumePayload";
 } as ChainEndpoints */
 const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
 const totalEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardInfoData&apikey=graphqldefiLlamadodoYzj5giof"
-const chains = [CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.LINEA, CHAIN.SCROLL]
+const chains = [CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.LINEA, CHAIN.SCROLL, CHAIN.MANTLE, CHAIN.MANTA]
 
 interface IDailyResponse {
   data: {
