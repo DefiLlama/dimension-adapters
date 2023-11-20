@@ -1,4 +1,4 @@
-import { Chain, getProvider } from "@defillama/sdk/build/general";
+import { getProvider } from "@defillama/sdk/build/general";
 import { BigNumber, ethers, EventFilter, utils } from 'ethers';
 
 import { Adapter } from "../../adapters/types";
