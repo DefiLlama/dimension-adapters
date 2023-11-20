@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: async () => 1680310860, // Replace with actual start timestamp
+      start: async () => 1700179200, // Replace with actual start timestamp
     },
   },
 };
