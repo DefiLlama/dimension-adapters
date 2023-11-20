@@ -83,7 +83,6 @@ const data = async () => {
     eventsUSDC.forEach(event => {
         totalRevenueUSDC = totalRevenueUSDC.add(ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance)));
         totalFeesUSDC = totalFeesUSDC.add(event.args!.fees);
-        console.log(event.args!.timestamp * 1000, todaysDate.getTime());
         if (event.args!.timestamp * 1000 > todaysDate.getTime()) {
             dailyFeesUSDC = dailyFeesUSDC.add(event.args!.fees);
             dailyRevenueUSDC = ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance));
