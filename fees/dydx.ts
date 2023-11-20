@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: async () => 1700265600,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
     },
   },
 };
