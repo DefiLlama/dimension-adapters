@@ -61,7 +61,14 @@ const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
 }
 
 const chainConversion = (chain: string): string => {
-    return chain === CHAIN.SCROLL ? 'scr' : chain;
+    switch (chain) {
+        case CHAIN.SCROLL:
+            return 'scr';
+        case CHAIN.MANTA:
+            return 'manta';
+        default:
+            return chain;
+    }
 }
 
 const volume = chains.reduce(
