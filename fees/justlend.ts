@@ -250,8 +250,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch: fetch,
-      start: async () => 1691798400,
-      runAtCurrTime: true,
+      start: async () => 1700352000,
+      // runAtCurrTime: true,
     },
   },
 };
