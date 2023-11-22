@@ -15,7 +15,7 @@ interface IVolumeall {
   close: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
 
@@ -43,7 +43,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
-      fetch,
+      fetch: fetchVolume,
       start: async () => 1700179200, // Replace with actual start timestamp
     },
   },
