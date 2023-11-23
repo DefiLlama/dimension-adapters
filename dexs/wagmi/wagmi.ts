@@ -1,6 +1,9 @@
 // Wagmi data
 import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getBlock } from "../../helpers/getBlock";
+import { Chain } from "@defillama/sdk/build/general";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
@@ -20,59 +23,57 @@ export const LINKS: { [key: string]: any } = {
   },
 };
 
-const ONE_DAY_UNIX = 24 * 60 * 60; // 1 day in seconds
-
-const getData = async (chain: string) => {
-  const todayTimestamp = Math.floor(new Date().getTime() / 1000);
-  const blockTimestamp =  todayTimestamp - ONE_DAY_UNIX;
-
-  const block = await getBlock(chain, blockTimestamp)
-
+interface IData {
+  feesUSD: string;
+  volumeUSD: string;
+  totalVolumeUSD: string;
+  totalFeesUSD: string;
+  totalValueLockedUSD: string;
+}
+interface IGraph {
+  uniswapDayData: IData;
+  factories: IData[];
+}
+const getData = async (chain: Chain, timestamp: number) => {
+  const block = await getBlock(timestamp,chain, {})
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
   // Get total volume
-  const query = gql`query uniswapFactories {
-    factories(first: 1, subgraphError: allow) {
-      txCount
-      totalVolumeUSD
-      totalFeesUSD
-      totalValueLockedUSD
+  const query = gql`{
+    uniswapDayData(id: ${dateId}) {
+      feesUSD
+      volumeUSD
     }
-  }`;
-
-  const query24 = gql`query uniswapFactories {
     factories(first: 1, subgraphError: allow, block: { number: ${block} }) {
       txCount
       totalVolumeUSD
       totalFeesUSD
       totalValueLockedUSD
     }
-  }`;
+  }
+  `;
 
-  const data = await request(LINKS[chain].subgraph, query);
-  const { totalVolumeUSD, totalFeesUSD } = data.factories[0];
+  const data:IGraph = await request(LINKS[chain].subgraph, query);
 
-  const data24 = await request(LINKS[chain].subgraph, query24);
-  const { totalVolumeUSD: dayVolume, totalFeesUSD: dayFees } = data24.factories[0];
+  const totalVolume = Number(data.factories[0].totalVolumeUSD);
+  const totalFee = Number(data.factories[0].totalFeesUSD);
 
-  const totalSum = Number(totalVolumeUSD);
-  const totalFee = Number(totalFeesUSD);
-
-  const daySum = totalSum - Number(dayVolume);
-  const dayFee = totalFee - Number(dayFees);
+  const dailyVolume = Number(data.uniswapDayData.volumeUSD);
+  const dailyFees = Number(data.uniswapDayData.feesUSD);
 
   return {
-    dailyFees: `${dayFee}`,
+    dailyFees: `${dailyFees}`,
     totalFees: `${totalFee}`,
-    dailyUserFees: `${dayFee}`,
+    dailyUserFees: `${dailyFees}`,
     totalUserFees: `${totalFee}`,
-    totalVolume: `${totalSum}`,
-    dailyVolume: `${daySum}`,
-    timestamp: todayTimestamp,
+    totalVolume: `${totalVolume}`,
+    dailyVolume: `${dailyVolume}`,
+    timestamp: timestamp,
   };
 };
 
 export const fetchVolume = (chain: string) => {
-  return async () => {
-    const data = await getData(chain);
+  return async (timestamp: number) => {
+    const data = await getData(chain, timestamp);
 
     return {
       totalVolume: data.totalVolume,
@@ -83,9 +84,8 @@ export const fetchVolume = (chain: string) => {
 };
 
 export const fetchFee = (chain: string) => {
-  return async () => {
-    const data = await getData(chain);
-
+  return async (timestamp: number) => {
+    const data = await getData(chain, timestamp);
     return {
       timestamp: data.timestamp,
       dailyFees: data.dailyFees,
@@ -95,17 +95,3 @@ export const fetchFee = (chain: string) => {
     };
   };
 };
-
-const getBlock = async (chain: string, timestamp: string | number) => {
-  const blockQuery = gql`query blocks {
-    blocks(first: 1, orderBy: timestamp, orderDirection: desc, where: { timestamp_gt: ${timestamp}, timestamp_lt: ${
-    Number(timestamp) + 600
-  } }) {
-      number
-    }
-  }`
-
-  const { blocks: data } = await request(LINKS[chain].blocks, blockQuery)
-
-  return data[0].number ?? undefined
-}
