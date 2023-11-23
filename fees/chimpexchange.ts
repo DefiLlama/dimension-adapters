@@ -119,7 +119,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints)(CHAIN.LINEA),
-      start: async () => 605519,
+      start: async () => 1699488000,
       meta: {
         methodology,
       },
