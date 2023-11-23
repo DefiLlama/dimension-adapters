@@ -1,6 +1,6 @@
 import { BigNumber, ethers, EventFilter } from 'ethers';
 
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -66,7 +66,7 @@ interface ILog {
     topics: string[];
 }
 
-const data = async (timestamp: number) => {
+const data = async (timestamp: number): Promise<FetchResultFees> => {
     const toTimestamp = timestamp;
     const fromTimestamp = timestamp - 60 * 60 * 24;
     const toBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, {});
@@ -164,6 +164,10 @@ const data = async (timestamp: number) => {
             "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
             "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
         },
+        dailyRevenue: {
+            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
+            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
+        }
     };
 }
 
