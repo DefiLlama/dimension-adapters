@@ -86,20 +86,32 @@ const methodology = {
   }
 }
 
+interface IData {
+  feesUSD: string;
+  volumeUSD: string;
+  date: number;
+  dailyFeeUSD: string;
+  tvlUSD: string;
+}
+interface IPoolDay {
+  poolDayDatas: IData[]
+}
+
 const graphsElasticV2 = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-    const graphQuery = gql
+      const graphQuery = gql
       `{
-      kyberSwapDayData(id: ${dateId}) {
-        feesUSD
-      }
+        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+          feesUSD
+        }
     }`;
 
     if (!elasticEndpointsV2[chain]) return { timestamp };
-    const graphRes = await request(elasticEndpointsV2[chain], graphQuery);
-    const dailyFee = new BigNumber(graphRes.kyberSwapDayData?.feesUSD || '0');
+    const graphRes: IPoolDay = await request(elasticEndpointsV2[chain], graphQuery);
+    const dailyFee = new BigNumber(graphRes.poolDayDatas.reduce((a: number, b: IData) => a + Number(b.feesUSD), 0))
 
     return {
       timestamp,
@@ -117,16 +129,20 @@ const graphsElastic = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
 
-    const graphQuery = gql
-      `{
-      kyberSwapDayData(id: ${dateId}) {
-        feesUSD
-      }
-    }`;
+    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-    const graphRes = await request(elasticEndpoints[chain], graphQuery);
+    const graphQuery =
+      `{
+        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+          feesUSD
+        }
+    }`;
+    const graphRes: IPoolDay = await request(elasticEndpoints[chain], graphQuery);
     const elasticV2 = (await graphsElasticV2(chain)(timestamp))
-    const dailyFee = Number(graphRes.kyberSwapDayData?.feesUSD || '0') + Number(elasticV2?.dailyFees || '0');
+    const dailyFee = graphRes.poolDayDatas
+      .filter(e => Number(e?.dailyFeeUSD || 0) < 100_000 && Number(e?.feesUSD || 0) < 100_000)
+      .reduce((a: number, b: IData) => a + Number(b?.feesUSD || 0) + Number(b?.dailyFeeUSD || 0), 0)
+      + Number(elasticV2?.dailyFees || 0)
 
     return {
       timestamp,
