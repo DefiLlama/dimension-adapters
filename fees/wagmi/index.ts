@@ -16,21 +16,21 @@ const adapter: SimpleAdapter = {
       fetch: fetchFee(CHAIN.ERA),
       start: async () => 1681257600,
       meta: {
-        // methodology,
+        methodology,
       },
     },
     [CHAIN.FANTOM]: {
       fetch: fetchFee(CHAIN.FANTOM),
       start: async () => 1681257600,
       meta: {
-        // methodology,
+        methodology,
       },
     },
     [CHAIN.KAVA]: {
       fetch: fetchFee(CHAIN.KAVA),
       start: async () => 1694476800,
       meta: {
-        // methodology,
+        methodology,
       },
     },
   },
