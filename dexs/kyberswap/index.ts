@@ -106,7 +106,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
             const totalVolume = Number(a.totalVolume) + Number(elasticV2?.totalVolume || 0)
             return {
               dailyVolume: `${dailyVolume}`,
-              totalVolume: `${totalVolume}`,
+              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
               timestamp
             };
           },
