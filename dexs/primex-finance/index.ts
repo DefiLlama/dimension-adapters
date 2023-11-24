@@ -7,24 +7,28 @@ import { config, abi, topics } from "./utils";
 
 
 const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultVolume> => {
-  const { swapManager, positionManager, tokens } = config[chain];
+  const { swapManager, positionManager, batchManager } = config[chain];
 
   const logsConfig = [
     {
-      target: swapManager,
+      targets: swapManager,
       topics: [topics.swap]
     },
     {
-      target: positionManager,
+      targets: positionManager,
       topics: [topics.openPosition]
     },
     {
-      target: positionManager,
+      targets: positionManager,
       topics: [topics.closePosition]
     },
     {
-      target: positionManager,
+      targets: positionManager,
       topics: [topics.partiallyClosePosition]
+    },
+    {
+      targets: batchManager,
+      topics: [topics.closePosition]
     },
   ]
 
@@ -36,19 +40,58 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
     
-    const [swapLogs, openPositionLogs, closePositionLogs, partiallyClosePositionLogs] = (await Promise.all(logsConfig.map(({ target, topics }) => {
-      return sdk.api.util.getLogs({
-        target,
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain,
-        topics
-      })
-    }))).map(r => r.output as ethers.providers.Log[])
+    const [swapLogs, openPositionLogs, closePositionLogs, partiallyClosePositionLogs, closePositionBatchLogs] = (await Promise.all(logsConfig.map(async ({ targets, topics }) => {
+      return (await Promise.all(targets.map(target => {
+        return sdk.api.util.getLogs({
+          target,
+          topic: '',
+          toBlock: toBlock,
+          fromBlock: fromBlock,
+          keys: [],
+          chain,
+          topics
+        })
+      }))).map(r => r.output as ethers.providers.Log[]).flat()
+    })))
 
-    const priceKeys = tokens.map((t) => `${chain}:${t.toLowerCase()}`)
+    const swapTokens: string[] = swapLogs
+      .map((log: ethers.providers.Log) => {
+        const parsedLog = contractInterface.parseLog(log);
+        const tokenA = parsedLog.args.tokenA.toLowerCase();
+        return tokenA
+      });
+
+    const openPositionTokens: string[] = openPositionLogs
+      .map((log: ethers.providers.Log) => {
+        const parsedLog = contractInterface.parseLog(log);
+        const soldAsset = parsedLog.args.position.soldAsset.toLowerCase();
+        return soldAsset
+      });
+
+    const closePositionTokens: string[] = closePositionLogs
+      .map((log: ethers.providers.Log) => {
+        const parsedLog = contractInterface.parseLog(log);
+        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+        return soldAsset
+      })
+      
+    const partiallyClosePositionTokens: string[] = partiallyClosePositionLogs
+      .map((log: ethers.providers.Log) => {
+        const parsedLog = contractInterface.parseLog(log);
+        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+        return soldAsset
+      })
+
+    const closePositionBatchTokens: string[] = closePositionBatchLogs
+      .map((log: ethers.providers.Log) => {
+        const parsedLog = contractInterface.parseLog(log);
+        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+        return soldAsset
+      })
+
+    const uniqueTokens = Array.from(new Set(swapTokens.concat(openPositionTokens, closePositionTokens, partiallyClosePositionTokens, closePositionBatchTokens)))
+
+    const priceKeys = uniqueTokens.map((t) => `${chain}:${t}`)
     const prices = await getPrices(priceKeys, timestamp);
 
     const swapVolumeUSD: number = swapLogs
@@ -96,7 +139,18 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
       })
       .reduce((a: number, b: number) => a + b, 0)
 
-    const dailyVolume = swapVolumeUSD + openPositionVolumeUSD + closePositionVolumeUSD + partiallyClosePositionVolumeUSD
+    const closePositionBatchVolumeUSD: number = closePositionBatchLogs
+        .map((log: ethers.providers.Log) => {
+          const parsedLog = contractInterface.parseLog(log);
+          const soldAsset = parsedLog.args.soldAsset;
+          const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
+          const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
+          const amountOut = Number(parsedLog.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+          return amountOut * priceSoldAsset;
+        })
+        .reduce((a: number, b: number) => a + b, 0)
+
+    const dailyVolume = swapVolumeUSD + openPositionVolumeUSD + closePositionVolumeUSD + partiallyClosePositionVolumeUSD + closePositionBatchVolumeUSD
 
     return {
       dailyVolume: `${dailyVolume}`,
