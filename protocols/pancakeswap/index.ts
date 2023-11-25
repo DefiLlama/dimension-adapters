@@ -296,7 +296,15 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graph(chain as Chain),
+        fetch:  async (timestamp: number) => {
+          const v3stats = await v3Graph(chain)(timestamp, {})
+          if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
+          return {
+            ...v3stats,
+            timestamp
+          }
+
+        },
         start: async () => v3StartTimes[chain],
       }
       return acc
