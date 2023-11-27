@@ -39,7 +39,7 @@ const chains = [
 ];
 
 const fetch =
-  (chain) =>
+  (chain: string) =>
   async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(timestamp * 1000)
