@@ -1,8 +1,7 @@
 import axios from "axios";
-import { FetchResultFees, ProtocolType, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import fetchURL from "../utils/fetchURL";
+import { FetchResultFees, ProtocolType, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 interface IChart {
   date: string;
   txn_fee_usd: string;
@@ -27,9 +26,9 @@ const fetchFees =  async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    near: {
+    [CHAIN.NEAR]: {
       fetch: fetchFees,
-      start: async () => 0
+      start: async () => 1595289600
     }
   },
   protocolType: ProtocolType.CHAIN

@@ -126,7 +126,8 @@ export enum CHAIN {
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
   EON= "eon",
-  MANTA = "manta"
+  MANTA = "manta",
+  NEAR = "near",
 }
 
 // Don´t use
