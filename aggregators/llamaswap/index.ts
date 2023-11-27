@@ -52,8 +52,8 @@ const fetch =
     );
 
     return {
-      dailyVolume: dailyVolume.volume,
-      totalVolume: totalVolume.volume,
+      dailyVolume: dailyVolume.data.volume,
+      totalVolume: totalVolume.data.volume,
       timestamp: dayTimestamp,
     };
   };
