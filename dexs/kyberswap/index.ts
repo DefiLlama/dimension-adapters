@@ -1,3 +1,4 @@
+import request from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
@@ -6,6 +7,7 @@ import {
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
   univ2Adapter,
+  getUniqStartOfTodayTimestamp,
 } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -73,6 +75,69 @@ const elasticGraphs = getChainVolume({
     },
 });
 
+interface IPoolDayData {
+  pool: {
+    id: string
+    token0: {
+      id: string
+      symbol: string
+    }
+    token1: {
+      id: string
+      symbol: string
+    }
+  }
+  volumeUSD: string
+  tvlUSD: string
+  date: number
+}
+
+const optimismElastic = async (timestamp: number) => {
+  const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const url = "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-optimism";
+  const blacklisted = [
+    '0xa00e3a3511aac35ca78530c85007afcd31753819',
+    '0x8c6f28f2f1a3c87f0f938b96d27520d9751ec8d9',
+    '0xb448ec505c924944ca8b2c55ef05c299ee0781df'
+  ]
+  const poolBlacklist = [
+    '0x128944d0c53f407491e8bd543ae4f0b455b389ed'
+  ]
+
+  const query = `{
+    poolDayDatas(first: 1000, where:{date:${todayTimestamp}}, orderBy:volumeUSD, orderDirection:desc) {
+      pool {
+        id
+        token0 {
+          id
+          symbol
+        }
+        token1 {
+          id
+          symbol
+        }
+      }
+      volumeUSD
+      tvlUSD
+      date
+    }
+  }`;
+  const response: IPoolDayData[] = (await request(url, query)).poolDayDatas;
+  const volumeUSD = response
+    .filter((pool) => !blacklisted.includes(pool.pool.token0.id) && !blacklisted.includes(pool.pool.token1.id) && !poolBlacklist.includes(pool.pool.id))
+    .reduce((acc, pool) => {
+      const volume = Number(pool.volumeUSD)
+      return acc + volume
+    }, 0);
+  const dailyVolume = volumeUSD;
+
+  return {
+    dailyVolume: dailyVolume.toString(),
+    totalVolume: "0",
+    timestamp
+  }
+}
+
 const classicEndpoints = [...elasticChains, "aurora"].reduce((acc, chain)=>({
     [chain]: `https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-exchange-${normalizeChain[chain]??chain}`,
     ...acc,
@@ -100,7 +165,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
     return Object.keys(endpoints).reduce((acc, chain) => {
         acc[chain] = {
         fetch: async (timestamp: number) =>  {
-            const a = (await graphs(chain as any)(timestamp, {}))
+            const a = chain === CHAIN.OPTIMISM ? await optimismElastic(timestamp) : (await graphs(chain as any)(timestamp, {}))
             const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(timestamp, {})) : {} as FetchResultVolume;
             const dailyVolume = Number(a.dailyVolume) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a.totalVolume) + Number(elasticV2?.totalVolume || 0)
@@ -123,7 +188,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
+    // classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)
   }
 }
