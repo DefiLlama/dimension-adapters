@@ -38,6 +38,28 @@ const fetchTotalFees = async (block: number) => {
   });
   tokens = tokens.map(({ output }: { output: string }) => output);
 
+  let { output: tokensDecimals } = await api.abi.multiCall({
+    abi: "function decimals() public view returns (uint8)",
+    calls: tokens.map((t: string) => ({
+      params: [],
+      target: t,
+    })),
+    chain: "linea",
+    block,
+  });
+
+  let tDecimals: Record<string, number> = Object.fromEntries(
+    tokensDecimals.map(
+      ({
+        input,
+        output: decimals,
+      }: {
+        input: { target: string };
+        output: string;
+      }) => [input.target, Number(decimals)]
+    )
+  );
+
   let { output: inftBalances } = await api.abi.multiCall({
     abi: "erc20:balanceOf",
     calls: tokens.map((token: string) => ({
@@ -58,16 +80,17 @@ const fetchTotalFees = async (block: number) => {
     block,
   });
 
-  const totalFees: [string, BigNumber][] = inftBalances.map(
+  const totalFees: [string, BigNumber, number][] = inftBalances.map(
     ({ input, output }: { output: string; input: any }, i: number) => [
-      `${input.target}`,
+      `${CHAIN.LINEA}:${input.target}`,
       BigNumber.from(output).add(harvestedBalance[i].output).mul(2),
+      tDecimals[input.target],
     ]
   );
 
   return totalFees;
 };
-
+const DECIMALS_TO_KEEP = 3;
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
@@ -84,17 +107,62 @@ const adapter: SimpleAdapter = {
           await fetchTotalFees(lastDayBlock)
         );
 
-        const dailyFees = cumulativeFees.map(([token, fees]) => [
-          token,
-          fees.sub(lastDayCumulativeFees[token] ?? BigNumber.from(0)),
-        ]);
+        const dailyFees: [string, BigNumber, number][] = cumulativeFees.map(
+          ([token, fees, decimals]) => [
+            token,
+            fees.sub(lastDayCumulativeFees[token] ?? BigNumber.from(0)),
+            decimals,
+          ]
+        );
 
         return {
           totalFees: Object.fromEntries(
-            cumulativeFees.map(([token, fees]) => [token, fees.toString()])
+            cumulativeFees.map(([token, fees, decimals]) => [
+              token,
+              (
+                fees
+                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
+                  .toNumber() /
+                (10 ^ DECIMALS_TO_KEEP)
+              ).toFixed(DECIMALS_TO_KEEP),
+            ])
           ),
           dailyFees: Object.fromEntries(
-            dailyFees.map(([token, fees]) => [token, fees.toString()])
+            dailyFees.map(([token, fees, decimals]) => [
+              token,
+              (
+                fees
+                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
+                  .toNumber() /
+                (10 ^ DECIMALS_TO_KEEP)
+              ).toFixed(DECIMALS_TO_KEEP),
+            ])
+          ),
+          totalVolume: Object.fromEntries(
+            cumulativeFees.map(([token, fees, decimals]) => [
+              token,
+              (
+                fees
+                  .mul(1000)
+                  .div(2)
+                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
+                  .toNumber() /
+                (10 ^ DECIMALS_TO_KEEP)
+              ).toFixed(DECIMALS_TO_KEEP),
+            ])
+          ),
+          dailyVolume: Object.fromEntries(
+            dailyFees.map(([token, fees, decimals]) => [
+              token,
+              (
+                fees
+                  .mul(1000)
+                  .div(2)
+                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
+                  .toNumber() /
+                (10 ^ DECIMALS_TO_KEEP)
+              ).toFixed(DECIMALS_TO_KEEP),
+            ])
           ),
         } as FetchResult;
       },
