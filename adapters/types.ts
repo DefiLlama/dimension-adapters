@@ -65,8 +65,8 @@ export type Adapter = SimpleAdapter | BreakdownAdapter;
 
 // VOLUME
 export type FetchResultVolume = FetchResultBase & {
-  dailyVolume?: string | IJSON<string>;
-  totalVolume?: string | IJSON<string>;
+  dailyVolume?: string // | IJSON<string>;
+  totalVolume?: string // | IJSON<string>;
   dailyShortOpenInterest?: string // | IJSON<string>;
   dailyLongOpenInterest?: string;
   dailyOpenInterest?: string;

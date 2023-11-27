@@ -164,7 +164,7 @@ const adapter: SimpleAdapter = {
               ).toFixed(DECIMALS_TO_KEEP),
             ])
           ),
-        } as FetchResult;
+        } as unknown as FetchResult;
       },
       meta: {
         methodology: {
