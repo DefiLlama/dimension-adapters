@@ -85,7 +85,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
           await graphQLClient.request(lastTradeVolumeQuery)
         ).protocolMetrics[0].totalVolume
 
-        const dailyVolume = Number(tradeVolume) - Number(last24hTradeVolume)
+        const totalVolume = Number(tradeVolume) / 10 ** 6
+        const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
 
         return {
           timestamp,
