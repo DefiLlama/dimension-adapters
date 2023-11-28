@@ -105,3 +105,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
+      start: async () => 1700323200,
+    },
+  },
+};
+
+export default adapter;
