@@ -98,7 +98,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: async () => 1701058275,
+      start: async () => 1700122115,
     },
   },
 };
