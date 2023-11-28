@@ -1,25 +1,25 @@
 import { CHAIN } from "../../helpers/chains";
 
 interface ChainConfig {
-  swapManager: string;
-  positionManager: string;
+  swapManager: string[];
+  positionManager: string[];
+  batchManager: string[];
   start: number;
-  tokens: string[]
 }
 
 const config: { [chain: string]: ChainConfig } = {
   [CHAIN.POLYGON]: {
-    swapManager: '0x0AaDC2Eae6963ED983d85cbF088b0c294f4c26ff',
-    positionManager: '0x02bcaA4633E466d151b34112608f60A82a4F6035',
+    swapManager: ['0x0AaDC2Eae6963ED983d85cbF088b0c294f4c26ff', '0xA0069a14Df3ECd19a38c509757eBc2C2Aaa44992'],
+    positionManager: ['0x02bcaA4633E466d151b34112608f60A82a4F6035'],
+    batchManager: ['0xC6B1AF3dEb9E379ccADF2Fa21263a50E91F4776C', '0xc10771D8f5B6Ba702E3a44EC76969f07578F08b7'],
     start: 1697587200,
-    tokens: [
-      '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
-      '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6',
-      '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-      '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-      '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-    ]
-  }
+  },
+  [CHAIN.ARBITRUM]: {
+    swapManager: ['0xbE3de856EB22bf6EFA03DD55e65DF22bA212e6Db'],
+    positionManager: ['0x86890E30cE9E1e13Db5560BbEb435c55567Af1cd'],
+    batchManager: ['0xF2225a8f90311DaF9e989db1AfFd47617bb69E96'],
+    start: 1700611200,
+  },
 }
 
 const topics = {

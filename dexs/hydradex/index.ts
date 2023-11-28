@@ -1,5 +1,5 @@
 import { Chain } from '@defillama/sdk/build/general';
-import { BreakdownAdapter, BaseAdapter } from '../../adapters/types';
+import { BreakdownAdapter, BaseAdapter, DISABLED_ADAPTER_KEY } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
 
@@ -10,6 +10,7 @@ import {
   DEFAULT_DAILY_VOLUME_FIELD,
 } from '../../helpers/getUniSubgraph';
 import request, { gql } from 'graphql-request';
+import disabledAdapter from '../../helpers/disabledAdapter';
 
 const v2Endpoints = {
   [CHAIN.HYDRA]: 'https://info.hydradex.org/graphql',
@@ -111,6 +112,7 @@ const methodology = {
 const adapter: BreakdownAdapter = {
   breakdown: {
     v2: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.HYDRA]: {
         fetch: v2Graph(CHAIN.HYDRA),
         start: getStartTimestamp({

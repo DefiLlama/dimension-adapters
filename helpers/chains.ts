@@ -123,7 +123,10 @@ export enum CHAIN {
   SHIMMER_EVM = "shimmer_evm",
   MEER = "meer",
   SCROLL = "scroll",
-  RADIXDLT = "radixdlt"
+  RADIXDLT = "radixdlt",
+  LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  EON= "eon",
+  MANTA = "manta"
 }
 
 // Don´t use

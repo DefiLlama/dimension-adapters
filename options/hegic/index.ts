@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
-export const analyticsEndpoint = "https://api.hegic.co/analytics";
+export const analyticsEndpoint = "https://api.hegic.co/positions";
 export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
 
 const secondsInADay = 24 * 60 * 60;

@@ -17,6 +17,7 @@ interface IFees {
 interface DailyVolume {
   date: string;
   volume: string;
+  totalVolume: string;
 }
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
@@ -34,6 +35,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
     dailyVolume: dailyVolume.length > 0 ? dailyVolume[0].volume : "0",
+    totalVolume: dailyVolume.length > 0 ? dailyVolume[0].totalVolume : "0",
     dailySupplySideRevenue: `${dailySupplySideRevenue}`,
     timestamp: dayTimestamp,
   };

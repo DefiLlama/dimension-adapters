@@ -14,6 +14,8 @@ const endpoint: IEndpoint = {
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-optimism",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-mainnet",
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-polygon",
+  [CHAIN.BASE]: "https://graph.contango.xyz:18000/subgraphs/name/contango-xyz/v2-base",
+  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-gnosis",
 }
 
 interface IAssetTotals {
@@ -112,7 +114,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: async () => 1696291200,
+      start: async () => 1696204800,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
@@ -120,7 +122,15 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: async () => 1696291200,
+      start: async () => 1697155200,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchVolume(CHAIN.BASE),
+      start: async () => 1696809600,
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetchVolume(CHAIN.XDAI),
+      start: async () => 1696550400,
     },
   }
 };

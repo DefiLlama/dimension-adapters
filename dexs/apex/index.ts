@@ -3,7 +3,7 @@ import { SimpleAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://pro.apex.exchange/api/v1/klines?end=${endTime}&interval=D&start=1664928000&symbol=${symbol}`
+const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://pro.apex.exchange/api/v1/klines?end=${endTime}&interval=D&start=1664928000&symbol=${symbol}&limit=100`
 const allTiker = (symbol: string) => `https://pro.apex.exchange/api/v1/ticker?symbol=${symbol}`
 interface IVolumeall {
     id: string;
@@ -12,17 +12,33 @@ interface IVolumeall {
     price: string;
     volumeUSD: number;
 }
-const symbol: string[] = [
-  'BTCUSDC',   'ETHUSDC',
-  'AVAXUSDC',  '1000PEPEUSDC',
-  'ARBUSDC',   'XRPUSDC',
-  'ATOMUSDC',  'DOGEUSDC',
-  'MATICUSDC', 'OPUSDC',
-  'SOLUSDC',   'BNBUSDC',
-  'LTCUSDC',   'APTUSDC',
-  'LDOUSDC',   'BLURUSDC',
-  'BCHUSDC',   'ETCUSDC',
-  'WLDUSDC'
+const symbol: string[] =  ['1000PEPEUSDC',
+'APTUSDC',
+'ARBUSDC',
+'ATOMUSDC',
+'AVAXUSDC',
+'BCHUSDC',
+'BLURUSDC',
+'BNBUSDC',
+'BTCUSDC',
+'BTCUSDT',
+'DOGEUSDC',
+'DYDXUSDC',
+'ETCUSDC',
+'ETHUSDC',
+'ETHUSDT',
+'LBRUSDC',
+'LDOUSDC',
+'LINKUSDC',
+'LTCUSDC',
+'MATICUSDC',
+'OPUSDC',
+'ORDIUSDT',
+'SOLUSDC',
+'TIAUSDC',
+'TONUSDC',
+'WLDUSDC',
+'XRPUSDC'
 ]
 interface IOpenInterest {
     id: string;
