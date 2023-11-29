@@ -51,7 +51,10 @@ const adapter: SimpleAdapter = {
         [ARBITRUM]: {
             runAtCurrTime: true,
             start: async () => 1000235,
-            fetch
+            fetch,
+            meta:{
+                methodology: "api calls from grpahql"
+            }
         }
     }
 }
