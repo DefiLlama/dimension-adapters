@@ -36,6 +36,8 @@ const endpoints: TEndpoint = {
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-avax",
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/56564/wombat-exchange-base/version/latest",
+  [CHAIN.OPTIMISM]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-op",
 };
 
 const fetchVolume = (chain: Chain) => {
@@ -93,6 +95,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchVolume(CHAIN.BASE),
       start: async () => 1697486905,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetchVolume(CHAIN.OPTIMISM),
+      start: async () => 1700173545,
     },
   },
 };
