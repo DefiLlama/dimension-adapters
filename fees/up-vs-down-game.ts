@@ -66,6 +66,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     timestamp,
     dailyFees: feesInUsd.toString(),
+    dailyRevenue: feesInUsd.toString(),
   }
 }
 
