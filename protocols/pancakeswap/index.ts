@@ -12,7 +12,7 @@ const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth",
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
-  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
+  // [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
   [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v2"
