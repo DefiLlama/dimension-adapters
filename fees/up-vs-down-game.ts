@@ -73,7 +73,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: async () => 1622505600,
+      start: async () => 1691625600,
     }
   }
 }
