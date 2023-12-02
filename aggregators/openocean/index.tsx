@@ -31,16 +31,23 @@ const fetch =
     const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);
     const dayDiff = today.getTime() - timestampDate.getTime();
     const daysPassed = (dayDiff / (1000 * 3600 * 24)).toFixed(0);
-    const data = await fetchURL(
-      `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${
-        daysPassed || 1
-      }&total=true`
-    );
+    try {
+      const data = await fetchURL(
+        `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${
+          daysPassed || 1
+        }&total=true`
+      );
 
-    return {
-      dailyVolume: data.data.data[chain]?.volume,
-      timestamp: unixTimestamp,
-    };
+      return {
+        dailyVolume: data.data.data[chain]?.volume,
+        timestamp: unixTimestamp,
+      };
+    } catch (e) {
+      return {
+        dailyVolume: "0",
+        timestamp: unixTimestamp,
+      };
+    }
   };
 
 const adapter: any = {
