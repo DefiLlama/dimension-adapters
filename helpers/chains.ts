@@ -128,6 +128,7 @@ export enum CHAIN {
   EON= "eon",
   MANTA = "manta",
   NEAR = "near",
+  EOS_EVM = "eos_evm",
 }
 
 // Don´t use
