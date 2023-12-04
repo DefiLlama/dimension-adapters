@@ -13,13 +13,16 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const dateStr = new Date(dayTimestamp * 1000).toLocaleDateString('en-US', { timeZone: 'UTC' })
+  const [month, day, year] = dateStr.split('/');
+  const formattedDate = `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
   const totalFees = historicalVolume
     .filter(volItem => Number(new Date(volItem.date.split('/').join('-')).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { fees }) => acc + Number(fees), 0);
 
   const dailyFees = historicalVolume
-    .find(dayItem => Number(new Date(dayItem.date.split('/').join('-')).getTime() / 1000) === dayTimestamp)?.fees;
+    .find(dayItem => dayItem.date === formattedDate)?.fees;
   const fetchResponse: FetchResultFees = {
     timestamp: dayTimestamp
   }
