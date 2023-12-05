@@ -17,6 +17,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             }))?.data?.result?.blockNumber)));
         else if (chain === CHAIN.KAVA)
             block = Number((await retry(async () => (await axios.get(`https://explorer.kava.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
         else if (chain === CHAIN.ONUS)

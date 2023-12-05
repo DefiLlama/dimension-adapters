@@ -12,14 +12,14 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.FANTOM),
       start: async () => 1681257600,
     },
-    [CHAIN.KAVA]: {
-      fetch: fetchVolume(CHAIN.KAVA),
-      start: async () => 1694476800,
-    },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
       start: async () => 18240112,
     },
+    // [CHAIN.KAVA]: {
+    //   fetch: fetchVolume(CHAIN.KAVA),
+    //   start: async () => 1694476800,
+    // }
   },
 };
 //
