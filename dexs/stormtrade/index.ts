@@ -21,7 +21,7 @@ export default {
                 }
 
                 return {
-                    dailyVolume: { 'tether': response.data.volume },
+                    dailyVolume: response.data.volume.toString(),
                     timestamp: response.data.timestamp
                 }
             },

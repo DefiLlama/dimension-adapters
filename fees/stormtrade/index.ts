@@ -21,7 +21,8 @@ export default {
                 }
 
                 return {
-                    dailyUserFees: { 'tether': response.data.fees },
+                    dailyUserFees: response.data.fees.toString(),
+                    dailyFees: response.data.fees.toString(),
                     timestamp: response.data.timestamp
                 }
             },
