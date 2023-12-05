@@ -9,17 +9,23 @@ export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
     subgraph:
       "https://api.studio.thegraph.com/query/4540/wagmi-zksync-era/version/latest",
-    blocks: "https://api.studio.thegraph.com/query/4540/zksync-era-blocks/v0.0.1",
+    blocks:
+      "https://api.studio.thegraph.com/query/4540/zksync-era-blocks/v0.0.1",
   },
   [CHAIN.FANTOM]: {
     subgraph:
       "https://api.thegraph.com/subgraphs/name/0xfantaholic/wagmi-fantom",
-    blocks: "https://api.thegraph.com/subgraphs/name/beethovenxfi/fantom-blocks",
+    blocks:
+      "https://api.thegraph.com/subgraphs/name/beethovenxfi/fantom-blocks",
   },
   [CHAIN.KAVA]: {
-    subgraph:
-      "https://kava.graph.wagmi.com/subgraphs/name/v3",
+    subgraph: "https://kava.graph.wagmi.com/subgraphs/name/v3",
     blocks: "https://kava.graph.wagmi.com/subgraphs/name/blocks",
+  },
+  [CHAIN.ETHEREUM]: {
+    subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
+    blocks:
+      "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
   },
 };
 
@@ -35,8 +41,8 @@ interface IGraph {
   factories: IData[];
 }
 const getData = async (chain: Chain, timestamp: number) => {
-  const block = await getBlock(timestamp,chain, {})
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+  const block = await getBlock(timestamp, chain, {});
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400);
   // Get total volume
   const query = gql`{
     uniswapDayData(id: ${dateId}) {
@@ -52,7 +58,7 @@ const getData = async (chain: Chain, timestamp: number) => {
   }
   `;
 
-  const data:IGraph = await request(LINKS[chain].subgraph, query);
+  const data: IGraph = await request(LINKS[chain].subgraph, query);
 
   const totalVolume = Number(data.factories[0].totalVolumeUSD);
   const totalFee = Number(data.factories[0].totalFeesUSD);
