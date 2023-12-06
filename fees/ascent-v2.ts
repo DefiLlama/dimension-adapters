@@ -1,43 +1,13 @@
-
-
-
-
-
-
-
-
-import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { Adapter, BreakdownAdapter, FetchResult, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
-import { getGraphDimensions } from "../helpers/getUniSubgraph";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getBlock } from "../helpers/getBlock";
-
-interface IPoolData {
-  id: number;
-  feesUSD: string;
-}
-
-
-
-type IURL = {
-  [l: string | Chain]: string;
-}
-
-const endpoints: IURL = {
-  [CHAIN.EON]: "https://eon-graph.horizenlabs.io/subgraphs/name/Ascent/ascent-subgraph"
-}
-
-
-
 
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.002;
-const endpoint =
-  "https://eon-graph.horizenlabs.io/subgraphs/name/Ascent/ascent-subgraph";
+const endpoint = "https://eon-graph.horizenlabs.io/subgraphs/name/Ascent/ascent-subgraph";
 
 interface IPair {
   id: string;
@@ -52,13 +22,10 @@ interface IGraphResponse {
 const getFees = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
-    const todaysBlock = await getBlock(
-      todaysTimestamp,
-      "eon",
-      {}
-    );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "eon", {});
+    const fromTimestamp = todaysTimestamp - 60 * 60 * 24
+    const toTimestamp = todaysTimestamp
+    const todaysBlock = await getBlock(toTimestamp, CHAIN.EON, {});
+    const yesterdaysBlock = await getBlock(fromTimestamp, CHAIN.EON, {});
 
     const query = gql`
       query fees {
@@ -96,18 +63,12 @@ const getFees = () => {
     return {
       timestamp,
       dailyFees: dailyFee.toString(),
-
+      dailyUserFees: dailyFee.toString(),
       dailyRevenue: dailyFee.multipliedBy(0.32).toString(),
     };
   };
 };
 
-
-const methodology = {
-  UserFees: "User pays 0.2% fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders."
-  }
 
   const adapter: SimpleAdapter = {
       adapter: {
@@ -117,7 +78,6 @@ const methodology = {
 
           meta: {
             methodology: {
-              ...methodology,
               UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
             }
           }
