@@ -228,11 +228,11 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1683244800
+      start: async () => 1672531200
     },
     [CHAIN.FANTOM]: {
       fetch: fetchFees(CHAIN.FANTOM),
-      start: async () => 1683244800
+      start: async () => 1672531200
     }
   }
 }
