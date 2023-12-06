@@ -86,7 +86,7 @@ const getFees = () => {
     return {
       timestamp,
       dailyFees: dailyFee.toString(),
-     
+
       dailyRevenue: dailyFee.multipliedBy(0.32).toString(),
     };
   };
@@ -103,8 +103,8 @@ const methodology = {
       adapter: {
           [CHAIN.EON]: {
               fetch: getFees(),
-              start: async () => 1662425243,
-            
+              start: async () => 1698796800,
+
           meta: {
             methodology: {
               ...methodology,
