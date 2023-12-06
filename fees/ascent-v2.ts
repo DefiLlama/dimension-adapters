@@ -39,6 +39,16 @@ const VOLATILE_FEES = 0.002;
 const endpoint =
   "https://eon-graph.horizenlabs.io/subgraphs/name/Ascent/ascent-subgraph";
 
+interface IPair {
+  id: string;
+  volumeUSD: string;
+  isStable: boolean;
+}
+
+interface IGraphResponse {
+  today: IPair[];
+  yesterday: IPair[];
+}
 const getFees = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
@@ -64,24 +74,24 @@ const getFees = () => {
         }
       }
     `;
-    const todayVolume: { [id: string]: BigNumber } = {};
-    const graphRes = await request(endpoint, query);
-    let dailyFee = new BigNumber(0);
-    for (const pool of graphRes["today"]) {
-      todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
-    }
 
-    for (const pool of graphRes["yesterday"]) {
-      if (!todayVolume[pool.id]) continue;
-      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(
-        pool.volumeUSD
-      );
+    const graphRes: IGraphResponse = await request(endpoint, query);
+    const totalFeesToday = graphRes.today.reduce((acc, pool) => {
       if (pool.isStable) {
-        dailyFee = dailyFee.plus(dailyVolume.times(STABLE_FEES));
+        return acc.plus(new BigNumber(pool.volumeUSD).times(STABLE_FEES));
       } else {
-        dailyFee = dailyFee.plus(dailyVolume.times(VOLATILE_FEES));
+        return acc.plus(new BigNumber(pool.volumeUSD).times(VOLATILE_FEES));
       }
-    }
+    }, new BigNumber(0));
+
+    const totalFeesYesterday = graphRes.yesterday.reduce((acc, pool) => {
+      if (pool.isStable) {
+        return acc.plus(new BigNumber(pool.volumeUSD).times(STABLE_FEES));
+      } else {
+        return acc.plus(new BigNumber(pool.volumeUSD).times(VOLATILE_FEES));
+      }
+    }, new BigNumber(0));
+    const dailyFee = totalFeesToday.minus(totalFeesYesterday);
 
     return {
       timestamp,

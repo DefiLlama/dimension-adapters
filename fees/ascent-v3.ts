@@ -23,7 +23,6 @@ const endpoints: IURL = {
     "https://eon-graph.horizenlabs.io/subgraphs/name/surfacing8671/v3AscentFull2",
 };
 
-const VOLUME_USD = "volumeUSD";
 const v3Graphs = getGraphDimensions({
   graphUrls: endpoints,
   totalVolume: {
