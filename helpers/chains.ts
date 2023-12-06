@@ -129,6 +129,7 @@ export enum CHAIN {
   MANTA = "manta",
   NEAR = "near",
   EOS_EVM = "eos_evm",
+  ROLLUX = "rollux",
 }
 
 // Don´t use
