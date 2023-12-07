@@ -134,22 +134,34 @@ const classic = Object.keys(endpointsClassic).reduce(
   {}
 ) as any;
 
+const fantomGraphs =  getChainVolumeWithGasToken({
+  graphUrls: {
+    [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
+  },
+  totalVolume: {
+    factory: "factories",
+    field: 'volumeETH',
+  },
+  dailyVolume: {
+    factory: "dayData",
+    field: 'volumeETH',
+    dateField: "date"
+  }
+} as any);
 classic[CHAIN.FANTOM] = {
-  fetch: getChainVolumeWithGasToken({
-    graphUrls: {
-      [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
-    },
-    totalVolume: {
-      factory: "factories",
-      field: 'volumeETH',
-    },
-    dailyVolume: {
-      factory: "dayData",
-      field: 'volumeETH',
-      dateField: "date"
-    },
-  } as any)("fantom"),
-  start: async()=>0
+  fetch: async (timestamp: number) =>   {
+    const values = await fantomGraphs(CHAIN.FANTOM)(timestamp, {});
+    return {
+      ...values,
+      dailyFees: values.dailyVolume * 0.003,
+      dailyUserFees: values.dailyVolume * 0.003,
+      dailyProtocolRevenue: values.dailyVolume * 0.0005,
+      dailySupplySideRevenue: values.dailyVolume * 0.0025,
+      dailyHoldersRevenue: 0,
+      dailyRevenue: values.dailyVolume * 0.003,
+    }
+  },
+  start: async() => 0
 }
 
 export default classic
