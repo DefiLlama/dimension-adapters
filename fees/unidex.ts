@@ -12,7 +12,7 @@ const endpoints: TUrl = {
   [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/optimismleveragev2',
   [CHAIN.ERA]: 'https://zksync.tempsubgraph.xyz/subgraphs/name/unidex-finance/zkssyncleveragev2',
   [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/fantomleveragev2',
-  [CHAIN.METIS]: 'https://unidexcronos.xyz/subgraphs/name/unidex-finance/leveragev2',
+  // [CHAIN.METIS]: 'https://unidexcronos.xyz/subgraphs/name/unidex-finance/leveragev2', cert has expired
   [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/arbitrumleveragev2',
 }
 // hot fix era CERT_HAS_EXPIRED
@@ -133,13 +133,13 @@ const adapter: Adapter = {
         methodology
       }
     },
-    [CHAIN.METIS]: {
-      fetch: fetch(CHAIN.METIS),
-      start: async ()  => 1687898060,
-      meta: {
-        methodology
-      }
-    },
+    // [CHAIN.METIS]: {
+    //   fetch: fetch(CHAIN.METIS),
+    //   start: async ()  => 1687898060,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
   }
 }
 
