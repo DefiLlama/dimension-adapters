@@ -2810,5 +2810,14 @@ export default ([
             ]
         }
     },
+    {
+        "id":"parent#canary",
+        "name":"Canary",
+        "addresses":{
+            "avax":[
+                "0x06f8ED60393AC6A4B16900273C9313222dfe9940"
+            ]
+        }
+    },
     
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
