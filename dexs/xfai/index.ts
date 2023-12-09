@@ -1,12 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { api, util } from "@defillama/sdk";
+import { api } from "@defillama/sdk";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
-import { BigNumber } from "ethers";
+import { BigNumber } from "bignumber.js";
+
 const FACTORY_ADDRESS = "0xa5136eAd459F0E61C99Cec70fe8F5C24cF3ecA26";
 const INFT_ADDRESS = "0xa155f12D3Be29BF20b615e1e7F066aE9E3C5239a";
+const LINEA_WETH_ADDRESS = "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+const FEE_VOLUME_MULTIPLIER = 1000 / 2;
 
 const fetchTotalFees = async (block: number) => {
   const { output: numOfPools } = await api.abi.call({
@@ -37,6 +39,7 @@ const fetchTotalFees = async (block: number) => {
     block,
   });
   tokens = tokens.map(({ output }: { output: string }) => output);
+  tokens.push(LINEA_WETH_ADDRESS);
 
   let { output: tokensDecimals } = await api.abi.multiCall({
     abi: "function decimals() public view returns (uint8)",
@@ -83,14 +86,13 @@ const fetchTotalFees = async (block: number) => {
   const totalFees: [string, BigNumber, number][] = inftBalances.map(
     ({ input, output }: { output: string; input: any }, i: number) => [
       `${CHAIN.LINEA}:${input.target}`,
-      BigNumber.from(output).add(harvestedBalance[i].output).mul(2),
+      new BigNumber(output).plus(harvestedBalance[i].output).times(2),
       tDecimals[input.target],
     ]
   );
 
   return totalFees;
 };
-const DECIMALS_TO_KEEP = 3;
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
@@ -110,7 +112,7 @@ const adapter: SimpleAdapter = {
         const dailyFees: [string, BigNumber, number][] = cumulativeFees.map(
           ([token, fees, decimals]) => [
             token,
-            fees.sub(lastDayCumulativeFees[token] ?? BigNumber.from(0)),
+            fees.minus(lastDayCumulativeFees[token] ?? new BigNumber(0)),
             decimals,
           ]
         );
@@ -119,49 +121,35 @@ const adapter: SimpleAdapter = {
           totalFees: Object.fromEntries(
             cumulativeFees.map(([token, fees, decimals]) => [
               token,
-              (
                 fees
-                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
-                  .toNumber() /
-                (10 ^ DECIMALS_TO_KEEP)
-              ).toFixed(DECIMALS_TO_KEEP),
+                  .div(new BigNumber(10).pow(decimals))
+                  .toString(),
             ])
           ),
           dailyFees: Object.fromEntries(
             dailyFees.map(([token, fees, decimals]) => [
               token,
-              (
                 fees
-                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
-                  .toNumber() /
-                (10 ^ DECIMALS_TO_KEEP)
-              ).toFixed(DECIMALS_TO_KEEP),
+                  .div(new BigNumber(10).pow(decimals))
+                  .toString(),
             ])
           ),
           totalVolume: Object.fromEntries(
             cumulativeFees.map(([token, fees, decimals]) => [
               token,
-              (
                 fees
-                  .mul(1000)
-                  .div(2)
-                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
-                  .toNumber() /
-                (10 ^ DECIMALS_TO_KEEP)
-              ).toFixed(DECIMALS_TO_KEEP),
+                  .times(FEE_VOLUME_MULTIPLIER)
+                  .div(new BigNumber(10).pow(decimals))
+                  .toString(),
             ])
           ),
           dailyVolume: Object.fromEntries(
             dailyFees.map(([token, fees, decimals]) => [
               token,
-              (
                 fees
-                  .mul(1000)
-                  .div(2)
-                  .div(BigNumber.from(10).pow(decimals - DECIMALS_TO_KEEP))
-                  .toNumber() /
-                (10 ^ DECIMALS_TO_KEEP)
-              ).toFixed(DECIMALS_TO_KEEP),
+                  .times(FEE_VOLUME_MULTIPLIER)
+                  .div(new BigNumber(10).pow(decimals))
+                  .toString(),
             ])
           ),
         } as unknown as FetchResult;
