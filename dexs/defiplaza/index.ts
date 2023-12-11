@@ -9,6 +9,7 @@ type RadixPlazaResponse = {
   totalValueLockedUSD: number,
   volumeUSD: number,
   feesUSD: number,
+  royaltiesUSD: number,
   swaps: number
 }
 
@@ -39,11 +40,28 @@ const adapter: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
         const daily: RadixPlazaResponse = (await fetchURL(radix_enpoint + `?timestamp=${timestamp}`)).data;
-        
+
+        const dailySupplySideRevenue = daily.feesUSD;
+        const dailyProtocolRevenue = daily.royaltiesUSD;
+        const dailyRevenue = dailyProtocolRevenue;
+        const dailyFees = dailySupplySideRevenue + dailyRevenue;
+        const dailyUserFees = dailyFees;
+
         return {
           dailyVolume: daily.volumeUSD,
-          dailyFees: daily.feesUSD,
+          dailyUserFees,
+          dailyFees,
+          dailyRevenue,
+          dailyProtocolRevenue,
+          dailySupplySideRevenue,
           timestamp
+        }
+      },
+      meta: {
+        methodology: {
+          Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
+          Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+          SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
         }
       },
       start: async () => 1700784000,
