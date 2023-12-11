@@ -16,6 +16,14 @@ const poolIDs = {
   V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb',
   V3_ETH: '0x2f39d218133afab8f2b819b1066c7e434ad94e9e',
 }
+type THeader = {
+  [s: string]: string;
+}
+const headers: THeader = {
+  'origin': 'https://aave.com/',
+  'referer': 'https://aave.com/',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+};
 
 const ONE_DAY = 24 * 60 * 60;
 
@@ -162,12 +170,19 @@ const v2Reserves = async (graphUrls: ChainEndpoints, poolId: string, chain: stri
         }
       }
     }`;
-
-  const graphRes = await request(graphUrls[chain], graphQuery);
+  const graphRes = await request(graphUrls[chain], graphQuery, {}, headers);
   const reserves = graphRes.reserves.map((r: any) => r.paramsHistory[0]).filter((r: any) => r)
   return reserves
 }
 
+type TMap = {
+  [s: string]: string[];
+}
+const blacklisted_v2_symbol: TMap = {
+  [CHAIN.ETHEREUM]: ['AMPL'],
+  [AVAX]: [],
+  [POLYGON]: [],
+}
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
@@ -190,6 +205,7 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
         if (!yesterdaysReserve) {
           return acc;
         }
+        if (blacklisted_v2_symbol[chain].includes(reserve.reserve.symbol)) return acc;
 
         const priceInUsd = chain == 'avax' ? parseFloat(reserve.priceInUsd) / (10 ** 8) : parseFloat(reserve.priceInUsd)
 
