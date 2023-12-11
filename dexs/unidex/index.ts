@@ -89,7 +89,7 @@ const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
       }
     });
   }
-  
+
   return totalVolume;
 };
 
@@ -160,14 +160,14 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology
       }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1687422746,
-      meta: {
-        methodology
-      }
-    },
+    }, // use volume from other protocol it might be the duplicate value of the same protocol
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch(CHAIN.ARBITRUM),
+    //   start: async ()  => 1687422746,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: async ()  => 1687422746,
