@@ -130,6 +130,7 @@ export enum CHAIN {
   NEAR = "near",
   EOS_EVM = "eos_evm",
   ROLLUX = "rollux",
+  MODE = "mode",
 }
 
 // Don´t use
