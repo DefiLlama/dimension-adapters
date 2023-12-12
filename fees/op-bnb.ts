@@ -5,16 +5,40 @@ import { getBalance } from "@defillama/sdk/build/eth";
 import { Adapter, ChainBlocks, FetchResultFees, ProtocolType } from "../adapters/types";
 import { getPrices } from "../utils/prices";
 import { queryFlipside } from "../helpers/flipsidecrypto";
+import * as sdk from "@defillama/sdk";
 const retry = require("async-retry")
 
+const topic0 = '0xc8a211cc64b6ed1b50595a9fcb1932b6d1e5a6e8ef15b60e5b1f988ea9086bba';
+interface ILog {
+  data: string;
+  transactionHash: string;
+  topics: string[];
+}
+
 async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: ChainBlocks){
+  const todaysBlock1 = (await getBlock(toTimestamp,CHAIN.OP_BNB, {}));
   const todaysBlock = (await getBlock(toTimestamp,CHAIN.OP_BNB, chainBlocks));
   const yesterdaysBlock = (await getBlock(fromTimestamp,CHAIN.OP_BNB, {}));
+  const feeWallet = '0x4200000000000000000000000000000000000011';
+  const l1FeeVault = '0x420000000000000000000000000000000000001a';
+  const logsWithdrawal: ILog[] = (await Promise.all([feeWallet, l1FeeVault].map(address => sdk.api.util.getLogs({
+    keys: [],
+    toBlock: todaysBlock1,
+    fromBlock: yesterdaysBlock,
+    target: address,
+    topic: '',
+    topics: [topic0],
+    chain: CHAIN.OP_BNB,
+  })))).map((p: any) => p.output).flat();
+  const withdrawAmount = logsWithdrawal.map((log: ILog) => {
+    const parsedLog = log.data.replace('0x', '')
+    const amount = Number('0x' + parsedLog.slice(0, 64));
+    return amount;
+  }).reduce((a: number, b: number) => a + b, 0);
 
   return await retry(async () => {
     try {
-      const feeWallet = '0x4200000000000000000000000000000000000011';
-      const l1FeeVault = '0x420000000000000000000000000000000000001a';
+
       const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = await Promise.all([
         getBalance({
           target: feeWallet,
@@ -41,7 +65,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
       const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
           .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
 
-      return (ethBalance.plus(0)).div(1e18)
+      return (ethBalance.plus(withdrawAmount)).div(1e18)
     } catch (e) {
       throw e;
     }

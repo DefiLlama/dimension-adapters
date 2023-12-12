@@ -7,11 +7,22 @@ const url_orderbook = 'https://api-core.caviarnine.com/v1.0/stats/product/orderb
 const url_trades = 'https://api-core.caviarnine.com/v1.0/stats/product/shapeliquidity';
 
 const fetchSpot = async (timestamp: number): Promise<FetchResultVolume> => {
-  const orderbookVolume = (await fetchURL(url_orderbook)).data.summary.volume.interval_1d.usd;
-  const dailyVolumeTrades = (await fetchURL(url_trades)).data.summary.volume.interval_1d.usd;
-  const dailyVolume = Number(orderbookVolume) + Number(dailyVolumeTrades);
+  let dailyVolume = 0;
+  try {
+    const orderbookVolume = (await fetchURL(url_orderbook)).data.summary.volume.interval_1d.usd;
+    dailyVolume += Number(orderbookVolume);
+  } catch (e) {
+    console.error('Failed to fetch orderbook volume', e);
+  }
+
+  try {
+    const dailyVolumeTrades = (await fetchURL(url_trades)).data.summary.volume.interval_1d.usd;
+    dailyVolume += Number(dailyVolumeTrades);
+  } catch (e) {
+    console.error('Failed to fetch trades volume', e);
+  }
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume ?  `${dailyVolume}` : undefined,
     timestamp
   }
 }
@@ -22,7 +33,7 @@ const adapters: BreakdownAdapter = {
       [CHAIN.RADIXDLT]: {
         fetch: fetchSpot,
         start: async () => 1698710400,
-        runAtCurrTime: true
+        // runAtCurrTime: true
       }
     },
     aggregator: {
@@ -38,7 +49,7 @@ const adapters: BreakdownAdapter = {
           }
         },
         start: async () => 1698710400,
-        runAtCurrTime: true
+        // runAtCurrTime: true
       }
     }
   }

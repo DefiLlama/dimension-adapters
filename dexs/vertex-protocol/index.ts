@@ -17,20 +17,26 @@ interface IProducts {
 const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
 const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 
+const fetchValidSymbols = async (): Promise<number[]> => {
+  const symbols = (await axios.get(`${gatewayBaseUrl}/symbols`)).data;
+  return symbols.map((product: { product_id: number }) => product.product_id);
+};
+
 const fetchProducts = async (): Promise<IProducts> => {
+  const validSymbols = await fetchValidSymbols();
   const allProducts = (
     await axios.get(`${gatewayBaseUrl}/query?type=all_products`)
   ).data.data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => id > 0),
-    perp_products: allProducts.perp_products.map(
-      (product: { product_id: number }) => product.product_id
-    ),
+      .filter((id: number) => validSymbols.includes(id) && id > 0),
+    perp_products: allProducts.perp_products
+      .map((product: { product_id: number }) => product.product_id)
+      .filter((id: number) => validSymbols.includes(id)),
     margined_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => id > 0),
+      .filter((id: number) => validSymbols.includes(id) && id > 0),
   };
 };
 

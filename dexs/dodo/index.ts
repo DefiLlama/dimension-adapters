@@ -19,7 +19,18 @@ import totalVolumePayload from "./totalVolumePayload";
 } as ChainEndpoints */
 const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
 const totalEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardInfoData&apikey=graphqldefiLlamadodoYzj5giof"
-const chains = [CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.LINEA, CHAIN.SCROLL]
+const chains = [
+  CHAIN.ARBITRUM,
+   CHAIN.BSC,
+   CHAIN.ETHEREUM,
+   CHAIN.POLYGON,
+   CHAIN.AVAX,
+   CHAIN.OPTIMISM,
+   CHAIN.BASE,
+   CHAIN.LINEA,
+   CHAIN.SCROLL,
+   CHAIN.MANTA
+]
 
 interface IDailyResponse {
   data: {
@@ -46,7 +57,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
   // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))).data as ITotalResponse
-  console.log("DODO volume debug:", JSON.stringify(dailyResponse, null, 2))
+
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === dayTimestamp)?.volume[chain],
@@ -61,7 +72,16 @@ const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
 }
 
 const chainConversion = (chain: string): string => {
-    return chain === CHAIN.SCROLL ? 'scr' : chain;
+  switch (chain) {
+    case CHAIN.SCROLL:
+        return 'scr';
+    case CHAIN.MANTA:
+        return 'manta';
+    case CHAIN.AVAX:
+        return 'avalanche';
+    default:
+        return chain;
+  }
 }
 
 const volume = chains.reduce(

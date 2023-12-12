@@ -4,6 +4,7 @@ import { Adapter, ChainBlocks, FetchResultFees } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { CHAIN } from "../../helpers/chains";
+import postgres from "postgres";
 
 /** Address to check = paalecosystemfund.eth */
 const CONTRACT_ADDRESS = "0x54821d1B461aa887D37c449F3ace8dddDFCb8C0a";
@@ -40,13 +41,47 @@ const checkBalance = async (timestamp: number, chainBlocks: ChainBlocks): Promis
         total: Number(currentBalance).toString()
     } as IBalance
 }
+interface IData {
+    eth_value: string;
+  }
 
 /** Calculate USD equivalent for a given ether amount */
-async function usdEquivalent(ethBalance: string, timeStamp: number) {
-    const etherAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const etherPrice = (await getPrices([etherAddress], timeStamp))[etherAddress].price;
-    const dailyFees = ((Number(ethBalance) / 1e18) * Number(etherPrice)).toString()
-    return dailyFees;
+async function usdEquivalent(_: string, timestamp: number) {
+    const sql = postgres(process.env.INDEXA_DB!);
+
+    const now = new Date(timestamp * 1e3)
+    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+    try {
+      const revenue_split = await sql`
+        SELECT
+          block_number,
+          block_time,
+          "value" / 1e18 as eth_value,
+          encode(transaction_hash, 'hex') AS HASH,
+          encode(to_address, 'hex') AS to_address
+        FROM
+          ethereum.traces
+        WHERE
+          block_number > 17539904
+          and to_address = '\\x54821d1B461aa887D37c449F3ace8dddDFCb8C0a'
+          and error is null
+          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+      `;
+
+      const transactions: IData[] = [...revenue_split] as IData[]
+      const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
+
+      const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+      const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+      const amountUSD = amount * ethPrice;
+      const dailyFees = amountUSD;
+      await sql.end({ timeout: 3 })
+      return dailyFees;
+    } catch (error) {
+      await sql.end({ timeout: 3 })
+      console.error(error);
+      throw error;
+    }
 }
 
 /** Adapter */

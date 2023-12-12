@@ -125,6 +125,11 @@ export enum CHAIN {
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  EON= "eon",
+  MANTA = "manta",
+  NEAR = "near",
+  EOS_EVM = "eos_evm",
+  ROLLUX = "rollux",
 }
 
 // Don´t use

@@ -12,7 +12,7 @@ const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth",
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
-  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
+  // [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-arbitrum/version/latest",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
   [CHAIN.OP_BNB]: "https://opbnb-mainnet-graph.nodereal.io/subgraphs/name/pancakeswap/exchange-v2"
@@ -160,7 +160,7 @@ const  getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolume = async (timestamp: number) => {
   const fromTimestamp = timestamp - 86400;
   const toTimestamp = timestamp;
   const account_resource: any[] = (await getResources(account))
@@ -192,7 +192,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       '0x70d2d370d4f17ccb70e4047e4f327550f2bda6c3d20c23225dec4e1005ab8dc1',
       '0x5fbfe849d110feecd7cfbe7529fda2ce691a3ecea08af66851d793180ea01a92',
       '0x67c928210094bec6f61849175ec986e514d5c2dab5ad6c00e0561d0706b0a9d5',
-      '0x2389a6fccfb39fff5d07dfe02fe69ea94306b6fc50afb5e6391237ae48f09043'
+      '0x2389a6fccfb39fff5d07dfe02fe69ea94306b6fc50afb5e6391237ae48f09043',
+      '0xd53b715700748751ce6944839fc64fb059ec949b66c3831e037813dd5a4caf5a',
     ]
     const logs_swap: ISwapEventData[] = (await Promise.all(pools.filter(e => creation_num.includes(Number(e.swap_events.creation_num))).map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
     const numberOfTrade: any = {};
@@ -219,10 +220,12 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       return token0Price ? in_au : out_au;
     })
     const dailyVolume = [...new Set(untrackVolume)].reduce((a: number, b: number) => a + b, 0)
+    // console.log(Object.values(numberOfTrade).sort((a: any, b: any) => b.volume - a.volume))
 
   return {
     timestamp,
     dailyVolume: dailyVolume.toString(),
+    dailyFees: "0",
   }
 }
 
@@ -293,7 +296,15 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graph(chain as Chain),
+        fetch:  async (timestamp: number) => {
+          const v3stats = await v3Graph(chain)(timestamp, {})
+          if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
+          return {
+            ...v3stats,
+            timestamp
+          }
+
+        },
         start: async () => v3StartTimes[chain],
       }
       return acc

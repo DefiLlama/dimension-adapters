@@ -9,8 +9,8 @@ import type { ChainEndpoints } from "../adapters/types";
 const UNIT = BigNumber.from("1000000000000000000");
 
 const endpoints = {
-  [OPTIMISM]: "https://api.lyra.finance/subgraph/optimism/v1/api",
-  [ARBITRUM]: "https://api.lyra.finance/subgraph/arbitrum/v2/api",
+  [OPTIMISM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/optimism-mainnet-newport/api",
+  [ARBITRUM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/arbitrum-mainnet/api",
 };
 
 interface IGetChainFeesParams {

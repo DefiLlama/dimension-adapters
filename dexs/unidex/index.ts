@@ -3,100 +3,147 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { getPrices } from "../../utils/prices";
 
-type TUrl = {
-  [l: string | Chain]: string;
-}
-const endpoints: TUrl = {
-  [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/optimismleveragev2',
-  [CHAIN.ERA]: 'https://zksync.tempsubgraph.xyz/subgraphs/name/unidex-finance/zkssyncleveragev2',
-  [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/fantomleveragev2',
-  [CHAIN.METIS]: 'https://unidexcronos.xyz/subgraphs/name/unidex-finance/leveragev2',
-  [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/arbitrumleveragev2',
-  [CHAIN.BASE]: 'https://base.tempsubgraph.xyz/subgraphs/name/unidex-finance/baseleveragev2',
+interface IReferralRecord {
+  volume: string; // Assuming volume is a string that represents a number
+  timestamp: number;
 }
 
-interface IDTrade {
-  id: string; // Add this line
-  cumulativeVolume: string;
+type TChainIDs = {
+  [key in Chain]?: number;
+};
+
+const chainIDs: TChainIDs = {
+  [CHAIN.FANTOM]: 250,
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.OPTIMISM]: 10,
+  [CHAIN.ERA]: 324,
+  [CHAIN.BASE]: 8453,
+};
+
+interface IDayProduct {
+  cumulativeVolumeUsd: number;
+  _id: string;
 }
+
+const fetchReferralVolume = async (timestamp: number): Promise<number> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+
+  const referralQuery = gql`
+    {
+      referrerStats(
+        where: {referrer: "0x8c128f336b479b142429a5f351af225457a987fa", timestamp_gt: "${todaysTimestamp}"}
+      ) {
+        volume
+      }
+    }
+  `;
+
+  const referralEndpoint = 'https://api.thegraph.com/subgraphs/name/gmx-io/gmx-arbitrum-referrals';
+  const referralRes = await request(referralEndpoint, referralQuery);
+
+  // If there's no volume data, return 0
+  if (!referralRes.referrerStats || referralRes.referrerStats.length === 0) {
+    return 0;
+  }
+
+  return Number(referralRes.referrerStats[0].volume) / 10 ** 30;
+};
+
+
+const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
+  const startOfDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const endOfDayTimestamp = startOfDayTimestamp + 86400; // Add one day's worth of seconds for the end of the day
+
+  const referralQuery = gql`
+    query MyQuery($timestamp_gte: BigInt = "", $timestamp_lte: BigInt = "") {
+      referralRecords(
+        where: {
+          referralCode: "0x556e694465780000000000000000000000000000000000000000000000000000",
+          timestamp_gte: $timestamp_gte,
+          timestamp_lte: $timestamp_lte
+        }
+      ) {
+        volume
+        timestamp
+      }
+    }
+  `;
+
+  const variables = {
+    timestamp_gte: startOfDayTimestamp.toString(),
+    timestamp_lte: endOfDayTimestamp.toString()
+  };
+
+  const referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-arb';
+  const referralRes = await request(referralEndpoint, referralQuery, variables);
+
+  // Sum up the volumes
+  let totalVolume = 0;
+
+  if (referralRes.referralRecords && Array.isArray(referralRes.referralRecords)) {
+    referralRes.referralRecords.forEach((record: IReferralRecord) => {
+      const volume = parseFloat(record.volume);
+      if (!isNaN(volume)) {
+        totalVolume += volume / 10 ** 18; // Adjust the unit conversion as needed
+      }
+    });
+  }
+
+  return totalVolume;
+};
+
+
+
+
+
+
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
-    // Define token Ids based on the chain
-    let tokenIds: string[] = [];
-    switch (chain) {
-      case CHAIN.FANTOM:
-        tokenIds = [
-          "fantom:0x0000000000000000000000000000000000000000",
-          "fantom:0x04068da6c83afcfa0e13ba15a6696662335d5b75",
-          "fantom:0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
-        ];
-        break;
-      case CHAIN.ARBITRUM:
-        tokenIds = [
-          "arbitrum:0x0000000000000000000000000000000000000000",
-          "arbitrum:0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
-          "arbitrum:0xda10009cbd5d07dd0cecc66161fc93d7c9000da1",
-          "arbitrum:0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-          "arbitrum:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-          "arbitrum:0x912ce59144191c1204e64559fe8253a0e49e6548",
-          "arbitrum:0xfea7a6a0b346362bf88a9e4a88416b77a57d6c2a",
-          "arbitrum:0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a",
-          "arbitrum:0xd85e038593d7a098614721eae955ec2022b9b91b",
-          "arbitrum:0x5979D7b546E38E414F7E9822514be443A4800529",
-          "arbitrum:0x3f56e0c36d275367b8c502090edf38289b3dea0d",
-          "arbitrum:0x18c11FD286C5EC11c3b683Caa813B77f5163A122",
-          "arbitrum:0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418",
-          "arbitrum:0x031d35296154279dc1984dcd93e392b1f946737b",
-          "arbitrum:0x0Ae38f7E10A43B5b2fB064B42a2f4514cbA909ef",
-        ];
-        break;
-      case CHAIN.BASE:
-          tokenIds = [
-            "base:0x0000000000000000000000000000000000000000",
-            "base:0x78a087d713Be963Bf307b18F2Ff8122EF9A63ae9",
-          ];
-          break;
-      // Add cases for other chains if needed
-    }
-
-    // Fetch prices for the defined token Ids
-    const prices = await getPrices(tokenIds, timestamp);
-
     const graphQuery = gql`
-      {
-        dayDatas(where:{ date: "${todaysTimestamp}"}) {
-          id
-          cumulativeVolume
+      query MyQuery {
+        DayProducts(filter: {date: ${todaysTimestamp}}) {
+          cumulativeVolumeUsd
+          _id
         }
       }
     `;
 
-    const graphRes: IDTrade[] = (await request(endpoints[chain], graphQuery)).dayDatas;
+    const endpoint = 'https://arkiver.moltennetwork.com/graphql';
+    const response = await request(endpoint, graphQuery);
+    const dayProducts: IDayProduct[] = response.DayProducts;
 
+    const chainID = chainIDs[chain];
     let dailyVolumeUSD = 0;
-    graphRes.forEach((trade) => {
-      const tokenId = trade.id.split('-')[0]; // Extract the token address part
-      const tokenPriceKey = chain.toLowerCase() + ":" + tokenId; // Construct the key for fetching the price
-      const tokenPrice = prices[tokenPriceKey]?.price || 1;
-      const dailyVolume = Number(trade.cumulativeVolume || 0) / 10 ** 8;
-      dailyVolumeUSD += dailyVolume * tokenPrice; // Convert to USD
+
+    dayProducts.forEach((product) => {
+      const productChainID = parseInt(product._id.split(':')[2]);
+      if (productChainID === chainID) {
+        dailyVolumeUSD += product.cumulativeVolumeUsd;
+      }
     });
+
+    if (chain === CHAIN.ARBITRUM) {
+      const referralVolumeUSD = await fetchReferralVolume(timestamp);
+      const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp);
+      dailyVolumeUSD += referralVolumeUSD + muxReferralVolumeUSD;
+    }
 
     return {
       dailyVolume: dailyVolumeUSD.toString(),
-      timestamp
+      timestamp: todaysTimestamp
     };
   };
 };
 
+
 const methodology = {
-  dailyVolume: "Trading volume of all collaterals added up used on any trading pair",
+  dailyVolume: "Sum of cumulativeVolumeUsd for all products on the specified chain for the given day",
 };
+
 
 const adapter: SimpleAdapter = {
     adapter: {
@@ -113,14 +160,14 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology
       }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1687422746,
-      meta: {
-        methodology
-      }
-    },
+    }, // use volume from other protocol it might be the duplicate value of the same protocol
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch(CHAIN.ARBITRUM),
+    //   start: async ()  => 1687422746,
+    //   meta: {
+    //     methodology
+    //   }
+    // },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: async ()  => 1687422746,

@@ -15,32 +15,41 @@ const adapter: Adapter = {
           try {
             const startblock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
             const endblock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
-            const query_tx_fee = `
+            const query_tx_fee = `WITH TransactionTotals AS (
               SELECT
-                SUM(tx_fee) AS total_tx_fee,
-                SUM(burned) AS total_burned
-              FROM (
-                  SELECT
-                      BLOCK_NUMBER,
-                      COALESCE(SUM(tx_fee), 0) AS tx_fee
-                  FROM
-                      polygon.core.fact_transactions
-                  WHERE BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-                  GROUP BY BLOCK_NUMBER
-              ) AS t
-              LEFT JOIN (
-                  SELECT
-                      BLOCK_NUMBER,
-                      SUM(COALESCE(BLOCK_HEADER_JSON['baseFeePerGas'], 0) * BLOCK_HEADER_JSON['gasUsed']) / 1e18 AS burned
-                  FROM
-                      polygon.core.fact_blocks
-                  WHERE BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-                  GROUP BY BLOCK_NUMBER
-              ) AS b
-              ON t.BLOCK_NUMBER = b.BLOCK_NUMBER;
-            `
+                  BLOCK_NUMBER,
+                  COALESCE(SUM(tx_fee), 0) AS tx_fee
+              FROM
+                  polygon.core.fact_transactions
+              WHERE
+                  BLOCK_NUMBER > ${startblock}
+                  AND BLOCK_NUMBER < ${endblock}
+              GROUP BY
+                  BLOCK_NUMBER
+          ),
+          BlockTotals AS (
+              SELECT
+                  BLOCK_NUMBER,
+                  SUM(
+                      COALESCE(BLOCK_HEADER_JSON['baseFeePerGas'], 0) * BLOCK_HEADER_JSON['gasUsed']
+                  ) / 1e18 AS burned
+              FROM
+                  polygon.core.fact_blocks
+              WHERE
+                  BLOCK_NUMBER > ${startblock}
+                  AND BLOCK_NUMBER < ${endblock}
+              GROUP BY
+                  BLOCK_NUMBER
+          )
+          SELECT
+              COALESCE(SUM(tt.tx_fee), 0) AS total_tx_fee,
+              COALESCE(SUM(bt.burned), 0) AS total_burned
+          FROM
+              TransactionTotals tt
+          LEFT JOIN
+              BlockTotals bt ON tt.BLOCK_NUMBER = bt.BLOCK_NUMBER;`
 
-          const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee)).flat();
+          const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee, 260)).flat();
           const maticAddress = "ethereum:0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0";
 
           const pricesObj = await getPrices([maticAddress], toTimestamp);

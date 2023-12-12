@@ -9,7 +9,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 const v2Endpoints = {
   [CHAIN.NEON]:
     "https://neon-subgraph.sobal.fi/sobal-pools",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50526/sobal-base/version/latest",
+  // [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50526/sobal-base/version/latest",
 };
 
 const v2Graphs = (graphUrls: ChainEndpoints) => {
@@ -74,13 +74,13 @@ const adapter: SimpleAdapter = {
         methodology
       }
     },
-    [CHAIN.BASE]: {
-      fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-      start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
-      meta: {
-        methodology
-      }
-    }
+    // [CHAIN.BASE]: {
+    //   fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
+    //   start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
+    //   meta: {
+    //     methodology
+    //   }
+    // }
   }
 }
 

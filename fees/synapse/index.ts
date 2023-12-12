@@ -35,10 +35,9 @@ interface IHistory {
   [s: string]: number | string;
 }
 const url = 'https://explorer.omnirpc.io/graphql'
-
 const query = `
 {
-  dailyStatisticsByChain(type:FEE, duration:ALL_TIME, useCache:true) {
+  dailyStatisticsByChain(type:FEE, duration:PAST_6_MONTHS, useCache:true) {
     date
     ethereum
     optimism

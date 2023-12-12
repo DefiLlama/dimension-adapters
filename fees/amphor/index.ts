@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { getProvider } from "@defillama/sdk/build/general";
-import { getLogs } from "@defillama/sdk/build/util";
-import { BigNumber, ethers, EventFilter, utils } from 'ethers';
+import { BigNumber, ethers, EventFilter } from 'ethers';
 
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
+import { getBlock } from "../../helpers/getBlock";
 
 const provider = getProvider(CHAIN.ETHEREUM);
 const AmphorILHedgedUSDC_contractAddress: string = '0x3b022EdECD65b63288704a6fa33A8B9185b5096b';
@@ -50,8 +51,8 @@ const contractAbi: ethers.ContractInterface = [
     },
 ];
 
-const AmphorILHedgedUSDC_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedUSDC_contractAddress, contractAbi, provider);
-const AmphorILHedgedWSTETH_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedWSTETH_contractAddress, contractAbi, provider);
+const AmphorILHedgedUSDC_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedUSDC_contractAddress, contractAbi);
+const AmphorILHedgedWSTETH_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedWSTETH_contractAddress, contractAbi);
 
 const methodology = {
     UserFees: "Include performance fees.",
@@ -60,7 +61,18 @@ const methodology = {
     Revenue: "Sum of protocol revenue.",
 }
 
-const data = async () => {
+interface ILog {
+    address: string;
+    data: string;
+    transactionHash: string;
+    topics: string[];
+}
+
+const data = async (timestamp: number): Promise<FetchResultFees> => {
+    const toTimestamp = timestamp;
+    const fromTimestamp = timestamp - 60 * 60 * 24;
+    const toBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, {});
+
     const eventFilterUSDC: EventFilter = {
         address: AmphorILHedgedUSDC_contractAddress,
         topics: [ethers.utils.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
@@ -69,8 +81,27 @@ const data = async () => {
         address: AmphorILHedgedUSDC_contractAddress,
         topics: [ethers.utils.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
-    const eventsUSDC: ethers.Event[] = await AmphorILHedgedUSDC_contract.queryFilter(eventFilterUSDC);
-    const eventsWSTETH: ethers.Event[] = await AmphorILHedgedWSTETH_contract.queryFilter(eventFilterWSTETH);
+
+    const eventsUSDC: ethers.Event[] = (await sdk.api.util.getLogs({
+        target: AmphorILHedgedUSDC_contractAddress,
+        topic: '',
+        topics: eventFilterUSDC.topics as string[],
+        fromBlock: 18299242,
+        toBlock: toBlock,
+        keys: [],
+        chain: CHAIN.ETHEREUM,
+    })).output as ethers.Event[];
+
+    const eventsWSTETH: ethers.Event[] = (await sdk.api.util.getLogs({
+        target: AmphorILHedgedWSTETH_contractAddress,
+        topic: '',
+        topics: eventFilterWSTETH.topics as string[],
+        fromBlock: 18535914,
+        toBlock: toBlock,
+        keys: [],
+        chain: CHAIN.ETHEREUM,
+    })).output as ethers.Event[];
+
     let totalRevenueUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let totalFeesUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let totalRevenueWSTETH: BigNumber = ethers.BigNumber.from(0.0);
@@ -80,23 +111,28 @@ const data = async () => {
     let dailyFeesWSTETH: BigNumber = ethers.BigNumber.from(0.0);
     let dailyRevenueUSDC: BigNumber = ethers.BigNumber.from(0.0);
     let dailyRevenueWSTETH: BigNumber = ethers.BigNumber.from(0.0);
-    const todaysDate: Date = new Date();
-    eventsUSDC.forEach(event => {
+
+
+    eventsUSDC.forEach(res => {
+        const event = AmphorILHedgedUSDC_contract.interface.parseLog(res);
         totalRevenueUSDC = totalRevenueUSDC.add(ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance)));
         totalFeesUSDC = totalFeesUSDC.add(event.args!.fees);
-        if (event.args!.timestamp * 1000 > todaysDate.getTime()) {
+        if (event.args!.timestamp > fromTimestamp && event.args!.timestamp < toTimestamp) {
             dailyFeesUSDC = dailyFeesUSDC.add(event.args!.fees);
             dailyRevenueUSDC = ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance));
         }
     });
-    eventsWSTETH.forEach(event => {
+
+    eventsWSTETH.forEach(res => {
+        const event = AmphorILHedgedWSTETH_contract.interface.parseLog(res);
         totalRevenueWSTETH = totalRevenueWSTETH.add(ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance)));
         totalFeesWSTETH = totalFeesWSTETH.add(event.args!.fees);
-        if (event.args!.timestamp * 1000 > todaysDate.getTime()) {
+        if (event.args!.timestamp > fromTimestamp && event.args!.timestamp < toTimestamp) {
             dailyFeesWSTETH = dailyFeesWSTETH.add(event.args!.fees);
             dailyRevenueWSTETH = ethers.BigNumber.from(event.args!.returnedAssets).sub(ethers.BigNumber.from(event.args!.lastSavedBalance));
         }
     });
+
     const totalFeesUSDCStr = ethers.utils.formatUnits(totalFeesUSDC, 6); // usdc has 6 decimals
     const totalRevenueUSDCStr = ethers.utils.formatUnits(totalRevenueUSDC, 6); // usdc has 6 decimals
     const dailyFeesUSDCStr = ethers.utils.formatUnits(dailyFeesUSDC, 6); // usdc has 6 decimals
@@ -106,7 +142,7 @@ const data = async () => {
     const dailyFeesWSTETHStr = ethers.utils.formatUnits(dailyFeesWSTETH, 18); // wseth has 18 decimals
     const dailyRevenueWSTETHStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 18); // wseth has 18 decimals
     return {
-        timestamp: todaysDate.getTime(),
+        timestamp: timestamp,
         totalFees: {
             "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
             "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
@@ -131,6 +167,10 @@ const data = async () => {
             "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
             "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
         },
+        dailyRevenue: {
+            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
+            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
+        }
     };
 }
 
@@ -138,7 +178,7 @@ const adapter: Adapter = {
     adapter: {
         [ETHEREUM]: {
             fetch: data,
-            start: async () => 1696146210,
+            start: async () => 1696611600,
             meta: {
                 methodology
             }
