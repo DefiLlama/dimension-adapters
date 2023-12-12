@@ -105,6 +105,13 @@ const fetchVolume = (chain: Chain) => {
     const coins = [...new Set(volumeRaw.map(e => `${chain}:${e.quoteAddr.toLowerCase()}`))];
     const prices = await getPrices(coins, fromTimestamp);
 
+    // check prices
+    coins.forEach(coin => {
+      if (!prices[coin]) {
+        throw new Error(`No price found for ${coin}`);
+      }
+    });
+
     const volume = volumeRaw.map((e: IVolume) => e.amount_quote * prices[`${chain}:${e.quoteAddr.toLowerCase()}`]?.price || 0);
     const dailyVolume = volume.reduce((acc: number, cur: number) => acc + cur, 0);
     return {
