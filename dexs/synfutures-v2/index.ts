@@ -73,8 +73,9 @@ interface IVolume {
 
 const fetchVolume = (chain: Chain) => {
   return async (timestamp: number) => {
-    const toTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const fromTimestamp = toTimestamp - 86400;
+    const now = new Date().getTime() / 1000;
+    const fromTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const toTimestamp = timestamp > now ? now : timestamp;
 
     const toBlock = await getBlock(toTimestamp, chain, {});
     const fromBlock = await getBlock(fromTimestamp, chain, {});
@@ -102,7 +103,14 @@ const fetchVolume = (chain: Chain) => {
     });
 
     const coins = [...new Set(volumeRaw.map(e => `${chain}:${e.quoteAddr.toLowerCase()}`))];
-    const prices = await getPrices(coins, toTimestamp);
+    const prices = await getPrices(coins, fromTimestamp);
+
+    // check prices
+    coins.forEach(coin => {
+      if (!prices[coin]) {
+        throw new Error(`No price found for ${coin}`);
+      }
+    });
 
     const volume = volumeRaw.map((e: IVolume) => e.amount_quote * prices[`${chain}:${e.quoteAddr.toLowerCase()}`]?.price || 0);
     const dailyVolume = volume.reduce((acc: number, cur: number) => acc + cur, 0);
