@@ -1,5 +1,4 @@
 import * as sdk from "@defillama/sdk";
-import { getProvider } from "@defillama/sdk/build/general";
 import { BigNumber, ethers, EventFilter } from 'ethers';
 
 import { Adapter, FetchResultFees } from "../../adapters/types";
@@ -7,7 +6,6 @@ import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 
-const provider = getProvider(CHAIN.ETHEREUM);
 const AmphorILHedgedUSDC_contractAddress: string = '0x3b022EdECD65b63288704a6fa33A8B9185b5096b';
 const AmphorILHedgedWSTETH_contractAddress: string = '0x2791EB5807D69Fe10C02eED6B4DC12baC0701744';
 const AmphorILHedgedWBTC_contractAddress: string = '0xC4A324fDF8a2495776B4d6cA46599B5a52f96489';
@@ -167,10 +165,10 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     const totalRevenueUSDCStr = ethers.utils.formatUnits(totalRevenueUSDC, 6); // usdc has 6 decimals
     const dailyFeesUSDCStr = ethers.utils.formatUnits(dailyFeesUSDC, 6); // usdc has 6 decimals
     const dailyRevenueUSDCStr = ethers.utils.formatUnits(dailyRevenueUSDC, 6); // usdc has 6 decimals
-    const totalFeesWSTETHStr = ethers.utils.formatUnits(totalFeesWSTETH, 18); // wseth has 18 decimals
-    const totalRevenueWSTETHStr = ethers.utils.formatUnits(totalRevenueWSTETH, 18); // wseth has 18 decimals
-    const dailyFeesWSTETHStr = ethers.utils.formatUnits(dailyFeesWSTETH, 18); // wseth has 18 decimals
-    const dailyRevenueWSTETHStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 18); // wseth has 18 decimals
+    const totalFeesWSTETHStr = ethers.utils.formatUnits(totalFeesWSTETH, 18); // wsteth has 18 decimals
+    const totalRevenueWSTETHStr = ethers.utils.formatUnits(totalRevenueWSTETH, 18); // wsteth has 18 decimals
+    const dailyFeesWSTETHStr = ethers.utils.formatUnits(dailyFeesWSTETH, 18); // wsteth has 18 decimals
+    const dailyRevenueWSTETHStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 18); // wsteth has 18 decimals
     const totalFeesWBTCStr = ethers.utils.formatUnits(totalFeesWSTETH, 8); // wbtc has 8 decimals
     const totalRevenueWBTCStr = ethers.utils.formatUnits(totalRevenueWSTETH, 8); // wbtc has 8 decimals
     const dailyFeesWBTCStr = ethers.utils.formatUnits(dailyFeesWSTETH, 8); // wbtc has 8 decimals
