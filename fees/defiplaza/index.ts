@@ -1,3 +1,4 @@
+import request, { gql } from "graphql-request";
 import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
@@ -13,33 +14,53 @@ type RadixPlazaResponse = {
 	swaps: number
 }
 
-const thegraph_endpoints = {
-	[CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza"
-};
-const radix_enpoint = "https://radix.defiplaza.net/api/defillama/volume";
-
-const graphs = getChainVolume({
-	graphUrls: thegraph_endpoints,
-	totalVolume: {
-		factory: "factories",
-		field: "totalTradeVolumeUSD",
-	},
-	dailyVolume: {
-		factory: "dailie",
-		field: "tradeVolumeUSD",
-		dateField: "date"
-	},
-});
+const thegraph_endpoints = "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza";
+const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.ETHEREUM]: {
-			fetch: graphs(CHAIN.ETHEREUM),
+			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
+				const graphData = (await request(thegraph_endpoints, gql`
+{
+  factories(first: 1) {
+    swapCount
+    totalTradeVolumeUSD
+    totalFeesEarnedUSD
+  }
+  dailies(first: 1, where:{date_lte: ${timestamp}}, orderBy: date, orderDirection:desc) {
+    date
+    tradeVolumeUSD
+    swapUSD
+    feesUSD
+  }
+}`));				
+				const dailySupplySideRevenue = graphData.dailies[0].feesUSD;
+				const dailyFees = dailySupplySideRevenue;
+				const dailyUserFees = dailyFees;
+
+				return {
+					totalVolume: graphData.factories[0].totalTradeVolumeUSD,
+					dailyVolume: graphData.dailies[0].tradeVolumeUSD,
+
+					totalFees: graphData.factories[0].totalFeesEarnedUSD,
+					dailyUserFees,
+					dailyFees,
+					dailySupplySideRevenue,
+					timestamp
+				}
+			},
+			meta: {
+				methodology: {
+					Fees: "User pays a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
+					SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
+				}
+			},
 			start: async () => 1633237008
 		},
 		[CHAIN.RADIXDLT]: {
 			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const daily: RadixPlazaResponse = (await fetchURL(radix_enpoint + `?timestamp=${timestamp}`)).data;
+				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`)).data;
 
 				const dailySupplySideRevenue = daily.feesUSD;
 				const dailyProtocolRevenue = daily.royaltiesUSD;
@@ -64,8 +85,7 @@ const adapter: SimpleAdapter = {
 					SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
 				}
 			},
-			start: async () => 1700784000,
-			// runAtCurrTime: true
+			start: async () => 1700784000
 		}
 	},
 };
