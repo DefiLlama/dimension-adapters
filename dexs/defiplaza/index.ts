@@ -34,21 +34,26 @@ const adapter: SimpleAdapter = {
     swapUSD
     feesUSD
   }
-}`)).data;
-
+}`));
         const dailySupplySideRevenue = graphData.dailies[0].feesUSD;
         const dailyFees = dailySupplySideRevenue;
         const dailyUserFees = dailyFees;
 
         return {
-          totalVolume: graphData.factories.totalTradeVolumeUSD,
+          totalVolume: graphData.factories[0].totalTradeVolumeUSD,
           dailyVolume: graphData.dailies[0].tradeVolumeUSD,
 
-          totalFees: graphData.factories.totalFeesEarnedUSD,
+          totalFees: graphData.factories[0].totalFeesEarnedUSD,
           dailyUserFees,
           dailyFees,
           dailySupplySideRevenue,
           timestamp
+        }
+      },
+      meta: {
+        methodology: {
+          Fees: "User pays a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
+          SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
         }
       },
       start: async () => 1633237008
@@ -80,8 +85,7 @@ const adapter: SimpleAdapter = {
           SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
         }
       },
-      start: async () => 1700784000,
-      // runAtCurrTime: true
+      start: async () => 1700784000
     }
   },
 };
