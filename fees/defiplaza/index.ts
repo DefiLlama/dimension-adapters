@@ -1,7 +1,7 @@
 import request, { gql } from "graphql-request";
 import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 type RadixPlazaResponse = {
@@ -21,20 +21,22 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.ETHEREUM]: {
 			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
+				const toTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+				const fromTimestamp = timestamp - 86400;
 				const graphData = (await request(thegraph_endpoints, gql`
-{
-  factories(first: 1) {
-    swapCount
-    totalTradeVolumeUSD
-    totalFeesEarnedUSD
-  }
-  dailies(first: 1, where:{date_lte: ${timestamp}}, orderBy: date, orderDirection:desc) {
-    date
-    tradeVolumeUSD
-    swapUSD
-    feesUSD
-  }
-}`));				
+					{
+						factories(first: 1) {
+							swapCount
+							totalTradeVolumeUSD
+							totalFeesEarnedUSD
+						}
+						dailies(first: 1, where:{date_lte: ${toTimestamp}, date_gte: ${fromTimestamp}}, orderBy: date, orderDirection:desc) {
+							date
+							tradeVolumeUSD
+							swapUSD
+							feesUSD
+						}
+					}`));
 				const dailySupplySideRevenue = graphData.dailies[0].feesUSD;
 				const dailyFees = dailySupplySideRevenue;
 				const dailyUserFees = dailyFees;
