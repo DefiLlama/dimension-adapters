@@ -169,10 +169,10 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     const totalRevenueWSTETHStr = ethers.utils.formatUnits(totalRevenueWSTETH, 18); // wsteth has 18 decimals
     const dailyFeesWSTETHStr = ethers.utils.formatUnits(dailyFeesWSTETH, 18); // wsteth has 18 decimals
     const dailyRevenueWSTETHStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 18); // wsteth has 18 decimals
-    const totalFeesWBTCStr = ethers.utils.formatUnits(totalFeesWSTETH, 8); // wbtc has 8 decimals
-    const totalRevenueWBTCStr = ethers.utils.formatUnits(totalRevenueWSTETH, 8); // wbtc has 8 decimals
-    const dailyFeesWBTCStr = ethers.utils.formatUnits(dailyFeesWSTETH, 8); // wbtc has 8 decimals
-    const dailyRevenueWBTCStr = ethers.utils.formatUnits(dailyRevenueWSTETH, 8); // wbtc has 8 decimals
+    const totalFeesWBTCStr = ethers.utils.formatUnits(totalFeesWBTC, 8); // wbtc has 8 decimals
+    const totalRevenueWBTCStr = ethers.utils.formatUnits(totalRevenueWBTC, 8); // wbtc has 8 decimals
+    const dailyFeesWBTCStr = ethers.utils.formatUnits(dailyFeesWBTC, 8); // wbtc has 8 decimals
+    const dailyRevenueWBTCStr = ethers.utils.formatUnits(dailyRevenueWBTC, 8); // wbtc has 8 decimals
     return {
         timestamp: timestamp,
         totalFees: {
