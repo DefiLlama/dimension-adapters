@@ -29,11 +29,6 @@ const fetch =
         (row: any) => chainsMap[row.blockchain] === chain
       );
 
-      console.log({
-        dailyVolume: chainData.volume_24h,
-        timestamp: unixTimestamp,
-      });
-
       return {
         dailyVolume: chainData.volume_24h,
         timestamp: unixTimestamp,
