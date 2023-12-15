@@ -35,18 +35,24 @@ const getVolumeByChain = async (chain: string) => {
     }
   `;
 
-  const data = (await client.request(req))["aggTransactionsDailyRouter"][0];
+  const data = (await client.request(req))["aggTransactionsDailyRouter"];
   return data;
 };
 
-const fetch = (chain: string) => async (_: number) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp();
+const fetch = (chain: string) => async (timestamp: number) => {
+  const unixTimestamp = getUniqStartOfTodayTimestamp(
+    new Date(timestamp * 1000)
+  );
 
   try {
     const data = await getVolumeByChain(chain);
+    const dayData = data.find(
+      ({ timestamp }: { timestamp: number }) =>
+        getUniqStartOfTodayTimestamp(new Date(timestamp)) === unixTimestamp
+    );
 
     return {
-      dailyVolume: data.volumeUSD,
+      dailyVolume: dayData?.volumeUSD ?? "0",
       timestamp: unixTimestamp,
     };
   } catch (e) {
@@ -64,7 +70,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => 1702425600,
+          start: async () => 1671062400,
         },
       };
     }, {}),
