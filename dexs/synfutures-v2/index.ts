@@ -105,6 +105,18 @@ const fetchVolume = (chain: Chain) => {
     const coins = [...new Set(volumeRaw.map(e => `${chain}:${e.quoteAddr.toLowerCase()}`))];
     const prices = await getPrices(coins, fromTimestamp);
 
+
+    // getPrices API currently has a bug that it doesn't return price for polygon:0x2791bca1f2de4661ed88a30c99a7a9449aa84174 (USDC) for some reason
+    // so we set it as 1 manually to temporarily fix this issue
+    if (!prices['polygon:0x2791bca1f2de4661ed88a30c99a7a9449aa84174']) {
+      prices['polygon:0x2791bca1f2de4661ed88a30c99a7a9449aa84174'] = {
+        symbol: 'USDC',
+        timestamp: now,
+        price: 1,
+        decimals: 18
+      }
+    }
+
     // check prices
     coins.forEach(coin => {
       if (!prices[coin]) {
