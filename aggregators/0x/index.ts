@@ -68,7 +68,7 @@ const adapter: any = {
     ...Object.values(CHAINS).reduce((acc, chain) => {
       return {
         ...acc,
-        [chain]: {
+        [chain?.toLowerCase()]: {
           fetch: fetch(chain),
           start: async () => 1671062400,
         },
