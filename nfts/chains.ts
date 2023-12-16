@@ -19,7 +19,7 @@ Other flipside chains:
 - terra: no volume
 */
 async function optimism(start: number, end: number) {
-    const data = await queryFlipside(`select currency_address, sum(price) from optimism.core.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by CURRENCY_ADDRESS`)
+    const data = await queryFlipside(`select currency_address, sum(price) from optimism.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by CURRENCY_ADDRESS`)
     return {
         volume: await sumPricedTokens(start, data, {
             "ETH": "ethereum",
@@ -30,7 +30,7 @@ async function optimism(start: number, end: number) {
 }
 
 async function avalanche(start: number, end: number) {
-    const data = await queryFlipside(`select currency_address, sum(price) from avalanche.core.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by CURRENCY_ADDRESS`)
+    const data = await queryFlipside(`select currency_address, sum(price) from avalanche.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by CURRENCY_ADDRESS`)
     return {
         volume: await sumPricedTokens(start, data.map(([token, value])=>[token, token.startsWith("0x")?value:value/1e18]), {
             "ETH": "avalanche-2",
@@ -51,17 +51,17 @@ async function flow(start: number, end: number) {
         "A.d01e482eb680ec9f.REVV": "revv",
         "A.b19436aae4d94622.FiatToken": "usd-coin"
     }
-    const data = await queryFlipside(`select currency, sum(price) from flow.core.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by currency`)
+    const data = await queryFlipside(`select currency, sum(price) from flow.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) group by currency`)
     return {
         volume: await sumPricedTokens(start, data, token_mapping),
     }
 }
 
 async function immutablex(start: number, _end: number) {
-    const data = await axios.post('https://3vkyshzozjep5ciwsh2fvgdxwy.appsync-api.us-west-2.amazonaws.com/graphql', 
+    const data = await axios.post('https://qbolqfa7fnctxo3ooupoqrslem.appsync-api.us-east-2.amazonaws.com/graphql', 
         {"operationName":"getMetricsAll","variables":{"address":"global"},"query":"query getMetricsAll($address: String!) {\n  getMetricsAll(address: $address) {\n    items {\n      type\n      trade_volume_usd\n      trade_volume_eth\n      floor_price_usd\n      floor_price_eth\n      trade_count\n      owner_count\n      __typename\n    }\n    __typename\n  }\n  latestTrades(address: $address) {\n    items {\n      transfers {\n        token {\n          token_address\n          quantity\n          token_id\n          type\n          usd_rate\n          __typename\n        }\n        __typename\n      }\n      txn_time\n      txn_id\n      __typename\n    }\n    __typename\n  }\n}"},
         {headers:{
-            "x-api-key": "da2-exzypwa6hng45btg7cwf323cdm"
+            "x-api-key": "da2-ceptv3udhzfmbpxr3eqisx3coe"
         }}
     )
     return {
@@ -93,10 +93,27 @@ function getAlliumVolume(chain: string) {
 }
 
 async function cardano(_start: number, _end: number) {
-    const data = await axios.get("https://server.jpgstoreapis.com/analytics/marketStats?timeframe=24h")
+    const data = await axios.get("https://server.jpgstoreapis.com/analytics/marketStats?timeframe=24h", {
+        headers:{
+            "X-Jpgstore-Csrf-Protection": "1"
+        }
+    })
     const price = await axios.get("https://coins.llama.fi/prices/current/coingecko:cardano")
     return {
         volume: Number(data.data.marketStats.volume)*price.data.coins["coingecko:cardano"].price
+    }
+}
+
+async function ethereum(_start: number, _end: number) {
+    const data = await axios.get("https://nft.llama.fi/exchangeStats")
+    const price = await axios.get("https://coins.llama.fi/prices/current/coingecko:ethereum")
+    return {
+        volume: Number(data.data.reduce((sum:number, ex:any)=>{
+            if(["AlphaSharks", "Gem"].includes(ex.exchangeName) || ex.exchangeName.includes("Aggregator")){
+                return sum
+            }
+            return sum+ex["1DayVolume"]
+        }, 0))*price.data.coins["coingecko:ethereum"].price
     }
 }
 
@@ -113,6 +130,7 @@ missing:
 */
 
 export const chains = [
+    ["ethereum", ethereum],
     ["optimism", optimism],
     ["flow", flow],
     ["avalanche", avalanche],
@@ -120,6 +138,6 @@ export const chains = [
     ["ronin", ronin],
     ["polygon", getAlliumVolume("polygon")],
     ["solana", getAlliumVolume("solana")],
-    ["bitcoin", getAlliumVolume("bitcoin")],
+    //["bitcoin", getAlliumVolume("bitcoin")],
     ["cardano", cardano],
 ]
