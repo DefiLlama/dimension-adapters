@@ -3,8 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 
 const chains = [
   "arbitrum",
-  "avalanche_c",
-  "bnb",
+  "avax",
+  "bsc",
   "ethereum",
   "fantom",
   "optimism",
