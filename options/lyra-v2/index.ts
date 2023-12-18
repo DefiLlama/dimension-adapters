@@ -9,7 +9,7 @@ interface ILyraVolumeResponse {
   total_premium_volume: string;
 }
 
-// endTime is in nanoseconds
+// endTime is in ms
 export const lyraVolumeEndpoint = (endTime: number) => {
   return "https://api.lyra.finance/public/statistics?instrument_name=OPTION&end_time=" + endTime;
 }
