@@ -14,7 +14,7 @@ export const lyraVolumeEndpoint = (endTime: number) => {
   return "https://api.lyra.finance/public/statistics?instrument_name=OPTION&end_time=" + endTime;
 }
 
-const adapter: SimpleAdapter = {
+export const v2_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchLyraVolumeData,
@@ -49,4 +49,4 @@ async function getLyraVolumeData(endpoint: string): Promise<ILyraVolumeResponse>
   return results.data.result;
 }
 
-export default adapter;
+export default v2_adapter;
