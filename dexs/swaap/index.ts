@@ -1,10 +1,10 @@
-import {Adapter, BreakdownAdapter} from "../../adapters/types";
+import {BaseAdapter, BreakdownAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {gql, GraphQLClient} from "graphql-request";
 import {Chain} from "@defillama/sdk/build/general";
-import {
-    getTimestampAtStartOfDay,
-} from "../../utils/date";
+import {getTimestampAtStartOfDay,} from "../../utils/date";
+import {getChainVolume} from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
 
 interface ChainConfig{
     api: string,
@@ -84,20 +84,13 @@ async function getClosestTotalVolume(chain: Chain, timestamp: number): Promise<n
 
 async function getVolume(chain: Chain, timestamp: number,) {
 
-    const timestampProposed = timestamp
-    const timestampBegin =getTimestampAtStartOfDay(timestampProposed)
+    const timestampBegin =getTimestampAtStartOfDay(timestamp)
     const timestampYesterday = timestampBegin - 24 * 3600
 
-    console.log('timestampProposed', {timestampProposed, timestampBegin, timestampYesterday})
-
-
-    console.log('000 ===== Looking for volume at timestamp', timestamp, asString(timestamp))
     const totalVolume = await getClosestTotalVolume(chain, timestampBegin)
     const yesterdayVolume = await getClosestTotalVolume(chain, timestampYesterday)
 
     const dailyVolume = totalVolume - yesterdayVolume
-
-    console.log({todayVolume: totalVolume, yesterdayVolume, dailyVolume})
 
     return {
         totalVolume,
@@ -118,23 +111,51 @@ const v2graphs = (chain: Chain) => {
     }
 }
 
-const adapterV2: Adapter = {
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch: v2graphs(CHAIN.ETHEREUM),
-            start: async () => config[CHAIN.ETHEREUM].start,
-            runAtCurrTime: false,
-            meta: {
-                methodology: 'Comparing total volume of the current day with the total volume of the previous day, using TheGraph.'
-            }
-        },
+const adapterV2: BaseAdapter = Object.keys(config).reduce((acc, chain) => {
+        return {
+            ...acc,
+            [chain]: {
+                fetch: v2graphs(chain),
+                start: async () => config[chain].start,
+                runAtCurrTime: false,
+                meta: {
+                    methodology: 'Comparing total volume of the current day with the total volume of the previous day, using TheGraph.'
+                }
+            },
+        }
+    }, {} as BaseAdapter)
+;
+
+// Directly from Balancer adapter
+const graphParams = {
+    totalVolume: {
+        factory: "swaapProtocols",
+        field: "totalSwapVolume",
     },
-};
-
-export default adapterV2;
-
-// return date as 2023/07/28
-function asString(timestamp:number){
-    const date = new Date(timestamp * 1000);
-    return date.toISOString().split('T')[0]
+    hasDailyVolume: false,
 }
+
+const v1graphs = getChainVolume({
+    graphUrls: {
+        [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv1"
+    },
+    ...graphParams
+});
+
+const adapter: BreakdownAdapter = {
+    breakdown: {
+        v1: {
+            [CHAIN.POLYGON]: {
+                fetch: v1graphs(CHAIN.POLYGON),
+                start: async () => 1655195452,
+                customBackfill: customBackfill(CHAIN.POLYGON, v1graphs)
+            },
+        },
+        v2: adapterV2
+    }
+}
+
+
+
+export default adapter;
+
