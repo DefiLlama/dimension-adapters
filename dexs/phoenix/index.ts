@@ -23,7 +23,7 @@ export default {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
-            runAtCurrTime: true,
+            // runAtCurrTime: true,
             start: async () => 1677456000,
         }
     }
