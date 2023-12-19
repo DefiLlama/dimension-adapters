@@ -20,6 +20,12 @@ const config: { [chain: string]: ChainConfig } = {
     batchManager: ['0xF2225a8f90311DaF9e989db1AfFd47617bb69E96'],
     start: 1700611200,
   },
+  [CHAIN.ETHEREUM]: {
+    swapManager: ['0xa6d76535e265357187653d4AAd9b362404D42EA8'],
+    positionManager: ['0x99d63fEA4b3Ef6ca77941df3C5740dAd1586f0B8'],
+    batchManager: ['0x1da9c104C517C7b4465c8Eef458Da0a6c61835Fe'],
+    start: 1702771200,
+  },
 }
 
 const topics = {
