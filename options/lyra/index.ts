@@ -1,8 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "./getLyraSubgraphVolume";
-import {fetchLyraVolumeData} from './v2'
-import { CHAIN } from "../../helpers/chains";
 
 const endpoints: { [chain: string]: string[] } = {
   optimism: [
@@ -15,26 +13,16 @@ const subgraph = getChainVolume({
   graphUrls: endpoints,
 });
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
+const adapters: SimpleAdapter = {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: subgraph(chain as Chain),
+        start: async () => 1656154800,
+      },
+    };
+  }, {}),
+}
 
-    v1: Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: subgraph(chain as Chain),
-          start: async () => 1656154800,
-        },
-      };
-    }, {}),
-    v2: {
-        [CHAIN.ETHEREUM]: {
-          fetch: fetchLyraVolumeData,
-          start: async () => 1702630075,
-        }
-      }
-
-  }
-  
-};
-export default adapter;
+export default adapters;
