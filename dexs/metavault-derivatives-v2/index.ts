@@ -11,6 +11,7 @@ interface IReferralRecord {
 
 interface IVolumeStat {
   cumulativeVolumeUsd: string;
+  volumeUsd: string;
   id: string;
 }
 
@@ -23,6 +24,7 @@ const fetch = () => {
         volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
           cumulativeVolumeUsd
           id
+          volumeUsd
         }
       }
     `;
@@ -35,7 +37,7 @@ const fetch = () => {
     let dailyVolumeUSD = BigInt(0);
 
     volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.cumulativeVolumeUsd);
+      dailyVolumeUSD += BigInt(vol.volumeUsd);
     });
 
     const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;

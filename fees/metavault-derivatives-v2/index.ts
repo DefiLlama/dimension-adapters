@@ -24,18 +24,21 @@ const graphs = (graphUrls: ChainEndpoints) => {
           period
           cumulativeFee
           cumulativeFeeUsd
+          feeUsd
         }
       }`;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = parseInt(graphRes.feeStats[0].cumulativeFeeUsd);
+      const dailyFee = parseInt(graphRes.feeStats[0].feeUsd);
 
       const finalDailyFee = dailyFee / 1e18;
+      const totalFees = parseInt(graphRes.feeStats[0].cumulativeFeeUsd) / 1e18;
 
       return {
         timestamp,
         dailyFees: finalDailyFee.toString(),
+        totalFees: totalFees.toString(),
         //dailyRevenue: (finalDailyFee * 0.3).toString(),
       };
     };
