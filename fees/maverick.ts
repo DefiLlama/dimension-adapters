@@ -19,13 +19,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
-    // [CHAIN.ERA]: {
-    //   fetch: fetchFee(CHAIN.ERA),
-    //   start: async () => 1681257600,
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
+    [CHAIN.ERA]: {
+      fetch: fetchFee(CHAIN.ERA),
+      start: async () => 1681257600,
+      meta: {
+        methodology,
+      },
+    },
     [CHAIN.BSC]: {
       fetch: fetchFee(CHAIN.BSC),
       start: async () => 29241049,
