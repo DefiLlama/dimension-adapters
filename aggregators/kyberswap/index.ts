@@ -10,14 +10,25 @@ const chains = [
   CHAIN.FANTOM,
   CHAIN.OPTIMISM,
   CHAIN.POLYGON,
+  CHAIN.LINEA,
+  CHAIN.SCROLL,
+  CHAIN.ZKSYNC,
+  CHAIN.CRONOS,
 ];
 
-const chainMap: Record<string, string> = {
-  [CHAIN.XDAI]: "gnosis",
-  [CHAIN.AVAX]: "avalanche_c",
-  [CHAIN.BSC]: "bnb",
+const chainToId: Record<string, number> = {
+  [CHAIN.ETHEREUM]: 1,
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.AVAX]: 43114,
+  [CHAIN.BSC]: 56,
+  [CHAIN.FANTOM]: 250,
+  [CHAIN.OPTIMISM]: 10,
+  [CHAIN.POLYGON]: 137,
+  [CHAIN.LINEA]: 59144,
+  [CHAIN.SCROLL]: 534352,
+  [CHAIN.ZKSYNC]: 324,
+  [CHAIN.CRONOS]: 25,
 };
-const NAME = "kyberswap";
 
 const fetch = (chain: string) => async (timestamp: number) => {
   const unixTimestamp = getUniqStartOfTodayTimestamp(
@@ -27,27 +38,12 @@ const fetch = (chain: string) => async (timestamp: number) => {
   try {
     const data = (
       await fetchURL(
-        `https://api.dune.com/api/v1/query/3289587/results?api_key=R0n7PWCs1hw6O6nvQrmJPGTIUZKKn2zz`
+        `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[chain]}&timestamps=${unixTimestamp}`
       )
-    ).data?.result?.rows;
-
-    const dayData = data.find(
-      ({
-        block_date,
-        blockchain,
-        project,
-      }: {
-        block_date: number;
-        blockchain: string;
-        project: string;
-      }) =>
-        getUniqStartOfTodayTimestamp(new Date(block_date)) === unixTimestamp &&
-        blockchain === (chainMap[chain] || chain) &&
-        project === NAME
-    );
+    ).data.data?.volumes?.[0];
 
     return {
-      dailyVolume: dayData?.trade_amount ?? "0",
+      dailyVolume: data?.value ?? "0",
       timestamp: unixTimestamp,
     };
   } catch (e) {
