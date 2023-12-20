@@ -140,13 +140,13 @@ const adapter: Adapter = {
           methodology
         }
     },
-    [CHAIN.XDAI]: {
-      fetch: fetch(CHAIN.XDAI),
-      start: async ()  => 1675382400,
-      meta: {
-        methodology
-      }
-    }
+    // [CHAIN.XDAI]: {
+    //   fetch: fetch(CHAIN.XDAI),
+    //   start: async ()  => 1675382400,
+    //   meta: {
+    //     methodology
+    //   }
+    // }
   }
 }
 

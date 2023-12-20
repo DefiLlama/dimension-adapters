@@ -58,9 +58,9 @@ const trident = Object.keys(endpointsTrident).reduce(
           totalVolume: res.factories[0]?.volumeUSD,
           totalFees: res.factories[0]?.feesUSD,
           totalUserFees: res.factories[0]?.feesUSD,
-          dailyVolume: daily?.volumeUSD,
-          dailyFees: daily?.feesUSD,
-          dailyUserFees: daily?.feesUSD
+          dailyVolume: daily?.volumeUSD || 0,
+          dailyFees: daily?.feesUSD || 0,
+          dailyUserFees: daily?.feesUSD || 0
         }
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),

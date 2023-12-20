@@ -3,23 +3,26 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://49490zsfv2.execute-api.us-east-1.amazonaws.com/sui/deepbook?interval=day&timeFrame=all&dataType=volume"
+const historicalVolumeEndpoint = "https://kx58j6x5me.execute-api.us-east-1.amazonaws.com/sui/deepbook?interval=day&timeFrame=1000&dataType=volume"
 
 interface IVolumeall {
-  volume: string;
-  timestamp: string;
+  volume?: string; // some items are missing volume
+  date: string;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
+    .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+    .filter((e: IVolumeall) => !isNaN(Number(e.volume))) // Fix: Convert volume to number
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem =>  dayItem.timestamp.split("T")[0] === dateString)?.volume
+    .filter(dayItem =>  dayItem.date.split(" ")[0] === dateString)
+    .filter((e: IVolumeall) => !isNaN(Number(e.volume))) // Fix: Convert volume to number
+    .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   return {
     totalVolume: `${totalVolume}`,

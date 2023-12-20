@@ -3,7 +3,14 @@ import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const chains = [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.ARBITRUM, CHAIN.AVAX];
+const chains = [
+  CHAIN.ETHEREUM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.ARBITRUM,
+  CHAIN.AVAX,
+  // CHAIN.MANTLE, // error missing value dailyVolume
+];
 
 const NATIVE_ANALYTICS_ENDPOINT =
   "http://chain-monitoring.native.org/analytics/overview";

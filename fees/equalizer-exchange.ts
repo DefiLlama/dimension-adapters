@@ -72,28 +72,29 @@ const PAIR_TOKEN_ABI = (token: string): object => {
   }
 };
 
+const poolList = [
+'0x77cfee25570b291b0882f68bac770abf512c2b5c',
+'0x3c4beb9a8d83c888d28f3cef37e4fff662cae9d7',
+'0x99b7daaf2468edcfbadd67df9bcea14d1a030675',
+'0x3d6c56f6855b7cc746fb80848755b0a9c3770122',
+'0x3d03ec9780298af6f7c23ec87fd9456d277f71a0',
+'0xdc935ffe9f9c972b7b304e0b7e61eb774037e394',
+'0x7547d05dff1da6b4a2ebb3f0833afe3c62abd9a1',
+'0x58503d69ebfdf06095c2c9e122aa75ef80f89441',
+'0x558dca97c224851cf428cbf244bec0b897642efc',
+'0x0995f3932b4aca1ed18ee08d4b0dcf5f74b3c5d3',
+'0x11a0779ea92176298b7a2760ae29fc9ce1ad47b4',
+'0x1f19718e02114006f0d848f46b2437eb2db88c5d',
+'0x767520fa98e1e24b3326fd42b24c9dcfce8bce14',
+'0xffe9c27f0a12dabe5c5bd46d144a5c0140725566',
+'0x853d0b5e504ae6f6cee8b5d89e9c1853c330e6e9'
+]
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
-    const poolLength = (await sdk.api.abi.call({
-      target: FACTORY_ADDRESS,
-      chain: 'fantom',
-      abi: ABIs.allPairsLength,
-    })).output;
-
-    const poolsRes = await sdk.api.abi.multiCall({
-      abi: ABIs.allPairs,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: FACTORY_ADDRESS,
-        params: i,
-      })),
-      chain: 'fantom'
-    });
-
-    const lpTokens = poolsRes.output
-      .map(({ output }: any) => output);
+    const lpTokens = poolList;
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
@@ -102,7 +103,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: 'fantom'
+          chain: 'fantom',
+          permitFailure: true
         })
       )
     );

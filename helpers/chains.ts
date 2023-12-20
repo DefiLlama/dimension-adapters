@@ -117,6 +117,20 @@ export enum CHAIN {
   NEON = "neon_evm",
   OP_BNB = "op_bnb",
   HYDRADX = "hydradx",
+  OSMOSIS = "osmosis",
+  SEI = "sei",
+  ERGO = "ergo",
+  SHIMMER_EVM = "shimmer_evm",
+  MEER = "meer",
+  SCROLL = "scroll",
+  RADIXDLT = "radixdlt",
+  LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  EON= "eon",
+  MANTA = "manta",
+  NEAR = "near",
+  EOS_EVM = "eos_evm",
+  ROLLUX = "rollux",
+  MODE = "mode",
 }
 
 // Don´t use

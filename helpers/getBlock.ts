@@ -15,16 +15,9 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get("https://explorer.celo.org/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before").catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
-        else if (chain === CHAIN.MOONRIVER)
-            block = Number((await retry(async () => (await axios.get(`https://blockscout.moonriver.moonbeam.network/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-            }))?.data?.result?.blockNumber)));
         else if (chain === CHAIN.KAVA)
             block = Number((await retry(async () => (await axios.get(`https://explorer.kava.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-            }))?.data?.result?.blockNumber)));
-        else if (chain === CHAIN.PULSECHAIN)
-            block = Number((await retry(async () => (await axios.get(`https://scan.pulsechain.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
         else if (chain === CHAIN.ONUS)
@@ -39,6 +32,10 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             }))?.data?.height)));
         else if (chain === CHAIN.BASE)
             block = Number((await retry(async () => (await axios.get(`https://base.blockscout.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
+                throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+            }))?.data?.result?.blockNumber)));
+        else if (chain === CHAIN.SCROLL)
+            block = Number((await retry(async () => (await axios.get(`https://blockscout.scroll.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             }))?.data?.result?.blockNumber)));
         else

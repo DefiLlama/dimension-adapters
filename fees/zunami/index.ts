@@ -1,9 +1,10 @@
 import {CHAIN} from "../../helpers/chains";
 import {Chain} from '@defillama/sdk/build/general';
-import {ChainBlocks, SimpleAdapter} from "../../adapters/types";
+import {ChainBlocks, DISABLED_ADAPTER_KEY, SimpleAdapter} from "../../adapters/types";
 import {getBlock} from "../../helpers/getBlock";
 import * as sdk from "@defillama/sdk";
 import fetchURL from "../../utils/fetchURL";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const dataEndpoint = (fromTimestamp: number, toTimestamp: number): string => {
     return "https://api.zunami.io/api/v2/zunami/yield?from=" + fromTimestamp + "&to=" + toTimestamp;
@@ -95,6 +96,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     adapter: {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [CHAIN.ETHEREUM]: {
             fetch: getData(CHAIN.ETHEREUM),
             start: async () => START_TIMESTAMP,

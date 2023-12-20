@@ -25,7 +25,7 @@ const calVolume = (total: IVolumeall): number => {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data.intervals;
+  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers: {"x-client-id": "defillama"}}))?.data.intervals;
   const totalVolume = historicalVolume
     .filter(volItem => Number(volItem.startTime) <= dayTimestamp)
     .reduce((acc, res) => acc + calVolume(res), 0);
@@ -39,16 +39,13 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data.intervals;
-  return Number(historicalVolume[0]?.startTime);
-}
+
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch,
-      start: getStartTimestamp,
+      start: async () => 1662508800,
     },
   },
 };

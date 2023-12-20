@@ -28,7 +28,7 @@ const fetch = async (timestamp: number) => {
   const prices = await getPrices([coinId], dayTimestamp)
 
   return {
-    totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
+    // totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
     dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e8 * prices[coinId].price) : "0",
     timestamp: dayTimestamp,
   };

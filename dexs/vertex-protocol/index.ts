@@ -14,70 +14,62 @@ interface IProducts {
   margined_products: number[];
 }
 
-const baseUrl = "https://prod.vertexprotocol-backend.com";
+const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
+const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
+
+const fetchValidSymbols = async (): Promise<number[]> => {
+  const symbols = (await axios.get(`${gatewayBaseUrl}/symbols`)).data;
+  return symbols.map((product: { product_id: number }) => product.product_id);
+};
 
 const fetchProducts = async (): Promise<IProducts> => {
-  const allProducts = (await axios.get(`${baseUrl}/query?type=all_products`))
-    .data.data;
+  const validSymbols = await fetchValidSymbols();
+  const allProducts = (
+    await axios.get(`${gatewayBaseUrl}/query?type=all_products`)
+  ).data.data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => id > 0),
-    perp_products: allProducts.perp_products.map(
-      (product: { product_id: number }) => product.product_id
-    ),
+      .filter((id: number) => validSymbols.includes(id) && id > 0),
+    perp_products: allProducts.perp_products
+      .map((product: { product_id: number }) => product.product_id)
+      .filter((id: number) => validSymbols.includes(id)),
     margined_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => id > 0),
+      .filter((id: number) => validSymbols.includes(id) && id > 0),
   };
 };
 
 const computeVolume = async (timestamp: number, productIds: number[]) => {
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const GRANULARITY = 300;
-  const LIMIT = 86400 / GRANULARITY;
-  const historicalVolume: IVolumeall[] = (
-    await Promise.all(
-      productIds.map((productId: number) =>
-        axios.post(`${baseUrl}/indexer`, {
-          candlesticks: {
-            product_id: productId,
-            granularity: GRANULARITY,
-            limit: LIMIT,
-            max_time: toTimestamp,
-          },
-        })
-      )
-    )
-  )
-    .map((e: any) => e.data.candlesticks)
-    .flat();
-  const volume = historicalVolume
-    .filter((e: IVolumeall) => Number(e.timestamp) >= fromTimestamp)
-    .reduce(
-      (acc: number, b: IVolumeall) =>
-        acc + (Number(b.volume) * Number(b.close_x18)) / 10 ** 18,
-      0
-    );
-  const dailyVolume = volume / 10 ** 18;
-  const cumulativeVolumes: Record<string, string> = (
-    await axios.post(`${baseUrl}/indexer`, {
+  const snapshots = (
+    await axios.post(archiveBaseUrl, {
       market_snapshots: {
         interval: {
-          count: 1,
-          granularity: 3600,
+          count: 2,
+          granularity: 86400,
+          max_time: timestamp,
         },
         product_ids: productIds,
       },
     })
-  ).data.snapshots[0].cumulative_volumes;
+  ).data.snapshots;
+  const lastCumulativeVolumes: Record<string, string> =
+    snapshots[0].cumulative_volumes;
+  const prevCumulativeVolumes: Record<string, string> =
+    snapshots[1].cumulative_volumes;
   const totalVolume = Number(
-    Object.values(cumulativeVolumes).reduce(
+    Object.values(lastCumulativeVolumes).reduce(
       (acc, current) => acc + BigInt(current),
       BigInt(0)
     ) / BigInt(10 ** 18)
   );
+  const totalVolumeOneDayAgo = Number(
+    Object.values(prevCumulativeVolumes).reduce(
+      (acc, current) => acc + BigInt(current),
+      BigInt(0)
+    ) / BigInt(10 ** 18)
+  );
+  const dailyVolume = totalVolume - totalVolumeOneDayAgo;
   return {
     totalVolume: totalVolume ? `${totalVolume}` : undefined,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,

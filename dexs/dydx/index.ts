@@ -9,7 +9,14 @@ const candles = (market: string, fromISO: string) => `https://api.dydx.exchange/
 interface IVolumeall {
   usdVolume: string;
   startedAt: string;
+  close: string;
+  startingOpenInterest: string;
 }
+// interface OpenInterest {
+//   date: string;
+//   openInterest: string;
+// }
+// const url = 'https://dydx.metabaseapp.com/api/public/dashboard/5fa0ea31-27f7-4cd2-8bb0-bc24473ccaa3/dashcard/349/card/437?parameters=%5B%5D'
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
@@ -20,9 +27,12 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(candles(market, fromISO))))).map((e: any) => e.data.candles).flat()
   const dailyolume = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.usdVolume), 0)
+  const dailyOpenInterest = historical.filter((e: IVolumeall) => e.startedAt === dateString)
+    .reduce((a: number, b: IVolumeall) => a+Number(b.startingOpenInterest) * Number(b.close), 0)
   return {
     dailyVolume: dailyolume ? `${dailyolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
+    timestamp: timestamp,
   };
 };
 

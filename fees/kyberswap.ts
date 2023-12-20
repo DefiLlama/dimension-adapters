@@ -33,6 +33,7 @@ const elasticEndpoints: TEndpoint = elasticChains.reduce((acc, chain) => ({
   [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
   [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
   [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base",
+  [CHAIN.SCROLL]: "https://scroll-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-scroll"
   // [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos",
   // [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas",
   // [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis",
@@ -62,7 +63,8 @@ const classicEndpoints: TEndpoint = [...elasticChains, "aurora"].reduce((acc, ch
   [CHAIN.ERA]: "https://zksync-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-zksync",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/kybernetwork/kyberswap-classic-linea",
   [CHAIN.POLYGON_ZKEVM]: "https://polygon-zkevm-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-polygon-zkevm",
-  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-bttc"
+  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-bttc",
+  [CHAIN.SCROLL]: "https://scroll-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-scroll"
 } as any);
 
 const methodology = {
@@ -84,20 +86,32 @@ const methodology = {
   }
 }
 
+interface IData {
+  feesUSD: string;
+  volumeUSD: string;
+  date: number;
+  dailyFeeUSD: string;
+  tvlUSD: string;
+}
+interface IPoolDay {
+  poolDayDatas: IData[]
+}
+
 const graphsElasticV2 = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-    const graphQuery = gql
+      const graphQuery = gql
       `{
-      kyberSwapDayData(id: ${dateId}) {
-        feesUSD
-      }
+        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+          feesUSD
+        }
     }`;
 
     if (!elasticEndpointsV2[chain]) return { timestamp };
-    const graphRes = await request(elasticEndpointsV2[chain], graphQuery);
-    const dailyFee = new BigNumber(graphRes.kyberSwapDayData?.feesUSD || '0');
+    const graphRes: IPoolDay = await request(elasticEndpointsV2[chain], graphQuery);
+    const dailyFee = new BigNumber(graphRes.poolDayDatas.reduce((a: number, b: IData) => a + Number(b.feesUSD), 0))
 
     return {
       timestamp,
@@ -115,16 +129,20 @@ const graphsElastic = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
 
-    const graphQuery = gql
-      `{
-      kyberSwapDayData(id: ${dateId}) {
-        feesUSD
-      }
-    }`;
+    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-    const graphRes = await request(elasticEndpoints[chain], graphQuery);
+    const graphQuery =
+      `{
+        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+          feesUSD
+        }
+    }`;
+    const graphRes: IPoolDay = await request(elasticEndpoints[chain], graphQuery);
     const elasticV2 = (await graphsElasticV2(chain)(timestamp))
-    const dailyFee = Number(graphRes.kyberSwapDayData?.feesUSD || '0') + Number(elasticV2?.dailyFees || '0');
+    const dailyFee = graphRes.poolDayDatas
+      .filter(e => Number(e?.dailyFeeUSD || 0) < 100_000 && Number(e?.feesUSD || 0) < 100_000)
+      .reduce((a: number, b: IData) => a + Number(b?.feesUSD || 0) + Number(b?.dailyFeeUSD || 0), 0)
+      + Number(elasticV2?.dailyFees || 0)
 
     return {
       timestamp,

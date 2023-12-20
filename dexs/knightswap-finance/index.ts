@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 const {
-  getChainVolume,
+  getChainVolume,getChainVolumeWithGasToken
 } = require("../../helpers/getUniSubgraphVolume");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
@@ -22,7 +22,7 @@ const v1Graph = getChainVolume({
   },
 });
 
-const v2Graph = getChainVolume({
+const v2Graph = getChainVolumeWithGasToken({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",

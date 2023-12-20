@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/danielsmith0630/fxdx-optimism-stats",
+  // [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/danielsmith0630/fxdx-optimism-stats",
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/danielsmith0630/fxdx-base-stats"
 }
 
@@ -64,10 +64,10 @@ const getStartTimestamp = async (chain: string) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
-      start: async () => getStartTimestamp(CHAIN.OPTIMISM),
-    },
+    // [CHAIN.OPTIMISM]: {
+    //   fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
+    //   start: async () => getStartTimestamp(CHAIN.OPTIMISM),
+    // },
     [CHAIN.BASE] :{
       fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
       start: async () => getStartTimestamp(CHAIN.BASE),

@@ -4,7 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
-const topic0_limit_ex = '0x165b0f8d6347f7ebe92729625b03ace41aeea8fd7ebf640f89f2593ab0db63d1'
+const topic0_limit_ex = '0x1ab0771256522e5114b583b488c490436d6f8fe02b1e1c9697443e8704c4e840'
 const topic0_market_ex = '0x2739a12dffae5d66bd9e126a286078ed771840f2288f0afa5709ce38c3330997'
 
 type IAddress = {

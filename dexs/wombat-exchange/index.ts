@@ -22,6 +22,7 @@ type TEndpoint = {
   [s: string | Chain]: string;
 };
 
+// Updated using studio
 const endpoints: TEndpoint = {
   [CHAIN.BSC]:
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
@@ -29,6 +30,14 @@ const endpoints: TEndpoint = {
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
   [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-eth",
+  [CHAIN.SCROLL]:
+    "https://api.studio.thegraph.com/query/56564/wombat-exchange-scroll/version/latest",
+  [CHAIN.AVAX]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-avax",
+  [CHAIN.BASE]:
+    "https://api.studio.thegraph.com/query/56564/wombat-exchange-base/version/latest",
+  [CHAIN.OPTIMISM]:
+    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-op",
 };
 
 const fetchVolume = (chain: Chain) => {
@@ -36,7 +45,7 @@ const fetchVolume = (chain: Chain) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(timestamp * 1000)
     );
-    const todaysBlock = (await getBlock(dayTimestamp, chain, {}));
+    const todaysBlock = await getBlock(dayTimestamp, chain, {});
     const dayID = dayTimestamp / 86400;
     const query = gql`
       {
@@ -48,9 +57,11 @@ const fetchVolume = (chain: Chain) => {
             totalTradeVolumeUSD
           }
       }`;
-    const response: IData = (await request(endpoints[chain], query));
-    const dailyVolume = Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
-    const totalTradeVolumeUSD = Number(response.protocols[0].totalTradeVolumeUSD) / 2;
+    const response: IData = await request(endpoints[chain], query);
+    const dailyVolume =
+      Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
+    const totalTradeVolumeUSD =
+      Number(response.protocols[0].totalTradeVolumeUSD) / 2;
     return {
       dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
       totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
@@ -72,6 +83,22 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
       start: async () => 1691290453,
+    },
+    [CHAIN.SCROLL]: {
+      fetch: fetchVolume(CHAIN.SCROLL),
+      start: async () => 1697417581,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchVolume(CHAIN.AVAX),
+      start: async () => 1697493603,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchVolume(CHAIN.BASE),
+      start: async () => 1697486905,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetchVolume(CHAIN.OPTIMISM),
+      start: async () => 1700173545,
     },
   },
 };

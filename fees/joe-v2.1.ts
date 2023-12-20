@@ -153,12 +153,21 @@ const graph = (chain: Chain) => {
             .reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0)  * token1Price;
             const totalFeesY = log
             .reduce((a: number, b: IAmount) => Number(b.totalFeesY) + a, 0)  * token0Price;
-          return (totalFeesX + totalFeesY);
+          const totalProtocolFeesX = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0) * token1Price;
+          const totalProtocolFeesY = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0) * token0Price;
+          return {
+            fees: (totalFeesX + totalFeesY),
+            rev: (totalProtocolFeesX + totalProtocolFeesY),
+          };
         });
 
-        const dailyFees = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
+        const dailyFees = untrackVolumes.reduce((a: number, b: any) => a + b.fees, 0);
+        const dailyRevenue = untrackVolumes.reduce((a: number, b: any) => a + b.rev, 0);
         return {
           dailyFees: `${dailyFees}`,
+          dailyRevenue: `${dailyRevenue}`,
+          dailyHoldersRevenue: `${dailyRevenue}`,
+          dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
           timestamp,
         };
     } catch(error) {

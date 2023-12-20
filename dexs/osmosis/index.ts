@@ -14,12 +14,14 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
 
+  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
+
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { value }) => acc + value, 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.value
+    .find(dayItem => dayItem.time === dateStr)?.value
 
   return {
     totalVolume: `${totalVolume}`,
@@ -35,9 +37,9 @@ const getStartTimestamp = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.COSMOS]: {
+    [CHAIN.OSMOSIS]: {
       fetch,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       start: getStartTimestamp,
     },
   },
