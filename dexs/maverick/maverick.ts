@@ -9,10 +9,10 @@ const info: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-mainnet-data",
   },
-  // [CHAIN.ERA]: {
-  //   subgraph:
-  //     "https://api.studio.thegraph.com/proxy/42519/maverick-zksync-3/version/latest",
-  // },
+  [CHAIN.ERA]: {
+    subgraph:
+      "https://api.studio.thegraph.com/query/36330/mav-zksync/version/latest",
+  },
   [CHAIN.BSC]: {
     subgraph:
       "https://api.thegraph.com/subgraphs/name/maverick-protocol/maverick-bnb-app",
