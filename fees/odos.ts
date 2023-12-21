@@ -175,10 +175,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]:         { fetch: graph(CHAIN.BASE),           start: async () => 1689292800 },
     [CHAIN.POLYGON]:      { fetch: graph(CHAIN.POLYGON),        start: async () => 1689292800 },
     [CHAIN.AVAX]:         { fetch: graph(CHAIN.AVAX),           start: async () => 1689292800 },
-    //[CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: async () => 1689292800 },
+  //[CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: async () => 1689292800 },
     [CHAIN.FANTOM]:       { fetch: graph(CHAIN.FANTOM),         start: async () => 1689292800 },
-    //[CHAIN.ZKSYNC]:       { fetch: graph(CHAIN.ZKSYNC),         start: async () => 1689292800 },
-    [CHAIN.POLYGON_ZKEVM]:{ fetch: graph(CHAIN.POLYGON_ZKEVM),  start: async () => 1689292800 },
+  //[CHAIN.ZKSYNC]:       { fetch: graph(CHAIN.ZKSYNC),         start: async () => 1689292800 },
+    [CHAIN.POLYGON_ZKEVM]:{ fetch: graph(CHAIN.POLYGON_ZKEVM),  start: async () => 1689292800 }
   }
 };
 
