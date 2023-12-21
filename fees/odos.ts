@@ -154,7 +154,7 @@ const graph = (chain: Chain) => {
       return {
         dailyFees: `${dailyFees}`,
         dailyRevenue: `${dailyFees}`,
-        dailyHoldersRevenue: `${dailyFees}`,
+        dailyHoldersRevenue: `${0}`,
         dailySupplySideRevenue: `${0}`,
         timestamp,
       };
