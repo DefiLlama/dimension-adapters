@@ -63,8 +63,8 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     let dailyFees = (osEthRewards + rEth2Rewards) * ethPrice;
-    const dailyRevenue = (osEthRewards * 0.05) + (rEth2Rewards * 0.1);
-    const dailySupplySideRevenue = (osEthRewards * 0.95) + (rEth2Rewards * 0.9);
+    const dailyRevenue = ((osEthRewards * 0.05) + (rEth2Rewards * 0.1)) * ethPrice;
+    const dailySupplySideRevenue = ((osEthRewards * 0.95) + (rEth2Rewards * 0.9)) * ethPrice;
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyRevenue}`,
