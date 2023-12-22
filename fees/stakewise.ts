@@ -5,12 +5,18 @@ import * as sdk from "@defillama/sdk"
 import { ethers } from "ethers"
 import { getPrices } from "../utils/prices"
 
-const address = '0x20bc832ca081b91433ff6c17f85701b6e92486c5';
-const topic0 = '0xb9c8611ba2eb0880a25df0ebde630048817ebee5f33710af0da51958c621ffd7';
-const event = 'event RewardsUpdated(uint256 periodRewards,uint256 totalRewards,uint256 rewardPerToken,uint256 distributorReward,uint256 protocolReward)'
-const contract_interface = new ethers.utils.Interface([
-  event
+const reth2Address = '0x20bc832ca081b91433ff6c17f85701b6e92486c5';
+const reth2Topic = '0xb9c8611ba2eb0880a25df0ebde630048817ebee5f33710af0da51958c621ffd7';
+const reth2Interface = new ethers.utils.Interface([
+  'event RewardsUpdated(uint256 periodRewards,uint256 totalRewards,uint256 rewardPerToken,uint256 distributorReward,uint256 protocolReward)'
 ]);
+
+const osTokenCtrlAddress = '0x2A261e60FB14586B474C208b1B7AC6D0f5000306';
+const osTokenCtrlTopic = '0xb27a3a9979877b12952e21e91eeded34f5ecc7d5147544ca7b58fa9cd85e30be'
+const osTokenCtrlInterface = new ethers.utils.Interface([
+  'event StateUpdated(uint256 profitAccrued,uint256 treasuryShares,uint256 treasuryAssets)'
+]);
+const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
 
 interface ILog {
   data: string;
@@ -24,24 +30,41 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-    const logs: ILog[] = (await sdk.api.util.getLogs({
-      target: address,
+
+    // fetch rETH2 logs
+    let logs: ILog[] = (await sdk.api.util.getLogs({
+      target: reth2Address,
       topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
-      topics: [topic0],
+      topics: [reth2Topic],
       chain: CHAIN.ETHEREUM
     })).output as ILog[]
-    const rewardsUpdated = logs.map((log: ILog) => {
-      const value = contract_interface.parseLog(log);
+    const rEth2Rewards = logs.map((log: ILog) => {
+      const value = reth2Interface.parseLog(log);
       return Number(value.args.periodRewards._hex) / 10 ** 18;
     }).reduce((a: number, b: number) => a + b, 0);
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+
+    // fetch osETH logs
+    logs = (await sdk.api.util.getLogs({
+      target: osTokenCtrlAddress,
+      topic: '',
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      keys: [],
+      topics: [osTokenCtrlTopic],
+      chain: CHAIN.ETHEREUM
+    })).output as ILog[]
+    const osEthRewards = logs.map((log: ILog) => {
+      const value = osTokenCtrlInterface.parseLog(log);
+      return Number(value.args.profitAccrued._hex) / 10 ** 18;
+    }).reduce((a: number, b: number) => a + b, 0);
+
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    const dailyFees = rewardsUpdated * ethPrice;
-    const dailyRevenue = dailyFees * 0.1;
-    const dailySupplySideRevenue = dailyFees * 0.9;
+    let dailyFees = (osEthRewards + rEth2Rewards) * ethPrice;
+    const dailyRevenue = ((osEthRewards * 0.05) + (rEth2Rewards * 0.1)) * ethPrice;
+    const dailySupplySideRevenue = ((osEthRewards * 0.95) + (rEth2Rewards * 0.9)) * ethPrice;
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyRevenue}`,
