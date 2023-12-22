@@ -52,8 +52,8 @@ const fetch = (addressList: string[], chain: Chain) => {
     const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
     const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
-    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall]: any = (await Promise.all(
-      event.map((e: IEvent) => {
+    const [devFeeCall, sssFeeCall, referralFeeCall, usdcVaultFeeCall]: any = (await Promise.all(
+      event.map(async (e: IEvent) => {
         return Promise.all(
           addressList.map(async (address) => {
             return sdk.api.util.getLogs({
@@ -68,15 +68,27 @@ const fetch = (addressList: string[], chain: Chain) => {
           })
         );
       })
-    )).flat();
-    const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const usdcVaultFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    ));
+
+    let devFeeOutput: any[] = []
+    let sssFeeOutput: any[] = []
+    let referralFeeOutput: any[] = []
+    let usdcVaultFeeOutput: any[] = []
+    for (let i = 0; i < devFeeCall.length; i++) {
+      devFeeOutput = devFeeOutput.concat(devFeeCall[i].output);
+      sssFeeOutput = sssFeeOutput.concat(sssFeeCall[i].output);
+      referralFeeOutput = referralFeeOutput.concat(referralFeeCall[i].output);
+      usdcVaultFeeOutput = usdcVaultFeeOutput.concat(usdcVaultFeeCall[i].output);
+    }
+
+    const devFeeVol = devFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const ssFeeVol = sssFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const referralFeeVol = referralFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const usdcVaultFeeVol = usdcVaultFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
     const prices = await getPrices(['coingecko:usdc'], todaysTimestamp);
     const usdcPrice = prices['coingecko:usdc']?.price || 1;
-    const dailyRevenue = devFeeValume.plus(ssFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
-    const dailyFees = devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(usdcVaultFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
+    const dailyRevenue = devFeeVol.plus(ssFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
+    const dailyFees = devFeeVol.plus(ssFeeVol).plus(referralFeeVol).plus(usdcVaultFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
     return {
       timestamp,
       dailyFees,
