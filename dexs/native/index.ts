@@ -9,7 +9,7 @@ const chains = [
   CHAIN.POLYGON,
   CHAIN.ARBITRUM,
   CHAIN.AVAX,
-  // CHAIN.MANTLE, // error missing value dailyVolume
+  CHAIN.MANTLE,
 ];
 
 const NATIVE_ANALYTICS_ENDPOINT =
