@@ -16,8 +16,8 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume> => {
   const ammPool: IAmmPoool = (await fetchURL(urlAmmPool)).data;
   const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data.data;;
   const ammPoolStandardVolume: IAmmPooolStandar[] = ammPoolStandard.map((e: any) => e.day);
-  const dailyVolumeAmmPool = ammPoolStandardVolume.reduce((a: number, b: IAmmPooolStandar) => a + b.volume, 0)
-
+  // const dailyVolumeAmmPool = ammPoolStandardVolume.reduce((a: number, b: IAmmPooolStandar) => a + b.volume, 0)
+  const dailyVolumeAmmPool = 0; // office web site show only volume on amm pool
   return {
     dailyVolume:  ammPool?.volume24h ? `${ammPool?.volume24h + dailyVolumeAmmPool}`: undefined,
     // totalVolume:  ammPool?.totalvolume ? `${ammPool?.totalvolume}`: undefined,
