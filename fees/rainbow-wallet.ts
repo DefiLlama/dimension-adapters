@@ -10,6 +10,13 @@ interface IFee {
   volume: number;
 }
 
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
+
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
 
@@ -42,8 +49,14 @@ const fetch = (chain: Chain) => {
           contract_address: contract_address,
         } as IFee
       });
-      const tokens = [...new Set(log.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase()))]
-      const prices = await getPrices(tokens, timestamp);
+      const coins = [...new Set(log.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase()))]
+      const coins_split = [];
+      for(let i = 0; i < coins.length; i+=100) {
+        coins_split.push(coins.slice(i, i + 100))
+      }
+      const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+      const prices: TPrice = Object.assign({}, {});
+      prices_result.map((a: any) => Object.assign(prices, a))
       const amounts = log.map((p: IFee) => {
         const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
         const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
