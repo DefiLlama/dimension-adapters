@@ -41,7 +41,7 @@ const fetch = (chain: Chain) => {
       `;
 
 
-      const logs: [string, string][] = (await queryFlipside(query, 210))
+      const logs: [string, string][] = (await queryFlipside(query, 260))
       const log = logs.map(([data, contract_address]: [string, string]) => {
           const volume =  Number(data)
         return {
