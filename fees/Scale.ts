@@ -419,7 +419,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       start: async () => 1695458888,
-      //meta: { methodology }
+      meta: { methodology }
     },
   }
 };
