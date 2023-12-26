@@ -3,23 +3,39 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import { ethers } from "ethers";
+
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
 
 interface ILog {
   data: string;
+  topics: string[];
   transactionHash: string;
 }
 interface IAmount {
   amount0: number;
   amount1: number;
 }
+interface IBribeAndFeeAmount {
+  amount: number;
+}
 
-const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
-const FACTORY_ADDRESS = '0xc6366efd0af1d09171fe0ebf32c7943bb310832a';
+const TOPIC_Fees = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
+const TOPIC_Notif = '0x52977ea98a2220a03ee9ba5cb003ada08d394ea10155483c95dc2dc77a7eb24b';
+const TOPIC_Notify = 'event NotifyReward(address indexed from, address indexed reward, uint indexed epoch, uint amount)';
+const INTERFACE_N = new ethers.utils.Interface([TOPIC_Notify]);
+const FACTORY_ADDRESS = '0xc6366EFD0AF1d09171fe0EBF32c7943BB310832a';
+const VOTER_ADDRESS = '0xE3D1A117dF7DCaC2eB0AC8219341bAd92f18dAC1';
 
 type TABI = {
   [k: string]: object;
 }
-const ABIs: TABI = {
+const FACTORY_ABI: TABI = {
   allPairsLength: {
     "type": "function",
     "stateMutability": "view",
@@ -54,6 +70,79 @@ const ABIs: TABI = {
   }
 };
 
+const VOTER_ABI: TABI = {
+  length: {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "uint256",
+        "name": "",
+        "internalType": "uint256"
+      }
+    ],
+    "name": "length",
+    "inputs": []
+  },
+  pools: {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256",
+        "name": "",
+        "internalType": "uint256"
+      }
+    ],
+    "name": "pools",
+  },
+  gauges: {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address",
+        "name": "",
+        "internalType": "address"
+      }
+    ],
+    "name": "gauges",
+  },
+  bribes: {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address",
+        "name": "",
+        "internalType": "address"
+      }
+    ],
+    "name": "bribes",
+  }
+};
+
 const PAIR_TOKEN_ABI = (token: string): object => {
   return {
     "constant": true,
@@ -72,29 +161,33 @@ const PAIR_TOKEN_ABI = (token: string): object => {
   }
 };
 
-const poolList = [
-'0x77cfee25570b291b0882f68bac770abf512c2b5c',
-'0x3c4beb9a8d83c888d28f3cef37e4fff662cae9d7',
-'0x99b7daaf2468edcfbadd67df9bcea14d1a030675',
-'0x3d6c56f6855b7cc746fb80848755b0a9c3770122',
-'0x3d03ec9780298af6f7c23ec87fd9456d277f71a0',
-'0xdc935ffe9f9c972b7b304e0b7e61eb774037e394',
-'0x7547d05dff1da6b4a2ebb3f0833afe3c62abd9a1',
-'0x58503d69ebfdf06095c2c9e122aa75ef80f89441',
-'0x558dca97c224851cf428cbf244bec0b897642efc',
-'0x0995f3932b4aca1ed18ee08d4b0dcf5f74b3c5d3',
-'0x11a0779ea92176298b7a2760ae29fc9ce1ad47b4',
-'0x1f19718e02114006f0d848f46b2437eb2db88c5d',
-'0x767520fa98e1e24b3326fd42b24c9dcfce8bce14',
-'0xffe9c27f0a12dabe5c5bd46d144a5c0140725566',
-'0x853d0b5e504ae6f6cee8b5d89e9c1853c330e6e9'
-]
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
-    const lpTokens = poolList;
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////         TRADE FEES ONLY             ////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    const poolLength = (await sdk.api.abi.call({
+      target: FACTORY_ADDRESS,
+      chain: 'fantom',
+      abi: FACTORY_ABI.allPairsLength,
+    })).output;
+
+    const poolsRes = await sdk.api.abi.multiCall({
+      abi: FACTORY_ABI.allPairs,
+      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
+        target: FACTORY_ADDRESS,
+        params: i,
+      })),
+      chain: 'fantom'
+    });
+
+    const lpTokens = poolsRes.output
+      .map(({ output }: any) => output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
@@ -103,35 +196,121 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: 'fantom',
-          permitFailure: true
+          chain: 'fantom'
         })
       )
     );
 
     const tokens0 = underlyingToken0.output.map((res: any) => res.output);
     const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+
+
+
+
+    const poolsGauges = await sdk.api.abi.multiCall({
+      abi: VOTER_ABI.gauges,
+      calls: lpTokens.map((_lpt: string) => ({
+        target: VOTER_ADDRESS,
+        params: _lpt,
+      })),
+      chain: 'fantom'
+    });
+
+
+
+    const voterGauges = poolsGauges.output
+      .map(({ output }: any) => output)
+      .filter( (_vg: string) => _vg !== '0x0000000000000000000000000000000000000000');
+
+
+    const poolsGaugesBribes = await sdk.api.abi.multiCall({
+      abi: VOTER_ABI.bribes,
+      calls: voterGauges.map((_ga: string) => ({
+        target: VOTER_ADDRESS,
+        params: _ga,
+      })),
+      chain: 'fantom'
+    });
+    const voterBribes = poolsGaugesBribes.output
+      .map(({ output }: any) => output);
+
+
+
+
+
+
+
+
+
     const fromBlock = (await getBlock(fromTimestamp, 'fantom', {}));
     const toBlock = (await getBlock(toTimestamp, 'fantom', {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+
+    const tradefeeLogs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
       target: address,
       topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
       keys: [],
       chain: 'fantom',
-      topics: [topic0]
+      topics: [TOPIC_Fees]
     }))))
       .map((p: any) => p)
       .map((a: any) => a.output);
 
-    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `fantom:${e}`);
-    const coins = [...new Set(rawCoins)]
-    const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
+    const bribeAndFeeLogs: ILog[][] = (await Promise.all(voterBribes.map((address: string) => sdk.api.util.getLogs({
+      target: address,
+      topic: '',
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      keys: [],
+      chain: 'fantom',
+      topics: [TOPIC_Notif]
+    }))))
+      .map((p: any) => p)
+      .map((a: any) => a.output);
+
+
+
+
+    var allBribedTokens: string[] = new Array(0);
+    const listOfBribedTokensByPool: string[][] = bribeAndFeeLogs.map( (perBribeLogs: ILog[]) => {
+      const _innerBT: string[] = perBribeLogs.map( (e: ILog) => {
+        const _l = INTERFACE_N.parseLog(e);
+        const _t = `${CHAIN.FANTOM}:${_l.args.reward.toLowerCase()}`;
+        return _t;
+        //return `${CHAIN.FANTOM}:${e.topics[2].toLowerCase()}`;
+      });
+      allBribedTokens = allBribedTokens.concat(_innerBT);
+      return _innerBT;
+    });
+
+
+
+
+    ///const rawCoins = [...tokens0, ...tokens1, ...allBribedTokens].map((e: string) => `fantom:${e}`);
+    ///const coins = [...new Set(rawCoins)]
+    ///const prices = await getPrices(coins, timestamp);
+
+    const rawCoins = [...tokens0, ...tokens1, ...allBribedTokens].map((e: string) => `fantom:${e}`);
+    const coins = [...new Set(rawCoins)];
+
+    // { getPrices } function breaks above 100 tokens
+    const coins_split: string[][] = [];
+    for(let i = 0; i < coins.length; i+=100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
+
+
+
+
+
+    const tradefees: number[] = lpTokens.map((_: string, index: number) => {
       const token0Decimals = (prices[`fantom:${tokens0[index]}`]?.decimals || 0)
       const token1Decimals = (prices[`fantom:${tokens1[index]}`]?.decimals || 0)
-      const log: IAmount[] = logs[index]
+      const tradefeesLog: IAmount[] = tradefeeLogs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
         .map((p: ILog) => {
           const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
@@ -144,20 +323,76 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const token0Price = (prices[`fantom:${tokens0[index]}`]?.price || 0);
       const token1Price = (prices[`fantom:${tokens1[index]}`]?.price || 0);
 
-      const feesAmount0 = log
+      const feesAmount0 = tradefeesLog
         .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-      const feesAmount1 = log
+      const feesAmount1 = tradefeesLog
         .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
 
       const feesUSD = feesAmount0 + feesAmount1;
       return feesUSD;
     });
 
-    const dailyFees = fees.reduce((a: number, b: number) => a+b,0)
+
+
+
+    const bribesAndFees: number[] = voterBribes.map((_: string, index: number) => {
+      const bribeAndFeesLog: IBribeAndFeeAmount[] = bribeAndFeeLogs[index]
+        .map((e: ILog) => { return { ...e } })
+        .map((p: ILog) => {
+          const _log = INTERFACE_N.parseLog(p);
+          const _token = _log.args.reward;
+          const _price = (prices[`fantom:${_token}`]?.price || 0);
+          const _deci = prices[`fantom:${_token}`]?.decimals || 0;
+          const amount = Number(p.data) / 10 ** _deci * _price;
+          return {
+            amount
+          } as IBribeAndFeeAmount
+        }) as IBribeAndFeeAmount[];
+
+      const bribeAndFeeAmount = bribeAndFeesLog
+        .reduce((a: number, b: IBribeAndFeeAmount) => Number(b.amount) + a, 0);
+
+
+
+      return bribeAndFeeAmount;
+    });
+
+
+
+
+
+    const dailyTradeFees = tradefees.reduce((a: number, b: number) => a+b,0)
+    const dailyBribeAndFeesRevenue = bribesAndFees.reduce((a: number, b: number) => a+b,0)
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue:  `${dailyFees}`,
-      dailyHoldersRevenue: `${dailyFees}`,
+      // Should be ALL of Trade Fees
+      dailyFees: `${dailyTradeFees}`,
+      dailyUserFees: `${dailyTradeFees}`,
+      dailySupplySideRevenue: `${dailyTradeFees}`,
+
+      /*
+      /// Old Approach
+      //Should be ONLY A PART of Trade Fees. Liquidity providers earn ALL trade fees but may chose to forfeit these to earn higher emissions. Such forfeited fees are paid to holders as Revenue. But we dont have the exact number with us, since Equalizer makes no discrimination based on source for Revenue. So we'll use the full trade fee as a placecholder for now.
+      ///dailyRevenue:  `${dailyTradeFees}`,
+      ///dailyHoldersRevenue: `${dailyTradeFees}`,
+
+      //Defillama doesnt include Bribes into Revenue natively and counts them separately. Since we cant discern Forfeited Trade-fee from External Bribes, we use the difference here. Ideally, `dailyBribeAndFeesRevenue` should be treated as Revenue. Til then, we might see negative numbers here if some of the forfeited fee is unclaimed during the day
+      ///dailyBribesRevenue: `${dailyBribeAndFeesRevenue - dailyTradeFees}`,
+
+      const methodology = { // for above approach
+        UserFees: "Equalizer users pay a Trading fee on each swap. Includes Flash Loan Fees.",
+        Fees: "Same as user-paid trade Fees",
+        Revenue: "Trading fee Forfeited by some Liquidity providers, paid to veEQUAL voters. Dont include Bribes unless indicated by DefiLlama toggles.",
+        ProtocolRevenue: "A % of Revenue is collected by Equalizer Treasury. Never includes Bribes.",
+        HoldersRevenue: "The Revenue paid to veEQUAL voters. Does not include Bribes unless indicated by DefiLlama toggles.",
+        SupplySideRevenue: "100% of trading fees is paid to liquidity providers. They may chose to forfeit these to earn higher emissions.",
+        BribesRevenue: "100% of Bribes are paid to veEQUAL voters."
+      }
+      */
+
+      // New Approach
+      // We define Revenue as Bribe + Forfeited Trade Fees, while the `Fees` numbers are Pure Trade Fees. This is true in the truest sense, since at contract level, there is no way to differentiate trade fee and external bribes, both are added in the same contract call. Both have an inherent overlap, which wasnt possible to highlight with old approach. Further, the old approach caused Negative `BribeRevenue` numbers over some days while in reality those were just delayed claims. So fee is raw fee, and revenue is real revenue really paid indistinguishabe with the forfeited trade fees of LPs. The Trade Fees earned directly by LPs is NOT counted in Revenue, which is correct.
+      dailyRevenue:  `${dailyBribeAndFeesRevenue}`,
+      dailyHoldersRevenue: `${dailyBribeAndFeesRevenue}`,
       timestamp,
     };
   } catch(error) {
@@ -166,11 +401,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 
+const methodology = {
+  UserFees: "Equalizer users pay a Trading fee on each swap. Includes Flash Loan Fees.",
+  Fees: "Sum of all Trading fees, including Flash Loan fees.",
+  Revenue: "Trading fee Forfeited by some Liquidity providers, as well as Externally-added Bribes, paid to veEQUAL voters.",
+  ProtocolRevenue: "A % of Forfeited trade-fee is collected by Equalizer Treasury. Never includes Bribes.",
+  HoldersRevenue: "The Revenue paid to veEQUAL voters, Bribes+Forfeited trade fees.",
+  SupplySideRevenue: "100% of trading fees is paid to Liquidity providers.",
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,
       start: async () => 1670544000,
+      //meta: { methodology }
     },
   }
 };
