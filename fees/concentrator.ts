@@ -38,12 +38,13 @@ const graph = (graphUrls: ChainEndpoints) => {
       });
       const snapshot = dailyRevenueSnapshot;
 
-      const coins = ["aladdin-cvxcrv"].map((item) => `coingecko:${item}`);
+      const coins = ["aladdin-cvxcrv", "convex-crv"].map((item) => `coingecko:${item}`);
       const coinsUnique = [...new Set(coins)];
       const prices = await getPrices(coinsUnique, timestamp);
       const aCRVPrice = prices["coingecko:aladdin-cvxcrv"];
+      const CRVPrice = prices["coingecko:convex-crv"];
 
-      const dailyRevenue = snapshot.aCRVRevenue.times(aCRVPrice.price);
+      const dailyRevenue = snapshot.aCRVRevenue.times(aCRVPrice?.price ?? CRVPrice.price);
 
       const dailyFees = dailyRevenue * 2;
 
