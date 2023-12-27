@@ -94,6 +94,10 @@ const fetchFees = (chain: Chain) => {
     const dailyFees = [...shield_fees, ...unshield_fees].reduce((a: number, b: IFees) => {
       const price = prices[`${chain}:${b.token}`]?.price || 0;
       const decimals = prices[`${chain}:${b.token}`]?.decimals || 0;
+      if (price === 0 || decimals === 0) return a;
+      const amount = (b.amount / 10 ** decimals) * price
+      const oneMillion = 1000000;
+      if (amount > oneMillion) return a;
       return a + (b.amount / 10 ** decimals) * price;
     },0)
 
