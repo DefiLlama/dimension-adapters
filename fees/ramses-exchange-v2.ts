@@ -53,12 +53,12 @@ const v2Graphs = getGraphDimensions({
         adapter: {
           [CHAIN.ARBITRUM]: {fetch: v2Graphs(ARBITRUM),
             start: async () => startTimeV2[CHAIN.ARBITRUM],
-            // meta: {
-            //   methodology: {
-            //     ...methodology,
-            //     UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
-            //   }
-            // }
+            meta: {
+              methodology: {
+                ...methodology,
+                UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
+              }
+            }
           },
         }
       };
