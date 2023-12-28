@@ -9,6 +9,7 @@ import {
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
 import { type } from "os";
+import { time } from "console";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -179,7 +180,16 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: v2Graph(CHAIN.ETHEREUM),
+        fetch: async (timestamp, chainBlocks) => {
+          const response = await v2Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
+          response.totalVolume = Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
         start: getStartTimestamp({
           endpoints: v2Endpoints,
           chain: CHAIN.ETHEREUM,
