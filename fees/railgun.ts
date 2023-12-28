@@ -12,10 +12,10 @@ type IContract = {
 }
 
 const contract: IContract = {
-  // [CHAIN.ETHEREUM]: '0xfa7093cdd9ee6932b4eb2c9e1cde7ce00b1fa4b9',
+  [CHAIN.ETHEREUM]: '0xfa7093cdd9ee6932b4eb2c9e1cde7ce00b1fa4b9',
   [CHAIN.ARBITRUM]: '0xfa7093cdd9ee6932b4eb2c9e1cde7ce00b1fa4b9',
-  // [CHAIN.BSC]: '0x590162bf4b50f6576a459b75309ee21d92178a10',
-  // [CHAIN.POLYGON]: '0x19b620929f97b7b990801496c3b361ca5def8c71',
+  [CHAIN.BSC]: '0x590162bf4b50f6576a459b75309ee21d92178a10',
+  [CHAIN.POLYGON]: '0x19b620929f97b7b990801496c3b361ca5def8c71',
 }
 const topic0_shield = '0x3a5b9dc26075a3801a6ddccf95fec485bb7500a91b44cec1add984c21ee6db3b';
 // token index 8
