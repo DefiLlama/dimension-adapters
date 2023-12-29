@@ -14,12 +14,12 @@ type TStartTime = {
 const startTimeV2:TStartTime = {
 [CHAIN.AVAX]: 1702339200,
 }
-  
+
 
 const v2Endpoints = {
     [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/pharaoh-cl-subgraph",
   };
-  
+
 const VOLUME_USD = "volumeUSD";
 
 const v2Graphs = getGraphDimensions({
@@ -34,9 +34,10 @@ const v2Graphs = getGraphDimensions({
     },
     feesPercent: {
         type: "fees",
-        HoldersRevenue: 100,
+        HoldersRevenue: 50,
         UserFees: 100, // User fees are 100% of collected fees
-        Revenue: 100 // Revenue is 100% of collected fees
+        Revenue: 50, // Revenue is 50% of collected fees
+        SupplySideRevenue: 50,
     }
     });
 

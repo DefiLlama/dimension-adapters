@@ -36,7 +36,7 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const endpoint = "https://arkiver.moltennetwork.com/graphql";
+    const endpoint = "https://arkiverbackup.moltennetwork.com/graphql";
     const response = await request(endpoint, graphQuery);
     const dayProducts: IDayProduct[] = response.DayProducts;
 
@@ -68,7 +68,7 @@ const methodology = {
   Fees: "Fees collected from user trading fees",
   Revenue: "Fees going to the treasury + holders",
   HoldersRevenue: "Fees going to token holders",
-  SupplySideRevenue: "Fees going to liquidity providers of counter party pools"
+  SupplySideRevenue: "Fees going to liquidity providers of counterparty pools"
 };
 
 const adapter: Adapter = {

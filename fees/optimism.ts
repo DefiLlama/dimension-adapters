@@ -40,7 +40,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
             and to_address = '0x4200000000000000000000000000000000000010'
             and BLOCK_NUMBER > ${yesterdaysBlock} AND BLOCK_NUMBER < ${todaysBlock}
     `
-    const value: string[] = (await queryFlipside(query)).flat();
+    const value: string[] = (await queryFlipside(query, 260)).flat();
     const feeWalletAndBase = new BigNumber(value[0] || '0').multipliedBy(1e18);
     const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount).plus(feeWalletAndBase);
 
