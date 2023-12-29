@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import axios from 'axios';
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -3600,7 +3601,8 @@ const fetch = (chain: Chain) => {
       // } else {
       //   fees = await fetchFees(chain, timestamp);
       // }
-      const dailyFees = (data as [number, { [key: string]: { allbridge: number } }][]).find((d: any[]) => d[0] === timestamp)?.[1]?.[chain]?.allbridge || 0;
+      const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+      const dailyFees = (data as [number, { [key: string]: { allbridge: number } }][]).find((d: any[]) => d[0] === todayTimestamp)?.[1]?.[chain]?.allbridge || 0;
       // const dailyFees = fees;
       const dailyRevenue = dailyFees * 0.2;
       const dailySupplySideRevenue = dailyFees * 0.8;
