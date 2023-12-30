@@ -3,8 +3,8 @@ import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const URL = 'https://api.dexhunter.app';
-const endpoint = '/stats';
+const URL = 'https://api-staging-xoi27nkjlq-uc.a.run.app';
+const endpoint = '/openapi/stats';
 const startTimestamp = 1684108800; // 15.10.2023
 
 interface IAPIResponse {
