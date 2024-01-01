@@ -1,5 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { fetchURLWithRetry } from "../duneRequest";
 
 const getAdapter = (
   chains: Array<string>,
@@ -13,9 +14,9 @@ const getAdapter = (
     );
 
     try {
-      const data = (
-        await fetchURL(
-          `https://api.dune.com/api/v1/query/3289587/results?api_key=R0n7PWCs1hw6O6nvQrmJPGTIUZKKn2zz`
+      const data = await (
+        await fetchURLWithRetry(
+          "https://api.dune.com/api/v1/query/3321376/results"
         )
       ).data?.result?.rows;
 
