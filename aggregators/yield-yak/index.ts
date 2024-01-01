@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { fetchURLWithRetry } from "../../helpers/duneRequest";
 
 const chains = [CHAIN.AVAX];
 
@@ -15,12 +16,11 @@ const fetch = (chain: string) => async (timestamp: number) => {
   );
 
   try {
-    const data = (
-      await fetchURL(
-        `https://api.dune.com/api/v1/query/3289587/results?api_key=R0n7PWCs1hw6O6nvQrmJPGTIUZKKn2zz`
+    const data = await (
+      await fetchURLWithRetry(
+        "https://api.dune.com/api/v1/query/3321376/results"
       )
     ).data?.result?.rows;
-
     const dayData = data.find(
       ({
         block_date,
