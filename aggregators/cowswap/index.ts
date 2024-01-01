@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { fetchURLWithRetry } from "../../helpers/duneRequest";
 
 const chainsMap: Record<string, string> = {
   ethereum: "ethereum",
@@ -15,8 +16,8 @@ const fetch =
 
     try {
       const data = (
-        await fetchURL(
-          `https://api.dune.com/api/v1/query/3286974/results?api_key=V7vYjASSF6akM7PULdVI797yPl0hjOGg`
+        await fetchURLWithRetry(
+          "https://api.dune.com/api/v1/query/3321375/results"
         )
       ).data;
       const chainData = data?.result?.rows.find(
