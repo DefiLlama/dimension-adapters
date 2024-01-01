@@ -59,7 +59,7 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.MOONBEAM]: {
       fetch: graphsBeamex(CHAIN.MOONBEAM),
       start: async () => 1687421388,
       meta: {
