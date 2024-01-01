@@ -33,7 +33,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 const adapter: SimpleAdapter = {
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
       fetch,
       start: async () => 1643673600,
     },

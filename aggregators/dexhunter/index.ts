@@ -38,7 +38,7 @@ const fetch = async (): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
       fetch,
       start: async () => startTimestamp,
     },

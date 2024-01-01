@@ -38,7 +38,7 @@ const fetchVolumeERGO = async (timestamp: number): Promise<FetchResultVolume> =>
 
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
       fetch: fetchVolumeADA,
       start: async () => 1697068800,
       runAtCurrTime: true,

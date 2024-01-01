@@ -22,7 +22,7 @@ export enum CHAIN {
   JUNO = "juno",
   KCC = "kcc",
   WAN = "wan",
-  CARDADO = "cardano",
+  CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
   DOGECHAIN = "dogechain",

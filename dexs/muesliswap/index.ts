@@ -36,7 +36,7 @@ const adapters = (() => {
     dayData: "pancakeDayData",
   });
 
-  milkomeda.adapter[CHAIN.CARDADO] = {
+  milkomeda.adapter[CHAIN.CARDANO] = {
     start: async () => 1638057600,
     fetch: fetch,
   };
