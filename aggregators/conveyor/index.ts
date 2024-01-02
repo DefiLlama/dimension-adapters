@@ -5,6 +5,9 @@ const chains: Record<string, string> = {
   ethereum: "ethereum",
   bnb: "bsc",
   polygon: "polygon",
+  arbitrum: "arbitrum",
+  optimism: "optimism",
+  base: "base",
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
