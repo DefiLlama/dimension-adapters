@@ -32,7 +32,8 @@ const chains: TChains =  {
   [CHAIN.ULTRON]: 1231,
   [CHAIN.LINEA]: 59144,
   [CHAIN.SCROLL]: 534352,
-  [CHAIN.BASE]: 8453
+  [CHAIN.BASE]: 8453,
+  [CHAIN.MANTA]: 169,
 };
 
 const fetch = (chain: Chain) => {
