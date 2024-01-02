@@ -33,7 +33,7 @@ const getContext = async (timestamp: number, _: ChainBlocks, chain: keyof typeof
   const toTimestamp = timestamp
   const fromBlock = (await getBlock(fromTimestamp, chain, {}));
   const toBlock = (await getBlock(toTimestamp, chain, {}));
-  
+
 
 
   const allMarketAddressess = await getAllMarketsMulti(unitrollers[chain], chain);
@@ -154,16 +154,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch: fetchManta,
-      start: async () => 858472,
+      start: async () => 1703980800,
       runAtCurrTime: true,
     },
     [CHAIN.WEMIX]: {
       fetch: fetchWEMIX,
-      start: async () => 29240768 ,
+      start: async () => 1703980800 ,
       runAtCurrTime: true,
     }
   },
 };
 
 export default adapter;
- 
