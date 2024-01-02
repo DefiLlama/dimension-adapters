@@ -84,7 +84,6 @@ const adapter: Adapter = {
             start: async () => 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
-    protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
