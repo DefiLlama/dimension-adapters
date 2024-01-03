@@ -42,7 +42,7 @@ interface IGraphResponse {
 }
 
 const toString = (x: BigNumber) => {
-  if (x.isEqualTo(0)) return undefined
+  if (x.isEqualTo(0)) return '0';
   return x.toString()
 }
 
