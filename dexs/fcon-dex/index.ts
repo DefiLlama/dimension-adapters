@@ -1,6 +1,7 @@
-import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 interface IData {
   date: string;
@@ -28,6 +29,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees & FetchResultVo
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.MANTLE]: {
       fetch: fetch,
       start: async () => 1691280000,
