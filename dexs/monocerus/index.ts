@@ -14,12 +14,12 @@ const v3Graphs = getGraphDimensions({
     field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: "uniswapDayData",
+    factory: "uniswapDayDatas",
     field: "volumeUSD",
     dateField: "date"
   },
   dailyFees: {
-    factory: "uniswapDayData",
+    factory: "uniswapDayDatas",
     field: "feesUSD",
   },
   feesPercent: {
