@@ -5,6 +5,7 @@ const chains: Record<string, string> = {
   ethereum: "ethereum",
   bnb: "bsc",
   polygon: "polygon",
+  arbitrum: "arbitrum",
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
@@ -20,7 +21,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
   );
 
   return {
-    dailyVolume: dayData?.trade_amount,
+    dailyVolume: dayData?.trade_amount ?? "0",
     timestamp: unixTimestamp,
   };
 };
