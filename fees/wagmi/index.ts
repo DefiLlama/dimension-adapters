@@ -33,13 +33,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFee(CHAIN.ETHEREUM),
-      start: async () => 18240112,
-      meta: {
-        methodology,
-      },
-    },
+    // [CHAIN.ETHEREUM]: { // error the graph
+    //   fetch: fetchFee(CHAIN.ETHEREUM),
+    //   start: async () => 18240112,
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
   },
 };
 
