@@ -34,8 +34,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const coins = [...new Set(rawData.map((p: any) => `${CHAIN.ETHEREUM}:${p.contract_address}`))];
       const prices = await getPrices(coins, timestamp);
       const dailyFees = rawData.reduce((a: number, b: IFee) => {
-        const price = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`].price;
-        const decimals = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`].decimals;
+        const price = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`]?.price || 0;
+        const decimals = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`]?.decimals || 0;
         const value = b.value / 10 ** decimals;
         return a + (value * price);
       }, 0);

@@ -23,7 +23,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
   );
 
   return {
-    dailyVolume: dayData?.trade_amount,
+    dailyVolume: dayData?.trade_amount ?? "0",
     timestamp: unixTimestamp,
   };
 };
