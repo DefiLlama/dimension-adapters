@@ -11,8 +11,6 @@ const endpoint =
 
 const endpoint_0_8_0 =
   "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
-const endpoint =
-  "https://api.studio.thegraph.com/query/62472/intentx-analytics_082/version/latest";
 
 const query_0_8_0 = gql`
   query stats($from: String!, $to: String!) {
