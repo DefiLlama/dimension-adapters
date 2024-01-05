@@ -12,7 +12,7 @@ type TStartTime = {
 [key: string]: number;
 }
 const startTimeV2:TStartTime = {
-[CHAIN.MANTLE]: 1702339200,
+[CHAIN.MANTLE]: 1704326400,
 }
 
 
