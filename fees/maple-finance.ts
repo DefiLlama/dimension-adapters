@@ -117,7 +117,7 @@ const fetchFees = async (timestamp: number) => {
         return a + (value * price);
       },0);
 
-      sql.end({ timeout: 3 })
+      await sql.end({ timeout: 3 })
       const dailyFees = funds_fees + claim_fees + inflow;
       const dailyRevenue = inflow;
       return {
@@ -126,7 +126,7 @@ const fetchFees = async (timestamp: number) => {
         timestamp
       }
   } catch (error) {
-    sql.end({ timeout: 3 })
+    await sql.end({ timeout: 3 })
     console.error(error);
     throw error;
 }
