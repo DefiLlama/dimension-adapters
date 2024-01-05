@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import type { BaseAdapter, FetchResultFees, IJSON, SimpleAdapter } from '../../adapters/types';
+import { BaseAdapter, FetchResultVolume, IJSON, SimpleAdapter } from '../../adapters/types';
 import type { Chain } from "@defillama/sdk/build/general";
 import fetchURL from '../../utils/fetchURL';
 
@@ -18,7 +18,7 @@ const getVolume = async (chainCode: string, fromDate: string, toDate: string): P
 }
 
 const getVolumeFunction = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number): Promise<FetchResultVolume> => {
     const chainCode = chainCodeMap[chain];
     const dateString = formatTimestampAsIsoDate(timestamp);
     const dailyVolume = await getVolume(chainCode, dateString, dateString);
@@ -26,7 +26,7 @@ const getVolumeFunction = (chain: Chain) => {
     return {
       timestamp,
       dailyVolume: dailyVolume ? String(dailyVolume) : undefined,
-    } as FetchResultFees;
+    } as FetchResultVolume;
   }
 }
 
