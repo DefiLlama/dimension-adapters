@@ -35,7 +35,7 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const endpoint = "https://arkiver.moltennetwork.com/graphql";
+    const endpoint = "https://arkiverbackup.moltennetwork.com/graphql";
     const response = await request(endpoint, graphQuery);
     const dayProducts: IDayProduct[] = response.DayProducts;
 
