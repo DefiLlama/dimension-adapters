@@ -10,6 +10,10 @@ interface IPoolData {
   id: number;
   feesUSD: string;
 }
+interface IFactoryData {
+  id: number;
+  totalFeesUSD: string;
+}
 
 type IURL = {
   [l: string | Chain]: string;
@@ -33,18 +37,39 @@ const fetch = (chain: Chain) => {
       }
     `;
 
+    const graphQuery2 = gql
+      `
+      {
+        factory(id: "0xD118fa707147c54387B738F54838Ea5dD4196E71") {
+           id
+          totalFeesUSD
+        
+        }
+      }
+  `;
+
     const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).uniswapDayData;
+    const graphRes2: IFactoryData = (await request(endpoints[chain], graphQuery2)).factory;
+    const totalFeesUSD = graphRes2;
+    const totalFee = totalFeesUSD?.totalFeesUSD ? new BigNumber(totalFeesUSD.totalFeesUSD) : undefined
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
+    if (totalFee === undefined) return { timestamp }
     return {
       timestamp,
       dailyFees: dailyFee.toString(),
       dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.toString(),
+      dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
       dailyProtocolRevenue: dailyFee.multipliedBy(0.16).toString(),
-      dailyHoldersRevenue: "0",
+      dailyHoldersRevenue: dailyFee.multipliedBy(0.02).toString(),
       dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
+      totalFees: totalFee.toString(),
+      totalProtocolRevenue: totalFee.multipliedBy(0.16).toString(),
+      totalRevenue: totalFee.multipliedBy(0.16).toString(),
+      totalUserFees: totalFee.toString(),
+      totalSupplySideRevenue: totalFee.multipliedBy(0.84).toString(),
+
     };
   };
 }
