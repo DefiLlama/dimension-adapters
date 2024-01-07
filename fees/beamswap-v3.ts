@@ -55,6 +55,7 @@ const fetch = (chain: Chain) => {
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
+    if (totalFee === undefined) return { timestamp }
     return {
       timestamp,
       dailyFees: dailyFee.toString(),
