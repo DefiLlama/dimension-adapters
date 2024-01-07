@@ -29,8 +29,15 @@ export async function queryDune(queryId: string, query_parameters={}) {
             throw query?.data
           }
         } catch(e:any){
-          console.log("make query dune", e)
-          throw e.error
+          if (API_KEY_INDEX < API_KEYS.length - 1) {
+            console.error('api key out of limit waiting retry next key')
+            API_KEY_INDEX = API_KEY_INDEX + 1
+          } else {
+            const error = new Error(`there is no more api key`)
+            console.error('there is no more api key')
+            bail(error)
+            throw e.error
+          }
         }
       }
 
@@ -38,11 +45,29 @@ export async function queryDune(queryId: string, query_parameters={}) {
         throw new Error("Couldn't get a token from dune")
       }
 
-      const queryStatus = await axios.get(`https://api.dune.com/api/v1/execution/${token[queryId]}/results`, {
-        headers: {
-          "x-dune-api-key": API_KEY
+      let queryStatus = undefined
+      try {
+        queryStatus = await axios.get(`https://api.dune.com/api/v1/execution/${token[queryId]}/results`, {
+          headers: {
+            "x-dune-api-key": API_KEY
+          }
+        })
+      } catch(e:any){
+        if (API_KEY_INDEX < API_KEYS.length - 1) {
+          API_KEY_INDEX = API_KEY_INDEX + 1
+        } else {
+          const error = new Error(`there is no more api key`)
+          console.error('there is no more api key')
+          bail(error)
+          throw e.error
         }
-      })
+      }
+
+      if (!queryStatus) {
+        const error_query_status_undefined = new Error("Query status is undefined")
+        throw error_query_status_undefined;
+      }
+
 
       const status = queryStatus.data.state
       if (status === "QUERY_STATE_COMPLETED") {
