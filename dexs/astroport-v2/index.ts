@@ -2,6 +2,7 @@ import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { request } from "graphql-request";
+import fetchURL from "../../utils/fetchURL";
 
 const API_ENDPOINT = "https://multichain-api.astroport.fi/graphql";
 
@@ -15,12 +16,12 @@ query Stats($chains: [String]!) {
   }
 }
 `;
-
+const url = 'https://app.astroport.fi/api/trpc/protocol.stats?input={"json":{"chains":["phoenix-1","injective-1","neutron-1","pacific-1"]}}'
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const results = await request(API_ENDPOINT, statsQuery, { chains: [chainId] });
-    const totalVolume24h = results?.stats?.chains[0]?.totalVolume24h;
+    const results = (await fetchURL(url)).data?.result.data.json.chains[chainId];
+    const totalVolume24h = results?.dayVolumeUSD;
     return {
       timestamp: dayTimestamp,
       dailyVolume: totalVolume24h ? String(totalVolume24h) : undefined,
