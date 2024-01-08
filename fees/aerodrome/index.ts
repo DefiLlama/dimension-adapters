@@ -65,7 +65,7 @@ interface ILog {
 const topic0_swap = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602'
 const event_swap = 'event Fees(address indexed sender,uint256 amount0,uint256 amount1)'
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap
 ])
 
@@ -114,8 +114,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     prices_result.map((a: any) => Object.assign(prices, a))
     const fees: number = logs.map((log: ILog) => {
       const value = contract_interface.parseLog(log);
-      const amount0In = Number(value.args.amount0._hex);
-      const amount1In = Number(value.args.amount1._hex);
+      const amount0In = Number(value!.args.amount0._hex);
+      const amount1In = Number(value!.args.amount1._hex);
       const {token0, token1} = forSwaps.find((forSwap: IForSwap) => forSwap.lp.toLowerCase() === log.address.toLowerCase()) as IForSwap
       const token0Decimals = prices[`${CHAIN.BASE}:${token0}`]?.decimals || 0
       const token1Decimals = prices[`${CHAIN.BASE}:${token1}`]?.decimals || 0

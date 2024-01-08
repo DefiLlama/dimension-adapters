@@ -6,7 +6,6 @@ import { Adapter, ChainBlocks, FetchResultFees, ProtocolType } from "../adapters
 import postgres from "postgres";
 import { getPrices } from "../utils/prices";
 import * as sdk from "@defillama/sdk";
-import { ethers } from "ethers";
 
 const topic0 = '0x38e04cbeb8c10f8f568618aa75be0f10b6729b8b4237743b4de20cbcde2839ee';
 

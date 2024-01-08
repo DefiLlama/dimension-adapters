@@ -26,7 +26,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
       keys: [],
       chain: CHAIN.AVAX,
       topics: [topic0]
-    })).output as ILog[];
+    })).output as unknown as ILog[];
     const reward = logs.reduce((acc, log) => {
       const amount = Number(log.data) / 10 ** 18
       return acc + amount

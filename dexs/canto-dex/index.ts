@@ -5,7 +5,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
-import { providers } from "ethers";
+import { JsonRpcProvider } from "ethers";
 
 interface ILog {
   data: string;
@@ -105,7 +105,7 @@ const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
   };
 }
 
-const provider = new providers.JsonRpcProvider("https://canto.slingshot.finance", 7700);
+const provider = new JsonRpcProvider("https://canto.slingshot.finance", 7700);
 const fetch = async (timestamp: number) => {
   const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp)
   const toTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)-1

@@ -13,7 +13,7 @@ const event_filled_replay_v2 = 'event FilledRelay(uint256 amount,uint256 totalFi
 const topic0_fund_disposit_v2 = '0xafc4df6845a4ab948b492800d3d8a25d538a102a2bc07cd01f1cfa097fddcff6';
 const topic0_filled_replay_v2 = '0x8ab9dc6c19fe88e69bc70221b339c84332752fdd49591b7c51e66bae3947b73c';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_funds_deposited_v2,
   event_filled_replay_v2
 ]);

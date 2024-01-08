@@ -19,7 +19,7 @@ const rtokenCreationTopic =
 const rtokenCreationAbi =
   "event RTokenCreated(address indexed main, address indexed rToken, address stRSR, address indexed owner, string version)";
 
-const deployerInterface = new ethers.utils.Interface([rtokenCreationAbi]);
+const deployerInterface = new ethers.Interface([rtokenCreationAbi]);
 
 const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/lcamargof/reserve",
@@ -75,7 +75,7 @@ const getFees = () => {
       .map((e: any) => deployerInterface.parseLog(e));
 
     // Key RToken contracts
-    const rtokens = rtokenCreationLogs.map((i) => i.args.rToken.toLowerCase());
+    const rtokens = rtokenCreationLogs.map((i) => i!.args.rToken.toLowerCase());
 
     const graphRes = (
       await request(endpoints[CHAIN.ETHEREUM], graphQuery, {

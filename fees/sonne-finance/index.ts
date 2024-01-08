@@ -81,10 +81,10 @@ const getDailyProtocolFees = async ({
     const x =  cTokenInterface.parseLog(log);
     return {
       market: log.address,
-      cashPrior: x.args.cashPrior,
-      interestAccumulated: x.args.interestAccumulated,
-      borrowIndexNew: x.args.borrowIndexNew,
-      totalBorrowsNew: x.args.totalBorrowsNew,
+      cashPrior: x!.args.cashPrior,
+      interestAccumulated: x!.args.interestAccumulated,
+      borrowIndexNew: x!.args.borrowIndexNew,
+      totalBorrowsNew: x!.args.totalBorrowsNew,
     }
   });
 
@@ -93,11 +93,11 @@ const getDailyProtocolFees = async ({
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${CHAIN.OPTIMISM}:${underlying.toLowerCase()}`];
 
-    const interestTokens = +ethers.utils.formatUnits(
+    const interestTokens = +ethers.formatUnits(
       log.interestAccumulated,
       price?.decimals || 0
     );
-    const reserveFactor = +ethers.utils.formatUnits(
+    const reserveFactor = +ethers.formatUnits(
       reserveFactors[marketIndex],
       18
     );
@@ -133,7 +133,7 @@ const getDailyVeloRewards = async (context: IContext) => {
   const ratio = timespan / earnedTimespan;
 
   const priceVelo = prices[`${CHAIN.OPTIMISM}:${veloToken}`];
-  const earnedTokens = +ethers.utils.formatUnits(earned, priceVelo.decimals);
+  const earnedTokens = +ethers.formatUnits(earned, priceVelo.decimals);
   const todayEarnedTokens = earnedTokens * ratio;
   const todayEarnedUSD = todayEarnedTokens * priceVelo.price;
 

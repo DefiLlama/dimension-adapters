@@ -18,7 +18,7 @@ const abi_event = {
   nameRegistered:"event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 cost,uint256 expires)",
   nameRenewed: "event NameRenewed(string name,bytes32 indexed label,uint256 cost,uint256 expires)",
 };
-const abi_event_interface = new ethers.utils.Interface(Object.values(abi_event));
+const abi_event_interface = new ethers.Interface(Object.values(abi_event));
 
 const address_v4 = '283af0b28c62c092c9727f1ee09c02ca627eb7f5';
 const address_v5 = '253553366da8546fc250f225fe3d25d0c782303b';

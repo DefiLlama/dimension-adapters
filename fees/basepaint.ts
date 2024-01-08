@@ -11,7 +11,7 @@ const event = 'event ArtistsEarned(uint256 indexed day,uint256 amount)';
 const protocol_fees = 10; // 10% fees
 
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
 
 ])
 interface ILog {
@@ -34,7 +34,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
       keys: [],
       chain: CHAIN.BASE,
       topics: [topic_0]
-    })).output as ILog[];
+    })).output as unknown as ILog[];
 
     const artic_fees = logs.map((e: ILog) => {
       const amount = Number(e.data) / 10 ** 18;

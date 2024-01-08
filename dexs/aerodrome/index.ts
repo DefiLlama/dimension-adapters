@@ -64,7 +64,7 @@ interface ILog {
 const topic0_swap = '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b'
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out)'
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap
 ])
 

@@ -9,7 +9,7 @@ import { ethers } from "ethers";
 const FriendtechSharesAddress = '0x2544a6412bc5aec279ea0f8d017fb4a9b6673dca';
 const topic0_trade = '0x2c76e7a47fd53e2854856ac3f0a5f3ee40d15cfaa82266357ea9779c486ab9c3';
 const event_trade = 'event Trade(address trader, address subject, bool isBuy, uint256 shareAmount, uint256 ethAmount, uint256 protocolEthAmount, uint256 subjectEthAmount, uint256 supply)'
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_trade
 ]);
 
@@ -53,12 +53,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [topic0_trade]
-    })).output as ILog[];
+    })).output as unknown as ILog[];
 
     const fees_details: IFee[] = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const protocolEthAmount = Number(value.args.protocolEthAmount._hex) / 10 ** 18;
-      const subjectEthAmount = Number(value.args.subjectEthAmount._hex) / 10 ** 18;
+      const protocolEthAmount = Number(value!.args.protocolEthAmount._hex) / 10 ** 18;
+      const subjectEthAmount = Number(value!.args.subjectEthAmount._hex) / 10 ** 18;
       return {
         fees: protocolEthAmount + subjectEthAmount,
         rev: protocolEthAmount

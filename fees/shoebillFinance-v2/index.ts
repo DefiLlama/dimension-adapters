@@ -90,10 +90,10 @@ const getDailyProtocolFees = async ({
     const x =  cTokenInterface.parseLog(log);
     return {
       market: log.address,
-      cashPrior: x.args.cashPrior,
-      interestAccumulated: x.args.interestAccumulated,
-      borrowIndexNew: x.args.borrowIndexNew,
-      totalBorrowsNew: x.args.totalBorrowsNew,
+      cashPrior: x!.args.cashPrior,
+      interestAccumulated: x!.args.interestAccumulated,
+      borrowIndexNew: x!.args.borrowIndexNew,
+      totalBorrowsNew: x!.args.totalBorrowsNew,
     }
   });
 
@@ -102,11 +102,11 @@ const getDailyProtocolFees = async ({
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${chain}:${underlying.toLowerCase()}`];
 
-    const interestTokens = +ethers.utils.formatUnits(
+    const interestTokens = +ethers.formatUnits(
       log.interestAccumulated,
       price?.decimals || 0
     );
-    const reserveFactor = +ethers.utils.formatUnits(
+    const reserveFactor = +ethers.formatUnits(
       reserveFactors[marketIndex],
       18
     );

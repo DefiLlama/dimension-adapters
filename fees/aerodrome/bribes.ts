@@ -7,7 +7,7 @@ const event_notify_reward = 'event NotifyReward(address indexed from,address ind
 const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
 
 const topic0_geuge_created = '0xef9f7d1ffff3b249c6b9bf2528499e935f7d96bb6d6ec4e7da504d1d3c6279e1';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_notify_reward,
   event_geuge_created
 ]);
@@ -189,8 +189,8 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
     const logs_bribes = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
       return {
-        token: value.args.reward,
-        amount: Number(value.args.amount._hex)
+        token: value!.args.reward,
+        amount: Number(value!.args.amount._hex)
       } as IBribes
     })
     const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.BASE}:${e.token.toLowerCase()}`))]

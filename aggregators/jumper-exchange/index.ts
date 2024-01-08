@@ -1,7 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
-import { ethers } from "ethers";
 import { getPrices } from "../../utils/prices";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";

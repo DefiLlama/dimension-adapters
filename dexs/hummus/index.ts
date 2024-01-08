@@ -15,7 +15,7 @@ const abi_event = {
   swap: "event Swap(address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)",
 };
 
-const abi_event_interface = new ethers.utils.Interface(
+const abi_event_interface = new ethers.Interface(
   Object.values(abi_event)
 );
 
@@ -48,12 +48,12 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
         topics: [swap_topic],
       })
     )
-  ).output as ILog[];
+  ).output as unknown as ILog[];
 
   let dailyVolume = 0;
 
   logs.forEach((log) => {
-    const args = abi_event_interface.parseLog(log).args;
+    const args = abi_event_interface.parseLog(log)!.args;
     let vol = 0;
     let tokenIndex = -1;
 

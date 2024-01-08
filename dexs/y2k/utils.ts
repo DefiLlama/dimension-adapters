@@ -16,8 +16,8 @@ export interface ITx {
   transactionHash: string;
 }
 
-const transfer_interface = new ethers.utils.Interface([event_transfer]);
-const deposit_interface = new ethers.utils.Interface([event_deposit]);
+const transfer_interface = new ethers.Interface([event_transfer]);
+const deposit_interface = new ethers.Interface([event_deposit]);
 
 export const getDeposits = async (
   token: string,
@@ -43,9 +43,9 @@ export const getDeposits = async (
         keys: [],
         chain: CHAIN.ARBITRUM,
       })
-    ).output as ITx[];
+    ).output as unknown as ITx[];
 
-    const deposits = logs_deposit.map((e) => deposit_interface.parseLog(e).args);
+    const deposits = logs_deposit.map((e) => deposit_interface.parseLog(e)!.args);
     const deposit = deposits.reduce((a, b) => a + Number(b.assets), 0);
     totalDeposits += (Number(deposit) / 10 ** decimals) * price;
   }

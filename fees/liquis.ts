@@ -34,7 +34,7 @@ const fetch = () => {
         keys: [],
         chain: CHAIN.ETHEREUM,
         topics: [topic0, topic1, topic2]
-      })).output as ILog[];
+      })).output as unknown as ILog[];
 
     const olit_transfer_amounts: number[] = logs.map((e:any) => {
       return Number(e.data) / 10 ** 18;

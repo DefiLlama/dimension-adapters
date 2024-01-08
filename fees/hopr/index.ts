@@ -26,7 +26,7 @@ interface ITx {
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const provider = getProvider('xdai');
-  const iface = new ethers.utils.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
+  const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
@@ -73,7 +73,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async(transactionHash) => {
     const tx = await provider.getTransaction(transactionHash);
-    const input = tx.data;
+    const input = tx!.data;
     const decodedInput = iface.decodeFunctionData('execTransactionFromModule', input)
     const hexValue = '0x' + decodedInput[2].substring(138,202);
     return hexValue;

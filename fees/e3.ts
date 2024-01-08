@@ -21,7 +21,7 @@ const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 
 const topic0 = '0xad7d6f97abf51ce18e17a38f4d70e975be9c0708474987bb3e26ad21bd93ca70';
 const FACTORY_ADDRESS = '0x8597db3ba8de6baadeda8cba4dac653e24a0e57b';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
 	event_swap
 ]);
 
@@ -132,10 +132,10 @@ const graph = (_chain: Chain) => {
 						.map((e: ILog) => { return { ...e } })
 						.map((p: ILog) => {
 							const value = contract_interface.parseLog(p);
-							const protocolFeesX = Number('0x'+'0'.repeat(32)+value.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
-							const protocolFeesY = Number('0x'+'0'.repeat(32)+value.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
-							const totalFeesX = Number('0x'+'0'.repeat(32)+value.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
-							const totalFeesY = Number('0x'+'0'.repeat(32)+value.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
+							const protocolFeesX = Number('0x'+'0'.repeat(32)+value!.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
+							const protocolFeesY = Number('0x'+'0'.repeat(32)+value!.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
+							const totalFeesX = Number('0x'+'0'.repeat(32)+value!.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
+							const totalFeesY = Number('0x'+'0'.repeat(32)+value!.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
 							return {
 								protocolFeesX,
 								protocolFeesY,

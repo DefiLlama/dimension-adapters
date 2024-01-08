@@ -30,7 +30,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
       keys: [],
       chain: CHAIN.POLYGON,
       topics: [topic0_evt_transfer, topic1_evt_transfer, topic2_evt_transfer]
-    })).output as ILog[];
+    })).output as unknown as ILog[];
     const dailyFees = logs.reduce((acc: number, log: ILog) => {
       const amount = Number(log.data) / 10 ** 6;
       return acc + amount;

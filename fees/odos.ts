@@ -51,7 +51,7 @@ const event_swap = 'event Swap (address sender, uint256 inputAmount, address inp
 const topic0_swap_one = '0x823eaf01002d7353fbcadb2ea3305cc46fa35d799cb0914846d185ac06f8ad05';
 const ROUTER_ADDRESS_FTM_V2 = '0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap
 ]);
 
@@ -116,7 +116,7 @@ const graph = (chain: Chain) => {
         const logsToTokenList: string[] = logs[index]
           .map((e: ILog) => { return { ...e } })
           .map((p: ILog) => {
-            return `${chain}:${contract_interface.parseLog(p).args.outputToken}`;
+            return `${chain}:${contract_interface.parseLog(p)!.args.outputToken}`;
           });
         return (logsToTokenList);
       });
@@ -133,10 +133,10 @@ const graph = (chain: Chain) => {
           .map((e: ILog) => { return { ...e } })
           .map((p: ILog) => {
             const value = contract_interface.parseLog(p);
-            const _token = value.args.outputToken;
+            const _token = value!.args.outputToken;
             const _price = (prices[`${chain}:${_token}`]?.price || 0);
             const _deci = prices[`${chain}:${_token}`]?.decimals || 0;
-            const _slip = Number(value.args.slippage);
+            const _slip = Number(value!.args.slippage);
             const feesAmount = (_slip>0?_slip:0) / 10 ** _deci * _price;
             return {
               feesAmount,

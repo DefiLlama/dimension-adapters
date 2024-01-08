@@ -34,7 +34,7 @@ const event_pools_balance_change = "event PoolBalanceChanged(bytes32 indexed poo
 const event_flash_bot = "event FlashLoan(address indexed recipient,address indexed token,uint256 amount,uint256 feeAmount)"
 const event_swap = "event Swap(bytes32 indexed poolId,address indexed tokenIn,address indexed tokenOut,uint256 amountIn,uint256 amountOut)"
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_pools_balance_change,
   event_flash_bot,
   event_swap
@@ -113,8 +113,8 @@ const fetchFees = (chain: Chain) => {
       const rawDataBalanceChange: IBalanceChange[] = logs_balance.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          tokens: value.args.tokens,
-          protocolFeeAmounts: value.args.protocolFeeAmounts
+          tokens: value!.args.tokens,
+          protocolFeeAmounts: value!.args.protocolFeeAmounts
         }
       });
 
@@ -141,11 +141,11 @@ const fetchFees = (chain: Chain) => {
       const swapRaw: ISwap[] = logs_swap.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          poolId: value.args.poolId,
-          tokenIn: value.args.tokenIn,
-          tokenOut: value.args.tokenOut,
-          amountIn: Number(value.args.amountIn._hex),
-          amountOut: Number(value.args.amountOut._hex),
+          poolId: value!.args.poolId,
+          tokenIn: value!.args.tokenIn,
+          tokenOut: value!.args.tokenOut,
+          amountIn: Number(value!.args.amountIn._hex),
+          amountOut: Number(value!.args.amountOut._hex),
         } as ISwap
       });
       const poolIds = [...new Set(swapRaw.map((a: ISwap) => a.poolId))]
@@ -171,8 +171,8 @@ const fetchFees = (chain: Chain) => {
       const rawDataFlashBot: IBalanceChange[] = logs_flash_bot.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          tokens: [value.args.token],
-          protocolFeeAmounts: [value.args.feeAmount]
+          tokens: [value!.args.token],
+          protocolFeeAmounts: [value!.args.feeAmount]
         }
       });
 

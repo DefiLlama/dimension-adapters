@@ -31,7 +31,7 @@ const event_increase_value =  'event IncreaseValue(address indexed from, uint256
 const topic0_swap = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
 const topic0_withdraw = '0xdf273cb619d95419a9cd0ec88123a0538c85064229baa6363788f743fff90deb';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_increase_value,
 ]);
 

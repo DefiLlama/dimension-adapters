@@ -29,7 +29,7 @@ const make_opened_event = 'event MakeOpened(address indexed account,uint256 vers
 const take_closed_event = 'event TakeClosed(address indexed account,uint256 version,uint256 amount)'
 const take_opened_event = 'event TakeOpened(address indexed account,uint256 version,uint256 amount)'
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   make_closed_event,
   make_opened_event,
   take_closed_event,
@@ -188,7 +188,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ...take_closed_topic0_logs,
       ...take_opened_topic0_logs
     ]
-    const versions = [...new Set(all.map(e => contract_interface.parseLog(e)).map(e =>  Number(e.args.version._hex)))];
+    const versions = [...new Set(all.map(e => contract_interface.parseLog(e)).map(e =>  Number(e!.args.version._hex)))];
     const price_ = (await sdk.api.abi.multiCall({
       abi: abis.atVersion,
       calls: versions.map((version: number) => ({
@@ -216,18 +216,18 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const makerFeesAmount = maker_logs.map((a: ILog) => {
       const value = contract_interface.parseLog(a);
-      const price = _prices[value.args.version]
+      const price = _prices[value!.args.version]
       const findIndex = products.findIndex(p => p.toLowerCase() === a.address.toLowerCase());
       const fees = makerFees[findIndex]
-      return ((Number(value.args.amount) / 1e18) * price) * fees;
+      return ((Number(value!.args.amount) / 1e18) * price) * fees;
     }).reduce((a: number,b: number) => a + b, 0)
 
     const takerFeesAmount = taker_logs.map((a: ILog) => {
       const value = contract_interface.parseLog(a);
-      const price = _prices[value.args.version]
+      const price = _prices[value!.args.version]
       const findIndex = products.findIndex(p => p.toLowerCase() === a.address.toLowerCase());
       const fees = takerFees[findIndex]
-      return ((Number(value.args.amount) / 1e18) * price) * fees;
+      return ((Number(value!.args.amount) / 1e18) * price) * fees;
     }).reduce((a: number,b: number) => a + b, 0)
 
     const dailyFees = (makerFeesAmount + takerFeesAmount);

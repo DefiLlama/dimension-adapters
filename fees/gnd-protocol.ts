@@ -9,7 +9,7 @@ import { getPrices } from "../utils/prices";
 
 const topic0_fund_supply = '0xb1fa5064e2075b991c022c25e7b05c0a1b56a9462985b12fe2e89e51b46c6b8b'
 const event_funds_supply = 'event SupplyFund(uint256 amount)';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_funds_supply,
 ]);
 interface IData {

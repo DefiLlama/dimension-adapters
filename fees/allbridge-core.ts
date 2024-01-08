@@ -45,7 +45,7 @@ const topic0_swap_toUSD = '0xa930da1d3f27a25892307dd59cec52dd9b881661a0f20364757
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap_fromUSD,
   event_swap_toUSD
 ]);
@@ -116,7 +116,7 @@ const fetchFees = async (chain: Chain, timestamp: number): Promise<number> => {
     const tokenAdd = tokens[index];
     const price = prices[`${chain}:${tokenAdd}`].price;
     let decimals = prices[`${chain}:${tokenAdd}`].decimals;
-    return Number(parsedLog.args.fee._hex) / 10 ** decimals * price;
+    return Number(parsedLog!.args.fee._hex) / 10 ** decimals * price;
   }).reduce((a: number, b: number) => a + b, 0);
 };
 

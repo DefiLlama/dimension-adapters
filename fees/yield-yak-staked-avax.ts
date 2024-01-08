@@ -15,7 +15,7 @@ const event_paid = 'event Paid(uint256 indexed epoch,address indexed payee,uint2
 const AVAX = '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
 const yield_yak_master = '0x0cf605484a512d3f3435fed77ab5ddc0525daf5f';
 const yak_gov = '0x5925c5c6843a8f67f7ef2b55db1f5491573c85eb';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_distribution,
   event_paid
 ]);
@@ -46,7 +46,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     topics: [topic_0_distribution],
     keys: [],
     chain: CHAIN.AVAX
-  })).output as ILog[];
+  })).output as unknown as ILog[];
 
   const logs_paid: ILog[] = (await sdk.api.util.getLogs({
     target: address,
@@ -56,7 +56,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     topics: [topic_0_paid],
     keys: [],
     chain: CHAIN.AVAX
-  })).output as ILog[];
+  })).output as unknown as ILog[];
 
 
   const avaxAddress = `${CHAIN.AVAX}:${AVAX}`;
@@ -65,17 +65,17 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
     const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
     const value = contract_interface.parseLog(e);
-    const amount = Number(value.args.amount._hex)
+    const amount = Number(value!.args.amount._hex)
     return (amount / 10 ** decimals) * price;
   }).reduce((a: number, b: number) => a + b, 0);
 
   const revenue = logs_paid.map((e: ILog) => {
     const value = contract_interface.parseLog(e);
-    if (value.args.payee.toLowerCase() === yield_yak_master.toLowerCase()) {
+    if (value!.args.payee.toLowerCase() === yield_yak_master.toLowerCase()) {
       const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
       const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
       const value = contract_interface.parseLog(e);
-      const amount = Number(value.args.amount._hex)
+      const amount = Number(value!.args.amount._hex)
       return (amount / 10 ** decimals) * price;
     }
     return 0;
@@ -83,11 +83,11 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const dailyProtocolRevenue = logs_paid.map((e: ILog) => {
     const value = contract_interface.parseLog(e);
-    if (value.args.payee.toLowerCase() === yak_gov.toLowerCase()) {
+    if (value!.args.payee.toLowerCase() === yak_gov.toLowerCase()) {
       const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
       const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
       const value = contract_interface.parseLog(e);
-      const amount = Number(value.args.amount._hex)
+      const amount = Number(value!.args.amount._hex)
       return (amount / 10 ** decimals) * price;
     }
     return 0;

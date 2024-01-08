@@ -2,7 +2,7 @@ import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import * as sdk from "@defillama/sdk";
-import { ethers, BigNumber } from "ethers";
+import { ethers, BigNumberish } from "ethers";
 import { getPrices } from "../utils/prices";
 
 
@@ -28,10 +28,10 @@ interface IContext {
 }
 interface IAccrueInterestLog {
   market: string;
-  cashPrior: BigNumber;
-  interestAccumulated: BigNumber;
-  borrowIndexNew: BigNumber;
-  totalBorrowsNew: BigNumber;
+  cashPrior: BigNumberish;
+  interestAccumulated: BigNumberish;
+  borrowIndexNew: BigNumberish;
+  totalBorrowsNew: BigNumberish;
 }
 
 interface ITx {
@@ -54,7 +54,7 @@ const tokenABI = {
   reserveFactorMantissa: "function reserveFactorMantissa() external view returns (uint256)",
 };
 
-const contract_interface = new ethers.utils.Interface(Object.values(tokenABI));
+const contract_interface = new ethers.Interface(Object.values(tokenABI));
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const context = await getContext(timestamp, {});
@@ -164,10 +164,10 @@ const getDailyProtocolFees = async ({
     const x =  contract_interface.parseLog(e);
     return {
       market: e.address,
-      cashPrior: x.args.cashPrior,
-      interestAccumulated: x.args.interestAccumulated,
-      borrowIndexNew: x.args.borrowIndex,
-      totalBorrowsNew: x.args.totalBorrows,
+      cashPrior: x!.args.cashPrior,
+      interestAccumulated: x!.args.interestAccumulated,
+      borrowIndexNew: x!.args.borrowIndex,
+      totalBorrowsNew: x!.args.totalBorrows,
     }
   });
 
@@ -176,11 +176,11 @@ const getDailyProtocolFees = async ({
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${CHAIN.BSC}:${underlying?.toLowerCase()}`];
 
-    const interestTokens = +ethers.utils.formatUnits(
+    const interestTokens = +ethers.formatUnits(
       log.interestAccumulated,
       price?.decimals || 0
     );
-    const reserveFactor = +ethers.utils.formatUnits(
+    const reserveFactor = +ethers.formatUnits(
       reserveFactors[marketIndex],
       18
     );

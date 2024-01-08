@@ -51,7 +51,7 @@ const chainConfig: IConfig = {
   }
 }
 
-const interface_parser = new ethers.utils.Interface([
+const interface_parser = new ethers.Interface([
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 ]);
 
@@ -104,7 +104,7 @@ const fetch = (chain: Chain) => {
       return prices[`${chain}:${token.toLowerCase()}`];
     }
 
-    const treasuryFilter = ethers.utils.hexZeroPad(chainConfig[chain].treasury, 32)
+    const treasuryFilter = ethers.zeroPadValue(chainConfig[chain].treasury, 32)
 
     const allTransferEvents = (await Promise.all(allRewardTokens.concat(allSy).map((address: any) => getLogs({
       target: address,
@@ -118,7 +118,7 @@ const fetch = (chain: Chain) => {
       .map((p: any) => p)
       .map((a: any) => a.output).flat()
       .map((e) => {
-        return { address: e.address.toLowerCase(), args: interface_parser.parseLog(e).args, tx: e.transactionHash }
+        return { address: e.address.toLowerCase(), args: interface_parser.parseLog(e)!.args, tx: e.transactionHash }
       });
     let totalFee = 0;
 
@@ -214,7 +214,7 @@ export async function getLogs(params: {
         fromBlock: currentBlock,
         toBlock: nextBlock
       });
-      logs = logs.concat(partLogs);
+      logs = logs.concat(partLogs as unknown as Log[]);
       currentBlock = nextBlock;
     } catch (e) {
       if (blockSpread >= 2e3) {

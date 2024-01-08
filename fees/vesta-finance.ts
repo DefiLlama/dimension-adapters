@@ -30,7 +30,7 @@ const GMX_STAKER = "0xB9b8f95568D5a305c6D70D10Cc1361d9Df3e9F9a";
 const GLP_STAKER = "0xDB607928F10Ca503Ee6678522567e80D8498D759";
 const ETHEREUM = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_redemption,
   event_trove_liq,
   event_borrow_fees_paid,
@@ -131,8 +131,8 @@ const fetch = (chain: Chain) => {
         toBlock: toBlock,
         topics: [
           topic0_evt_tranfer,
-          ethers.utils.hexZeroPad(ethers.utils.hexStripZeros(e.asset), 32),
-          ethers.utils.hexZeroPad(ethers.utils.hexStripZeros(ZERO_ADDRESS), 32)],
+          ethers.zeroPadValue(hexStripZeros(e.asset), 32),
+          ethers.zeroPadValue(hexStripZeros(ZERO_ADDRESS), 32)],
         keys: [],
         chain: chain,
     })))).map((e: any) => e.output.map((p: any) => {
@@ -278,3 +278,11 @@ const adapter: Adapter = {
 }
 
 export default adapter;
+
+
+function hexStripZeros(value: string): string {
+  value = value.substring(2);
+  let offset = 0;
+  while (offset < value.length && value[offset] === "0") { offset++; }
+  return "0x" + value.substring(offset);
+}

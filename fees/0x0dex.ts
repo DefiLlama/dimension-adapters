@@ -51,7 +51,7 @@ async function getDepositTXs(
     toBlock: number, 
     chain: CHAIN
 ): Promise<IDeposit[]>{
-    const iface = new ethers.utils.Interface([
+    const iface = new ethers.Interface([
         "event Deposit (address, uint256 tokenAmount, uint256 ringIndex)"
     ]);
 

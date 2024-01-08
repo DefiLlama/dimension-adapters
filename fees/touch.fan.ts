@@ -12,11 +12,11 @@ const topic0_trade = '0xc9d4f93ded9b42fa24561e02b2a40f720f71601eb1b3f7b3fd4eff20
 const topic1_trade = '0xc9eb3cd369a1da18b8489f028fd6a49d0aca6d6ad28c01fe1451126ce41a7fa4';
 const event_trade_fan = 'event Trade(address trader, address subject, bool isBuy, uint256 shareAmount, uint256 ethAmount, uint256 protocolEthAmount, uint256 subjectEthAmount, uint256 referrerEthAmount, uint256 supply, uint256 trader_balance, uint256 blockTime)'
 const event_trade_touch = `event Trade(address trader,uint256 CommunityID,bool isBuy,uint256 shareAmount,uint256 ethAmount,uint256 protocolEthAmount,uint256 referrerEthAmount,uint256 supply,uint256 trader_balance,uint256 blockTime)`
-const contract_fan_interface = new ethers.utils.Interface([
+const contract_fan_interface = new ethers.Interface([
     event_trade_fan
 ]);
 
-const contract_touch_interface = new ethers.utils.Interface([
+const contract_touch_interface = new ethers.Interface([
     event_trade_touch
 ]);
 
@@ -51,7 +51,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                 keys: [],
                 chain: CHAIN.ERA,
                 topics: [topic0_trade]
-            })).output as ILog[];
+            })).output as unknown as ILog[];
             _logs = _logs.concat(logs);
         }
 
@@ -64,15 +64,15 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                 keys: [],
                 chain: CHAIN.ERA,
                 topics: [topic1_trade]
-            })).output as ILog[];
+            })).output as unknown as ILog[];
             _logs1 = _logs1.concat(logs);
         }
 
         const fan_fees_details: IFee[] = _logs.map((e: ILog) => {
             const value = contract_fan_interface.parseLog(e);
-            const protocolEthAmount = Number(value.args.protocolEthAmount._hex) / 10 ** 18;
-            const subjectEthAmount = Number(value.args.subjectEthAmount._hex) / 10 ** 18;
-            const refferEthAmount = Number(value.args.referrerEthAmount._hex) / 10 ** 18;
+            const protocolEthAmount = Number(value!.args.protocolEthAmount._hex) / 10 ** 18;
+            const subjectEthAmount = Number(value!.args.subjectEthAmount._hex) / 10 ** 18;
+            const refferEthAmount = Number(value!.args.referrerEthAmount._hex) / 10 ** 18;
             return {
                 fees: protocolEthAmount + subjectEthAmount + refferEthAmount,
                 rev: protocolEthAmount
@@ -81,8 +81,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         const touch_fees_details: IFee[] = _logs1.map((e: ILog) => {
             const value = contract_touch_interface.parseLog(e);
 
-            const protocolEthAmount = Number(value.args.protocolEthAmount._hex) / 10 ** 18;
-            const referrerEthAmount = Number(value.args.referrerEthAmount._hex) / 10 ** 18;
+            const protocolEthAmount = Number(value!.args.protocolEthAmount._hex) / 10 ** 18;
+            const referrerEthAmount = Number(value!.args.referrerEthAmount._hex) / 10 ** 18;
 
             return {
                 fees: protocolEthAmount + referrerEthAmount,

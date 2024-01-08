@@ -8,7 +8,7 @@ import { ethers } from "ethers";
 
 const address = '0x2f60c9cee6450a8090e17a79e3dd2615a1c419eb'
 const event_fees_distibute = 'event Stolen (address from, address to, uint256 id, uint256 value)';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
     event_fees_distibute
 ]);
 

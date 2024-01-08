@@ -1,7 +1,7 @@
 import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { BigNumber } from "ethers";
+import { BigNumberish } from "ethers";
 import { getPrices } from "../utils/prices";
 import { fromHex, toHex } from "tron-format-address";
 import axios from "axios";
@@ -28,10 +28,10 @@ interface IContext {
 }
 interface IAccrueInterestLog {
   market: string;
-  cashPrior: BigNumber;
-  interestAccumulated: BigNumber;
-  borrowIndexNew: BigNumber;
-  totalBorrowsNew: BigNumber;
+  cashPrior: BigNumberish;
+  interestAccumulated: BigNumberish;
+  borrowIndexNew: BigNumberish;
+  totalBorrowsNew: BigNumberish;
 }
 
 interface ITx {

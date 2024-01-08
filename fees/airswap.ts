@@ -20,7 +20,7 @@ interface IData  {
 const event_swap = 'event SwapERC20(uint256 indexed nonce,address indexed signerWallet,address signerToken,uint256 signerAmount,uint256 protocolFee,address indexed senderWallet,address senderToken,uint256 senderAmount)';
 const topic0 = '0xb651f2787ff61b5ab14f3936f2daebdad3d84aeb74438e82870cc3b7aee71e90';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap
 ]);
 
@@ -55,9 +55,9 @@ const graph = (chain: Chain) => {
       const rawData = logs.map((e: ITx) => {
         const data = contract_interface.parseLog(e);
         return {
-          signerAmount: Number(data.args.signerAmount._hex),
-          signerToken: data.args.signerToken,
-          protocolFee: Number(data.args.protocolFee._hex)
+          signerAmount: Number(data!.args.signerAmount._hex),
+          signerToken: data!.args.signerToken,
+          protocolFee: Number(data!.args.protocolFee._hex)
         }
       })
         const rawCoins = rawData.map((e: IData) => `${chain}:${e.signerToken.toLowerCase()}`);

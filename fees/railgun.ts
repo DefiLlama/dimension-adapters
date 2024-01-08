@@ -55,7 +55,7 @@ const fetchFees = (chain: Chain) => {
       fromBlock,
       toBlock,
       chain,
-    })).output as ILog[];
+    })).output as unknown as ILog[];
 
     const logs_unshield: ILog[] = (await sdk.api.util.getLogs({
       target: contract[chain],
@@ -65,7 +65,7 @@ const fetchFees = (chain: Chain) => {
       fromBlock,
       toBlock,
       chain,
-    })).output as ILog[];
+    })).output as unknown as ILog[];
 
     const shield_fees: IFees[] = logs_shield.map((log) => {
       const data = log.data.replace('0x', '');

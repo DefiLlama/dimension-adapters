@@ -10,7 +10,7 @@ import { ethers } from "ethers";
 const address = '0x97de57eC338AB5d51557DA3434828C5DbFaDA371'
 const topic0_fees_distibute = '0xec0804e8e1decb589af9c4ba8ebfbacd3be98929d4d53457dfd186061f489f04';
 const event_fees_distibute = 'event FeeDistribution(address indexed feeAddress,uint256 feeAmount,uint256 timestamp)';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_fees_distibute
 ]);
 
