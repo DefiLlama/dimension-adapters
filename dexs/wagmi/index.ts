@@ -17,13 +17,13 @@ const adapter: SimpleAdapter = {
       start: async () => 18240112,
     },
     [CHAIN.METIS]: {
-      fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: async () => 9740222,
+      fetch: fetchVolume(CHAIN.METIS),
+      start: async () => 1702888970,
     },
     [CHAIN.KAVA]: {
       fetch: fetchVolume(CHAIN.KAVA),
       start: async () => 1694476800,
-    }
+    },
   },
 };
 //

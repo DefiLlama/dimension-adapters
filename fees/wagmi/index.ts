@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.METIS]: {
       fetch: fetchFee(CHAIN.METIS),
-      start: async () => 9740222,
+      start: async () => 1702888970,
       meta: {
         methodology,
       },
