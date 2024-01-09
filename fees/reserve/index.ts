@@ -59,19 +59,18 @@ const getFees = () => {
     const rtokenCreationLogs = (
       await Promise.all(
         deployerAddresses.map((deployerAddress) =>
-          sdk.api.util.getLogs({
+          sdk.getEventLogs({
             target: deployerAddress,
             topic: rtokenCreationTopic,
             topics: [rtokenCreationTopic0],
             fromBlock: 16680995,
             toBlock: currentBlock,
             chain: "ethereum",
-            keys: [],
           })
         )
       )
     )
-      .flatMap((x: any) => x.output as any[])
+      .flatMap((x: any) => x as any[])
       .map((e: any) => deployerInterface.parseLog(e));
 
     // Key RToken contracts

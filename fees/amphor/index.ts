@@ -86,35 +86,29 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         topics: [ethers.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
 
-    const eventsUSDC = (await sdk.api.util.getLogs({
+    const eventsUSDC = (await sdk.getEventLogs({
         target: AmphorILHedgedUSDC_contractAddress,
-        topic: '',
         topics: eventFilterUSDC.topics as string[],
         fromBlock: 18299242,
         toBlock: toBlock,
-        keys: [],
         chain: CHAIN.ETHEREUM,
-    })).output as ethers.Log[];
+    }))as ethers.Log[];
 
-    const eventsWSTETH = (await sdk.api.util.getLogs({
+    const eventsWSTETH = (await sdk.getEventLogs({
         target: AmphorILHedgedWSTETH_contractAddress,
-        topic: '',
         topics: eventFilterWSTETH.topics as string[],
         fromBlock: 18535914,
         toBlock: toBlock,
-        keys: [],
         chain: CHAIN.ETHEREUM,
-    })).output as ethers.Log[];
+    }))as ethers.Log[];
 
-    const eventsWBTC = (await sdk.api.util.getLogs({
+    const eventsWBTC = (await sdk.getEventLogs({
         target: AmphorILHedgedWBTC_contractAddress,
-        topic: '',
         topics: eventFilterWBTC.topics as string[],
         fromBlock: 18535914,
         toBlock: toBlock,
-        keys: [],
         chain: CHAIN.ETHEREUM,
-    })).output as ethers.Log[];
+    }))as ethers.Log[];
 
     let totalRevenueUSDC = BigInt(0);
     let totalFeesUSDC = BigInt(0);

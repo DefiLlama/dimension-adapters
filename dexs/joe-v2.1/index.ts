@@ -114,7 +114,7 @@ const graph = (chain: Chain) => {
       const lpTokens = pools[chain]
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['getTokenX', 'getTokenY'].map((method: string) =>
-          sdk.api.abi.multiCall({
+          sdk.api2.abi.multiCall({
             abi: PAIR_TOKEN_ABI(method),
             calls: lpTokens.map((address: string) => ({
               target: address,
@@ -124,22 +124,18 @@ const graph = (chain: Chain) => {
         )
       );
 
-      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+      const tokens0 = underlyingToken0;
+      const tokens1 = underlyingToken1;
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output);
+      })))) as ILog[][];
 
         const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
         const coins = [...new Set(rawCoins)]

@@ -22,16 +22,14 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const toBlock = await getBlock(toTimestamp, CHAIN.ARBITRUM, {});
 
   const logs_market_create: ITx[] = (
-    await sdk.api.util.getLogs({
+    await sdk.getEventLogs({
       target: factory,
-      topic: "",
       fromBlock: 96059531,
       toBlock: toBlock,
       topics: [topic0_market_create],
-      keys: [],
       chain: CHAIN.ARBITRUM,
     })
-  ).output as unknown as ITx[];
+  ) as ITx[];
 
   const market_create = logs_market_create.map((e) => contract_interface.parseLog(e)!.args);
   const premium = market_create.map((e: any) => e.premium.toLowerCase());

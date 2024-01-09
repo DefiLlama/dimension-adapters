@@ -42,16 +42,14 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     
     const [swapLogs, openPositionLogs, closePositionLogs, partiallyClosePositionLogs, closePositionBatchLogs] = (await Promise.all(logsConfig.map(async ({ targets, topics }) => {
       return (await Promise.all(targets.map(target => {
-        return sdk.api.util.getLogs({
+        return sdk.getEventLogs({
           target,
-          topic: '',
           toBlock: toBlock,
           fromBlock: fromBlock,
-          keys: [],
           chain,
           topics
         })
-      }))).map(r => r.output as ethers.Log[]).flat()
+      }))).map(r => r as ethers.Log[]).flat()
     })))
 
     const swapTokens: string[] = swapLogs
@@ -97,7 +95,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     const swapVolumeUSD: number = swapLogs
       .map((log: ethers.Log) => {
         const parsedLog = contractInterface.parseLog(log as any);
-        const amountSold = Number(parsedLog!.args.amountSold._hex);
+        const amountSold = Number(parsedLog!.args.amountSold);
         const tokenA = parsedLog!.args.tokenA;
         const priceA = prices[`${chain}:${tokenA.toLowerCase()}`]?.price || 0;
         const decimalsA = prices[`${chain}:${tokenA.toLowerCase()}`]?.decimals || 0;
@@ -111,7 +109,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
         const soldAsset = parsedLog!.args.position.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const depositAmountInSoldAsset = Number(parsedLog!.args.position.depositAmountInSoldAsset._hex) / 10 ** decimalsSoldAsset;
+        const depositAmountInSoldAsset = Number(parsedLog!.args.position.depositAmountInSoldAsset) / 10 ** decimalsSoldAsset;
         const leverage = Number(parsedLog!.args.leverage) / 10 ** 18
         return depositAmountInSoldAsset * leverage * priceSoldAsset;
       })
@@ -123,7 +121,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
         const soldAsset = parsedLog!.args.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const amountOut = Number(parsedLog!.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+        const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
         return amountOut * priceSoldAsset;
       })
       .reduce((a: number, b: number) => a + b, 0)
@@ -134,7 +132,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
         const soldAsset = parsedLog!.args.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const amountOut = Number(parsedLog!.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+        const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
         return amountOut * priceSoldAsset;
       })
       .reduce((a: number, b: number) => a + b, 0)
@@ -145,7 +143,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
           const soldAsset = parsedLog!.args.soldAsset;
           const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
           const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-          const amountOut = Number(parsedLog!.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+          const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
           return amountOut * priceSoldAsset;
         })
         .reduce((a: number, b: number) => a + b, 0)

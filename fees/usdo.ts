@@ -60,41 +60,33 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ONUS, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ONUS, {}));
-    const logs_increase_value = (await sdk.api.util.getLogs({
+    const logs_increase_value = (await sdk.getEventLogs({
       target: usdo,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ONUS,
       topics: [topic0_increase_value]
-    })).output.map(((e: any) => contract_interface.parseLog(e)));
+    })).map(((e: any) => contract_interface.parseLog(e)));
 
-    const logs_tx: string[] = (await sdk.api.util.getLogs({
+    const logs_tx: string[] = (await sdk.getEventLogs({
       target: usdo,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ONUS,
       topics: [topic0_withdraw]
-    })).output.map((e: any) => e.transactionHash.toLowerCase());
+    })).map((e: any) => e.transactionHash.toLowerCase());
 
-    const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ONUS,
       topics: [topic0_swap]
     }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: pools.map((address: string) => ({
             target: address,
@@ -104,8 +96,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.ONUS}:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
@@ -141,7 +133,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     });
 
     const increase_value_fees = logs_increase_value.map((e: any) => {
-      return Number(e.args.usdValue._hex) / 10 ** 18
+      return Number(e!.args.usdValue) / 10 ** 18
     }).reduce((a: number, b: number) => a + b, 0)
     const swapFees = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
 

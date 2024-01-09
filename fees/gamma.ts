@@ -113,25 +113,25 @@ const fetchFees = (chain: Chain, address: TAddress) => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
     try {
-      const counter = (await sdk.api.abi.call({
+      const counter = (await sdk.api2.abi.call({
         target: address[chain],
         chain: chain,
         abi: abis.counter,
         params: [],
-      })).output;
-      const poolsRes = (await sdk.api.abi.multiCall({
+      }));
+      const poolsRes = (await sdk.api2.abi.multiCall({
         abi: abis.hypeByIndex,
         calls: Array.from(Array(Number(counter)).keys()).map((i) => ({
           target: address[chain],
           params: i,
         })),
         chain: chain
-      })).output;
-      const pools = poolsRes.map((a: any) => a.output[0])
+      }));
+      const pools = poolsRes.map((a: any) => a[0])
 
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['token0', 'token1'].map((method) =>
-          sdk.api.abi.multiCall({
+          sdk.api2.abi.multiCall({
             abi: PAIR_TOKEN_ABI(method),
             calls: pools.map((address: string) => ({
               target: address,
@@ -141,25 +141,21 @@ const fetchFees = (chain: Chain, address: TAddress) => {
           })
         )
       );
-      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+      const tokens0 = underlyingToken0;
+      const tokens1 = underlyingToken1;
 
       const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
       const coins = [...new Set(rawCoins)]
       const prices = await getPrices(coins, timestamp);
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_burn]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output);
+      })))) as any
       const untrackVolumes: IFees[] = pools.map((_: string, index: number) => {
           const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
           const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0

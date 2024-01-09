@@ -31,20 +31,18 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
   try {
-    const logs: ILog[] = (await sdk.api.util.getLogs({
+    const logs: ILog[] = (await sdk.getEventLogs({
       target: friendRoomSharesAddress,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ETHEREUM,
       topics: [topic0_trade]
-    })).output as unknown as ILog[];
+    })) as ILog[];
 
     const fees_details: IFee[] = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const protocolEthAmount = Number(value!.args.protocolEthAmount._hex) / 10 ** 18;
-      const subjectEthAmount = Number(value!.args.subjectEthAmount._hex) / 10 ** 18;
+      const protocolEthAmount = Number(value!.args.protocolEthAmount) / 10 ** 18;
+      const subjectEthAmount = Number(value!.args.subjectEthAmount) / 10 ** 18;
       return {
         fees: protocolEthAmount + subjectEthAmount,
         rev: protocolEthAmount

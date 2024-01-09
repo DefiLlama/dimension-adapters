@@ -51,15 +51,14 @@ const fetch = (chain: Chain) => {
     try {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs = (await sdk.api.util.getLogs({
+      const logs = (await sdk.getEventLogs({
         target: contract[chain],
         topic: topic0,
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      })).output as ILog[];
+      })) as ILog[];
 
       const data: IData[] = logs.map((e: ILog) => {
         const _data  = e.data.replace('0x', '');

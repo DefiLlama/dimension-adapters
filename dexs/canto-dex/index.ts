@@ -84,7 +84,7 @@ const splitBlock = (fromBlock: number, toBlock: number): number[][] => {
 const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
   const [tokenDecimals] = await Promise.all(
     ['erc20:decimals'].map((method) =>
-      sdk.api.abi.multiCall({
+      sdk.api2.abi.multiCall({
         abi: method,
         calls: tokenAddress.map((address) => ({
           target: address,
@@ -96,11 +96,11 @@ const getPairInfo = async (tokenAddress: string[]): Promise<ITokenInfo> => {
   return {
     token0: {
       address: tokenAddress[0],
-      decimals: Number(tokenDecimals.output[0].output)
+      decimals: Number(tokenDecimals[0])
     },
     token1: {
       address: tokenAddress[1],
-      decimals: Number(tokenDecimals.output[1].output)
+      decimals: Number(tokenDecimals[1])
     }
   };
 }
@@ -113,7 +113,7 @@ const fetch = async (timestamp: number) => {
 
   const [underlyingToken0, underlyingToken1] = await Promise.all(
     ['token0', 'token1'].map((method) =>
-      sdk.api.abi.multiCall({
+      sdk.api2.abi.multiCall({
         abi: PAIR_TOKEN_ABI(method),
         calls: lpTokens.map((address: string) => ({
           target: address,
@@ -123,8 +123,8 @@ const fetch = async (timestamp: number) => {
     )
   );
 
-  const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-  const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+  const tokens0 = underlyingToken0;
+  const tokens1 = underlyingToken1;
   const pairInfo = await Promise.all(lpTokens.map((_: string, index: number) => getPairInfo([tokens0[index], tokens1[index]])));
   const toBlock = (await getBlock(toTimestamp, 'canto', {}));
   const fromBlock = (await getBlock(fromTimestamp, 'canto', {}));

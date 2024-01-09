@@ -74,12 +74,12 @@ const getAllMarkets = async (
   chain: CHAIN
 ): Promise<string[]> => {
   return (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: unitroller,
       abi: comptrollerABI.getAllMarkets,
       chain: chain,
     })
-  ).output;
+  );
 };
 
 const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> => {
@@ -112,7 +112,7 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
 };
 
 const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{underlyings: string[], reserveFactors:string[]}> => {
-  const underlyings = await sdk.api.abi.multiCall({
+  const underlyings = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -121,7 +121,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     permitFailure: true,
   });
 
-  const reserveFactors = await sdk.api.abi.multiCall({
+  const reserveFactors = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -129,10 +129,10 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     chain: chain,
     permitFailure: true,
   });
-  const _underlyings =  underlyings.output.map((x: any) => x.output);
+  const _underlyings =  underlyings;
   return {
     underlyings: _underlyings,
-    reserveFactors: reserveFactors.output.map((x: any) => x.output),
+    reserveFactors: reserveFactors,
   };
 };
 
@@ -148,17 +148,13 @@ const getDailyProtocolFees = async ({
   let dailyProtocolFees = 0;
   let dailyProtocolRevenue = 0;
   const logs: ITx[] = (await Promise.all(
-    markets.map((address: string) => sdk.api.util.getLogs({
+    markets.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: endBlock,
       fromBlock: startBlock,
-      keys: [],
       chain: CHAIN.ETHEREUM,
       topics: [topic0_accue_interest]
-  }))))
-    .map((e: any) => e)
-    .map(e => e.output).flat();
+  })))).flat();
 
   const raw_data: IAccrueInterestLog[] = logs.map((e: ITx) => {
     const x =  contract_interface.parseLog(e);

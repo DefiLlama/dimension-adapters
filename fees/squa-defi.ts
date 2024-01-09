@@ -32,23 +32,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     let _logs: ILog[] = [];
     for(let i = fromBlock; i < toBlock; i += 5000) {
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: keyManagerQureFiAddr,
-        topic: '',
         toBlock: i + 5000,
         fromBlock: i,
-        keys: [],
         chain: CHAIN.BASE,
         topics: [topic0_trade]
-      })).output as unknown as ILog[];
+      })) as ILog[];
       _logs = _logs.concat(logs);
     }
 
     const fees_details: IFee[] = _logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
       
-      const platformFee = Number(value!.args.platformFee._hex) / 10 ** usdcDecimals;
-      const influencerFee = Number(value!.args.influencerFee._hex) / 10 ** usdcDecimals;
+      const platformFee = Number(value!.args.platformFee) / 10 ** usdcDecimals;
+      const influencerFee = Number(value!.args.influencerFee) / 10 ** usdcDecimals;
 
       return {
         fees: platformFee + influencerFee,

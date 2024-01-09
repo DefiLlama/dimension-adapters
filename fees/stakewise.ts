@@ -32,33 +32,29 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
 
     // fetch rETH2 logs
-    let logs: ILog[] = (await sdk.api.util.getLogs({
+    let logs: ILog[] = (await sdk.getEventLogs({
       target: reth2Address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       topics: [reth2Topic],
       chain: CHAIN.ETHEREUM
-    })).output as unknown as ILog[]
+    })) as ILog[]
     const rEth2Rewards = logs.map((log: ILog) => {
       const value = reth2Interface.parseLog(log);
-      return Number(value!.args.periodRewards._hex) / 10 ** 18;
+      return Number(value!.args.periodRewards) / 10 ** 18;
     }).reduce((a: number, b: number) => a + b, 0);
 
     // fetch osETH logs
-    logs = (await sdk.api.util.getLogs({
+    logs = (await sdk.getEventLogs({
       target: osTokenCtrlAddress,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       topics: [osTokenCtrlTopic],
       chain: CHAIN.ETHEREUM
-    })).output as unknown as ILog[]
+    })) as ILog[]
     const osEthRewards = logs.map((log: ILog) => {
       const value = osTokenCtrlInterface.parseLog(log);
-      return Number(value!.args.profitAccrued._hex) / 10 ** 18;
+      return Number(value!.args.profitAccrued) / 10 ** 18;
     }).reduce((a: number, b: number) => a + b, 0);
 
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;

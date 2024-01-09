@@ -75,15 +75,13 @@ const getDailyProtocolFees = async ({
   let dailyProtocolFees = 0;
   let dailyProtocolRevenue = 0;
   const logs: IAccrueInterestLog[] = (await Promise.all(
-    markets.map((address: string) => sdk.api.util.getLogs({
+    markets.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: endBlock,
       fromBlock: startBlock,
-      keys: [],
       chain: chain,
       topics: ['0x4dec04e750ca11537cabcd8a9eab06494de08da3735bc8871cd41250e190bc04']
-  })))).map((e: any) => e.output.map((p: any) => {
+  })))).map((e: any) => e.map((p: any) => {
     return {...p} as ITx
   })).flat()
   .map((log: any) => {

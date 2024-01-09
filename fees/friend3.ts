@@ -42,22 +42,20 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     let _logs: ILog[] = [];
     for(let i = fromBlock; i < toBlock; i += 5000) {
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: FriendV1Address,
-        topic: '',
         toBlock: i + 5000,
         fromBlock: i,
-        keys: [],
         chain: CHAIN.BSC,
         topics: [topic0_trade]
-      })).output as unknown as ILog[];
+      })) as ILog[];
       _logs = _logs.concat(logs);
     }
 
     const fees_details: IFee[] = _logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const protocolEthAmount = Number(value!.args.protocolEthAmount._hex) / 10 ** 18;
-      const subjectEthAmount = Number(value!.args.subjectEthAmount._hex) / 10 ** 18;
+      const protocolEthAmount = Number(value!.args.protocolEthAmount) / 10 ** 18;
+      const subjectEthAmount = Number(value!.args.subjectEthAmount) / 10 ** 18;
       return {
         fees: protocolEthAmount + subjectEthAmount,
         rev: protocolEthAmount
@@ -93,15 +91,13 @@ const fetchOpbnb = async (timestamp: number): Promise<FetchResultFees> => {
     let _logs: ILog[] = [];
     for(let i = fromBlock; i < toBlock; i += 3400) {
       try {
-        const logs: ILog[] = (await sdk.api.util.getLogs({
+        const logs: ILog[] = (await sdk.getEventLogs({
           target: FriendV2Address,
-          topic: '',
           toBlock: i + 3400,
           fromBlock: i,
-          keys: [],
           chain: CHAIN.OP_BNB,
           topics: [topic0_trade_V2]
-        })).output as unknown as ILog[];
+        })) as ILog[];
         _logs = _logs.concat(logs);
       } catch (error) {
         // console.error(error)
@@ -111,10 +107,10 @@ const fetchOpbnb = async (timestamp: number): Promise<FetchResultFees> => {
 
     const fees_details: IFee[] = _logs.map((e: ILog) => {
       const value = contract_interface_V2.parseLog(e);
-      const protocolAmount = Number(value!.args.protocolAmount._hex) / 10 ** 18;
-      const subjectAmount = Number(value!.args.subjectAmount._hex) / 10 ** 18;
-      const holderAmount = Number(value!.args.holderAmount._hex) / 10 ** 18;
-      const referralAmount = Number(value!.args.referralAmount._hex) / 10 ** 18;
+      const protocolAmount = Number(value!.args.protocolAmount) / 10 ** 18;
+      const subjectAmount = Number(value!.args.subjectAmount) / 10 ** 18;
+      const holderAmount = Number(value!.args.holderAmount) / 10 ** 18;
+      const referralAmount = Number(value!.args.referralAmount) / 10 ** 18;
       return {
         fees: protocolAmount + subjectAmount + holderAmount,
         rev: protocolAmount-referralAmount

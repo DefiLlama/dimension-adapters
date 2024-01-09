@@ -57,30 +57,26 @@ const fetch = (chain: Chain) => {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.api.util.getLogs({
+      const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.getEventLogs({
         target: Vault_Fee_Manager_Contracts[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_fees_withdraw]
-      })).output as unknown as ILog[] : [];
+      })) as ILog[] : [];
 
-      const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.api.util.getLogs({
+      const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.getEventLogs({
         target: Performance_Fee_Management_Contracts[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_token_earned]
-      })).output as unknown as ILog[] : [];
+      })) as ILog[] : [];
 
       const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
         const value = contract_interface.parseLog(e);
         const token = value!.args.token;
-        const amount = Number(value!.args.amount._hex);
+        const amount = Number(value!.args.amount);
         return {
           token: token,
           amount: amount,
@@ -90,7 +86,7 @@ const fetch = (chain: Chain) => {
       const raw_token_earned: IRAW[] = log_token_earned.map((e: ILog) => {
         const value = contract_interface.parseLog(e);
         const token = value!.args.perfToken;
-        const amount = Number(value!.args.amount._hex);
+        const amount = Number(value!.args.amount);
         return {
           token: token,
           amount: amount,

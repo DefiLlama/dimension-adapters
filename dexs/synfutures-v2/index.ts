@@ -80,15 +80,13 @@ const fetchVolume = (chain: Chain) => {
     const toBlock = await getBlock(toTimestamp, chain, {});
     const fromBlock = await getBlock(fromTimestamp, chain, {});
 
-    const logs: ILogs[] = (await Promise.all(contracts[chain].map(contract => sdk.api.util.getLogs({
+    const logs: ILogs[] = (await Promise.all(contracts[chain].map(contract => sdk.getEventLogs({
       target: contract[0],
       topics: [topic0_trade],
-      topic: '',
-      keys: [],
       toBlock,
       fromBlock,
       chain: chain,
-    })))).map((res: any) => res.output).flat();
+    })))).flat();
 
     const volumeRaw: IVolume[] = logs.map((log:ILogs) => {
       const data = log.data.replace('0x', '');

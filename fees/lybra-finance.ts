@@ -20,17 +20,15 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-    const dailyFees = (await sdk.api.util.getLogs({
+    const dailyFees = (await sdk.getEventLogs({
       target: address,
       fromBlock: fromBlock,
       toBlock: toBlock,
-      topic: '',
       topics: [topic0_fees_distibute],
-      keys: [],
       chain: CHAIN.ETHEREUM
-    })).output.map((e: any) => contract_interface.parseLog(e))
+    })).map((e: any) => contract_interface.parseLog(e))
     .map((e: any) => {
-      return Number(e.args.feeAmount) / 10 ** 18;
+      return Number(e!.args.feeAmount) / 10 ** 18;
     }).reduce((a: number, b: number) => a + b,0)
     const dailyRevenue = dailyFees;
     const dailyHoldersRevenue = dailyFees;

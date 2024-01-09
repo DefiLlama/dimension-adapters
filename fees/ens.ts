@@ -68,8 +68,8 @@ const fetch = (address: string) => {
       const raw_name_renewed = logs_name_renewed
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1], data: '0x'+e.data}),...e}})
         .map((p: any) => {
-            const expires = new BigNumber(p.args.expires._hex).toNumber()
-            const cost = new BigNumber(p.args.cost._hex).div(1e18).toNumber()
+            const expires = new BigNumber(p!.args.expires).toNumber()
+            const cost = new BigNumber(p!.args.cost).div(1e18).toNumber()
             _cost[p.hash] = cost;
             return {
               expires: expires,
@@ -80,9 +80,9 @@ const fetch = (address: string) => {
       const raw_name_registered = logs_name_registered
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1, '0x'+e.topic_2], data: '0x'+e.data}),...e}})
         .map((p: any) => {
-          const name: string = p.args.name;
-          const expires = new BigNumber(p.args.expires._hex).toNumber()
-          const cost = new BigNumber(p.args.cost._hex).div(1e18).toNumber()
+          const name: string = p!.args.name;
+          const expires = new BigNumber(p!.args.expires).toNumber()
+          const cost = new BigNumber(p!.args.cost).div(1e18).toNumber()
           _cost[p.hash] = cost;
           return {
             expires: expires,

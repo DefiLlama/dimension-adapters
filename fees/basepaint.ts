@@ -26,15 +26,14 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
-    const logs = (await sdk.api.util.getLogs({
+    const logs = (await sdk.getEventLogs({
       target: contract,
       topic: topic_0,
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.BASE,
       topics: [topic_0]
-    })).output as unknown as ILog[];
+    })) as ILog[];
 
     const artic_fees = logs.map((e: ILog) => {
       const amount = Number(e.data) / 10 ** 18;

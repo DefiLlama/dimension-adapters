@@ -51,17 +51,13 @@ const fetchVolume = (chain: Chain) => {
       const toTimestamp = timestamp
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
       const rawData: ISwap[] = logs.map((log: ILog) => {
         const data = log.data.replace('0x', '');
         const token0 = data.slice(0, 64);

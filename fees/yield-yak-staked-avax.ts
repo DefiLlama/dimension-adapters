@@ -38,25 +38,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.AVAX, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.AVAX, {}));
 
-  const logs_distribution: ILog[] = (await sdk.api.util.getLogs({
+  const logs_distribution: ILog[] = (await sdk.getEventLogs({
     target: address,
-    topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: [topic_0_distribution],
-    keys: [],
     chain: CHAIN.AVAX
-  })).output as unknown as ILog[];
+  })) as ILog[];
 
-  const logs_paid: ILog[] = (await sdk.api.util.getLogs({
+  const logs_paid: ILog[] = (await sdk.getEventLogs({
     target: address,
-    topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: [topic_0_paid],
-    keys: [],
     chain: CHAIN.AVAX
-  })).output as unknown as ILog[];
+  })) as ILog[];
 
 
   const avaxAddress = `${CHAIN.AVAX}:${AVAX}`;
@@ -65,7 +61,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
     const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
     const value = contract_interface.parseLog(e);
-    const amount = Number(value!.args.amount._hex)
+    const amount = Number(value!.args.amount)
     return (amount / 10 ** decimals) * price;
   }).reduce((a: number, b: number) => a + b, 0);
 
@@ -75,7 +71,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
       const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
       const value = contract_interface.parseLog(e);
-      const amount = Number(value!.args.amount._hex)
+      const amount = Number(value!.args.amount)
       return (amount / 10 ** decimals) * price;
     }
     return 0;
@@ -87,7 +83,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const price = prices[`${CHAIN.AVAX}:${AVAX}`].price;
       const decimals = prices[`${CHAIN.AVAX}:${AVAX}`].decimals;
       const value = contract_interface.parseLog(e);
-      const amount = Number(value!.args.amount._hex)
+      const amount = Number(value!.args.amount)
       return (amount / 10 ** decimals) * price;
     }
     return 0;

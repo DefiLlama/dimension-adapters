@@ -69,27 +69,21 @@ const fetchFees = async (timestamp: number) => {
       `)
       const toBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, {});
       const fromBlock = await getBlock(fromTimestamp, CHAIN.ETHEREUM, {});
-      const logs_funds_distribution: ILogs[] = (await Promise.all(contract_loan_mangaer.map(async (contract) => sdk.api.util.getLogs({
-          keys: [],
+      const logs_funds_distribution: ILogs[] = (await Promise.all(contract_loan_mangaer.map(async (contract) => sdk.getEventLogs({
           toBlock,
           fromBlock,
           target: contract,
-          topic: '',
           topics: [funds_distribution_topic],
           chain: CHAIN.ETHEREUM,
-        })))).map((p: any) => p)
-        .map((a: any) => a.output).flat();
+        })))).flat();
 
-      const logs_claim_funds: ILogs[] = (await Promise.all(contract_open_term_loan.map(async (contract) => sdk.api.util.getLogs({
-          keys: [],
+      const logs_claim_funds: ILogs[] = (await Promise.all(contract_open_term_loan.map(async (contract) => sdk.getEventLogs({
           toBlock,
           fromBlock,
           target: contract,
-          topic: '',
           topics: [claim_funds_topic],
           chain: CHAIN.ETHEREUM,
-        })))).map((p: any) => p)
-        .map((a: any) => a.output).flat();
+        })))).flat();
 
         const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
         const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;

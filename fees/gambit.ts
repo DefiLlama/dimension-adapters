@@ -56,12 +56,11 @@ const fetch = (addressList: string[], chain: Chain) => {
       event.map(async (e: IEvent) => {
         return Promise.all(
           addressList.map(async (address) => {
-            return sdk.api.util.getLogs({
+            return sdk.getEventLogs({
               target: address,
               topic: e.name,
               toBlock: yesterdaysBlock,
               fromBlock: todaysBlock,
-              keys: [],
               chain: chain,
               topics: [e.topic],
             });
@@ -75,10 +74,10 @@ const fetch = (addressList: string[], chain: Chain) => {
     let referralFeeOutput: any[] = []
     let usdcVaultFeeOutput: any[] = []
     for (let i = 0; i < devFeeCall.length; i++) {
-      devFeeOutput = devFeeOutput.concat(devFeeCall[i].output);
-      sssFeeOutput = sssFeeOutput.concat(sssFeeCall[i].output);
-      referralFeeOutput = referralFeeOutput.concat(referralFeeCall[i].output);
-      usdcVaultFeeOutput = usdcVaultFeeOutput.concat(usdcVaultFeeCall[i].output);
+      devFeeOutput = devFeeOutput.concat(devFeeCall[i]);
+      sssFeeOutput = sssFeeOutput.concat(sssFeeCall[i]);
+      referralFeeOutput = referralFeeOutput.concat(referralFeeCall[i]);
+      usdcVaultFeeOutput = usdcVaultFeeOutput.concat(usdcVaultFeeCall[i]);
     }
 
     const devFeeVol = devFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));

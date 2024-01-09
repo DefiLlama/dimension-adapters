@@ -42,19 +42,17 @@ const graph = (chain: Chain) => {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ITx[] = (await sdk.api.util.getLogs({
+      const logs: ITx[] = (await sdk.getEventLogs({
         target: address[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx});
+      })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx});
       const rawData = logs.map((e: ITx) => {
         const data = contract_interface.parseLog(e);
         return {
-          signerAmount: Number(data!.args.signerAmount._hex),
+          signerAmount: Number(data!.args.signerAmount),
           signerToken: data!.args.signerToken,
         }
       })

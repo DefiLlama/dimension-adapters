@@ -23,17 +23,13 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
-    const logs: ILog[] = (await Promise.all(list_from_addres_hex.map((topic1: string) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(list_from_addres_hex.map((topic1: string) => sdk.getEventLogs({
       target: usdc,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.POLYGON,
       topics: [topic0, topic1, topic2]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
     const dailyFees = logs.map((e: ILog) => {
       const value = Number(e.data) / 10 ** 6;
       return value;

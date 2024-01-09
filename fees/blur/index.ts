@@ -62,7 +62,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
         topics: [log.topic0]
       });
       const rate = parsedLog!.args.fees.takerFee.rate / 1e4;
-      const price = Number(parsedLog!.args.price._hex) / 1e18;
+      const price = Number(parsedLog!.args.price) / 1e18;
       return rate * price;
     })
       .filter((e: number) => !isNaN(e))
@@ -87,11 +87,11 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
       const makerFeeRecipientRate = parsedLog!.args?.makerFeeRecipientRate;
       const collectionPriceSide = parsedLog!.args?.collectionPriceSide;
       if (takerFeeRecipientRate === undefined && makerFeeRecipientRate === undefined) return 0;
-      const price = unpackTypePriceCollection(BigInt(collectionPriceSide._hex));
+      const price = unpackTypePriceCollection(BigInt(collectionPriceSide));
       const [rate, recipient] =
       takerFeeRecipientRate !== undefined
-        ? unpackFee(BigInt(takerFeeRecipientRate._hex))
-        : unpackFee(BigInt(makerFeeRecipientRate._hex));
+        ? unpackFee(BigInt(takerFeeRecipientRate))
+        : unpackFee(BigInt(makerFeeRecipientRate));
       const _rate = rate.toString() / 1e4;
       const _price = price.toString() / 1e18;
       return _rate * _price;

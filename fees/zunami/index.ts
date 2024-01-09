@@ -48,21 +48,21 @@ const getData = (chain: Chain) => {
         const to = timestamp;
         const block = await getBlock(from, chain, {});
         const omnipoolManagementFee = Number((
-            await sdk.api.abi.call({
+            await sdk.api2.abi.call({
                 target: ZUNAMI_ADDRESS,
                 chain: chain,
                 abi: ABIs.getManagementFee,
                 block: block
             })
-        ).output) / FEE_DENOMINATOR
+        )) / FEE_DENOMINATOR
         const apsManagementFee = Number((
-            await sdk.api.abi.call({
+            await sdk.api2.abi.call({
                 target: APS_ADDRESS,
                 chain: chain,
                 abi: ABIs.getManagementFee,
                 block: block
             })
-        ).output) / FEE_DENOMINATOR
+        )) / FEE_DENOMINATOR
 
         const dailyData: YieldData = (await fetchURL(dataEndpoint(from, to))).data;
         const dailyRevenue = (dailyData.omnipoolYield * omnipoolManagementFee)

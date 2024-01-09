@@ -100,15 +100,13 @@ const fetchFees = (chain: Chain) => {
     const fromBlock = await getBlock(fromTimestamp, chain, {})
 
     try {
-      const logs_balance: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_balance: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_pools_balance_change],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
       const rawDataBalanceChange: IBalanceChange[] = logs_balance.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
@@ -118,25 +116,21 @@ const fetchFees = (chain: Chain) => {
         }
       });
 
-      const logs_flash_bot: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_flash_bot: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_flash_bot],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
-      const logs_swap: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_swap: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_swap],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
       const swapRaw: ISwap[] = logs_swap.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
@@ -144,28 +138,28 @@ const fetchFees = (chain: Chain) => {
           poolId: value!.args.poolId,
           tokenIn: value!.args.tokenIn,
           tokenOut: value!.args.tokenOut,
-          amountIn: Number(value!.args.amountIn._hex),
-          amountOut: Number(value!.args.amountOut._hex),
+          amountIn: Number(value!.args.amountIn),
+          amountOut: Number(value!.args.amountOut),
         } as ISwap
       });
       const poolIds = [...new Set(swapRaw.map((a: ISwap) => a.poolId))]
-      const pools = (await sdk.api.abi.multiCall({
+      const pools = (await sdk.api2.abi.multiCall({
         abi: abis.getPool,
         calls: poolIds.map((a: string) => ({
           target: vualtAddress[chain],
           params: [a]
         })),
         chain: chain,
-      })).output.map((a: any) => a.output)
+      })) 
         .map((a: any) => a[0]);
 
-      const swapFees = (await sdk.api.abi.multiCall({
+      const swapFees = (await sdk.api2.abi.multiCall({
         abi: abis.getSwapFeePercentage,
         calls: pools.map((a: string) => ({
           target: a,
         })),
         chain: chain,
-      })).output.map((a: any) => a.output);
+      })) ;
 
 
       const rawDataFlashBot: IBalanceChange[] = logs_flash_bot.map((a: ILogs) => {

@@ -54,15 +54,13 @@ const graph = (_chain: Chain) => {
     try {
       const fromBlock = (await getBlock(fromTimestamp, _chain, {}));
       const toBlock = (await getBlock(toTimestamp, _chain, {}));
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: poolFactoryAddress,
-        topic: '',
         fromBlock: fromBlocks[_chain as keyof typeof fromBlocks],
         toBlock: toBlock,
         chain: _chain,
         topics: [topic0_create_pool],
-        keys: []
-      })).output as unknown as ILog[];
+      })) as ILog[];
       const poolAddresses = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.pool);
       const poolFees = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.fee);
       const tokens0 = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.token0);
@@ -70,24 +68,20 @@ const graph = (_chain: Chain) => {
 
       const coins: string[] =  [...new Set([...tokens0.concat(tokens1).map((e: string) => `${_chain}:${e}`)])];
 
-      const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.api.util.getLogs({
+      const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: _chain,
         topics: [topic0_swap]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
 
       const prices = await getPrices(coins, timestamp);
 
       const dailyFees = logsSwap.map((e: ILog) => {
         const parsed = contract_interface.parseLog(e);
-        const amount0 = Math.abs(Number(parsed!.args.amount0._hex.replace('-', '')));
-        const amount1 = Math.abs(Number(parsed!.args.amount1._hex.replace('-', '')));
+        const amount0 = Math.abs(Number(parsed!.args.amount0.replace('-', '')));
+        const amount1 = Math.abs(Number(parsed!.args.amount1.replace('-', '')));
         const index = poolAddresses.indexOf(e.address);
         const token0 = tokens0[index];
         const token1 = tokens1[index];

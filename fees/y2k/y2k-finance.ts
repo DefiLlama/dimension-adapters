@@ -51,14 +51,14 @@ const fetch = (chain: Chain) => {
     const toBlock = await getBlock(toTimestamp, chain, {});
 
     const poolLength = (
-      await sdk.api.abi.call({
+      await sdk.api2.abi.call({
         target: vault_factory,
         chain: chain,
         abi: abis.marketIndex,
       })
-    ).output;
+    );
 
-    const vaultRes = await sdk.api.abi.multiCall({
+    const vaultRes = await sdk.api2.abi.multiCall({
       abi: abis.getVaults,
       calls: Array.from(Array(Number(poolLength)).keys()).map((i: any) => ({
         target: vault_factory,
@@ -67,7 +67,7 @@ const fetch = (chain: Chain) => {
       chain: chain,
     });
 
-    const vaults = vaultRes.output
+    const vaults = vaultRes
       .map(({ output }: any) => output)
       .flat()
       .map((e: string) => e.toLowerCase());

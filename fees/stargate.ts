@@ -91,32 +91,24 @@ const fetch = (chain: Chain) => {
     const toTimestamp = timestamp
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_swap]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
-    const logs_swap_remote: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.api.util.getLogs({
+    const logs_swap_remote: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_swap_remote]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
     const logs_swap: IFee[] = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const amount = Number(value!.args.protocolFee._hex);
+      const amount = Number(value!.args.protocolFee);
       return {
         amount: amount,
         contract: e.address
@@ -124,7 +116,7 @@ const fetch = (chain: Chain) => {
     });
     const swap_remote: IFee[] = logs_swap_remote.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const amount = Number(value!.args.protocolFee._hex);
+      const amount = Number(value!.args.protocolFee);
       return {
         amount: amount,
         contract: e.address

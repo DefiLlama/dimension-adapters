@@ -33,37 +33,31 @@ interface IBribes {
 export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
   try {
     const voter = '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c';
-    const logs_geuge_created: ILog[] = (await sdk.api.util.getLogs({
+    const logs_geuge_created: ILog[] = (await sdk.getEventLogs({
       target: voter,
       fromBlock: 105896851,
       toBlock: toBlock,
-      topic: '',
       topics: [topic0_geuge_created],
       chain: CHAIN.OPTIMISM,
-      keys: []
-    })).output as unknown as ILog[];
+    })) as ILog[];
     const bribes_contract: string[] = logs_geuge_created.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
       return value!.args.bribeVotingReward;
     })
 
-    const logs: ILog[] = (await Promise.all(bribes_contract.map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(bribes_contract.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.OPTIMISM,
       topics: ['0x52977ea98a2220a03ee9ba5cb003ada08d394ea10155483c95dc2dc77a7eb24b']
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat() as ILog[];
 
     const logs_bribes = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
       return {
         token: value!.args.reward,
-        amount: Number(value!.args.amount._hex)
+        amount: Number(value!.args.amount)
       } as IBribes
     })
     const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.OPTIMISM}:${e.token.toLowerCase()}`))]

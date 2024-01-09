@@ -49,33 +49,29 @@ const graph = (chain: Chain) => {
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-    const logs_fund_disposit: IDataDispositFund[] = (await sdk.api.util.getLogs({
+    const logs_fund_disposit: IDataDispositFund[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_fund_disposit_v2]
-    })).output.map((a: any) => contract_interface.parseLog(a))
-      .filter((a: any) => Number(a.args.destinationChainId._hex) === 288)
+    })).map((a: any) => contract_interface.parseLog(a))
+      .filter((a: any) => Number(a!.args.destinationChainId) === 288)
       .map((a: any) => {
         return {
-          token: a.args.originToken.toLowerCase(),
-          amount: Number(a.args.amount._hex),
-          lp_fee_pct: Number(a.args.relayerFeePct._hex) / 10 ** 18
+          token: a!.args.originToken.toLowerCase(),
+          amount: Number(a!.args.amount),
+          lp_fee_pct: Number(a!.args.relayerFeePct) / 10 ** 18
         } as IDataDispositFund
       });
 
-    const logs_filled_replay: IDataReplay[] = (await sdk.api.util.getLogs({
+    const logs_filled_replay: IDataReplay[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_filled_replay_v2]
-    })).output.map((a: any) => {
+    })).map((a: any) => {
       const data = a.data.replace('0x','');
       const destinationToken = data.slice(448, 512) // 7
       const token = '0x' + destinationToken.slice(24, address.length)

@@ -49,20 +49,18 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ARBITRUM, {}));
 
-    const logs: ILog[] = (await sdk.api.util.getLogs({
+    const logs: ILog[] = (await sdk.getEventLogs({
       target: poolFactoryAddress,
-      topic: '',
       fromBlock: 114041129,
       toBlock: toBlock,
       chain: CHAIN.ARBITRUM,
       topics: [topic0_create_pool],
-      keys: []
-    })).output as any as ILog[];
+    })) as ILog[];
     const poolAddresses = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.pool);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: poolAddresses.map((address: string) => ({
             target: address,
@@ -71,29 +69,25 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
         })
       )
     );
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
 
     const coins: string[] =  [...new Set([...tokens0.concat(tokens1).map((e: string) => `${CHAIN.ARBITRUM}:${e}`)])];
 
-    const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.api.util.getLogs({
+    const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [topic0_swap]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
     const prices = await getPrices(coins, timestamp);
 
     const dailyVolume = logsSwap.map((e: ILog) => {
       const parsed = contract_interface.parseLog(e);
-      const amount0 = Math.abs(Number(parsed!.args.amount0._hex.replace('-', '')));
-      const amount1 = Math.abs(Number(parsed!.args.amount1._hex.replace('-', '')));
+      const amount0 = Math.abs(Number(parsed!.args.amount0.replace('-', '')));
+      const amount1 = Math.abs(Number(parsed!.args.amount1.replace('-', '')));
       const index = poolAddresses.indexOf(e.address);
       const token0 = tokens0[index];
       const token1 = tokens1[index];

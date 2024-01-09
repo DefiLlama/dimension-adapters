@@ -119,57 +119,41 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ARBITRUM, {}));
-    const make_closed_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.api.util.getLogs({
+    const make_closed_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [make_closed_topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
-    const make_opened_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.api.util.getLogs({
+    const make_opened_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [make_opened_topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
-    const take_closed_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.api.util.getLogs({
+    const take_closed_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [take_closed_topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
-    const take_opened_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.api.util.getLogs({
+    const take_opened_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ARBITRUM,
       topics: [take_opened_topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
     const [makerFee, takerFee] = await Promise.all(
       ['makerFee', 'takerFee'].map((method: string) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: abis[method],
           calls: products.map((address: string) => ({
             target: address,
@@ -179,8 +163,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const makerFees = makerFee.output.map((res: any) => Number(res.output) / 10 ** 18);
-    const takerFees = takerFee.output.map((res: any) => Number(res.output) / 10 ** 18);
+    const makerFees = makerFee.map((res: any) => Number(res) / 10 ** 18);
+    const takerFees = takerFee.map((res: any) => Number(res) / 10 ** 18);
 
     const all: ILog[] = [
       ...make_closed_topic0_logs,
@@ -188,19 +172,19 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ...take_closed_topic0_logs,
       ...take_opened_topic0_logs
     ]
-    const versions = [...new Set(all.map(e => contract_interface.parseLog(e)).map(e =>  Number(e!.args.version._hex)))];
-    const price_ = (await sdk.api.abi.multiCall({
+    const versions = [...new Set(all.map(e => contract_interface.parseLog(e)).map(e =>  Number(e!.args.version)))];
+    const price_ = (await sdk.api2.abi.multiCall({
       abi: abis.atVersion,
       calls: versions.map((version: number) => ({
         target: products[0],
         params: [version]
       })),
       chain: CHAIN.ARBITRUM
-    })).output
+    }))
     const _prices: IPrice = {}
     price_.forEach((e: any) => {
-      const raw_price: string = e.output.price;
-      const version: string = e.output.version;
+      const raw_price: string = e.price;
+      const version: string = e.version;
       const price =  Number(raw_price.replace('-', '')) / 10 ** 18;
       _prices[version] = price;
     });

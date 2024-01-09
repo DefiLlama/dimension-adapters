@@ -44,30 +44,26 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-    const logs_fund_disposit: IData[] = (await sdk.api.util.getLogs({
+    const logs_fund_disposit: IData[] = (await sdk.getEventLogs({
       target: address_buyback[chain],
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_fund_supply]
-    })).output.map((a: any) => contract_interface.parseLog(a))
+    })).map((a: any) => contract_interface.parseLog(a))
       .map((a: any) => {
         return {
-          amount: Number(a.args.amount._hex) / 10 ** 18,
+          amount: Number(a!.args.amount) / 10 ** 18,
         } as IData
       });
 
-      const logs_dividends: any[] = (await sdk.api.util.getLogs({
+      const logs_dividends: any[] = (await sdk.getEventLogs({
         target: weth_address[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: weth_address_tranfer_topic[chain]
-      })).output
+      }))
         .map((a: any) => {
           return {
             amount: Number(a.data) / 10 ** 18,

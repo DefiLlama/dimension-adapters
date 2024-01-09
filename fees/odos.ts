@@ -100,17 +100,13 @@ const graph = (chain: Chain) => {
 
       //console.log(feeCollectors,fromBlock,toBlock,chain);
 
-      const logs: ILog[][] = (await Promise.all(feeCollectors.map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[][] = (await Promise.all(feeCollectors.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_swap_one]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output);
+      })))) as ILog[][];
 
       const rawCoinsPerTreasury: string[][] = feeCollectors.map((_: string, index: number) => {
         const logsToTokenList: string[] = logs[index]

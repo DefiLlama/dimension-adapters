@@ -7,14 +7,14 @@ export const getAsset = async (
   block = "latest"
 ) => {
   const data = (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: strategy,
       abi: ControllerAbi.find((m: any) => m.name === "getAsset"),
       params: [pairId],
       chain: "arbitrum",
       block: block,
     })
-  ).output;
+  );
 
   return data;
 };
@@ -24,14 +24,14 @@ export const getTotalSupply = async (
   block = "latest"
 ) => {
   const data = (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: strategyToken,
       abi: ERC20Abi.find((m: any) => m.name === "totalSupply"),
       params: [],
       chain: "arbitrum",
       block: block,
     })
-  ).output;
+  );
 
   return data;
 };

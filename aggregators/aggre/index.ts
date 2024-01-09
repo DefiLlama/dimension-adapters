@@ -49,17 +49,16 @@ const fetch = (chain: Chain) => {
             }
 
             const swapTopic = ethers.id(eventSignature);
-            const logs = (await sdk.api.util.getLogs({
+            const logs = (await sdk.getEventLogs({
                 target: contract[chain],
                 topic: swapTopic,
                 toBlock: toBlock,
                 fromBlock: fromBlock,
-                keys: [],
-                chain: chain,
+                chain,
                 topics: [swapTopic]
-            })).output as unknown as EthLog[];
+            }))
 
-            const data = logs.map((e: EthLog) => {
+            const data = logs.map((e: any) => {
                 const parsed = iface.parseLog(e);
                 return {
                     fromToken: parsed!.args.tokenIn,

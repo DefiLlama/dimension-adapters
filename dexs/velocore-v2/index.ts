@@ -16,15 +16,13 @@ const fetch = async (timestamp: number) => {
   try {
     let abi = ["event Swap(address indexed pool, address indexed user, bytes32[] tokenRef, int128[] delta)"];
     let iface = new ethers.Interface(abi);
-    const volume: { [addr: string]: number } = ((await sdk.api.util.getLogs({
+    const volume: { [addr: string]: number } = ((await sdk.getEventLogs({
       target: "0x1d0188c4B276A09366D05d6Be06aF61a73bC7535",
-      topic: "",
       fromBlock: await getBlock(timestamp - 60 * 60 * 24, CHAIN.LINEA, {}),
       toBlock: await getBlock(timestamp, CHAIN.LINEA, {}),
-      keys: [],
       chain: CHAIN.LINEA,
       topics: ["0xbaec78ca3218aba6fc32d82b79acdd1a47663d7b8da46e0c00947206d08f2071"]
-    })).output as any as ILog[]).map((i) => {
+    }))as any as ILog[]).map((i) => {
       const e = iface.parseLog(i)!.args;
       let volume: { [addr: string]: number } = {};
       for (let i = 0; i < e.tokenRef.length; i++) {

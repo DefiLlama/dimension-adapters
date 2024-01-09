@@ -36,17 +36,15 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 
   let logs: ILogs[] = await Promise.all(
     Array.from({ length: batches }, (_, index) =>
-      sdk.api.util.getLogs({
-        keys: [],
+      sdk.getEventLogs({
         toBlock: fromblock + (index + 1) * batchSize,
         fromBlock: fromblock + index * batchSize,
         target: contract_address,
-        topic: '',
         topics: [topic0, topic1],
         chain: CHAIN.POLYGON,
       })
     )
-  ).then((responses) => responses.flatMap((response) => response.output as unknown as ILogs[]));
+  ).then((responses) => responses.flatMap((response) => response as unknown as ILogs[]));
 
   const fees = logs.map((log: ILogs) => {
     const parsedLog = log.data.replace('0x', '')

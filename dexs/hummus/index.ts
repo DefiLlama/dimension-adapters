@@ -38,17 +38,15 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   const logs: ILog[] = (
     await Promise.resolve(
-      sdk.api.util.getLogs({
+      sdk.getEventLogs({
         target: "0x248fD66e6ED1E0B325d7b80F5A7e7d8AA2b2528b",
-        topic: "",
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: CHAIN.METIS,
         topics: [swap_topic],
       })
     )
-  ).output as unknown as ILog[];
+  ) as ILog[];
 
   let dailyVolume = 0;
 

@@ -23,20 +23,18 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}))
     const toBlock =   (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}))
-    const logs_position_chnage: ILog[] = (await sdk.api.util.getLogs({
+    const logs_position_chnage: ILog[] = (await sdk.getEventLogs({
       target: address,
-      topic: '',
-      keys: [],
       topics: [topic0_position_change],
       toBlock: toBlock,
       fromBlock: fromBlock,
       chain: CHAIN.OPTIMISM
-    })).output as unknown as ILog[];
+    })) as ILog[];
 
 
     const fees_details = logs_position_chnage.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      return Number(value!.args.fee._hex) / 10 ** 18;
+      return Number(value!.args.fee) / 10 ** 18;
     }).reduce((a: number, b: number) => a + b, 0)
 
     const dailyFees = fees_details

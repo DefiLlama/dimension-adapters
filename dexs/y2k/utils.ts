@@ -34,16 +34,14 @@ export const getDeposits = async (
   let totalDeposits = 0;
   for (const vault of vaults) {
     const logs_deposit: ITx[] = (
-      await sdk.api.util.getLogs({
+      await sdk.getEventLogs({
         target: vault,
-        topic: "",
         fromBlock: fromBlock,
         toBlock: toBlock,
         topics: [topic0_deposit],
-        keys: [],
         chain: CHAIN.ARBITRUM,
       })
-    ).output as unknown as ITx[];
+    ) as ITx[];
 
     const deposits = logs_deposit.map((e) => deposit_interface.parseLog(e)!.args);
     const deposit = deposits.reduce((a, b) => a + Number(b.assets), 0);
