@@ -20,6 +20,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.ETHEREUM),
       start: async () => 18240112,
     },
+    [CHAIN.METIS]: {
+      fetch: fetchVolume(CHAIN.ETHEREUM),
+      start: async () => 9740222,
+    },
   },
 };
 //

@@ -40,6 +40,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
+    [CHAIN.METIS]: {
+      fetch: fetchFee(CHAIN.METIS),
+      start: async () => 9740222,
+      meta: {
+        methodology,
+      },
+    },
   },
 };
 
