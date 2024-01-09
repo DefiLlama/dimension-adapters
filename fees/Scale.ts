@@ -85,15 +85,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const poolsRes = await sdk.api2.abi.multiCall({
       abi: ABIs.allPairs,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: FACTORY_ADDRESS,
-        params: i,
-      })),
+      target: FACTORY_ADDRESS,
+      calls: Array.from(Array(Number(poolLength)).keys()),
       chain: 'base'
     });
 
     const lpTokens = poolsRes
-      .map(({ output }: any) => output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>

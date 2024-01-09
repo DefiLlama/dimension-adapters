@@ -101,9 +101,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ["token0", "token1"].map((method) =>
         sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address: string) => ({
-            target: address,
-          })),
+          calls: lpTokens,
           chain: CHAIN.FANTOM,
         })
       )

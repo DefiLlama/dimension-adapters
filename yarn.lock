@@ -589,9 +589,9 @@
     "@jridgewell/trace-mapping" "0.3.9"
 
 "@defillama/sdk@^5.0.0":
-  version "5.0.4"
-  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-5.0.4.tgz#b7a4de714d8b598bf761e2050a880e4ef47806f7"
-  integrity sha512-w/jur0vkSlxJfCmyw2H1UbjlRmQBRPJc+X0MvXcpDF8H7L9HMVINImZqkLXxceTwRpgqwkevy7BLvuublasBCg==
+  version "5.0.5"
+  resolved "https://registry.yarnpkg.com/@defillama/sdk/-/sdk-5.0.5.tgz#59c1946c01250d2650d18030d934f638a57d328c"
+  integrity sha512-k9tyySY9ZkvvABy4UHJFh4Hxwymdo+V5jWrgXH9v/w52ex5FfOpZZL69eQ/u/S2DgA5Yk3d26wq+IM9qVZr14Q==
   dependencies:
     "@aws-sdk/client-s3" "^3.400.0"
     "@supercharge/promise-pool" "^2.1.0"

@@ -68,7 +68,6 @@ const fetch = (chain: Chain) => {
     });
 
     const vaults = vaultRes
-      .map(({ output }: any) => output)
       .flat()
       .map((e: string) => e.toLowerCase());
     const dailyFees = await getFees(vaults, fromBlock, toBlock, timestamp);

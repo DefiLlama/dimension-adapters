@@ -92,7 +92,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     });
 
     const lpTokens = poolsRes
-      .map(({ output }: any) => output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>

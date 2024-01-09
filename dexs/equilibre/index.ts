@@ -92,7 +92,6 @@ const fetch = async (timestamp: number) => {
     });
 
     const lpTokens = poolsRes
-      .map(({ output }: any) => output)
       .filter((e: string)  => e.toLowerCase() !== '0xE6c4B59C291562Fa7D9FF5b39C38e2a28294ec49'.toLowerCase());
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(

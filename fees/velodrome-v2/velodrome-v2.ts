@@ -99,7 +99,6 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
     });
 
     const lpTokens = poolsRes
-      .map(({ output }: any) => output);
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
