@@ -22,7 +22,7 @@ export enum CHAIN {
   JUNO = "juno",
   KCC = "kcc",
   WAN = "wan",
-  CARDADO = "cardano",
+  CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
   DOGECHAIN = "dogechain",
@@ -111,7 +111,7 @@ export enum CHAIN {
   ONUS = "onus",
   OASIS = "oasis",
   MANTLE = "mantle",
-  ICP="icp",
+  ICP = "icp",
   LINEA = "linea",
   BASE = "base",
   NEON = "neon_evm",
@@ -125,10 +125,14 @@ export enum CHAIN {
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
-  EON= "eon",
+  EON = "eon",
   MANTA = "manta",
   NEAR = "near",
   EOS_EVM = "eos_evm",
+  ROLLUX = "rollux",
+  MODE = "mode",
+  PERSISTENCE = "persistence",
+  JBC = "jbc"
 }
 
 // Don´t use

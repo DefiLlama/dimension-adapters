@@ -26,7 +26,7 @@ async function fetchVolume(timestamp: number) {
 
 export default {
     adapter: {
-        [CHAIN.CARDADO]: {
+        [CHAIN.CARDANO]: {
             fetch: fetchVolume,
             runAtCurrTime: true,
             start: async () => 0,

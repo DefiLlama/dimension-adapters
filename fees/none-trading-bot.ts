@@ -1,8 +1,9 @@
 import postgres from "postgres";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 
 interface IData {
@@ -56,6 +57,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: async () => 1690675200,

@@ -1,8 +1,9 @@
 import { Chain } from "@defillama/sdk/build/general"
 import { CHAIN } from "../helpers/chains";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 interface IData {
   timestamp: number;
@@ -26,6 +27,7 @@ const fetchData = (_: Chain) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OPTIMISM]: {
       fetch: fetchData(CHAIN.OPTIMISM),
       start: async () => 1682121600,

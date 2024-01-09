@@ -40,7 +40,7 @@ const getStartTimestamp = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
       start: getStartTimestamp,
       fetch: fetch,
     }

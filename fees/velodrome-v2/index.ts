@@ -12,8 +12,8 @@ const getFees = async (timestamp: number): Promise<FetchResultFees> => {
   const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
   const  [feeV2, bribes] = await Promise.all([fetchV2(fromBlock, toBlock,timestamp),  fees_bribes(fromBlock, toBlock, timestamp)]);
   const dailyFees =  Number(feeV2.dailyFees);
-  const dailyRevenue =  Number(feeV2.dailyRevenue) + bribes;
-  const dailyHoldersRevenue =  Number(feeV2.dailyHoldersRevenue) + bribes;
+  const dailyRevenue =  Number(feeV2.dailyRevenue);
+  const dailyHoldersRevenue =  Number(feeV2.dailyHoldersRevenue);
   return {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,

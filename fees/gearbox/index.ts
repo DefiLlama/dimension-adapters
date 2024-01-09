@@ -47,7 +47,14 @@ const mapDieselToken: IMapDieselToken = {
   "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
   "0x8a1112afef7f4fc7c066a77aabbc01b3fff31d47": "0x853d955aCEf822Db058eb8505911ED77F175b99e",
   "0x853d955aCEf822Db058eb8505911ED77F175b99e": "0x853d955aCEf822Db058eb8505911ED77F175b99e",
+  "0xda00000035fef4082f78def6a8903bee419fbf8e": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "0xda0002859b2d05f66a753d8241fcde8623f26f4f": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "0xda00010eda646913f273e10e7a5d1f659242757d": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "0xda00000035fef4082f78def6a8903bee419fbf8e",
+  "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": "0xda0002859b2d05f66a753d8241fcde8623f26f4f",
+  "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": "0xda00010eda646913f273e10e7a5d1f659242757d",
 };
+
 
 const tokenBlacklist = ["0xe397ef3e332256f38983ffae987158da3e18c5ec", "0xbfa9180729f1c549334080005ca37093593fb7aa"];
 interface IAmount {
@@ -59,6 +66,7 @@ interface ITx {
   token?: string;
   data: string;
   transactionHash: string;
+  event: string;
 }
 
 interface ILog {
@@ -147,13 +155,26 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       et.from_address = '\\x7b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1'
       AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
   `;
+
     const logEventTranfer: ITx[] = logEventTranferErc20ToTreasury
-      .concat(logEventTxToTreasury)
+      .map((p: any) => {
+        return {
+          ...p,
+          event: "ERC20",
+        }
+      })
+      .concat(logEventTxToTreasury.map((e: any) => {
+        return {
+          ...e,
+          event: "DAO",
+        }
+      }))
       .map((p: any) => {
         return {
           data: `0x${p.value}`,
           transactionHash: `0x${p.hash}`.toLowerCase(),
           token: `0x${p.contract_address}`.toLowerCase(),
+          event: p.event,
         } as ITx;
       }) as ITx[];
 
@@ -166,7 +187,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     WHERE
       block_number > 13733671 -- gearbox multisig creation block
       AND topic_0 in (
-        '\\xd8ae9b9ba89e637bcb66a69ac91e8f688018e81d6f92c57e02226425c8efbdf6', -- remove liquidity
         '\\xe7c7987373a0cc4913d307f23ab8ef02e0333a2af445065e2ef7636cffc6daa7', -- repay credit account
         '\\x5e5da6c348e62989f9cfe029252433fc99009b7d28fa3c20d675520a10ff5896', -- liquidate credit account
         '\\xca05b632388199c23de1352b2e96fd72a0ec71611683330b38060c004bbf0a76', -- close credit account
@@ -179,7 +199,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const coins = Object.values(mapDieselToken).map((address: string) => `ethereum:${address.toLowerCase()}`);
     const prices = await getPrices(coins, timestamp);
-
     const logHashs: string[] = logs_contract.map((e: ILog) => e.transaction_hash);
     const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
     const txAmountUSD: IAmount[] = logEventTranfer
@@ -190,26 +209,29 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             amount: 0,
             amountUsd: 0,
             transactionHash: transfer_events.transactionHash,
+            event: transfer_events.event + "Blacklist",
           } as IAmount;
         }
         const indexTokenMap = Object.keys(mapDieselToken)
           .map((e: any) => e.toLowerCase())
           .findIndex((e: string) => e === transfer_events?.token);
-        const token = Object.values(mapDieselToken)[indexTokenMap];
-        const { price, decimals } = prices[`ethereum:${token.toLowerCase()}`];
+        const token = Object.values(mapDieselToken)[indexTokenMap];;
+        const price = prices[`ethereum:${token.toLowerCase()}`].price;
+        const decimals = prices[`ethereum:${token.toLowerCase()}`].decimals;
         const amount = new BigNumber(transfer_events.data).toNumber();
         return {
           amount: amount / 10 ** decimals,
           amountUsd: (amount / 10 ** decimals) * price,
           transactionHash: transfer_events.transactionHash,
+          event: transfer_events.event,
         } as IAmount;
       });
     const dailyFees = [...new Set([...txAmountUSD.map((e) => e.amountUsd)])].reduce((a: number, b: number) => a + b, 0);
     await sql.end({ timeout: 5 });
     return {
       timestamp,
-      dailyRevenue: (dailyFees * 0.5).toString(),
       dailyFees: dailyFees.toString(),
+      dailyRevenue: (dailyFees * 0.5).toString(),
     };
   } catch (e) {
     await sql.end({ timeout: 5 });

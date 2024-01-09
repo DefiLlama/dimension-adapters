@@ -44,7 +44,7 @@ const getDailyVolume = async () => {
     const tickers = await getTickers();
     const exchangeRates = await getExchangeRates();
 
-    const volume = tickers.reduce((acc, { base_id, quote_id, quote_volume, base_volume }) => {
+    const volume = tickers.map(({ base_id, quote_id, quote_volume, base_volume, base_symbol }) => {
         let volumeInUSD = 0;
         const assetId0 = base_id === "base" ? "GBYTE" : base_id;
         const assetId1 = quote_id === "base" ? "GBYTE" : quote_id;
@@ -55,8 +55,15 @@ const getDailyVolume = async () => {
             volumeInUSD = exchangeRates[`${assetId1}_USD`] * quote_volume;
         }
 
-        return acc + volumeInUSD;
-    }, 0);
+        return {
+            base_volume,
+            base_symbol,
+            quote_volume,
+            d: exchangeRates[`${assetId0}_USD`],
+            c: exchangeRates[`${assetId1}_USD`],
+            volumeInUSD
+        };
+    }).filter((a: any) => a.base_symbol !== 'O-GBYTE-BUSD').reduce((acc: any, { volumeInUSD }: any) => acc + volumeInUSD, 0);
 
     return volume;
 }

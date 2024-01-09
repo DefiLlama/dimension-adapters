@@ -47,12 +47,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const batches = Math.ceil((toBlock - fromBlock) / batchSize);
 
   const erc20transferLog: ITx[] = await Promise.all(
-    Array.from({ length: batches }, (_, __) =>
+    Array.from({ length: batches }, (_, index) =>
     sdk.api.util.getLogs({
       target: wxHOPR_address,
       topic: topic1,
-      fromBlock: fromBlock,
-      toBlock: toBlock,
+      toBlock: fromBlock + (index + 1) * batchSize,
+      fromBlock: fromBlock + index * batchSize,
       topics: [topic1, topic2],
       keys: [],
       chain: CHAIN.XDAI

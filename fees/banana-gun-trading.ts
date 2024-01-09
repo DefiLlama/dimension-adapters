@@ -32,7 +32,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                   AND from_address IN ('\\xf414d478934c29d9a80244a3626c681a71e53bb2', '\\x37aab97476ba8dc785476611006fd5dda4eed66b')
                   AND "type" = 'create'
           )
-          AND topic_0 = '\\x0c2a2f565c7774c59e49ef6b3c255329f4d254147e06e724d3a8569bb7bd21ad'
+          AND topic_0 = '\\x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f'
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
     `;
 

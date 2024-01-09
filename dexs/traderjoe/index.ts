@@ -34,7 +34,7 @@ const fetchV2 = (chain: Chain) => {
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
     return {
       totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
       timestamp: dayTimestamp,
     }
   }

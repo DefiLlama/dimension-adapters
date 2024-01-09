@@ -34,19 +34,19 @@ const SY_WSTETH_OP = "0x96a528f4414ac3ccd21342996c93f2ecdec24286"
 
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
-    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-mainnet-may-11',
+    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-mainnet-23-dec-18',
     treasury: '0x8270400d528c34e1596ef367eedec99080a1b592'
   },
   [CHAIN.ARBITRUM]: {
-    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-arbitrum-may-11',
+    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-arbitrum-23-dec-18',
     treasury: '0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6',
   },
   [CHAIN.BSC]: {
-    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-bsc-jun-28',
+    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-bsc-23-dec-18',
     treasury: '0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e',
   },
   [CHAIN.OPTIMISM]: {
-    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-optimism-aug-11',
+    endpoint: 'https://api.thegraph.com/subgraphs/name/pendle-finance/core-optimism-23-dec-18',
     treasury: '0xe972d450ec5b11b99d97760422e0e054afbc8042',
   }
 }

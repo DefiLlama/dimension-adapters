@@ -58,7 +58,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
         fetch: fetch,
         start: async ()  => 1577836800,
     },

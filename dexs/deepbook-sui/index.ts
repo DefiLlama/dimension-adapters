@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const historicalVolumeEndpoint = "https://kx58j6x5me.execute-api.us-east-1.amazonaws.com/sui/deepbook?interval=day&timeFrame=1000&dataType=volume"
 
 interface IVolumeall {
-  volume: string;
+  volume?: string; // some items are missing volume
   date: string;
 }
 
@@ -16,10 +16,12 @@ const fetch = async (timestamp: number) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+    .filter((e: IVolumeall) => !isNaN(Number(e.volume))) // Fix: Convert volume to number
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   const dailyVolume = historicalVolume
     .filter(dayItem =>  dayItem.date.split(" ")[0] === dateString)
+    .filter((e: IVolumeall) => !isNaN(Number(e.volume))) // Fix: Convert volume to number
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   return {

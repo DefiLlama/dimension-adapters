@@ -2,9 +2,9 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const chainsMap = { eth: "ethereum" };
+const chainsMap: Record<string, string> = { ethereum: "eth" };
 const chains = [
-  "eth",
+  "ethereum",
   "bsc",
   "polygon",
   "xdai",
@@ -39,7 +39,7 @@ const fetch =
       );
 
       return {
-        dailyVolume: data.data.data[chain]?.volume,
+        dailyVolume: data.data.data[chainsMap[chain] || chain]?.volume,
         timestamp: unixTimestamp,
       };
     } catch (e) {
@@ -55,7 +55,7 @@ const adapter: any = {
     ...chains.reduce((acc, chain) => {
       return {
         ...acc,
-        [(chainsMap as any)[chain] || chain]: {
+        [chain]: {
           fetch: fetch(chain),
           start: async () => new Date(2023, 6, 1).getTime() / 1000,
         },

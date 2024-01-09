@@ -11,7 +11,7 @@ const info: { [key: string]: any } = {
   },
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/proxy/42519/maverick-zksync-3/version/latest",
+      "https://api.studio.thegraph.com/query/36330/mav-zksync/version/latest",
   },
   [CHAIN.BSC]: {
     subgraph:

@@ -36,8 +36,8 @@ interface ITx {
 }
 
 const FEE_ADDRESS = {
-  [CHAIN.ERA]: ["0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d", "0x6cf71FaeA3771D56e72c72501e7172e79116E2A3", "0x50853A14cD14CC6A891BF034A204A15d294AF056"],
-  [CHAIN.ARBITRUM]: ["0x8d85f4615ea5F2Ea8D91C196aaD4C04D8416865C"],
+  [CHAIN.ERA]: ["0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d", "0x6cf71FaeA3771D56e72c72501e7172e79116E2A3", "0x50853A14cD14CC6A891BF034A204A15d294AF056", "0x240d75373f9941b8F7FbA660b9ae73dfa655f7Da"],
+  [CHAIN.ARBITRUM]: ["0x8d85f4615ea5F2Ea8D91C196aaD4C04D8416865C", "0xB88C3A703B3565cb7bfdB1806Ba3728C54dd4b91"],
 };
 
 const BIG_TEN = new BigNumber('10');
@@ -52,8 +52,8 @@ const fetch = (addressList: string[], chain: Chain) => {
     const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
     const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
-    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall]: any = (await Promise.all(
-      event.map((e: IEvent) => {
+    const [devFeeCall, sssFeeCall, referralFeeCall, usdcVaultFeeCall]: any = (await Promise.all(
+      event.map(async (e: IEvent) => {
         return Promise.all(
           addressList.map(async (address) => {
             return sdk.api.util.getLogs({
@@ -68,15 +68,27 @@ const fetch = (addressList: string[], chain: Chain) => {
           })
         );
       })
-    )).flat();
-    const devFeeValume = devFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const ssFeeVol = ssFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const referralFeeVol = referralFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
-    const usdcVaultFeeVol = nftBotFeeCall.output.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    ));
+
+    let devFeeOutput: any[] = []
+    let sssFeeOutput: any[] = []
+    let referralFeeOutput: any[] = []
+    let usdcVaultFeeOutput: any[] = []
+    for (let i = 0; i < devFeeCall.length; i++) {
+      devFeeOutput = devFeeOutput.concat(devFeeCall[i].output);
+      sssFeeOutput = sssFeeOutput.concat(sssFeeCall[i].output);
+      referralFeeOutput = referralFeeOutput.concat(referralFeeCall[i].output);
+      usdcVaultFeeOutput = usdcVaultFeeOutput.concat(usdcVaultFeeCall[i].output);
+    }
+
+    const devFeeVol = devFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const ssFeeVol = sssFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const referralFeeVol = referralFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
+    const usdcVaultFeeVol = usdcVaultFeeOutput.map((p: ITx) => new BigNumber(p.data)).reduce((a: BigNumber, c: BigNumber) => a.plus(c), new BigNumber('0'));
     const prices = await getPrices(['coingecko:usdc'], todaysTimestamp);
     const usdcPrice = prices['coingecko:usdc']?.price || 1;
-    const dailyRevenue = devFeeValume.plus(ssFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
-    const dailyFees = devFeeValume.plus(ssFeeVol).plus(referralFeeVol).plus(usdcVaultFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
+    const dailyRevenue = devFeeVol.plus(ssFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
+    const dailyFees = devFeeVol.plus(ssFeeVol).plus(referralFeeVol).plus(usdcVaultFeeVol).times(usdcPrice).div(BIG_TEN.pow(USDC_DECIMAL)).toString();
     return {
       timestamp,
       dailyFees,
