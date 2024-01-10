@@ -1,13 +1,11 @@
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ethers } from "ethers";
-import { Log } from "@ethersproject/abstract-provider"
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Address } from "@defillama/sdk/build/types";
 
 
 type IConfig = {
@@ -51,7 +49,7 @@ const chainConfig: IConfig = {
   }
 }
 
-const interface_parser = new ethers.utils.Interface([
+const interface_parser = new ethers.Interface([
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 ]);
 
@@ -63,35 +61,35 @@ const fetch = (chain: Chain) => {
     const endblock = (await getBlock(toTimestamp, chain, {}));
     const allSy: string[] = (await request(chainConfig[chain].endpoint, gqlQuery)).assets.filter((token: any) => token.type === 'SY').map((token: any) => token.id.toLowerCase())
 
-    const rewardTokens: string[] = (await sdk.api.abi.multiCall({
+    const rewardTokens: string[] = (await sdk.api2.abi.multiCall({
       permitFailure: true,
       abi: getRewardTokensABI,
       calls: allSy.map((sy: string) => ({
         target: sy,
       })),
       chain: chain,
-    })).output.map((output: any) => output.output).flat().map((a: string) => a.toLowerCase())
+    })).flat().map((a: string) => a.toLowerCase())
 
-    const assetInfos = (await sdk.api.abi.multiCall({
+    const assetInfos = (await sdk.api2.abi.multiCall({
       permitFailure: true,
       abi: assetInfoABI,
       calls: allSy.map((sy: string) => ({
         target: sy,
       })),
       chain: chain,
-    })).output.map((output: any) => output.output)
+    }))
 
     const allAssets: string[] = assetInfos.map((assetInfo: any) => assetInfo.assetAddress)
 
     const allSyType0: string[] = allSy.filter((_: any, i: number) => assetInfos[i].assetType === '0')
-    const exchangeRatesType0 = (await sdk.api.abi.multiCall({
+    const exchangeRatesType0 = (await sdk.api2.abi.multiCall({
       permitFailure: true,
       abi: exchangeRateABI,
       calls: allSyType0.map((sy: string) => ({
         target: sy,
       })),
       chain: chain,
-    })).output.map((output: any) => output.output)
+    }))
 
     const rewardTokensSet = new Set(rewardTokens)
     const allRewardTokens: string[] = Array.from(rewardTokensSet)
@@ -104,21 +102,17 @@ const fetch = (chain: Chain) => {
       return prices[`${chain}:${token.toLowerCase()}`];
     }
 
-    const treasuryFilter = ethers.utils.hexZeroPad(chainConfig[chain].treasury, 32)
+    const treasuryFilter = ethers.zeroPadValue(chainConfig[chain].treasury, 32)
 
-    const allTransferEvents = (await Promise.all(allRewardTokens.concat(allSy).map((address: any) => getLogs({
+    const allTransferEvents = (await Promise.all(allRewardTokens.concat(allSy).map((address: any) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: endblock,
       fromBlock: startblock,
-      keys: [],
       chain: chain,
-      topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, treasuryFilter]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat()
+      topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null as any, treasuryFilter],
+    })))).flat()
       .map((e) => {
-        return { address: e.address.toLowerCase(), args: interface_parser.parseLog(e).args, tx: e.transactionHash }
+        return { address: e.address.toLowerCase(), args: interface_parser.parseLog(e)!.args, tx: e.transactionHash }
       });
     let totalFee = 0;
 
@@ -126,7 +120,7 @@ const fetch = (chain: Chain) => {
       if (allRewardTokens.includes(e.address)) {
         const tokenPrice = getPriceFor(e.address)
         if (tokenPrice) {
-          totalFee += e.args.value * tokenPrice.price / (10 ** tokenPrice.decimals)
+          totalFee += Number(e!.args.value) * tokenPrice.price / (10 ** tokenPrice.decimals)
         }
       } else {
         const idAll = allSy.indexOf(e.address)
@@ -140,10 +134,10 @@ const fetch = (chain: Chain) => {
 
         let amount;
         if (assetInfos[idAll].assetType === '1') {
-          amount = e.args.value;
+          amount = Number(e!.args.value);
         } else {
           const idAsset0 = allSyType0.indexOf(e.address)
-          amount = e.args.value * exchangeRatesType0[idAsset0] / (10 ** 18)
+          amount = Number(e!.args.value) * exchangeRatesType0[idAsset0] / (10 ** 18)
         }
         totalFee += amount * assetPrice.price / (10 ** assetInfos[idAll].assetDecimals);
       }
@@ -180,64 +174,6 @@ const adapter: SimpleAdapter = {
     }
   }
 };
-
-
-// SMALL INCOMPATIBILITY: On the old API we don't return ids but we should
-export async function getLogs(params: {
-  target: Address;
-  topic: string;
-  keys: string[]; // This is just used to select only part of the logs
-  fromBlock: number;
-  toBlock: number; // DefiPulse's implementation is buggy and doesn't take this into account
-  topics: (string | null)[]; // This is an outdated part of DefiPulse's API which is still used in some old adapters
-  chain?: Chain;
-}) {
-  if (params.toBlock === undefined || params.fromBlock === undefined) {
-    throw new Error(
-      "toBlock and fromBlock need to be defined in all calls to getLogs"
-    );
-  }
-  const filter = {
-    address: params.target,
-    topics: params.topics,
-    fromBlock: params.fromBlock,
-    toBlock: params.toBlock // We don't replicate Defipulse's bug because the results end up being the same anyway and hopefully they'll eventually fix it
-  };
-  let logs: Log[] = [];
-  let blockSpread = params.toBlock - params.fromBlock;
-  let currentBlock = params.fromBlock;
-  while (currentBlock < params.toBlock) {
-    const nextBlock = Math.min(params.toBlock, currentBlock + blockSpread);
-    try {
-      const partLogs = await sdk.api.config.getProvider(params.chain).getLogs({
-        ...filter,
-        fromBlock: currentBlock,
-        toBlock: nextBlock
-      });
-      logs = logs.concat(partLogs);
-      currentBlock = nextBlock;
-    } catch (e) {
-      if (blockSpread >= 2e3) {
-        // We got too many results
-        // We could chop it up into 2K block spreads as that is guaranteed to always return but then we'll have to make a lot of queries (easily >1000), so instead we'll keep dividing the block spread by two until we make it
-        blockSpread = Math.floor(blockSpread / 2);
-      } else {
-        throw e;
-      }
-    }
-  }
-  if (params.keys.length > 0) {
-    if (params.keys[0] !== "topics") {
-      throw new Error("Unsupported");
-    }
-    return {
-      output: logs.map((log) => log.topics)
-    };
-  }
-  return {
-    output: logs
-  };
-}
 
 const getRewardTokensABI = {
   "inputs": [],

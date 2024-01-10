@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers";
+import { BigNumberish } from "ethers";
 
 interface IPrices {
   [address: string]: {
@@ -23,10 +23,10 @@ interface IContext {
 
 interface IAccrueInterestLog {
   market: string;
-  cashPrior: BigNumber;
-  interestAccumulated: BigNumber;
-  borrowIndexNew: BigNumber;
-  totalBorrowsNew: BigNumber;
+  cashPrior: BigNumberish;
+  interestAccumulated: BigNumberish;
+  borrowIndexNew: BigNumberish;
+  totalBorrowsNew: BigNumberish;
 }
 
 export { IPrices, IContext, IAccrueInterestLog };

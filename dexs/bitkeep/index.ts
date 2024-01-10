@@ -1,10 +1,6 @@
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers,  } from "ethers";
 import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 

@@ -44,17 +44,13 @@ export const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-    const logs: ILog[] = (await Promise.all(contracts.filter(e => e.startBlcok <= fromBlock).map((contract: IConrtact) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(contracts.filter(e => e.startBlcok <= fromBlock).map((contract: IConrtact) => sdk.getEventLogs({
       target: contract.adddress,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.ETHEREUM,
       topics: [topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat() as ILog[];
 
     const fes_raw: IAmount[]  = logs.filter(e => e.data.length === 1602)
       .map((e: ILog) => {

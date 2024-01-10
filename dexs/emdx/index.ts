@@ -18,15 +18,13 @@ const fetch = async (timestamp: number) => {
 
   const fromBlock = (await getBlock(todaysTimestamp, CHAIN.AVAX, {}));
   const toBlock = (await getBlock(yesterdaysTimestamp, CHAIN.AVAX, {}));
-  const logs: ITx[] = (await sdk.api.util.getLogs({
+  const logs: ITx[] = (await sdk.getEventLogs({
     target: address,
-    topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: [topic0],
-    keys: [],
     chain: CHAIN.AVAX
-  })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+  })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
   const dailyVolume = logs.map((tx: ITx) => {
     const amount = Number('0x' + tx.data.slice(64, 128)) / 10 **  18;
     return amount;

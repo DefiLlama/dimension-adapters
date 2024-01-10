@@ -16,51 +16,49 @@ interface ITx {
   transactionHash: string;
 }
 
-async function getFees(todaysTimestamp: number, yesterdaysTimestamp: number, _: ChainBlocks){
+async function getFees(todaysTimestamp: number, yesterdaysTimestamp: number, _: ChainBlocks) {
   const todaysBlock = (await getBlock(todaysTimestamp, "boba", {}));
   const endTodayBlock = (await getBlock(yesterdaysTimestamp, "boba", {}));
-  const logs: ITx[] = (await sdk.api.util.getLogs({
+  const logs: ITx[] = (await sdk.getEventLogs({
     target: withdrawal_address,
-    topic: '',
     fromBlock: todaysBlock,
     toBlock: endTodayBlock,
     topics: [topic0, topic1],
-    keys: [],
     chain: 'boba'
-  })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+  })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
   const amounts: number[] = logs.map((tx: ITx) => {
-    const amount = Number('0x' + tx.data.slice(64, 128)) / 10 **  18;
+    const amount = Number('0x' + tx.data.slice(64, 128)) / 10 ** 18;
     return amount;
   });
   const dailyFee = amounts.reduce((a: number, b: number) => a + b, 0);
 
   const feeWallet = '0x4200000000000000000000000000000000000011';
-  const startBalance = await getBalance({
+  const { output: startBalance } = await getBalance({
     target: feeWallet,
     block: todaysBlock,
     chain: "boba"
   });
-  const endBalance = await getBalance({
+  const { output: endBalance } = await getBalance({
     target: feeWallet,
     block: endTodayBlock,
     chain: "boba"
   });
-  return ((Number(endBalance.output) - Number(startBalance.output)) / 10 ** 18) + dailyFee
+  return ((Number(endBalance) - Number(startBalance)) / 10 ** 18) + dailyFee
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.BOBA]: {
-      fetch:  async (timestamp: number, chainBlocks: ChainBlocks) => {
+      fetch: async (timestamp: number, chainBlocks: ChainBlocks) => {
         const sql = postgres(process.env.INDEXA_DB!);
         try {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-            const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-            const startDay = new Date(todaysTimestamp * 1e3);
-            const endDay = new Date(endToDayTimestamp * 1e3);
-            const totalFees = await getFees(todaysTimestamp, endToDayTimestamp, chainBlocks)
-            const sequencerGas = await sql`
+          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+          const endToDayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+          const startDay = new Date(todaysTimestamp * 1e3);
+          const endDay = new Date(endToDayTimestamp * 1e3);
+          const totalFees = await getFees(todaysTimestamp, endToDayTimestamp, chainBlocks)
+          const sequencerGas = await sql`
               SELECT
                 sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price)/10^18 as sum
               FROM ethereum.transactions
@@ -70,24 +68,24 @@ const adapter: Adapter = {
               ) AND (block_time BETWEEN ${startDay} AND ${endDay});
             `
 
-            const seqGas = sequencerGas[0].sum;
-            const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-            const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-            await sql.end({ timeout: 3 });
-            const dailyRevenue = (totalFees - seqGas) * (ethPrice);
-            return {
-              timestamp,
-              dailyFees: (totalFees * ethPrice).toString(),
-              dailyRevenue: dailyRevenue.toString(),
-            };
-          } catch(error) {
-            await sql.end({ timeout: 3 });
-            throw error
-          }
-        },
-        start: async () => 1664582400
+          const seqGas = sequencerGas[0].sum;
+          const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+          const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+          await sql.end({ timeout: 3 });
+          const dailyRevenue = (totalFees - seqGas) * (ethPrice);
+          return {
+            timestamp,
+            dailyFees: (totalFees * ethPrice).toString(),
+            dailyRevenue: dailyRevenue.toString(),
+          };
+        } catch (error) {
+          await sql.end({ timeout: 3 });
+          throw error
+        }
+      },
+      start: async () => 1664582400
     },
-},
+  },
   protocolType: ProtocolType.CHAIN
 }
 

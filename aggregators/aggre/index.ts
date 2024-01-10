@@ -9,7 +9,7 @@ import * as sdk from "@defillama/sdk";
 const eventSignature = 'SwapExecuted(address,address,address,uint256,uint256,uint256)'
 
 let abi = [ "event SwapExecuted(address indexed user, address tokenIn, address tokenOut, uint amountIn, uint amountOut, uint swapType)" ];
-let iface = new ethers.utils.Interface(abi);
+let iface = new ethers.Interface(abi);
 
 type IContract = {
     [c: string | Chain]: string;
@@ -45,27 +45,26 @@ const fetch = (chain: Chain) => {
             let provider =  sdk.api.config.getProvider(CHAIN.SCROLL);
 
             if (!provider) {
-                sdk.api.config.setProvider(CHAIN.SCROLL, new ethers.providers.JsonRpcProvider('https://rpc.scroll.io'));
+                sdk.api.config.setProvider(CHAIN.SCROLL, new ethers.JsonRpcProvider('https://rpc.scroll.io'));
             }
 
-            const swapTopic = ethers.utils.id(eventSignature);
-            const logs = (await sdk.api.util.getLogs({
+            const swapTopic = ethers.id(eventSignature);
+            const logs = (await sdk.getEventLogs({
                 target: contract[chain],
                 topic: swapTopic,
                 toBlock: toBlock,
                 fromBlock: fromBlock,
-                keys: [],
-                chain: chain,
+                chain,
                 topics: [swapTopic]
-            })).output as EthLog[];
+            }))
 
-            const data = logs.map((e: EthLog) => {
+            const data = logs.map((e: any) => {
                 const parsed = iface.parseLog(e);
                 return {
-                    fromToken: parsed.args.tokenIn,
-                    toToken: parsed.args.tokenOut,
-                    fromAmount: parsed.args.amountIn,
-                    toAmount: parsed.args.amountOut
+                    fromToken: parsed!.args.tokenIn,
+                    toToken: parsed!.args.tokenOut,
+                    fromAmount: parsed!.args.amountIn,
+                    toAmount: parsed!.args.amountOut
                 }
             });
             const coins: string[] = [...new Set([...new Set(data.map((e: AggreData) => `${chain}:${e.fromToken}`)), ...new Set(data.map((e: AggreData) => `${chain}:${e.toToken}`))])];

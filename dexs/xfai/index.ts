@@ -86,7 +86,7 @@ const fetchTotalFees = async (block: number) => {
   const totalFees: [string, BigNumber, number][] = inftBalances.map(
     ({ input, output }: { output: string; input: any }, i: number) => [
       `${CHAIN.LINEA}:${input.target}`,
-      new BigNumber(output).plus(harvestedBalance[i].output).times(2),
+      new BigNumber(output).plus(harvestedBalance[i]).times(2),
       tDecimals[input.target],
     ]
   );

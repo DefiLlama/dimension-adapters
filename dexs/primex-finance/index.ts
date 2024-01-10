@@ -32,7 +32,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     },
   ]
 
-  const contractInterface = new ethers.utils.Interface(abi)
+  const contractInterface = new ethers.Interface(abi)
 
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
@@ -42,50 +42,48 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     
     const [swapLogs, openPositionLogs, closePositionLogs, partiallyClosePositionLogs, closePositionBatchLogs] = (await Promise.all(logsConfig.map(async ({ targets, topics }) => {
       return (await Promise.all(targets.map(target => {
-        return sdk.api.util.getLogs({
+        return sdk.getEventLogs({
           target,
-          topic: '',
           toBlock: toBlock,
           fromBlock: fromBlock,
-          keys: [],
           chain,
           topics
         })
-      }))).map(r => r.output as ethers.providers.Log[]).flat()
+      }))).map(r => r as ethers.Log[]).flat()
     })))
 
     const swapTokens: string[] = swapLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const tokenA = parsedLog.args.tokenA.toLowerCase();
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const tokenA = parsedLog!.args.tokenA.toLowerCase();
         return tokenA
       });
 
     const openPositionTokens: string[] = openPositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.position.soldAsset.toLowerCase();
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.position.soldAsset.toLowerCase();
         return soldAsset
       });
 
     const closePositionTokens: string[] = closePositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.soldAsset.toLowerCase();
         return soldAsset
       })
       
     const partiallyClosePositionTokens: string[] = partiallyClosePositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.soldAsset.toLowerCase();
         return soldAsset
       })
 
     const closePositionBatchTokens: string[] = closePositionBatchLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.soldAsset.toLowerCase();
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.soldAsset.toLowerCase();
         return soldAsset
       })
 
@@ -95,10 +93,10 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
     const prices = await getPrices(priceKeys, timestamp);
 
     const swapVolumeUSD: number = swapLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const amountSold = Number(parsedLog.args.amountSold._hex);
-        const tokenA = parsedLog.args.tokenA;
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const amountSold = Number(parsedLog!.args.amountSold);
+        const tokenA = parsedLog!.args.tokenA;
         const priceA = prices[`${chain}:${tokenA.toLowerCase()}`]?.price || 0;
         const decimalsA = prices[`${chain}:${tokenA.toLowerCase()}`]?.decimals || 0;
         return (amountSold / 10 ** decimalsA) * priceA;
@@ -106,46 +104,46 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultV
       .reduce((a: number, b: number) => a + b, 0)
     
     const openPositionVolumeUSD: number = openPositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.position.soldAsset;
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.position.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const depositAmountInSoldAsset = Number(parsedLog.args.position.depositAmountInSoldAsset._hex) / 10 ** decimalsSoldAsset;
-        const leverage = Number(parsedLog.args.leverage) / 10 ** 18
+        const depositAmountInSoldAsset = Number(parsedLog!.args.position.depositAmountInSoldAsset) / 10 ** decimalsSoldAsset;
+        const leverage = Number(parsedLog!.args.leverage) / 10 ** 18
         return depositAmountInSoldAsset * leverage * priceSoldAsset;
       })
       .reduce((a: number, b: number) => a + b, 0)
 
     const closePositionVolumeUSD: number = closePositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.soldAsset;
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const amountOut = Number(parsedLog.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+        const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
         return amountOut * priceSoldAsset;
       })
       .reduce((a: number, b: number) => a + b, 0)
       
     const partiallyClosePositionVolumeUSD: number = partiallyClosePositionLogs
-      .map((log: ethers.providers.Log) => {
-        const parsedLog = contractInterface.parseLog(log);
-        const soldAsset = parsedLog.args.soldAsset;
+      .map((log: ethers.Log) => {
+        const parsedLog = contractInterface.parseLog(log as any);
+        const soldAsset = parsedLog!.args.soldAsset;
         const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
         const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-        const amountOut = Number(parsedLog.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+        const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
         return amountOut * priceSoldAsset;
       })
       .reduce((a: number, b: number) => a + b, 0)
 
     const closePositionBatchVolumeUSD: number = closePositionBatchLogs
-        .map((log: ethers.providers.Log) => {
-          const parsedLog = contractInterface.parseLog(log);
-          const soldAsset = parsedLog.args.soldAsset;
+        .map((log: ethers.Log) => {
+          const parsedLog = contractInterface.parseLog(log as any);
+          const soldAsset = parsedLog!.args.soldAsset;
           const priceSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.price || 0;
           const decimalsSoldAsset = prices[`${chain}:${soldAsset.toLowerCase()}`]?.decimals || 0;
-          const amountOut = Number(parsedLog.args.amountOut._hex) / 10 ** decimalsSoldAsset;
+          const amountOut = Number(parsedLog!.args.amountOut) / 10 ** decimalsSoldAsset;
           return amountOut * priceSoldAsset;
         })
         .reduce((a: number, b: number) => a + b, 0)

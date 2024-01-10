@@ -3,8 +3,9 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
+import { Chain, } from "@defillama/sdk/build/general";
 import postgres from 'postgres'
+import getTxReceipts from "../helpers/getTxReceipts";
 const topic0 = '0xa07a543ab8a018198e99ca0184c93fe9050a79400a0a723441f84de1d972cc17';
 
 type TAddress = {
@@ -45,15 +46,13 @@ const fetch = (chain: Chain) => {
         const fromBlock = (await getBlock(fromTimestamp, chain, {}));
         const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-        const logs: ITx[] = (await sdk.api.util.getLogs({
+        const logs: ITx[] = (await sdk.getEventLogs({
           target: address[chain],
-          topic: '',
           fromBlock: fromBlock,
           toBlock: toBlock,
           topics: [topic0],
-          keys: [],
           chain: chain
-        })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+        })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
         const rawLogsData: ISaleData[] = logs.map((tx: ITx) => {
           const amount = Number('0x' + tx.data.slice(256, 320));
@@ -85,10 +84,9 @@ const fetch = (chain: Chain) => {
             return Number(e.sum) / Number(e._count)
           }).reduce((a: number, b: number) =>a + b,0)
         } else {
-          const provider = getProvider(chain);
-          const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(logs.map((e: ITx) => provider.getTransactionReceipt(e.transactionHash))))
+          const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, logs.map((e: ITx) => e.transactionHash)))
             .map((e: any) => {
-              const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
+              const amount = (Number(e.gasUsed) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
               return amount
             })
             allGasUsed = txReceipt.reduce((a: number, b: number) => a + b, 0);

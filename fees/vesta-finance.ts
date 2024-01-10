@@ -30,7 +30,7 @@ const GMX_STAKER = "0xB9b8f95568D5a305c6D70D10Cc1361d9Df3e9F9a";
 const GLP_STAKER = "0xDB607928F10Ca503Ee6678522567e80D8498D759";
 const ETHEREUM = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_redemption,
   event_trove_liq,
   event_borrow_fees_paid,
@@ -73,158 +73,140 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const fee_paid_logs: number[] = (await sdk.api.util.getLogs({
+    const fee_paid_logs: number[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_fee_paid],
-      keys: [],
       chain: chain
-    })).output
-      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    }))
+      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
       .map((e: any) => contract_interface.parseLog(e))
-      .map((e: any) => Number(e.args._VSTFee._hex) / 10 ** 18);
+      .map((e: any) => Number(e!.args._VSTFee) / 10 ** 18);
 
 
-    const redemption_logs: IOutput[] = (await sdk.api.util.getLogs({
+    const redemption_logs: IOutput[] = (await sdk.getEventLogs({
       target: troveMagaer[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_redemption],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
-      .map((e: any) => { return {...contract_interface.parseLog(e), ...e}})
+    })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
+      .map((e: any) => { return { ...contract_interface.parseLog(e), ...e } })
       .map((e: any) => {
         return {
-          asset: e.args._asset,
-          fees: Number(e.args._AssetFee._hex),
+          asset: e!.args._asset,
+          fees: Number(e!.args._AssetFee),
           tx: e.transactionHash
         }
       });
 
-    const liq_logs: any[] = (await sdk.api.util.getLogs({
+    const liq_logs: any[] = (await sdk.getEventLogs({
       target: troveMagaer[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_liq],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
-      .map((e: any) => { return { ...contract_interface.parseLog(e), ...e}})
+    })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
+      .map((e: any) => { return { ...contract_interface.parseLog(e), ...e } })
       .map((e: any) => {
         return {
-          asset: e.args._asset,
-          fees: Number(e.args._liquidatedColl._hex),
+          asset: e!.args._asset,
+          fees: Number(e!.args._liquidatedColl),
           tx: e.transactionHash
         }
       });
     const liq_hash = liq_logs.map((e: any) => e.tx.toLowerCase())
     const vst_burn_amount: number = (await Promise.all(
-      liq_logs.map((e: IOutput) => sdk.api.util.getLogs({
+      liq_logs.map((e: IOutput) => sdk.getEventLogs({
         target: VST_ADDRESS,
-        topic: '',
         fromBlock: fromBlock,
         toBlock: toBlock,
         topics: [
           topic0_evt_tranfer,
-          ethers.utils.hexZeroPad(ethers.utils.hexStripZeros(e.asset), 32),
-          ethers.utils.hexZeroPad(ethers.utils.hexStripZeros(ZERO_ADDRESS), 32)],
-        keys: [],
+          ethers.zeroPadValue(hexStripZeros(e.asset), 32),
+          ethers.zeroPadValue(hexStripZeros(ZERO_ADDRESS), 32)],
         chain: chain,
-    })))).map((e: any) => e.output.map((p: any) => {
-      return {
-        data: p.data,
-        transactionHash: p.transactionHash
-      } as ITx
-    }))
+      })))).map((e: any) => e.map((p: any) => {
+        return {
+          data: p.data,
+          transactionHash: p.transactionHash
+        } as ITx
+      }))
       .flat()
       .filter((e: ITx) => liq_hash.includes(e.transactionHash.toLowerCase()))
       .map((e: ITx) => {
         return Number(e.data) / 10 ** 18;
-      }).reduce((a: number, b: number) => a+b,0);
+      }).reduce((a: number, b: number) => a + b, 0);
 
     const asset_liq = liq_logs.map((e: IOutput) => e.asset.toLowerCase())
-    const asset_sent_logs: any[] = (await sdk.api.util.getLogs({
+    const asset_sent_logs: any[] = (await sdk.getEventLogs({
       target: ACTIVE_POOL_ADDRESS,
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [
         topic0_asset_sent
       ],
-      keys: [],
       chain: chain,
-    })).output
-      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    }))
+      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
       .filter((e: ITx) => liq_hash.includes(e.transactionHash.toLowerCase()))
-      .map((e: any) => {return { ...contract_interface.parseLog(e), ...e}})
-      .filter((e: any) => asset_liq.includes(e.args._to.toLowerCase()))
+      .map((e: any) => { return { ...contract_interface.parseLog(e), ...e } })
+      .filter((e: any) => asset_liq.includes(e!.args._to.toLowerCase()))
       .map((e: any) => {
         return {
-          asset: e.args._asset,
-          fees: Number(e.args._amount._hex),
+          asset: e!.args._asset,
+          fees: Number(e!.args._amount),
           tx: e.transactionHash
         }
       });
 
-    // const liq_trove_logs: IOutput[] = (await sdk.api.util.getLogs({
+    // const liq_trove_logs: IOutput[] = (await sdk.getEventLogs({
     //   target: troveMagaer[chain],
-    //   topic: '',
     //   fromBlock: fromBlock,
     //   toBlock: toBlock,
     //   topics: [topic0_trove_liq],
-    //   keys: [],
     //   chain: chain
-    // })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    // })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
     //   .map((e: any) => contract_interface.parseLog(e))
     //   .map((e: any) => {
     //     return {
-    //       asset: e.args._asset,
-    //       fees: Number(e.args._debt._hex)
+    //       asset: e!.args._asset,
+    //       fees: Number(e!.args._debt)
     //     }
     //   });
 
-    const reward_gmx_staker: number[] = (await sdk.api.util.getLogs({
+    const reward_gmx_staker: number[] = (await sdk.getEventLogs({
       target: GMX_STAKER,
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_reward_staker],
-      keys: [],
       chain: chain
-    })).output
-      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    }))
+      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
       .map((e: any) => contract_interface.parseLog(e))
-      .map((e: any) => Number(e.args.reward._hex) / 10 ** 18);
+      .map((e: any) => Number(e!.args.reward) / 10 ** 18);
 
-    const reward_glp_staker: number[] = (await sdk.api.util.getLogs({
-        target: GLP_STAKER,
-        topic: '',
-        fromBlock: fromBlock,
-        toBlock: toBlock,
-        topics: [topic0_reward_staker],
-        keys: [],
-        chain: chain
-      })).output
-        .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
-        .map((e: any) => contract_interface.parseLog(e))
-        .map((e: any) => Number(e.args.reward._hex) / 10 ** 18);
+    const reward_glp_staker: number[] = (await sdk.getEventLogs({
+      target: GLP_STAKER,
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      topics: [topic0_reward_staker],
+      chain: chain
+    }))
+      .map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
+      .map((e: any) => contract_interface.parseLog(e))
+      .map((e: any) => Number(e!.args.reward) / 10 ** 18);
 
-    const interate_mint_logs = (await sdk.api.util.getLogs({
+    const interate_mint_logs = (await sdk.getEventLogs({
       target: invest_addres[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_interest_minted],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx})
-    .map((e: any) => contract_interface.parseLog(e))
-    .map((e: any) => Number(e.args.interestMinted._hex) / 10 ** 18);
+    })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx })
+      .map((e: any) => contract_interface.parseLog(e))
+      .map((e: any) => Number(e!.args.interestMinted) / 10 ** 18);
 
     const rawCoins = [
       ...redemption_logs.map((e: IOutput) => e.asset),
@@ -238,8 +220,8 @@ const fetch = (chain: Chain) => {
 
     const redemption_fees = redemption_logs.map((e: IOutput) => {
       const price = prices[`${chain}:${e.asset.toLowerCase()}`];
-      return (e.fees /  10 ** price.decimals) * price.price;
-    }).reduce((a: number, b: number) => a+b,0);
+      return (e.fees / 10 ** price.decimals) * price.price;
+    }).reduce((a: number, b: number) => a + b, 0);
 
 
     // const liq_trove_fees = liq_trove_logs.map((e: IOutput) => {
@@ -249,14 +231,14 @@ const fetch = (chain: Chain) => {
 
     const asset_sent = asset_sent_logs.map((e: IOutput) => {
       const price = prices[`${chain}:${e.asset.toLowerCase()}`];
-      return (e.fees /  10 ** price.decimals) * price.price;
-    }).reduce((a: number, b: number) => a+b,0);
+      return (e.fees / 10 ** price.decimals) * price.price;
+    }).reduce((a: number, b: number) => a + b, 0);
 
     // const liq_trove_fees_usd = liq_trove_fees * (0.5 / 100) + 30;
-    const reward_received = [...reward_gmx_staker, ...reward_glp_staker].reduce((a: number, b: number) => a+b, 0)
+    const reward_received = [...reward_gmx_staker, ...reward_glp_staker].reduce((a: number, b: number) => a + b, 0)
     const reward_received_usd = reward_received * ether_price;
-    const borrow_paid_fees = fee_paid_logs.reduce((a: number, b: number) => a+b,0);
-    const interate_mint_fees = interate_mint_logs.reduce((e: number,b: number) => e+b,0)
+    const borrow_paid_fees = fee_paid_logs.reduce((a: number, b: number) => a + b, 0);
+    const interate_mint_fees = interate_mint_logs.reduce((e: number, b: number) => e + b, 0)
     const vst_burn_amount_usd = vst_price * vst_burn_amount;
     const liq_fees_usd = asset_sent - vst_burn_amount_usd;
     const dailyFees = (borrow_paid_fees + interate_mint_fees + redemption_fees + liq_fees_usd + reward_received_usd);
@@ -272,9 +254,17 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1672272000,
+      start: async () => 1672272000,
     },
   }
 }
 
 export default adapter;
+
+
+function hexStripZeros(value: string): string {
+  value = value.substring(2);
+  let offset = 0;
+  while (offset < value.length && value[offset] === "0") { offset++; }
+  return "0x" + value.substring(offset);
+}

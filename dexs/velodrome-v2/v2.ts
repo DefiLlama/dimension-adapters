@@ -86,13 +86,13 @@ export const fetchV2 = async (timestamp: number) => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
-    const poolLength = (await sdk.api.abi.call({
+    const poolLength = (await sdk.api2.abi.call({
       target: FACTORY_ADDRESS,
       chain: CHAIN.OPTIMISM,
       abi: ABIs.allPoolsLength,
-    })).output;
+    }));
 
-    const poolsRes = await sdk.api.abi.multiCall({
+    const poolsRes = await sdk.api2.abi.multiCall({
       abi: ABIs.allPools,
       calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
         target: FACTORY_ADDRESS,
@@ -101,12 +101,11 @@ export const fetchV2 = async (timestamp: number) => {
       chain: CHAIN.OPTIMISM
     });
 
-    const lpTokens = poolsRes.output
-      .map(({ output }: any) => output);
+    const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: lpTokens.map((address: string) => ({
             target: address,
@@ -117,21 +116,18 @@ export const fetchV2 = async (timestamp: number) => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
       target: address,
       topic: topic_name,
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.OPTIMISM,
       topics: [topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output);
+    })))) as any;
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
     const coins: string[] = [...new Set(rawCoins)]
     const coins_split: string[][] = [];

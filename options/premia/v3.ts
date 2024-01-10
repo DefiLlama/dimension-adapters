@@ -1,4 +1,3 @@
-import { utils } from "ethers";
 import { request, gql } from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";
 import { getBlock } from "../../helpers/getBlock";

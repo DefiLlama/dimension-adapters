@@ -12,7 +12,7 @@ const topic0 = "0x4b66c73cef2a561fd3c21c2af17630b43dddcff66e6803219be3989857b29e
 const event_market_create =
   "event MarketCreated (uint256 indexed marketId, address premium, address collateral, address underlyingAsset, address token, string name, uint256 strike, address controller)";
 
-const contract_interface = new ethers.utils.Interface([event_market_create]);
+const contract_interface = new ethers.Interface([event_market_create]);
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24;
@@ -22,18 +22,16 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const toBlock = await getBlock(toTimestamp, CHAIN.ARBITRUM, {});
 
   const logs_market_create: ITx[] = (
-    await sdk.api.util.getLogs({
+    await sdk.getEventLogs({
       target: factory,
-      topic: "",
       fromBlock: 96059531,
       toBlock: toBlock,
       topics: [topic0_market_create],
-      keys: [],
       chain: CHAIN.ARBITRUM,
     })
-  ).output as ITx[];
+  ) as ITx[];
 
-  const market_create = logs_market_create.map((e) => contract_interface.parseLog(e).args);
+  const market_create = logs_market_create.map((e) => contract_interface.parseLog(e)!.args);
   const premium = market_create.map((e: any) => e.premium.toLowerCase());
   const collateral = market_create.map((e: any) => e.collateral.toLowerCase());
   const vaults = [...new Set([...premium, ...collateral])];

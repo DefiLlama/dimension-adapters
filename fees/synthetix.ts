@@ -41,15 +41,13 @@ const graphs = () => {
 
       const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
       const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-      const logs: ITx[] = (await sdk.api.util.getLogs({
+      const logs: ITx[] = (await sdk.getEventLogs({
         target: contract_address[chain],
-        topic: '',
         fromBlock: fromBlock,
         toBlock: toBlock,
         topics: [topic0, topic1, topic2],
-        keys: [],
         chain: chain
-      })).output.map((e: any) => { return { data: e.data, transactionHash: e.transactionHash } as ITx});
+      })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash } as ITx});
 
       const sUSD = `${chain}:${contract_address[chain].toLowerCase()}`;
       const sUSDPrice = (await getPrices([sUSD], timestamp))[sUSD].price;

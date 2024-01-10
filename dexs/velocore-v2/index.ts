@@ -4,7 +4,6 @@ import { ethers } from "ethers";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
-import BigNumber from "bignumber.js";
 
 interface ILog {
   data: string;
@@ -16,17 +15,15 @@ const abs = (a: number) => a < 0 ? -a : a;
 const fetch = async (timestamp: number) => {
   try {
     let abi = ["event Swap(address indexed pool, address indexed user, bytes32[] tokenRef, int128[] delta)"];
-    let iface = new ethers.utils.Interface(abi);
-    const volume: { [addr: string]: number } = ((await sdk.api.util.getLogs({
+    let iface = new ethers.Interface(abi);
+    const volume: { [addr: string]: number } = ((await sdk.getEventLogs({
       target: "0x1d0188c4B276A09366D05d6Be06aF61a73bC7535",
-      topic: "",
       fromBlock: await getBlock(timestamp - 60 * 60 * 24, CHAIN.LINEA, {}),
       toBlock: await getBlock(timestamp, CHAIN.LINEA, {}),
-      keys: [],
       chain: CHAIN.LINEA,
       topics: ["0xbaec78ca3218aba6fc32d82b79acdd1a47663d7b8da46e0c00947206d08f2071"]
-    })).output as ILog[]).map((i) => {
-      const e = iface.parseLog(i).args;
+    }))as any as ILog[]).map((i) => {
+      const e = iface.parseLog(i)!.args;
       let volume: { [addr: string]: number } = {};
       for (let i = 0; i < e.tokenRef.length; i++) {
         if (e.tokenRef[i].slice(2 + 24).toLowerCase() == e.pool.slice(2).toLowerCase()) {

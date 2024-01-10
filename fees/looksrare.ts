@@ -24,25 +24,21 @@ const graphs = (chain: Chain) => {
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
 
-    const logs_bid: ITx[] = (await sdk.api.util.getLogs({
+    const logs_bid: ITx[] = (await sdk.getEventLogs({
       target: address,
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_taker_bid],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
 
-    const logs_ask: ITx[] = (await sdk.api.util.getLogs({
+    const logs_ask: ITx[] = (await sdk.getEventLogs({
       target: address,
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0_taker_ask],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx})
     const logs = logs_bid.concat(logs_ask)
 
     const rawLogsData: number[] = logs.map((tx: ITx) => {

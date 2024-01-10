@@ -31,25 +31,21 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
     try {
-      const logs_limit_ex: ILog[] = (await sdk.api.util.getLogs({
+      const logs_limit_ex: ILog[] = (await sdk.getEventLogs({
         target: contract_address[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_limit_ex]
-      })).output as ILog[];
+      }))as ILog[];
 
-      const logs_market_ex: ILog[] = (await sdk.api.util.getLogs({
+      const logs_market_ex: ILog[] = (await sdk.getEventLogs({
         target: contract_address[chain],
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0_market_ex]
-      })).output as ILog[];
+      }))as ILog[];
 
 
       const limit_volume = logs_limit_ex.map((e: ILog) => {

@@ -26,15 +26,14 @@ const fetch = () => {
       const fromBlock = await getBlock(dayAgo, CHAIN.ETHEREUM, {});
 			const toBlock = await getBlock(todaysTimestamp, CHAIN.ETHEREUM, {});
 
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: OLIT_TOKEN,
         topic: topic,
         toBlock,
         fromBlock,
-        keys: [],
         chain: CHAIN.ETHEREUM,
         topics: [topic0, topic1, topic2]
-      })).output as ILog[];
+      })) as ILog[];
 
     const olit_transfer_amounts: number[] = logs.map((e:any) => {
       return Number(e.data) / 10 ** 18;

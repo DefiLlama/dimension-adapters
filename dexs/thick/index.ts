@@ -12,7 +12,7 @@ const topic0_create_pool = '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b
 const topic0_event_pool_create = 'event PoolCreated(address indexed token0,address indexed token1,uint24 indexed fee,int24 tickSpacing,address pool)';
 const topic0_swap = '0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67';
 const topic0_event_swap = 'event Swap(address indexed sender,address indexed recipient,int256 amount0,int256 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick)'
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   topic0_event_pool_create,
   topic0_event_swap
 ])
@@ -54,40 +54,34 @@ const graph = (_chain: Chain) => {
     try {
       const fromBlock = (await getBlock(fromTimestamp, _chain, {}));
       const toBlock = (await getBlock(toTimestamp, _chain, {}));
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: poolFactoryAddress,
-        topic: '',
         fromBlock: fromBlocks[_chain as keyof typeof fromBlocks],
         toBlock: toBlock,
         chain: _chain,
         topics: [topic0_create_pool],
-        keys: []
-      })).output as ILog[];
-      const poolAddresses = logs.map((e: ILog) => contract_interface.parseLog(e).args.pool);
-      const poolFees = logs.map((e: ILog) => contract_interface.parseLog(e).args.fee);
-      const tokens0 = logs.map((e: ILog) => contract_interface.parseLog(e).args.token0);
-      const tokens1 = logs.map((e: ILog) => contract_interface.parseLog(e).args.token1);
+      })) as ILog[];
+      const poolAddresses = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.pool);
+      const poolFees = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.fee);
+      const tokens0 = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.token0);
+      const tokens1 = logs.map((e: ILog) => contract_interface.parseLog(e)!.args.token1);
 
       const coins: string[] =  [...new Set([...tokens0.concat(tokens1).map((e: string) => `${_chain}:${e}`)])];
 
-      const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.api.util.getLogs({
+      const logsSwap: ILog[] = (await Promise.all(poolAddresses.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: _chain,
         topics: [topic0_swap]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
 
       const prices = await getPrices(coins, timestamp);
 
       const dailyVolume = logsSwap.map((e: ILog) => {
         const parsed = contract_interface.parseLog(e);
-        const amount0 = Math.abs(Number(parsed.args.amount0._hex.replace('-', '')));
-        const amount1 = Math.abs(Number(parsed.args.amount1._hex.replace('-', '')));
+        const amount0 = Math.abs(Number(parsed!.args.amount0.toString().replace('-', '')));
+        const amount1 = Math.abs(Number(parsed!.args.amount1.toString().replace('-', '')));
         const index = poolAddresses.indexOf(e.address);
         const token0 = tokens0[index];
         const token1 = tokens1[index];

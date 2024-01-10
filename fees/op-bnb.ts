@@ -21,15 +21,13 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
   const yesterdaysBlock = (await getBlock(fromTimestamp,CHAIN.OP_BNB, {}));
   const feeWallet = '0x4200000000000000000000000000000000000011';
   const l1FeeVault = '0x420000000000000000000000000000000000001a';
-  const logsWithdrawal: ILog[] = (await Promise.all([feeWallet, l1FeeVault].map(address => sdk.api.util.getLogs({
-    keys: [],
+  const logsWithdrawal: ILog[] = (await Promise.all([feeWallet, l1FeeVault].map(address => sdk.getEventLogs({
     toBlock: todaysBlock1,
     fromBlock: yesterdaysBlock,
     target: address,
-    topic: '',
     topics: [topic0],
     chain: CHAIN.OP_BNB,
-  })))).map((p: any) => p.output).flat();
+  })))).flat();
   const withdrawAmount = logsWithdrawal.map((log: ILog) => {
     const parsedLog = log.data.replace('0x', '')
     const amount = Number('0x' + parsedLog.slice(0, 64));
@@ -39,7 +37,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
   return await retry(async () => {
     try {
 
-      const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = await Promise.all([
+      const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = (await Promise.all([
         getBalance({
           target: feeWallet,
           block: yesterdaysBlock,
@@ -60,10 +58,10 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
           block: todaysBlock,
           chain:CHAIN.OP_BNB
         })
-      ]);
+      ])).map(i => i.output);
 
-      const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
-          .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
+      const ethBalance = (new BigNumber(feeWalletEnd).minus(feeWalletStart))
+          .plus((new BigNumber(l1FeeVaultEnd).minus(l1FeeVaultStart)))
 
       return (ethBalance.plus(withdrawAmount)).div(1e18)
     } catch (e) {

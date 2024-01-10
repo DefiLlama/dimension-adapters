@@ -75,13 +75,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const toTimestamp = timestamp
 
   try {
-    const poolLength = (await sdk.api.abi.call({
+    const poolLength = (await sdk.api2.abi.call({
       target: FACTORY_ADDRESS,
       chain: 'kava',
       abi: ABIs.allPairsLength,
-    })).output;
+    }));
 
-    const poolsRes = await sdk.api.abi.multiCall({
+    const poolsRes = await sdk.api2.abi.multiCall({
       abi: ABIs.allPairs,
       calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
         target: FACTORY_ADDRESS,
@@ -91,12 +91,11 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       permitFailure: true,
     });
 
-    const lpTokens = poolsRes.output
-      .map(({ output }: any) => output);
+    const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: lpTokens.map((address: string) => ({
             target: address,
@@ -107,25 +106,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
     const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
     const toBlock = (await getBlock(toTimestamp, 'kava', {}));
 
     const _logs: ILog[] = [];
     const split_size: number = 55;
     for(let i = 0; i < lpTokens.length; i+=split_size) {
-      const logs: ILog[] = (await Promise.all(lpTokens.slice(i, i + split_size).map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[] = (await Promise.all(lpTokens.slice(i, i + split_size).map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: 'kava',
         topics: [topic0]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
       _logs.push(...logs)
     }
 

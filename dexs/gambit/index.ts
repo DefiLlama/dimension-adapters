@@ -37,34 +37,30 @@ const fetch = (chain: Chain) => {
       const logs_limit_ex: ILog[] = (
         await Promise.all(
           contractAddressList.map(async (address) => {
-            return sdk.api.util.getLogs({
+            return sdk.getEventLogs({
               target: address,
-              topic: '',
               toBlock: toBlock,
               fromBlock: fromBlock,
-              keys: [],
               chain: chain,
               topics: [topic0_limit_ex],
             });
           })
         )
-      ).flatMap((response) => (response as any).output) as ILog[];
+      ).flatMap((response) => (response as any)) as ILog[];
 
       const logs_market_ex: ILog[] = (
         await Promise.all(
           contractAddressList.map(async (address) => {
-            return sdk.api.util.getLogs({
+            return sdk.getEventLogs({
               target: address,
-              topic: '',
               toBlock: toBlock,
               fromBlock: fromBlock,
-              keys: [],
               chain: chain,
               topics: [topic0_market_ex],
             });
           })
         )
-      ).flatMap((response) => (response as any).output) as ILog[];
+      ).flatMap((response) => (response as any)) as ILog[];
 
       const limit_volume = logs_limit_ex.map((e: ILog) => {
         const data = e.data.replace('0x', '');
