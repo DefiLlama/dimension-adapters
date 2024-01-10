@@ -92,15 +92,15 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
     const tradeVolume = logs_modify.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value!.args.tradeSize.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value!.args.lastPrice.replace('-', '')) / 10 ** 18;
+      const tradeSize = Number(value!.args.tradeSize.toString().replace('-', '')) / 10 ** 18;
+      const lastPrice = Number(value!.args.lastPrice.toString().replace('-', '')) / 10 ** 18;
       return (tradeSize * lastPrice);
     }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
 
     const liqVolume = logs_liq.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value!.args.size.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value!.args.price.replace('-', '')) / 10 ** 18;
+      const tradeSize = Number(value!.args.size.toString().replace('-', '')) / 10 ** 18;
+      const lastPrice = Number(value!.args.price.toString().replace('-', '')) / 10 ** 18;
       return (tradeSize * lastPrice);
     }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
     const dailyVolume = tradeVolume + liqVolume;

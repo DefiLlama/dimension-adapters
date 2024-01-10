@@ -80,8 +80,8 @@ const graph = (_chain: Chain) => {
 
       const dailyVolume = logsSwap.map((e: ILog) => {
         const parsed = contract_interface.parseLog(e);
-        const amount0 = Math.abs(Number(parsed!.args.amount0.replace('-', '')));
-        const amount1 = Math.abs(Number(parsed!.args.amount1.replace('-', '')));
+        const amount0 = Math.abs(Number(parsed!.args.amount0.toString().replace('-', '')));
+        const amount1 = Math.abs(Number(parsed!.args.amount1.toString().replace('-', '')));
         const index = poolAddresses.indexOf(e.address);
         const token0 = tokens0[index];
         const token1 = tokens1[index];

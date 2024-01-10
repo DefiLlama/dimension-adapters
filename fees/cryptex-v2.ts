@@ -185,7 +185,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     price_.forEach((e: any) => {
       const raw_price: string = e.price;
       const version: string = e.version;
-      const price =  Number(raw_price.replace('-', '')) / 10 ** 18;
+      const price =  Number(raw_price.toString().replace('-', '')) / 10 ** 18;
       _prices[version] = price;
     });
 
