@@ -82,7 +82,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       fromBlock: fromBlock,
       chain: CHAIN.ONUS,
       topics: [topic0_swap]
-    }))))
+    })))) as any;
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
