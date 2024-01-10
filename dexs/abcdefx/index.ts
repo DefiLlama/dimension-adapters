@@ -122,7 +122,7 @@ const graph = (_chain: Chain) => {
 				fromBlock: fromBlock,
 				chain: _chain as Chain,
 				topics: [topic0]
-			}))))
+			})))) as any;
 			const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${_chain}:${e}`);
 			const coins = [...new Set(rawCoins)]
 			const prices = await getPrices(coins, timestamp);

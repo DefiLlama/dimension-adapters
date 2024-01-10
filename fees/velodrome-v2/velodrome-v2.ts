@@ -122,7 +122,7 @@ export const fetchV2 = async (fromBlock: number, toBlock: number, timestamp: num
       fromBlock: fromBlock,
       chain: CHAIN.OPTIMISM,
       topics: [topic0]
-    }))))
+    })))) as ILog[][];
     const rawCoins: string[] = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.OPTIMISM}:${e}`);
     const coins: string[] = [...new Set(rawCoins)]
     const coins_split: string[][] = [];

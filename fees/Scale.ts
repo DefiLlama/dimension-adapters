@@ -114,7 +114,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       fromBlock: fromBlock,
       chain: 'base',
       topics: [topic0]
-    }))));
+    })))) as ILog[][];
 
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `base:${e}`);
     const coins = [...new Set(rawCoins)]

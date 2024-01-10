@@ -119,7 +119,7 @@ const fetch = async (timestamp: number) => {
       fromBlock: fromBlock,
       chain: CHAIN.ARBITRUM,
       topics: [topic0]
-    }))))
+    })))) as any;
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.ARBITRUM}:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
