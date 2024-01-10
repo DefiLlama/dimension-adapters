@@ -73,6 +73,7 @@ for (const chain in chains) {
   if (chain == CHAIN.BSC || chain == CHAIN.ERA){
     startTime = 1680739200;
   };
+  if (chain === CHAIN.AURORA) startTime = 1665446400;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch(chain),
