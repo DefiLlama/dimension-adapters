@@ -61,7 +61,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
         data: log.data,
         topics: [log.topic0]
       });
-      const rate = parsedLog!.args.fees.takerFee.rate / 1e4;
+      const rate = Number(parsedLog!.args.fees.takerFee.rate || 0) / 1e4;
       const price = Number(parsedLog!.args.price) / 1e18;
       return rate * price;
     })
