@@ -34,6 +34,10 @@ const v3Graphs = getGraphDimensions({
 
 const adapter: Adapter = {
     adapter: {
+      [CHAIN.AVAX]: {
+        fetch: v3Graphs(CHAIN.AVAX),
+        start:  async () => 31524862
+      },
         [CHAIN.MANTA]: {
           fetch: v3Graphs(CHAIN.MANTA),
           start:  async () => 743017
