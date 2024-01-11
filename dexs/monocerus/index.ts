@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.AVAX]: "https://thegraph.com/hosted-service/subgraph/monocerusworld/v3-avax", 
   [CHAIN.MANTA]: "https://api.goldsky.com/api/public/project_clpm9wvhralny01szb1oa4pue/subgraphs/monocerus/1.2.0/gn"
 };
 
@@ -34,10 +33,6 @@ const v3Graphs = getGraphDimensions({
 
 const adapter: Adapter = {
     adapter: {
-      [CHAIN.AVAX]: {
-        fetch: v3Graphs(CHAIN.AVAX),
-        start:  async () => 31524862
-      },
       [CHAIN.MANTA]: {
         fetch: v3Graphs(CHAIN.MANTA),
         start:  async () => 743017
