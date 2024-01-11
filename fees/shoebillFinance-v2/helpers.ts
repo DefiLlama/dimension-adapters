@@ -30,7 +30,7 @@ const getAllMarketsMulti = async (
 };
 
 const getMarketDetails = async (markets: string[], chain: CHAIN) => {
-  
+
   const underlyings = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
@@ -49,7 +49,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   });
 
   return {
-    underlyings: underlyings ?? ETHER_ADDRESS,
+    underlyings: underlyings,
     reserveFactors: reserveFactors,
   };
 };

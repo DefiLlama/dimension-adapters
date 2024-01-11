@@ -23,6 +23,14 @@ const unitrollers = {
   ]
 }
 
+type IMapToken = {
+  [key: string ]: string;
+};
+const baseToken: IMapToken = {
+  [CHAIN.MANTA]: '0x0dc808adce2099a9f62aa87d9670745aba741746',
+  [CHAIN.WEMIX]: '0x7D72b22a74A216Af4a002a1095C8C707d6eC1C5f'
+}
+
 interface ITx {
   data: string;
   topics: string[];
@@ -41,10 +49,11 @@ const getContext = async (timestamp: number, _: ChainBlocks, chain: keyof typeof
     allMarketAddressess,
     chain
   );
-
+  const underlying = underlyings.map((x: string) => x === null ? baseToken[chain] : x)
   const prices = await getPrices(
     [
-      ...underlyings.map((x: string) => `${chain}:${x.toLowerCase()}`),
+      ...underlying
+        .map((x: string) => `${chain}:${x.toLowerCase()}`),
     ],
     timestamp
   );
@@ -56,7 +65,7 @@ const getContext = async (timestamp: number, _: ChainBlocks, chain: keyof typeof
     startBlock: fromBlock,
     endBlock: toBlock,
     markets: allMarketAddressess,
-    underlyings,
+    underlyings: underlying,
     reserveFactors,
     prices,
     chain,
@@ -96,7 +105,7 @@ const getDailyProtocolFees = async ({
   });
 
   logs.forEach((log: IAccrueInterestLog) => {
-    const marketIndex = markets.indexOf(log.market);
+    const marketIndex = markets.map((e: string) => e.toLowerCase()).indexOf(log.market.toLowerCase())
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${chain}:${underlying.toLowerCase()}`];
 
