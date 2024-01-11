@@ -35,7 +35,7 @@ const adapter: Adapter = {
     adapter: {
       [CHAIN.MANTA]: {
         fetch: v3Graphs(CHAIN.MANTA),
-        start:  async () => 743017
+        start:  async () => 1703548800
       }
     }
 };
