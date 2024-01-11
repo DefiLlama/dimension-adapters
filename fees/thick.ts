@@ -85,12 +85,12 @@ const graph = (_chain: Chain) => {
         const index = poolAddresses.indexOf(e.address);
         const token0 = tokens0[index];
         const token1 = tokens1[index];
-        const poolFee = poolFees[index];
+        const poolFee = Number(poolFees[index] || 0);
         const price0 = prices[`${_chain}:${token0}`]?.price || 0;
         const price1 = prices[`${_chain}:${token1}`]?.price || 0;
         const decimals0 = prices[`${_chain}:${token0}`]?.decimals || 0;
         const decimals1 = prices[`${_chain}:${token1}`]?.decimals || 0;
-        return price0 ? (amount0 / 10 ** decimals0) * price0 * poolFee/1e6 : (amount1/10**decimals1) * price1 * poolFee/1e6;
+        return price0 ? (amount0 / 10 ** decimals0) * price0 * (poolFee/1e6) : (amount1/10**decimals1) * price1 * (poolFee/1e6);
       }).reduce((a: number, b: number) => a + b, 0)
 
       return {
