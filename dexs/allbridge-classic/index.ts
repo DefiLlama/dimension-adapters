@@ -25,7 +25,7 @@ const getVolumeFunction = (chain: Chain) => {
 
     return {
       timestamp,
-      dailyVolume: dailyVolume ? String(dailyVolume) : undefined,
+      dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
     } as FetchResultVolume;
   }
 }

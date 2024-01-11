@@ -24,12 +24,12 @@ const getFeesFunction = (chain: Chain) => {
     const dailyFees = await getFees(chainCode, dateString, dateString);
     const dailyRevenue = dailyFees * 0.2;
     const dailySupplySideRevenue = dailyFees * 0.8;
-
+    console.log(`Fees for ${chain} on : ${dailyFees}`)
     return {
       timestamp,
-      dailyFees: dailyFees ? String(dailyFees) : undefined,
-      dailyProtocolRevenue: dailyRevenue ? String(dailyRevenue) : undefined,
-      dailySupplySideRevenue: dailySupplySideRevenue ? String(dailySupplySideRevenue) : undefined,
+      dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
+      dailyProtocolRevenue: dailyRevenue !== undefined ? String(dailyRevenue) : undefined,
+      dailySupplySideRevenue: dailySupplySideRevenue !== undefined ? String(dailySupplySideRevenue) : undefined,
     } as FetchResultFees;
   }
 }
