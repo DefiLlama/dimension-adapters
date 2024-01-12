@@ -36,7 +36,7 @@ async function usdEquivalent(timestamp: number) {
         FROM
           ethereum.traces
         WHERE
-          block_number > 17539904
+          block_number > 18844736
           and to_address = '\\x67262A61c0A459Fff172c22E60DBC730393BF790'
           and error is null
           AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
@@ -69,7 +69,7 @@ const adapter: Adapter = {
                     dailyFees: dailyFees.toString(),
                 };
             },
-            start: async () => 1690070400,
+            start: async () => 1703203200,
         },
     },
 }
