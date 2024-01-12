@@ -43,16 +43,11 @@ interface IData {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
-    console.log("timestamp: ", timestamp);
     const fromTimestamp = timestamp - 60 * 60 * 24;
-    console.log("fromTimestamp: ", fromTimestamp);
     const toTimestamp = timestamp;
-    console.log("toTimestamp: ", toTimestamp);
     try {
       const fromBlock = await getBlock(fromTimestamp, chain, {});
-      console.log("fromBlock: ", fromBlock);
       const toBlock = await getBlock(toTimestamp, chain, {});
-      console.log("toBlock: ", toBlock);
       const logs = (await sdk.getEventLogs({
         target: contract[chain],
         topic: topic0,
@@ -60,21 +55,14 @@ const fetch = (chain: Chain) => {
         fromBlock: fromBlock,
         chain: chain,
         topics: [topic0],
-      })) as ILog[];
-      console.log("logs: ", logs);
+      })) as ILog[] as any;
 
       const data: IData[] = logs.map((e: ILog) => {
         const _data = e.data.replace("0x", "");
-        console.log("_data: ", _data);
         const fromAssetId = "0x" + `0x${_data.slice(128, 192)}`.slice(26, 66);
-        console.log("fromAssetId: ", fromAssetId);
         const toAssetId = "0x" + `0x${_data.slice(192, 256)}`.slice(26, 66);
-        console.log("toAssetId: ", toAssetId);
         const fromAmount = Number(`0x${_data.slice(280, 320)}`);
-        console.log("fromAmount: ", fromAmount);
         const toAmount = Number(`0x${_data.slice(320, 384)}`);
-        console.log("toAmount: ", toAmount);
-        console.log("e.transactionHash", e.transactionHash);
         return {
           tx: e.transactionHash,
           fromAssetId,
@@ -90,7 +78,6 @@ const fetch = (chain: Chain) => {
           ...new Set(data.map((e: IData) => `${chain}:${e.toAssetId}`)),
         ]),
       ];
-      console.log("coins: ", coins);
 
       const coins_split: string[][] = [];
       for (let i = 0; i < coins.length; i += 100) {
