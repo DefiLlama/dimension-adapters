@@ -15,38 +15,12 @@ interface IBalance {
     total: string;
 }
 
-const checkBalance = async (timestamp: number, chainBlocks: ChainBlocks): Promise<IBalance> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const currentBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, chainBlocks);
-    const yesterdayBlock = await getBlock(fromTimestamp, CHAIN.ETHEREUM, {});
-
-    const paramsCurrent = {
-        target: CONTRACT_ADDRESS,
-        block: currentBlock,
-        chain: CHAIN.ETHEREUM,
-    }
-
-    const paramsYesterday = {
-        target: CONTRACT_ADDRESS,
-        block: yesterdayBlock,
-        chain: CHAIN.ETHEREUM,
-    }
-
-    const currentBalance = (await getBalance(paramsCurrent)).output;
-    const yesterdayBalance = (await getBalance(paramsYesterday)).output;
-
-    return {
-        daily: (Number(currentBalance) - Number(yesterdayBalance)).toString(),
-        total: Number(currentBalance).toString()
-    } as IBalance
-}
 interface IData {
     eth_value: string;
   }
 
 /** Calculate USD equivalent for a given ether amount */
-async function usdEquivalent(_: string, timestamp: number) {
+async function usdEquivalent(timestamp: number) {
     const sql = postgres(process.env.INDEXA_DB!);
 
     const now = new Date(timestamp * 1e3)
@@ -88,9 +62,8 @@ async function usdEquivalent(_: string, timestamp: number) {
 const adapter: Adapter = {
     adapter: {
         ethereum: {
-            fetch: async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
-                const { daily } = await checkBalance(timestamp, chainBlocks);
-                const dailyFees = await usdEquivalent(daily, timestamp)
+            fetch: async (timestamp: number): Promise<FetchResultFees> => {
+                const dailyFees = await usdEquivalent(timestamp)
                 return {
                     timestamp,
                     dailyFees: dailyFees.toString(),
