@@ -42,7 +42,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlock
             block = Number((await retry(async () => (await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
                 console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
                 throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-            }))?.data?.height)));
+            }))?.data?.height, { retries: 3 })));
         if (block) chainBlocks[chain] = block
         return block
         // https://base.blockscout.com
