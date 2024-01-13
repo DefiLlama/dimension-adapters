@@ -6,7 +6,7 @@ const {
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/id/QmPQfcovYgjF2vyGBE4LwXaSYj7Bgfvbny8MBpgLSBVKjB",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/knight-new-graph",
   [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/thedarkknightanalytics",
 };
 
@@ -38,20 +38,12 @@ const v2Graph = getChainVolumeWithGasToken({
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: v1Graph(CHAIN.BSC),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.BSC,
-        dailyDataField: `uniswapDayDatas`,
-      }),
+      fetch: v2Graph(CHAIN.BSC),
+      start: async () => 1635379200,
     },
     [CHAIN.FANTOM]: {
       fetch: v2Graph(CHAIN.FANTOM),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.FANTOM,
-        dailyDataField: `pancakeDayDatas`,
-      }),
+      start: async () => 1637798400,
     },
   },
 };
