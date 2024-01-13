@@ -122,11 +122,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       return (totalAmount0 + totalAmount1);
     }).reduce((a: number, b: number) => a+b, 0)
     const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
+    const dailyTotalRevenue = fees + dailyBribesRevenue;
 
     return {
       dailyFees: `${fees}`,
-      dailyRevenue: `${fees}`,
-      dailyHoldersRevenue: `${fees}`,
+      dailyRevenue: `${dailyTotalRevenue}`,
+      dailyHoldersRevenue: `${dailyTotalRevenue}`,
       dailyBribesRevenue: `${dailyBribesRevenue}`,
       timestamp
     }
