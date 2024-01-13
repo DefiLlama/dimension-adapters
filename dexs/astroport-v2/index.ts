@@ -49,6 +49,12 @@ const adapter: SimpleAdapter = {
       customBackfill: undefined,
       start: async () => 0,
     },
+    [CHAIN.SEI]: {
+      fetch: fetch("pacific-1"),
+      runAtCurrTime: true,
+      customBackfill: undefined,
+      start: async () => 0,
+    }
   },
 };
 
