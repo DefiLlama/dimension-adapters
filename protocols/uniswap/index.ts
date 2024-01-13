@@ -214,13 +214,13 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter)
   }
 }
-adapter.breakdown.v3.bsc.fetch = async (timestamp, chainBlocks) => {
-  const response = await v3Graphs(CHAIN.BSC)(timestamp, chainBlocks)
-  const totalVolume = Number(response.totalVolume) - 10_000_000_000;
-  return {
-    ...response,
-    totalVolume
-  } as FetchResultGeneric
-}
+// adapter.breakdown.v3.bsc.fetch = async (timestamp, chainBlocks) => {
+//   const response = await v3Graphs(CHAIN.BSC)(timestamp, chainBlocks)
+//   const totalVolume = Number(response.totalVolume) - 10_000_000_000;
+//   return {
+//     ...response,
+//     totalVolume
+//   } as FetchResultGeneric
+// }
 
 export default adapter;
