@@ -15,6 +15,7 @@ const chainIDs: TChainIDs = {
   [CHAIN.ERA]: 324,
   [CHAIN.BASE]: 8453,
   [CHAIN.EVMOS]: 9001,
+  [CHAIN.METIS]: 1088,
 };
 
 interface IDayProduct {
@@ -28,7 +29,7 @@ const fetch = (chain: Chain) => {
 
     const graphQuery = gql`
       query MyQuery {
-        DayProducts(filter: {date: ${todaysTimestamp}}) {
+        DayProducts(limit: 0, filter: {date: ${todaysTimestamp}}) {
           cumulativeVolumeUsd
           _id
         }
