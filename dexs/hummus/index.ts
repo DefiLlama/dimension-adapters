@@ -1,5 +1,6 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
@@ -76,6 +77,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.METIS]: {
       fetch: fetch,
       start: async () => 1661900400,
