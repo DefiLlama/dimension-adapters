@@ -58,6 +58,7 @@ interface ILog {
   data: string;
   transactionHash: string;
   topics: string[];
+  address: string;
 }
 
 interface IReward {
@@ -107,6 +108,8 @@ const PAIR_TOKEN_ABI = (token: string): object => {
     "type": "function"
   }
 };
+process.env.POLYGON_ZKEVM_BATCH_MAX_COUNT = '10'; // 10 is the default value
+process.env.ARBITRUM_BATCH_MAX_COUNT = '10'; // 10 is the default value
 
 const fetchFees = (chain: Chain, address: TAddress) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -125,7 +128,8 @@ const fetchFees = (chain: Chain, address: TAddress) => {
           target: address[chain],
           params: i,
         })),
-        chain: chain
+        chain: chain,
+        permitFailure: true,
       }));
       const pools = poolsRes.map((a: any) => a[0])
 
@@ -149,43 +153,32 @@ const fetchFees = (chain: Chain, address: TAddress) => {
       const prices = await getPrices(coins, timestamp);
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
+      const logs: ILog[] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
         target: address,
         toBlock: toBlock,
         fromBlock: fromBlock,
         chain: chain,
+        topic: '',
         topics: [topic0_burn]
-      })))) as any
-      const untrackVolumes: IFees[] = pools.map((_: string, index: number) => {
-          const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
-          const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
-          const log: IFeesAmount[] = logs[index]
-            .map((e: ILog) => { return { ...e } })
-            .map((p: ILog) => {
-              const amount0 = Number('0x' + p.data.replace('0x', '').slice(64, 128)) / 10 ** token0Decimals;
-              const amount1 = Number('0x' + p.data.replace('0x', '').slice(128, 192)) / 10 ** token1Decimals
-              const fees = Number('0x' + p.data.replace('0x', '').slice(0, 64))
-              return {
-                amount0: amount0,
-                amount1: amount1,
-                fees
-              } as IFeesAmount
-            });
+      })))).flat();
+      const feesData: IFees[] = logs.map((e: ILog) => {
+        const findIndex = pools.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
+        const token0Price = (prices[`${chain}:${tokens0[findIndex]}`]?.price || 0);
+        const token1Price = (prices[`${chain}:${tokens1[findIndex]}`]?.price || 0);
+        const token0Decimals = (prices[`${chain}:${tokens0[findIndex]}`]?.decimals || 0)
+        const token1Decimals = (prices[`${chain}:${tokens1[findIndex]}`]?.decimals || 0)
 
-            const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
-            const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
-          const amount0 = log
-            .reduce((a: number, b: IFeesAmount) => Number(b.amount0) + a, 0)  * token0Price;
-            const amount1 = log
-            .reduce((a: number, b: IFeesAmount) => Number(b.amount1) + a, 0)  * token1Price;
-            const revAmount0 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount0)*(1/b.fees)) + a, 0)  * token0Price;
-            const revAmount1 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount1)*(1/b.fees)) + a, 0)  * token1Price;
-          return { fees: (amount0+amount1), rev: (revAmount0+revAmount1) }
-        });
-        const dailyFees = untrackVolumes.reduce((a: number, b: IFees) => a + b.fees, 0);
-        const dailyRevenue = untrackVolumes.reduce((a: number, b: IFees) => a + b.rev, 0);
+        const data =  e.data.replace('0x', '');
+        const amount0 = Number('0x' + data.slice(64, 128)) / 10 ** token0Decimals;
+        const amount1 = Number('0x' + data.slice(128, 192)) / 10 ** token1Decimals;
+        const fees = Number('0x' + data.slice(0, 64));
+        const feesUSD = (amount0 * token0Price) + (amount1 * token1Price);
+        const revAmount0 = amount0 * (1 / fees) * token0Price;
+        const revAmount1 = amount1 * (1 / fees) * token1Price;
+        return { fees: feesUSD, rev: revAmount0 + revAmount1 };
+      });
+      const dailyFees = feesData.reduce((a: number, b: IFees) => a + b.fees, 0);
+      const dailyRevenue = feesData.reduce((a: number, b: IFees) => a + b.rev, 0);
       return {
         timestamp,
         dailyFees: `${dailyFees}`,
