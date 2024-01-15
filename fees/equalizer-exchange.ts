@@ -89,6 +89,7 @@ const poolList = [
 '0xffe9c27f0a12dabe5c5bd46d144a5c0140725566',
 '0x853d0b5e504ae6f6cee8b5d89e9c1853c330e6e9'
 ]
+process.env.FANTOM_BATCH_MAX_COUNT = "10";
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -118,6 +119,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       toBlock: toBlock,
       fromBlock: fromBlock,
       chain: 'fantom',
+      topic: '',
       topics: [topic0]
     })))) as any;
 
