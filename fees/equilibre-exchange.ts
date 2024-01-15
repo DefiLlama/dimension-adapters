@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import fetchURL from "../utils/fetchURL";
 
 interface ILog {
   data: string;
@@ -11,123 +12,53 @@ interface ILog {
 }
 
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
-const FACTORY_ADDRESS = '0xA138FAFc30f6Ec6980aAd22656F2F11C38B56a95';
 
-type TABI = {
-  [k: string]: object;
-}
-const ABIs: TABI = {
-  allPairsLength: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairsLength",
-    "inputs": []
-  },
-  allPairs: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairs",
-  }
+interface IYield {
+  project: string;
+  chain: string;
+  pool_old: string;
+  underlyingTokens: string[];
 };
 
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "constant": true,
-    "inputs": [],
-    "name": token,
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
+const yieldPool = "https://yields.llama.fi/poolsOld";
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
 
   try {
-    const poolLength = (await sdk.api2.abi.call({
-      target: FACTORY_ADDRESS,
-      chain: 'kava',
-      abi: ABIs.allPairsLength,
-    }));
+    // use top pools from yield.llama
+    const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
+    const poolsData: IYield[] = poolsCall
+      .filter((e: IYield) => e.project === "equilibre")
+      .filter((e: IYield) => e.chain.toLowerCase() === CHAIN.KAVA)
 
-    const poolsRes = await sdk.api2.abi.multiCall({
-      abi: ABIs.allPairs,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: FACTORY_ADDRESS,
-        params: i,
-      })),
-      chain: 'kava',
-      permitFailure: true,
+    const pools = poolsData.map((e: IYield) => e.pool_old);
+    const lpTokens = pools
+    const underlyingToken = poolsData.map((e: IYield) => {
+      return {
+        underlyingToken0: e.underlyingTokens[0],
+        underlyingToken1: e.underlyingTokens[1],
+      }
     });
 
-    const lpTokens = poolsRes
-
-    const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['token0', 'token1'].map((method) =>
-        sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address: string) => ({
-            target: address,
-          })),
-          chain: 'kava',
-          permitFailure: true,
-        })
-      )
-    );
-
-    const tokens0 = underlyingToken0;
-    const tokens1 = underlyingToken1;
+    const tokens0 = underlyingToken.map((e: any) => e.underlyingToken0);
+    const tokens1 = underlyingToken.map((e: any) => e.underlyingToken1);
     const fromBlock = (await getBlock(fromTimestamp, 'kava', {}));
     const toBlock = (await getBlock(toTimestamp, 'kava', {}));
-
-    const _logs: ILog[] = [];
-    const split_size: number = 55;
-    for(let i = 0; i < lpTokens.length; i+=split_size) {
-      const logs: ILog[] = (await Promise.all(lpTokens.slice(i, i + split_size).map((address: string) => sdk.getEventLogs({
-        target: address,
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: 'kava',
-        topics: [topic0]
-      })))).flat();
-      _logs.push(...logs)
-    }
+    const logs: ILog[] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
+      target: address,
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      topic: '',
+      chain: 'kava',
+      topics: [topic0]
+    })))).flat();
 
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `kava:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
-    const fees: number[] = _logs.map((e: ILog) => {
+    const fees: number[] = logs.map((e: ILog) => {
       const data =  e.data.replace('0x', '');
       const findIndex = lpTokens.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
       const token0Price = (prices[`kava:${tokens0[findIndex]}`]?.price || 0);
