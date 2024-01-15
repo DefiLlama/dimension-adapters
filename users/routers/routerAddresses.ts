@@ -2819,5 +2819,14 @@ export default ([
             ]
         }
     },
+    {
+        "id":"3977",
+        "name": "SquaDeFi",
+        "addresses":{
+            "base":[
+                "0xfad362E479AA318F2De7b2c8a1993Df9BB2B3b1f", // KeyManager
+            ]
+        }
+    },
     
 ] as ProtocolAddresses[]).filter(isAddressesUsable)
