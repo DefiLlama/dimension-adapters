@@ -3,18 +3,16 @@ import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
 import { getPrices } from "../utils/prices";
+import { getTopPool } from "../helpers/pool";
 
 interface ILog {
+  address: string;
   data: string;
   transactionHash: string;
 }
-interface IAmount {
-  amount0: number;
-  amount1: number;
-}
 
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
-const FACTORY_ADDRESS = '0xd541Bc203Cc2B85810d9b8E6a534eed1615528E2';
+const FACTORY_ADDRESS = '0xEaF188cdd22fEEBCb345DCb529Aa18CA9FcB4FBd';
 
 type TABI = {
   [k: string]: object;
@@ -89,10 +87,11 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         target: FACTORY_ADDRESS,
         params: i,
       })),
-      chain: CHAIN.POLYGON
+      chain: CHAIN.POLYGON,
+      permitFailure: true,
     });
 
-    const lpTokens = poolsRes
+    const lpTokens = poolsRes;
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
@@ -101,7 +100,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: CHAIN.POLYGON
+          chain: CHAIN.POLYGON,
+          permitFailure: true,
         })
       )
     );
@@ -110,42 +110,31 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const tokens1 = underlyingToken1;
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
+    const logs: ILog[] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
       target: address,
       toBlock: toBlock,
+      topic: '',
       fromBlock: fromBlock,
       chain: CHAIN.POLYGON,
       topics: [topic0]
-    })))) as any;
-      const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.POLYGON}:${e.toLowerCase()}`);
-      const coins = [...new Set(rawCoins)]
-      const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals = (prices[`${CHAIN.POLYGON}:${tokens0[index].toLowerCase()}`]?.decimals || 0)
-      const token1Decimals = (prices[`${CHAIN.POLYGON}:${tokens1[index].toLowerCase()}`]?.decimals || 0)
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-        .map((p: ILog) => {
-          const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
-          const amount1 = Number('0x' + p.data.slice(64, 128)) / 10 ** token1Decimals
-          return {
-            amount0,
-            amount1
-          } as IAmount
-        }) as IAmount[];
-      const token0Price = (prices[`${CHAIN.POLYGON}:${tokens0[index].toLowerCase()}`]?.price || 0);
-      const token1Price = (prices[`${CHAIN.POLYGON}:${tokens1[index].toLowerCase()}`]?.price || 0);
+    })))).flat()
 
-      const feesAmount0 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
-      const feesAmount1 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
-
+    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.POLYGON}:${e.toLowerCase()}`);
+    const coins = [...new Set(rawCoins)]
+    const prices = await getPrices(coins, timestamp);
+    const dailyFees: number = logs.map((e: ILog) => {
+      const data =  e.data.replace('0x', '');
+      const findIndex = lpTokens.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
+      const token0Price = (prices[`${CHAIN.POLYGON}:${tokens0[findIndex].toLowerCase()}`]?.price || 0);
+      const token1Price = (prices[`${CHAIN.POLYGON}:${tokens1[findIndex].toLowerCase()}`]?.price || 0);
+      const token0Decimals = (prices[`${CHAIN.POLYGON}:${tokens0[findIndex].toLowerCase()}`]?.decimals || 0)
+      const token1Decimals = (prices[`${CHAIN.POLYGON}:${tokens1[findIndex].toLowerCase()}`]?.decimals || 0)
+      const feesAmount0 = (Number('0x' + data.slice(0, 64)) / 10 ** token0Decimals) * token0Price;
+      const feesAmount1 = (Number('0x' + data.slice(64, 128)) / 10 ** token1Decimals) * token1Price;
       const feesUSD = feesAmount0 + feesAmount1;
       return feesUSD;
-    });
+    }).reduce((a: number, b: number) => a + b, 0);
 
-    const dailyFees = fees.reduce((a: number, b: number) => a+b,0)
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue:  `${dailyFees}`,
