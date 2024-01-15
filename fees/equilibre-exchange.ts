@@ -2,6 +2,7 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../helpers/getBlock";
+import { IYield, getTopPool } from "../helpers/pool";
 import { getPrices } from "../utils/prices";
 import fetchURL from "../utils/fetchURL";
 
@@ -13,14 +14,6 @@ interface ILog {
 
 const topic0 = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602';
 
-interface IYield {
-  project: string;
-  chain: string;
-  pool_old: string;
-  underlyingTokens: string[];
-};
-
-const yieldPool = "https://yields.llama.fi/poolsOld";
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -28,10 +21,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   try {
     // use top pools from yield.llama
-    const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
-    const poolsData: IYield[] = poolsCall
-      .filter((e: IYield) => e.project === "equilibre")
-      .filter((e: IYield) => e.chain.toLowerCase() === CHAIN.KAVA)
+    const poolsData: IYield[] = (await getTopPool('equilibre', CHAIN.KAVA))
 
     const pools = poolsData.map((e: IYield) => e.pool_old);
     const lpTokens = pools
