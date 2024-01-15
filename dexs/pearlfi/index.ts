@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
-import BigNumber from "bignumber.js";
 import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
+  address: string;
   data: string;
   transactionHash: string;
 }
@@ -18,7 +18,7 @@ interface IAmount {
 }
 
 const topic0 = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
-const FACTORY_ADDRESS = '0xd541Bc203Cc2B85810d9b8E6a534eed1615528E2';
+const FACTORY_ADDRESS = '0xEaF188cdd22fEEBCb345DCb529Aa18CA9FcB4FBd';
 
 type TABI = {
   [k: string]: object;
@@ -93,7 +93,8 @@ const fetch = async (timestamp: number) => {
         target: FACTORY_ADDRESS,
         params: i,
       })),
-      chain: CHAIN.POLYGON
+      chain: CHAIN.POLYGON,
+      permitFailure: true,
     });
 
     const lpTokens = poolsRes
@@ -105,7 +106,8 @@ const fetch = async (timestamp: number) => {
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
-          chain: CHAIN.POLYGON
+          chain: CHAIN.POLYGON,
+          permitFailure: true,
         })
       )
     );
@@ -115,46 +117,41 @@ const fetch = async (timestamp: number) => {
     const fromBlock = await getBlock(fromTimestamp, CHAIN.POLYGON as Chain, {});
     const toBlock = await getBlock(toTimestamp, CHAIN.POLYGON as Chain, {});
 
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
+    const logs: ILog[] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
       target: address,
       toBlock: toBlock,
       fromBlock: fromBlock,
-      chain: CHAIN.POLYGON as Chain,
+      chain: CHAIN.POLYGON,
+      topic: '',
       topics: [topic0]
-    })))) as any;
+    })))).flat();
+
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.POLYGON}:${e}`);
     const coins = [...new Set(rawCoins)]
     const prices = await getPrices(coins, timestamp);
-    const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
-        .map((p: ILog) => {
-          BigNumber.config({ POW_PRECISION: 100 });
-          const amount0In = new BigNumber('0x' + p.data.slice(0, 64)).toString();
-          const amount1In = new BigNumber('0x' + p.data.slice(64, 128)).toString();
-          const amount0Out = new BigNumber('0x' + p.data.slice(128, 192)).toString();
-          const amount1Out = new BigNumber('0x' + p.data.slice(192, 256)).toString();
-          return {
-            amount0In,
-            amount1In,
-            amount0Out,
-            amount1Out,
-          } as IAmount
-        }) as IAmount[];
-      const token0Price = (prices[`${CHAIN.POLYGON}:${tokens0[index]}`]?.price || 0);
-      const token1Price = (prices[`${CHAIN.POLYGON}:${tokens1[index]}`]?.price || 0);
-      const token0Decimals = (prices[`${CHAIN.POLYGON}:${tokens0[index]}`]?.decimals || 0)
-      const token1Decimals = (prices[`${CHAIN.POLYGON}:${tokens1[index]}`]?.decimals || 0)
-      const totalAmount0 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount0In) + Number(b.amount0Out) + a, 0) / 10 ** token0Decimals * token0Price;
-      const totalAmount1 = log
-        .reduce((a: number, b: IAmount) => Number(b.amount1In) + Number(b.amount1Out) + a, 0) / 10 ** token1Decimals * token1Price;
+    const untrackVolumes: number[] = logs.map((e: ILog) => {
+      const data =  e.data.replace('0x', '');
+      const amount0In = Number('0x' + data.slice(0, 64));
+      const amount1In = Number('0x' + data.slice(64, 128));
+      const amount0Out = Number('0x' + data.slice(128, 192));
+      const amount1Out = Number('0x' + data.slice(192, 256));
 
-      const untrackAmountUSD = token0Price !== 0 ? totalAmount0 : token1Price !== 0 ? totalAmount1 : 0; // counted only we have price data
-      return untrackAmountUSD;
+      const findIndex = lpTokens.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
+      const token0Price = (prices[`${CHAIN.POLYGON}:${tokens0[findIndex]}`]?.price || 0);
+      const token1Price = (prices[`${CHAIN.POLYGON}:${tokens1[findIndex]}`]?.price || 0);
+      const token0Decimals = (prices[`${CHAIN.POLYGON}:${tokens0[findIndex]}`]?.decimals || 0)
+      const token1Decimals = (prices[`${CHAIN.POLYGON}:${tokens1[findIndex]}`]?.decimals || 0)
+      const amount0InUSD = (amount0In / 10 ** token0Decimals) * token0Price;
+      const amount1InUSD = (amount1In / 10 ** token1Decimals) * token1Price;
+      const amount0OutUSD = (amount0Out / 10 ** token0Decimals) * token0Price;
+      const amount1OutUSD = (amount1Out / 10 ** token1Decimals) * token1Price;
+      const amountUSD = token0Price !== 0 ? amount0InUSD + amount0OutUSD : token1Price !== 0 ? amount1InUSD + amount1OutUSD : 0; // counted only we have price data
+      return amountUSD;
     });
 
-    const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
+    const dailyVolume = untrackVolumes
+      .filter((e: number) => !isNaN(e))
+      .reduce((a: number, b: number) => a + b, 0);
     return {
       dailyVolume: `${dailyVolume}`,
       timestamp,
