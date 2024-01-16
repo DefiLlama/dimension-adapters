@@ -34,9 +34,9 @@ export async function getDexVolume({ chain, fromTimestamp, toTimestamp, factory,
       const token1 = token1s[index]
       if (!log.length) return
       log.forEach((i: any) => {
-        api.add(token0, i.amount0In)
+        // api.add(token0, i.amount0In) // we should count only one side of the swap
         api.add(token0, i.amount0Out)
-        api.add(token1, i.amount1In)
+        // api.add(token1, i.amount1In)
         api.add(token1, i.amount1Out)
       })
     })
