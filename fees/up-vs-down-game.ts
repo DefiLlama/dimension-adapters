@@ -5,7 +5,7 @@ import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices"
 import { FetchResultFees, SimpleAdapter } from "../adapters/types"
 
-const contract_address = '0xdb414fe5a6ae09f4b58df1e5615c38c4bee10a84'
+const contract_address = '0xFAc9D58Cc823f75E0B275208FE69077e7a4CacaB'
 const topic0 = '0x68f6fc9b4292a4019c38f766d951dada112bf514a9fa2245e113dd0d72f28615'
 const topic1 = '0x26a1afef9fcca500b0a1e73a51830b5163e2d3d6027ffe6116c6dd3f95dfee69'
 const event_trade = 'event TradePlaced(bytes poolId,address sender,uint256 amount,string prediction,uint256 newTotal,bytes indexed indexedPoolId,address indexed indexedSender,string avatarUrl,string countryCode,int64 roundStartTime,string whiteLabelId)'
