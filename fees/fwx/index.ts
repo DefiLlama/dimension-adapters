@@ -1,6 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
 
 interface IEndpoint {
@@ -33,7 +34,10 @@ const endpoints: Record<Chain, IEndpoint> = {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const date = new Date(timestamp * 1e3);
+    const dayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1e3)
+    );
+    const date = new Date(dayTimestamp * 1e3);
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily fee data
