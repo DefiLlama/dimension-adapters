@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { getDexVolume } from "../../helpers/dexVolumeLogs";
+import { getDexVolumeExports } from "../../helpers/dexVolumeLogs";
 
 
 const pools: string[] = [
@@ -22,16 +22,10 @@ const pools: string[] = [
 '0xe6c47b036f6fd0684b109b484ac46094e633af2e'
 ].map((address: string) => address.toLowerCase());
 
-const fetch = async (timestamp: number) => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  return getDexVolume({ chain: CHAIN.AURORA, fromTimestamp, toTimestamp, pools, timestamp })
-}
-
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AURORA]: {
-      fetch,
+      fetch: getDexVolumeExports({ chain: CHAIN.AURORA, pools }),
       start: async () => 1678838400,
     }
   }
