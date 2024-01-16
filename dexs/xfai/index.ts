@@ -38,7 +38,7 @@ const adapter: SimpleAdapter = {
         const dailyFees = cumulativeFees - lastDayCumulativeFees
 
         return {
-          totalFees: cumulativeFees.toString(),
+          // totalFees: cumulativeFees.toString(),
           dailyFees:dailyFees.toString(),
           totalVolume: Number(FEE_VOLUME_MULTIPLIER * cumulativeFees).toString(),
           dailyVolume: Number(FEE_VOLUME_MULTIPLIER * dailyFees).toString(),
