@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
 
-export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
+export const fees_bribes = async (fromBlock: number, toBlock: number, _: number): Promise<number> => {
   try {
     const api  = new sdk.ChainApi({ chain: CHAIN.OPTIMISM });
     const voter = '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c';
