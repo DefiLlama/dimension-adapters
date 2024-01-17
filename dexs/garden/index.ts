@@ -33,7 +33,6 @@ type IApiFeeResponse = {
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
-    console.log(timestamp);
     const dailyVolumeResponse: IAPIVolumeResponse = (
         await fetchURL(volumeUrl(chainMapper[chain], timestamp, "day"))
     ).data;
