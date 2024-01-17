@@ -1,8 +1,5 @@
 import { Adapter, DISABLED_ADAPTER_KEY, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 import { ethers } from "ethers";
 import disabledAdapter from "../helpers/disabledAdapter";
 
