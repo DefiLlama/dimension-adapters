@@ -6,7 +6,7 @@ import axios from "axios";
 
 interface IEndpoint {
   dailyFee: string;
-  realtimeTvlPlatform: string;
+  realtimeCompanyRevenue: string;
 }
 
 interface IDailyFeeData {
@@ -16,19 +16,19 @@ interface IDailyFeeData {
   totalDailyFee: string;
 }
 
-interface ITvlPlatformData {
+interface ICompanyRevenueData {
   name: string;
   value: string;
 }
-interface ITvlPlatform {
-  data: ITvlPlatformData[];
+interface ICompanyRevenue {
+  data: ICompanyRevenueData[];
 }
 
 const endpoints: Record<Chain, IEndpoint> = {
   [CHAIN.AVAX]: {
     dailyFee: "https://app.fwx.finance/api/43114/v1/dashboard/company-revenue",
-    realtimeTvlPlatform:
-      "https://app.fwx.finance/api/43114/v1//realtime/tvl-platform",
+    realtimeCompanyRevenue:
+      "https://app.fwx.finance/api/43114/v1//realtime/wallet-balance",
   },
 };
 
@@ -46,25 +46,27 @@ const fetch = (chain: Chain) => {
     });
     const dailyFeeData = dailyFeeRes.data as IDailyFeeData;
     const tokenInterestProfit = parseFloat(dailyFeeData.tokenInterestProfit);
-    const dailyHoldersRevenue = 0.9 * tokenInterestProfit;
-    const dailyProtocolRevenue = 0.1 * tokenInterestProfit;
-    const dailyRevenue = dailyProtocolRevenue;
+    const dailyHoldersRevenue = 9 * tokenInterestProfit;
+    const dailyFees =
+      parseFloat(dailyFeeData.totalDailyFee) + dailyHoldersRevenue;
+    const dailyProtocolRevenueString = dailyFeeData.totalDailyFee;
+    const dailyRevenueString = dailyProtocolRevenueString;
 
     // * call api for total fee data
-    const tvlPlatformRes = await axios.post(
-      endpoints[chain].realtimeTvlPlatform
+    const companyRevenueRes = await axios.post(
+      endpoints[chain].realtimeCompanyRevenue
     );
-    const tvlPlatform = tvlPlatformRes.data as ITvlPlatform;
+    const companyRevenue = companyRevenueRes.data as ICompanyRevenue;
     let totalFee: number = 0;
-    for (let i = 0; i < tvlPlatform.data.length; i++) {
-      const value = parseFloat(tvlPlatform.data[i].value);
+    for (let i = 0; i < companyRevenue.data.length; i++) {
+      const value = parseFloat(companyRevenue.data[i].value);
       totalFee += value;
     }
 
     return {
-      dailyFees: dailyFeeData.totalDailyFee,
-      dailyRevenue: dailyRevenue.toString(),
-      dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyRevenueString,
+      dailyProtocolRevenue: dailyProtocolRevenueString,
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       totalFees: totalFee.toString(),
       timestamp,
