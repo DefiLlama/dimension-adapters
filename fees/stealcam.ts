@@ -8,7 +8,7 @@ import { ethers } from "ethers";
 
 const address = '0x2f60c9cee6450a8090e17a79e3dd2615a1c419eb'
 const event_fees_distibute = 'event Stolen (address from, address to, uint256 id, uint256 value)';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
     event_fees_distibute
 ]);
 
@@ -20,17 +20,15 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const prices = await getPrices([
         "coingecko:ethereum"
     ], timestamp);
-    const dailyFees = (await sdk.api.util.getLogs({
+    const dailyFees = (await sdk.getEventLogs({
         target: address,
         fromBlock: fromBlock,
         toBlock: toBlock,
-        topic: '',
         topics: ['0xbd1d1f579700e7d5d89a06ef937990d5f920f734ad1b9b945b354c9643dfd322'],
-        keys: [],
         chain: CHAIN.ARBITRUM
-    })).output.map((e: any) => contract_interface.parseLog(e))
+    })).map((e: any) => contract_interface.parseLog(e))
         .map((e: any) => {
-            return Number(e.args.value) / 10 ** 18;
+            return Number(e!.args.value) / 10 ** 18;
         }).reduce((a: number, b: number) => a + b/10, 0) * prices["coingecko:ethereum"].price
     const dailyRevenue = dailyFees;
     return {

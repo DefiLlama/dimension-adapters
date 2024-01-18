@@ -10,7 +10,7 @@ const topic0 = '0x68f6fc9b4292a4019c38f766d951dada112bf514a9fa2245e113dd0d72f286
 const topic1 = '0x26a1afef9fcca500b0a1e73a51830b5163e2d3d6027ffe6116c6dd3f95dfee69'
 const event_trade = 'event TradePlaced(bytes poolId,address sender,uint256 amount,string prediction,uint256 newTotal,bytes indexed indexedPoolId,address indexed indexedSender,string avatarUrl,string countryCode,int64 roundStartTime,string whiteLabelId)'
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_trade
 ])
 
@@ -36,17 +36,15 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 
   let logs: ILogs[] = await Promise.all(
     Array.from({ length: batches }, (_, index) =>
-      sdk.api.util.getLogs({
-        keys: [],
+      sdk.getEventLogs({
         toBlock: fromblock + (index + 1) * batchSize,
         fromBlock: fromblock + index * batchSize,
         target: contract_address,
-        topic: '',
         topics: [topic0, topic1],
         chain: CHAIN.POLYGON,
       })
     )
-  ).then((responses) => responses.flatMap((response) => response.output as ILogs[]));
+  ).then((responses) => responses.flatMap((response) => response as unknown as ILogs[]));
 
   const fees = logs.map((log: ILogs) => {
     const parsedLog = log.data.replace('0x', '')

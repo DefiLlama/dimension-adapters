@@ -72,27 +72,26 @@ const fetch = (address: string, chain: Chain) => {
     const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
     const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
     const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall, triggerFeeCall, govFeeCall, borrowingFeeCall]: any = await Promise.all(
-      event.map((e:IEvent) => sdk.api.util.getLogs({
+      event.map((e:IEvent) => sdk.getEventLogs({
         target: address,
         topic: e.name,
         toBlock: yesterdaysBlock,
         fromBlock: todaysBlock,
-        keys: [],
         chain: chain,
         topics: [e.topic]
     })));
 
     const mapper = (p: ITx) => new BigNumber(p.data);
     const reducer = (a:BigNumber, c:BigNumber) => a.plus(c);
-    const devFeeValume = devFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const ssFeeVol = ssFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const referralFeeVol = referralFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const nftBotFeeVol = nftBotFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const daiVaultVol = daiVaultCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const lpFeeVol = lpFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const triggerFeeVol = triggerFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const govFeeVol = govFeeCall.output.map((p: ITx) => new BigNumber(p.data.slice(0, 66))).reduce(reducer, new BigNumber('0'));
-    const borrowingFeeVol = borrowingFeeCall.output.map((p: ITx) => new BigNumber('0x' + p.data.slice(66, 130))).reduce(reducer, new BigNumber('0'));
+    const devFeeValume = devFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const ssFeeVol = ssFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const referralFeeVol = referralFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const nftBotFeeVol = nftBotFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const daiVaultVol = daiVaultCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const lpFeeVol = lpFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const triggerFeeVol = triggerFeeCall.map(mapper).reduce(reducer, new BigNumber('0'));
+    const govFeeVol = govFeeCall.map((p: ITx) => new BigNumber(p.data.slice(0, 66))).reduce(reducer, new BigNumber('0'));
+    const borrowingFeeVol = borrowingFeeCall.map((p: ITx) => new BigNumber('0x' + p.data.slice(66, 130))).reduce(reducer, new BigNumber('0'));
     const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
     const daiPrice = prices['coingecko:dai']?.price || 1;
 

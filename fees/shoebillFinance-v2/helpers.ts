@@ -8,12 +8,12 @@ const getAllMarkets = async (
   chain: CHAIN
 ): Promise<string[]> => {
   return (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: unitroller,
       abi: comptrollerABI.getAllMarkets,
       chain: chain,
     })
-  ).output;
+  );
 };
 const getAllMarketsMulti = async (
   unitrollers: string[],
@@ -21,17 +21,17 @@ const getAllMarketsMulti = async (
 ): Promise<string[]> => {
 
   return (
-    await sdk.api.abi.multiCall({
+    await sdk.api2.abi.multiCall({
       calls: unitrollers.map((unitroller: string) => ({target:unitroller})),
       abi: comptrollerABI.getAllMarkets,
       chain: chain,
     })
-  ).output.map((x:any) => x.output).flat();
+  ).flat();
 };
 
 const getMarketDetails = async (markets: string[], chain: CHAIN) => {
-  
-  const underlyings = await sdk.api.abi.multiCall({
+
+  const underlyings = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -40,7 +40,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
     permitFailure: true,
   });
 
-  const reserveFactors = await sdk.api.abi.multiCall({
+  const reserveFactors = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -49,8 +49,8 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   });
 
   return {
-    underlyings: underlyings.output.map((x: any) => x.output ?? ETHER_ADDRESS),
-    reserveFactors: reserveFactors.output.map((x: any) => x.output),
+    underlyings: underlyings,
+    reserveFactors: reserveFactors,
   };
 };
 

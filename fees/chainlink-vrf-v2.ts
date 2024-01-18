@@ -3,7 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain, getProvider } from "@defillama/sdk/build/general";
-import getLogs, { notUndefined } from "../helpers/getLogs";
+import getTxReceipts from "../helpers/getTxReceipts";
+const sdk = require('@defillama/sdk')
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -70,31 +71,25 @@ const fetch = (chain: Chain, version: number) => {
     try {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs_1: ITx[] = (await getLogs({
+      const logs_1: ITx[] = (await sdk.getEventLogs({
         target: version === 1 ? address_v1[chain] : address_v2[chain],
-        topic: '',
         fromBlock: fromBlock,
         toBlock: toBlock,
         topics: version === 1 ? [topic0_v1] : [topic0_v2],
-        keys: [],
         chain: chain
-      })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+      })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
       const amount_fullfill = logs_1.map((e: ITx) => {
         const payment = Number('0x'+e.data.slice(64, 128)) / 10 ** 18
         return payment;
       }).reduce((a: number, b: number) => a+b, 0);
 
-      const provider = getProvider(chain);
       const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
-      const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
-        provider.getTransactionReceipt(transactionHash)
-      ).map(p => p.catch(() => undefined))))
+      const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash))
         .map((e: any) => {
-          if (!e) return
-          const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
+          const amount = (Number(e.gasUsed) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
           return amount
-        }).filter(notUndefined)
+        })
       const linkAddress = "coingecko:chainlink";
       const gasToken = gasTokenId[chain];
       const prices = (await getPrices([linkAddress, gasToken], timestamp));

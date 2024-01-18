@@ -47,25 +47,21 @@ const fetchFees = (chain: Chain) => {
     const fromTimestamp = timestamp - 24 * 60 * 60;
     const toBlock = await getBlock(toTimestamp, chain, {});
     const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const logs_shield: ILog[] = (await sdk.api.util.getLogs({
+    const logs_shield: ILog[] = (await sdk.getEventLogs({
       target: contract[chain],
-      topic: '',
       topics: [topic0_shield],
-      keys: [],
       fromBlock,
       toBlock,
       chain,
-    })).output as ILog[];
+    })) as ILog[];
 
-    const logs_unshield: ILog[] = (await sdk.api.util.getLogs({
+    const logs_unshield: ILog[] = (await sdk.getEventLogs({
       target: contract[chain],
-      topic: '',
       topics: [topic0_unshield],
-      keys: [],
       fromBlock,
       toBlock,
       chain,
-    })).output as ILog[];
+    })) as ILog[];
 
     const shield_fees: IFees[] = logs_shield.map((log) => {
       const data = log.data.replace('0x', '');

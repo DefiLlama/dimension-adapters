@@ -35,7 +35,7 @@ const abis = {
 }
 
 async function lpPrice() {
-  return (await sdk.api.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' })).output;
+  return (await sdk.api2.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' }));
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {

@@ -17,7 +17,7 @@ export interface ITx {
   transactionHash: string;
 }
 
-const transfer_interface = new ethers.utils.Interface([event_transfer]);
+const transfer_interface = new ethers.Interface([event_transfer]);
 
 export const getFees = async (
   vaults: string[],
@@ -34,18 +34,16 @@ export const getFees = async (
     const decimals = prices[`${CHAIN.ARBITRUM}:${token}`]?.decimals || 0;
     for (const vault of vaults) {
       const logs_transfer_treasury: ITx[] = (
-        await sdk.api.util.getLogs({
+        await sdk.getEventLogs({
           target: token,
-          topic: "",
           fromBlock: fromBlock,
           toBlock: toBlock,
-          topics: [topic0_transfer, ethers.utils.hexZeroPad(vault, 32), ethers.utils.hexZeroPad(treasury, 32)],
-          keys: [],
+          topics: [topic0_transfer, ethers.zeroPadValue(vault, 32), ethers.zeroPadValue(treasury, 32)],
           chain: CHAIN.ARBITRUM,
         })
-      ).output as ITx[];
+      ) as ITx[];
 
-      const transfer_treasury = logs_transfer_treasury.map((e) => transfer_interface.parseLog(e).args);
+      const transfer_treasury = logs_transfer_treasury.map((e) => transfer_interface.parseLog(e)!.args);
       const fee = transfer_treasury.reduce((a, b) => a + Number(b.amount), 0);
       dailyFees += (Number(fee) / 10 ** decimals) * price;
     }

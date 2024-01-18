@@ -36,15 +36,13 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.api.util.getLogs({
+    const logs: ITx[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0NewTransferAdded],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
     const raw_data_logs: IData[] = logs.map((tx: ITx) => {
       const amount = Number('0x'+tx.data);
       const address = tx.topics[1];

@@ -1,7 +1,7 @@
 import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { BigNumber } from "ethers";
+import { BigNumberish } from "ethers";
 import { getPrices } from "../utils/prices";
 import { fromHex, toHex } from "tron-format-address";
 import axios from "axios";
@@ -28,10 +28,10 @@ interface IContext {
 }
 interface IAccrueInterestLog {
   market: string;
-  cashPrior: BigNumber;
-  interestAccumulated: BigNumber;
-  borrowIndexNew: BigNumber;
-  totalBorrowsNew: BigNumber;
+  cashPrior: BigNumberish;
+  interestAccumulated: BigNumberish;
+  borrowIndexNew: BigNumberish;
+  totalBorrowsNew: BigNumberish;
 }
 
 interface ITx {
@@ -70,12 +70,12 @@ const getAllMarkets = async (
   chain: CHAIN
 ): Promise<string[]> => {
   return (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: unitroller,
       abi: comptrollerABI.getAllMarkets,
       chain: chain,
     })
-  ).output;
+  );
 };
 
 const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> => {
@@ -161,7 +161,7 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
 };
 
 const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{underlyings: string[], reserveFactors:string[]}> => {
-  const underlyings = await sdk.api.abi.multiCall({
+  const underlyings = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -170,7 +170,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     permitFailure: true,
   });
 
-  const reserveFactors = await sdk.api.abi.multiCall({
+  const reserveFactors = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -178,11 +178,11 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     chain: chain,
     permitFailure: true,
   });
-  const _underlyings =  underlyings.output.map((x: any) => x.output);
+  const _underlyings =  underlyings;
   _underlyings[0]  = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR';
   return {
     underlyings: _underlyings,
-    reserveFactors: reserveFactors.output.map((x: any) => x.output),
+    reserveFactors: reserveFactors,
   };
 };
 

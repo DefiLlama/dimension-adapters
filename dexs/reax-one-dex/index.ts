@@ -6,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.MANTLE]: "https://graph.reax.one/subgraphs/name/reax/swaps",
+  [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/subgraphs/name/reax/swaps-1",
 };
 
 const graphParams = {

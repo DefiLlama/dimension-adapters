@@ -76,17 +76,24 @@ const PAIR_TOKEN_ABI = (token: string): object => {
   }
 };
 
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
+}
+
 const fetch = async (timestamp: number) => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
 
-  const poolLength = (await sdk.api.abi.call({
+  const poolLength = (await sdk.api2.abi.call({
     target: FACTORY_ADDRESS,
     chain: 'metis',
     abi: ABIs.allPairsLength,
-  })).output;
+  }));
 
-  const poolsRes = await sdk.api.abi.multiCall({
+  const poolsRes = await sdk.api2.abi.multiCall({
     abi: ABIs.allPairs,
     calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
       target: FACTORY_ADDRESS,
@@ -95,12 +102,11 @@ const fetch = async (timestamp: number) => {
     chain: 'metis'
   });
 
-  const lpTokens = poolsRes.output
-    .map(({ output }: any) => output);
+  const lpTokens = poolsRes
 
   const [underlyingToken0, underlyingToken1] = await Promise.all(
     ['token0', 'token1'].map((method) =>
-      sdk.api.abi.multiCall({
+      sdk.api2.abi.multiCall({
         abi: PAIR_TOKEN_ABI(method),
         calls: lpTokens.map((address: string) => ({
           target: address,
@@ -110,24 +116,27 @@ const fetch = async (timestamp: number) => {
     )
   );
 
-  const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-  const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+  const tokens0 = underlyingToken0;
+  const tokens1 = underlyingToken1;
   const fromBlock = (await getBlock(fromTimestamp, 'metis', {}));
   const toBlock = (await getBlock(toTimestamp, 'metis', {}));
-  const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+  const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
     target: address,
     topic: topic_name,
     toBlock: toBlock,
     fromBlock: fromBlock,
-    keys: [],
     chain: 'metis',
     topics: [topic0]
-  }))))
-    .map((p: any) => p)
-    .map((a: any) => a.output);
+  })))) as any;
   const rawCoins = [...tokens0, ...tokens1].map((e: string) => `metis:${e}`);
-  const coins = [...new Set(rawCoins)]
-  const prices = await getPrices(coins, timestamp);
+  const coins: string[] = [...new Set(rawCoins)]
+  const coins_split: string[][] = [];
+  for(let i = 0; i < coins.length; i+=100) {
+    coins_split.push(coins.slice(i, i + 100))
+  }
+  const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+  const prices: TPrice = Object.assign({}, {});
+  prices_result.map((a: any) => Object.assign(prices, a))
   const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
     const log: IAmount[] = logs[index]
       .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })

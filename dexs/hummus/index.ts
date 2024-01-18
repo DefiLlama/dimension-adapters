@@ -1,5 +1,6 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
@@ -15,7 +16,7 @@ const abi_event = {
   swap: "event Swap(address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)",
 };
 
-const abi_event_interface = new ethers.utils.Interface(
+const abi_event_interface = new ethers.Interface(
   Object.values(abi_event)
 );
 
@@ -38,22 +39,20 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   const logs: ILog[] = (
     await Promise.resolve(
-      sdk.api.util.getLogs({
+      sdk.getEventLogs({
         target: "0x248fD66e6ED1E0B325d7b80F5A7e7d8AA2b2528b",
-        topic: "",
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: CHAIN.METIS,
         topics: [swap_topic],
       })
     )
-  ).output as ILog[];
+  ) as ILog[];
 
   let dailyVolume = 0;
 
   logs.forEach((log) => {
-    const args = abi_event_interface.parseLog(log).args;
+    const args = abi_event_interface.parseLog(log)!.args;
     let vol = 0;
     let tokenIndex = -1;
 
@@ -78,6 +77,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.METIS]: {
       fetch: fetch,
       start: async () => 1661900400,

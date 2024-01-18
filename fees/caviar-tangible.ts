@@ -22,15 +22,13 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
 
-    const logs: ILog[] = (await sdk.api.util.getLogs({
+    const logs: ILog[] = (await sdk.getEventLogs({
       target: usdc,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.POLYGON,
       topics: [topic0_evt_transfer, topic1_evt_transfer, topic2_evt_transfer]
-    })).output as ILog[];
+    })) as ILog[];
     const dailyFees = logs.reduce((acc: number, log: ILog) => {
       const amount = Number(log.data) / 10 ** 6;
       return acc + amount;

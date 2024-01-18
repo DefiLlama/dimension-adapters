@@ -21,7 +21,7 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
         holderBalanceEnd,
         protocolBalanceStart,
         protocolBalanceEnd,
-    ] = await Promise.all([
+    ] = (await Promise.all([
         getBalance({
             target: holder_wallet_address,
             block: yesterdaysBlock,
@@ -42,9 +42,9 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
             block: todaysBlock,
             chain: CHAIN.BASE
         }),
-    ])
-    const ethBalance = (new BigNumber(holderBalanceEnd.output).minus(holderBalanceStart.output))
-      .plus((new BigNumber(protocolBalanceEnd.output).minus(protocolBalanceStart.output)))
+    ])).map(i => i.output)
+    const ethBalance = (new BigNumber(holderBalanceEnd).minus(holderBalanceStart))
+      .plus((new BigNumber(protocolBalanceEnd).minus(protocolBalanceStart)))
     const fees: BigNumber = ethBalance.dividedBy(10**18)
     const dailyFee: number = fees.dividedBy(.7).toNumber()
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";

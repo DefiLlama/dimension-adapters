@@ -46,7 +46,7 @@ const graphs = (chain: string) =>
             if (!volume) throw new Error(`Unexpected error: No volume found for ${dayTimestamp}`)
             return {
               timestamp: dayTimestamp,
-              dailyVolume: volume.usd
+              dailyVolume: volume?.usd || "0"
             }
           })
       default:

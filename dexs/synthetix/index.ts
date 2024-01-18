@@ -10,7 +10,7 @@ const topics0_postions_liq = '0x8e83cfbf9c95216dce50909e376c0dcc3e23129a3aa1edd5
 const event_modified_positions = 'event PositionModified(uint indexed id,address indexed account,uint margin,int size,int tradeSize,uint lastPrice,uint fundingIndex,uint fee,int skew)';
 const event_postions_liq = 'event PositionLiquidated(uint id,address account,address liquidator,int size,uint price,uint flaggerFee,uint liquidatorFee,uint stakersFee)';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_modified_positions,
   event_postions_liq
 ]);
@@ -74,41 +74,33 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
 
 
-    const logs_modify: ILog[] = (await Promise.all(contracts.map((address: string) => sdk.api.util.getLogs({
+    const logs_modify: ILog[] = (await Promise.all(contracts.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.OPTIMISM,
       topics: [topics0_modified_positions]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
     const contract_active: string[] = [...new Set(logs_modify.map((e: ILog) => e.address))]
-    const logs_liq: ILog[] = (await Promise.all(contract_active.map((address: string) => sdk.api.util.getLogs({
+    const logs_liq: ILog[] = (await Promise.all(contract_active.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: CHAIN.OPTIMISM,
         topics: [topics0_postions_liq]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
+      })))).flat();
 
     const tradeVolume = logs_modify.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value.args.tradeSize._hex.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value.args.lastPrice._hex.replace('-', '')) / 10 ** 18;
+      const tradeSize = Number(value!.args.tradeSize.toString().replace('-', '')) / 10 ** 18;
+      const lastPrice = Number(value!.args.lastPrice.toString().replace('-', '')) / 10 ** 18;
       return (tradeSize * lastPrice);
     }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
 
     const liqVolume = logs_liq.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value.args.size._hex.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value.args.price._hex.replace('-', '')) / 10 ** 18;
+      const tradeSize = Number(value!.args.size.toString().replace('-', '')) / 10 ** 18;
+      const lastPrice = Number(value!.args.price.toString().replace('-', '')) / 10 ** 18;
       return (tradeSize * lastPrice);
     }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
     const dailyVolume = tradeVolume + liqVolume;

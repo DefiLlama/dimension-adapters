@@ -34,7 +34,7 @@ const event_pools_balance_change = "event PoolBalanceChanged(bytes32 indexed poo
 const event_flash_bot = "event FlashLoan(address indexed recipient,address indexed token,uint256 amount,uint256 feeAmount)"
 const event_swap = "event Swap(bytes32 indexed poolId,address indexed tokenIn,address indexed tokenOut,uint256 amountIn,uint256 amountOut)"
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_pools_balance_change,
   event_flash_bot,
   event_swap
@@ -100,79 +100,73 @@ const fetchFees = (chain: Chain) => {
     const fromBlock = await getBlock(fromTimestamp, chain, {})
 
     try {
-      const logs_balance: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_balance: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_pools_balance_change],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
       const rawDataBalanceChange: IBalanceChange[] = logs_balance.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          tokens: value.args.tokens,
-          protocolFeeAmounts: value.args.protocolFeeAmounts
+          tokens: value!.args.tokens,
+          protocolFeeAmounts: value!.args.protocolFeeAmounts
         }
       });
 
-      const logs_flash_bot: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_flash_bot: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_flash_bot],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
-      const logs_swap: ILogs[] = (await sdk.api.util.getLogs({
+      const logs_swap: ILogs[] = (await sdk.getEventLogs({
         target: vualtAddress[chain],
         fromBlock,
         toBlock,
-        keys: [],
-        topic: '',
         topics: [topic0_swap],
         chain: chain,
-      })).output as unknown as ILogs[]
+      })) as ILogs[]
 
       const swapRaw: ISwap[] = logs_swap.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          poolId: value.args.poolId,
-          tokenIn: value.args.tokenIn,
-          tokenOut: value.args.tokenOut,
-          amountIn: Number(value.args.amountIn._hex),
-          amountOut: Number(value.args.amountOut._hex),
+          poolId: value!.args.poolId,
+          tokenIn: value!.args.tokenIn,
+          tokenOut: value!.args.tokenOut,
+          amountIn: Number(value!.args.amountIn),
+          amountOut: Number(value!.args.amountOut),
         } as ISwap
       });
       const poolIds = [...new Set(swapRaw.map((a: ISwap) => a.poolId))]
-      const pools = (await sdk.api.abi.multiCall({
+      const pools = (await sdk.api2.abi.multiCall({
         abi: abis.getPool,
         calls: poolIds.map((a: string) => ({
           target: vualtAddress[chain],
           params: [a]
         })),
         chain: chain,
-      })).output.map((a: any) => a.output)
+      })) 
         .map((a: any) => a[0]);
 
-      const swapFees = (await sdk.api.abi.multiCall({
+      const swapFees = (await sdk.api2.abi.multiCall({
         abi: abis.getSwapFeePercentage,
         calls: pools.map((a: string) => ({
           target: a,
         })),
         chain: chain,
-      })).output.map((a: any) => a.output);
+      })) ;
 
 
       const rawDataFlashBot: IBalanceChange[] = logs_flash_bot.map((a: ILogs) => {
         const value = contract_interface.parseLog(a)
         return {
-          tokens: [value.args.token],
-          protocolFeeAmounts: [value.args.feeAmount]
+          tokens: [value!.args.token],
+          protocolFeeAmounts: [value!.args.feeAmount]
         }
       });
 

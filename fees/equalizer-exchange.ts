@@ -98,7 +98,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
       ['token0', 'token1'].map((method) =>
-        sdk.api.abi.multiCall({
+        sdk.api2.abi.multiCall({
           abi: PAIR_TOKEN_ABI(method),
           calls: lpTokens.map((address: string) => ({
             target: address,
@@ -109,21 +109,17 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       )
     );
 
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
     const fromBlock = (await getBlock(fromTimestamp, 'fantom', {}));
     const toBlock = (await getBlock(toTimestamp, 'fantom', {}));
-    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: 'fantom',
       topics: [topic0]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output);
+    })))) as any;
 
     const rawCoins = [...tokens0, ...tokens1].map((e: string) => `fantom:${e}`);
     const coins = [...new Set(rawCoins)]

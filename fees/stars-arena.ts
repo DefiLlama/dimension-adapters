@@ -8,7 +8,7 @@ import { ethers } from "ethers";
 const address = '0x563395a2a04a7ae0421d34d62ae67623caf67d03';
 const topic0_trade = '0xc9d4f93ded9b42fa24561e02b2a40f720f71601eb1b3f7b3fd4eff20877639ee';
 const event_trade = 'event Trade(address trader,address subject,bool isBuy,uint256 shareAmount,uint256 amount,uint256 protocolAmount,uint256 subjectAmount,uint256 referralAmount,uint256 supply,uint256 buyPrice,uint256 myShares)'
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_trade
 ]);
 
@@ -32,22 +32,20 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   try {
     let _logs: ILog[] = [];
     for(let i = fromBlock; i < toBlock; i += 5000) {
-      const logs: ILog[] = (await sdk.api.util.getLogs({
+      const logs: ILog[] = (await sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: i + 5000,
         fromBlock: i,
-        keys: [],
         chain: CHAIN.AVAX,
         topics: [topic0_trade]
-      })).output as ILog[];
+      })) as ILog[];
       _logs = _logs.concat(logs);
     }
 
     const fees_details: IFee[] = _logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e);
-      const protocolEthAmount = Number(value.args.protocolAmount._hex) / 10 ** 18;
-      const subjectEthAmount = Number(value.args.subjectAmount._hex) / 10 ** 18;
+      const protocolEthAmount = Number(value!.args.protocolAmount) / 10 ** 18;
+      const subjectEthAmount = Number(value!.args.subjectAmount) / 10 ** 18;
       return {
         fees: protocolEthAmount + subjectEthAmount,
         rev: protocolEthAmount

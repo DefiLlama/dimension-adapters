@@ -33,7 +33,31 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
         }
       }`;
 
+
+  const graphQuery2 = gql`{
+    feeStat(id: "total") {
+      id
+      mint
+      burn
+      marginAndLiquidation
+      swap
+    }
+  }`;
+
   const graphRes = await request(endpointsBeamex[chain], graphQuery);
+  const graphRes2 = await request(endpointsBeamex[chain], graphQuery2);
+
+  const totalFee =
+    parseInt(graphRes2.feeStat.mint) +
+    parseInt(graphRes2.feeStat.burn) +
+    parseInt(graphRes2.feeStat.marginAndLiquidation) +
+    parseInt(graphRes2.feeStat.swap);
+  const finalTotalFee = totalFee / 1e30;
+
+  const totalUserFee =
+    parseInt(graphRes2.feeStat.marginAndLiquidation) +
+    parseInt(graphRes2.feeStat.swap);
+  const finalTotalUserFee = totalUserFee / 1e30;
 
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
@@ -54,6 +78,13 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
     dailyProtocolRevenue: (finalDailyFee * 0.7).toString(),
     dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.3).toString(),
+    totalFees: finalTotalFee.toString(),
+    totalProtocolRevenue: (finalTotalFee * 0.7).toString(),
+    totalRevenue: (finalTotalFee * 0.7).toString(),
+    totalUserFees: finalTotalUserFee.toString(),
+    totalSupplySideRevenue: (finalTotalFee * 0.3).toString(),
+
+
   };
 };
 

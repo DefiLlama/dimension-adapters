@@ -55,7 +55,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
         l1FeeVaultEnd,
         baseFeeVaultStart,
         baseFeeVaultEend
-    ] = await Promise.all([
+    ] = (await Promise.all([
         getBalance({
             target: feeWallet,
             block: yesterdaysBlock,
@@ -86,10 +86,10 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
             block: todaysBlock,
             chain: "optimism"
         })
-    ])
-    const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
-        .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
-        .plus((new BigNumber(baseFeeVaultEend.output).minus(baseFeeVaultStart.output)))
+    ])).map(i => i.output)
+    const ethBalance = (new BigNumber(feeWalletEnd).minus(feeWalletStart))
+        .plus((new BigNumber(l1FeeVaultEnd).minus(l1FeeVaultStart)))
+        .plus((new BigNumber(baseFeeVaultEend).minus(baseFeeVaultStart)))
 
     return (ethBalance.plus(dailyFee)).div(1e18)
 }

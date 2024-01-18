@@ -6,17 +6,203 @@ import { getBlock } from "../helpers/getBlock";
 import { ethers } from "ethers";
 import { getPrices } from "../utils/prices";
 
-
-const event_funds_deposited_v2 = 'event FundsDeposited(uint256 amount,uint256 originChainId,uint256 indexed destinationChainId,int64 relayerFeePct,uint32 indexed depositId,uint32 quoteTimestamp,address originToken,address recipient,address indexed depositor,bytes message)';
-const event_filled_replay_v2 = 'event FilledRelay(uint256 amount,uint256 totalFilledAmount,uint256 fillAmount,uint256 repaymentChainId,uint256 indexed originChainId,uint256 destinationChainId,int64 relayerFeePct,int64 realizedLpFeePct,uint32 indexed depositId,address destinationToken,address relayer,address indexed depositor,address recipient,bytes message,SpokePool.RelayExecutionInfo updatableRelayData)';
-
+const abis: any[] = [
+  {
+    "anonymous": false,
+    "inputs": [
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "originChainId",
+            "type": "uint256"
+        },
+        {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "destinationChainId",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "int64",
+            "name": "relayerFeePct",
+            "type": "int64"
+        },
+        {
+            "indexed": true,
+            "internalType": "uint32",
+            "name": "depositId",
+            "type": "uint32"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint32",
+            "name": "quoteTimestamp",
+            "type": "uint32"
+        },
+        {
+            "indexed": false,
+            "internalType": "address",
+            "name": "originToken",
+            "type": "address"
+        },
+        {
+            "indexed": false,
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+        },
+        {
+            "indexed": true,
+            "internalType": "address",
+            "name": "depositor",
+            "type": "address"
+        },
+        {
+            "indexed": false,
+            "internalType": "bytes",
+            "name": "message",
+            "type": "bytes"
+        }
+    ],
+    "name": "FundsDeposited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "totalFilledAmount",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "fillAmount",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "repaymentChainId",
+            "type": "uint256"
+        },
+        {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "originChainId",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "destinationChainId",
+            "type": "uint256"
+        },
+        {
+            "indexed": false,
+            "internalType": "int64",
+            "name": "relayerFeePct",
+            "type": "int64"
+        },
+        {
+            "indexed": false,
+            "internalType": "int64",
+            "name": "realizedLpFeePct",
+            "type": "int64"
+        },
+        {
+            "indexed": true,
+            "internalType": "uint32",
+            "name": "depositId",
+            "type": "uint32"
+        },
+        {
+            "indexed": false,
+            "internalType": "address",
+            "name": "destinationToken",
+            "type": "address"
+        },
+        {
+            "indexed": false,
+            "internalType": "address",
+            "name": "relayer",
+            "type": "address"
+        },
+        {
+            "indexed": true,
+            "internalType": "address",
+            "name": "depositor",
+            "type": "address"
+        },
+        {
+            "indexed": false,
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+        },
+        {
+            "indexed": false,
+            "internalType": "bytes",
+            "name": "message",
+            "type": "bytes"
+        },
+        {
+            "components": [
+                {
+                    "internalType": "address",
+                    "name": "recipient",
+                    "type": "address"
+                },
+                {
+                    "internalType": "bytes",
+                    "name": "message",
+                    "type": "bytes"
+                },
+                {
+                    "internalType": "int64",
+                    "name": "relayerFeePct",
+                    "type": "int64"
+                },
+                {
+                    "internalType": "bool",
+                    "name": "isSlowRelay",
+                    "type": "bool"
+                },
+                {
+                    "internalType": "int256",
+                    "name": "payoutAdjustmentPct",
+                    "type": "int256"
+                }
+            ],
+            "indexed": false,
+            "internalType": "struct SpokePool.RelayExecutionInfo",
+            "name": "updatableRelayData",
+            "type": "tuple"
+        }
+    ],
+    "name": "FilledRelay",
+    "type": "event"
+}
+]
 const topic0_fund_disposit_v2 = '0xafc4df6845a4ab948b492800d3d8a25d538a102a2bc07cd01f1cfa097fddcff6';
 const topic0_filled_replay_v2 = '0x8ab9dc6c19fe88e69bc70221b339c84332752fdd49591b7c51e66bae3947b73c';
 
-const contract_interface = new ethers.utils.Interface([
-  event_funds_deposited_v2,
-  event_filled_replay_v2
-]);
+const contract_interface = new ethers.Interface(abis);
 
 type TAddress = {
   [key: string]: string;
@@ -49,33 +235,29 @@ const graph = (chain: Chain) => {
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-    const logs_fund_disposit: IDataDispositFund[] = (await sdk.api.util.getLogs({
+    const logs_fund_disposit: IDataDispositFund[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_fund_disposit_v2]
-    })).output.map((a: any) => contract_interface.parseLog(a))
-      .filter((a: any) => Number(a.args.destinationChainId._hex) === 288)
+    })).map((a: any) => contract_interface.parseLog(a))
+      .filter((a: any) => Number(a!.args.destinationChainId) === 288)
       .map((a: any) => {
         return {
-          token: a.args.originToken.toLowerCase(),
-          amount: Number(a.args.amount._hex),
-          lp_fee_pct: Number(a.args.relayerFeePct._hex) / 10 ** 18
+          token: a!.args.originToken.toLowerCase(),
+          amount: Number(a!.args.amount),
+          lp_fee_pct: Number(a!.args.relayerFeePct) / 10 ** 18
         } as IDataDispositFund
       });
 
-    const logs_filled_replay: IDataReplay[] = (await sdk.api.util.getLogs({
+    const logs_filled_replay: IDataReplay[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_filled_replay_v2]
-    })).output.map((a: any) => {
+    })).map((a: any) => {
       const data = a.data.replace('0x','');
       const destinationToken = data.slice(448, 512) // 7
       const token = '0x' + destinationToken.slice(24, address.length)

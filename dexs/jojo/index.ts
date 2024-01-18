@@ -3,7 +3,7 @@ import { SimpleAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.`+ chain +`.jojo.exchange/v1/klines?marketId=${symbol}&interval=1D&startTime=1687017600000&limit=500`
+const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.`+ chain +`-mainnet.jojo.exchange/v1/klines?marketId=${symbol}&interval=1D&startTime=1687017600000&limit=500`
 const coins = {
     'ethusdc': 'coingecko:ethereum',
     'btcusdc': 'coingecko:bitcoin',
@@ -43,12 +43,12 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [CHAIN.ERA]: {
-            fetch: getFetch("zksync"),
-            start: async () => 1687017600,
-        },
+        // [CHAIN.ERA]: {
+        //     fetch: getFetch("zksync"),
+        //     start: async () => 1687017600,
+        // }, // error
         [CHAIN.ARBITRUM]: {
-            fetch: getFetch("arbitrum-mainnet"),
+            fetch: getFetch("arbitrum"),
             start: async () => 1687017600,
         },
     },

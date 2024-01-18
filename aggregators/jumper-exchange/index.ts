@@ -1,7 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
-import { ethers } from "ethers";
 import { getPrices } from "../../utils/prices";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -12,6 +11,12 @@ const integrator = '0x0000000000000000000000000000000000000000000000000000000000
 
 type IContract = {
   [c: string | Chain]: string;
+}
+type TPrice = {
+  [s: string]: {
+    price: number;
+    decimals: number
+  };
 }
 const contract: IContract = {
   [CHAIN.ARBITRUM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -46,15 +51,14 @@ const fetch = (chain: Chain) => {
     try {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs = (await sdk.api.util.getLogs({
+      const logs = (await sdk.getEventLogs({
         target: contract[chain],
         topic: topic0,
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      })).output as ILog[];
+      })) as ILog[];
 
       const data: IData[] = logs.map((e: ILog) => {
         const _data  = e.data.replace('0x', '');
@@ -73,7 +77,13 @@ const fetch = (chain: Chain) => {
         }
       }).filter(e => e.integrator.toLowerCase() === integrator.toLowerCase())
       const coins: string[] = [...new Set([...new Set(data.map((e: IData) => `${chain}:${e.fromAssetId}`)), ...new Set(data.map((e: IData) => `${chain}:${e.toAssetId}`))])];
-      const prices = await getPrices(coins, timestamp);
+      const coins_split: string[][] = [];
+      for(let i = 0; i < coins.length; i+=100) {
+        coins_split.push(coins.slice(i, i + 100))
+      }
+      const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+      const prices: TPrice = Object.assign({}, {});
+      prices_result.map((a: any) => Object.assign(prices, a))
       const volumeUSD = data.map((e: IData) => {
         const fromPrice = prices[`${chain}:${e.fromAssetId}`]?.price || 0;
         const toPrice = prices[`${chain}:${e.toAssetId}`]?.price || 0;

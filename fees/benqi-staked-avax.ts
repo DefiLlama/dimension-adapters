@@ -18,15 +18,14 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toBlock = await getBlock(toTimestamp, CHAIN.AVAX, {})
     const fromBlock = await getBlock(fromTimestamp, CHAIN.AVAX, {})
-    const logs: ILog[] = (await sdk.api.util.getLogs({
+    const logs: ILog[] = (await sdk.getEventLogs({
       target: address,
       topic: topic0,
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.AVAX,
       topics: [topic0]
-    })).output as ILog[];
+    })) as ILog[];
     const reward = logs.reduce((acc, log) => {
       const amount = Number(log.data) / 10 ** 18
       return acc + amount
