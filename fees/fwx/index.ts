@@ -16,19 +16,18 @@ interface IDailyFeeData {
   totalDailyFee: string;
 }
 
-interface ICompanyRevenueData {
-  name: string;
-  value: string;
-}
 interface ICompanyRevenue {
-  data: ICompanyRevenueData[];
+  totalInterestProfit: string;
+  totalFeeProfit: string;
+  totalFeeAuction: string;
+  totalRevenue: string;
 }
 
 const endpoints: Record<Chain, IEndpoint> = {
   [CHAIN.AVAX]: {
     dailyFee: "https://app.fwx.finance/api/43114/v1/dashboard/company-revenue",
     realtimeCompanyRevenue:
-      "https://app.fwx.finance/api/43114/v1//realtime/wallet-balance",
+      "https://app.fwx.finance/api/43114/v1//realtime/company-revenue",
   },
 };
 
@@ -57,11 +56,9 @@ const fetch = (chain: Chain) => {
       endpoints[chain].realtimeCompanyRevenue
     );
     const companyRevenue = companyRevenueRes.data as ICompanyRevenue;
-    let totalFee: number = 0;
-    for (let i = 0; i < companyRevenue.data.length; i++) {
-      const value = parseFloat(companyRevenue.data[i].value);
-      totalFee += value;
-    }
+    const totalFee =
+      parseFloat(companyRevenue.totalRevenue) +
+      9 * parseFloat(companyRevenue.totalInterestProfit);
 
     return {
       dailyFees: dailyFees.toString(),
