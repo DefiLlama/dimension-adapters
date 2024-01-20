@@ -40,7 +40,7 @@ const fetch = (chain: Chain, multisigs: string[], gasToken: string) => {
               FROM
                   ${chain}.core.fact_traces
               WHERE
-                BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+                BLOCK_NUMBER BETWEEN ${startblock} AND ${endblock}
                 AND 
                 TX_STATUS = 'SUCCESS'
                 AND 
@@ -71,7 +71,7 @@ const fetch = (chain: Chain, multisigs: string[], gasToken: string) => {
                 from
                   ${chain}.core.fact_event_logs
                 WHERE
-                  BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+                  BLOCK_NUMBER BETWEEN ${startblock} AND ${endblock}
                   and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
                   and topics[2] = '${topicTo}'
           `;
