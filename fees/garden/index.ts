@@ -10,21 +10,11 @@ const chainMapper: Record<string, string> = {
 };
 
 const baseUrl = "http://leaderboard.garden.finance";
-const volumeUrl = (chain: string, timestamp: number, interval?: string) =>
-    `${baseUrl}/volume?chain=${chain}&end=${timestamp}${
-        interval ? `&interval=${interval}` : ""
-    }`;
 
 const feeUrl = (chain: string, timestamp: number, interval?: string) =>
     `${baseUrl}/fee?chain=${chain}&end=${timestamp}${
         interval ? `&interval=${interval}` : ""
     }`;
-
-type IAPIVolumeResponse = {
-    data: {
-        volume: string;
-    };
-};
 
 type IApiFeeResponse = {
     data: {
@@ -33,14 +23,6 @@ type IApiFeeResponse = {
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
-    const dailyVolumeResponse: IAPIVolumeResponse = (
-        await fetchURL(volumeUrl(chainMapper[chain], timestamp, "day"))
-    ).data;
-
-    const totalVolumeResponse: IAPIVolumeResponse = (
-        await fetchURL(volumeUrl(chainMapper[chain], timestamp))
-    ).data;
-
     const dailyFeeResponse: IApiFeeResponse = (
         await fetchURL(feeUrl(chainMapper[chain], timestamp, "day"))
     ).data;
@@ -49,18 +31,12 @@ const fetch = (chain: string) => async (timestamp: number) => {
         await fetchURL(feeUrl(chainMapper[chain], timestamp))
     ).data;
 
-    const dailyVolume = new BigNumber(dailyVolumeResponse.data.volume);
-
-    const totalVolume = new BigNumber(totalVolumeResponse.data.volume);
-
     const dailyUserFees = new BigNumber(dailyFeeResponse.data.fee);
 
     const totalUserFees = new BigNumber(totalFeeResponse.data.fee);
 
     // //response is in usd
     return {
-        dailyVolume,
-        totalVolume,
         dailyUserFees,
         totalUserFees,
     };
