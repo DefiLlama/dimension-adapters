@@ -73,6 +73,7 @@ const PAIR_TOKEN_ABI = (token: string): object => {
     type: "function",
   };
 };
+process.env.FANTOM_BATCH_MAX_COUNT = "10"; // 10 is the default value
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24;
@@ -93,6 +94,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         params: i,
       })),
       chain: CHAIN.FANTOM,
+      permitFailure: true,
     });
 
     const lpTokens = poolsRes
@@ -103,6 +105,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           abi: PAIR_TOKEN_ABI(method),
           calls: lpTokens,
           chain: CHAIN.FANTOM,
+          permitFailure: true,
         })
       )
     );
@@ -120,6 +123,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             fromBlock: fromBlock,
             chain: CHAIN.FANTOM,
             topics: [topic0],
+            skipCache: true,
           })
         )
       )

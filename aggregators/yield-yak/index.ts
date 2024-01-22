@@ -3,7 +3,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import { CHAIN } from "../../helpers/chains";
 import { fetchURLWithRetry } from "../../helpers/duneRequest";
 
-const chains = [CHAIN.AVAX];
+const chains = [CHAIN.AVAX, CHAIN.ARBITRUM];
 
 const chainMap: Record<string, string> = {
   [CHAIN.AVAX]: "avalanche_c",
