@@ -1,12 +1,7 @@
 import { Adapter, SimpleAdapter, FetchResultFees, BaseAdapter } from "../../adapters/types";
 import { ARBITRUM, CHAIN } from "../../helpers/chains";
-import request, { gql } from "graphql-request";
 import { fees_bribes } from './bribes';
 import { getBlock } from '../../helpers/getBlock';
-
-
-
-
 import {
     getGraphDimensions,
     DEFAULT_DAILY_VOLUME_FACTORY,
@@ -20,23 +15,23 @@ const startTimeV2:TStartTime = {
   [CHAIN.ARBITRUM]: 1685574000,
 }
 
+const getBribes = async (timestamp: number): Promise<FetchResultFees> => {
+  const fromTimestamp = timestamp - 60 * 60 * 24;
+  const fromBlock = (await getBlock(timestamp, CHAIN.ARBITRUM, {}));
+  const bribes = await fees_bribes(fromBlock, timestamp);
+  const fromBlock_delta = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
+  const bribes_delta = await fees_bribes(fromBlock_delta, fromTimestamp);
+  return {
+    dailyBribesRevenue: `${ bribes_delta - bribes}`,
+    timestamp: timestamp,
+  };
+};
 
 const v2Endpoints = {
     [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph",
   };
 
 const VOLUME_USD = "volumeUSD";
-
-const getBribes = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
-  const bribes = await fees_bribes(fromBlock, timestamp);
-  return {
-    dailyBribesRevenue: `${bribes}`,
-    timestamp: timestamp,
-  };
-};
-
 
 const v2Graphs = getGraphDimensions({
     graphUrls: v2Endpoints,

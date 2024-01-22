@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { getPrices } from "../../utils/prices";
 import { CHAIN } from "../../helpers/chains";
-import { BigNumber } from "ethers";
 
 type TPrice = {
   [s: string]: {
@@ -23,7 +22,7 @@ export const fees_bribes = async (fromBlock: number, timestamp: number): Promise
     const graphQuery = gql`
       query GetBribes($fromBlock: Int!) {
         bribes(
-          block: { number_gte: $fromBlock }
+          where: { timestamp_gte: ${timestamp} }
         ) {
           amount
           token {
@@ -52,9 +51,8 @@ export const fees_bribes = async (fromBlock: number, timestamp: number): Promise
     const fees_bribes_usd = logs_bribes.map((e: IBribes) => {
       const price = prices[`${CHAIN.ARBITRUM}:${e.token.id.toLowerCase()}`]?.price || 0;
       const decimals = prices[`${CHAIN.ARBITRUM}:${e.token.id.toLowerCase()}`]?.decimals || 0;
-      return (Number(e.amount) / 10 ** decimals) * price;
+      return (Number(e.amount)) * price;
     }).reduce((a: number, b: number) => a + b, 0);
-
     return fees_bribes_usd;
   } catch (error) {
     console.error(error);
