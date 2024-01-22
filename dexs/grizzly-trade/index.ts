@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
     [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metavault-trade/grizzly-bnb-subgraph",
@@ -72,6 +73,7 @@ const adapter: BreakdownAdapter = {
         "swap": Object.keys(endpoints).reduce((acc, chain) => {
             return {
                 ...acc,
+                [DISABLED_ADAPTER_KEY]: disabledAdapter,
                 [chain]: {
                     fetch: getFetch(historicalDataSwap)(chain),
                     start: async () => getStartTimestamp(chain)
@@ -81,6 +83,7 @@ const adapter: BreakdownAdapter = {
         "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
             return {
                 ...acc,
+                [DISABLED_ADAPTER_KEY]: disabledAdapter,
                 [chain]: {
                     fetch: getFetch(historicalDataDerivatives)(chain),
                     start: async () => getStartTimestamp(chain)

@@ -1,5 +1,6 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
@@ -33,6 +34,7 @@ const v3Graphs = getGraphDimensions({
 
 const adapter: Adapter = {
     adapter: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.MANTA]: {
         fetch: v3Graphs(CHAIN.MANTA),
         start:  async () => 1703548800

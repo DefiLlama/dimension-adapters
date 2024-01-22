@@ -158,7 +158,7 @@ const adapter: Adapter = {
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
       start: async () => 1664582400,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
     },
   },
 };

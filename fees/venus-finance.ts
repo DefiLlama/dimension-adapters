@@ -198,7 +198,7 @@ const adapter: Adapter = {
     [CHAIN.BSC]: {
       fetch: fetch,
       start: async () => 1691798400,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
     },
   },
 };
