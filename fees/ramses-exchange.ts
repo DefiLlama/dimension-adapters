@@ -1,8 +1,8 @@
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { getPrices } from "../../utils/prices";
+import { getBlock } from "../helpers/getBlock";
+import { getPrices } from "../utils/prices";
 import request, { gql } from "graphql-request";
 
 
