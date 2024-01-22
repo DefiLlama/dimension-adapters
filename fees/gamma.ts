@@ -209,7 +209,7 @@ const fetchBSC = async (timestamp: number) => {
         and topics[1] = '0x0000000000000000000000000f40a22e8c2ae737f12007cb88e8ef0ff3109483'
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
-    const value: any[] = (await queryFlipside(query, 460))
+    const value: any[] = (await queryFlipside(query, 500))
     const logs: IReward[] = value.map((a: any) => {
       return {
         user: a[8][0],
