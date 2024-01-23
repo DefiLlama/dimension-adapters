@@ -70,7 +70,7 @@ export default {
                 const userFees = 0
                 const fees = supplySideRevenue + protocolRevenue
 
-                const toNumber = async (obj: any) => await sdk.Balances.getUSDValue(obj as any) as any
+                const toNumber = async (obj: any) => Number(await sdk.Balances.getUSDValue(obj as any) as any).toFixed(0)
 
                 return {
                     dailySupplySideRevenue: await toNumber({ 'coingecko:the-open-network': normalize(supplySideRevenue) }),

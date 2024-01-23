@@ -39,9 +39,9 @@ const adapter: SimpleAdapter = {
 
         return {
           // totalFees: cumulativeFees.toString(),
-          dailyFees:dailyFees.toString(),
-          totalVolume: Number(FEE_VOLUME_MULTIPLIER * cumulativeFees).toString(),
-          dailyVolume: Number(FEE_VOLUME_MULTIPLIER * dailyFees).toString(),
+          dailyFees:Number(dailyFees).toFixed(0),
+          totalVolume: Number(FEE_VOLUME_MULTIPLIER * cumulativeFees).toFixed(0),
+          dailyVolume: Number(FEE_VOLUME_MULTIPLIER * dailyFees).toFixed(0),
         } as unknown as FetchResult;
       },
       meta: {

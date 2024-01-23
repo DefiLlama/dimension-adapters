@@ -36,10 +36,10 @@ const fetch = (chain: Chain) => {
             logs.map((parsed: any) => {
                 api.add(parsed.tokenOut, parsed.amountOut)
             });
-            const VUSD = await api.getUSDValue();
+            const VUSD = Number(await api.getUSDValue()).toFixed(0);
 
             return {
-                dailyVolume: `${VUSD}`,
+                dailyVolume: VUSD,
                 timestamp,
             };
         } catch (e) {

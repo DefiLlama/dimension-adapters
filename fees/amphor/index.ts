@@ -182,15 +182,15 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     dailyRevenue.add(TOKENS.WBTC, dailyRevenueWBTC.toString());
 
 
-    const totalFeesNumber = await totalFees.getUSDValue();
-    const dailyRevenueNumber = await dailyRevenue.getUSDValue();
+    const totalFeesNumber = Number(await totalFees.getUSDValue()).toFixed(0);
+    const dailyRevenueNumber = Number(await dailyRevenue.getUSDValue()).toFixed(0);
     return {
         timestamp: timestamp,
         totalFees: totalFeesNumber,
-        totalRevenue: await totalRevenue.getUSDValue(),
+        totalRevenue: Number(await totalRevenue.getUSDValue()).toFixed(0),
         totalProtocolRevenue: totalFeesNumber,
         totalUserFees: totalFeesNumber,
-        dailyFees: await dailyFees.getUSDValue(),
+        dailyFees: Number(await dailyFees.getUSDValue()).toFixed(0),
         dailyProtocolRevenue: dailyRevenueNumber,
         dailyRevenue: dailyRevenueNumber,
     };

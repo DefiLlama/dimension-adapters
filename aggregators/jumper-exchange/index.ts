@@ -41,9 +41,9 @@ const fetch = (chain: Chain) => {
       })) as any
       console.log(data.length, chain)
       data.forEach((e: IData) => api.add(e.toAssetId, e.toAmount));
-      const { rawTokenBalances, usdTokenBalances, usdTvl } = await api.getUSDJSONs()
+      const { usdTvl } = await api.getUSDJSONs()
       return {
-        dailyVolume: usdTvl.toString(),
+        dailyVolume: Number(usdTvl).toFixed(0),
         timestamp,
       } as any;
     } catch (error) {

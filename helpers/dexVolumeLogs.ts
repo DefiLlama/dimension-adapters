@@ -43,7 +43,7 @@ export async function getDexVolume({ chain, fromTimestamp, toTimestamp, factory,
     const { usdTvl } = await api.getUSDJSONs()
     return {
       timestamp,
-      dailyVolume: usdTvl.toString(),
+      dailyVolume: Number(usdTvl).toFixed(0),
     }
   } catch (e) {
     console.error(e)
@@ -96,11 +96,12 @@ export async function getDexFees({ chain, fromTimestamp, toTimestamp, factory, t
       })
     })
     const { usdTvl } = await api.getUSDJSONs()
+    const value = Number(usdTvl).toFixed(0)
     return {
       timestamp,
-      dailyFees: usdTvl.toString(),
-      dailyRevenue: usdTvl.toString(),
-      dailyHoldersRevenue: usdTvl.toString(),
+      dailyFees: value,
+      dailyRevenue: value,
+      dailyHoldersRevenue: value,
     }
   } catch (e) {
     console.error(e)
