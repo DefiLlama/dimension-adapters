@@ -45,10 +45,6 @@ const fetch = (chain: Chain) => {
       return {
         dailyVolume: usdTvl.toString(),
         timestamp,
-        extraInfo: {
-          dailyVolumeRawTokens: rawTokenBalances,
-          dailyVolumeTokens: usdTokenBalances,
-        }
       } as any;
     } catch (error) {
       console.error(error);

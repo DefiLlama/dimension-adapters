@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getPrices } from "../../utils/prices";
+import * as sdk from "@defillama/sdk"
 
 interface ChainData {
   totalPremiumVolume: { [key: string]: number };
@@ -88,15 +88,13 @@ async function getChainData(
     //   Number(curr.timestampMs) / 1000
     // );
     const dailyNotionalVolume =
-      Number(parsedJson.delivery_size) /
-      10 ** Number(parsedJson.o_token_decimal);
+      Number(parsedJson.delivery_size)
 
     const dailyPremiumVolume =
       (Number(parsedJson.bidder_bid_value) +
         Number(parsedJson.bidder_fee) +
         Number(parsedJson.incentive_bid_value) +
-        Number(parsedJson.incentive_fee)) /
-      10 ** Number(parsedJson.b_token_decimal);
+        Number(parsedJson.incentive_fee))
 
     if ("sui:0x" + parsedJson.o_token.name in acc.totalNotionalVolume) {
       acc.totalNotionalVolume["sui:0x" + parsedJson.o_token.name] +=
@@ -133,6 +131,11 @@ async function getChainData(
       }
     }
   }
+
+  acc.dailyNotionalVolume = await sdk.Balances.getUSDValue(acc.dailyNotionalVolume, end_timestamp) as any
+  acc.dailyPremiumVolume = await sdk.Balances.getUSDValue(acc.dailyPremiumVolume, end_timestamp) as any
+  acc.totalPremiumVolume = await sdk.Balances.getUSDValue(acc.totalPremiumVolume, end_timestamp) as any
+  acc.totalNotionalVolume = await sdk.Balances.getUSDValue(acc.totalNotionalVolume, end_timestamp) as any
 
   return acc;
 }

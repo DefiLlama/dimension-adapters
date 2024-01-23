@@ -1,5 +1,6 @@
 import { CHAIN } from '../../helpers/chains'
 import { postURL } from '../../utils/fetchURL'
+import * as sdk from '@defillama/sdk'
 
 const address = 'EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa'
 
@@ -27,7 +28,7 @@ export default {
                     method: 'get_treasury_state',
                     stack: [],
                 })
-                if (!response1.data.ok)  {
+                if (!response1.data.ok) {
                     throw new Error('Error in calling toncenter.com/api/v2/runGetMethod')
                 }
                 const getTreasuryState = response1.data.result
@@ -40,7 +41,7 @@ export default {
                     method: 'get_times',
                     stack: [],
                 })
-                if (!response2.data.ok)  {
+                if (!response2.data.ok) {
                     throw new Error('Error in calling toncenter.com/api/v2/runGetMethod')
                 }
                 const getTimes = response2.data.result
@@ -69,13 +70,15 @@ export default {
                 const userFees = 0
                 const fees = supplySideRevenue + protocolRevenue
 
+                const toNumber = async (obj: any) => await sdk.Balances.getUSDValue(obj as any) as any
+
                 return {
-                    dailySupplySideRevenue: { 'coingecko:the-open-network': normalize(supplySideRevenue) },
-                    dailyHoldersRevenue: { 'coingecko:the-open-network': normalize(holdersRevenue) },
-                    dailyProtocolRevenue: { 'coingecko:the-open-network': normalize(protocolRevenue) },
-                    dailyRevenue: { 'coingecko:the-open-network': normalize(revenue) },
-                    dailyUserFees: { 'coingecko:the-open-network': normalize(userFees) },
-                    dailyFees: { 'coingecko:the-open-network': normalize(fees) },
+                    dailySupplySideRevenue: await toNumber({ 'coingecko:the-open-network': normalize(supplySideRevenue) }),
+                    dailyHoldersRevenue: await toNumber({ 'coingecko:the-open-network': normalize(holdersRevenue) }),
+                    dailyProtocolRevenue: await toNumber({ 'coingecko:the-open-network': normalize(protocolRevenue) }),
+                    dailyRevenue: await toNumber({ 'coingecko:the-open-network': normalize(revenue) }),
+                    dailyUserFees: await toNumber({ 'coingecko:the-open-network': normalize(userFees) }),
+                    dailyFees: await toNumber({ 'coingecko:the-open-network': normalize(fees) }),
                 }
             },
         },

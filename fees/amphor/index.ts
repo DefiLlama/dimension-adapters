@@ -92,7 +92,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         fromBlock: 18299242,
         toBlock: toBlock,
         chain: CHAIN.ETHEREUM,
-    }))as ethers.Log[];
+    })) as ethers.Log[];
 
     const eventsWSTETH = (await sdk.getEventLogs({
         target: AmphorILHedgedWSTETH_contractAddress,
@@ -100,7 +100,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         fromBlock: 18535914,
         toBlock: toBlock,
         chain: CHAIN.ETHEREUM,
-    }))as ethers.Log[];
+    })) as ethers.Log[];
 
     const eventsWBTC = (await sdk.getEventLogs({
         target: AmphorILHedgedWBTC_contractAddress,
@@ -108,7 +108,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         fromBlock: 18535914,
         toBlock: toBlock,
         chain: CHAIN.ETHEREUM,
-    }))as ethers.Log[];
+    })) as ethers.Log[];
 
     let totalRevenueUSDC = BigInt(0);
     let totalFeesUSDC = BigInt(0);
@@ -155,55 +155,44 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         }
     });
 
-    const totalFeesUSDCStr = ethers.formatUnits(totalFeesUSDC.toString(), 6); // usdc has 6 decimals
-    const totalRevenueUSDCStr = ethers.formatUnits(totalRevenueUSDC.toString(), 6); // usdc has 6 decimals
-    const dailyFeesUSDCStr = ethers.formatUnits(dailyFeesUSDC.toString(), 6); // usdc has 6 decimals
-    const dailyRevenueUSDCStr = ethers.formatUnits(dailyRevenueUSDC.toString(), 6); // usdc has 6 decimals
-    const totalFeesWSTETHStr = ethers.formatUnits(totalFeesWSTETH.toString(), 18); // wsteth has 18 decimals
-    const totalRevenueWSTETHStr = ethers.formatUnits(totalRevenueWSTETH.toString(), 18); // wsteth has 18 decimals
-    const dailyFeesWSTETHStr = ethers.formatUnits(dailyFeesWSTETH.toString(), 18); // wsteth has 18 decimals
-    const dailyRevenueWSTETHStr = ethers.formatUnits(dailyRevenueWSTETH.toString(), 18); // wsteth has 18 decimals
-    const totalFeesWBTCStr = ethers.formatUnits(totalFeesWBTC.toString(), 8); // wbtc has 8 decimals
-    const totalRevenueWBTCStr = ethers.formatUnits(totalRevenueWBTC.toString(), 8); // wbtc has 8 decimals
-    const dailyFeesWBTCStr = ethers.formatUnits(dailyFeesWBTC.toString(), 8); // wbtc has 8 decimals
-    const dailyRevenueWBTCStr = ethers.formatUnits(dailyRevenueWBTC.toString(), 8); // wbtc has 8 decimals
+    const TOKENS = {
+        USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        WSTETH: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+        WBTC: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    }
+    const totalFees = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
+    const totalRevenue = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
+    const dailyFees = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
+    const dailyRevenue = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
+
+    totalFees.add(TOKENS.USDC, totalFeesUSDC.toString());
+    totalFees.add(TOKENS.WSTETH, totalFeesWSTETH.toString());
+    totalFees.add(TOKENS.WBTC, totalFeesWBTC.toString());
+
+    totalRevenue.add(TOKENS.USDC, totalRevenueUSDC.toString());
+    totalRevenue.add(TOKENS.WSTETH, totalRevenueWSTETH.toString());
+    totalRevenue.add(TOKENS.WBTC, totalRevenueWBTC.toString());
+
+    dailyFees.add(TOKENS.USDC, dailyFeesUSDC.toString());
+    dailyFees.add(TOKENS.WSTETH, dailyFeesWSTETH.toString());
+    dailyFees.add(TOKENS.WBTC, dailyFeesWBTC.toString());
+
+    dailyRevenue.add(TOKENS.USDC, dailyRevenueUSDC.toString());
+    dailyRevenue.add(TOKENS.WSTETH, dailyRevenueWSTETH.toString());
+    dailyRevenue.add(TOKENS.WBTC, dailyRevenueWBTC.toString());
+
+
+    const totalFeesNumber = await totalFees.getUSDValue();
+    const dailyRevenueNumber = await dailyRevenue.getUSDValue();
     return {
         timestamp: timestamp,
-        totalFees: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": totalFeesWBTCStr,
-        },
-        totalRevenue: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalRevenueUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalRevenueWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": totalRevenueWBTCStr,
-        },
-        totalProtocolRevenue: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": totalFeesWBTCStr,
-        },
-        totalUserFees: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": totalFeesUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": totalFeesWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": totalFeesWBTCStr,
-        },
-        dailyFees: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyFeesUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyFeesWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": dailyFeesWBTCStr,
-        },
-        dailyProtocolRevenue: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": dailyRevenueWBTCStr,
-        },
-        dailyRevenue: {
-            "ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": dailyRevenueUSDCStr,
-            "ethereum:0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": dailyRevenueWSTETHStr,
-            "ethereum:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": dailyRevenueWBTCStr,
-        }
+        totalFees: totalFeesNumber,
+        totalRevenue: await totalRevenue.getUSDValue(),
+        totalProtocolRevenue: totalFeesNumber,
+        totalUserFees: totalFeesNumber,
+        dailyFees: await dailyFees.getUSDValue(),
+        dailyProtocolRevenue: dailyRevenueNumber,
+        dailyRevenue: dailyRevenueNumber,
     };
 }
 

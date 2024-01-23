@@ -6,7 +6,7 @@ const swapEvent = "event Swap(address indexed sender, uint256 amount0In, uint256
 
 type getDexVolumeParams = { chain: string, fromTimestamp: number, toTimestamp?: number, factory?: string, timestamp: number, pools?: string[] }
 
-type getDexVolumeExportsParams = { chain: string, factory?: string,  pools?: string[] }
+type getDexVolumeExportsParams = { chain: string, factory?: string, pools?: string[] }
 
 export async function getDexVolume({ chain, fromTimestamp, toTimestamp, factory, timestamp, pools }: getDexVolumeParams) {
   try {
@@ -40,14 +40,10 @@ export async function getDexVolume({ chain, fromTimestamp, toTimestamp, factory,
         api.add(token1, i.amount1Out)
       })
     })
-    const { rawTokenBalances, usdTokenBalances, usdTvl } = await api.getUSDJSONs()
+    const { usdTvl } = await api.getUSDJSONs()
     return {
       timestamp,
       dailyVolume: usdTvl.toString(),
-      extraInfo: {
-        dailyVolumeRawTokens: rawTokenBalances,
-        dailyVolumeTokens: usdTokenBalances,
-      }
     }
   } catch (e) {
     console.error(e)
@@ -62,8 +58,8 @@ export function getDexVolumeExports(options: getDexVolumeExportsParams) {
   }
 }
 
-type getDexFeesParams =  { chain: string, fromTimestamp?: number, toTimestamp?: number, factory?: string, timestamp: number, pools?: string[], lengthAbi?: string, itemAbi?: string, fromBlock?: number, toBlock?: number, }
-type getDexFeesExportParams =  { chain: string, factory?: string, pools?: string[], lengthAbi?: string, itemAbi?: string, }
+type getDexFeesParams = { chain: string, fromTimestamp?: number, toTimestamp?: number, factory?: string, timestamp: number, pools?: string[], lengthAbi?: string, itemAbi?: string, fromBlock?: number, toBlock?: number, }
+type getDexFeesExportParams = { chain: string, factory?: string, pools?: string[], lengthAbi?: string, itemAbi?: string, }
 
 const feesEvent = "event Fees(address indexed sender, uint256 amount0, uint256 amount1)"
 // const feesTopic = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602'
@@ -99,20 +95,12 @@ export async function getDexFees({ chain, fromTimestamp, toTimestamp, factory, t
         api.add(token1, i.amount1)
       })
     })
-    const { rawTokenBalances, usdTokenBalances, usdTvl } = await api.getUSDJSONs()
+    const { usdTvl } = await api.getUSDJSONs()
     return {
       timestamp,
       dailyFees: usdTvl.toString(),
       dailyRevenue: usdTvl.toString(),
       dailyHoldersRevenue: usdTvl.toString(),
-      extraInfo: {
-        dailyFeesRawTokens: rawTokenBalances,
-        dailyFeesTokens: usdTokenBalances,
-        dailyRevenueRawTokens: rawTokenBalances,
-        dailyRevenueTokens: usdTokenBalances,
-        dailyHolderRevenueRawTokens: rawTokenBalances,
-        dailyHolderRevenueTokens: usdTokenBalances,
-      }
     }
   } catch (e) {
     console.error(e)
