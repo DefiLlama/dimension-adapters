@@ -59,8 +59,8 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const earningData: IEarning[] = earnings.intervals;
 
   const dayTimestampStr = new Date(timestamp * 1000).toISOString().split("T")[0]
-  const dailyRevenueData: IRevenue = reveuneData.find(item => item.DAY === dayTimestampStr) as IRevenue
-  const dailyFeesData: IFees = feesData.find(item => item.DAY === dayTimestampStr) as IFees
+  const dailyRevenueData: IRevenue = reveuneData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IRevenue
+  const dailyFeesData: IFees = feesData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IFees
   const dailyErningData: IEarning = earningData.find(item => Number(item.startTime) === dayTimestamp) as IEarning
   const dailyFees = dailyRevenueData.REVENUE;
   const dailyUsersFees = dailyFeesData?.LIQUIDITY_FEES || 0 + dailyRevenueData?.OUTBOUND_FEE || 0;
