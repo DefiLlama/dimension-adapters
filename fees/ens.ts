@@ -18,7 +18,7 @@ const abi_event = {
   nameRegistered:"event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 cost,uint256 expires)",
   nameRenewed: "event NameRenewed(string name,bytes32 indexed label,uint256 cost,uint256 expires)",
 };
-const abi_event_interface = new ethers.utils.Interface(Object.values(abi_event));
+const abi_event_interface = new ethers.Interface(Object.values(abi_event));
 
 const address_v4 = '283af0b28c62c092c9727f1ee09c02ca627eb7f5';
 const address_v5 = '253553366da8546fc250f225fe3d25d0c782303b';
@@ -68,8 +68,8 @@ const fetch = (address: string) => {
       const raw_name_renewed = logs_name_renewed
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1], data: '0x'+e.data}),...e}})
         .map((p: any) => {
-            const expires = new BigNumber(p.args.expires._hex).toNumber()
-            const cost = new BigNumber(p.args.cost._hex).div(1e18).toNumber()
+            const expires = new BigNumber(p!.args.expires).toNumber()
+            const cost = new BigNumber(p!.args.cost).div(1e18).toNumber()
             _cost[p.hash] = cost;
             return {
               expires: expires,
@@ -80,9 +80,9 @@ const fetch = (address: string) => {
       const raw_name_registered = logs_name_registered
         .map((e: any) => {return {...abi_event_interface.parseLog({topics: ['0x'+e.topic_0, '0x'+e.topic_1, '0x'+e.topic_2], data: '0x'+e.data}),...e}})
         .map((p: any) => {
-          const name: string = p.args.name;
-          const expires = new BigNumber(p.args.expires._hex).toNumber()
-          const cost = new BigNumber(p.args.cost._hex).div(1e18).toNumber()
+          const name: string = p!.args.name;
+          const expires = new BigNumber(p!.args.expires).toNumber()
+          const cost = new BigNumber(p!.args.cost).div(1e18).toNumber()
           _cost[p.hash] = cost;
           return {
             expires: expires,

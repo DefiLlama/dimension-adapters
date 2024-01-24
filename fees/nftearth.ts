@@ -36,15 +36,13 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.api.util.getLogs({
+    const logs: ITx[] = (await sdk.getEventLogs({
       target: marketplace_address[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
     const ethAddress = chain !== CHAIN.POLYGON ? "ethereum:0x0000000000000000000000000000000000000000" : 'ethereum:0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
     const payableToken: string[] = logs.map((tx: ITx) => {

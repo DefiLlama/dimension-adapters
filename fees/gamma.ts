@@ -58,6 +58,7 @@ interface ILog {
   data: string;
   transactionHash: string;
   topics: string[];
+  address: string;
 }
 
 interface IReward {
@@ -107,31 +108,34 @@ const PAIR_TOKEN_ABI = (token: string): object => {
     "type": "function"
   }
 };
+process.env.POLYGON_ZKEVM_BATCH_MAX_COUNT = '10'; // 10 is the default value
+process.env.ARBITRUM_BATCH_MAX_COUNT = '10'; // 10 is the default value
 
 const fetchFees = (chain: Chain, address: TAddress) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
     try {
-      const counter = (await sdk.api.abi.call({
+      const counter = (await sdk.api2.abi.call({
         target: address[chain],
         chain: chain,
         abi: abis.counter,
         params: [],
-      })).output;
-      const poolsRes = (await sdk.api.abi.multiCall({
+      }));
+      const poolsRes = (await sdk.api2.abi.multiCall({
         abi: abis.hypeByIndex,
         calls: Array.from(Array(Number(counter)).keys()).map((i) => ({
           target: address[chain],
           params: i,
         })),
-        chain: chain
-      })).output;
-      const pools = poolsRes.map((a: any) => a.output[0])
+        chain: chain,
+        permitFailure: true,
+      }));
+      const pools = poolsRes.map((a: any) => a[0])
 
       const [underlyingToken0, underlyingToken1] = await Promise.all(
         ['token0', 'token1'].map((method) =>
-          sdk.api.abi.multiCall({
+          sdk.api2.abi.multiCall({
             abi: PAIR_TOKEN_ABI(method),
             calls: pools.map((address: string) => ({
               target: address,
@@ -141,55 +145,40 @@ const fetchFees = (chain: Chain, address: TAddress) => {
           })
         )
       );
-      const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-      const tokens1 = underlyingToken1.output.map((res: any) => res.output);
+      const tokens0 = underlyingToken0;
+      const tokens1 = underlyingToken1;
 
       const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
       const coins = [...new Set(rawCoins)]
       const prices = await getPrices(coins, timestamp);
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
-      const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
+        topic: '',
         topics: [topic0_burn]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output);
-      const untrackVolumes: IFees[] = pools.map((_: string, index: number) => {
-          const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
-          const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
-          const log: IFeesAmount[] = logs[index]
-            .map((e: ILog) => { return { ...e } })
-            .map((p: ILog) => {
-              const amount0 = Number('0x' + p.data.replace('0x', '').slice(64, 128)) / 10 ** token0Decimals;
-              const amount1 = Number('0x' + p.data.replace('0x', '').slice(128, 192)) / 10 ** token1Decimals
-              const fees = Number('0x' + p.data.replace('0x', '').slice(0, 64))
-              return {
-                amount0: amount0,
-                amount1: amount1,
-                fees
-              } as IFeesAmount
-            });
+      })))).flat();
+      const feesData: IFees[] = logs.map((e: ILog) => {
+        const findIndex = pools.findIndex((lp: string) => lp.toLowerCase() === e.address.toLowerCase())
+        const token0Price = (prices[`${chain}:${tokens0[findIndex]}`]?.price || 0);
+        const token1Price = (prices[`${chain}:${tokens1[findIndex]}`]?.price || 0);
+        const token0Decimals = (prices[`${chain}:${tokens0[findIndex]}`]?.decimals || 0)
+        const token1Decimals = (prices[`${chain}:${tokens1[findIndex]}`]?.decimals || 0)
 
-            const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
-            const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
-          const amount0 = log
-            .reduce((a: number, b: IFeesAmount) => Number(b.amount0) + a, 0)  * token0Price;
-            const amount1 = log
-            .reduce((a: number, b: IFeesAmount) => Number(b.amount1) + a, 0)  * token1Price;
-            const revAmount0 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount0)*(1/b.fees)) + a, 0)  * token0Price;
-            const revAmount1 = log
-            .reduce((a: number, b: IFeesAmount) => (Number(b.amount1)*(1/b.fees)) + a, 0)  * token1Price;
-          return { fees: (amount0+amount1), rev: (revAmount0+revAmount1) }
-        });
-        const dailyFees = untrackVolumes.reduce((a: number, b: IFees) => a + b.fees, 0);
-        const dailyRevenue = untrackVolumes.reduce((a: number, b: IFees) => a + b.rev, 0);
+        const data =  e.data.replace('0x', '');
+        const amount0 = Number('0x' + data.slice(64, 128)) / 10 ** token0Decimals;
+        const amount1 = Number('0x' + data.slice(128, 192)) / 10 ** token1Decimals;
+        const fees = Number('0x' + data.slice(0, 64));
+        const feesUSD = (amount0 * token0Price) + (amount1 * token1Price);
+        const revAmount0 = amount0 * (1 / fees) * token0Price;
+        const revAmount1 = amount1 * (1 / fees) * token1Price;
+        return { fees: feesUSD, rev: revAmount0 + revAmount1 };
+      });
+      const dailyFees = feesData.reduce((a: number, b: IFees) => a + b.fees, 0);
+      const dailyRevenue = feesData.reduce((a: number, b: IFees) => a + b.rev, 0);
       return {
         timestamp,
         dailyFees: `${dailyFees}`,
@@ -220,7 +209,7 @@ const fetchBSC = async (timestamp: number) => {
         and topics[1] = '0x0000000000000000000000000f40a22e8c2ae737f12007cb88e8ef0ff3109483'
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
     `
-    const value: any[] = (await queryFlipside(query, 260))
+    const value: any[] = (await queryFlipside(query, 500))
     const logs: IReward[] = value.map((a: any) => {
       return {
         user: a[8][0],

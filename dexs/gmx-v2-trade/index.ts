@@ -36,35 +36,29 @@ const fetch = (chain: Chain) => {
         const fromBlock = (await getBlock(fromTimestamp, chain, {}));
         const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-        const posistion_logs: ILog[] = (await sdk.api.util.getLogs({
+        const posistion_logs: ILog[] = (await sdk.getEventLogs({
           target: contract[chain],
-          topic: '',
           toBlock: toBlock,
           fromBlock: fromBlock,
-          keys: [],
           chain: chain,
           topics: [topic0_ins, topic1_ins]
-        })).output as ILog[];
+        }))as ILog[];
 
-        const decress_logs: ILog[] = (await sdk.api.util.getLogs({
+        const decress_logs: ILog[] = (await sdk.getEventLogs({
           target: contract[chain],
-          topic: '',
           toBlock: toBlock,
           fromBlock: fromBlock,
-          keys: [],
           chain: chain,
           topics: [topic0_des, topic1_des]
-        })).output as ILog[];
+        }))as ILog[];
 
-        // const fees_logs: ILog[] = (await sdk.api.util.getLogs({
+        // const fees_logs: ILog[] = (await sdk.getEventLogs({
         //   target: contract[chain],
-        //   topic: '',
         //   toBlock: toBlock,
         //   fromBlock: fromBlock,
-        //   keys: [],
         //   chain: chain,
         //   topics: [topic0_fees, topic1_fees]
-        // })).output as ILog[];
+        // }))as ILog[];
 
         let hash: string[] = [];
         const raw_des = decress_logs.map((e: ILog) => {

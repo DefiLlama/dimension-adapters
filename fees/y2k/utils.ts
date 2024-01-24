@@ -1,6 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getPrices } from "../../utils/prices";
 import { ethers } from "ethers";
 
 const tokens = [
@@ -17,38 +16,27 @@ export interface ITx {
   transactionHash: string;
 }
 
-const transfer_interface = new ethers.utils.Interface([event_transfer]);
-
 export const getFees = async (
   vaults: string[],
   fromBlock: number,
   toBlock: number,
   timestamp: number
 ): Promise<number> => {
-  const coins: string[] = [...new Set(tokens.map((token) => `${CHAIN.ARBITRUM}:${token}`))];
-  const prices = await getPrices(coins, timestamp);
+  const api = new sdk.ChainApi({ chain: CHAIN.ARBITRUM, timestamp });
 
-  let dailyFees = 0;
   for (const token of tokens) {
-    const price = prices[`${CHAIN.ARBITRUM}:${token}`]?.price || 0;
-    const decimals = prices[`${CHAIN.ARBITRUM}:${token}`]?.decimals || 0;
     for (const vault of vaults) {
-      const logs_transfer_treasury: ITx[] = (
-        await sdk.api.util.getLogs({
-          target: token,
-          topic: "",
-          fromBlock: fromBlock,
-          toBlock: toBlock,
-          topics: [topic0_transfer, ethers.utils.hexZeroPad(vault, 32), ethers.utils.hexZeroPad(treasury, 32)],
-          keys: [],
-          chain: CHAIN.ARBITRUM,
-        })
-      ).output as ITx[];
-
-      const transfer_treasury = logs_transfer_treasury.map((e) => transfer_interface.parseLog(e).args);
-      const fee = transfer_treasury.reduce((a, b) => a + Number(b.amount), 0);
-      dailyFees += (Number(fee) / 10 ** decimals) * price;
+      const transfer_treasury = await api.getLogs({
+        target: token,
+        fromBlock: fromBlock,
+        toBlock: toBlock,
+        onlyArgs: true,
+        eventAbi: event_transfer,
+        topics: [topic0_transfer, ethers.zeroPadValue(vault, 32), ethers.zeroPadValue(treasury, 32)],
+        chain: CHAIN.ARBITRUM,
+      })
+      transfer_treasury.forEach((i: any) => api.add(token, i.amount))
     }
   }
-  return dailyFees;
+  return api.getUSDValue();
 };

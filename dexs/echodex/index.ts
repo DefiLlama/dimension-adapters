@@ -2,10 +2,11 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.LINEA]: "https://graph-mainnet.echodex.io/subgraphs/name/echodex/core"
+  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/echodex/exchange-v3-2"
 }, {
-  factoriesName: "echodexFactories",
+  factoriesName: "factories",
   dayData: "echodexDayData",
+  dailyVolume: "volumeUSD",
 });
 
 

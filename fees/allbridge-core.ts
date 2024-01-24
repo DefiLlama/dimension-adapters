@@ -45,7 +45,7 @@ const topic0_swap_toUSD = '0xa930da1d3f27a25892307dd59cec52dd9b881661a0f20364757
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap_fromUSD,
   event_swap_toUSD
 ]);
@@ -74,40 +74,32 @@ const fetchFees = async (chain: Chain, timestamp: number): Promise<number> => {
   const fromBlock = await getBlock(fromTimestamp, chain, {});
   const toBlock = await getBlock(toTimestamp, chain, {});
   const logs_fromUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
-    return sdk.api.util.getLogs({
+    return sdk.getEventLogs({
       target: lpTokenAddress,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_swap_fromUSD]
     })
-  })))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
+  }))).flat();
   const logs_toUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
-    return sdk.api.util.getLogs({
+    return sdk.getEventLogs({
       target: lpTokenAddress,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: chain,
       topics: [topic0_swap_toUSD]
     })
-  })))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
+  }))).flat();
 
-  const lptokens = await sdk.api.abi.multiCall({
+  const lptokens = await sdk.api2.abi.multiCall({
     abi: abi_token,
     calls: lpTokenAddresses[chain].map((address: string) => ({
       target: address
     })),
     chain: chain
   });
-  const tokens = lptokens.output.map((res: any) => res.output);
+  const tokens = lptokens;
   const prices = await getPrices(tokens.map((e: any) => `${chain}:${e}`), timestamp);
   const logs = logs_fromUSD.concat(logs_toUSD);
   return logs.map((log: any) => {
@@ -116,7 +108,7 @@ const fetchFees = async (chain: Chain, timestamp: number): Promise<number> => {
     const tokenAdd = tokens[index];
     const price = prices[`${chain}:${tokenAdd}`].price;
     let decimals = prices[`${chain}:${tokenAdd}`].decimals;
-    return Number(parsedLog.args.fee._hex) / 10 ** decimals * price;
+    return Number(parsedLog!.args.fee) / 10 ** decimals * price;
   }).reduce((a: number, b: number) => a + b, 0);
 };
 
@@ -134,14 +126,14 @@ const fetchFeesTron = async (chain: Chain, timestamp: number): Promise<number> =
   }))).flat();
   const logs = logs_fromUSD.concat(logs_toUSD);
 
-  const lptokens = await sdk.api.abi.multiCall({
+  const lptokens = await sdk.api2.abi.multiCall({
     abi: abi_token,
     calls: lpTokenAddresses[chain].map((address: string) => ({
       target: address
     })),
     chain: chain
   });
-  const tokens = lptokens.output.map((res: any) => res.output);
+  const tokens = lptokens;
   const prices = await getPrices(tokens.map((e: any) => `${chain}:${e}`), timestamp);
 
   return logs.map((log: any) => {

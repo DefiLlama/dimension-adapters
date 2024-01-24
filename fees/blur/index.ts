@@ -10,7 +10,7 @@ const topic0_ex = "0xf2f66294df6fae7ac681cbe2f6d91c6904485929679dce263e8f6539b7d
 
 
 import abi from "./abi.json";
-const contract_interface = new ethers.utils.Interface(abi);
+const contract_interface = new ethers.Interface(abi);
 
 interface ILog {
   data: string;
@@ -61,8 +61,8 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
         data: log.data,
         topics: [log.topic0]
       });
-      const rate = parsedLog.args.fees.takerFee.rate / 1e4;
-      const price = Number(parsedLog.args.price._hex) / 1e18;
+      const rate = Number(parsedLog!.args.fees.takerFee.rate || 0) / 1e4;
+      const price = Number(parsedLog!.args.price) / 1e18;
       return rate * price;
     })
       .filter((e: number) => !isNaN(e))
@@ -83,15 +83,15 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
         data: log.data,
         topics: [log.topic0]
       });
-      const takerFeeRecipientRate = parsedLog.args?.takerFeeRecipientRate;
-      const makerFeeRecipientRate = parsedLog.args?.makerFeeRecipientRate;
-      const collectionPriceSide = parsedLog.args?.collectionPriceSide;
+      const takerFeeRecipientRate = parsedLog!.args?.takerFeeRecipientRate;
+      const makerFeeRecipientRate = parsedLog!.args?.makerFeeRecipientRate;
+      const collectionPriceSide = parsedLog!.args?.collectionPriceSide;
       if (takerFeeRecipientRate === undefined && makerFeeRecipientRate === undefined) return 0;
-      const price = unpackTypePriceCollection(BigInt(collectionPriceSide._hex));
+      const price = unpackTypePriceCollection(BigInt(collectionPriceSide));
       const [rate, recipient] =
       takerFeeRecipientRate !== undefined
-        ? unpackFee(BigInt(takerFeeRecipientRate._hex))
-        : unpackFee(BigInt(makerFeeRecipientRate._hex));
+        ? unpackFee(BigInt(takerFeeRecipientRate))
+        : unpackFee(BigInt(makerFeeRecipientRate));
       const _rate = rate.toString() / 1e4;
       const _price = price.toString() / 1e18;
       return _rate * _price;

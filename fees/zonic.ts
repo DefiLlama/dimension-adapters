@@ -40,15 +40,13 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.api.util.getLogs({
+    const logs: ITx[] = (await sdk.getEventLogs({
       target: marketplace_address[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
     const rawLogsData: ISaleData[] = logs.map((tx: ITx) => {
       const amount = Number('0x' + tx.data.slice(320, 384)) / 10 **  18;

@@ -36,15 +36,13 @@ const fetch = (chain: Chain) => {
         const fromBlock = (await getBlock(fromTimestamp, chain, {}));
         const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-        const swap_logs: ILog[] = (await sdk.api.util.getLogs({
+        const swap_logs: ILog[] = (await sdk.getEventLogs({
           target: contract[chain],
-          topic: '',
           toBlock: toBlock,
           fromBlock: fromBlock,
-          keys: [],
           chain: chain,
           topics: [topic0_ins, topic1_ins]
-        })).output as ILog[];
+        }))as ILog[];
 
         const raw_in = swap_logs.map((e: ILog) => {
           const data = e.data.replace('0x', '');

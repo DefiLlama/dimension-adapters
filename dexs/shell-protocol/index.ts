@@ -44,17 +44,14 @@ const fetch = async (timestamp: number) => {
 
   const fromBlock = (await getBlock(fromTimestamp, 'arbitrum', {}));
   const toBlock = (await getBlock(toTimestamp, 'arbitrum', {}));
-  const logs: ILog[][] = (await Promise.all(tokenList.map(({ address }) => sdk.api.util.getLogs({
+  const logs: ILog[][] = (await Promise.all(tokenList.map(({ address }) => sdk.getEventLogs({
     target: address,
     topic: topic,
     toBlock: toBlock,
     fromBlock: fromBlock,
-    keys: [],
     chain: 'arbitrum',
     topics: [topic0, topic1]
-  }))))
-    .map((p: any) => p)
-    .map((a: any) => a.output);
+  })))) as any;
   const coins = tokenList.map(({ address }) => `arbitrum:${address}`);
   const prices = await getPrices(coins, timestamp);
   const untrackVolumes = tokenList.map((token: ITokenList, index: number) => {

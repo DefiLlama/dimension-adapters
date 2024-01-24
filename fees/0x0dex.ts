@@ -51,19 +51,17 @@ async function getDepositTXs(
     toBlock: number, 
     chain: CHAIN
 ): Promise<IDeposit[]>{
-    const iface = new ethers.utils.Interface([
+    const iface = new ethers.Interface([
         "event Deposit (address, uint256 tokenAmount, uint256 ringIndex)"
     ]);
 
-    let calcData: IDeposit[] = (await sdk.api.util.getLogs({
+    let calcData: IDeposit[] = (await sdk.getEventLogs({
         target: OxOPoolETHAddress,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [targetTopic]
-    })).output.map((e: any) => {
+    })).map((e: any) => {
         const decoded = iface.decodeEventLog("Deposit", e.data);
         const sender = decoded[0];
         const depositAmount = decoded.tokenAmount;

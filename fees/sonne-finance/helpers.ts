@@ -7,16 +7,16 @@ const getAllMarkets = async (
   chain: CHAIN
 ): Promise<string[]> => {
   return (
-    await sdk.api.abi.call({
+    await sdk.api2.abi.call({
       target: unitroller,
       abi: comptrollerABI.getAllMarkets,
       chain: chain,
     })
-  ).output;
+  );
 };
 
 const getMarketDetails = async (markets: string[], chain: CHAIN) => {
-  const underlyings = await sdk.api.abi.multiCall({
+  const underlyings = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -24,7 +24,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
     chain: chain,
   });
 
-  const reserveFactors = await sdk.api.abi.multiCall({
+  const reserveFactors = await sdk.api2.abi.multiCall({
     calls: markets.map((market: string) => ({
       target: market,
     })),
@@ -33,8 +33,8 @@ const getMarketDetails = async (markets: string[], chain: CHAIN) => {
   });
 
   return {
-    underlyings: underlyings.output.map((x: any) => x.output),
-    reserveFactors: reserveFactors.output.map((x: any) => x.output),
+    underlyings: underlyings,
+    reserveFactors: reserveFactors,
   };
 };
 
@@ -44,13 +44,13 @@ const getVeloGaugeDetails = async (
   account: string,
   chain: CHAIN,
 ) => {
-  const lastEarn = await sdk.api.abi.call({
+  const lastEarn = await sdk.api2.abi.call({
     target: gauge,
     abi: veloGaugeAbi.lastEarn,
     chain: chain,
     params: [token, account],
   });
-  const earned = await sdk.api.abi.call({
+  const earned = await sdk.api2.abi.call({
     target: gauge,
     abi: veloGaugeAbi.earned,
     chain: chain,
@@ -58,8 +58,8 @@ const getVeloGaugeDetails = async (
   });
 
   return {
-    lastEarn: lastEarn.output,
-    earned: earned.output,
+    lastEarn: lastEarn,
+    earned: earned,
   };
 };
 

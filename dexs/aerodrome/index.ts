@@ -64,7 +64,7 @@ interface ILog {
 const topic0_swap = '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b'
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out)'
 
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_swap
 ])
 
@@ -72,11 +72,11 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   try {
-    const forSwaps: IForSwap[] = (await sdk.api.abi.call({
+    const forSwaps: IForSwap[] = (await sdk.api2.abi.call({
       target: gurar,
       abi: abis.forSwaps,
       chain: CHAIN.BASE,
-    })).output.map((e: any) => {
+    })).map((e: any) => {
       return {
         lp: e.lp,
         token0: e.token0,
@@ -87,17 +87,13 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
     const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
 
-    const logs: ILog[] = (await Promise.all(forSwaps.map((forSwaps: IForSwap) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(forSwaps.map((forSwaps: IForSwap) => sdk.getEventLogs({
       target: forSwaps.lp,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.BASE,
       topics: [topic0_swap]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat();
 
     const coins = [...new Set([
       ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token0}`),
@@ -113,10 +109,10 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     prices_result.map((a: any) => Object.assign(prices, a))
     const volumeUSD: number = logs.map((log: ILog) => {
       const value = contract_interface.parseLog(log);
-      const amount0In = Number(value.args.amount0In._hex);
-      const amount1In = Number(value.args.amount1In._hex);
-      const amount0Out = Number(value.args.amount0Out._hex);
-      const amount1Out = Number(value.args.amount1Out._hex);
+      const amount0In = Number(value!.args.amount0In);
+      const amount1In = Number(value!.args.amount1In);
+      const amount0Out = Number(value!.args.amount0Out);
+      const amount1Out = Number(value!.args.amount1Out);
       const {token0, token1} = forSwaps.find((forSwap: IForSwap) => forSwap.lp.toLowerCase() === log.address.toLowerCase()) as IForSwap
       const token0Decimals = prices[`${CHAIN.BASE}:${token0}`]?.decimals || 0
       const token1Decimals = prices[`${CHAIN.BASE}:${token1}`]?.decimals || 0

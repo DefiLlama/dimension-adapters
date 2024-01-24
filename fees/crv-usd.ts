@@ -33,16 +33,13 @@ const fetchFees = (chain: Chain) => {
       const fromBlock = (await getBlock(fromTimestamp, chain, {}));
       const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ILog[] = (await Promise.all(controller[chain].map((address: string) => sdk.api.util.getLogs({
+      const logs: ILog[] = (await Promise.all(controller[chain].map((address: string) => sdk.getEventLogs({
         target: address,
-        topic: '',
         toBlock: toBlock,
         fromBlock: fromBlock,
-        keys: [],
         chain: chain,
         topics: [topic0]
-      })))) .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+      })))).flat();
       const crvUSDAddress = `${CHAIN.ETHEREUM}:0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E`
       const prices = await getPrices([crvUSDAddress], timestamp);
       const crvUSDPrice = prices[crvUSDAddress]?.price || 1;

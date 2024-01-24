@@ -81,15 +81,13 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(nextDayTimestamp, chain, {}));
     const toBlock = (await getBlock(nextDayTimestamp + 8400, chain, {}));
 
-    const logs: ITx[] = (await sdk.api.util.getLogs({
+    const logs: ITx[] = (await sdk.getEventLogs({
       target: fee_detail[chain].target,
-      keys: [],
       chain: chain,
-      topic: '',
       topics: fee_detail[chain].topics,
       toBlock: toBlock,
       fromBlock: fromBlock,
-    })).output as ITx[];
+    }))as ITx[];
 
     const [first, second, third] = logs;
     const dailyFees = (Number(first?.data || 0) + Number(second?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;

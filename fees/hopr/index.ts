@@ -26,39 +26,37 @@ interface ITx {
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const provider = getProvider('xdai');
-  const iface = new ethers.utils.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
+  const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.XDAI, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.XDAI, {}));
 
-  const ticketRedeemedLogs: ITx[] = (await sdk.api.util.getLogs({
+  const ticketRedeemedLogs: ITx[] = (await sdk.getEventLogs({
     target: channels_address,
     topic: topic0,
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: [topic0],
-    keys: [],
     chain: CHAIN.XDAI
-  })).output as ITx[];
+  }))as ITx[];
 
   const batchSize = 4500;
   const batches = Math.ceil((toBlock - fromBlock) / batchSize);
 
   const erc20transferLog: ITx[] = await Promise.all(
     Array.from({ length: batches }, (_, index) =>
-    sdk.api.util.getLogs({
+    sdk.getEventLogs({
       target: wxHOPR_address,
       topic: topic1,
       toBlock: fromBlock + (index + 1) * batchSize,
       fromBlock: fromBlock + index * batchSize,
       topics: [topic1, topic2],
-      keys: [],
       chain: CHAIN.XDAI
     })
     )
-  ).then((responses) => responses.flatMap((response) => response.output as ITx[]));
+  ).then((responses) => responses.flatMap((response) => response as ITx[]));
 
   let dailyRevenueStayedInChannelsTXs: string[] = [];
   const dailyRevenueArrayPaidToSafe = ticketRedeemedLogs.map(ticket => {
@@ -73,7 +71,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async(transactionHash) => {
     const tx = await provider.getTransaction(transactionHash);
-    const input = tx.data;
+    const input = tx!.data;
     const decodedInput = iface.decodeFunctionData('execTransactionFromModule', input)
     const hexValue = '0x' + decodedInput[2].substring(138,202);
     return hexValue;

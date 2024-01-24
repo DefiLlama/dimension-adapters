@@ -7,7 +7,7 @@ const event_notify_reward = 'event NotifyReward(address indexed from,address ind
 const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
 
 const topic0_geuge_created = '0xef9f7d1ffff3b249c6b9bf2528499e935f7d96bb6d6ec4e7da504d1d3c6279e1';
-const contract_interface = new ethers.utils.Interface([
+const contract_interface = new ethers.Interface([
   event_notify_reward,
   event_geuge_created
 ]);
@@ -165,32 +165,28 @@ const abis: any = {
 export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
   try {
     const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const bribeVotingReward: string[] = (await sdk.api.abi.call({
+    const bribeVotingReward: string[] = (await sdk.api2.abi.call({
       target: gurar,
       params: [1000, 0, '0x0000000000000000000000000000000000000000'],
       abi: abis.all,
       chain: CHAIN.BASE,
-    })).output.map((e: any) => {
+    })).map((e: any) => {
       return e.bribe;
     }).filter((e: string) => e !== ZERO_ADDRESS);
     const bribe_contracct = [...new Set(bribeVotingReward)];
-    const logs: ILog[] = (await Promise.all(bribe_contracct.map((address: string) => sdk.api.util.getLogs({
+    const logs: ILog[] = (await Promise.all(bribe_contracct.map((address: string) => sdk.getEventLogs({
       target: address,
-      topic: '',
       toBlock: toBlock,
       fromBlock: fromBlock,
-      keys: [],
       chain: CHAIN.BASE,
       topics: ['0x52977ea98a2220a03ee9ba5cb003ada08d394ea10155483c95dc2dc77a7eb24b']
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    })))).flat() as ILog[];
 
     const logs_bribes = logs.map((e: ILog) => {
       const value = contract_interface.parseLog(e)
       return {
-        token: value.args.reward,
-        amount: Number(value.args.amount._hex)
+        token: value!.args.reward,
+        amount: Number(value!.args.amount)
       } as IBribes
     })
     const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.BASE}:${e.token.toLowerCase()}`))]

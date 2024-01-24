@@ -6,7 +6,6 @@ import { Adapter, ChainBlocks, FetchResultFees, ProtocolType } from "../adapters
 import postgres from "postgres";
 import { getPrices } from "../utils/prices";
 import * as sdk from "@defillama/sdk";
-import { ethers } from "ethers";
 
 const topic0 = '0x38e04cbeb8c10f8f568618aa75be0f10b6729b8b4237743b4de20cbcde2839ee';
 
@@ -33,7 +32,7 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
       l1FeeVaultEnd,
       baseFeeVaultStart,
       baseFeeVaultEend
-  ] = await Promise.all([
+  ] = (await Promise.all([
       getBalance({
           target: feeWallet,
           block: yesterdaysBlock,
@@ -64,18 +63,14 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
           block: todaysBlock,
           chain: CHAIN.BASE
       })
-  ])
-  const logs: ILog[] = (await Promise.all(contract.map((address: string) => sdk.api.util.getLogs({
+  ])).map(i => i.output)
+  const logs: ILog[] = (await Promise.all(contract.map((address: string) => sdk.getEventLogs({
     target: address,
-    topic: '',
     toBlock: todaysBlock,
     fromBlock: yesterdaysBlock,
-    keys: [],
     chain: CHAIN.BASE,
     topics: [topic0]
-  }))))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
+  })))).flat();
 
   const withdrawAmount = logs.map((log: ILog) => {
     const data = log.data.replace('0x', '');
@@ -84,9 +79,9 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
   }).reduce((a: number, b: number) => a + b, 0);
 
 
-  const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
-      .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
-      .plus((new BigNumber(baseFeeVaultEend.output).minus(baseFeeVaultStart.output)))
+  const ethBalance = (new BigNumber(feeWalletEnd).minus(feeWalletStart))
+      .plus((new BigNumber(l1FeeVaultEnd).minus(l1FeeVaultStart)))
+      .plus((new BigNumber(baseFeeVaultEend).minus(baseFeeVaultStart)))
 
   return (ethBalance.plus(withdrawAmount * (10 ** 18))).div(1e18)
 }

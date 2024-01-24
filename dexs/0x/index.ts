@@ -32,7 +32,7 @@ const getHistoricalDataQuery = (timestamp: number) => {
 
 const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
 const getGQLClient = () => {
-  graphQLClient.setHeader("0x-api-key", process.env.ZEROx_API_KEY ?? '')
+  graphQLClient.setHeader("0x-api-key", process.env.ZEROx_API_KEY ?? process.env.ZEROX_API_KEY ?? '')
   return graphQLClient
 }
 

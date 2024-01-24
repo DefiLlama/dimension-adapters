@@ -2,8 +2,18 @@ import retry from "async-retry";
 import fetchURL from "../utils/fetchURL";
 
 const API_KEYS = process.env.DUNE_API_KEYS?.split(",") ?? [];
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
 
-export async function fetchURLWithRetry(url: string): Promise<any> {
+export async function fetchURLWithRetry(url: string) {
+  if (!requests[url])
+    requests[url] = _fetchURLWithRetry(url)
+  return requests[url]
+}
+
+async function _fetchURLWithRetry(url: string): Promise<any> {
   let API_KEY_INDEX = 0;
 
   return await retry(
