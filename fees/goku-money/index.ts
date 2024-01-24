@@ -1,6 +1,5 @@
-import { api } from "@defillama/sdk";
 import * as sdk from "@defillama/sdk";
-import { Adapter, ChainBlocks, ProtocolType } from "../../adapters/types";
+import { Adapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
@@ -68,35 +67,35 @@ const PYTH_CONFIG = {
     priceFeedId:
       "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
     decimal: 6,
-    revenue: BigNumber("0"),
+    revenue: BigNumber(0),
   },
   USDT: {
     contractAddress: "0x2D18cE2adC5B7c4d8558b62D49A0137A6B87049b",
     priceFeedId:
       "0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b",
     decimal: 6,
-    revenue: BigNumber("0"),
+    revenue: BigNumber(0),
   },
   WETH: {
     contractAddress: "0x17Efd0DbAAdc554bAFDe3cC0E122f0EEB94c8661",
     priceFeedId:
       "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
     decimal: 18,
-    revenue: BigNumber("0"),
+    revenue: BigNumber(0),
   },
   TIA: {
     contractAddress: "0xaa41F9e1f5B6d27C22f557296A0CDc3d618b0113",
     priceFeedId:
       "0x09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723",
     decimal: 9,
-    revenue: BigNumber("0"),
+    revenue: BigNumber(0),
   },
   MANTA: {
     contractAddress: "0x3683Ee89f1928B69962D20c08315bb7059C21dD9",
     priceFeedId:
       "0xc3883bcf1101c111e9fcfe2465703c47f2b638e21fef2cce0502e6c8f416e0e2",
     decimal: 18,
-    revenue: ethers.BigNumber.from("0"),
+    revenue: BigNumber(0),
   },
 };
 type PYTH_CONFIG_TYPE = typeof PYTH_CONFIG;
@@ -149,7 +148,7 @@ const fetchGaiRevenue = async (timestamp: number) => {
   const fromBlock = await getBlock(fromTimestamp, CHAIN.MANTA as Chain, {});
   const toBlock = await getBlock(toTimestamp, CHAIN.MANTA as Chain, {});
 
-  let totalGaiPaid = BigNumber("0");
+  let totalGaiPaid = BigNumber(0);
 
   for (const address of BORROW_CONTRACT_ADDRESS) {
     const logs = await sdk.getEventLogs({
@@ -166,14 +165,17 @@ const fetchGaiRevenue = async (timestamp: number) => {
       if (!Array.isArray(log)) {
         const event = iface.parseLog(log as any);
         event!.args.forEach((arg, index) => {
-          if (BigNumber.isBigNumber(arg) && index === 1) {
-            totalGaiPaid = totalGaiPaid.plus(arg);
+          if (!arg.toString().startsWith("0x") && index === 1) {
+            totalGaiPaid = totalGaiPaid.plus(BigNumber(arg));
           }
         });
       }
     }
   }
-  const gaiCounts = ethers.formatUnits(totalGaiPaid.toString(), GAI_TOKEN_DECIMAL);
+  const gaiCounts = ethers.formatUnits(
+    totalGaiPaid.toString(),
+    GAI_TOKEN_DECIMAL
+  );
   const gaiUsd = await fetchGAIPrice();
   const gaiRevenue = (parseFloat(gaiCounts) * parseFloat(gaiUsd)).toFixed(6);
   return gaiRevenue;
@@ -223,7 +225,10 @@ const fetchCollateralRedemptionRevenue = async (timestamp: number) => {
   Object.values(PYTH_CONFIG).forEach(({ priceFeedId, decimal, revenue }) => {
     const price = priceFeeds[priceFeedId.substring(2)];
     if (price) {
-      const revenueInStandardUnit = ethers.formatUnits(revenue.toString(), decimal);
+      const revenueInStandardUnit = ethers.formatUnits(
+        revenue.toString(),
+        decimal
+      );
       totalValue += parseFloat(revenueInStandardUnit) * parseFloat(price);
     }
   });
