@@ -40,6 +40,7 @@ const BORROW_CONTRACT_ADDRESS = [
   "0x2D18cE2adC5B7c4d8558b62D49A0137A6B87049b", // USDT
   "0x7519eC4d295Ca490EaC618a80B3cc42c258F6000", // WETH
   "0xEC52881A8AEbFEB5576c08FBD1e4203f51B36524", // TIA
+  "0x95CeF13441Be50d20cA4558CC0a27B601aC544E5", // MANTA
 ];
 
 const GAI_PAID_TOPIC = [
@@ -55,6 +56,7 @@ const PYTH_PRICE_FEED_IDS = [
   "0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b", // USDT
   "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", // WETH
   "0x09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723", // TIA
+  "0xc3883bcf1101c111e9fcfe2465703c47f2b638e21fef2cce0502e6c8f416e0e2", // MANTA
 ];
 
 const GAI_TOKEN_DECIMAL = 18;
@@ -85,6 +87,13 @@ const PYTH_CONFIG = {
     priceFeedId:
       "0x09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723",
     decimal: 9,
+    revenue: ethers.BigNumber.from("0"),
+  },
+  MANTA: {
+    contractAddress: "0x3683Ee89f1928B69962D20c08315bb7059C21dD9",
+    priceFeedId:
+      "0xc3883bcf1101c111e9fcfe2465703c47f2b638e21fef2cce0502e6c8f416e0e2",
+    decimal: 18,
     revenue: ethers.BigNumber.from("0"),
   },
 };
