@@ -30,7 +30,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: v3Graphs(CHAIN.ARBITRUM),
-      start: async () => 1701392400,
+      start: async () => 1704585600,
     }
   }
 }
