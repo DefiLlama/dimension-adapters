@@ -28,12 +28,12 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     api.add(matic, Number(log.amount) * 0.05)
   })
 
-  const feesInUsd = await api.getUSDValue()
+  const feesInUsd = await api.getUSDString()
 
   return {
     timestamp,
-    dailyFees: Number(feesInUsd).toFixed(0),
-    dailyRevenue: Number(feesInUsd).toFixed(0),
+    dailyFees: feesInUsd,
+    dailyRevenue: feesInUsd,
   }
 }
 

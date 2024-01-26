@@ -132,10 +132,10 @@ async function getChainData(
     }
   }
 
-  acc.dailyNotionalVolume = await sdk.Balances.getUSDValue(acc.dailyNotionalVolume, end_timestamp) as any
-  acc.dailyPremiumVolume = await sdk.Balances.getUSDValue(acc.dailyPremiumVolume, end_timestamp) as any
-  acc.totalPremiumVolume = await sdk.Balances.getUSDValue(acc.totalPremiumVolume, end_timestamp) as any
-  acc.totalNotionalVolume = await sdk.Balances.getUSDValue(acc.totalNotionalVolume, end_timestamp) as any
+  acc.dailyNotionalVolume = await sdk.Balances.getUSDString(acc.dailyNotionalVolume, end_timestamp) as any
+  acc.dailyPremiumVolume = await sdk.Balances.getUSDString(acc.dailyPremiumVolume, end_timestamp) as any
+  acc.totalPremiumVolume = await sdk.Balances.getUSDString(acc.totalPremiumVolume, end_timestamp) as any
+  acc.totalNotionalVolume = await sdk.Balances.getUSDString(acc.totalNotionalVolume, end_timestamp) as any
 
   return acc;
 }

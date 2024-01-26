@@ -62,7 +62,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
             todaysDataForToken?.notionalVolCoreSum ?? '0';
         });
 
-        todayStats.dailyNotionalVolume = await sdk.Balances.getUSDValue(todayStats.dailyNotionalVolume as any) as any
+        todayStats.dailyNotionalVolume = await sdk.Balances.getUSDString(todayStats.dailyNotionalVolume as any) as any
 
         return todayStats;
       };

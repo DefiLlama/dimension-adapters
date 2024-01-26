@@ -2,6 +2,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import * as sdk from "@defillama/sdk";
 
 import {
   getGraphDimensions,
@@ -160,17 +161,15 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ETHEREUM]: {
         fetch: async (timestamp, chainBlocks) => {
           const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          return {
-            ...response,
-            ...["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"].reduce((acc, resultType) => {
-              const valueInEth = response[resultType]
-              if (typeof valueInEth === 'string')
-                acc[resultType] = {
-                  [ETH_ADDRESS]: valueInEth
-                }
-              return acc
-            }, {} as FetchResultGeneric)
-          } as FetchResultGeneric
+          const keys = ["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"]
+          for (const key of keys) {
+            if (typeof response[key] === 'string') {
+              response[key] = await sdk.Balances.getUSDString({
+                [ETH_ADDRESS]: response[key]
+              } as any)
+            }
+          }
+          return response as FetchResultGeneric
         },
         start: async () => 1541203200,
         meta: {

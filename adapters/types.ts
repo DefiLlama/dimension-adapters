@@ -91,7 +91,7 @@ export type FetchResultFees = FetchResultBase & {
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  tokens?: IJSON<string> // | string
+  tokens?: string // | IJSON<string>;
 };
 
 // AGGREGATORS
