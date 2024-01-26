@@ -4,9 +4,8 @@ import {request} from 'graphql-request';
 
 // TODO: change these endpoints 
 const apiEndPoints = [
-    'https://api.studio.thegraph.com/query/48038/lexer-synstats-staging/version/latest',
-    'https://api.studio.thegraph.com/query/48038/lexer-xlpstats2-staging/version/latest',
-    'https://api.studio.thegraph.com/query/48038/lexer-xlpstats-staging/version/latest',
+    "https://api.studio.thegraph.com/query/50217/synth-stat-v2-arb-mainnet/version/latest",
+    "https://api.studio.thegraph.com/query/50217/core-stat-v2-arb-mainnet/version/latest",
 ]
 
 type FeeStatsQuery = {
