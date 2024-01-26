@@ -11,7 +11,7 @@ const info: { [key: string]: any } = {
   },
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/36330/mav-zksync/version/latest",
+      "https://app.zeeve.io/shared-api/subgraph/query/query-node-0/50ad2beaefaac4b1eda15839c3eac8259d0759b7d4ae1002/subgraphs/name/zksync",
   },
   [CHAIN.BSC]: {
     subgraph:
