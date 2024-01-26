@@ -58,7 +58,7 @@ const fetchKeeper = (chain: Chain) => {
       const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
       const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash))
         .map((e: any) => {
-          const amount = (Number(e.gasUsed) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
+          const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
           return amount
         })
       const payAmount: number[] = logs.map((tx: ITx) => {
