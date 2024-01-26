@@ -27,7 +27,7 @@ const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncen
     return {
         timestamp,
         block: dayBlocks[0].height,
-        tokens,
+        tokenIncentives: tokens,
     }
 }
 
