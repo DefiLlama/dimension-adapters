@@ -179,23 +179,10 @@ const fetchVolume = async (timestamp: number) => {
         counter: Number(e.data.swap.counter),
       }
     }).sort((a, b) => b.counter - a.counter)
-    const creation_num =  [14,767, 702, 12, 622, 757, 1077, 1092]
-    const exlude_user = [
-      '0x81f06fb536d97a8dc17b216aceeeab9e2d348347dcecf3601404710b85299921',
-      '0x4bec62452ff79010d9d248dc6961d77db00cbedbf690c22a30d923c825c7ac00',
-      '0xaab5c469f7f827337d80fb63fe89235f484a252898dc34931096e3c480f4adf5',
-      '0x0',
-      '0x8b6f920db09391aa521751a10b9225d5ae7b789dc73e270b9b1483c95ada0588',
-      '0xa383105db9c9032848c23236fb812d3e990569c658ca60b4e9adb72d1daf4ec6',
-      '0x6fe8d6a9c2bae15c093a82cb767fa26e73d1766b75a0eb03394b0cd3c80d1816',
-      '0xbdb4fc5a262d5b82d5e4f0a60b88fe04b34518943caf5972ee6a65e86895492c',
-      '0x70d2d370d4f17ccb70e4047e4f327550f2bda6c3d20c23225dec4e1005ab8dc1',
-      '0x5fbfe849d110feecd7cfbe7529fda2ce691a3ecea08af66851d793180ea01a92',
-      '0x67c928210094bec6f61849175ec986e514d5c2dab5ad6c00e0561d0706b0a9d5',
-      '0x2389a6fccfb39fff5d07dfe02fe69ea94306b6fc50afb5e6391237ae48f09043',
-      '0xd53b715700748751ce6944839fc64fb059ec949b66c3831e037813dd5a4caf5a',
-    ]
-    const logs_swap: ISwapEventData[] = (await Promise.all(pools.filter(e => creation_num.includes(Number(e.swap_events.creation_num))).map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
+    const creation_num =  [14,767, 702, 12, 622, 757, 1077, 1092, 5708, 2, 712, 3196]
+    const logs_swap: ISwapEventData[] = (await Promise.all(pools
+      .filter(e => creation_num.includes(Number(e.swap_events.creation_num)))
+      .map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
     const numberOfTrade: any = {};
     // debugger
     [...new Set(logs_swap.map(e => e.user))].forEach(e => {
@@ -206,7 +193,7 @@ const fetchVolume = async (timestamp: number) => {
     })
     const coins = [...new Set([...logs_swap.map(p => getToken(p.type)).flat().map((e: string) => `${CHAIN.APTOS}:${e}`)])]
     const price = (await getPrices(coins, timestamp));
-    const untrackVolume: number[] = logs_swap.filter(e => !exlude_user.includes(e.user)).map((e: ISwapEventData) => {
+    const untrackVolume: number[] = logs_swap.map((e: ISwapEventData) => {
       const [token0, token1] = getToken(e.type);
       const token0Price = price[`${CHAIN.APTOS}:${token0}`]?.price || 0;
       const token1Price = price[`${CHAIN.APTOS}:${token1}`]?.price || 0;
@@ -220,7 +207,6 @@ const fetchVolume = async (timestamp: number) => {
       return token0Price ? in_au : out_au;
     })
     const dailyVolume = [...new Set(untrackVolume)].reduce((a: number, b: number) => a + b, 0)
-    // console.log(Object.values(numberOfTrade).sort((a: any, b: any) => b.volume - a.volume))
 
   return {
     timestamp,
