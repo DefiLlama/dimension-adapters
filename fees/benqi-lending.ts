@@ -169,7 +169,7 @@ const getDailyProtocolFees = async ({
   });
 
   raw_data.forEach((log: IAccrueInterestLog) => {
-    const marketIndex = markets.findIndex((e: string) => e === log.market);
+    const marketIndex = markets.findIndex((e: string) => e.toLowerCase() === log.market.toLowerCase());
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${CHAIN.AVAX}:${underlying?.toLowerCase()}`];
 

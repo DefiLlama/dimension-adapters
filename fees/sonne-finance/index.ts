@@ -87,7 +87,7 @@ const getDailyProtocolFees = async ({
   });
 
   logs.forEach((log: IAccrueInterestLog) => {
-    const marketIndex = markets.indexOf(log.market);
+    const marketIndex = markets.findIndex((e: string) => e.toLowerCase() === log.market.toLowerCase());
     const underlying = underlyings[marketIndex].toLowerCase();
     const price = prices[`${CHAIN.OPTIMISM}:${underlying.toLowerCase()}`];
 
