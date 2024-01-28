@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://api-osmosis.imperator.co/volume/v2/historical/chart"
+const historicalVolumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart"
 
 interface IChartItem {
   time: string
