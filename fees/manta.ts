@@ -83,7 +83,8 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
         FROM
             ethereum.transactions
             INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-        WHERE (to_address = '\\x30c789674ad3b458886bbc9abf42eee19ea05c1d'::bytea) AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
+        WHERE (to_address = '\\x30c789674ad3b458886bbc9abf42eee19ea05c1d'::bytea
+        or to_address = '\\xAEbA8e2307A22B6824a9a7a39f8b016C357Cd1Fe'::bytea) AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
         `;
     const [totalFees, totalSpentBySequencer] = await Promise.all([
       getFees(toTimestamp, fromTimestamp, chainBlocks),
