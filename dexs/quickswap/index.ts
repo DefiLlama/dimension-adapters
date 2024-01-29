@@ -1,5 +1,6 @@
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
@@ -20,13 +21,19 @@ const graphs = getChainVolume({
   },
 });
 
-const endpointsV3 = {
+const endpointsAlgebraV3 = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7"
+  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
+  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn"
 };
-const graphsV3 = getChainVolume({
-  graphUrls: endpointsV3,
+
+const endpointsUniV3 = {
+  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn"
+};
+
+const graphsAlgebraV3 = getChainVolume({
+  graphUrls: endpointsAlgebraV3,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
@@ -35,6 +42,26 @@ const graphsV3 = getChainVolume({
     factory: "algebraDayData",
     field: "volumeUSD",
     dateField: "date"
+  },
+});
+
+const v3GraphsUni = getGraphDimensions({
+  graphUrls: endpointsUniV3,
+  totalVolume: {
+    factory: "factories",
+    field: "totalVolumeUSD",
+  },
+  dailyVolume: {
+    factory: "uniswapDayData",
+    field: "volumeUSD",
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 100, // 100% of fees are going to LPs
+    Revenue: 0, // Set revenue to 0 as protocol fee is not set for all pools for now
   },
 });
 
@@ -66,7 +93,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: {
       [CHAIN.POLYGON]: {
-        fetch: graphsV3(CHAIN.POLYGON),
+        fetch: graphsAlgebraV3(CHAIN.POLYGON),
         start: async () => 1662425243
       },
       // [CHAIN.DOGECHAIN]: {
@@ -74,9 +101,13 @@ const adapter: BreakdownAdapter = {
       //   start: async () => 1660694400
       // },
       [CHAIN.POLYGON_ZKEVM]: {
-        fetch: graphsV3(CHAIN.POLYGON_ZKEVM),
+        fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
         start: async () => 1679875200
       },
+      [CHAIN.MANTA]: {
+        fetch: v3GraphsUni(CHAIN.MANTA),
+        start: async () => 1697690974
+      }
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
