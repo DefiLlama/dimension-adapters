@@ -3,16 +3,15 @@ import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
-type IAddress = {
+type IAddresses = {
   [s: string | Chain]: string[];
 };
 
 interface ILog {
   address: string;
   data: string;
-  transactionHash: string;
-  topics: string[];
 }
 
 const topic0_limit_ex = [
@@ -29,7 +28,7 @@ const precisionException: { [a: string]: number } = {
   "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
 };
 
-const contract_address: IAddress = {
+const contract_addresses: IAddresses = {
   [CHAIN.POLYGON]: [
     "0x82e59334da8c667797009bbe82473b55c7a6b311", // DAI TradingCallbacks
     "0x0bbed2eac3237ba128643670b7cf3be475933755", // ETH TradingCallbacks
@@ -44,8 +43,8 @@ const contract_address: IAddress = {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toTimestamp = timestamp;
+    const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+    const toTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
 
     const fromBlock = await getBlock(fromTimestamp, chain, {});
     const toBlock = await getBlock(toTimestamp, chain, {});
@@ -54,7 +53,7 @@ const fetch = (chain: Chain) => {
         (await Promise.all(
           topic0_limit_ex.map(async (topic0) =>
             sdk.getEventLogs({
-              targets: contract_address[chain],
+              targets: contract_addresses[chain],
               toBlock: toBlock,
               fromBlock: fromBlock,
               chain: chain,
@@ -68,7 +67,7 @@ const fetch = (chain: Chain) => {
         (await Promise.all(
           topic0_market_ex.map(async (topic0) =>
             sdk.getEventLogs({
-              targets: contract_address[chain],
+              targets: contract_addresses[chain],
               toBlock: toBlock,
               fromBlock: fromBlock,
               chain: chain,
