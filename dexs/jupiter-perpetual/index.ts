@@ -4,22 +4,14 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import { queryDune } from "../../helpers/dune";
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
-
+  const unixTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   try {
-    const data = await queryDune("3385640");
-    const chainData = data.find(
-      ({ day }: { day: string }) =>
-        getUniqStartOfTodayTimestamp(new Date(day)) === unixTimestamp
-    );
-
+    const data = await queryDune("3391484", { endTime: unixTimestamp + 86400 });
     return {
-      dailyVolume: chainData?.volume ?? "0",
+      dailyVolume:  data?.volume || "0",
       timestamp: unixTimestamp,
     };
-  } catch (e) {
+  } catch (e: any) {
     return {
       dailyVolume: "0",
       timestamp: unixTimestamp,
