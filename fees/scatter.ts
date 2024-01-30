@@ -315,7 +315,7 @@ const graph = (chain: Chain) => {
         and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
       `
 
-      const value: string[] = (await queryFlipside(query)).flat();
+      const value: string[] = (await queryFlipside(query, 360)).flat();
       const total_amount_mint: number = Number(value[0] || 0);
       const ethAddress = 'ethereum:0x0000000000000000000000000000000000000000';
       const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
