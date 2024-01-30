@@ -41,37 +41,8 @@ const contract_interface = new ethers.Interface([
 ])
 
 const abis = {
-  getPool:{
-    "inputs": [
-        {
-            "internalType": "bytes32",
-            "name": "poolId",
-            "type": "bytes32"
-        }
-    ],
-    "name": "getPool",
-    "outputs": [
-        {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-        },
-        {
-            "internalType": "enum IVault.PoolSpecialization",
-            "name": "",
-            "type": "uint8"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  getSwapFeePercentage: {
-    inputs: [],
-    name: "getSwapFeePercentage",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  }
+  getPool: "function getPool(bytes32 poolId) view returns (address, uint8)",
+  getSwapFeePercentage: "uint256:getSwapFeePercentage"
 }
 interface IBalanceChange {
   tokens: string[];

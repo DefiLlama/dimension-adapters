@@ -4,44 +4,12 @@ import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { getDeposits } from "./utils";
 
-const topic0 = "0x4c48fdcd7e3cb84b81aa54aa5dd04105736ae1bc179d84611c6fa5a642e803f2";
-const controller_address = "0x225acf1d32f0928a96e49e6110aba1fdf777c85f";
 const vault_factory = "0x984e0eb8fb687afa53fc8b33e12e04967560e092";
 const WETH = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
 
 const abis: any = {
-  getVaults: {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "index",
-        type: "uint256",
-      },
-    ],
-    name: "getVaults",
-    outputs: [
-      {
-        internalType: "address[]",
-        name: "vaults",
-        type: "address[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  marketIndex: {
-    inputs: [],
-    name: "marketIndex",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
+  "getVaults": "function getVaults(uint256 index) view returns (address[] vaults)",
+  "marketIndex": "uint256:marketIndex"
 };
 
 const fetch = (chain: Chain) => {

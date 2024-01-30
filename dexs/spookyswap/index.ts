@@ -14,6 +14,7 @@ const graphs = getChainVolumeWithGasToken({
   graphUrls: {
     [FANTOM]: endpoints[FANTOM],
   },
+  priceToken: "coingecko:fantom"
 });
 
 const graphsV3 = getChainVolume({

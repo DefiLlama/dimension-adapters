@@ -1,37 +1,12 @@
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
 import postgres from "postgres";
 
-const creditAccountFactoryAddress = "0x444cd42baeddeb707eed823f7177b9abcc779c04";
-const registyContract: any = {
-  address: "0xA50d4E7D8946a7c90652339CDBd262c375d54D99",
-  abis: {
-    getCreditManagers: {
-      inputs: [],
-      name: "getCreditManagers",
-      outputs: [
-        {
-          internalType: "address[]",
-          name: "",
-          type: "address[]",
-        },
-      ],
-      stateMutability: "view",
-      type: "function",
-    },
-    getPools: "address[]:getPools",
-  },
-};
-
 type IMapDieselToken = {
   [l: string]: string;
 };
-
-
 
 const mapDieselToken: IMapDieselToken = {
   "0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA": "0x6b175474e89094c44da98b954eedeac495271d0f",
@@ -73,23 +48,6 @@ interface ILog {
   contract_address: string;
   transaction_hash: string;
 }
-
-const removeLpTopic = "RemoveLiquidity(index_topic_1 address sender, index_topic_2 address to, uint256 amount)";
-const removeLpTopic0 = "0xd8ae9b9ba89e637bcb66a69ac91e8f688018e81d6f92c57e02226425c8efbdf6";
-
-const repayCreditAccountTopic = "RepayCreditAccount(index_topic_1 address owner, index_topic_2 address to)";
-const repayCreditAccountTopic0 = "0xe7c7987373a0cc4913d307f23ab8ef02e0333a2af445065e2ef7636cffc6daa7";
-
-const liquidateCreditAccountTopic =
-  "LiquidateCreditAccount(index_topic_1 address owner, index_topic_2 address liquidator, uint256 remainingFunds)";
-const liquidateCreditAccountTopic0 = "0x5e5da6c348e62989f9cfe029252433fc99009b7d28fa3c20d675520a10ff5896";
-
-const closeCreditAccountTopic =
-  "CloseCreditAccount(index_topic_1 address owner, index_topic_2 address to, uint256 remainingFunds)";
-const closeCreditAccountTopic0 = "0xca05b632388199c23de1352b2e96fd72a0ec71611683330b38060c004bbf0a76";
-
-const returnCreditAccountTopic = "ReturnCreditAccount(index_topic_1 address account)";
-const returnCreditAccountTopic0 = "0xced6ab9afc868b3a088366f6631ae20752993b5cce5d5f0534ea5a59fcc57d56";
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const sql = postgres(process.env.INDEXA_DB!);

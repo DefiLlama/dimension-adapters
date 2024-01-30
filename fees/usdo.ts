@@ -35,24 +35,6 @@ const contract_interface = new ethers.Interface([
   event_increase_value,
 ]);
 
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "constant": true,
-    "inputs": [],
-    "name": token,
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -85,9 +67,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     })))) as any;
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['token0', 'token1'].map((method) =>
+      ['address:token0', 'address:token1'].map((method) =>
         sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
+          abi: method,
           calls: pools.map((address: string) => ({
             target: address,
           })),

@@ -26,61 +26,12 @@ const topic0 = '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf7
 const FACTORY_ADDRESS = '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a';
 
 type TABI = {
-  [k: string]: object;
+  [k: string]: string;
 }
 const ABIs: TABI = {
-  allPoolsLength: {
-    "inputs": [],
-    "name": "allPoolsLength",
-    "outputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  allPools: {
-    "inputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "name": "allPools",
-    "outputs": [
-        {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "constant": true,
-    "inputs": [],
-    "name": token,
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
+  "allPoolsLength": "uint256:allPoolsLength",
+  "allPools": "function allPools(uint256) view returns (address)"
+}
 
 export const fetchV2 = async (timestamp: number) => {
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -104,12 +55,10 @@ export const fetchV2 = async (timestamp: number) => {
     const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['token0', 'token1'].map((method) =>
+      ['address:token0', 'address:token1'].map((method) =>
         sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address: string) => ({
-            target: address,
-          })),
+          abi: method,
+          calls: lpTokens,
           chain: CHAIN.OPTIMISM,
           permitFailure: true,
         })

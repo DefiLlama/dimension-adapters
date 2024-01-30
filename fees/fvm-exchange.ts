@@ -19,60 +19,12 @@ const topic0 =
 const FACTORY_ADDRESS = "0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A";
 
 type TABI = {
-  [k: string]: object;
+  [k: string]: string;
 };
 const ABIs: TABI = {
-  allPairsLength: {
-    type: "function",
-    stateMutability: "view",
-    outputs: [
-      {
-        type: "uint256",
-        name: "",
-        internalType: "uint256",
-      },
-    ],
-    name: "allPairsLength",
-    inputs: [],
-  },
-  allPairs: {
-    type: "function",
-    stateMutability: "view",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    inputs: [
-      {
-        type: "uint256",
-        name: "",
-        internalType: "uint256",
-      },
-    ],
-    name: "allPairs",
-  },
-};
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    constant: true,
-    inputs: [],
-    name: token,
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  };
-};
+  "allPairsLength": "uint256:allPairsLength",
+  "allPairs": "function allPairs(uint256) view returns (address)"
+}
 process.env.FANTOM_BATCH_MAX_COUNT = "10"; // 10 is the default value
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
@@ -100,9 +52,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ["token0", "token1"].map((method) =>
+      ["address:token0", "address:token1"].map((method) =>
         sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
+          abi: method,
           calls: lpTokens,
           chain: CHAIN.FANTOM,
           permitFailure: true,

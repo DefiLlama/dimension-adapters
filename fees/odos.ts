@@ -71,23 +71,6 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.POLYGON_ZKEVM]:[ '0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC', ],
 }
 
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "inputs": [],
-    "name": token,
-    "outputs": [
-        {
-            "internalType": "contract IERC20",
-            "name": "tokenX",
-            "type": "address"
-        }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-  }
-};
-
-
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24

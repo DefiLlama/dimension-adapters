@@ -13,40 +13,7 @@ type TPrice = {
   };
 }
 const abis: any = {
-  forSwaps:{
-    "stateMutability": "view",
-    "type": "function",
-    "name": "forSwaps",
-    "inputs": [],
-    "outputs": [
-        {
-            "name": "",
-            "type": "tuple[]",
-            "components": [
-                {
-                    "name": "lp",
-                    "type": "address"
-                },
-                {
-                    "name": "stable",
-                    "type": "bool"
-                },
-                {
-                    "name": "token0",
-                    "type": "address"
-                },
-                {
-                    "name": "token1",
-                    "type": "address"
-                },
-                {
-                    "name": "factory",
-                    "type": "address"
-                }
-            ]
-        }
-    ]
-  }
+  "forSwaps": "function forSwaps() view returns ((address lp, bool stable, address token0, address token1, address factory)[])"
 }
 
 interface IForSwap {
