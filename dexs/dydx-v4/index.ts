@@ -15,7 +15,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    "dydx": {
       runAtCurrTime:true,
       fetch,
       start: async () => 1614211200,
