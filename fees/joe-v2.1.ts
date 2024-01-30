@@ -68,23 +68,6 @@ const pools: TPool = {
   ]
 }
 
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "inputs": [],
-    "name": token,
-    "outputs": [
-        {
-            "internalType": "contract IERC20",
-            "name": "tokenX",
-            "type": "address"
-        }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-  }
-};
-
-
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
@@ -92,9 +75,9 @@ const graph = (chain: Chain) => {
     try {
       const lpTokens = pools[chain]
       const [underlyingToken0, underlyingToken1] = await Promise.all(
-        ['getTokenX', 'getTokenY'].map((method: string) =>
+        ['address:getTokenX', 'address:getTokenY'].map((method: string) =>
           sdk.api2.abi.multiCall({
-            abi: PAIR_TOKEN_ABI(method),
+            abi: method,
             calls: lpTokens.map((address: string) => ({
               target: address,
             })),

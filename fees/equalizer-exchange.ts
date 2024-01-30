@@ -41,135 +41,19 @@ const CHAIN_USED = CHAIN.FANTOM;
 const CHAIN_SLUG = 'fantom';
 
 type TABI = {
-  [k: string]: object;
+  [k: string]: string;
 }
 const ABIs: TABI = {
-  allPairsLength: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairsLength",
-    "inputs": []
-  },
-  allPairs: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairs",
-  }
-};
+  "allPairsLength": "uint256:allPairsLength",
+  "allPairs": "function allPairs(uint256) view returns (address)"
+}
 
 const VOTER_ABI: TABI = {
-  length: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "length",
-    "inputs": []
-  },
-  pools: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "pools",
-  },
-  gauges: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "address",
-        "name": "",
-        "internalType": "address"
-      }
-    ],
-    "name": "gauges",
-  },
-  bribes: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "address",
-        "name": "",
-        "internalType": "address"
-      }
-    ],
-    "name": "bribes",
-  }
-};
-
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "constant": true,
-    "inputs": [],
-    "name": token,
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
+  "length": "uint256:length",
+  "pools": "function pools(uint256) view returns (address)",
+  "gauges": "function gauges(address) view returns (address)",
+  "bribes": "function bribes(address) view returns (address)"
+}
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -192,9 +76,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['token0', 'token1'].map((method) =>
+      ['address:token0', 'address:token1'].map((method) =>
         sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
+          abi: method,
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),
@@ -214,8 +98,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       chain: CHAIN_SLUG
     });
 
-    const voterGauges = poolsGauges.filter( (_vg: string) =>
-    	_vg !== '0x0000000000000000000000000000000000000000'
+    const voterGauges = poolsGauges.filter((_vg: string) =>
+      _vg !== '0x0000000000000000000000000000000000000000'
     );
 
 
@@ -256,10 +140,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 
     var allBribedTokens: string[] = new Array(0);
-    const listOfBribedTokensByPool: string[][] = bribeAndFeeLogs.map( (perBribeLogs: ILog[]) => {
-      const _innerBT: string[] = perBribeLogs.map( (e: ILog) => {
+    const listOfBribedTokensByPool: string[][] = bribeAndFeeLogs.map((perBribeLogs: ILog[]) => {
+      const _innerBT: string[] = perBribeLogs.map((e: ILog) => {
         const _l = INTERFACE_N.parseLog(e);
-        if(_l==null) { return "" }
+        if (_l == null) { return "" }
         const _t = `${CHAIN_USED}:${_l.args.reward.toLowerCase()}`;
         return _t;
         //return `${CHAIN_USED}:${e.topics[2].toLowerCase()}`;
@@ -268,7 +152,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       return _innerBT;
     });
 
-    allBribedTokens.filter( (_ta: string) => { _ta != "" } )
+    allBribedTokens.filter((_ta: string) => { _ta != "" })
 
 
 
@@ -282,10 +166,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     // { getPrices } function breaks above 100 tokens..splitting into chunks of 100
 
     const coins_split: string[][] = [];
-    for(let i = 0; i < coins.length; i+=100) {
+    for (let i = 0; i < coins.length; i += 100) {
       coins_split.push(coins.slice(i, i + 100))
     }
-    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
+    const prices_result: any = (await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)))).flat().flat().flat();
     const prices: TPrice = Object.assign({}, {});
     prices_result.map((a: any) => Object.assign(prices, a))
 
@@ -297,7 +181,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const tradefeesLog: IAmount[] = tradefeeLogs[index]
         .map((e: ILog) => { return { ...e, data: e.data.replace('0x', '') } })
         .map((p: ILog) => {
-          const amount0 = Number('0x' + p.data.slice( 0,  64)) / 10 ** token0Decimals;
+          const amount0 = Number('0x' + p.data.slice(0, 64)) / 10 ** token0Decimals;
           const amount1 = Number('0x' + p.data.slice(64, 128)) / 10 ** token1Decimals;
           return {
             amount0,
@@ -308,9 +192,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       const token1Price = (prices[`${CHAIN_SLUG}:${tokens1[index]}`]?.price || 0);
 
       const feesAmount0 = tradefeesLog
-        .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0)  * token0Price;
+        .reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0) * token0Price;
       const feesAmount1 = tradefeesLog
-        .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0)  * token1Price;
+        .reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0) * token1Price;
 
       const feesUSD = feesAmount0 + feesAmount1;
       return feesUSD;
@@ -323,7 +207,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         .map((e: ILog) => { return { ...e } })
         .map((p: ILog) => {
           const _log = INTERFACE_N.parseLog(p);
-          if(_log==null || _log.args.from != voterGauges[index]) {
+          if (_log == null || _log.args.from != voterGauges[index]) {
             const amount = 0;
             return { amount } as IAmountUSD
           }
@@ -331,12 +215,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
           const _price = (prices[`${CHAIN_SLUG}:${_token}`]?.price || 0);
           const _deci = prices[`${CHAIN_SLUG}:${_token}`]?.decimals || 0;
           //console.log("_log.args.from", _log.args.from);
-          const amount = Number(p.data) / 10 ** _deci * _price ;
+          const amount = Number(p.data) / 10 ** _deci * _price;
           return { amount } as IAmountUSD
         }) as IAmountUSD[];
 
       const notifiedFeeAmount = notifiedFeesLog
-      	.reduce((a: number, b: IAmountUSD) => Number(b.amount) + a, 0);
+        .reduce((a: number, b: IAmountUSD) => Number(b.amount) + a, 0);
 
       return notifiedFeeAmount;
     });
@@ -349,14 +233,14 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         .map((e: ILog) => { return { ...e } })
         .map((p: ILog) => {
           const _log = INTERFACE_N.parseLog(p);
-          if(_log==null || _log.args.from == voterGauges[index]) {
+          if (_log == null || _log.args.from == voterGauges[index]) {
             const amount = 0;
             return { amount } as IAmountUSD
           }
           const _token = _log.args.reward;
           const _price = (prices[`${CHAIN_SLUG}:${_token}`]?.price || 0);
           const _deci = prices[`${CHAIN_SLUG}:${_token}`]?.decimals || 0;
-          const amount = Number(p.data) / 10 ** _deci * _price ;
+          const amount = Number(p.data) / 10 ** _deci * _price;
           return { amount } as IAmountUSD
         }) as IAmountUSD[];
 
@@ -371,20 +255,20 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 
-    const dailyFees = tradefees.reduce((a: number, b: number) => a+b,0)
-    const dailyRevenueFees = notifiedFees.reduce((a: number, b: number) => a+b,0)
-    const dailyRevenueBribes = notifiedBribes.reduce((a: number, b: number) => a+b,0)
+    const dailyFees = tradefees.reduce((a: number, b: number) => a + b, 0)
+    const dailyRevenueFees = notifiedFees.reduce((a: number, b: number) => a + b, 0)
+    const dailyRevenueBribes = notifiedBribes.reduce((a: number, b: number) => a + b, 0)
 
 
 
     return {
       dailyFees: `${dailyFees}`,
-      dailyRevenue:  `${dailyRevenueFees}`,
+      dailyRevenue: `${dailyRevenueFees}`,
       dailyHoldersRevenue: `${dailyRevenueFees}`,
       dailyBribesRevenue: `${dailyRevenueBribes}`,
       timestamp,
     };
-  } catch(error) {
+  } catch (error) {
     console.error(error);
     throw error;
   }

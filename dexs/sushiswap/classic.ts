@@ -146,7 +146,8 @@ const fantomGraphs =  getChainVolumeWithGasToken({
     factory: "dayData",
     field: 'volumeETH',
     dateField: "date"
-  }
+  },
+  priceToken: "coingecko:fantom"
 } as any);
 classic[CHAIN.FANTOM] = {
   fetch: async (timestamp: number) =>   {

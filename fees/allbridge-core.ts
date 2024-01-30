@@ -50,24 +50,7 @@ const contract_interface = new ethers.Interface([
   event_swap_toUSD
 ]);
 
-interface IFee {
-  amount: number;
-  lp: string;
-}
-const abi_token = {
-  "inputs": [],
-  "name": "token",
-  "outputs": [
-      {
-          "internalType": "contract ERC20",
-          "name": "",
-          "type": "address"
-      }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-}
-
+const abi_token = "address:token"
 const fetchFees = async (chain: Chain, timestamp: number): Promise<number> => {
   const toTimestamp = timestamp;
   const fromTimestamp = timestamp - 60 * 60 * 24

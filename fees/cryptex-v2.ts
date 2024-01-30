@@ -45,68 +45,9 @@ const coinsId: IMapCoin = {
 }
 
 const abis: any = {
-  makerFee: {
-    "inputs": [],
-    "name": "makerFee",
-    "outputs": [
-        {
-            "internalType": "UFixed18",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  takerFee: {
-    "inputs": [],
-    "name": "takerFee",
-    "outputs": [
-        {
-            "internalType": "UFixed18",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  atVersion: {
-    "inputs": [
-        {
-            "internalType": "uint256",
-            "name": "oracleVersion",
-            "type": "uint256"
-        }
-    ],
-    "name": "atVersion",
-    "outputs": [
-        {
-            "components": [
-                {
-                    "internalType": "uint256",
-                    "name": "version",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "uint256",
-                    "name": "timestamp",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "Fixed18",
-                    "name": "price",
-                    "type": "int256"
-                }
-            ],
-            "internalType": "struct IOracleProvider.OracleVersion",
-            "name": "",
-            "type": "tuple"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
+  "makerFee": "uint256:makerFee",
+  "takerFee": "uint256:takerFee",
+  "atVersion": "function atVersion(uint256 oracleVersion) view returns ((uint256 version, uint256 timestamp, int256 price))"
 }
 type IPrice = {
   [s: string]: number;

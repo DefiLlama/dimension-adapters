@@ -81,12 +81,6 @@ async function getChainData(
 
   for (const curr of data) {
     const parsedJson = curr.parsedJson;
-    // console.log(parsedJson);
-
-    // const prices = await getPrices(
-    //   ["sui:0x" + parsedJson.o_token.name, "sui:0x" + parsedJson.b_token.name],
-    //   Number(curr.timestampMs) / 1000
-    // );
     const dailyNotionalVolume =
       Number(parsedJson.delivery_size)
 

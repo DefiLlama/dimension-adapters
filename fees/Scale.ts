@@ -21,9 +21,6 @@ interface IAmount {
   amount0: number;
   amount1: number;
 }
-interface IBribeAndFeeAmount {
-  amount: number;
-}
 interface IBribedAmount {
   amount: number;
 }
@@ -41,135 +38,18 @@ const CHAIN_USED = CHAIN.BASE;
 const CHAIN_SLUG = 'base';
 
 type TABI = {
-  [k: string]: object;
+  [k: string]: string;
 }
-const ABIs: TABI = {
-  allPairsLength: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairsLength",
-    "inputs": []
-  },
-  allPairs: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "allPairs",
-  }
-};
-
+const ABIs: TABI ={
+  "allPairsLength": "uint256:allPairsLength",
+  "allPairs": "function allPairs(uint256) view returns (address)"
+}
 const VOTER_ABI: TABI = {
-  length: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "length",
-    "inputs": []
-  },
-  pools: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "uint256",
-        "name": "",
-        "internalType": "uint256"
-      }
-    ],
-    "name": "pools",
-  },
-  gauges: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "address",
-        "name": "",
-        "internalType": "address"
-      }
-    ],
-    "name": "gauges",
-  },
-  bribes: {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "inputs": [
-      {
-        "type": "address",
-        "name": "",
-        "internalType": "address"
-      }
-    ],
-    "name": "bribes",
-  }
-};
-
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "constant": true,
-    "inputs": [],
-    "name": token,
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-};
-
+  "length": "uint256:length",
+  "pools": "function pools(uint256) view returns (address)",
+  "gauges": "function gauges(address) view returns (address)",
+  "bribes": "function bribes(address) view returns (address)"
+}
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
@@ -192,9 +72,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const lpTokens = poolsRes
 
     const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ['token0', 'token1'].map((method) =>
+      ['address:token0', 'address:token1'].map((method) =>
         sdk.api2.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
+          abi: method,
           calls: lpTokens.map((address: string) => ({
             target: address,
           })),

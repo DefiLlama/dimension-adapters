@@ -175,71 +175,10 @@ const adapter: SimpleAdapter = {
   }
 };
 
-const getRewardTokensABI = {
-  "inputs": [],
-  "name": "getRewardTokens",
-  "outputs": [
-    {
-      "internalType": "address[]",
-      "name": "",
-      "type": "address[]"
-    }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-};
+const getRewardTokensABI = "address[]:getRewardTokens"
 
-const assetInfoABI = {
-  "inputs": [],
-  "name": "assetInfo",
-  "outputs": [
-    {
-      "internalType": "enum IStandardizedYield.AssetType",
-      "name": "assetType",
-      "type": "uint8"
-    },
-    {
-      "internalType": "address",
-      "name": "assetAddress",
-      "type": "address"
-    },
-    {
-      "internalType": "uint8",
-      "name": "assetDecimals",
-      "type": "uint8"
-    }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-}
+const assetInfoABI =  "function assetInfo() view returns (uint8 assetType, address assetAddress, uint8 assetDecimals)"
 
-const exchangeRateABI = {
-  "inputs": [],
-  "name": "exchangeRate",
-  "outputs": [
-    {
-      "internalType": "uint256",
-      "name": "res",
-      "type": "uint256"
-    }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-}
-
-const decimalsABI = {
-  "inputs": [],
-  "name": "decimals",
-  "outputs": [
-    {
-      "internalType": "uint8",
-      "name": "",
-      "type": "uint8"
-    }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-}
-
+const exchangeRateABI = "uint256:exchangeRate"
 
 export default adapter;

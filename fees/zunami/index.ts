@@ -24,22 +24,10 @@ interface YieldData {
 }
 
 type TABI = {
-    [k: string]: object;
+    [k: string]: string;
 }
 const ABIs: TABI = {
-    getManagementFee: {
-        "inputs": [],
-        "name": "managementFee",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    }
+    getManagementFee: "uint256:managementFee"
 };
 
 const getData = (chain: Chain) => {
