@@ -93,7 +93,7 @@ async function getChainData(
 
     if (parsedJson.o_token.name.endsWith("MFUD")) {
       o_token_name = "sui:0x76cb819b01abed502bee8a702b4c2d547532c12f25001c9dea795a5e631c26f1::fud::FUD";
-      dailyNotionalVolume = Number(parsedJson.delivery_size) * 10 ** 6;
+      dailyNotionalVolume = Number(parsedJson.delivery_size) * 10 ** 5;
     } else {
       o_token_name = "sui:0x" + parsedJson.o_token.name;
       dailyNotionalVolume = Number(parsedJson.delivery_size);
@@ -109,7 +109,7 @@ async function getChainData(
           Number(parsedJson.bidder_fee) +
           Number(parsedJson.incentive_bid_value) +
           Number(parsedJson.incentive_fee)) *
-        10 ** 6;
+        10 ** 5;
     } else {
       b_token_name = "sui:0x" + parsedJson.b_token.name;
       dailyPremiumVolume =
