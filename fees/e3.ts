@@ -21,51 +21,15 @@ const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 
 const topic0 = '0xad7d6f97abf51ce18e17a38f4d70e975be9c0708474987bb3e26ad21bd93ca70';
 const FACTORY_ADDRESS = '0x8597db3ba8de6baadeda8cba4dac653e24a0e57b';
 
-const contract_interface = new ethers.Interface([
-	event_swap
-]);
+const contract_interface = new ethers.Interface([	event_swap]);
 
 type TABI = {
-	[k: string]: object;
+	[k: string]: string;
 }
 const ABIs: TABI = {
-	getNumberOfLBPairs:	 {
-		inputs: [],
-		name: "getNumberOfLBPairs",
-		outputs: [
-			{ internalType: "uint256", name: "lbPairNumber", type: "uint256" },
-		],
-		stateMutability: "view",
-		type: "function",
-	},
-	getLBPairAtIndex:{
-		inputs: [{ internalType: "uint256", name: "index", type: "uint256" }],
-		name: "getLBPairAtIndex",
-		outputs: [
-			{ internalType: "contract ILBPair", name: "lbPair", type: "address" },
-		],
-		stateMutability: "view",
-		type: "function",
-	}
-};
-
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-	return {
-		"inputs": [],
-		"name": token,
-		"outputs": [
-				{
-						"internalType": "contract IERC20",
-						"name": "tokenX",
-						"type": "address"
-				}
-		],
-		"stateMutability": "pure",
-		"type": "function"
-	}
-};
-
+  "getNumberOfLBPairs": "uint256:getNumberOfLBPairs",
+  "getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
+}
 
 const graph = (_chain: Chain) => {
 	return async (timestamp: number) => {
@@ -91,9 +55,9 @@ const graph = (_chain: Chain) => {
 			const lpTokens = poolsRes
 
 			const [underlyingToken0, underlyingToken1] = await Promise.all(
-				['getTokenX', 'getTokenY'].map((method: string) =>
+				['address:getTokenX', 'address:getTokenY'].map((method: string) =>
 					sdk.api2.abi.multiCall({
-						abi: PAIR_TOKEN_ABI(method),
+						abi: method,
 						calls: lpTokens.map((address: string) => ({
 							target: address,
 						})),

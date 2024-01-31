@@ -21,6 +21,7 @@ const graphs = getChainVolumeWithGasToken({
     factory: "spiritswapDayData",
     field: 'dailyVolumeFTM',
   },
+  priceToken: "coingecko:fantom"
 });
 
 const adapter: SimpleAdapter = {

@@ -66,46 +66,6 @@ const pools: TPool = {
   ]
 }
 
-type TABI = {
-  [k: string]: object;
-}
-const ABIs: TABI = {
-  getNumberOfLBPairs:   {
-    inputs: [],
-    name: "getNumberOfLBPairs",
-    outputs: [
-      { internalType: "uint256", name: "lbPairNumber", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  getLBPairAtIndex:{
-    inputs: [{ internalType: "uint256", name: "index", type: "uint256" }],
-    name: "getLBPairAtIndex",
-    outputs: [
-      { internalType: "contract ILBPair", name: "lbPair", type: "address" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  }
-};
-
-const PAIR_TOKEN_ABI = (token: string): object => {
-  return {
-    "inputs": [],
-    "name": token,
-    "outputs": [
-        {
-            "internalType": "contract IERC20",
-            "name": "tokenX",
-            "type": "address"
-        }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-  }
-};
-
 const graph = (chain: Chain) => {
   return async (timestamp: number) => {
     const fromTimestamp = timestamp - 60 * 60 * 24
@@ -113,12 +73,10 @@ const graph = (chain: Chain) => {
     try {
       const lpTokens = pools[chain]
       const [underlyingToken0, underlyingToken1] = await Promise.all(
-        ['getTokenX', 'getTokenY'].map((method: string) =>
+        ['address:getTokenX', 'address:getTokenY'].map((abi: string) =>
           sdk.api2.abi.multiCall({
-            abi: PAIR_TOKEN_ABI(method),
-            calls: lpTokens.map((address: string) => ({
-              target: address,
-            })),
+            abi,
+            calls: lpTokens,
             chain: chain
           })
         )

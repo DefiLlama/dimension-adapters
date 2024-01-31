@@ -5,7 +5,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 import axios from "axios";
-import { getPrices } from "../../utils/prices";
+import * as sdk from "@defillama/sdk";
 
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
@@ -88,7 +88,7 @@ const v3Graph = getGraphDimensions({
     factory: "pancakeDayData",
     field: VOLUME_USD
   },
-  totalFees:{
+  totalFees: {
     factory: "factories",
   },
   dailyFees: {
@@ -145,7 +145,7 @@ const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe1985
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
 const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 
-const  getResources = async (account: string): Promise<any[]> => {
+const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
   let lastData: any;
   let cursor
@@ -179,38 +179,28 @@ const fetchVolume = async (timestamp: number) => {
         counter: Number(e.data.swap.counter),
       }
     }).sort((a, b) => b.counter - a.counter)
-    const creation_num =  [14,767, 702, 12, 622, 757, 1077, 1092, 5708, 2, 712, 3196]
-    const logs_swap: ISwapEventData[] = (await Promise.all(pools
-      .filter(e => creation_num.includes(Number(e.swap_events.creation_num)))
-      .map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
-    const numberOfTrade: any = {};
-    // debugger
-    [...new Set(logs_swap.map(e => e.user))].forEach(e => {
-      numberOfTrade[e] = {};
-      numberOfTrade[e]['user'] = e;
-      numberOfTrade[e]['count'] = 0;
-      numberOfTrade[e]['volume'] = 0;
-    })
-    const coins = [...new Set([...logs_swap.map(p => getToken(p.type)).flat().map((e: string) => `${CHAIN.APTOS}:${e}`)])]
-    const price = (await getPrices(coins, timestamp));
-    const untrackVolume: number[] = logs_swap.map((e: ISwapEventData) => {
-      const [token0, token1] = getToken(e.type);
-      const token0Price = price[`${CHAIN.APTOS}:${token0}`]?.price || 0;
-      const token1Price = price[`${CHAIN.APTOS}:${token1}`]?.price || 0;
-      const token0Decimals = price[`${CHAIN.APTOS}:${token0}`]?.decimals || 0;
-      const token1Decimals = price[`${CHAIN.APTOS}:${token1}`]?.decimals || 0;
-      if (token0Decimals === 0 || token1Decimals === 0) return 0;
-      const in_au = ((Number(e.amount_x_in) + Number(e.amount_x_out)) / 10 ** token0Decimals) * token0Price;
-      const out_au = ((Number(e.amount_y_in) + Number(e.amount_y_out)) / 10 ** token1Decimals) * token1Price;
-      numberOfTrade[e.user]['count'] += 1
-      numberOfTrade[e.user]['volume'] += token0Price ? in_au : out_au;
-      return token0Price ? in_au : out_au;
-    })
-    const dailyVolume = [...new Set(untrackVolume)].reduce((a: number, b: number) => a + b, 0)
+  const creation_num = [14, 767, 702, 12, 622, 757, 1077, 1092, 5708, 2, 712, 3196]
+  const logs_swap: ISwapEventData[] = (await Promise.all(pools
+    .filter(e => creation_num.includes(Number(e.swap_events.creation_num)))
+    .map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
+  const numberOfTrade: any = {};
+  // debugger
+  [...new Set(logs_swap.map(e => e.user))].forEach(e => {
+    numberOfTrade[e] = {};
+    numberOfTrade[e]['user'] = e;
+    numberOfTrade[e]['count'] = 0;
+    numberOfTrade[e]['volume'] = 0;
+  })
+  const balances = new sdk.Balances({ chain: CHAIN.APTOS, timestamp })
+  logs_swap.map((e: ISwapEventData) => {
+    const [token0, token1] = getToken(e.type);
+    balances.add(token0, e.amount_x_out)
+    balances.add(token1, e.amount_y_out)
+  })
 
   return {
     timestamp,
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume: await balances.getUSDString(),
     dailyFees: "0",
   }
 }
@@ -224,7 +214,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
     const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
       const event: any[] = (await axios.get(getEventByCreation)).data;
-      const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
+      const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
@@ -232,7 +222,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
       const block = (await axios.get(urlBlock)).data;
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
-      if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp)  {
+      if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp) {
         swap_events.push(...event)
       }
       if (lastTimestampNumber < fromTimestamp) {
@@ -253,7 +243,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
     }
   })
 }
-const toUnixTime = (timestamp: string) => Number((Number(timestamp)/1e6).toString().split('.')[0])
+const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -282,7 +272,7 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch:  async (timestamp: number) => {
+        fetch: async (timestamp: number) => {
           const v3stats = await v3Graph(chain)(timestamp, {})
           if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
           return {
@@ -300,7 +290,7 @@ const adapter: BreakdownAdapter = {
         fetch: graphsStableSwap(chain as Chain),
         start: async () => stableTimes[chain],
         meta: {
-          methodology : {
+          methodology: {
             UserFees: "User pays 0.25% fees on each swap.",
             ProtocolRevenue: "Treasury receives 10% of the fees.",
             SupplySideRevenue: "LPs receive 50% of the fees.",

@@ -1,16 +1,16 @@
 import { Adapter, ProtocolType } from "../adapters/types";
-import { OPTIMISM } from "../helpers/chains";
+import { CHAIN, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getBalance } from '@defillama/sdk/build/eth';
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestamp24hAgo } from "../utils/date";
 import postgres from "postgres";
-import { queryFlipside } from "../helpers/flipsidecrypto";
+import { ethers } from "ethers";
+import * as sdk from "@defillama/sdk";
 
-
+const topic0_withdrawn = '0xc8a211cc64b6ed1b50595a9fcb1932b6d1e5a6e8ef15b60e5b1f988ea9086bba';
 async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: ChainBlocks){
     const todaysBlock = (await getBlock(toTimestamp, OPTIMISM, chainBlocks));
     const yesterdaysBlock = (await getBlock(fromTimestamp, OPTIMISM, {}));
@@ -26,22 +26,27 @@ async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: Ch
       }`;
 
     const graphRes = await request("https://api.thegraph.com/subgraphs/name/ap0calyp/optimism-fee-withdrawn", graphQuery);
-
-    const query = `
-        SELECT
-            sum(eth_value) as sum
-        from
-            optimism.core.fact_traces
-        WHERE
-            from_address in (
-                '0x420000000000000000000000000000000000001a',
-                '0x4200000000000000000000000000000000000019'
-            )
-            and to_address = '0x4200000000000000000000000000000000000010'
-            and BLOCK_NUMBER > ${yesterdaysBlock} AND BLOCK_NUMBER < ${todaysBlock}
-    `
-    const value: string[] = (await queryFlipside(query, 260)).flat();
-    const feeWalletAndBase = new BigNumber(value[0] || '0').multipliedBy(1e18);
+    const logsWithdrawal: ethers.EventLog[] = (
+        await Promise.all(
+          ['0x420000000000000000000000000000000000001a', '0x4200000000000000000000000000000000000019'].map((address) =>
+            sdk.getEventLogs({
+              toBlock: todaysBlock,
+              fromBlock: yesterdaysBlock,
+              target: address,
+              topics: [topic0_withdrawn],
+              chain: CHAIN.OPTIMISM,
+            })
+          )
+        )
+      ).flat();
+      const withdrawAmount = logsWithdrawal
+        .map((log: ethers.EventLog) => {
+          const parsedLog = log.data.replace("0x", "");
+          const amount = Number("0x" + parsedLog.slice(0, 64));
+          return amount;
+        })
+        .reduce((a: number, b: number) => a + b, 0);
+    const feeWalletAndBase = new BigNumber(withdrawAmount).multipliedBy(1e18);
     const dailyFee = new BigNumber(graphRes["today"][0].amount).minus(graphRes["yesterday"][0].amount).plus(feeWalletAndBase);
 
     const feeWallet = '0x4200000000000000000000000000000000000011';

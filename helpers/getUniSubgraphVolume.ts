@@ -4,7 +4,8 @@ import { getBlock } from "./getBlock";
 import { BaseAdapter, ChainBlocks } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
-import { getPrices } from "../utils/prices";
+import { Balances } from "@defillama/sdk";
+
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var date_utc = Date.UTC(
@@ -149,7 +150,7 @@ function getChainVolumeWithGasToken({
   hasDailyVolume = true,
   hasTotalVolume = true,
   getCustomBlock = undefined,
-  priceToken = "coingecko:fantom"
+  priceToken,
 }: IGetChainVolumeParams & {priceToken:string}) {
   const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
   return (chain: Chain) => {
@@ -159,11 +160,15 @@ function getChainVolumeWithGasToken({
         totalVolume,
         dailyVolume,
       } = await basic(chain)(timestamp, chainBlocks);
-      const price = await getPrices([priceToken], timestamp)
+
+      console.log(chain, dailyVolume, timestamp)
+      const balances = new Balances({ chain, timestamp})
+      balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
+
       return {
         timestamp,
         block,
-        dailyVolume: dailyVolume*price[priceToken].price
+        dailyVolume: await balances.getUSDString()
       }
     };
   };
