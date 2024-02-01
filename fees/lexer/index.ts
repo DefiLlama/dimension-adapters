@@ -1,8 +1,9 @@
-import { Fetch, SimpleAdapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
-import {request} from 'graphql-request';
+import { Fetch, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gql, request } from 'graphql-request';
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-// TODO: change these endpoints 
+// TODO: change these endpoints
 const apiEndPoints = [
     "https://api.studio.thegraph.com/query/50217/synth-stat-v2-arb-mainnet/version/latest",
     "https://api.studio.thegraph.com/query/50217/core-stat-v2-arb-mainnet/version/latest",
@@ -19,35 +20,58 @@ type FeeStatsQuery = {
     ]
 }
 
-const queryString = `{
-    feeStats(where: {period: total}) {
-      marginAndLiquidation
-      swap
-      mint
-      burn
+const historicalDataSwap = gql`
+  query get_fes($period: String!, $id: String!) {
+    feeStats(where: { period: $period, id: $id }) {
+        marginAndLiquidation
+        swap
+        mint
+        burn
     }
-  }`
+  }
+`;
 
-const fetch: Fetch = async(timestamp) => {
+
+const fetch: Fetch = async(timestamp): Promise<FetchResultFees> => {
     // TODO: get result from fetching api call
-    let totalFee = 0;
+    let dailyFees = 0;
+    let totalFees = 0;
+    const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     for (const api of apiEndPoints){
-        const {swap, mint, burn, marginAndLiquidation} = (await request<FeeStatsQuery>(api, queryString)).feeStats[0];
-        const endPointFee = Number(swap) + Number(mint) + Number(burn) + Number(marginAndLiquidation);
-        totalFee += endPointFee;
+        const response: FeeStatsQuery = await request(api, historicalDataSwap, {
+            id: String(t),
+            period: "daily",
+        })
+        dailyFees += response.feeStats.length ? Number(
+            Object.values(response.feeStats[0] || {}).reduce((sum, element) =>
+                String(Number(sum) + Number(element))
+            )
+            ) : 0;
+
+        const totalResponse: FeeStatsQuery = await request(api, historicalDataSwap, {
+            id: "total",
+            period: "total",
+        })
+
+        totalFees += totalResponse.feeStats.length ? Number(
+            Object.values(totalResponse.feeStats[0] || {}).reduce((sum, element) =>
+                String(Number(sum) + Number(element))
+            )
+            ) : 0;
     }
-    totalFee /= 1e30
+    dailyFees /= 1e30
+    totalFees /= 1e30
     return {
         timestamp,
-        totalFees: String(totalFee)
+        dailyFees: dailyFees.toString(),
+        totalFees: totalFees.toString(),
     }
 }
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [ARBITRUM]: {
-            runAtCurrTime: true,
-            start: async () => 1630368000,
+        [CHAIN.ARBITRUM]: {
+            start: async () => 1704758400,
             fetch,
             meta:{
                 methodology: "api calls from grpahql"
