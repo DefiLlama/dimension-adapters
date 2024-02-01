@@ -1,6 +1,7 @@
-import { Fetch, SimpleAdapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
-import { request } from "graphql-request";
+import { BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gql, request } from "graphql-request";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
 
 // TODO: change these endpoints
 const apiEndPoints = [
@@ -8,61 +9,114 @@ const apiEndPoints = [
   "https://api.studio.thegraph.com/query/50217/core-stat-v2-arb-mainnet/version/latest",
 ];
 
-type VolumeStatsQuery = {
-  volumeStats: [
-    {
-      swap: string;
-      mint: string;
-      burn: string;
-      margin: string;
-      liquidation: string;
-    }
-  ];
-};
+interface VolumeStatsQuery {
+  swap: string;
+  mint: string;
+  burn: string;
+  liquidation: string;
+  margin: string;
+}
 
-const queryString = `{
-    volumeStats(where: {period: total}) {
+
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: { period: $period, id: $id }) {
       swap
-      mint
-      burn
-      margin
-      liquidation
     }
-  }`;
-
-const fetch: Fetch = async (timestamp) => {
-  // TODO: get result from fetching api call
-  let totalVolume = 0;
-  for (const api of apiEndPoints) {
-    const { swap, mint, burn, liquidation, margin } = (
-      await request<VolumeStatsQuery>(api, queryString)
-    ).volumeStats[0];
-    const endPointVolume =
-      Number(swap) +
-      Number(mint) +
-      Number(burn) +
-      Number(liquidation) +
-      Number(margin);
-    totalVolume += endPointVolume;
   }
+`;
+
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: { period: $period, id: $id }) {
+      liquidation
+      margin
+    }
+  }
+`;
+
+const fetchSwapValue = async (timestamp: number): Promise<FetchResultVolume> => {
+  let dailyVolume = 0;
+  let totalVolume = 0;
+  const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  for (const api of apiEndPoints) {
+    const  swap: VolumeStatsQuery[]   = (
+      await request(api, historicalDataSwap, {
+        id: String(t),
+        period: "daily",
+      })
+    ).volumeStats as VolumeStatsQuery[];
+    dailyVolume += Number(swap.reduce((acc, cur) => acc + Number(cur.swap), 0));
+    const totalSwap = (
+      await request(api, historicalDataSwap, {
+        id: "total",
+        period: "total",
+      })
+    ).volumeStats as VolumeStatsQuery[];
+    totalVolume += Number(totalSwap.reduce((acc, cur) => acc + Number(cur.swap), 0));
+  }
+  dailyVolume /= 1e30;
+  totalVolume /= 1e30;
+  return {
+    timestamp,
+    dailyVolume: String(dailyVolume),
+    totalVolume: String(totalVolume),
+  };
+}
+
+const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolume> => {
+  let totalVolume = 0;
+  let dailyVolume = 0;
+  const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  for (const api of apiEndPoints) {
+    const  derivatives: VolumeStatsQuery[]   = (
+      await request(api, historicalDataDerivatives, {
+        id: String(t),
+        period: "daily",
+      })
+    ).volumeStats as VolumeStatsQuery[];
+    dailyVolume += derivatives.length ? Number(
+      Object.values(derivatives[0] || {}).reduce((sum, element) =>
+        String(Number(sum) + Number(element))
+      )
+    ) : 0
+
+    const totalDerivatives = (
+      await request(api, historicalDataDerivatives, {
+        id: "total",
+        period: "total",
+      })
+    ).volumeStats as VolumeStatsQuery[];
+    totalVolume += totalDerivatives.length ? Number(
+      Object.values(totalDerivatives[0] || {}).reduce((sum, element) =>
+        String(Number(sum) + Number(element))
+      )
+    ) : 0
+  }
+  dailyVolume /= 1e30;
   totalVolume /= 1e30;
   return {
     timestamp,
     totalVolume: String(totalVolume),
+    dailyVolume: String(dailyVolume),
   };
-};
+}
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [ARBITRUM]: {
-      runAtCurrTime: true,
-      start: async () => 1630368000,
-      fetch,
-      meta: {
-        methodology: "api calls from grpahql",
-      },
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    swap: {
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchSwapValue,
+        start: async () => 1704758400,
+      }
     },
-  },
+    derivatives: {
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchDerivativesValue,
+        start: async () => 1704758400,
+      }
+    }
+  }
 };
 
 export default adapter;
