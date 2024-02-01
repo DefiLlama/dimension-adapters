@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
                 start: async () => 1698796799,
                 meta: {
                     methodology: {
-                        Fees: "Users pay 0.3% for each swap",
+                        Fees: "Users pay 0.3% for each swap along with a base fee",
                     },
                 },
             },
