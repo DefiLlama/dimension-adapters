@@ -1,22 +1,14 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://stats.kanalabs.io/volume";
 
-const fetch = async (timestamp: number): Promise<any> => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyVolume = (await fetchURL(`${URL}?chainId=1`)).data.data;
-
   return {
-    last7Days: {
-      volume: dailyVolume.last7Days.volume,
-    },
-    last30Days: {
-      volume: dailyVolume.last30Days.volume,
-    },
-    today: {
-      volume: dailyVolume.today.volume,
-    },
+    timestamp,
+    dailyVolume: dailyVolume.today.volume,
   };
 };
 
@@ -25,7 +17,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: async () => 0,
+      runAtCurrTime: true,
+      start: async () => 1695897839,
     },
   },
 };
