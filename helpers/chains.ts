@@ -132,7 +132,8 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
-  JBC = "jbc"
+  JBC = "jbc",
+  ZKFAIR = "zkfair"
 }
 
 // Don´t use
@@ -180,4 +181,5 @@ export {
   LITECOIN,
   DOGE,
   MANTLE,
+  ZKFAIR
 };
