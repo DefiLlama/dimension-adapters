@@ -4,7 +4,7 @@ import { request, gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
-
+const headers = { 'sex-dev': 'ServerDev'}
 const endpoints = {
   [CHAIN.ZKFAIR]: "https://gql.hyperionx.xyz/subgraphs/name/hyperionx/zkfair",
 };
@@ -46,8 +46,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
 
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain]);
-        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
+          headers: headers,
+        });
+        const graphQLClient = new GraphQLClient(graphUrls[chain], {
+          headers: headers,
+        });
 
 
         const blockNumber = (
