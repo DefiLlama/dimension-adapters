@@ -7,8 +7,13 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const historicalVolumeEndpoint = "https://app.bitflow.finance/api/totalVolume";
 
+interface Timestamp {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
 interface HistoricalTotalVolume {
-  date: any;
+  date: Timestamp;
   tvl: number;
 }
 
@@ -16,8 +21,8 @@ const getHistoricalTVL = async (): Promise<HistoricalTotalVolume[]> => {
   return (await fetchURL(historicalVolumeEndpoint)).data.data;
 };
 
-const getDate = (date?: any) => {
-  return new Date(date?._seconds * 1000);
+const getDateFromTimestamp = (timestamp: Timestamp) => {
+  return new Date(timestamp._seconds * 1000);
 };
 
 const fetch = async (timestamp: number) => {
@@ -26,11 +31,15 @@ const fetch = async (timestamp: number) => {
   const historicalVolume: HistoricalTotalVolume[] = await getHistoricalTVL();
 
   const totalVolume = historicalVolume
-    .filter((volItem) => getDate(volItem.date).getTime() / 1000 <= dayTimestamp)
+    .filter(
+      (volItem) =>
+        getDateFromTimestamp(volItem.date).getTime() / 1000 <= dayTimestamp
+    )
     .reduce((acc, { tvl }) => acc + tvl, 0);
 
   const dailyVolume = historicalVolume.find(
-    (dayItem) => getDate(dayItem.date).getTime() / 1000 === dayTimestamp
+    (dayItem) =>
+      getDateFromTimestamp(dayItem.date).getTime() / 1000 === dayTimestamp
   )?.tvl;
 
   return {
@@ -42,7 +51,7 @@ const fetch = async (timestamp: number) => {
 
 const getStartTimestamp = async () => {
   const historicalVolume: HistoricalTotalVolume[] = await getHistoricalTVL();
-  return getDate(historicalVolume[0].date).getTime() / 1000;
+  return getDateFromTimestamp(historicalVolume[0].date).getTime() / 1000;
 };
 
 const adapter: SimpleAdapter = {
