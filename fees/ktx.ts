@@ -1,6 +1,5 @@
-import { MANTLE } from "../helpers/chains";
+import { BSC, MANTLE, ARBITRUM } from "../helpers/chains";
 import { Adapter } from "../adapters/types";
-import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
@@ -9,6 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 const endpoints = {
   [BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
   [MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
+  [ARBITRUM]: "https://arbisubgraph.ktx.systems/subgraphs/name/ktx",
 }
 
 const methodology = {
@@ -24,7 +24,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = (chain == "bsc" || chain == "mantle")  ? todaysTimestamp : todaysTimestamp + ":daily"
+      const searchTimestamp = (chain == "bsc" || chain == "mantle" || chain == "arbitrum")  ? todaysTimestamp : todaysTimestamp + ":daily"
 
       const graphQuery = gql
       `{
