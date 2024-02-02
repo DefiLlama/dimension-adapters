@@ -180,6 +180,5 @@ export {
   BITCOIN,
   LITECOIN,
   DOGE,
-  MANTLE,
-  ZKFAIR
+  MANTLE
 };
