@@ -42,7 +42,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
         fetch: graphs()(CHAIN.BSC),
-        start: async () => 1647734400,
+        start: 1647734400,
     },
   },
 }

@@ -114,11 +114,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1684972800,
+      start: 1684972800,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1684972800,
+      start: 1684972800,
     },
   },
 };

@@ -100,7 +100,7 @@ const adapter: Adapter = {
         [ETHEREUM]: {
             fetch,
             runAtCurrTime: true,
-            start: async () => 1685386800,
+            start: 1685386800,
             meta: {
                 methodology: {
                     Fees: "0x0 collects a 0.9% fee on deposits"

@@ -119,7 +119,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: async () => 1682514000,
+      start: 1682514000,
     },
   },
 };

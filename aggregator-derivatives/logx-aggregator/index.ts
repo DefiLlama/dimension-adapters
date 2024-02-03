@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => startTimestamp,
+      start: startTimestamp,
     },
   },
 };

@@ -131,7 +131,7 @@ const adapter: Adapter = {
   adapter: {
       [CHAIN.BASE]: {
           fetch: fetch,
-          start: async () => 1687474800,
+          start: 1687474800,
       },
   },
   protocolType: ProtocolType.CHAIN

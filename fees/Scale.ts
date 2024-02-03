@@ -274,7 +274,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: async () => 1695458888,
+      start: 1695458888,
     },
   }
 };

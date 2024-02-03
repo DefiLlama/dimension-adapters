@@ -6,7 +6,7 @@ export default {
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: async () => 1700000000,
+            start: 1700000000,
             meta: {
                 methodology: {
                     DailyVolume: 'Leverage trading volume',

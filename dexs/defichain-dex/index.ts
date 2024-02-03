@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.DEFICHAIN]: {
       fetch,
-      start: async () => 0,
+      start: 0,
       runAtCurrTime: true
     },
   },

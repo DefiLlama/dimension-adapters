@@ -81,7 +81,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.WAVES]: {
             fetch,
-            start: async () => 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
+            start: 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
 }

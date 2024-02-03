@@ -39,32 +39,32 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
-      start: async () => 1659935138,
+      start: 1659935138,
       meta: { methodology },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(137),
-      start: async () => 1654574276,
+      start: 1654574276,
       meta: { methodology },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: async () => 1661412914,
+      start: 1661412914,
       meta: { methodology },
     },
     [CHAIN.BSC]: {
       fetch: fetch(56),
-      start: async () => 1657270551,
+      start: 1657270551,
       meta: { methodology },
     },
     [CHAIN.CRONOS]: {
       fetch: fetch(25),
-      start: async () => 1656399464,
+      start: 1656399464,
       meta: { methodology },
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: async () => 1673321423,
+      start: 1673321423,
       meta: { methodology },
     },
   },

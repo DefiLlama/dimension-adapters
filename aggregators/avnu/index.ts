@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
           fetch,
-          start: async () => startTimestamp,
+          start: startTimestamp,
         },
     },
 };

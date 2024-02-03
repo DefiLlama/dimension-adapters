@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fees,
-      start: async () => 1693440000,
+      start: 1693440000,
     }
   }
 }

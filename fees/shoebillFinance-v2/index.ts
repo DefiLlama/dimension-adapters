@@ -161,12 +161,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch: fetchManta,
-      start: async () => 1703980800,
+      start: 1703980800,
       runAtCurrTime: true,
     },
     [CHAIN.WEMIX]: {
       fetch: fetchWEMIX,
-      start: async () => 1703980800 ,
+      start: 1703980800 ,
       runAtCurrTime: true,
     }
   },

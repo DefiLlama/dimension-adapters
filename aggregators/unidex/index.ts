@@ -52,7 +52,7 @@ const adapter: any = {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(chain),
-          start: async () => 1704348000,
+          start: 1704348000,
         },
       };
     }, {}),

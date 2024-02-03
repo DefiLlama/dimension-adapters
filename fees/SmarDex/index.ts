@@ -54,7 +54,7 @@ for (let chain in FEES) {
   adapter.adapter[chain] = {
     fetch: (timestamp: number) =>
       feesFromSubgraph(timestamp, chain.toLocaleLowerCase()),
-    start: async () => CHAIN_STARTS[chain],
+    start: CHAIN_STARTS[chain],
     meta: { methodology },
   };
 }

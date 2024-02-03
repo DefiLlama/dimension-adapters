@@ -8,7 +8,7 @@ export default {
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: async () => 1698685200,
+            start: 1698685200,
             meta: {
                 hallmarks: [
                     [1698685200, 'Hipo Launch'],

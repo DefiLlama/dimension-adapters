@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1690675200,
+      start: 1690675200,
     },
   },
 };

@@ -34,7 +34,7 @@ const adapter: Adapter = {
     ["anyswap"]: {
         fetch: fetch,
         runAtCurrTime: true,
-        start: async () => 0,
+        start: 0,
     },
   },
 }

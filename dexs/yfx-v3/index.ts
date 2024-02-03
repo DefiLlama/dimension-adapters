@@ -71,20 +71,16 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1691128800,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1691128800,
 }
-
 
 const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
       fetch: getFetch(chain),
-      start: async () => getStartTimestamp(chain)
+      start: startTimestamps[chain]
     },
   }),
   {}

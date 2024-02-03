@@ -80,7 +80,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.METIS]: {
       fetch: fetch,
-      start: async () => 1661900400,
+      start: 1661900400,
     },
   },
 };

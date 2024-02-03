@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetch(CHAIN.SUI),
-            start: async () => 1683604174,
+            start: 1683604174,
         }
     },
 };

@@ -35,7 +35,7 @@ const adapter: Adapter = {
     [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1665964800,
+      start: 1665964800,
     },
   }
 }

@@ -45,11 +45,11 @@ const adapter: SimpleAdapter = {
     adapter: {
         // [CHAIN.ERA]: {
         //     fetch: getFetch("zksync"),
-        //     start: async () => 1687017600,
+        //     start: 1687017600,
         // }, // error
         [CHAIN.ARBITRUM]: {
             fetch: getFetch("arbitrum"),
-            start: async () => 1687017600,
+            start: 1687017600,
         },
     },
 };

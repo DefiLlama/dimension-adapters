@@ -432,22 +432,22 @@ const meta = {
 const adapter: Adapter = {
   adapter: {
     [BSC]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(BSC),
       meta,
     },
     [POLYGON]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(POLYGON),
       meta,
     },
     [AVAX]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(AVAX),
       meta,
     },
     [ARBITRUM]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(ARBITRUM),
       meta,
     },

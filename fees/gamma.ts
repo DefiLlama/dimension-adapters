@@ -60,35 +60,35 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetchFees(CHAIN.POLYGON_ZKEVM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees("binance"),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.ROLLUX]: {
       fetch: fetchFees(CHAIN.ROLLUX),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.LINEA]: {
       fetch: fetchFees(CHAIN.LINEA),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
   }
 }

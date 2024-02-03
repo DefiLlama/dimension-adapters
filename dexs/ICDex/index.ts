@@ -23,7 +23,7 @@ const adapter: Adapter = {
 	adapter: {
 		[CHAIN.ICP]: {
 			fetch: fetch,
-			start: async () => 1705363200,
+			start: 1705363200,
 		},
 	}
 };

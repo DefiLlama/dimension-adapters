@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: async () => 1702339200
+      start: 1702339200
     },
   },
 };

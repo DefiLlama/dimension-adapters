@@ -36,19 +36,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graph(250),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.OPTIMISM]: {
       fetch: graph(10),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(42161),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.SHIMMER_EVM]: {
       fetch: graph(148),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
   },
 };

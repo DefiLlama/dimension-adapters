@@ -61,7 +61,7 @@ const adapter: Adapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
-            start: async () => 1689897600,
+            start: 1689897600,
             meta: {
                 methodology
             }

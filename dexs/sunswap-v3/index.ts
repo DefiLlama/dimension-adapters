@@ -25,7 +25,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.TRON]: {
-      start: async () => 1702684800,
+      start: 1702684800,
       fetch: fetchVolume,
     }
   }

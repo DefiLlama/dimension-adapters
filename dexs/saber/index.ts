@@ -21,7 +21,7 @@ export default {
         "solana": {
             fetch: last24h,
             runAtCurrTime: true,
-            start: async () => 0,
+            start: 0,
         }
     }
 }

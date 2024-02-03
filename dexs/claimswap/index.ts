@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       customBackfill: customBackfill(CHAIN.KLAYTN as Chain, (_chian: string) => fetch),
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   }
 };

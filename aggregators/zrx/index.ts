@@ -76,7 +76,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => 1671062400,
+          start: 1671062400,
         },
       };
     }, {}),

@@ -37,7 +37,7 @@ const adapters = (() => {
   });
 
   milkomeda.adapter[CHAIN.CARDANO] = {
-    start: async () => 1638057600,
+    start: 1638057600,
     fetch: fetch,
   };
   return milkomeda;

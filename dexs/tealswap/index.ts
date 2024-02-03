@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OAS]: {
       fetch,
-      start: async () => 1671030000,
+      start: 1671030000,
     },
   },
 };

@@ -154,17 +154,17 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.FANTOM]: {
 			fetch: graph(CHAIN.FANTOM),
-			start: async () => 1681130543,
+			start: 1681130543,
 			meta: { methodology }
 		},
 		[CHAIN.ARBITRUM]: {
 			fetch: graph(CHAIN.ARBITRUM),
-			start: async () => 1686459416,
+			start: 1686459416,
 			meta: { methodology }
 		},
 		[CHAIN.BASE]: {
 			fetch: graph(CHAIN.BASE),
-			start: async () => 1691547000,
+			start: 1691547000,
 			meta: { methodology }
 		}
 	}

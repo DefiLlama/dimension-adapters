@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ORAI]: {
       fetch,
-      start: async () => 1669248000,
+      start: 1669248000,
     },
   },
 };

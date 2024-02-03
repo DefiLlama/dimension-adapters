@@ -17,17 +17,17 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: getDexFeesExportsV3({ chain: CHAIN.FANTOM, factory: poolFactoryAddress, factoryFromBlock: 70309749}),
-      start: async () => 1699300000,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     },
     [CHAIN.ARBITRUM]: {
       fetch: getDexFeesExportsV3({ chain: CHAIN.ARBITRUM, factory: poolFactoryAddress, factoryFromBlock: 148243463}),
-      start: async () => 1699300000,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     },
     [CHAIN.BASE]: {
       fetch: getDexFeesExportsV3({ chain: CHAIN.BASE, factory: poolFactoryAddress, factoryFromBlock: 6314325}),
-      start: async () => 1699300000,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     }
   }

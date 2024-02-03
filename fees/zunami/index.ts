@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [CHAIN.ETHEREUM]: {
             fetch: getData(CHAIN.ETHEREUM),
-            start: async () => START_TIMESTAMP,
+            start: START_TIMESTAMP,
             runAtCurrTime: true,
             meta: {methodology}
         },

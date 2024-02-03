@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
-      start: async () => 1675814400,
+      start: 1675814400,
     },
   },
 };

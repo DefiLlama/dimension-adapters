@@ -87,11 +87,8 @@ const getFetch =
     }
   }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1695945600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1695945600,
 }
 
 const adapter: BreakdownAdapter = {
@@ -101,7 +98,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(volumeDataQuery)(chain),
-          start: async () => getStartTimestamp(chain),
+          start: startTimestamps[chain],
         },
       }
     }, {}),

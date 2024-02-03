@@ -77,7 +77,7 @@ for (const chain in chains) {
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch(chain),
-      start: async () => startTime,
+      start: startTime,
       customBackfill: customBackfill(chain, fetch)
     };
   };

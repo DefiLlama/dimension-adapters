@@ -64,13 +64,9 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ERA]: 1682035200,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ERA]: 1682035200,
 }
-
 const adapter: BreakdownAdapter = {
   breakdown: {
     // "swap": Object.keys(endpoints).reduce((acc, chain) => {
@@ -78,7 +74,7 @@ const adapter: BreakdownAdapter = {
     //     ...acc,
     //     [chain]: {
     //       fetch: getFetch(historicalDataSwap)(chain),
-    //       start: async () => getStartTimestamp(chain)
+    //       start: startTimestamps[chain]
     //     }
     //   }
     // }, {}),
@@ -87,7 +83,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {})

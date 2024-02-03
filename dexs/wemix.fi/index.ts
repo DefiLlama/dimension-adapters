@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.WEMIX]: {
       fetch,
-      start: async () => 1676937600,
+      start: 1676937600,
     },
   },
 };

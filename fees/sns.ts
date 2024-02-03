@@ -33,7 +33,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: async () => 1624941677,
+      start: 1624941677,
       meta: {
         methodology,
       },

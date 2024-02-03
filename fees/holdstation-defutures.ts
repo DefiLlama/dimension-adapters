@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch,
-      start: async () => 1683590400,
+      start: 1683590400,
     },
   },
 };

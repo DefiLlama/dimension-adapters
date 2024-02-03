@@ -60,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: async () => 1677883020,
+      start: 1677883020,
       meta: {
         methodology,
       },

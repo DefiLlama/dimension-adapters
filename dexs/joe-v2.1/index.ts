@@ -141,15 +141,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async () => 1681084800,
+      start: 1681084800,
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: async () => 1682467200,
+      start: 1682467200,
     },
   }
 };

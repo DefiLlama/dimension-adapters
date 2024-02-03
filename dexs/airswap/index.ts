@@ -82,23 +82,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: async () => 1680307200,
+      start: 1680307200,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: async () => 1680307200,
+      start: 1680307200,
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: async () => 1680307200,
+      start: 1680307200,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async () => 1680307200,
+      start: 1680307200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async () => 1689811200,
+      start: 1689811200,
     },
   }
 };

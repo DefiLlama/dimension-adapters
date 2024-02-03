@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KARURA]: {
       fetch: fetch,
-      start: async () => 1656818240,
+      start: 1656818240,
       customBackfill: customBackfill(CHAIN.KARURA as Chain, () => fetch)
     },
   },

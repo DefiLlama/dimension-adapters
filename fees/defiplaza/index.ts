@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
 					SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
 				}
 			},
-			start: async () => 1633237008
+			start: 1633237008
 		},
 		[CHAIN.RADIXDLT]: {
 			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
 					SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
 				}
 			},
-			start: async () => 1700784000
+			start: 1700784000
 		}
 	},
 };

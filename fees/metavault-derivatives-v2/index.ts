@@ -49,7 +49,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints)(CHAIN.LINEA),
-      start: async () => 1701950449,
+      start: 1701950449,
       meta: {
         methodology: "All treasuryFee, poolFee and keeperFee are collected",
       },

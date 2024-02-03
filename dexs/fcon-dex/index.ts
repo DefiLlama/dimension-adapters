@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.MANTLE]: {
       fetch: fetch,
-      start: async () => 1691280000,
+      start: 1691280000,
     },
   },
 };

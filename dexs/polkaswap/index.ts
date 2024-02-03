@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SORA]: {
       fetch: fetch,
-      start: async () => 1673136000
+      start: 1673136000
     },
   },
 };

@@ -91,7 +91,7 @@ const adapter: Adapter = {
     acc[chain] = {
       fetch: getFeesFunction(chain),
       meta: { methodology },
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)

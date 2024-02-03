@@ -35,7 +35,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BITCOIN]: {
             fetch: getIncentives,
-            start: async () => 1438228800,
+            start: 1438228800,
         },
     },
     protocolType: ProtocolType.CHAIN

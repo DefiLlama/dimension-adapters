@@ -193,11 +193,11 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1672531200
+      start: 1672531200
     },
     [CHAIN.FANTOM]: {
       fetch: fetchFees(CHAIN.FANTOM),
-      start: async () => 1672531200
+      start: 1672531200
     }
   }
 }

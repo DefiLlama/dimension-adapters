@@ -61,7 +61,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch: fetch(chain),
-                start: async () => 1698660910,
+                start: 1698660910,
             }
         }
     }, {})

@@ -57,11 +57,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(CHAIN.BSC),
-      start: async () => 1682035200,
+      start: 1682035200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: async () => 1692662400,
+      start: 1692662400,
     },
   },
 };

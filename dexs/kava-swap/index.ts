@@ -88,7 +88,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch,
-      start: async () => 0,
+      start: 0,
       runAtCurrTime: true
     },
   },

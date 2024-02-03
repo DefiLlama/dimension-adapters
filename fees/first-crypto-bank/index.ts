@@ -69,7 +69,7 @@ const adapter: Adapter = {
                     dailyFees: dailyFees.toString(),
                 };
             },
-            start: async () => 1703203200,
+            start: 1703203200,
         },
     },
 }

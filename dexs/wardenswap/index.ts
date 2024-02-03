@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => 1657443314
+        start: 1657443314
       }
     }
   }, {})

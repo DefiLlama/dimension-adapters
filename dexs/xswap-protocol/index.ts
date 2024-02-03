@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.XDC]: {
       fetch: graphs(CHAIN.XDC),
-      start: async () => 1647993600,
+      start: 1647993600,
     },
   },
 }

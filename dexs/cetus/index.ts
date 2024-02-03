@@ -43,11 +43,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch(CHAIN.APTOS),
-      start: async () => 1666224000,
+      start: 1666224000,
     },
     [CHAIN.SUI]: {
       fetch: fetch(CHAIN.SUI),
-      start: async () => 1682985600,
+      start: 1682985600,
     }
   },
 };

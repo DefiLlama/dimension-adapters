@@ -81,7 +81,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getVolumeFunction(chain),
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)

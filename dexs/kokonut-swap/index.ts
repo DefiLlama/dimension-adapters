@@ -41,17 +41,17 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
-      start: async () => 1672358400,
+      start: 1672358400,
       runAtCurrTime: true
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetchZKEVM,
-      start: async () => 1687132800,
+      start: 1687132800,
       runAtCurrTime: true
     },
     [CHAIN.BASE]: {
       fetch: fetchBASE,
-      start: async () => 1691570805,
+      start: 1691570805,
       runAtCurrTime: true
     },
   },

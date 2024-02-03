@@ -77,7 +77,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: getVolume,
-            start: async () => 1664928000,
+            start: 1664928000,
         }
     },
 };

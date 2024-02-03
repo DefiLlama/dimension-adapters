@@ -257,13 +257,13 @@ const adapter: BreakdownAdapter = {
             timestamp: timestamp
           }
         },
-        start: async () => 1680307200,
+        start: 1680307200,
       }
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphs(chain as Chain),
-        start: async () => startTimes[chain],
+        start: startTimes[chain],
         meta: {
           methodology
         }
@@ -281,14 +281,14 @@ const adapter: BreakdownAdapter = {
           }
 
         },
-        start: async () => v3StartTimes[chain],
+        start: v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphsStableSwap(chain as Chain),
-        start: async () => stableTimes[chain],
+        start: stableTimes[chain],
         meta: {
           methodology: {
             UserFees: "User pays 0.25% fees on each swap.",
@@ -306,7 +306,7 @@ const adapter: BreakdownAdapter = {
 };
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
-  start: async () => 1699488000,
+  start: 1699488000,
   // runAtCurrTime: true,
 }
 

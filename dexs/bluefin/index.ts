@@ -46,7 +46,7 @@ const adapter: BreakdownAdapter = {
     derivatives: {
       [CHAIN.SUI]: {
         fetch: fetchSUI,
-        start: async () => startTime,
+        start: startTime,
         runAtCurrTime: true
       },
     },

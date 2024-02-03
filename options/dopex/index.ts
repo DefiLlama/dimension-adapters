@@ -19,7 +19,7 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: async (timestamp: string) =>
             await getChainStats({ graphUrl: clammEndpoints[chain], timestamp }),
-          start: async () => clammStartTimes[chain],
+          start: clammStartTimes[chain],
         },
       };
     }, {}),

@@ -61,15 +61,15 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.AVAX]: {
         fetch: graph(CHAIN.AVAX),
-        start: async () => 1669420800
+        start: 1669420800
       },
       [CHAIN.ARBITRUM]: {
         fetch: graph(CHAIN.ARBITRUM),
-        start: async () => 1672012800
+        start: 1672012800
       },
       [CHAIN.BSC]: {
         fetch: graph(CHAIN.BSC),
-        start: async () => 1678147200
+        start: 1678147200
       }
     }
   }

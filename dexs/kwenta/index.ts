@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchData(CHAIN.OPTIMISM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
   }
 };

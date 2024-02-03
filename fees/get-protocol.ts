@@ -74,7 +74,7 @@ const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
       fetch: graphs(),
-      start: async () => 1630468800,
+      start: 1630468800,
       meta: {
         methodology:
           "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",

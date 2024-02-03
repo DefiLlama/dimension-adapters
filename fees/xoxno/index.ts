@@ -37,7 +37,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetchFees,
-      start: async () => 1683849600,
+      start: 1683849600,
     }
   }
 }

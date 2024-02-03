@@ -40,12 +40,12 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch: fetchVolumeADA,
-      start: async () => 1697068800,
+      start: 1697068800,
       runAtCurrTime: true,
     },
     [CHAIN.ERGO]: {
       fetch: fetchVolumeERGO,
-      start: async () => 1697068800,
+      start: 1697068800,
       runAtCurrTime: true,
     }
   }

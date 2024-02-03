@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STELLAR]: {
       fetch,
-      start: async () => 1648771200,
+      start: 1648771200,
     },
   },
 };

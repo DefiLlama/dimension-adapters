@@ -55,7 +55,7 @@ const getAdapter = (
           ...acc,
           [chain]: {
             fetch: fetch(chain),
-            start: async () => start,
+            start: start,
           },
         };
       }, {}),

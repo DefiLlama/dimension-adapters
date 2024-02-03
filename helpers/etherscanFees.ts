@@ -29,7 +29,7 @@ export function etherscanFeeAdapter(chain:string, url:string, coin:string){
                       dailyFees: usdFees.toString(),
                   };
               },
-              start: async () => 1690761600
+              start: 1690761600
           },
       },
         protocolType: ProtocolType.CHAIN

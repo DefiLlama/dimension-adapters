@@ -90,23 +90,23 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1659657600,
+      start: 1659657600,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1656460800,
+      start: 1656460800,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1650412800,
+      start: 1650412800,
     },
     // [CHAIN.MOONBEAM]: {
     //   fetch: fetchFees(CHAIN.MOONBEAN),
-    //   start: async () => 1659657600,
+    //   start: 1659657600,
     // },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1690934400,
+      start: 1690934400,
     }
   }
 }

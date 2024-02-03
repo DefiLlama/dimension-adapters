@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: async () => 1680652406 
+      start: 1680652406 
     },
   },
 };

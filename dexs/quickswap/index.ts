@@ -88,31 +88,31 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
-        start: async () => 1602118043
+        start: 1602118043
       },
     },
     v3: {
       [CHAIN.POLYGON]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON),
-        start: async () => 1662425243
+        start: 1662425243
       },
       // [CHAIN.DOGECHAIN]: {
       //   fetch: graphsV3(CHAIN.DOGECHAIN),
-      //   start: async () => 1660694400
+      //   start: 1660694400
       // },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
-        start: async () => 1679875200
+        start: 1679875200
       },
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
-        start: async () => 1697690974
+        start: 1697690974
       }
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
         fetch: fetchLiquidityHub,
-        start: async () => 1695042000
+        start: 1695042000
       },
     },
   },

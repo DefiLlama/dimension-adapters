@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ONUS]: {
       fetch: v3Graphs(CHAIN.ONUS),
-      start: async () => 1685577600,
+      start: 1685577600,
     },
   },
 };

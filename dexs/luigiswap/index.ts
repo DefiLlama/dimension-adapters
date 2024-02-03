@@ -22,7 +22,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.SCROLL]: {
       fetch: fetchVolume,
-      start: async () => START_TIMESTAMP,
+      start: START_TIMESTAMP,
     },
   },
 };

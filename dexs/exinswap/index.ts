@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MIXIN]: {
       fetch,
-      start: async () => 1600704000,
+      start: 1600704000,
     },
   }
 };

@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: async () => 1643673600,
+            start: 1643673600,
             meta: {
                 methodology: {
                     Fees: "Money that users lose gambling",

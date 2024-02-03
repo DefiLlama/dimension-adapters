@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch,
-      start: async () => 1662508800,
+      start: 1662508800,
     },
   },
 };

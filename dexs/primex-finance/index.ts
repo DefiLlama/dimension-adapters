@@ -166,7 +166,7 @@ const adapters: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: async () => config[chain].start,
+        start: config[chain].start,
       }
     }
   }, {})

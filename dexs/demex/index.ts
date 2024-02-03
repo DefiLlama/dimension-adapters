@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARBON]: {
       fetch,
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   },
 };

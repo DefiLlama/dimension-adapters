@@ -58,19 +58,19 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(CHAIN.ARBITRUM),
-        start: async () => 1674432000
+        start: 1674432000
       },
     },
     v3: {
       [CHAIN.ARBITRUM]: {
         fetch: graphsV3(CHAIN.ARBITRUM),
-        start: async () => 1676887200
+        start: 1676887200
       },
     },
     stable: {
       [CHAIN.ARBITRUM]: {
         fetch: graphsStable(CHAIN.ARBITRUM),
-        start: async () => 1676113200,
+        start: 1676113200,
       },
     }
   },

@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
 chains.map((chain) => {
   adapter.adapter[chain] = {
     fetch: fetch(chain),
-    start: async () => startTimestamp,
+    start: startTimestamp,
   };
 });
 

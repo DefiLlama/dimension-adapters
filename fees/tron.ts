@@ -22,7 +22,7 @@ const adapter: Adapter = {
                 dailyHoldersRevenue: usdFees,
             };
         },
-        start: async () => 1575158400
+        start: 1575158400
     },
 },
   protocolType: ProtocolType.CHAIN

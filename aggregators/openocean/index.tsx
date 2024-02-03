@@ -57,7 +57,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => new Date(2023, 6, 1).getTime() / 1000,
+          start: new Date(2023, 6, 1).getTime() / 1000,
         },
       };
     }, {}),

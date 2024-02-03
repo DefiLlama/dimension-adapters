@@ -22,11 +22,11 @@ const fetch = getChainVolume({
 const volumeAdapter: BaseAdapter = {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: async () => 1655164800,
+        start: 1655164800,
     },
     [CHAIN.SMARTBCH]: {
         fetch: fetch(CHAIN.SMARTBCH),
-        start: async () => 1646697600,
+        start: 1646697600,
     },
 }
 

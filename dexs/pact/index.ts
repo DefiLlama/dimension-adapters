@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
-      start: async () => 1667520000,
+      start: 1667520000,
     },
   },
 };

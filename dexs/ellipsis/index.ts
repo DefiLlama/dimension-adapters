@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: async () => 0,
+        start: 0,
         runAtCurrTime: true
       }
     }

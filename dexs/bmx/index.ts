@@ -78,25 +78,18 @@ const getFetch =
     };
   };
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BASE]: 1694304000,
-  };
-  return startTimestamps[chain];
-};
-
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-        start: async () => getStartTimestamp(CHAIN.BASE),
+        start: 1694304000,
       },
     },
     derivatives: {
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),
-        start: async () => getStartTimestamp(CHAIN.BASE),
+        start: 1694304000,
       },
     },
   },

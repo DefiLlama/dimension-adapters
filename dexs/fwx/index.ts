@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1701907200,
+      start: 1701907200,
     },
   },
 };

@@ -36,7 +36,7 @@ const adapters: SimpleAdapter  = {
   adapter: {
     [CHAIN.EOS_EVM]: {
       fetch: fetchVolume,
-      start: async () => 1699315200
+      start: 1699315200
     }
   }
 }

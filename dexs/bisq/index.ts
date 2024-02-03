@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: async () => 1525651200,
+      start: 1525651200,
     },
   },
 };

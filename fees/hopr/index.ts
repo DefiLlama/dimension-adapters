@@ -98,7 +98,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
-      start: async () => 1693440000,
+      start: 1693440000,
       meta: {
         methodology
       }

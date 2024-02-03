@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.CARDANO]: {
       fetch,
-      start: async () => 1643673600,
+      start: 1643673600,
     },
   },
 };

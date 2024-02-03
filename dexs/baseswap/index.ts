@@ -124,7 +124,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: async () => 1690495200,
+          start: 1690495200,
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         }
@@ -135,7 +135,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: derivativesGraph(chain as Chain),
-          start: async () => 1693353600,
+          start: 1693353600,
           customBackfill: customBackfill(chain, derivativesGraph),
           meta: { methodology: derivativesMethodology },
         }

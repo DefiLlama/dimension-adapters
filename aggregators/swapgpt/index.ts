@@ -31,14 +31,11 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  return (new Date('2023-11-28T00:00:00.000Z').getTime() / 1000);
-}
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: getStartTimestamp,
+      start: (new Date('2023-11-28T00:00:00.000Z').getTime() / 1000),
     }
   },
 };

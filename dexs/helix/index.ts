@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.INJECTIVE]: {
       fetch: fetch,
-      start: async () => 1676505600,
+      start: 1676505600,
     }
   }
 }

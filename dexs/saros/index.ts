@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
       fetch: graphs(CHAIN.SOLANA),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
   },
 };

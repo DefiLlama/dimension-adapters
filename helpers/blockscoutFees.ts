@@ -19,7 +19,7 @@ export function blockscoutFeeAdapter(chain:string, url:string, coin:string){
                       dailyFees: usdFees.toString(), 
                   };
               },
-              start: async () => 1575158400
+              start: 1575158400
           },
       },
         protocolType: ProtocolType.CHAIN

@@ -147,7 +147,7 @@ const adapter: Adapter = {
     adapter: {
         [OPTIMISM]: {
             fetch: feesAdapter,
-            start: async () => 1598671449,
+            start: 1598671449,
         },
     },
     protocolType: ProtocolType.CHAIN

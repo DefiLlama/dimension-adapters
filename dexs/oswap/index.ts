@@ -82,7 +82,7 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.OBYTE]: {
-            start: async () => 1677542400,
+            start: 1677542400,
             runAtCurrTime: true,
             fetch: fetch
         }

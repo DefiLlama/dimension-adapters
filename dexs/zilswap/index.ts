@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
     zilliqa: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1673049600,
+      start: 1673049600,
     },
   },
 };

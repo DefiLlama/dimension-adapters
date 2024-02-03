@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEAR]: {
       fetch: fetchFees,
-      start: async () => 1595289600
+      start: 1595289600
     }
   },
   protocolType: ProtocolType.CHAIN

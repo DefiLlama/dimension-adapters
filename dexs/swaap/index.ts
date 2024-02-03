@@ -116,7 +116,7 @@ const adapterV2: BaseAdapter = Object.keys(config).reduce((acc, chain) => {
             ...acc,
             [chain]: {
                 fetch: v2graphs(chain),
-                start: async () => config[chain].start,
+                start: config[chain].start,
                 runAtCurrTime: false,
                 meta: {
                     methodology: 'Comparing total volume of the current day with the total volume of the previous day, using TheGraph.'
@@ -147,7 +147,7 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: v1graphs(CHAIN.POLYGON),
-                start: async () => 1655195452,
+                start: 1655195452,
                 customBackfill: customBackfill(CHAIN.POLYGON, v1graphs)
             },
         },

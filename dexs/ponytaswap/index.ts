@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.RPG]: {
       fetch,
-      start: async () => 1678060800
+      start: 1678060800
     },
   },
 };

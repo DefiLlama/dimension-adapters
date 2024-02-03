@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         cardano: {
             fetch: fetchData,
-            start: async () => DANOGO_START_TIMESTAMP,
+            start: DANOGO_START_TIMESTAMP,
             runAtCurrTime: false,
         }
     }

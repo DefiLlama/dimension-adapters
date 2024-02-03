@@ -18,7 +18,7 @@ export const v2_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchLyraVolumeData,
-      start: async () => 1702630075
+      start: 1702630075
     },
   },
 };

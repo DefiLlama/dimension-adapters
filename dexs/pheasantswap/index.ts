@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ENULS]: {
       fetch,
-      start: async () => 1682294400,
+      start: 1682294400,
     },
   },
 };

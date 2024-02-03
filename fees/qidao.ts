@@ -122,23 +122,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
   }
 };

@@ -75,7 +75,7 @@ const v2Graphs = getGraphDimensions({
     
             return combinedResult;
           },
-          start: async () => startTimeV2[CHAIN.ARBITRUM],
+          start: startTimeV2[CHAIN.ARBITRUM],
           meta: {
             methodology: {
               ...methodology,

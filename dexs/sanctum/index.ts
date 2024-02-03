@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     solana: {
       fetch,
-      start: async () => 1657756800,
+      start: 1657756800,
     },
   },
 };

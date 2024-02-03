@@ -256,7 +256,7 @@ const adapter: Adapter = {
           dailyHoldersRevenue: totalRevenue,
         };
       },
-      start: async () => 1698768000, // 01 Nov 2023
+      start: 1698768000, // 01 Nov 2023
     },
   },
 };

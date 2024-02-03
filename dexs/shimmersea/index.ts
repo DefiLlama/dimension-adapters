@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v3Graphs(chain),
-        start: async () => 1696377600,
+        start: 1696377600,
       }
     }
   }, {})

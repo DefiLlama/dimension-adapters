@@ -59,7 +59,7 @@ const adapter: BreakdownAdapter = {
         fetch: fetchSpotVolume,
         runAtCurrTime: true,
         customBackfill: undefined,
-        start: async () => 0,
+        start: 0,
       },
     },
     perp: {
@@ -67,7 +67,7 @@ const adapter: BreakdownAdapter = {
         fetch: fetchPerpVolume,
         runAtCurrTime: true,
         customBackfill: undefined,
-        start: async () => 0,
+        start: 0,
       },
     },
   },

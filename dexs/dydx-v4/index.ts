@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
     "dydx": {
       runAtCurrTime:true,
       fetch,
-      start: async () => 1614211200,
+      start: 1614211200,
     },
   },
 };

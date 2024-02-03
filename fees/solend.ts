@@ -62,7 +62,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchSolendStats,
-      start: async () => 1675123053,
+      start: 1675123053,
       meta: {
         methodology,
       },

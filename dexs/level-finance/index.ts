@@ -47,24 +47,20 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BSC]: 1670630400,
-    [CHAIN.ARBITRUM]: 1686344400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.BSC]: 1670630400,
+  [CHAIN.ARBITRUM]: 1686344400,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
-      start: async () => getStartTimestamp(CHAIN.BSC),
+      start: startTimestamps[CHAIN.BSC],
     },
     [CHAIN.ARBITRUM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.ARBITRUM),
-      start: async () => getStartTimestamp(CHAIN.ARBITRUM),
+      start: startTimestamps[CHAIN.ARBITRUM],
     }
   },
 };

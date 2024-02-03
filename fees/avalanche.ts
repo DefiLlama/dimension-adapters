@@ -51,7 +51,7 @@ const adapter: Adapter = {
                 dailyHoldersRevenue: dailyFee.toString(),
             };
         },
-        start: async () => 1609459200
+        start: 1609459200
     },
 },
   protocolType: ProtocolType.CHAIN

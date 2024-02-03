@@ -51,7 +51,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: graphs(CHAIN.BASE),
-            start: async () => 1694131200,
+            start: 1694131200,
         },
     }
 }

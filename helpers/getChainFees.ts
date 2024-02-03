@@ -19,7 +19,7 @@ export const chainAdapter = (adapterKey: string, assetID: string, startTime: num
     return {
         [adapterKey]: {
             fetch: fetch,
-            start: async () => startTime
+            start: startTime
         }
     }
 };

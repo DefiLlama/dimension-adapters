@@ -35,7 +35,7 @@ const adapter: Adapter = {
         [CHAIN.PERSISTENCE]: {
             fetch,
             runAtCurrTime: true,
-            start: async () => 0,
+            start: 0,
         },
     }
 };

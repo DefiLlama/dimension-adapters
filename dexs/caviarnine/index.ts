@@ -32,7 +32,7 @@ const adapters: BreakdownAdapter = {
     orderbook: {
       [CHAIN.RADIXDLT]: {
         fetch: fetchSpot,
-        start: async () => 1698710400,
+        start: 1698710400,
         // runAtCurrTime: true
       }
     },
@@ -48,7 +48,7 @@ const adapters: BreakdownAdapter = {
             timestamp
           }
         },
-        start: async () => 1698710400,
+        start: 1698710400,
         // runAtCurrTime: true
       }
     }

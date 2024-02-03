@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     fantom: {
       fetch: graphs("fantom"),
-      start: async () => 1620864000,
+      start: 1620864000,
     },
   },
 };

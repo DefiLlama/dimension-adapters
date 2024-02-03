@@ -110,27 +110,27 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchRequests(CHAIN.ETHEREUM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetchRequests(CHAIN.BSC),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchRequests(CHAIN.POLYGON),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchRequests(CHAIN.OPTIMISM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchRequests(CHAIN.ARBITRUM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.AVAX]: {
       fetch: fetchRequests(CHAIN.AVAX),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
   }
 }

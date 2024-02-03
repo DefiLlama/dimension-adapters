@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     neo: {
       fetch,
-      start: async () => 1639130007,
+      start: 1639130007,
     },
   },
 };

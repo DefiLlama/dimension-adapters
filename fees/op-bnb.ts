@@ -111,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
       [CHAIN.OP_BNB]: {
           fetch: fetch,
-          start: async () => 1691971200,
+          start: 1691971200,
       },
   },
   protocolType: ProtocolType.CHAIN

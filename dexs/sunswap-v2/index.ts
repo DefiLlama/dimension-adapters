@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch,
-      start: async () => 1639440000,
+      start: 1639440000,
     },
   },
 };

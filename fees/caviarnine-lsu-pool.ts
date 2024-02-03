@@ -31,7 +31,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
-      start: async () => 1699142400,
+      start: 1699142400,
       // runAtCurrTime: true
     }
   }

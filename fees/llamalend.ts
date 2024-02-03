@@ -53,7 +53,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-      start: async () => 1667260800,
+      start: 1667260800,
       meta: {
         methodology: {
           Fees: "Interest paid by borrowers",

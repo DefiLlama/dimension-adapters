@@ -80,22 +80,22 @@ const adapter: SimpleAdapter = {
         [CHAIN.POLYGON_ZKEVM]: {
             fetch:evm_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.ERA]: {
             fetch:era_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.LINEA]: {
             fetch:linea_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.SCROLL]: {
             fetch:scroll_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         }
     },
 };

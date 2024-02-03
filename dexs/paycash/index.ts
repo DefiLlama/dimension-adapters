@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EOS]: {
       fetch,
-      start: async () => 1618370204,
+      start: 1618370204,
       customBackfill: customBackfill(CHAIN.EOS as Chain, (_chian: string) => fetch)
     },
   },

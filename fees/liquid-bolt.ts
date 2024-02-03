@@ -50,7 +50,7 @@ const getAdapter = () => {
   const baseAdapter: BaseAdapter = {
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async () => 1669312800,
+      start: 1669312800,
       runAtCurrTime: true,
       meta: {
         methodology
@@ -58,7 +58,7 @@ const getAdapter = () => {
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1675893600,
+      start: 1675893600,
       runAtCurrTime: true,
       meta: {
         methodology
@@ -66,7 +66,7 @@ const getAdapter = () => {
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async () => 1669312800,
+      start: 1669312800,
       runAtCurrTime: true,
       meta: {
         methodology
@@ -74,7 +74,7 @@ const getAdapter = () => {
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1669312800,
+      start: 1669312800,
       runAtCurrTime: true,
       meta: {
         methodology

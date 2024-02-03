@@ -91,31 +91,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetchKeeper(CHAIN.BSC),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchKeeper(CHAIN.POLYGON),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.FANTOM]: {
       fetch: fetchKeeper(CHAIN.FANTOM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.AVAX]: {
       fetch: fetchKeeper(CHAIN.AVAX),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchKeeper(CHAIN.ARBITRUM),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchKeeper(CHAIN.OPTIMISM),
-      start: async () => 1675382400
+      start: 1675382400
     }
   }
 }

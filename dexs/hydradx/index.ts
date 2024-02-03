@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
       fetch,
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 1692662400,
+      start: 1692662400,
     },
   }
 };

@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.SUI]: {
             fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         }
     },
 };

@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: async () => 1672531200,
+      start: 1672531200,
     },
   },
 };

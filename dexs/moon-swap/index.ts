@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CONFLUX]: {
       fetch,
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   },
 };

@@ -72,29 +72,29 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.AVAX]: {
         fetch: graphsV1(CHAIN.AVAX),
-        start: async () => 1628467200,
+        start: 1628467200,
       },
       [CHAIN.BSC]: {
         fetch: graphsV1(CHAIN.BSC),
-        start: async () => 1664841600,
+        start: 1664841600,
       },
       [CHAIN.ARBITRUM]: {
         fetch: graphsV1(CHAIN.ARBITRUM),
-        start: async () => 1664841600,
+        start: 1664841600,
       },
     },
     v2: {
       [CHAIN.AVAX]: {
         fetch: graphsV2(CHAIN.AVAX),
-        start: async () => 1668556800
+        start: 1668556800
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchV2(CHAIN.ARBITRUM),
-        start: async () => 1672012800
+        start: 1672012800
       },
       [CHAIN.BSC]: {
         fetch: fetchV2(CHAIN.BSC),
-        start: async () => 1677801600
+        start: 1677801600
       },
     }
   },

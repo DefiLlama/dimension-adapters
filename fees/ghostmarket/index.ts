@@ -59,42 +59,42 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch: apis(endpoints)(CHAIN.NEO),
-      start: async () => 1629813600,
+      start: 1629813600,
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: apis(endpoints)(CHAIN.BSC),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
       fetch: apis(endpoints)(CHAIN.AVAX),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: apis(endpoints)(CHAIN.POLYGON),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.ETHEREUM]: {
       fetch: apis(endpoints)(CHAIN.ETHEREUM),
-      start: async () => 1652400000,
+      start: 1652400000,
       meta: {
         methodology
       }
     },
     [CHAIN.PHANTASMA]: {
       fetch: apis(endpoints)(CHAIN.PHANTASMA),
-      start: async () => 1577664000,
+      start: 1577664000,
       meta: {
         methodology
       }

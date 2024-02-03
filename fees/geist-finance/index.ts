@@ -43,7 +43,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
-        start: async () => 1633478400,
+        start: 1633478400,
     },
   },
 }

@@ -41,43 +41,43 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(42161),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(56),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(7565164),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.LINEA]: {
       fetch: fetch(59144),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.BASE]: {
       fetch: fetch(8453),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(10),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(250),
-      start: async () => 1680278400,
+      start: 1680278400,
     },
   },
 };

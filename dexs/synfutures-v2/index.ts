@@ -135,7 +135,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: async () => 1662595200
+      start: 1662595200
     }
   }
 }

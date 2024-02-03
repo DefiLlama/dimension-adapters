@@ -109,7 +109,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch: fetch,
-      start: async () => 1694217600,
+      start: 1694217600,
     },
   },
   protocolType: ProtocolType.CHAIN,

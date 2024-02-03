@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THUNDERCORE]: {
       fetch,
-      start: async () => 1673308800,
+      start: 1673308800,
       runAtCurrTime: true
     },
   },

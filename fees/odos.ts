@@ -148,16 +148,16 @@ const graph = (chain: Chain) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]:     { fetch: graph(CHAIN.ETHEREUM),       start: async () => 1689292800 },
-    [CHAIN.ARBITRUM]:     { fetch: graph(CHAIN.ARBITRUM),       start: async () => 1689292800 },
-    [CHAIN.OPTIMISM]:     { fetch: graph(CHAIN.OPTIMISM),       start: async () => 1689292800 },
-    [CHAIN.BASE]:         { fetch: graph(CHAIN.BASE),           start: async () => 1689292800 },
-    [CHAIN.POLYGON]:      { fetch: graph(CHAIN.POLYGON),        start: async () => 1689292800 },
-    [CHAIN.AVAX]:         { fetch: graph(CHAIN.AVAX),           start: async () => 1689292800 },
-  //[CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: async () => 1689292800 },
-    [CHAIN.FANTOM]:       { fetch: graph(CHAIN.FANTOM),         start: async () => 1689292800 },
-  //[CHAIN.ZKSYNC]:       { fetch: graph(CHAIN.ZKSYNC),         start: async () => 1689292800 },
-    [CHAIN.POLYGON_ZKEVM]:{ fetch: graph(CHAIN.POLYGON_ZKEVM),  start: async () => 1689292800 }
+    [CHAIN.ETHEREUM]:     { fetch: graph(CHAIN.ETHEREUM),       start: 1689292800 },
+    [CHAIN.ARBITRUM]:     { fetch: graph(CHAIN.ARBITRUM),       start: 1689292800 },
+    [CHAIN.OPTIMISM]:     { fetch: graph(CHAIN.OPTIMISM),       start: 1689292800 },
+    [CHAIN.BASE]:         { fetch: graph(CHAIN.BASE),           start: 1689292800 },
+    [CHAIN.POLYGON]:      { fetch: graph(CHAIN.POLYGON),        start: 1689292800 },
+    [CHAIN.AVAX]:         { fetch: graph(CHAIN.AVAX),           start: 1689292800 },
+  //[CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: 1689292800 },
+    [CHAIN.FANTOM]:       { fetch: graph(CHAIN.FANTOM),         start: 1689292800 },
+  //[CHAIN.ZKSYNC]:       { fetch: graph(CHAIN.ZKSYNC),         start: 1689292800 },
+    [CHAIN.POLYGON_ZKEVM]:{ fetch: graph(CHAIN.POLYGON_ZKEVM),  start: 1689292800 }
   }
 };
 

@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
       fetch: graphs,
       // runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 1660521600,
+      start: 1660521600,
     },
     // TODO custom backfill
   },

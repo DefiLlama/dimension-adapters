@@ -26,11 +26,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch("137"),
-      start: async () => 1679309404,
+      start: 1679309404,
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch("1101"),
-      start: async () => 1685355566,
+      start: 1685355566,
     },
   },
 };

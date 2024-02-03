@@ -51,7 +51,7 @@ const adapter: Adapter = {
       runAtCurrTime: true,
       customBackfill: undefined,
       fetch: fetchMangoStats,
-      start: async () => 0,
+      start: 0,
       meta: {
         methodology,
       },

@@ -132,15 +132,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     }
   }
 }

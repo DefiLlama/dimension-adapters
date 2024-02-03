@@ -66,7 +66,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: graphs(endpoints)(CHAIN.ERA),
-      start: async () => 1682035200,
+      start: 1682035200,
     },
   }
 }

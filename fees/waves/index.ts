@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.WAVES]: {
       fetch,
-      start: async () => 1623024000
+      start: 1623024000
     },
   },
   protocolType: ProtocolType.CHAIN
