@@ -1,4 +1,4 @@
-import { util } from '@defillama/sdk';
+import { Balances, util } from '@defillama/sdk';
 
 const { blocks: { getChainBlocks } } = util
 
@@ -14,7 +14,7 @@ export type FetchResultBase = {
 };
 
 export type FetchResultGeneric = FetchResultBase & {
-  [key: string]: number | string | undefined | IJSON<string>
+  [key: string]: FetchResponseValue | undefined;
 }
 
 export type Fetch = (
@@ -26,7 +26,7 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp
+    start: IStartTimestamp | number
     fetch: Fetch;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
@@ -58,6 +58,7 @@ export type BreakdownAdapter = {
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;
+export type FetchResponseValue = string | number | Balances;
 
 /**
  * Include here new adaptors types
@@ -65,50 +66,50 @@ export type Adapter = SimpleAdapter | BreakdownAdapter;
 
 // VOLUME
 export type FetchResultVolume = FetchResultBase & {
-  dailyVolume?: string // | IJSON<string>;
-  totalVolume?: string // | IJSON<string>;
-  dailyShortOpenInterest?: string // | IJSON<string>;
-  dailyLongOpenInterest?: string;
-  dailyOpenInterest?: string;
+  dailyVolume?: FetchResponseValue
+  totalVolume?: FetchResponseValue
+  dailyShortOpenInterest?: FetchResponseValue
+  dailyLongOpenInterest?: FetchResponseValue
+  dailyOpenInterest?: FetchResponseValue
 };
 
 // FEES
 export type FetchResultFees = FetchResultBase & {
-  totalFees?: string | IJSON<string>;
-  dailyFees?: string | IJSON<string>;
-  dailyUserFees?: string | IJSON<string>;
-  totalRevenue?: string | IJSON<string>;
-  dailyRevenue?: string | IJSON<string>;
-  dailyProtocolRevenue?: string | IJSON<string>;
-  dailyHoldersRevenue?: string | IJSON<string>;
-  dailySupplySideRevenue?: string | IJSON<string>;
-  totalProtocolRevenue?: string | IJSON<string>;
-  totalSupplySideRevenue?: string | IJSON<string>;
-  totalUserFees?: string | IJSON<string>;
-  dailyBribesRevenue?: string | IJSON<string>;
-  dailyTokenTaxes?: string | IJSON<string>;
+  totalFees?: FetchResponseValue;
+  dailyFees?: FetchResponseValue;
+  dailyUserFees?: FetchResponseValue;
+  totalRevenue?: FetchResponseValue;
+  dailyRevenue?: FetchResponseValue;
+  dailyProtocolRevenue?: FetchResponseValue;
+  dailyHoldersRevenue?: FetchResponseValue;
+  dailySupplySideRevenue?: FetchResponseValue;
+  totalProtocolRevenue?: FetchResponseValue;
+  totalSupplySideRevenue?: FetchResponseValue;
+  totalUserFees?: FetchResponseValue;
+  dailyBribesRevenue?: FetchResponseValue;
+  dailyTokenTaxes?: FetchResponseValue;
 };
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  tokenIncentives?: string // | IJSON<string>;
+  tokenIncentives?: FetchResponseValue
 };
 
 // AGGREGATORS
 export type FetchResultAggregators = FetchResultBase & {
-  dailyVolume?: string // | IJSON<string>;
-  totalVolume?: string // | IJSON<string>;
+  dailyVolume?: FetchResponseValue
+  totalVolume?: FetchResponseValue
 };
 
 // OPTIONS
 export type FetchResultOptions = FetchResultBase & {
-  totalPremiumVolume?: string // | IJSON<string>
-  totalNotionalVolume?: string // | IJSON<string>
-  dailyPremiumVolume?: string // | IJSON<string>
-  dailyNotionalVolume?: string // | IJSON<string>
-  dailyShortOpenInterest?: string // | IJSON<string>;
-  dailyLongOpenInterest?: string;
-  dailyOpenInterest?: string;
+  totalPremiumVolume?: FetchResponseValue
+  totalNotionalVolume?: FetchResponseValue
+  dailyPremiumVolume?: FetchResponseValue
+  dailyNotionalVolume?: FetchResponseValue
+  dailyShortOpenInterest?: FetchResponseValue
+  dailyLongOpenInterest?: FetchResponseValue
+  dailyOpenInterest?: FetchResponseValue
 };
 
 

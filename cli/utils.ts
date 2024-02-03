@@ -1,7 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { clearTimeout } from "timers";
-import { Adapter, BaseAdapter, IJSON } from "../adapters/types";
-import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
+import { BaseAdapter, } from "../adapters/types";
 import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
 export const ERROR_STRING = '------ ERROR ------'
@@ -24,7 +22,7 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapter?: BaseAdapter) {
+export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
     volumes.forEach((element) => {
         const methodology = baseAdapter?.[element.chain].meta?.methodology
@@ -43,18 +41,6 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapte
                     console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }
         })
-        console.info('\n')
-    });
-}
-
-export function printRejectedVolumes(volumes: IRunAdapterResponseRejected[]) {
-    volumes.forEach((element) => {
-        if (typeof element.chain === 'string')
-            console.info(element.chain.toUpperCase(), "👇")
-        if (element.timestamp !== undefined)
-            console.info(`Timestamp attempted: ${formatTimestampAsDate(String(element.timestamp))}`)
-        else console.info("No timestamp defined")
-        console.info(element.error)
         console.info('\n')
     });
 }
