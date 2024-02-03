@@ -13,13 +13,12 @@ const fetch = (chain: string, totalFees: number, revenueFee: number) => {
     const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
     const fetchedResultStartTime = await adapterObj[chain].fetch(FEE_COLLECTED_START_TIME, chainBlocks);
 
-    const chainDailyVolume = fetchedResult.dailyVolume || '0';    
+    const chainDailyVolume = fetchedResult.dailyVolume as number || '0';    
     const chainTotalVolumeFromFeeCollectedDate = (Number(fetchedResult.totalVolume) - Number(fetchedResultStartTime.totalVolume))
     const chainTotalVolume = chainTotalVolumeFromFeeCollectedDate  || '0';   
 
     const ssrFee = totalFees - revenueFee
     const protocolFee =  revenueFee
-    const buybackFee = 0
 
     return {
       timestamp,

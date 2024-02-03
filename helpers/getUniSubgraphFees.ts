@@ -99,8 +99,8 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
       const baseAdapters = Object.keys(volAdapter).map(chain => {
         const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks) => {
           const fetchedResult: FetchResultVolume = await volAdapter[chain].fetch(timestamp, chainBlocks)
-          const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume : "0";
-          const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume : "0";
+          const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume as number : "0";
+          const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume as number : "0";
 
           return {
             timestamp,
@@ -140,8 +140,8 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
     Object.keys(adapterObj).map(chain => {
       const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks) => {
         const fetchedResult: FetchResultVolume = await adapterObj[chain].fetch(timestamp, chainBlocks)
-        const chainDailyVolume = fetchedResult.dailyVolume;
-        const chainTotalVolume = fetchedResult.totalVolume;
+        const chainDailyVolume = fetchedResult.dailyVolume as number;
+        const chainTotalVolume = fetchedResult.totalVolume as number;
         const response: FetchResultGeneric = { timestamp }
         if (chainDailyVolume !== undefined) {
           if (totalFees)
