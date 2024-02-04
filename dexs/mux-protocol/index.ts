@@ -1,8 +1,8 @@
-import axios from "axios";
 import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "@defillama/sdk/build/general";
+import { httpGet } from "../../utils/fetchURL";
 
 const chains = [CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.FANTOM]
 
@@ -37,7 +37,7 @@ const startTime: TStartTime = {
 const graph = (chain: Chain) => {
   return async (timestamp: number) => {
     const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const response = (await axios.get(url)).data as IAPIResponse
+    const response = (await httpGet(url)) as IAPIResponse
     const volumehistorical: IVolumeall[] =  response.data.rows
       .filter(([_,c]) => normalizeChain(c.toLowerCase()) == chain)
       .map(([date, _, ammountUSD]: [string, string, number]) => {

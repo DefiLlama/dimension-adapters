@@ -1,6 +1,6 @@
-import axios from "axios";
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchResultFees } from "../adapters/types";
+import { httpPost } from "../utils/fetchURL";
 
 interface MarketSnapshots {
   interval: {
@@ -37,8 +37,8 @@ const query = async (max_time: number): Promise<Response> => {
   };
 
   const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
-  const response = await axios.post(archiveBaseUrl, body);
-  return response.data;
+  const response = await httpPost(archiveBaseUrl, body);
+  return response;
 };
 
 const sumAllProductStats = (stat_map: IData): number => {

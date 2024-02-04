@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { ethers } from "ethers";
-import axios, { AxiosResponse } from "axios";
 import BigNumber from "bignumber.js";
+import { httpGet } from "../../utils/fetchURL";
 
 interface DexScreenerResponse {
   pairs: {
@@ -103,10 +103,8 @@ type PYTH_CONFIG_KEYS = keyof PYTH_CONFIG_TYPE;
 
 const fetchGAIPrice = async () => {
   try {
-    const response: AxiosResponse<DexScreenerResponse> = await axios.get(
-      "https://api.dexscreener.com/latest/dex/tokens/0xcd91716ef98798A85E79048B78287B13ae6b99b2"
-    );
-    return response.data.pairs[0].priceUsd ?? "1";
+    const response: DexScreenerResponse = await httpGet("https://api.dexscreener.com/latest/dex/tokens/0xcd91716ef98798A85E79048B78287B13ae6b99b2");
+    return response.pairs[0].priceUsd ?? "1";
   } catch (error) {
     return "1";
   }
@@ -119,14 +117,11 @@ const fetchPriceFeeds = async (): Promise<Record<string, string>> => {
 
   PYTH_PRICE_FEED_IDS.forEach((id) => params.append("ids[]", id));
 
-  const response = await axios.get<Feed[]>(`${baseURL}${resource}`, {
-    params: params,
-  });
-
+  const response: Feed[] = await httpGet(`${baseURL}${resource}`, { params: params, });
   // price array to price map
   // key is price feed id
   // value is price in standard unit like $1.00
-  return response.data.reduce((acc, curr) => {
+  return response.reduce((acc, curr) => {
     const adjustedPrice =
       Number(curr.price.price) * Math.pow(10, curr.price.expo);
     acc[curr.id] = adjustedPrice.toFixed(Math.abs(curr.price.expo));

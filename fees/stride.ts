@@ -1,6 +1,6 @@
 import { Adapter, FetchResult } from "../adapters/types";
-import axios from "axios";
 import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 interface DailyFeeResponse {
   fees: {
@@ -16,14 +16,12 @@ const chainOverrides: { [key: string]: string } = {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
-    const response = await axios.get<DailyFeeResponse>(
-      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
-    );
+    const response: DailyFeeResponse = await httpGet(`https://edge.stride.zone/api/${overriddenChain}/stats/fees`);
 
     return {
       timestamp: timestamp,
-      dailyFees: String(response.data.fees.dailyFees),
-      dailyRevenue: String(response.data.fees.dailyRevenue),
+      dailyFees: String(response.fees.dailyFees),
+      dailyRevenue: String(response.fees.dailyRevenue),
     };
   };
 };
@@ -69,24 +67,24 @@ const adapter: Adapter = {
       start: 0,
       meta,
     },
-      evmos: {
-       fetch: fetch("evmos"),
-       runAtCurrTime: true,
-       start: 0,
-       meta,
-     },
-     injective: {
-       fetch: fetch("injective"),
-       runAtCurrTime: true,
-       start: 0,
-       meta,
-     }, 
-     umee: {
-       fetch: fetch("umee"),
-       runAtCurrTime: true,
-       start: 0,
-       meta,
-     }, 
+    evmos: {
+      fetch: fetch("evmos"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    injective: {
+      fetch: fetch("injective"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    umee: {
+      fetch: fetch("umee"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
   },
 };
 

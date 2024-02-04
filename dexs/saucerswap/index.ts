@@ -1,8 +1,8 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import { getPrices } from "../../utils/prices";
+import { httpGet } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=${to}`
 // https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=1682093355
@@ -13,9 +13,9 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
     'origin': 'https://analytics.saucerswap.finance',
-  }}))?.data;
+  }}));
 
   const totalVolume = historicalVolume
     .filter(volItem => Number(volItem.timestampSeconds) <= dayTimestamp)

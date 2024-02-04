@@ -1,5 +1,5 @@
-import axios from "axios";
 import * as sdk from "@defillama/sdk";
+import { httpPost } from "../../utils/fetchURL";
 
 interface ChainData {
   totalPremiumVolume: { [key: string]: number };
@@ -16,7 +16,7 @@ async function getChainData(
   let end_timestamp = Number(timestamp);
   let start_timestamp = end_timestamp - 24 * 60 * 60;
 
-  var response = await axios.post(
+  var response = await httpPost(
     "https://fullnode.mainnet.sui.io:443",
     {
       jsonrpc: "2.0",
@@ -37,11 +37,11 @@ async function getChainData(
     }
   );
 
-  var data = response.data.result.data;
+  var data = response.result.data;
 
   if (backFillTimestamp) {
-    while (response.data.result.hasNextPage) {
-      response = await axios.post(
+    while (response.result.hasNextPage) {
+      response = await httpPost(
         "https://fullnode.mainnet.sui.io:443",
         {
           jsonrpc: "2.0",
@@ -53,7 +53,7 @@ async function getChainData(
                 "0x321848bf1ae327a9e022ccb3701940191e02fa193ab160d9c0e49cd3c003de3a::typus_dov_single::DeliveryEvent",
             },
             descending_order: true,
-            cursor: response.data.result.nextCursor,
+            cursor: response.result.nextCursor,
           },
         },
         {
@@ -62,7 +62,7 @@ async function getChainData(
           },
         }
       );
-      data = data.concat(response.data.result.data);
+      data = data.concat(response.result.data);
 
       const timestamp = Number(data.at(-1).timestampMs) / 1000;
       if (timestamp <= Number(backFillTimestamp)) {

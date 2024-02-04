@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
-import axios from "axios";
 import * as sdk from "@defillama/sdk";
+import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
@@ -152,8 +152,8 @@ const getResources = async (account: string): Promise<any[]> => {
   do {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
-    const res = await axios.get(url)
-    lastData = res.data
+    const res = await httpGet(url)
+    lastData = res
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
   } while (lastData.length === 9999)
@@ -213,13 +213,13 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
     if (start < 0) break;
     const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
-      const event: any[] = (await axios.get(getEventByCreation)).data;
+      const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
       const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
-      const block = (await axios.get(urlBlock)).data;
+      const block = (await httpGet(urlBlock));
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
       if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp) {

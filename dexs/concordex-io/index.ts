@@ -1,10 +1,10 @@
-import axios from 'axios'
 import type { SimpleAdapter } from '../../adapters/types'
+import { httpPost } from '../../utils/fetchURL';
 
 const POOLS_SERVICE_URL = 'https://cdex-liquidity-pool.concordex.io/v1/rpc'
 
 const rpc = (url: string, method: string, params: any) =>
-  axios.post(
+  httpPost(
     url,
     {
       jsonrpc: '2.0',

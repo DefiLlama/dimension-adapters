@@ -1,7 +1,7 @@
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import axios from "axios";
 import { getPrices } from "../../utils/prices";
+import { httpGet } from "../../utils/fetchURL";
 
 interface ISwapEventData {
   in_au: string;
@@ -22,8 +22,8 @@ const  getResources = async (account: string): Promise<any[]> => {
   do {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
-    const res = await axios.get(url)
-    lastData = res.data
+    const res = await httpGet(url)
+    lastData = res
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
   } while (lastData.length === 9999)
@@ -76,7 +76,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number): Promise<ISwapEven
     if (start < 0) break;
     const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=25`;
     try {
-      const event: any[] = (await axios.get(getEventByCreation)).data;
+      const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e =>  Number(e.sequence_number))
       swap_events.push(...event)
       const lastMin = Math.min(...listSequence)

@@ -1,10 +1,9 @@
-import axios from "axios";
 import { Adapter, FetchResult, ProtocolType } from "../adapters/types";
 import { IDate } from "../helpers/bitqueryFees";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
+import { httpPost } from "../utils/fetchURL";
 
 
 interface ITxAda {
@@ -31,7 +30,7 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
   });
 
   const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEY || '', "Content-Type": "application/json"};
-  const result: ITxAda[] = (await axios.post("https://graphql.bitquery.io", body, { headers: headers }))?.data?.data.cardano.transactions;
+  const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
 
   return result;
 }

@@ -59,7 +59,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
               (p: IPool) => p.id.split("-")[0] === e.id.split("-")[0]
             )?.swapFees || 0
           );
-          console.log("yesterdayValue", yesterdayValue.toNumber());
           if (yesterdayValue.toNumber() === 0) return new BigNumber("0");
           return new BigNumber(e.swapFees).minus(yesterdayValue);
         })

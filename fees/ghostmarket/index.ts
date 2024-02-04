@@ -1,6 +1,5 @@
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import type { ChainEndpoints } from "../../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";

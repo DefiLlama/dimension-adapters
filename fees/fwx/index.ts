@@ -2,7 +2,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { httpPost } from "../../utils/fetchURL";
 
 interface IEndpoint {
   dailyFee: string;
@@ -40,10 +40,8 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily fee data
-    const dailyFeeRes = await axios.post(endpoints[chain].dailyFee, {
-      date: formattedDate,
-    });
-    const dailyFeeData = dailyFeeRes.data as IDailyFeeData;
+    const dailyFeeRes = await httpPost(endpoints[chain].dailyFee, { date: formattedDate, });
+    const dailyFeeData = dailyFeeRes as IDailyFeeData;
     const tokenInterestProfit = parseFloat(dailyFeeData.tokenInterestProfit);
     const dailyHoldersRevenue = 9 * tokenInterestProfit;
     const dailyFees =
@@ -52,10 +50,8 @@ const fetch = (chain: Chain) => {
     const dailyRevenueString = dailyProtocolRevenueString;
 
     // * call api for total fee data
-    const companyRevenueRes = await axios.post(
-      endpoints[chain].realtimeCompanyRevenue
-    );
-    const companyRevenue = companyRevenueRes.data as ICompanyRevenue;
+    const companyRevenueRes = await httpPost(endpoints[chain].realtimeCompanyRevenue, {});
+    const companyRevenue = companyRevenueRes as ICompanyRevenue;
     const totalFee =
       parseFloat(companyRevenue.totalRevenue) +
       9 * parseFloat(companyRevenue.totalInterestProfit);

@@ -1,7 +1,7 @@
-import axios from "axios";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 type ResponseItem = {
   symbol: string;
@@ -41,9 +41,9 @@ const v2VolumeAPI =
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
 const fetchV2Volume = async (chain: Chain) => {
-  const { data = [] } = (
-    await axios.get(v2VolumeAPI, { params: { chain, excludeCake: true } })
-  ).data as { data: ResponseItem[] };
+  const data = [] = (
+    await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
+  ) as  ResponseItem[] 
 
   const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
 
@@ -51,7 +51,7 @@ const fetchV2Volume = async (chain: Chain) => {
 };
 
 const fetchV1Volume = async () => {
-  const data = (await axios.get(v1VolumeAPI)).data as V1TickerItem[];
+  const data = (await httpGet(v1VolumeAPI)) as V1TickerItem[];
   const dailyVolume = data.reduce((p, c) => p + +c.quoteVolume, 0);
 
   return dailyVolume

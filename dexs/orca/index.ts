@@ -1,11 +1,11 @@
-import axios from 'axios';
 import { CHAIN } from '../../helpers/chains';
+import { httpGet } from '../../utils/fetchURL';
 
 const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";
 
 async function fetch(timestamp: number) {
-    const [whirlpools] = await Promise.all([axios.get(wpEndpoint)]);
-    const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
+    const [whirlpools] = await Promise.all([httpGet(wpEndpoint)]);
+    const wpVol = whirlpools.whirlpools.reduce((sum: number, pool: any) =>
         sum + (pool?.volume?.day || 0)
         , 0);
     return {

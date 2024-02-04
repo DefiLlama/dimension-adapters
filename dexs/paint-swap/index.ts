@@ -1,4 +1,3 @@
-import axios from "axios";
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";

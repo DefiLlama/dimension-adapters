@@ -1,12 +1,10 @@
 // SynFutures v1 volume
-import { Adapter, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import { Chain } from '@defillama/sdk/build/general';
-import customBackfill from "../../helpers/customBackfill";
 import { getPrices } from "../../utils/prices";
-const { request, gql } = require("graphql-request");
+const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
   polygon: {

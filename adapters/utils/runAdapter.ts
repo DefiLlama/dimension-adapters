@@ -21,8 +21,8 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     try {
       const result: FetchResultGeneric = await fetchFunction(cleanCurrentDayTimestamp - 1, chainBlocks);
       const ignoreKeys = ['timestamp', 'block']
-      if (id)
-        console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
+      // if (id)
+      //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
         if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
@@ -36,7 +36,8 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         ...result
       }
     } catch (error) {
-      throw { chain, error }
+      try { (error as any).chain = chain } catch { }
+      throw error
     }
   }
 
@@ -50,6 +51,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       }
     } else if (_start) {
       const defaultStart = Math.trunc(Date.now() / 1000)
+      validStart[chain] = { // intentionally set to true to allow for backfilling
+        canRun: true,
+        startTimestamp: defaultStart
+      }
+      return;
       const start = await (_start as any)().catch(() => {
         console.error(`Failed to get start time for ${id} ${version} ${chain}`)
         return defaultStart

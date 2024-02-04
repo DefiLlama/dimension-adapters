@@ -1,7 +1,7 @@
-import axios from "axios";
 import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -24,11 +24,11 @@ interface ResEntry {
 
 
 const getStartTime = async (chain: string) => {
-  const response = await axios.get(
+  const response = await httpGet(
     `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
   );
 
-  const smallestDate = response.data.reduce(
+  const smallestDate = response.reduce(
     (minDate: number, current: ResEntry) => {
       return current.date < minDate ? current.date : minDate;
     },
@@ -48,11 +48,11 @@ const adapter: SimpleAdapter = {
             new Date(timestamp * 1000)
           );
 
-          const response = await axios.get(
+          const response = await httpGet(
             `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
           );
 
-          const totalVol = response.data.reduce(
+          const totalVol = response.reduce(
             (sum: number, entry: ResEntry) => sum + entry.volumeUSD,
             0
           );

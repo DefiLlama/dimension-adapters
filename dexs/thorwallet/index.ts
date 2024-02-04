@@ -1,7 +1,7 @@
-import axios from 'axios'
-import { Adapter, BaseAdapter, SimpleAdapter } from '../../adapters/types'
+import { SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume'
+import { httpGet } from '../../utils/fetchURL'
 
 const historicalVolumeEndpoint =
   'https://midgard.thorwallet.org/v2/history/swaps?interval=day&count=100'
@@ -26,7 +26,7 @@ const calVolume = (total: IVolumeall): number => {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data.intervals
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint)).intervals
   const totalVolume = historicalVolume
     .filter((volItem) => Number(volItem.startTime) <= dayTimestamp)
     .reduce((acc, res) => acc + calVolume(res), 0)
@@ -43,7 +43,7 @@ const fetch = async (timestamp: number) => {
 }
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data.intervals
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint)).intervals
   return Number(historicalVolume[0]?.startTime)
 }
 

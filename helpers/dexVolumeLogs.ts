@@ -142,7 +142,7 @@ export async function getDexVolumeFeeV3({ chain, fromTimestamp, toTimestamp, fac
   // const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
   let fees = [] as any
   if (isFee) 
-    fees = await api.multiCall({ abi: 'uint24:fee', calls: pools! })
+    fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: pools! })
   const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
 
   const logs = await sdk.getEventLogs({

@@ -5,8 +5,7 @@ import { getBlock } from "../helpers/getBlock";
 import { ethers } from "ethers";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
-import axios from 'axios';
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { httpGet } from "../utils/fetchURL";
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -131,8 +130,8 @@ const fetchFeesTron = async (chain: Chain, timestamp: number): Promise<number> =
 const tronRpc = `https://api.trongrid.io`
 const getTronLogs = async (address: string, eventName: string, minBlockTimestamp: number, maxBlockTimestamp: number) => {
   const url = `${tronRpc}/v1/contracts/${address}/events?event_name=${eventName}&min_block_timestamp=${minBlockTimestamp}&max_block_timestamp=${maxBlockTimestamp}&limit=200`;
-  const res = await axios.get(url, {});
-  return res.data.data;
+  const res = await httpGet(url);
+  return res.data;
 }
 
 const fetch = (chain: Chain) => {

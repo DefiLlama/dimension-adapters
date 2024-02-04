@@ -1,29 +1,17 @@
-import axios from 'axios'
 import type { SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from "../../helpers/chains";
+import { httpPost } from '../../utils/fetchURL';
 
 const POOLS_SERVICE_URL = 'https://liquidity-pool.dx25.com/v1/rpc'
 
 const rpc = (url: string, method: string, params: any) =>
-  axios.post(
-    url,
-    {
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: '0',
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    }
-  )
+  httpPost(url, { jsonrpc: '2.0', method, params, id: '0', },
+    { headers: { 'Content-Type': 'application/json', } })
     .then(res => {
-      if (res.data.error) {
-        throw new Error(res.data.error.message)
+      if (res.error) {
+        throw new Error(res.error.message)
       }
-      return res.data.result
+      return res.result
     });
 
 

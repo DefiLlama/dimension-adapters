@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { DISABLED_ADAPTER_KEY, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getPrices } from "../../utils/prices";
 
