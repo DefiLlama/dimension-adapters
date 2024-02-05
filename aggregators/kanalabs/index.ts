@@ -21,9 +21,7 @@ export enum KanaChainID {
 
 const fetch = (chain: KanaChainID) => async (timestamp: number) => {
   try {
-    const res = (await fetchURL(`${URL}?chainId=${chain}`)).data;
-    const data = res.data
-    console.log(res);
+    const data = (await fetchURL(`${URL}?chainId=${chain}`)).data;
     return {
       timestamp,
       dailyVolume: data.today.volume,
@@ -47,31 +45,31 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: false,
       start: async () => 1695897839,
     },
-    // [CHAIN.BSC]: {
-    //   fetch: fetch(KanaChainID.bsc),
-    //   runAtCurrTime: true,
-    //   start: async () => 1695897839,
-    // },
-    // [CHAIN.AVAX]: {
-    //   fetch: fetch(KanaChainID.Avalanche),
-    //   runAtCurrTime: true,
-    //   start: async () => 1695897839,
-    // },
-    // [CHAIN.ARBITRUM]: {
-    //   fetch: fetch(KanaChainID.Arbitrum),
-    //   runAtCurrTime: true,
-    //   start: async () => 1695897839,
-    // },
-    // [CHAIN.POLYGON]: {
-    //   fetch: fetch(KanaChainID.polygon),
-    //   runAtCurrTime: true,
-    //   start: async () => 1695897839,
-    // },
-    // [CHAIN.ZKSYNC]: {
-    //   fetch: fetch(KanaChainID.zkSync),
-    //   runAtCurrTime: true,
-    //   start: async () => 1695897839,
-    // },
+    [CHAIN.BSC]: {
+      fetch: fetch(KanaChainID.bsc),
+      runAtCurrTime: true,
+      start: async () => 1695897839,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetch(KanaChainID.Avalanche),
+      runAtCurrTime: true,
+      start: async () => 1695897839,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(KanaChainID.Arbitrum),
+      runAtCurrTime: true,
+      start: async () => 1695897839,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(KanaChainID.polygon),
+      runAtCurrTime: true,
+      start: async () => 1695897839,
+    },
+    [CHAIN.ZKSYNC]: {
+      fetch: fetch(KanaChainID.zkSync),
+      runAtCurrTime: true,
+      start: async () => 1695897839,
+    },
   },
 };
 
