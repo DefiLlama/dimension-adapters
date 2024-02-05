@@ -6,7 +6,7 @@ import * as sdk from "@defillama/sdk"
 import { httpGet } from "../utils/fetchURL";
 const retry = require("async-retry")
 
-async function getBlock(timestamp: number, chain: Chain, chainBlocks: ChainBlocks) {
+async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
     if (chainBlocks[chain] !== undefined)
         return chainBlocks[chain]
 

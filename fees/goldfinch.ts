@@ -77,60 +77,55 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const ONE_DAY_IN_SECONDS = 86400;
   const toTimestamp = timestamp;
   const fromTimestamp = timestamp - ONE_DAY_IN_SECONDS;
-  try {
-    const toBlock = await getBlock(toTimestamp, 'ethereum', {});
-    const fromBlock = await getBlock(fromTimestamp, 'ethereum', {});
+  const toBlock = await getBlock(toTimestamp, 'ethereum', {});
+  const fromBlock = await getBlock(fromTimestamp, 'ethereum', {});
 
-    const logs_interest_collect: EventLog[] = (await sdk.getEventLogs({
-      target: core_pool,
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0_interest_collected],
-      chain: 'ethereum'
-    })) as EventLog[];
-    const pool_interest_collected = logs_interest_collect
-      .reduce((a: number, b: EventLog) => a + Number('0x'+b.data.replace('0x','').slice(0, 64)), 0) / 1e6;
+  const logs_interest_collect: EventLog[] = (await sdk.getEventLogs({
+    target: core_pool,
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    topics: [topic0_interest_collected],
+    chain: 'ethereum'
+  })) as EventLog[];
+  const pool_interest_collected = logs_interest_collect
+    .reduce((a: number, b: EventLog) => a + Number('0x' + b.data.replace('0x', '').slice(0, 64)), 0) / 1e6;
 
-    const logs_pool_payment_applie: EventLog[] = (await Promise.all(pools.map(async (pool: string) => sdk.getEventLogs({
-      target: pool,
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0_payment_appli],
-      chain: 'ethereum'
-    })))).flat() as EventLog[];
+  const logs_pool_payment_applie: EventLog[] = (await Promise.all(pools.map(async (pool: string) => sdk.getEventLogs({
+    target: pool,
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    topics: [topic0_payment_appli],
+    chain: 'ethereum'
+  })))).flat() as EventLog[];
 
-    const logs_reserve_fund_collect: EventLog[] = (await Promise.all([...pools, core_pool, senior_pool].map(async (pool: string) => sdk.getEventLogs({
-      target: pool,
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0_reserve_fund_collect],
-      chain: 'ethereum'
-    })))).flat() as EventLog[];
+  const logs_reserve_fund_collect: EventLog[] = (await Promise.all([...pools, core_pool, senior_pool].map(async (pool: string) => sdk.getEventLogs({
+    target: pool,
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    topics: [topic0_reserve_fund_collect],
+    chain: 'ethereum'
+  })))).flat() as EventLog[];
 
-    const pool_payment_applied = logs_pool_payment_applie.map((log: EventLog) => {
-      const data = log.data.replace('0x','')
-      const interestAmount = Number('0x'+data.slice(0, 64)) / 1e6;
-      const reserveAmount = Number('0x'+data.slice(64 * 3, (64 * 3) + 64)) / 1e6;
-      return interestAmount - reserveAmount;
-    }).reduce((a: number, b: number) => a + b, 0);
+  const pool_payment_applied = logs_pool_payment_applie.map((log: EventLog) => {
+    const data = log.data.replace('0x', '')
+    const interestAmount = Number('0x' + data.slice(0, 64)) / 1e6;
+    const reserveAmount = Number('0x' + data.slice(64 * 3, (64 * 3) + 64)) / 1e6;
+    return interestAmount - reserveAmount;
+  }).reduce((a: number, b: number) => a + b, 0);
 
-    const pool_reserve_fund_collect = logs_reserve_fund_collect.map((log: EventLog) => {
-      const amount = Number(log.data) / 1e6;
-      return amount;
-    }).reduce((a: number, b: number) => a + b, 0);
-    const dailyFees = pool_interest_collected + pool_payment_applied + pool_reserve_fund_collect;
-    const dailyRevenue = pool_reserve_fund_collect;
-    const dailySupplySideRevenue = dailyFees - dailyRevenue;
+  const pool_reserve_fund_collect = logs_reserve_fund_collect.map((log: EventLog) => {
+    const amount = Number(log.data) / 1e6;
+    return amount;
+  }).reduce((a: number, b: number) => a + b, 0);
+  const dailyFees = pool_interest_collected + pool_payment_applied + pool_reserve_fund_collect;
+  const dailyRevenue = pool_reserve_fund_collect;
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
-    return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
-      dailySupplySideRevenue: dailySupplySideRevenue > 0 ? dailySupplySideRevenue.toString() : '0',
-      timestamp
-    }
-  } catch (error) {
-    console.error(error)
-    throw error;
+  return {
+    dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyRevenue.toString(),
+    dailySupplySideRevenue: dailySupplySideRevenue > 0 ? dailySupplySideRevenue.toString() : '0',
+    timestamp
   }
 }
 

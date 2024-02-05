@@ -21,7 +21,7 @@ const build_query = (timestamp: number): string => {
   const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
   return chains.map((chain: Chain) => `
     SELECT
-      SUM(${chain === "bsc"?"BNB_VALUE":"eth_value"}),
+      SUM(${chain === "bsc" ? "BNB_VALUE" : "eth_value"}),
       '${chain}' as chain
     from
       ${chain}.core.fact_transactions
@@ -32,26 +32,21 @@ const build_query = (timestamp: number): string => {
 
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      const query = build_query(timestamp);
-      const value: number = (await queryFlipside(query, 260))
-        .map(([fee, chain]: [string, string]) => {
-          return {
-            fee, chain
-          } as any
-        }).filter((e: any) => e.chain === chain).map((e: any) => Number(e.fee)).reduce((a: number, b: number) => a + b, 0);
-      const amount = value;
-      const gasId = gasTokenId[chain];
-      const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
-      const dailyFees = (amount * gasIdPrice)
-      return {
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyFees}`,
-        timestamp
-      }
-    } catch (err) {
-      console.log(err);
-      throw err;
+    const query = build_query(timestamp);
+    const value: number = (await queryFlipside(query, 260))
+      .map(([fee, chain]: [string, string]) => {
+        return {
+          fee, chain
+        } as any
+      }).filter((e: any) => e.chain === chain).map((e: any) => Number(e.fee)).reduce((a: number, b: number) => a + b, 0);
+    const amount = value;
+    const gasId = gasTokenId[chain];
+    const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
+    const dailyFees = (amount * gasIdPrice)
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyFees}`,
+      timestamp
     }
 
   }
@@ -61,16 +56,16 @@ const graph = (chain: Chain) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: graph(CHAIN.ETHEREUM),
-        start: async ()  => 1656633600,
+      fetch: graph(CHAIN.ETHEREUM),
+      start: async () => 1656633600,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async ()  => 1656633600,
+      start: async () => 1656633600,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async ()  => 1675468800,
+      start: async () => 1675468800,
     },
   }
 }

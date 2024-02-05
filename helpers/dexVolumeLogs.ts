@@ -11,45 +11,40 @@ type getDexVolumeExportsParams = { chain: string, factory?: string, pools?: stri
 type getDexVolumeExportsParamsV3 = { chain: string, factory?: string, pools?: string[], factoryFromBlock?: number, }
 
 export async function getDexVolume({ chain, fromTimestamp, toTimestamp, factory, timestamp, pools }: getDexVolumeParams) {
-  try {
-    if (!toTimestamp) toTimestamp = timestamp
-    const api = new sdk.ChainApi({ chain, timestamp: toTimestamp });
-    const fromBlock = (await sdk.blocks.getBlock(chain, fromTimestamp)).block;
-    const toBlock = (await sdk.blocks.getBlock(chain, toTimestamp)).block;
-    // await api.getBlock();
-    if (!pools) pools = await api.fetchList({ lengthAbi: 'allPairsLength', itemAbi: 'allPairs', target: factory! })
+  if (!toTimestamp) toTimestamp = timestamp
+  const api = new sdk.ChainApi({ chain, timestamp: toTimestamp });
+  const fromBlock = (await sdk.blocks.getBlock(chain, fromTimestamp)).block;
+  const toBlock = (await sdk.blocks.getBlock(chain, toTimestamp)).block;
+  // await api.getBlock();
+  if (!pools) pools = await api.fetchList({ lengthAbi: 'allPairsLength', itemAbi: 'allPairs', target: factory! })
 
-    const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
-    const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
+  const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
+  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
 
-    const logs = await sdk.getEventLogs({
-      targets: pools,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain,
-      eventAbi: swapEvent,
-      flatten: false,
-      onlyArgs: true,
-    });
-    logs.forEach((log: any[], index: number) => {
-      const token0 = token0s[index]
-      const token1 = token1s[index]
-      if (!log.length) return
-      log.forEach((i: any) => {
-        // api.add(token0, i.amount0In) // we should count only one side of the swap
-        api.add(token0, i.amount0Out)
-        // api.add(token1, i.amount1In)
-        api.add(token1, i.amount1Out)
-      })
+  const logs = await sdk.getEventLogs({
+    targets: pools,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain,
+    eventAbi: swapEvent,
+    flatten: false,
+    onlyArgs: true,
+  });
+  logs.forEach((log: any[], index: number) => {
+    const token0 = token0s[index]
+    const token1 = token1s[index]
+    if (!log.length) return
+    log.forEach((i: any) => {
+      // api.add(token0, i.amount0In) // we should count only one side of the swap
+      api.add(token0, i.amount0Out)
+      // api.add(token1, i.amount1In)
+      api.add(token1, i.amount1Out)
     })
-    const { usdTvl } = await api.getUSDJSONs()
-    return {
-      timestamp,
-      dailyVolume: Number(usdTvl).toFixed(0),
-    }
-  } catch (e) {
-    console.error(e)
-    throw e
+  })
+  const { usdTvl } = await api.getUSDJSONs()
+  return {
+    timestamp,
+    dailyVolume: Number(usdTvl).toFixed(0),
   }
 }
 
@@ -66,48 +61,43 @@ type getDexFeesExportParams = { chain: string, factory?: string, pools?: string[
 const feesEvent = "event Fees(address indexed sender, uint256 amount0, uint256 amount1)"
 // const feesTopic = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602'
 export async function getDexFees({ chain, fromTimestamp, toTimestamp, factory, timestamp, pools, lengthAbi = 'allPairsLength', itemAbi = 'allPairs', fromBlock, toBlock, }: getDexFeesParams) {
-  try {
-    if (!toTimestamp) toTimestamp = timestamp
-    const api = new sdk.ChainApi({ chain, timestamp: toTimestamp });
-    if (!fromBlock)
-      fromBlock = (await sdk.blocks.getBlock(chain, fromTimestamp)).block;
-    if (!toBlock)
-      toBlock = (await sdk.blocks.getBlock(chain, toTimestamp)).block;
-    // await api.getBlock();
-    if (!pools) pools = await api.fetchList({ lengthAbi, itemAbi, target: factory! })
+  if (!toTimestamp) toTimestamp = timestamp
+  const api = new sdk.ChainApi({ chain, timestamp: toTimestamp });
+  if (!fromBlock)
+    fromBlock = (await sdk.blocks.getBlock(chain, fromTimestamp)).block;
+  if (!toBlock)
+    toBlock = (await sdk.blocks.getBlock(chain, toTimestamp)).block;
+  // await api.getBlock();
+  if (!pools) pools = await api.fetchList({ lengthAbi, itemAbi, target: factory! })
 
-    const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
-    const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
+  const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
+  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
 
-    const logs = await sdk.getEventLogs({
-      targets: pools,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain,
-      eventAbi: feesEvent,
-      flatten: false,
-      onlyArgs: true,
-    });
-    logs.forEach((log: any[], index: number) => {
-      const token0 = token0s[index]
-      const token1 = token1s[index]
-      if (!log.length) return
-      log.forEach((i: any) => {
-        api.add(token0, i.amount0)
-        api.add(token1, i.amount1)
-      })
+  const logs = await sdk.getEventLogs({
+    targets: pools,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain,
+    eventAbi: feesEvent,
+    flatten: false,
+    onlyArgs: true,
+  });
+  logs.forEach((log: any[], index: number) => {
+    const token0 = token0s[index]
+    const token1 = token1s[index]
+    if (!log.length) return
+    log.forEach((i: any) => {
+      api.add(token0, i.amount0)
+      api.add(token1, i.amount1)
     })
-    const { usdTvl } = await api.getUSDJSONs()
-    const value = Number(usdTvl).toFixed(0)
-    return {
-      timestamp,
-      dailyFees: value,
-      dailyRevenue: value,
-      dailyHoldersRevenue: value,
-    }
-  } catch (e) {
-    console.error(e)
-    throw e
+  })
+  const { usdTvl } = await api.getUSDJSONs()
+  const value = Number(usdTvl).toFixed(0)
+  return {
+    timestamp,
+    dailyFees: value,
+    dailyRevenue: value,
+    dailyHoldersRevenue: value,
   }
 }
 
@@ -141,7 +131,7 @@ export async function getDexVolumeFeeV3({ chain, fromTimestamp, toTimestamp, fac
 
   // const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
   let fees = [] as any
-  if (isFee) 
+  if (isFee)
     fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: pools! })
   const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
 

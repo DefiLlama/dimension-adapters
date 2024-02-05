@@ -27,54 +27,49 @@ interface ILog {
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
 
-    // fetch rETH2 logs
-    let logs: ILog[] = (await sdk.getEventLogs({
-      target: reth2Address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      topics: [reth2Topic],
-      chain: CHAIN.ETHEREUM
-    })) as ILog[]
-    const rEth2Rewards = logs.map((log: ILog) => {
-      const value = reth2Interface.parseLog(log);
-      return Number(value!.args.periodRewards) / 10 ** 18;
-    }).reduce((a: number, b: number) => a + b, 0);
+  // fetch rETH2 logs
+  let logs: ILog[] = (await sdk.getEventLogs({
+    target: reth2Address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    topics: [reth2Topic],
+    chain: CHAIN.ETHEREUM
+  })) as ILog[]
+  const rEth2Rewards = logs.map((log: ILog) => {
+    const value = reth2Interface.parseLog(log);
+    return Number(value!.args.periodRewards) / 10 ** 18;
+  }).reduce((a: number, b: number) => a + b, 0);
 
-    // fetch osETH logs
-    logs = (await sdk.getEventLogs({
-      target: osTokenCtrlAddress,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      topics: [osTokenCtrlTopic],
-      chain: CHAIN.ETHEREUM
-    })) as ILog[]
-    const osEthRewards = logs.map((log: ILog) => {
-      const value = osTokenCtrlInterface.parseLog(log);
-      return Number(value!.args.profitAccrued) / 10 ** 18;
-    }).reduce((a: number, b: number) => a + b, 0);
+  // fetch osETH logs
+  logs = (await sdk.getEventLogs({
+    target: osTokenCtrlAddress,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    topics: [osTokenCtrlTopic],
+    chain: CHAIN.ETHEREUM
+  })) as ILog[]
+  const osEthRewards = logs.map((log: ILog) => {
+    const value = osTokenCtrlInterface.parseLog(log);
+    return Number(value!.args.profitAccrued) / 10 ** 18;
+  }).reduce((a: number, b: number) => a + b, 0);
 
-    const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    let dailyFees = (osEthRewards + rEth2Rewards) * ethPrice;
-    const dailyRevenue = ((osEthRewards * 0.05) + (rEth2Rewards * 0.1)) * ethPrice;
-    const dailySupplySideRevenue = ((osEthRewards * 0.95) + (rEth2Rewards * 0.9)) * ethPrice;
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailySupplySideRevenue: `${dailySupplySideRevenue}`,
-      timestamp
-    }
-  } catch (e) {
-    console.error(e)
-    throw e;
+  const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+  let dailyFees = (osEthRewards + rEth2Rewards) * ethPrice;
+  const dailyRevenue = ((osEthRewards * 0.05) + (rEth2Rewards * 0.1)) * ethPrice;
+  const dailySupplySideRevenue = ((osEthRewards * 0.95) + (rEth2Rewards * 0.9)) * ethPrice;
+  return {
+    dailyFees: `${dailyFees}`,
+    dailyRevenue: `${dailyRevenue}`,
+    dailySupplySideRevenue: `${dailySupplySideRevenue}`,
+    timestamp
   }
 
 }
 
-const adapter: SimpleAdapter  = {
+const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,

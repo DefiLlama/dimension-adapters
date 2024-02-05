@@ -79,7 +79,6 @@ async function usdEquivalent(_: string, timestamp: number) {
       return dailyFees;
     } catch (error) {
       await sql.end({ timeout: 3 })
-      console.error(error);
       throw error;
     }
 }

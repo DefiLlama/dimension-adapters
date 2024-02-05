@@ -136,26 +136,21 @@ const getTronLogs = async (address: string, eventName: string, minBlockTimestamp
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      let fees = 0;
-      if (chain === CHAIN.TRON) {
-        fees = await fetchFeesTron(chain, timestamp);
-      } else {
-        fees = await fetchFees(chain, timestamp);
-      }
-      const dailyFees = fees;
-      const dailyRevenue = dailyFees * 0.2;
-      const dailySupplySideRevenue = dailyFees * 0.8;
-      return {
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-        timestamp,
-      };
-    } catch (e) {
-      console.error(e);
-      throw e;
+    let fees = 0;
+    if (chain === CHAIN.TRON) {
+      fees = await fetchFeesTron(chain, timestamp);
+    } else {
+      fees = await fetchFees(chain, timestamp);
     }
+    const dailyFees = fees;
+    const dailyRevenue = dailyFees * 0.2;
+    const dailySupplySideRevenue = dailyFees * 0.8;
+    return {
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+      timestamp,
+    };
   };
 };
 

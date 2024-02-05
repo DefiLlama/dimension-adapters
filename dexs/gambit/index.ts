@@ -33,63 +33,58 @@ const fetch = (chain: Chain) => {
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
     const contractAddressList = CONTRACT_ADDRESS[chain];
-    try {
-      const logs_limit_ex: ILog[] = (
-        await Promise.all(
-          contractAddressList.map(async (address) => {
-            return sdk.getEventLogs({
-              target: address,
-              toBlock: toBlock,
-              fromBlock: fromBlock,
-              chain: chain,
-              topics: [topic0_limit_ex],
-            });
-          })
-        )
-      ).flatMap((response) => (response as any)) as ILog[];
+    const logs_limit_ex: ILog[] = (
+      await Promise.all(
+        contractAddressList.map(async (address) => {
+          return sdk.getEventLogs({
+            target: address,
+            toBlock: toBlock,
+            fromBlock: fromBlock,
+            chain: chain,
+            topics: [topic0_limit_ex],
+          });
+        })
+      )
+    ).flatMap((response) => (response as any)) as ILog[];
 
-      const logs_market_ex: ILog[] = (
-        await Promise.all(
-          contractAddressList.map(async (address) => {
-            return sdk.getEventLogs({
-              target: address,
-              toBlock: toBlock,
-              fromBlock: fromBlock,
-              chain: chain,
-              topics: [topic0_market_ex],
-            });
-          })
-        )
-      ).flatMap((response) => (response as any)) as ILog[];
+    const logs_market_ex: ILog[] = (
+      await Promise.all(
+        contractAddressList.map(async (address) => {
+          return sdk.getEventLogs({
+            target: address,
+            toBlock: toBlock,
+            fromBlock: fromBlock,
+            chain: chain,
+            topics: [topic0_market_ex],
+          });
+        })
+      )
+    ).flatMap((response) => (response as any)) as ILog[];
 
-      const limit_volume = logs_limit_ex.map((e: ILog) => {
-        const data = e.data.replace('0x', '');
-        let leverage = Number('0x' + data.slice(448, 512));
-        if (leverage > 1000) {
-          leverage = leverage / 10 ** LEVERAGE_DECIMAL
-        }
-        const positionSizeUsdc = Number('0x' + data.slice(896, 960)) / 10 ** USDC_DECIMAL;
-        return (leverage * positionSizeUsdc)
-      }).reduce((a: number, b: number) => a + b, 0);
-
-      const market_volume = logs_market_ex.map((e: ILog) => {
-        const data = e.data.replace('0x', '');
-        let leverage = Number('0x' + data.slice(448, 512));
-        if (leverage > 1000) {
-          leverage = leverage / 10 ** LEVERAGE_DECIMAL
-        }
-        const positionSizeUsdc = Number('0x' + data.slice(832, 896)) / 10 ** USDC_DECIMAL;
-        return (leverage * positionSizeUsdc)
-      }).reduce((a: number, b: number) => a + b, 0);
-
-      const dailyVolume = (limit_volume + market_volume)
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp
+    const limit_volume = logs_limit_ex.map((e: ILog) => {
+      const data = e.data.replace('0x', '');
+      let leverage = Number('0x' + data.slice(448, 512));
+      if (leverage > 1000) {
+        leverage = leverage / 10 ** LEVERAGE_DECIMAL
       }
-    } catch (error) {
-      console.error(error)
-      throw error;
+      const positionSizeUsdc = Number('0x' + data.slice(896, 960)) / 10 ** USDC_DECIMAL;
+      return (leverage * positionSizeUsdc)
+    }).reduce((a: number, b: number) => a + b, 0);
+
+    const market_volume = logs_market_ex.map((e: ILog) => {
+      const data = e.data.replace('0x', '');
+      let leverage = Number('0x' + data.slice(448, 512));
+      if (leverage > 1000) {
+        leverage = leverage / 10 ** LEVERAGE_DECIMAL
+      }
+      const positionSizeUsdc = Number('0x' + data.slice(832, 896)) / 10 ** USDC_DECIMAL;
+      return (leverage * positionSizeUsdc)
+    }).reduce((a: number, b: number) => a + b, 0);
+
+    const dailyVolume = (limit_volume + market_volume)
+    return {
+      dailyVolume: `${dailyVolume}`,
+      timestamp
     }
   }
 }

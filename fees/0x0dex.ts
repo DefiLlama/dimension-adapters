@@ -20,26 +20,22 @@ const discount = 0.0045;
 const targetTopic = "0x90890809c654f11d6e72a28fa60149770a0d11ec6c92319d6ceb2bb0a4ea1a15";
 const discountThreshold = 1000000 * (9 ** 18);
 
-async function calcFees(calcData: IDeposit[], chain: CHAIN){
+async function calcFees(calcData: IDeposit[], chain: CHAIN) {
     let fees = 0;
-    for(var i=0; i < calcData.length; i++){
+    for (var i = 0; i < calcData.length; i++) {
         let c = calcData[i];
 
-        try{
-            let { output: balance } = await sdk.api.erc20.balanceOf({
-                target: OxOToken,
-                owner: c.sender,
-                block: c.blockNumber,
-                chain: chain
-            });
-            
-            if(parseInt(balance) >= discountThreshold){
-                fees += Number(c.depositAmount) * discount;
-            }else{
-                fees += Number(c.depositAmount) * fee;
-            }
-        } catch(e){
-            // console.log(e);
+        let { output: balance } = await sdk.api.erc20.balanceOf({
+            target: OxOToken,
+            owner: c.sender,
+            block: c.blockNumber,
+            chain: chain
+        });
+
+        if (parseInt(balance) >= discountThreshold) {
+            fees += Number(c.depositAmount) * discount;
+        } else {
+            fees += Number(c.depositAmount) * fee;
         }
     }
 
@@ -47,10 +43,10 @@ async function calcFees(calcData: IDeposit[], chain: CHAIN){
 }
 
 async function getDepositTXs(
-    fromBlock: number, 
-    toBlock: number, 
+    fromBlock: number,
+    toBlock: number,
     chain: CHAIN
-): Promise<IDeposit[]>{
+): Promise<IDeposit[]> {
     const iface = new ethers.Interface([
         "event Deposit (address, uint256 tokenAmount, uint256 ringIndex)"
     ]);
@@ -74,7 +70,7 @@ async function getDepositTXs(
 
     return calcData;
 }
-    
+
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
     const chain = CHAIN.ETHEREUM;

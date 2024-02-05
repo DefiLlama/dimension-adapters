@@ -48,65 +48,60 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = await getBlock(fromTimestamp, chain, {});
     const toBlock = await getBlock(toTimestamp, chain, {});
-    try {
-      const limitLogs: ILog[] = (
-        (await Promise.all(
-          topic0_limit_ex.map(async (topic0) =>
-            sdk.getEventLogs({
-              targets: contract_addresses[chain],
-              toBlock: toBlock,
-              fromBlock: fromBlock,
-              chain: chain,
-              topics: [topic0],
-            })
-          )
-        )) as ILog[][]
-      ).reduce((acc, curr) => [...acc, ...curr], []);
+    const limitLogs: ILog[] = (
+      (await Promise.all(
+        topic0_limit_ex.map(async (topic0) =>
+          sdk.getEventLogs({
+            targets: contract_addresses[chain],
+            toBlock: toBlock,
+            fromBlock: fromBlock,
+            chain: chain,
+            topics: [topic0],
+          })
+        )
+      )) as ILog[][]
+    ).reduce((acc, curr) => [...acc, ...curr], []);
 
-      const marketLogs: ILog[] = (
-        (await Promise.all(
-          topic0_market_ex.map(async (topic0) =>
-            sdk.getEventLogs({
-              targets: contract_addresses[chain],
-              toBlock: toBlock,
-              fromBlock: fromBlock,
-              chain: chain,
-              topics: [topic0],
-            })
-          )
-        )) as ILog[][]
-      ).reduce((acc, curr) => [...acc, ...curr], []);
+    const marketLogs: ILog[] = (
+      (await Promise.all(
+        topic0_market_ex.map(async (topic0) =>
+          sdk.getEventLogs({
+            targets: contract_addresses[chain],
+            toBlock: toBlock,
+            fromBlock: fromBlock,
+            chain: chain,
+            topics: [topic0],
+          })
+        )
+      )) as ILog[][]
+    ).reduce((acc, curr) => [...acc, ...curr], []);
 
-      const limit_volume = limitLogs
-        .map((e: ILog) => {
-          const data = e.data.replace("0x", "");
-          const leverage = Number("0x" + data.slice(512, 576));
-          const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
-          const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
-          return leverage * positionSizeDai * collateralPrice;
-        })
-        .reduce((a: number, b: number) => a + b, 0);
+    const limit_volume = limitLogs
+      .map((e: ILog) => {
+        const data = e.data.replace("0x", "");
+        const leverage = Number("0x" + data.slice(512, 576));
+        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
+        const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
+        return leverage * positionSizeDai * collateralPrice;
+      })
+      .reduce((a: number, b: number) => a + b, 0);
 
-      const market_volume = marketLogs
-        .map((e: ILog) => {
-          const data = e.data.replace("0x", "");
-          const leverage = Number("0x" + data.slice(448, 512));
-          const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
-          const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
-          return leverage * positionSizeDai * collateralPrice;
-        })
-        .reduce((a: number, b: number) => a + b, 0);
+    const market_volume = marketLogs
+      .map((e: ILog) => {
+        const data = e.data.replace("0x", "");
+        const leverage = Number("0x" + data.slice(448, 512));
+        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
+        const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
+        return leverage * positionSizeDai * collateralPrice;
+      })
+      .reduce((a: number, b: number) => a + b, 0);
 
-      const dailyVolume = limit_volume + market_volume;
+    const dailyVolume = limit_volume + market_volume;
 
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return {
+      dailyVolume: `${dailyVolume}`,
+      timestamp,
+    };
   };
 };
 

@@ -20,29 +20,24 @@ interface ILog {
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const toTimestamp = timestamp;
   const fromTimestamp = timestamp - 60 * 60 * 24;
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
-    const logs: ILog[] = (await Promise.all(list_from_addres_hex.map((topic1: string) => sdk.getEventLogs({
-      target: usdc,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.POLYGON,
-      topics: [topic0, topic1, topic2]
-    })))).flat();
-    const dailyFees = logs.map((e: ILog) => {
-      const value = Number(e.data) / 10 ** 6;
-      return value;
-    }).reduce((a: number, b: number) => a + b, 0)
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
+  const logs: ILog[] = (await Promise.all(list_from_addres_hex.map((topic1: string) => sdk.getEventLogs({
+    target: usdc,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.POLYGON,
+    topics: [topic0, topic1, topic2]
+  })))).flat();
+  const dailyFees = logs.map((e: ILog) => {
+    const value = Number(e.data) / 10 ** 6;
+    return value;
+  }).reduce((a: number, b: number) => a + b, 0)
 
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
-      timestamp
-    }
-  } catch  (error) {
-    console.error(error);
-    throw error;
+  return {
+    dailyFees: `${dailyFees}`,
+    dailyRevenue: `${dailyFees}`,
+    timestamp
   }
 
 }

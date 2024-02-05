@@ -46,7 +46,6 @@ const graph = (chain: Chain) => {
       }
     } catch (error) {
       indexa.end({ timeout: 3 });
-      console.error(error);
       throw error;
     }
   }

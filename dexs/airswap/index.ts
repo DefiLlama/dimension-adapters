@@ -4,14 +4,14 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers,  } from "ethers";
+import { ethers, } from "ethers";
 
 interface ITx {
   data: string;
   transactionHash: string;
   topics: string[];
 }
-interface IData  {
+interface IData {
   signerAmount: number;
   signerToken: string;
 }
@@ -38,42 +38,37 @@ const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-    try {
-      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-      const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ITx[] = (await sdk.getEventLogs({
-        target: address[chain],
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic0]
-      })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx});
-      const rawData = logs.map((e: ITx) => {
-        const data = contract_interface.parseLog(e);
-        return {
-          signerAmount: Number(data!.args.signerAmount),
-          signerToken: data!.args.signerToken,
-        }
-      })
-        const rawCoins = rawData.map((e: IData) => `${chain}:${e.signerToken.toLowerCase()}`);
-        const coins = [...new Set(rawCoins)]
-        const prices = await getPrices(coins, timestamp);
-        const untrackVolumes: number[] =  rawData.map((e: IData) => {
-          const decimals = prices[`${chain}:${e.signerToken.toLowerCase()}`].decimals;
-          const price = prices[`${chain}:${e.signerToken.toLowerCase()}`].price;
-          return (Number(e.signerAmount) / 10 ** decimals) * price;
-        });
+    const logs: ITx[] = (await sdk.getEventLogs({
+      target: address[chain],
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic0]
+    })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash, topics: e.topics } as ITx });
+    const rawData = logs.map((e: ITx) => {
+      const data = contract_interface.parseLog(e);
+      return {
+        signerAmount: Number(data!.args.signerAmount),
+        signerToken: data!.args.signerToken,
+      }
+    })
+    const rawCoins = rawData.map((e: IData) => `${chain}:${e.signerToken.toLowerCase()}`);
+    const coins = [...new Set(rawCoins)]
+    const prices = await getPrices(coins, timestamp);
+    const untrackVolumes: number[] = rawData.map((e: IData) => {
+      const decimals = prices[`${chain}:${e.signerToken.toLowerCase()}`].decimals;
+      const price = prices[`${chain}:${e.signerToken.toLowerCase()}`].price;
+      return (Number(e.signerAmount) / 10 ** decimals) * price;
+    });
 
-        const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
-        return {
-          dailyVolume: `${dailyVolume}`,
-          timestamp,
-        };
-    } catch(error) {
-      console.error(error);
-      throw error;
-    }
+    const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
+    return {
+      dailyVolume: `${dailyVolume}`,
+      timestamp,
+    };
   }
 }
 

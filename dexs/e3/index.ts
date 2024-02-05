@@ -4,7 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers,	} from "ethers";
+import { ethers, } from "ethers";
 
 interface ILog {
 	data: string;
@@ -27,94 +27,88 @@ type TABI = {
 	[k: string]: string;
 }
 const ABIs: TABI = {
-  "getNumberOfLBPairs": "uint256:getNumberOfLBPairs",
-  "getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
+	"getNumberOfLBPairs": "uint256:getNumberOfLBPairs",
+	"getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
 }
 
 const graph = (_chain: Chain) => {
 	return async (timestamp: number) => {
 		const fromTimestamp = timestamp - 60 * 60 * 24
 		const toTimestamp = timestamp
-		try {
+		const poolLength = (await sdk.api2.abi.call({
+			target: FACTORY_ADDRESS,
+			chain: _chain,
+			abi: ABIs.getNumberOfLBPairs,
+		}));
 
-			const poolLength = (await sdk.api2.abi.call({
+		const poolsRes = await sdk.api2.abi.multiCall({
+			abi: ABIs.getLBPairAtIndex,
+			calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
 				target: FACTORY_ADDRESS,
-				chain: _chain,
-				abi: ABIs.getNumberOfLBPairs,
-			}));
+				params: i,
+			})),
+			chain: _chain
+		});
 
-			const poolsRes = await sdk.api2.abi.multiCall({
-				abi: ABIs.getLBPairAtIndex,
-				calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-					target: FACTORY_ADDRESS,
-					params: i,
-				})),
-				chain: _chain
-			});
+		const lpTokens = poolsRes
 
-			const lpTokens = poolsRes
+		const [underlyingToken0, underlyingToken1] = await Promise.all(
+			['address:getTokenX', 'address:getTokenY'].map((abi: string) =>
+				sdk.api2.abi.multiCall({
+					abi,
+					calls: lpTokens,
+					chain: _chain
+				})
+			)
+		);
 
-			const [underlyingToken0, underlyingToken1] = await Promise.all(
-				['address:getTokenX', 'address:getTokenY'].map((abi: string) =>
-					sdk.api2.abi.multiCall({
-						abi,
-						calls: lpTokens,
-						chain: _chain
-					})
-				)
-			);
+		const tokens0 = underlyingToken0;
+		const tokens1 = underlyingToken1;
+		const fromBlock = (await getBlock(fromTimestamp, _chain, {}));
+		const toBlock = (await getBlock(toTimestamp, _chain, {}));
 
-			const tokens0 = underlyingToken0;
-			const tokens1 = underlyingToken1;
-			const fromBlock = (await getBlock(fromTimestamp, _chain, {}));
-			const toBlock = (await getBlock(toTimestamp, _chain, {}));
+		const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
+			target: address,
+			toBlock: toBlock,
+			fromBlock: fromBlock,
+			chain: _chain,
+			topics: [topic0]
+		})))) as any;
 
-			const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
-				target: address,
-				toBlock: toBlock,
-				fromBlock: fromBlock,
-				chain: _chain,
-				topics: [topic0]
-			})))) as any;
-
-				const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${_chain}:${e}`);
-				const coins = [...new Set(rawCoins)]
-				const prices = await getPrices(coins, timestamp);
+		const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${_chain}:${e}`);
+		const coins = [...new Set(rawCoins)]
+		const prices = await getPrices(coins, timestamp);
 
 
-				const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
-					const token0Decimals = prices[`${_chain}:${tokens0[index]}`]?.decimals || 0
-					const token1Decimals = prices[`${_chain}:${tokens1[index]}`]?.decimals || 0
-					const log: IAmount[] = logs[index]
-						.map((e: ILog) => { return { ...e } })
-						.map((p: ILog) => {
-							const value = contract_interface.parseLog(p);
-							const amountInX = Number('0x'+'0'.repeat(32)+value!.args.amountsIn.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
-							const amountInY = Number('0x'+'0'.repeat(32)+value!.args.amountsIn.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
-							return {
-								amountInX,
-								amountInY,
-							} as IAmount
-						}) as IAmount[];
+		const untrackVolumes: number[] = lpTokens.map((_: string, index: number) => {
+			const token0Decimals = prices[`${_chain}:${tokens0[index]}`]?.decimals || 0
+			const token1Decimals = prices[`${_chain}:${tokens1[index]}`]?.decimals || 0
+			const log: IAmount[] = logs[index]
+				.map((e: ILog) => { return { ...e } })
+				.map((p: ILog) => {
+					const value = contract_interface.parseLog(p);
+					const amountInX = Number('0x' + '0'.repeat(32) + value!.args.amountsIn.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
+					const amountInY = Number('0x' + '0'.repeat(32) + value!.args.amountsIn.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
+					return {
+						amountInX,
+						amountInY,
+					} as IAmount
+				}) as IAmount[];
 
-					const token0Price = (prices[`${_chain}:${tokens0[index]}`]?.price || 0);
-					const token1Price = (prices[`${_chain}:${tokens1[index]}`]?.price || 0);
-					const totalAmountInX = log
-						.reduce((a: number, b: IAmount) => Number(b.amountInX) + a, 0)	* token1Price;
-					const totalAmountInY = log
-						.reduce((a: number, b: IAmount) => Number(b.amountInY) + a, 0)	* token0Price;
-					const untrackAmountUSD = (totalAmountInX + totalAmountInY); // counted only we have price data
-					return untrackAmountUSD;
-				});
-				const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
-				return {
-					dailyVolume: `${dailyVolume}`,
-					timestamp,
-				};
-		} catch(error) {
-			console.error(error);
-			throw error;
-		}
+			const token0Price = (prices[`${_chain}:${tokens0[index]}`]?.price || 0);
+			const token1Price = (prices[`${_chain}:${tokens1[index]}`]?.price || 0);
+			const totalAmountInX = log
+				.reduce((a: number, b: IAmount) => Number(b.amountInX) + a, 0) * token1Price;
+			const totalAmountInY = log
+				.reduce((a: number, b: IAmount) => Number(b.amountInY) + a, 0) * token0Price;
+			const untrackAmountUSD = (totalAmountInX + totalAmountInY); // counted only we have price data
+			return untrackAmountUSD;
+		});
+		const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
+		return {
+			dailyVolume: `${dailyVolume}`,
+			timestamp,
+		};
 	}
 }
 

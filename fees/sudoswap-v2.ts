@@ -64,7 +64,6 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     }
   } catch (e) {
     await sql.end({ timeout: 3 })
-    console.error(e)
     throw e;
   }
 }

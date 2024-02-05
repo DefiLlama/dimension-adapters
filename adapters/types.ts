@@ -17,9 +17,32 @@ export type FetchResultGeneric = FetchResultBase & {
   [key: string]: FetchResponseValue | undefined;
 }
 
+export type FetchOptions = {
+  createBalances: () => Balances;
+  getBlock: (timestamp: number, chain: string, chainBlocks: ChainBlocks) => Promise<number>;
+  getLogs: (params: FetchGetLogsOptions) => Promise<any[]>;
+  toTimestamp: number;
+  fromTimestamp: number;
+  getFromBlock: () => Promise<number>;
+  getToBlock: () => Promise<number>;
+  chain: string,
+}
+
+export type FetchGetLogsOptions = {
+  eventAbi: string,
+  target?: string,
+  targets?: string[],
+  onlyArgs?: boolean,
+  fromBlock?: number,
+  toBlock?: number,
+  flatten?: boolean,
+  topics?: string[],
+}
+
 export type Fetch = (
   timestamp: number,
-  chainBlocks: ChainBlocks
+  chainBlocks: ChainBlocks,
+  options?: FetchOptions,
 ) => Promise<FetchResult>;
 
 export type IStartTimestamp = () => Promise<number>

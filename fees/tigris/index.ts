@@ -46,36 +46,23 @@ function startOfDayTimestamp(timestamp: number): number {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      const dataPoints = await fetchFromAPI(chain, timestamp);
+    const dataPoints = await fetchFromAPI(chain, timestamp);
 
-      const adjustedTimestamp = startOfDayTimestamp(timestamp);
+    const adjustedTimestamp = startOfDayTimestamp(timestamp);
 
-      const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
-      if (!matchingData) {
-        console.warn(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
-        return {
-          dailyFees: '0',
-          dailyRevenue: '0',
-          dailyProtocolRevenue: '0',
-          dailyHoldersRevenue: '0',
-          timestamp: adjustedTimestamp,
-          totalFees: '0'
-        };
-      }
+    if (!matchingData)
+      throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
+    
 
-      return {
-        dailyFees: matchingData.dailyFees.toString(),
-        dailyRevenue: matchingData.dailyRevenue.toString(),
-        dailyProtocolRevenue: matchingData.dailyProtocolRevenue.toString(),
-        dailyHoldersRevenue: matchingData.dailyHoldersRevenue.toString(),
-        timestamp: matchingData.day,
-        totalFees: matchingData.totalFees.toString()
-      }
-    } catch (e) {
-      console.error(e);
-      throw e;
+    return {
+      dailyFees: matchingData.dailyFees.toString(),
+      dailyRevenue: matchingData.dailyRevenue.toString(),
+      dailyProtocolRevenue: matchingData.dailyProtocolRevenue.toString(),
+      dailyHoldersRevenue: matchingData.dailyHoldersRevenue.toString(),
+      timestamp: matchingData.day,
+      totalFees: matchingData.totalFees.toString()
     }
   }
 }

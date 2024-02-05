@@ -25,108 +25,103 @@ interface IFee {
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-    const logs_reserveAuction_finalized: IFee[] = (await sdk.getEventLogs({
-      target: market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_reserveAuction_finalized]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(0, 64)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const logs_private_sale_finalized: IFee[] = (await sdk.getEventLogs({
-      target: market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_private_sale_finalized]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const logs_buyPrice_accepted: IFee[] = (await sdk.getEventLogs({
-      target: market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_buyPrice_accepted]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const logs_offer_accepted: IFee[] = (await sdk.getEventLogs({
-      target: market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_offer_accepted]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const logs_mint_from_fixed_price_drop: IFee[] = (await sdk.getEventLogs({
-      target: nft_drop_market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_mint_from_fixed_price_drop]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const logs_withdraw_creator_revenue_from_dutch_auction: IFee[] = (await sdk.getEventLogs({
-      target: nft_drop_market_address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic_0_withdraw_creator_revenue_from_dutch_auction]
-    })).map((e: any) => {
-      const amount = Number('0x' + e.data.replace('0x', '').slice(128, 192)) / 10 **  18;
-      return {
-        totalFees: amount
-      }
-    });
-
-    const total_logs = [
-      ...logs_reserveAuction_finalized,
-      ...logs_private_sale_finalized,
-      ...logs_buyPrice_accepted,
-      ...logs_offer_accepted,
-      ...logs_mint_from_fixed_price_drop,
-      ...logs_withdraw_creator_revenue_from_dutch_auction,
-    ]
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    const totalFees = total_logs.reduce((a: number, b: IFee) => a + b.totalFees, 0)
-    const dailyFees = totalFees * ethPrice
-    const dailyRevenue = dailyFees;
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
+  const logs_reserveAuction_finalized: IFee[] = (await sdk.getEventLogs({
+    target: market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_reserveAuction_finalized]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(0, 64)) / 10 ** 18;
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      timestamp
+      totalFees: amount
     }
-  } catch (error) {
-    console.error(error);
-    throw error;
+  });
+
+  const logs_private_sale_finalized: IFee[] = (await sdk.getEventLogs({
+    target: market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_private_sale_finalized]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 ** 18;
+    return {
+      totalFees: amount
+    }
+  });
+
+  const logs_buyPrice_accepted: IFee[] = (await sdk.getEventLogs({
+    target: market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_buyPrice_accepted]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 ** 18;
+    return {
+      totalFees: amount
+    }
+  });
+
+  const logs_offer_accepted: IFee[] = (await sdk.getEventLogs({
+    target: market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_offer_accepted]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 ** 18;
+    return {
+      totalFees: amount
+    }
+  });
+
+  const logs_mint_from_fixed_price_drop: IFee[] = (await sdk.getEventLogs({
+    target: nft_drop_market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_mint_from_fixed_price_drop]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(64, 128)) / 10 ** 18;
+    return {
+      totalFees: amount
+    }
+  });
+
+  const logs_withdraw_creator_revenue_from_dutch_auction: IFee[] = (await sdk.getEventLogs({
+    target: nft_drop_market_address,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic_0_withdraw_creator_revenue_from_dutch_auction]
+  })).map((e: any) => {
+    const amount = Number('0x' + e.data.replace('0x', '').slice(128, 192)) / 10 ** 18;
+    return {
+      totalFees: amount
+    }
+  });
+
+  const total_logs = [
+    ...logs_reserveAuction_finalized,
+    ...logs_private_sale_finalized,
+    ...logs_buyPrice_accepted,
+    ...logs_offer_accepted,
+    ...logs_mint_from_fixed_price_drop,
+    ...logs_withdraw_creator_revenue_from_dutch_auction,
+  ]
+  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+  const totalFees = total_logs.reduce((a: number, b: IFee) => a + b.totalFees, 0)
+  const dailyFees = totalFees * ethPrice
+  const dailyRevenue = dailyFees;
+  return {
+    dailyFees: `${dailyFees}`,
+    dailyRevenue: `${dailyRevenue}`,
+    timestamp
   }
 }
 
@@ -134,8 +129,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch,
-        start: async ()  => 1612137600,
+      fetch: fetch,
+      start: async () => 1612137600,
     },
   }
 }

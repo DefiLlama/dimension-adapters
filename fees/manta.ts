@@ -100,7 +100,6 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
     };
   } catch (error) {
     await sql.end({ timeout: 3 });
-    console.error(error);
     throw error;
   }
 };

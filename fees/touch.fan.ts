@@ -98,7 +98,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             timestamp
         }
     } catch (error) {
-        console.error(error)
         throw error;
     }
 

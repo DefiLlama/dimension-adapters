@@ -14,7 +14,7 @@ type TBrokerID = {
 }
 const brokerID: TBrokerID = {
   [CHAIN.BSC]: [2],
-  [CHAIN.ARBITRUM]: [1,2]
+  [CHAIN.ARBITRUM]: [1, 2]
 }
 const contract_address: TID = {
   [CHAIN.BSC]: '2826941',
@@ -35,21 +35,16 @@ interface IData {
 
 const fetchVolume = (chain: Chain) => {
   return async (timestamp: number) => {
-    try {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-      const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-      const query: IData[] = (await queryDune(contract_address[chain]))
-      // const query: IData[] = require(`./${chain}.json`);
-      const dailyVolume = query.find((e: IData) => e.dt.split(' ')[0] === dateString)?.volume;
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
+    const query: IData[] = (await queryDune(contract_address[chain]))
+    // const query: IData[] = require(`./${chain}.json`);
+    const dailyVolume = query.find((e: IData) => e.dt.split(' ')[0] === dateString)?.volume;
 
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return {
+      dailyVolume: `${dailyVolume}`,
+      timestamp,
+    };
   };
 };
 

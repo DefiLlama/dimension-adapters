@@ -20,32 +20,31 @@ interface ILog {
 
 const fetch = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const dayAgo = todaysTimestamp - 60 * 60 * 24;
-      const fromBlock = await getBlock(dayAgo, CHAIN.ETHEREUM, {});
-			const toBlock = await getBlock(todaysTimestamp, CHAIN.ETHEREUM, {});
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+    const dayAgo = todaysTimestamp - 60 * 60 * 24;
+    const fromBlock = await getBlock(dayAgo, CHAIN.ETHEREUM, {});
+    const toBlock = await getBlock(todaysTimestamp, CHAIN.ETHEREUM, {});
 
-      const logs: ILog[] = (await sdk.getEventLogs({
-        target: OLIT_TOKEN,
-        topic: topic,
-        toBlock,
-        fromBlock,
-        chain: CHAIN.ETHEREUM,
-        topics: [topic0, topic1, topic2]
-      })) as ILog[];
+    const logs: ILog[] = (await sdk.getEventLogs({
+      target: OLIT_TOKEN,
+      topic: topic,
+      toBlock,
+      fromBlock,
+      chain: CHAIN.ETHEREUM,
+      topics: [topic0, topic1, topic2]
+    })) as ILog[];
 
-    const olit_transfer_amounts: number[] = logs.map((e:any) => {
+    const olit_transfer_amounts: number[] = logs.map((e: any) => {
       return Number(e.data) / 10 ** 18;
     });
 
     const litAddress = `ethereum:${LIT.toLowerCase()}`;
     const litPrice = (await getPrices([litAddress], todaysTimestamp))[litAddress].price;
 
-    const olit_transfer_amount = olit_transfer_amounts.reduce((a: number, b: number) => a+b,0);
+    const olit_transfer_amount = olit_transfer_amounts.reduce((a: number, b: number) => a + b, 0);
     const dailyFee = olit_transfer_amount * (litPrice / 2);
     const dailySupplySideRevenue = dailyFee * .75
-    const dailyRevenue =  dailyFee * .25;
+    const dailyRevenue = dailyFee * .25;
     const dailyHoldersRevenue = dailyFee * .03;
 
     return {
@@ -55,17 +54,14 @@ const fetch = () => {
       dailySupplySideRevenue: dailySupplySideRevenue.toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
     } as FetchResultFees
-    } catch (error) {
-      throw error
-    }
   }
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(),
-        start: async ()  => 1693380630,
+      fetch: fetch(),
+      start: async () => 1693380630,
     },
   },
 

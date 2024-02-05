@@ -58,7 +58,7 @@ const build_query_rev = (timestamp: number) => {
       `).join(" union all ");
 }
 
-const toHexTopic  = (multisigs: string[])  => multisigs
+const toHexTopic = (multisigs: string[]) => multisigs
   .map((multisig: string) => multisig.replace('0x', ''))
   .map((multisig: string) => multisig.padStart(64, '0'))
   .map((multisig: string) => `0x${multisig}`);
@@ -82,84 +82,80 @@ const build_query = (timestamp: number) => {
 const fetch = (chain: Chain, gasToken: string) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
 
-      try {
-        let revenues : IFee[] = [];
+    let revenues: IFee[] = [];
 
-        const query = build_query_rev(timestamp)
+    const query = build_query_rev(timestamp)
 
-        const ethRevenues: any[] = (await queryFlipside(query, 260))
-          .map(([eth_revenue, chain]: [string, string]) => {
-            return {
-              eth_revenue,
-              chain
-            }
-          }).filter((e: any) => e.chain === chain);
-
-        const ethRevenue = ethRevenues.map((e: any) => {
-            const revenue =  Number(e.eth_value)
-            return {
-              volume: revenue,
-              contract_address: gasToken,
-            } as IFee
-        });
-
-        revenues = revenues.concat(ethRevenue)
-
-        const queryTokens = build_query(timestamp)
-        const tokenRevenues: any[] = (await queryFlipside(queryTokens, 360))
-          .map(([data, contract_address, chain]: [string, string, string]) => {
-            return {
-              data,
-              contract_address,
-              chain
-            }
-          }).filter((e: any) => e.chain === chain);
-
-        const tokenRevenue = tokenRevenues.map((e: any) => {
-            const volume =  Number(e.data)
-            return {
-              volume: volume,
-              contract_address: e.contract_address,
-            } as IFee
-        });
-
-        revenues = revenues.concat(tokenRevenue)
-
-        const coins = [...new Set(
-            revenues.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase())
-        )];
-
-        const coins_split = [];
-        for(let i = 0; i < coins.length; i+=100) {
-          coins_split.push(coins.slice(i, i + 100))
-        }
-
-        const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
-        const prices: TPrice = Object.assign({}, {});
-
-        prices_result.map((a: any) => Object.assign(prices, a))
-
-        const amounts = revenues.map((p: IFee) => {
-          const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
-          const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
-          return (p.volume / 10 ** decimals) * price;
-        })
-
-        const volume = amounts
-          .filter((e: any) => !isNaN(e))
-          .filter((e: number) => e < 100_000_000)
-          .reduce((a: number, b: number) => a+b, 0);
-        const dailyFees = volume;
-
+    const ethRevenues: any[] = (await queryFlipside(query, 260))
+      .map(([eth_revenue, chain]: [string, string]) => {
         return {
-          timestamp: timestamp,
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: dailyFees.toString(),
-          dailyProtocolRevenue: dailyFees.toString(),
-        } as FetchResultFees
-      } catch (error) {
-        throw error
-      }
+          eth_revenue,
+          chain
+        }
+      }).filter((e: any) => e.chain === chain);
+
+    const ethRevenue = ethRevenues.map((e: any) => {
+      const revenue = Number(e.eth_value)
+      return {
+        volume: revenue,
+        contract_address: gasToken,
+      } as IFee
+    });
+
+    revenues = revenues.concat(ethRevenue)
+
+    const queryTokens = build_query(timestamp)
+    const tokenRevenues: any[] = (await queryFlipside(queryTokens, 360))
+      .map(([data, contract_address, chain]: [string, string, string]) => {
+        return {
+          data,
+          contract_address,
+          chain
+        }
+      }).filter((e: any) => e.chain === chain);
+
+    const tokenRevenue = tokenRevenues.map((e: any) => {
+      const volume = Number(e.data)
+      return {
+        volume: volume,
+        contract_address: e.contract_address,
+      } as IFee
+    });
+
+    revenues = revenues.concat(tokenRevenue)
+
+    const coins = [...new Set(
+      revenues.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase())
+    )];
+
+    const coins_split = [];
+    for (let i = 0; i < coins.length; i += 100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+
+    const prices_result: any = (await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+
+    prices_result.map((a: any) => Object.assign(prices, a))
+
+    const amounts = revenues.map((p: IFee) => {
+      const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
+      const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
+      return (p.volume / 10 ** decimals) * price;
+    })
+
+    const volume = amounts
+      .filter((e: any) => !isNaN(e))
+      .filter((e: number) => e < 100_000_000)
+      .reduce((a: number, b: number) => a + b, 0);
+    const dailyFees = volume;
+
+    return {
+      timestamp: timestamp,
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyFees.toString(),
+      dailyProtocolRevenue: dailyFees.toString(),
+    } as FetchResultFees
   }
 }
 
@@ -171,49 +167,49 @@ const methodology = {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM,
+      fetch: fetch(CHAIN.ETHEREUM,
         "0x0000000000000000000000000000000000000000"),
-        start: async ()  => 1672531200,
-        meta: {
-          methodology
-        }
+      start: 1672531200,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM,
-      "0x0000000000000000000000000000000000000000"),
-      start: async ()  => 1672531200,
+        "0x0000000000000000000000000000000000000000"),
+      start: 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM,
-      "0x0000000000000000000000000000000000000000"),
-      start: async ()  => 1672531200,
+        "0x0000000000000000000000000000000000000000"),
+      start: 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE,
-      "0x0000000000000000000000000000000000000000"),
-      start: async ()  => 1672531200,
+        "0x0000000000000000000000000000000000000000"),
+      start: 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON,
-      "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0"),
-      start: async ()  => 1672531200,
+        "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0"),
+      start: 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC,
-      "0xb8c77482e45f1f44de1745f52c74426c631bdd52"),
-      start: async ()  => 1672531200,
+        "0xb8c77482e45f1f44de1745f52c74426c631bdd52"),
+      start: 1672531200,
       meta: {
         methodology
       }

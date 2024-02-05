@@ -31,25 +31,20 @@ const fetch = (chain: Chain) => {
     const fromTimestamp = timestamp - 60 * 60 * 24;
     const toTimestamp = timestamp;
     const api = new sdk.ChainApi({ chain, timestamp });
-    try {
-      const data: IData[] = (await api.getLogs({
-        target: contract[chain],
-        fromTimestamp, toTimestamp,
-        chain: chain,
-        onlyArgs: true,
-        eventAbi: 'event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)'
-      })) as any
-      console.log(data.length, chain)
-      data.forEach((e: IData) => api.add(e.toAssetId, e.toAmount));
-      const { usdTvl } = await api.getUSDJSONs()
-      return {
-        dailyVolume: Number(usdTvl).toFixed(0),
-        timestamp,
-      } as any;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    const data: IData[] = (await api.getLogs({
+      target: contract[chain],
+      fromTimestamp, toTimestamp,
+      chain: chain,
+      onlyArgs: true,
+      eventAbi: 'event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)'
+    })) as any
+    console.log(data.length, chain)
+    data.forEach((e: IData) => api.add(e.toAssetId, e.toAmount));
+    const { usdTvl } = await api.getUSDJSONs()
+    return {
+      dailyVolume: Number(usdTvl).toFixed(0),
+      timestamp,
+    } as any;
   };
 };
 

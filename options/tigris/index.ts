@@ -39,35 +39,22 @@ function startOfDayTimestamp(timestamp: number): number {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
-    try {
-      const dataPoints = await fetchFromAPI(chain, timestamp);
+    const dataPoints = await fetchFromAPI(chain, timestamp);
 
-      const adjustedTimestamp = startOfDayTimestamp(timestamp);
+    const adjustedTimestamp = startOfDayTimestamp(timestamp);
 
-      const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
-      if (!matchingData) {
-        console.warn(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
-        return {
-          dailyNotionalVolume: '0',
-          totalNotionalVolume: '0',
-          dailyPremiumVolume: '0',
-          totalPremuimVolume: '0',
-          timestamp: adjustedTimestamp
-        };
-      }
+    if (!matchingData)
+      throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
 
-      return {
-        dailyPremiumVolume: '0',
-        totalPremuimVolume: '0',
-        dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-        totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
-        timestamp: matchingData.day
-      };
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
+    return {
+      dailyPremiumVolume: '0',
+      totalPremuimVolume: '0',
+      dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
+      totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
+      timestamp: matchingData.day
+    };
   }
 }
 

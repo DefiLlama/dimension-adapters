@@ -18,30 +18,25 @@ interface ILog {
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const toTimestamp = timestamp;
   const fromTimestamp = timestamp - 60 * 60 * 24;
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
+  const fromBlock = (await getBlock(fromTimestamp, CHAIN.POLYGON, {}));
+  const toBlock = (await getBlock(toTimestamp, CHAIN.POLYGON, {}));
 
-    const logs: ILog[] = (await sdk.getEventLogs({
-      target: usdc,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.POLYGON,
-      topics: [topic0_evt_transfer, topic1_evt_transfer, topic2_evt_transfer]
-    })) as ILog[];
-    const dailyFees = logs.reduce((acc: number, log: ILog) => {
-      const amount = Number(log.data) / 10 ** 6;
-      return acc + amount;
-    }, 0);
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyHoldersRevenue: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
-      timestamp
-    }
-  } catch (error) {
-    console.error(error)
-    throw error;
+  const logs: ILog[] = (await sdk.getEventLogs({
+    target: usdc,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.POLYGON,
+    topics: [topic0_evt_transfer, topic1_evt_transfer, topic2_evt_transfer]
+  })) as ILog[];
+  const dailyFees = logs.reduce((acc: number, log: ILog) => {
+    const amount = Number(log.data) / 10 ** 6;
+    return acc + amount;
+  }, 0);
+  return {
+    dailyFees: `${dailyFees}`,
+    dailyHoldersRevenue: `${dailyFees}`,
+    dailyRevenue: `${dailyFees}`,
+    timestamp
   }
 }
 

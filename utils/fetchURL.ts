@@ -22,13 +22,11 @@ export async function postURL(url: string, data: any, retries = 3) {
 
 function formAxiosError(url: string, error: any, options?: any) {
   let e = new Error((error as any)?.message)
-  try {
-    const axiosError = (error as any)?.response?.data?.message || (error as any)?.response?.data?.error || (error as any)?.response?.statusText || (error as any)?.response?.data;
-    (e as any).url = url;
-    Object.keys(options || {}).forEach((key) => (e as any)[key] = options[key]);
-    if (axiosError) (e as any).axiosError = axiosError;
-    delete (e as any).stack
-  } catch { }
+  const axiosError = (error as any)?.response?.data?.message || (error as any)?.response?.data?.error || (error as any)?.response?.statusText || (error as any)?.response?.data;
+  (e as any).url = url;
+  Object.keys(options || {}).forEach((key) => (e as any)[key] = options[key]);
+  if (axiosError) (e as any).axiosError = axiosError;
+  delete (e as any).stack
   return e
 }
 

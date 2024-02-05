@@ -22,13 +22,12 @@ const fetch = (chain: Chain) => {
 
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-      try {
 
-        const startblock = (await getBlock(fromTimestamp, chain, {}));
-        const endblock = (await getBlock(toTimestamp, chain, {}));
+    const startblock = (await getBlock(fromTimestamp, chain, {}));
+    const endblock = (await getBlock(toTimestamp, chain, {}));
 
 
-      const query =`
+    const query = `
         SELECT
           data,
           contract_address
@@ -41,43 +40,40 @@ const fetch = (chain: Chain) => {
       `;
 
 
-      const logs: [string, string][] = (await queryFlipside(query, 260))
-      const log = logs.map(([data, contract_address]: [string, string]) => {
-          const volume =  Number(data)
-        return {
-          volume: volume,
-          contract_address: contract_address,
-        } as IFee
-      });
-      const coins = [...new Set(log.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase()))]
-      const coins_split = [];
-      for(let i = 0; i < coins.length; i+=100) {
-        coins_split.push(coins.slice(i, i + 100))
-      }
-      const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
-      const prices: TPrice = Object.assign({}, {});
-      prices_result.map((a: any) => Object.assign(prices, a))
-      const amounts = log.map((p: IFee) => {
-        const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
-        const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
-        return (p.volume / 10 ** decimals) * price;
-      })
-      const volume = amounts
-        .filter((e: any) => !isNaN(e))
-        .filter((e: number) => e < 100_000_000)
-        .reduce((a: number, b: number) => a+b, 0);
-      const dailyFees = volume * .0085;
-
+    const logs: [string, string][] = (await queryFlipside(query, 260))
+    const log = logs.map(([data, contract_address]: [string, string]) => {
+      const volume = Number(data)
       return {
-        timestamp: timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyFees.toString(),
-        dailyProtocolRevenue: dailyFees.toString(),
-      } as FetchResultFees
+        volume: volume,
+        contract_address: contract_address,
+      } as IFee
+    });
+    const coins = [...new Set(log.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase()))]
+    const coins_split = [];
+    for (let i = 0; i < coins.length; i += 100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any = (await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
+    const amounts = log.map((p: IFee) => {
+      const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
+      const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
+      return (p.volume / 10 ** decimals) * price;
+    })
+    const volume = amounts
+      .filter((e: any) => !isNaN(e))
+      .filter((e: number) => e < 100_000_000)
+      .reduce((a: number, b: number) => a + b, 0);
+    const dailyFees = volume * .0085;
 
-      } catch (error) {
-        throw error
-      }
+    return {
+      timestamp: timestamp,
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyFees.toString(),
+      dailyProtocolRevenue: dailyFees.toString(),
+    } as FetchResultFees
+
   }
 }
 
@@ -89,36 +85,36 @@ const methodology = {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM),
-        start: async ()  => 1672531200,
-        meta: {
-          methodology
-        }
+      fetch: fetch(CHAIN.ETHEREUM),
+      start: async () => 1672531200,
+      meta: {
+        methodology
+      }
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1672531200,
+      start: async () => 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1672531200,
+      start: async () => 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1672531200,
+      start: async () => 1672531200,
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1672531200,
+      start: async () => 1672531200,
       meta: {
         methodology
       }

@@ -136,7 +136,6 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
         };
     } catch (error) {
         await sql.end({ timeout: 3 })
-        console.error(error);
         throw error;
     }
 

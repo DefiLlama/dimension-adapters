@@ -8,21 +8,14 @@ const url_trades = 'https://api-core.caviarnine.com/v1.0/stats/product/shapeliqu
 
 const fetchSpot = async (timestamp: number): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
-  try {
-    const orderbookVolume = (await fetchURL(url_orderbook)).summary.volume.interval_1d.usd;
-    dailyVolume += Number(orderbookVolume);
-  } catch (e) {
-    console.error('Failed to fetch orderbook volume', e);
-  }
+  const orderbookVolume = (await fetchURL(url_orderbook)).summary.volume.interval_1d.usd;
+  dailyVolume += Number(orderbookVolume);
 
-  try {
-    const dailyVolumeTrades = (await fetchURL(url_trades)).summary.volume.interval_1d.usd;
-    dailyVolume += Number(dailyVolumeTrades);
-  } catch (e) {
-    console.error('Failed to fetch trades volume', e);
-  }
+  const dailyVolumeTrades = (await fetchURL(url_trades)).summary.volume.interval_1d.usd;
+  dailyVolume += Number(dailyVolumeTrades);
+
   return {
-    dailyVolume: dailyVolume ?  `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp
   }
 }

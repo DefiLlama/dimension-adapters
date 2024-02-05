@@ -46,7 +46,6 @@ const graph = (chain: Chain) => {
       }
     } catch (err) {
       await sql.end({ timeout: 3 })
-      console.log(err);
       throw err;
     }
 
