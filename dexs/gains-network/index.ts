@@ -1,9 +1,6 @@
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 type IAddresses = {
   [s: string | Chain]: string[];
@@ -41,80 +38,58 @@ const contract_addresses: IAddresses = {
   ],
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const toTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+const fetch: any = async (timestamp: number, _, { getLogs, createBalances, chain }): Promise<FetchResultVolume> => {
+  const limitLogs: ILog[] = (
+    (await Promise.all(
+      topic0_limit_ex.map(async (topic0) =>
+        getLogs({
+          targets: contract_addresses[chain],
+          topics: [topic0],
+        })
+      )
+    )) as ILog[][]
+  ).flat();
 
-    const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const toBlock = await getBlock(toTimestamp, chain, {});
-    const limitLogs: ILog[] = (
-      (await Promise.all(
-        topic0_limit_ex.map(async (topic0) =>
-          sdk.getEventLogs({
-            targets: contract_addresses[chain],
-            toBlock: toBlock,
-            fromBlock: fromBlock,
-            chain: chain,
-            topics: [topic0],
-          })
-        )
-      )) as ILog[][]
-    ).reduce((acc, curr) => [...acc, ...curr], []);
+  const marketLogs: ILog[] = (
+    (await Promise.all(
+      topic0_market_ex.map(async (topic0) =>
+        getLogs({
+          targets: contract_addresses[chain],
+          topics: [topic0],
+        })
+      )
+    )) as ILog[][]
+  ).flat();
 
-    const marketLogs: ILog[] = (
-      (await Promise.all(
-        topic0_market_ex.map(async (topic0) =>
-          sdk.getEventLogs({
-            targets: contract_addresses[chain],
-            toBlock: toBlock,
-            fromBlock: fromBlock,
-            chain: chain,
-            topics: [topic0],
-          })
-        )
-      )) as ILog[][]
-    ).reduce((acc, curr) => [...acc, ...curr], []);
+  const limit_volume = limitLogs
+    .map((e: ILog) => {
+      const data = e.data.replace("0x", "");
+      const leverage = Number("0x" + data.slice(512, 576));
+      const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
+      const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
+      return leverage * positionSizeDai * collateralPrice;
+    })
+    .reduce((a: number, b: number) => a + b, 0);
 
-    const limit_volume = limitLogs
-      .map((e: ILog) => {
-        const data = e.data.replace("0x", "");
-        const leverage = Number("0x" + data.slice(512, 576));
-        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
-        const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
-        return leverage * positionSizeDai * collateralPrice;
-      })
-      .reduce((a: number, b: number) => a + b, 0);
+  const market_volume = marketLogs
+    .map((e: ILog) => {
+      const data = e.data.replace("0x", "");
+      const leverage = Number("0x" + data.slice(448, 512));
+      const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
+      const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
+      return leverage * positionSizeDai * collateralPrice;
+    })
+    .reduce((a: number, b: number) => a + b, 0);
 
-    const market_volume = marketLogs
-      .map((e: ILog) => {
-        const data = e.data.replace("0x", "");
-        const leverage = Number("0x" + data.slice(448, 512));
-        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
-        const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
-        return leverage * positionSizeDai * collateralPrice;
-      })
-      .reduce((a: number, b: number) => a + b, 0);
+  const dailyVolume = limit_volume + market_volume;
 
-    const dailyVolume = limit_volume + market_volume;
-
-    return {
-      dailyVolume: `${dailyVolume}`,
-      timestamp,
-    };
-  };
+  return { dailyVolume, timestamp, };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1684972800,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: 1684972800,
-    },
+    [CHAIN.ARBITRUM]: { fetch, start: 1684972800, },
+    [CHAIN.POLYGON]: { fetch, start: 1684972800, },
   },
 };
 

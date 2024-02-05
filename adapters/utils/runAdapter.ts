@@ -1,4 +1,4 @@
-import { Balances, getEventLogs } from '@defillama/sdk'
+import { Balances, ChainApi, getEventLogs } from '@defillama/sdk'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchResultGeneric, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 
@@ -44,20 +44,21 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
 
   function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks) {
+    const closeToCurrentTime = Math.trunc(Date.now() / 1000) - timestamp < 12 * 60 * 60 // 12 hours
+    const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
     const createBalances: () => Balances = () => {
-      const closeToCurrentTime = Math.trunc(Date.now() / 1000) - timestamp < 12 * 60 * 60 // 12 hours
-      return new Balances({ timestamp: closeToCurrentTime ? timestamp : undefined, chain })
+      return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
     }
     const toTimestamp = timestamp - 1
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, })
+      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, })
     }
 
     return {
@@ -69,6 +70,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       getToBlock,
       getLogs,
       chain,
+      api: new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, }),
     }
   }
 

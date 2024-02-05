@@ -1,4 +1,4 @@
-import { Balances, util } from '@defillama/sdk';
+import { Balances, ChainApi, util } from '@defillama/sdk';
 
 const { blocks: { getChainBlocks } } = util
 
@@ -26,10 +26,12 @@ export type FetchOptions = {
   getFromBlock: () => Promise<number>;
   getToBlock: () => Promise<number>;
   chain: string,
+  api: ChainApi,
 }
 
 export type FetchGetLogsOptions = {
-  eventAbi: string,
+  eventAbi?: string,
+  topic?: string,
   target?: string,
   targets?: string[],
   onlyArgs?: boolean,
