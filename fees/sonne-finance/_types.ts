@@ -10,15 +10,9 @@ interface IPrices {
 }
 
 interface IContext {
-  currentTimestamp: number;
-  startTimestamp: number;
-  endTimestamp: number;
-  startBlock: number;
-  endBlock: number;
   markets: string[];
   underlyings: string[];
   reserveFactors: string[];
-  prices: IPrices;
 }
 
 interface IAccrueInterestLog {

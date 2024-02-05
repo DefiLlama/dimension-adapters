@@ -12,7 +12,7 @@ const adapter: Adapter = {
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {
-        fetch: v1Fetch(CHAIN.ARBITRUM),
+        fetch: v1Fetch as any,
         start: 1667088000,
         meta: {
           methodology,
@@ -21,7 +21,7 @@ const adapter: Adapter = {
     },
     v2: {
       [CHAIN.ARBITRUM]: {
-        fetch: v2Fetch,
+        fetch: v2Fetch as any,
         start: 1685404800,
       },
     },

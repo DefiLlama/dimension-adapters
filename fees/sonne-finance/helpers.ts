@@ -1,36 +1,12 @@
-import { CHAIN } from "../../helpers/chains";
 import { comptrollerABI, CTokenABI, veloGaugeAbi } from "./_abi";
-import * as sdk from "@defillama/sdk";
 
-const getAllMarkets = async (
-  unitroller: string,
-  chain: CHAIN
-): Promise<string[]> => {
-  return (
-    await sdk.api2.abi.call({
-      target: unitroller,
-      abi: comptrollerABI.getAllMarkets,
-      chain: chain,
-    })
-  );
+const getAllMarkets = async (unitroller: string, api: any): Promise<string[]> => {
+  return api.call({ target: unitroller, abi: comptrollerABI.getAllMarkets, })
 };
 
-const getMarketDetails = async (markets: string[], chain: CHAIN) => {
-  const underlyings = await sdk.api2.abi.multiCall({
-    calls: markets.map((market: string) => ({
-      target: market,
-    })),
-    abi: CTokenABI.underlying,
-    chain: chain,
-  });
-
-  const reserveFactors = await sdk.api2.abi.multiCall({
-    calls: markets.map((market: string) => ({
-      target: market,
-    })),
-    abi: CTokenABI.reserveFactorMantissa,
-    chain: chain,
-  });
+const getMarketDetails = async (markets: string[], api: any) => {
+  const underlyings = await api.multiCall({ calls: markets, abi: CTokenABI.underlying, });
+  const reserveFactors = await api.multiCall({ calls: markets, abi: CTokenABI.reserveFactorMantissa, });
 
   return {
     underlyings: underlyings,
@@ -42,18 +18,16 @@ const getVeloGaugeDetails = async (
   gauge: string,
   token: string,
   account: string,
-  chain: CHAIN,
+  api: any
 ) => {
-  const lastEarn = await sdk.api2.abi.call({
+  const lastEarn = await api.call({
     target: gauge,
     abi: veloGaugeAbi.lastEarn,
-    chain: chain,
     params: [token, account],
   });
-  const earned = await sdk.api2.abi.call({
+  const earned = await api.call({
     target: gauge,
     abi: veloGaugeAbi.earned,
-    chain: chain,
     params: [token, account],
   });
 

@@ -38,6 +38,7 @@ export type FetchGetLogsOptions = {
   fromBlock?: number,
   toBlock?: number,
   flatten?: boolean,
+  cacheInCloud?: boolean,
   topics?: string[],
 }
 
