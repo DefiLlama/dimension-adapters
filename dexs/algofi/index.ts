@@ -12,7 +12,7 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse = (await fetchURL(URL))?.data.amm.volume.day;
+  const response: IAPIResponse = (await fetchURL(URL)).amm.volume.day;
 
   return {
     dailyVolume: `${response}`,

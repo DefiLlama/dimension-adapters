@@ -16,7 +16,7 @@ interface IRes {
 const url = "https://api.fcon.ai/swapping/token_address/charts/?interval=90";
 const fetch = async (timestamp: number): Promise<FetchResultFees & FetchResultVolume> => {
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const data: IRes = (await fetchURL(url)).data;
+  const data: IRes = (await fetchURL(url));
   const dailyVolume = data.volumes.find((e: IData) => e.date.split('T')[0] === dateString)?.value;
   const dailyFee = data.fees.find((e: IData) => e.date.split('T')[0] === dateString)?.value;
   return {

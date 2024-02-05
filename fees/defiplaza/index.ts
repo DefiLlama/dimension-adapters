@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
 		},
 		[CHAIN.RADIXDLT]: {
 			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`)).data;
+				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
 
 				const dailySupplySideRevenue = daily.feesUSD;
 				const dailyProtocolRevenue = daily.royaltiesUSD;

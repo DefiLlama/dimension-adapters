@@ -59,8 +59,8 @@ const getFees = (chainId: CHAIN_ID) => {
     const parameter = `[{"type":"date/single","value":"${dateTime}","target":["variable",["template-tag","timestamp"]],"id":"eff4a885"}]`
     const feePathUrl = `${feesDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
     const porPathUrl = `${porDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
-    const feeData = (await fetchURL(feePathUrl))?.data.data
-    const por = (await fetchURL(porPathUrl))?.data.data.rows[0][0]
+    const feeData = (await fetchURL(feePathUrl))?.data
+    const por = (await fetchURL(porPathUrl))?.data.rows[0][0]
 
     const result = formatMetaBaseData(feeData.cols, feeData.rows) as FeesMetaBaseData[]
     let dailyFees = 0

@@ -24,7 +24,7 @@ interface IFee {
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const fees: IFee[] = (await fetchURL(endpoints[chainId]))?.data;
+    const fees: IFee[] = (await fetchURL(endpoints[chainId]));
 
     const dailyFees = fees
       .find(item => item.time === dayTimestamp)?.dayTradeFee

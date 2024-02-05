@@ -22,7 +22,7 @@ const graphs = () => {
       const yesterday = new Date(yesterdaysTimestamp * 1000).toISOString()
 
       const dailyFee = await getOneDayFees('eth', yesterday, today);
-      const burnData: IChartItem[] = (await fetchURL(burnEndpoint))?.data.chart.jsonFile.Series['ETH Burned']['Data']
+      const burnData: IChartItem[] = (await fetchURL(burnEndpoint)).chart.jsonFile.Series['ETH Burned']['Data']
 
       const dailyRevEth = burnData
         .filter(item => item.Timestamp === yesterdaysTimestamp)

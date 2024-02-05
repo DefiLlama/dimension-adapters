@@ -14,7 +14,7 @@ interface GetVolumeReturn {
 }
 
 const fetch  =  async (_timestamp: number) => {
-    const volumeData: GetVolumeReturn = (await fetchURL(getVolumeURL)).data;
+    const volumeData: GetVolumeReturn = (await fetchURL(getVolumeURL));
 
     return {
             totalVolume: volumeData.totalVolume.toString(),

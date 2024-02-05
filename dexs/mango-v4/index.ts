@@ -31,8 +31,8 @@ interface DailyStats {
 const fetchSpotVolume = async (
   timestamp: number,
 ): Promise<FetchResultVolume> => {
-  const totalStats: TotalStats = (await fetchURL(urlTotalStats)).data;
-  const dailyStats: DailyStats = (await fetchURL(urlDailyStats)).data;
+  const totalStats: TotalStats = (await fetchURL(urlTotalStats));
+  const dailyStats: DailyStats = (await fetchURL(urlDailyStats));
   return {
     dailyVolume: dailyStats?.spot_volume_24h.toString(),
     totalVolume: totalStats?.spot_volume.toString(),
@@ -43,8 +43,8 @@ const fetchSpotVolume = async (
 const fetchPerpVolume = async (
   timestamp: number,
 ): Promise<FetchResultVolume> => {
-  const totalStats: TotalStats = (await fetchURL(urlTotalStats)).data;
-  const dailyStats: DailyStats = (await fetchURL(urlDailyStats)).data;
+  const totalStats: TotalStats = (await fetchURL(urlTotalStats));
+  const dailyStats: DailyStats = (await fetchURL(urlDailyStats));
   return {
     dailyVolume: dailyStats?.perp_volume_24h.toString(),
     totalVolume: totalStats?.perp_volume.toString(),

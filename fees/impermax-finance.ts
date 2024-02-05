@@ -21,7 +21,7 @@ interface IYield {
 const graphs = () => {
   return (chain: CHAIN) => {
     return async (timestamp: number) => {
-      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
+      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data;
       const pools = poolsCall
         .filter((e: IYield) => e.project === "impermax-finance")
         .filter((e: IYield) => e.chain.toLowerCase() === chain.toLowerCase());

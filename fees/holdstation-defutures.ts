@@ -24,8 +24,8 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const fromTimestamp = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
   const toTimestamp = new Date((dayTimestamp + 60 * 60 * 24) * 1000).toISOString().split("T")[0];
-  const data: IFees = (await fetchURL(historicalVolumeEndpoint(fromTimestamp, toTimestamp))).data.result;
-  const dailyVolume: DailyVolume[] = (await fetchURL(dailyVolumeEndpoint(fromTimestamp, fromTimestamp))).data;
+  const data: IFees = (await fetchURL(historicalVolumeEndpoint(fromTimestamp, toTimestamp))).result;
+  const dailyVolume: DailyVolume[] = (await fetchURL(dailyVolumeEndpoint(fromTimestamp, fromTimestamp)));
 
   const dailyFees = data.totalFee;
   const dailyRevenue = data.govFee;

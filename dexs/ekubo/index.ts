@@ -7,7 +7,7 @@ const toki = (n: any) => "starknet:0x" + BigInt(n).toString(16).padStart("049d36
 
 const fetch = async (timestamp: number) => {
   const balances = new sdk.Balances({ chain: CHAIN.STARKNET, timestamp })
-  const response = ((await fetchURL("https://mainnet-api.ekubo.org/overview")).data.volumeByToken_24h as any[])
+  const response = ((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h as any[])
     .map(t => ({ token: toki(t.token), vol: t.volume }))
   response.map((token) => {
     balances.add(token.token, token.vol, { skipChain: true })

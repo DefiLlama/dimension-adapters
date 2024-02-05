@@ -16,7 +16,7 @@ interface IAPIResponse {
 }
 
 const fetch = (chain: string) => async () => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data.data;
+  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data;
   return {
     dailyVolume: `${response.getVolume.day}`,
     totalVolume: `${response.getVolume.total}`,

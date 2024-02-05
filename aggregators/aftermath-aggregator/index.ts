@@ -7,7 +7,7 @@ const URL = "https://aftermath.finance/api/router/volume-24hrs";
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dailyVolume = (
     await fetchURL(`${URL}`)
-  ).data;
+  );
 
   return {
     dailyVolume,

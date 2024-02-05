@@ -24,7 +24,7 @@ interface IVolume {
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]))?.data;
+    const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
 
     const totalVolume = historicalVolume
       .find(item => item.time === dayTimestamp)?.totalTradeAmount

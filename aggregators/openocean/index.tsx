@@ -39,7 +39,7 @@ const fetch =
       );
 
       return {
-        dailyVolume: data.data.data[chainsMap[chain] || chain]?.volume,
+        dailyVolume: data.data[chainsMap[chain] || chain]?.volume,
         timestamp: unixTimestamp,
       };
     } catch (e) {

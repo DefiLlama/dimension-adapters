@@ -29,7 +29,7 @@ const methodology = {
 
 const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => {
   const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
-  const stats: DailyStats = (await fetchURL(url)).data;
+  const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
     parseInt(stats.liquidityProviderInterest) +

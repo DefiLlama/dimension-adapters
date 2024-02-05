@@ -16,13 +16,9 @@ export default {
             fetch: async () => {
                 const response = await fetchURL('https://api.redoubt.online/dapps/v1/export/defi/storm')
 
-                if (!response.data) {
-                    throw new Error('Error during re:doubt API call')
-                }
-
                 return {
-                    dailyVolume: response.data.volume.toString(),
-                    timestamp: response.data.timestamp
+                    dailyVolume: response.volume.toString(),
+                    timestamp: response.timestamp
                 }
             },
         },

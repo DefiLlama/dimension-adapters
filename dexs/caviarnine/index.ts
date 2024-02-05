@@ -9,14 +9,14 @@ const url_trades = 'https://api-core.caviarnine.com/v1.0/stats/product/shapeliqu
 const fetchSpot = async (timestamp: number): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
   try {
-    const orderbookVolume = (await fetchURL(url_orderbook)).data.summary.volume.interval_1d.usd;
+    const orderbookVolume = (await fetchURL(url_orderbook)).summary.volume.interval_1d.usd;
     dailyVolume += Number(orderbookVolume);
   } catch (e) {
     console.error('Failed to fetch orderbook volume', e);
   }
 
   try {
-    const dailyVolumeTrades = (await fetchURL(url_trades)).data.summary.volume.interval_1d.usd;
+    const dailyVolumeTrades = (await fetchURL(url_trades)).summary.volume.interval_1d.usd;
     dailyVolume += Number(dailyVolumeTrades);
   } catch (e) {
     console.error('Failed to fetch trades volume', e);
@@ -39,7 +39,7 @@ const adapters: BreakdownAdapter = {
     aggregator: {
       [CHAIN.RADIXDLT]: {
         fetch: async (timestamp: number): Promise<FetchResultVolume> => {
-          const data = (await fetchURL(url_aggregator)).data.volume_by_resource;
+          const data = (await fetchURL(url_aggregator)).volume_by_resource;
           const dailyVolume = Object.keys(data).reduce((acc, key) => {
             return acc + Number(data[key].interval_1d.usd);
           }, 0);

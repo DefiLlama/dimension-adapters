@@ -12,7 +12,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: any = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const historicalVolume: any = (await fetchURL(historicalVolumeEndpoint));
   const prespose: IVolumeall[] = Object.keys(historicalVolume).map((key: string) => {
     const {token0Volume, token1Volume, token0, token1, price} = historicalVolume[key];
     return {

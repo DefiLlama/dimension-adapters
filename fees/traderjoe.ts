@@ -38,7 +38,7 @@ const adapterV1 = getDexChainFees({
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IData[] = (await fetchURL(endpointsV2[chain]))?.data;
+    const historical: IData[] = (await fetchURL(endpointsV2[chain]));
     const dailyFees = historical
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
     const dailyRevenue = historical

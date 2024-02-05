@@ -20,8 +20,8 @@ type TMarketInfo = {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const markets: TMarket = (await fetchURL('https://zigzag-exchange.herokuapp.com/api/v1/markets')).data;
-  const marketInfos: TMarketInfo = (await fetchURL('https://zigzag-exchange.herokuapp.com/api/v1/marketinfos?chain_id=1&market=' + Object.keys(markets).join(','))).data;
+  const markets: TMarket = (await fetchURL('https://zigzag-exchange.herokuapp.com/api/v1/markets'));
+  const marketInfos: TMarketInfo = (await fetchURL('https://zigzag-exchange.herokuapp.com/api/v1/marketinfos?chain_id=1&market=' + Object.keys(markets).join(',')));
   const amountUSD: number[] =  Object.keys(markets).map(market => {
     const info = marketInfos[market]
     const { baseVolume } = markets[market]

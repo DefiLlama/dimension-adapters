@@ -27,7 +27,7 @@ interface IResponse {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const timestampToday = getTimestampAtStartOfDayUTC(timestamp)
-    const response: IResponse = (await fetchURL(feesMMURL)).data;
+    const response: IResponse = (await fetchURL(feesMMURL));
     const dailyResultFees: any[] = response.daily;
     const [__,totalPartnerRevenue, totalProtocolRevenue]: number[] = response.allTime[mapChainId[chain]];
     const [_, partnerRevenue, protocolRevenue]: number[] = dailyResultFees.filter(([time]: any) => time === timestampToday)

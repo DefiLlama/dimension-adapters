@@ -12,5 +12,5 @@ export async function fetchVolume(kind: "daily" | "total", marketInfos: MarketIn
 
     const url = `${INDEXER_URL}/rolling_trade_volume?${marketsStr}&timestamp=${timestamp}&interval_days=${intervalDays}`
 
-    return new BigNumber((await fetchURL(url)).data);
+    return new BigNumber((await fetchURL(url)));
 }

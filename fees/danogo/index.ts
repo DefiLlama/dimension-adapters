@@ -11,7 +11,7 @@ const ADA_DECIMAL = 6;
 const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => { 
     const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
 
-    return response.data.data;
+    return response.data;
 }
 
 const fetchADAprice = async (timestamp: number) => {

@@ -4,25 +4,12 @@ import { httpPost } from '../../utils/fetchURL';
 const POOLS_SERVICE_URL = 'https://cdex-liquidity-pool.concordex.io/v1/rpc'
 
 const rpc = (url: string, method: string, params: any) =>
-  httpPost(
-    url,
-    {
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: '0',
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    }
-  )
+  httpPost(url, { jsonrpc: '2.0', method, params, id: '0', },
+    { headers: { 'Content-Type': 'application/json', } })
     .then(res => {
-      if (res.data.error) {
-        throw new Error(res.data.error.message)
-      }
-      return res.data.result
+      if (res.error)
+        throw new Error(res.error.message)
+      return res.result
     });
 
 

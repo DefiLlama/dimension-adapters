@@ -12,8 +12,8 @@ const graphs: Fetch = async (_timestamp: number) => {
 
   return {
     timestamp: Math.trunc(Date.now() / 1000),
-    dailyVolume: res?.data?.volume24h,
-    totalVolume: res?.data?.totalvolume,
+    dailyVolume: res?.volume24h,
+    totalVolume: res?.totalvolume,
   };
 };
 

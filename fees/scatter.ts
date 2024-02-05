@@ -15,7 +15,7 @@ const graph = (chain: Chain) => {
     try {
       const startblock = (await getBlock(fromTimestamp, chain, {}));
       const endblock = (await getBlock(toTimestamp, chain, {}));
-      const data: string[] = (await fetchURL('https://scatter-api.fly.dev/api/contracts')).data.body;
+      const data: string[] = (await fetchURL('https://scatter-api.fly.dev/api/contracts')).body;
       const to_address = data
         .map(toBytea)
 

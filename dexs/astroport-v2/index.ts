@@ -20,7 +20,7 @@ const url = 'https://app.astroport.fi/api/trpc/protocol.stats?input={"json":{"ch
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const results = (await fetchURL(url)).data?.result.data.json.chains[chainId];
+    const results = (await fetchURL(url)).result.data.json.chains[chainId];
     const totalVolume24h = results?.dayVolumeUSD;
     return {
       timestamp: dayTimestamp,

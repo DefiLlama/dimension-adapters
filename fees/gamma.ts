@@ -23,7 +23,7 @@ interface IData {
 
 const _fetchApi = async (from_timestamp: number) => {
   const url = `https://wire2.gamma.xyz/frontend/revenue_status/main_charts?from_timestamp=${from_timestamp}&yearly=false&monthly=false&filter_zero_revenue=false`;
-  const data: IData[] = (await fetchURL(url)).data;
+  const data: IData[] = (await fetchURL(url));
   return data;
 }
 

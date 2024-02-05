@@ -39,7 +39,7 @@ export async function fetchAevoVolumeData(
 }
 
 async function getAevoVolumeData(endpoint: string): Promise<IAevoVolumeResponse> {
-  return (await fetchURL(endpoint))?.data;
+  return (await fetchURL(endpoint));
 }
 
 export default adapter;

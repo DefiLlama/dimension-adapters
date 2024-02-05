@@ -18,8 +18,8 @@ async function getDimension(responseRaw:any[], key: string, timestamp:number){
 }
 
 const fetch = async (timestamp: number) => {
-  const fees = await getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).data.volumeByToken_24h, "fees", timestamp)
-  const rev = await getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).data.revenueByToken_24h, "revenue", timestamp)
+  const fees = await getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h, "fees", timestamp)
+  const rev = await getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).revenueByToken_24h, "revenue", timestamp)
   return {
     timestamp: timestamp,
     dailyFees: `${fees}`,

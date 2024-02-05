@@ -34,7 +34,7 @@ const graphs = () => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
       const historicalVolume = historical
         .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
 
@@ -57,7 +57,7 @@ const graphs = () => {
 };
 
 const getStartTimestamp = async (chain: Chain) => {
-  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
   const historicalVolume = historical.filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
   return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
 }

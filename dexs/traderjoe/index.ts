@@ -25,7 +25,7 @@ interface IVolume {
 const fetchV2 = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[chain]))?.data;
+    const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[chain]));
     const totalVolume = historicalVolume
       .filter(volItem => volItem.timestamp <= dayTimestamp)
       .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)

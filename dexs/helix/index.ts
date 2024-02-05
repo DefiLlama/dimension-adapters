@@ -8,7 +8,7 @@ interface IVolume {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const volume: IVolume[] = (await fetchURL(URL)).data;
+  const volume: IVolume[] = (await fetchURL(URL));
   const dailyVolume = volume.reduce((e: number, a: IVolume) => a.target_volume + e, 0);
   return {
     dailyVolume: dailyVolume.toString(),

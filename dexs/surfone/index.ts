@@ -19,7 +19,6 @@ const fetch = () => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
         const response = (await httpGet(volumeEndpoint, { headers }));
 
-        //const response = await fetchURL(url[chain]);
         const volume: IVolume = response.data;
         return {
             totalVolume: `${volume?.totalVolume || undefined}`,

@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const URL = "https://stats.kanalabs.io/volume";
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dailyVolume = (await fetchURL(`${URL}?chainId=1`)).data.data;
+  const dailyVolume = (await fetchURL(`${URL}?chainId=1`)).data;
   return {
     timestamp,
     dailyVolume: dailyVolume.today.volume,

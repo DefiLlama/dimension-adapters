@@ -25,11 +25,11 @@ type IApiFeeResponse = {
 const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultFees> => {
     const dailyFeeResponse: IApiFeeResponse = (
         await fetchURL(feeUrl(chainMapper[chain], timestamp, "day"))
-    ).data;
+    );
 
     const totalFeeResponse: IApiFeeResponse = (
         await fetchURL(feeUrl(chainMapper[chain], timestamp))
-    ).data;
+    );
 
     const dailyUserFees = new BigNumber(dailyFeeResponse.data.fee);
     const totalUserFees = new BigNumber(totalFeeResponse.data.fee);

@@ -40,7 +40,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
       await fetchURL(
         `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[chain]}&timestamps=${unixTimestamp}`
       )
-    ).data.data?.volumes?.[0];
+    ).data?.volumes?.[0];
 
     return {
       dailyVolume: data?.value ?? "0",

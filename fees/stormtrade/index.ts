@@ -16,14 +16,14 @@ export default {
             fetch: async () => {
                 const response = await fetchURL('https://api.redoubt.online/dapps/v1/export/defi/storm')
 
-                if (!response.data) {
+                if (!response) {
                     throw new Error('Error during re:doubt API call')
                 }
 
                 return {
-                    dailyUserFees: response.data.fees.toString(),
-                    dailyFees: response.data.fees.toString(),
-                    timestamp: response.data.timestamp
+                    dailyUserFees: response.fees.toString(),
+                    dailyFees: response.fees.toString(),
+                    timestamp: response.timestamp
                 }
             },
         },

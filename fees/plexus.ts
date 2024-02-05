@@ -26,7 +26,7 @@ const fetch = (chainId: number) => {
       await fetchURL(
         `https://api.plexus.app/v1/dashboard/fee?date=${dateString}`
       )
-    ).data.data;
+    ).data;
     const dailyFee: number = data[chainId] || 0;
     return {
       timestamp,

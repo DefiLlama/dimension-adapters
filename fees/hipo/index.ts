@@ -28,10 +28,10 @@ export default {
                     method: 'get_treasury_state',
                     stack: [],
                 })
-                if (!response1.data.ok) {
+                if (!response1.ok) {
                     throw new Error('Error in calling toncenter.com/api/v2/runGetMethod')
                 }
-                const getTreasuryState = response1.data.result
+                const getTreasuryState = response1.result
                 if (getTreasuryState.exit_code !== 0) {
                     throw new Error('Expected a zero exit code, but got ' + getTreasuryState.exit_code)
                 }
@@ -41,10 +41,10 @@ export default {
                     method: 'get_times',
                     stack: [],
                 })
-                if (!response2.data.ok) {
+                if (!response2.ok) {
                     throw new Error('Error in calling toncenter.com/api/v2/runGetMethod')
                 }
-                const getTimes = response2.data.result
+                const getTimes = response2.result
                 if (getTimes.exit_code !== 0) {
                     throw new Error('Expected a zero exit code, but got ' + getTimes.exit_code)
                 }

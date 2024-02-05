@@ -8,6 +8,9 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchURLWithRetry(url: string) {
+  /* const error = new Error("Dune: queryId is required")
+  delete error.stack
+  throw error */
   if (!requests[url])
     requests[url] = _fetchURLWithRetry(url)
   return requests[url]
@@ -23,14 +26,15 @@ async function _fetchURLWithRetry(url: string): Promise<any> {
         const response = await fetchURL(`${url}?api_key=${api_key}`);
         return response;
       } catch (error: any) {
-        console.log("Failed to fetch url", `${url}?api_key=${api_key}`);
+        console.log("Dune: Failed to fetch url", `${url}?api_key=${api_key}`);
         if (API_KEY_INDEX < API_KEYS.length - 1) {
           API_KEY_INDEX++;
         } else {
-          const errorMessage = "All API keys failed";
-          console.log(errorMessage);
+          const errorMessage = "Dune: All API keys failed";
+          // console.log(errorMessage);
           bail(new Error(errorMessage));
         }
+        delete error.stack;
         throw error;
       }
     },

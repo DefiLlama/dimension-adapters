@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const VOLUME_URL = `https://api.brine.fi/external-aggregator/defillama/volume24/`;
 
 const fetch = async (timestamp: number) => {
-  const dailyVolume = (await fetchURL(`${VOLUME_URL}?timestamp=${timestamp}`)).data.payload.volume;
+  const dailyVolume = (await fetchURL(`${VOLUME_URL}?timestamp=${timestamp}`)).payload.volume;
   return {
     dailyVolume,
     timestamp,

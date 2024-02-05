@@ -16,7 +16,7 @@ const endpoint = "stats/getDefiLamaStats"
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(`${baseUrl}/${endpoint}`))?.data.volumeInUsd
+  const historicalVolume: IVolumeall[] = (await fetchURL(`${baseUrl}/${endpoint}`))?.volumeInUsd
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.grouptimestamp).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { amount }) => acc + Number(amount), 0)

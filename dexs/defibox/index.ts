@@ -14,11 +14,11 @@ const graph = (chain: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     let volume = 0
     if(chain === CHAIN.EOS){
-     const bal_reponse: IVolume = (await fetchURL(bal_endpoint))?.data.data
-     const swap_response: IVolume = (await fetchURL(endpoint(chain)))?.data.data
+     const bal_reponse: IVolume = (await fetchURL(bal_endpoint))?.data
+     const swap_response: IVolume = (await fetchURL(endpoint(chain)))?.data
      volume = (bal_reponse?.volume_usd_24h? Number(bal_reponse.volume_usd_24h): 0) +(swap_response?.volume_usd_24h?Number(swap_response.volume_usd_24h):0)
     }else{
-      const response: IVolume = chain !== CHAIN.BSC ? (await fetchURL(endpoint(chain)))?.data.data : (await httpPost(endpoint(chain), {} , { headers: {chainid: 56} })).data;
+      const response: IVolume = chain !== CHAIN.BSC ? (await fetchURL(endpoint(chain)))?.data : (await httpPost(endpoint(chain), {} , { headers: {chainid: 56} })).data;
       volume = response?.volume_usd_24h ? Number(response.volume_usd_24h): 0
     }
 

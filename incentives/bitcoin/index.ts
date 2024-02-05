@@ -17,7 +17,7 @@ const getBTCRewardByBlock = (block: number) => BASE_REWARD / Math.trunc((block /
 
 const getDailyBlocksByTimestampLast24h = async (timestamp: number) => {
     const url = `https://blockchain.info/blocks/${timestamp * 1000}?format=json`
-    return (await fetchURL(url)).data as IResponse
+    return (await fetchURL(url)) as IResponse
 }
 
 const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncentives> => {

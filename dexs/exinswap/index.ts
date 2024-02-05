@@ -12,7 +12,7 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL))?.data?.data.list.map((e: any) => {
+  const response: IAPIResponse[] = (await fetchURL(URL))?.data.list.map((e: any) => {
     return {
       time: e[0],
       volume: e[1]

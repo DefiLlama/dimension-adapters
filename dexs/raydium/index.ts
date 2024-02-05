@@ -16,8 +16,8 @@ interface IAmmPooolStandar {
 }
 
 const graphs = async (timestamp: number): Promise<FetchResultVolume> => {
-  const ammPool: IAmmPoool = (await fetchURL(urlAmmPool)).data;
-  const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data.data;;
+  const ammPool: IAmmPoool = (await fetchURL(urlAmmPool));
+  const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data;;
   const ammPoolStandardVolume: IAmmPooolStandar[] = ammPoolStandard.map((e: any) => e.day);
   const dailyVolumeAmmPool = ammPoolStandardVolume
     .filter((e: IAmmPooolStandar) => e.tvl > 100_000)

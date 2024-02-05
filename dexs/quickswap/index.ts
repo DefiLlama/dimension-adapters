@@ -67,12 +67,12 @@ const v3GraphsUni = getGraphDimensions({
 
 
 const fetchLiquidityHub = async (timestamp: number) => {
-    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1')).data;
+    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1'));
 
     let rows = dailyResult.result.rows;
     let lastDay = rows[rows.length - 1];
     let dailyVolume = lastDay.daily_total_calculated_value;
-    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).data.result.rows[0].total_calculated_value;
+    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).result.rows[0].total_calculated_value;
 
     return {
         dailyVolume: `${dailyVolume}`,

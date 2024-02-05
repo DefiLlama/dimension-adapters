@@ -11,7 +11,7 @@ type IAPIResponse = {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse = (await fetchURL(URL)).data;
+  const response: IAPIResponse = (await fetchURL(URL));
   const dailyVolume = response[0].volume_usd;
 
   return {

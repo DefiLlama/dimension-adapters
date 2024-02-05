@@ -52,12 +52,12 @@ const getData = (chain: Chain) => {
             })
         )) / FEE_DENOMINATOR
 
-        const dailyData: YieldData = (await fetchURL(dataEndpoint(from, to))).data;
+        const dailyData: YieldData = (await fetchURL(dataEndpoint(from, to)));
         const dailyRevenue = (dailyData.omnipoolYield * omnipoolManagementFee)
             + (dailyData.apsYield * apsManagementFee) + dailyData.rigidYield;
         const dailyHoldersRevenue = dailyData.omnipoolYield + dailyData.apsYield;
 
-        const totalData: YieldData = (await fetchURL(dataEndpoint(START_TIMESTAMP, to))).data
+        const totalData: YieldData = (await fetchURL(dataEndpoint(START_TIMESTAMP, to)))
         const totalRevenue = (totalData.omnipoolYield * omnipoolManagementFee)
             + (totalData.apsYield * apsManagementFee) + totalData.rigidYield
         const totalDailyHoldersRevenue = totalData.omnipoolYield + totalData.apsYield;

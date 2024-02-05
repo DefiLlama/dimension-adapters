@@ -14,7 +14,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
     await fetchURL(
       `https://api.mantissa.finance/api/pool/stats/volume/${chain}/?from_timestamp=${from}&to_timestamp=${to}`
     )
-  ).data;
+  );
   return {
     totalVolume: `${stats.total_volume}`,
     dailyVolume: `${stats.daily_volume}`,

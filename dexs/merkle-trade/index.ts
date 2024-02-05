@@ -8,7 +8,7 @@ const endpoint =
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const res = (await fetchURL(`${endpoint}?ts=${timestamp}`))?.data;
+  const res = (await fetchURL(`${endpoint}?ts=${timestamp}`));
 
   return {
     totalVolume: res.totalVolume,

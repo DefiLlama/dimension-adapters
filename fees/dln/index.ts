@@ -10,7 +10,7 @@ const fetch = (chainId: number) => {
     const dateTo = dateFrom;
     const url = `https://stats-api.dln.trade/api/Satistics/getDaily?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     const response = await fetchURL(url);
-    const dailyDatas = response.data.dailyData;
+    const dailyDatas = response.dailyData;
     let fees = 0;
     for (const dailyData of dailyDatas) {
       if (dailyData.giveChainId.bigIntegerValue === chainId) {
