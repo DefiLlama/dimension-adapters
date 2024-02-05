@@ -1,9 +1,8 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import {  SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
-// const URL = "https://stats.kanalabs.io/volume";
 
 export enum KanaChainID {
   "solana" = 1,
