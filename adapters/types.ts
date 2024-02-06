@@ -39,6 +39,7 @@ export type FetchGetLogsOptions = {
   toBlock?: number,
   flatten?: boolean,
   cacheInCloud?: boolean,
+  skipCacheRead?: boolean,
   topics?: string[],
 }
 

@@ -8,7 +8,7 @@ const adapter: Adapter = {
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {
-        fetch: v1Fetch(CHAIN.ARBITRUM),
+        fetch: v1Fetch,
         start: 1667088000,
       },
     },

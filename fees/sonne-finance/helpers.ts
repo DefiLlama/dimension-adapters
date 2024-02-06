@@ -1,19 +1,3 @@
-import { comptrollerABI, CTokenABI, veloGaugeAbi } from "./_abi";
-
-const getAllMarkets = async (unitroller: string, api: any): Promise<string[]> => {
-  return api.call({ target: unitroller, abi: comptrollerABI.getAllMarkets, })
-};
-
-const getMarketDetails = async (markets: string[], api: any) => {
-  const underlyings = await api.multiCall({ calls: markets, abi: CTokenABI.underlying, });
-  const reserveFactors = await api.multiCall({ calls: markets, abi: CTokenABI.reserveFactorMantissa, });
-
-  return {
-    underlyings: underlyings,
-    reserveFactors: reserveFactors,
-  };
-};
-
 const getVeloGaugeDetails = async (
   gauge: string,
   token: string,
@@ -22,12 +6,12 @@ const getVeloGaugeDetails = async (
 ) => {
   const lastEarn = await api.call({
     target: gauge,
-    abi: veloGaugeAbi.lastEarn,
+    abi: "function lastEarn(address token, address account) external view returns (uint256)",
     params: [token, account],
   });
   const earned = await api.call({
     target: gauge,
-    abi: veloGaugeAbi.earned,
+    abi: "function earned(address token, address account) external view returns (uint256)",
     params: [token, account],
   });
 
@@ -37,4 +21,4 @@ const getVeloGaugeDetails = async (
   };
 };
 
-export { getAllMarkets, getMarketDetails, getVeloGaugeDetails };
+export {  getVeloGaugeDetails };

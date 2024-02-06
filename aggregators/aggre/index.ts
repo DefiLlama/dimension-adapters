@@ -1,8 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchResultAggregators, SimpleAdapter } from "../../adapters/types";
-import { getBlock } from "../../helpers/getBlock";
+import { FetchOptions, FetchResultAggregators, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
 
 let abi = ["event SwapExecuted(address indexed user, address tokenIn, address tokenOut, uint amountIn, uint amountOut, uint swapType)"];
 
@@ -14,34 +12,13 @@ const contract: IContract = {
     [CHAIN.SCROLL]: '0xcf8bcaCb401C31774EA39296b367B9DaB4F72267',
 }
 
-const fetch = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultAggregators> => {
-        const fromTimestamp = timestamp - 60 * 60 * 24;
-        const toTimestamp = timestamp;
+const fetch: any = async (timestamp: number, _, { getLogs, createBalances, chain, }: FetchOptions): Promise<FetchResultAggregators> => {
+    const dailyVolume = createBalances();
+    const logs = (await getLogs({ target: contract[chain], eventAbi: abi[0], }))
 
+    logs.map((log: any) => dailyVolume.add(log.tokenOut, log.amountOut));
 
-        const api = new sdk.ChainApi({ chain, timestamp });
-        const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-        const toBlock = (await getBlock(toTimestamp, chain, {}));
-        const logs = (await api.getLogs({
-            target: contract[chain],
-            toBlock: toBlock,
-            fromBlock: fromBlock,
-            chain,
-            eventAbi: abi[0],
-            onlyArgs: true,
-        }))
-
-        logs.map((parsed: any) => {
-            api.add(parsed.tokenOut, parsed.amountOut)
-        });
-        const VUSD = Number(await api.getUSDValue()).toFixed(0);
-
-        return {
-            dailyVolume: VUSD,
-            timestamp,
-        };
-    };
+    return { dailyVolume, timestamp, };
 };
 
 const adapter: SimpleAdapter = {
@@ -49,7 +26,7 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                fetch: fetch(chain),
+                fetch,
                 start: 1698660910,
             }
         }
