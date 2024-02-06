@@ -45,6 +45,7 @@ const adapter: any = {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(chain),
+          runAtCurrTime: true,
           start: async () => 1692897682,
         },
       };
