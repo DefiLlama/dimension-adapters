@@ -3,6 +3,7 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
+import { indexa, toBytea } from "../helpers/db";
 
 
 interface IData {
@@ -15,35 +16,18 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const now = new Date(timestamp * 1e3)
   const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
   try {
-    const router_v2 = await sql`
+    const to_address = ["0x27B9c20f64920EB7fBF64491423a54DF9594188C"].map(toBytea);
+    const router_v2_query = indexa<any[]>`
       SELECT
-        block_number,
-        block_time,
-        "value" / 1e18 as eth_value,
-        encode(transaction_hash, 'hex') AS HASH,
-        encode(to_address, 'hex') AS to_address
+        sum("value" / 1e18) as eth_value
       FROM
         ethereum.traces
       WHERE
         block_number > 17341451
-        and to_address = '\\x07490d45a33d842ebb7ea8c22cc9f19326443c75'
-        AND from_address = '\\x7a250d5630b4cf539739df2c5dacb4c659f2488d'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
-    UNION ALL
-      SELECT
-        block_number,
-        block_time,
-        "value" / 1e18 as eth_value,
-        encode(transaction_hash, 'hex') AS HASH,
-        encode(to_address, 'hex') AS to_address
-      FROM
-        ethereum.traces
-      WHERE
-        block_number > 17341451
-        AND to_address = '\\x7a250d5630b4cf539739df2c5dacb4c659f2488d'
-        and from_address = '\\x07490d45a33d842ebb7ea8c22cc9f19326443c75'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
+        and to_address in ${indexa(to_address)}
+        AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
     `;
+    const router_v2 = await router_v2_query.execute();
 
     const router_v3 = await sql`
         SELECT
@@ -75,8 +59,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
     `;
 
-    const transactions: IData[] = [...router_v2, ...router_v3] as IData[]
+    const transactions_v2: IData[] =  [...router_v2] as IData[]
+    const transactions: IData[] =  [...router_v3] as IData[]
     const amount = transactions.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
+    const amount_v2 = transactions_v2.reduce((a: number, transaction: IData) => a+Number(transaction.eth_value), 0)
 
     const revFromToken: IData[] = await sql`
         SELECT
@@ -97,9 +83,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
     const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
     const amountUSD = amount * ethPrice;
+    const amountUSD_v2 = amount_v2 * ethPrice;
     const tokenRev = rev_gen_token * ethPrice;
     // ref https://dune.com/queries/2621049/4349967
-    const dailyFees = (amountUSD * 0.01);
+    const dailyFees = (amountUSD * 0.01) + (amountUSD_v2);
     const dailyRevenue = dailyFees;
     await sql.end({ timeout: 3 })
     return {
