@@ -4,6 +4,9 @@ import {Chain} from "@defillama/sdk/build/general";
 import {request, gql} from "graphql-request";
 import {getTimestampAtStartOfDayUTC} from "../../utils/date";
 import { getPrices } from "../../utils/prices";
+import { getBlock } from "../../helpers/getBlock";
+import * as sdk from "@defillama/sdk";
+import { type } from "os";
 
 type TEndpoint = {
   [s: Chain | string]: string;
@@ -54,11 +57,55 @@ const graphs = (chain: Chain) => {
     }
 }
 
+const swapEvent = 'event CrocSwap (address indexed base, address indexed quote, uint256 poolIdx, bool isBuy, bool inBaseQty, uint128 qty, uint16 tip, uint128 limitPrice, uint128 minOut, uint8 reserveFlags, int128 baseFlow, int128 quoteFlow)';
+
+type TContractAddress = {
+  [s: Chain]: string;
+}
+interface ILog {
+  quote: string;
+  quoteFlow: string;
+}
+const contract_address: TContractAddress = {
+  [CHAIN.SCROLL]: '0xaaaaaaaacb71bf2c8cae522ea5fa455571a74106'
+}
+
+const fetchVolume = (chain: Chain) => {
+    return async (timestamp: number): Promise<FetchResultVolume> => {
+        const toTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+        const fromTimestamp = toTimestamp - 60 * 60 * 24
+        const balances = new sdk.Balances({ chain, timestamp })
+        const fromBlock = await getBlock(fromTimestamp, chain, {})
+        const toBlock = await getBlock(toTimestamp, chain, {})
+
+        const logs: ILog[] = (await sdk.getEventLogs({
+          target: contract_address[chain],
+          toBlock: toBlock,
+          fromBlock: fromBlock,
+          chain,
+          eventAbi: swapEvent,
+          flatten: false,
+          onlyArgs: true,
+        })) as ILog[];
+        logs.forEach((log: ILog) => {
+          balances.add(log.quote, log.quoteFlow)
+        });
+        return {
+            dailyVolume: await balances.getUSDString(),
+            timestamp,
+        }
+    }
+}
+
 
 const adapter: Adapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: graphs(CHAIN.ETHEREUM),
+            start: async () => 1685232000,
+        },
+        [CHAIN.SCROLL]: {
+            fetch: fetchVolume(CHAIN.SCROLL),
             start: async () => 1685232000,
         },
     }
