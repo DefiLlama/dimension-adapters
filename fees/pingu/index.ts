@@ -1,7 +1,7 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphfees";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import axios from "axios";
 
 interface IGraph {
