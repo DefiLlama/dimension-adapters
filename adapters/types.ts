@@ -73,11 +73,13 @@ export enum ProtocolType {
 }
 
 export type SimpleAdapter = {
+  timetravel?: boolean
   adapter: BaseAdapter
   protocolType?: ProtocolType;
 }
 
 export type BreakdownAdapter = {
+  timetravel?: boolean
   breakdown: {
     [version: string]: BaseAdapter
   };

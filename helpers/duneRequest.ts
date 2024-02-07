@@ -21,7 +21,7 @@ async function _fetchURLWithRetry(url: string): Promise<any> {
 
   return await retry(
     async (bail, _attempt: number) => {
-      const api_key = API_KEYS[API_KEY_INDEX];
+      const api_key = API_KEYS[API_KEY_INDEX] ?? ''
       try {
         const response = await fetchURL(`${url}?api_key=${api_key}`);
         return response;
@@ -39,7 +39,7 @@ async function _fetchURLWithRetry(url: string): Promise<any> {
       }
     },
     {
-      retries: 20,
+      retries: 3 + API_KEYS.length * 2,
       factor: 1,
     }
   );

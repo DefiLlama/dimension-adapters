@@ -30,6 +30,7 @@ const fetch =
     };
 
 const adapter: any = {
+  timetravel: false,
   adapter: {
     ...Object.values(chainsMap).reduce((acc, chain) => {
       return {
