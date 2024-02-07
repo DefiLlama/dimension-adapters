@@ -2,7 +2,7 @@ import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import * as sdk from "@defillama/sdk";
 
 interface IGraph {
 	totalFeesEth: string;
@@ -10,47 +10,29 @@ interface IGraph {
 	id: string;
 }
 
-async function fetchEthPrice(timestamp: number): Promise<number> {
-	const ETH_PRICE_URL = `https://coins.llama.fi/prices/historical/${timestamp}/coingecko:ethereum`
-	const ethRequest = await axios.get(ETH_PRICE_URL);
-	return Number((ethRequest['data']['coins']['coingecko:ethereum']['price']))
-}
-
 const URL = 'https://api.studio.thegraph.com/query/43986/pingu-sg/0.1.0';
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+	const chain = CHAIN.ARBITRUM;
+	const balances = new sdk.Balances({ chain, timestamp });
 	const query = gql`
     {
-		dayDatas {
-		  totalFeesEth
-		  totalFeesUsdc
-		  id
-		}
-	  }
-    `
+			dayData(id: ${dayTimestamp * 1000}) {
+				totalFeesEth
+				totalFeesUsdc
+				id
+			}
+		}`
 
-	const response: IGraph[] = (await request(URL, query)).dayDatas;
-	const element = response.find(element => Number(element.id) / 1000 === dayTimestamp);
+	const response: IGraph = (await request(URL, query)).dayData;
+	const element = response;
 
-	const lastEthPrice = await fetchEthPrice(dayTimestamp);
-	const dailytotalFeesEth = element ? Number(element.totalFeesEth) * lastEthPrice / 1e18 : 0;
-	const dailytotalFeesUsdc = element ? Number(element.totalFeesUsdc) / 1e6 : 0;
-	const dailyfees = dailytotalFeesUsdc + dailytotalFeesEth;
-
-	let totalfees = 0;
-	await Promise.all(response.map(async (element) => {
-		const dayId = Number(element.id) / 1000;
-		if (dayId <= dayTimestamp && dayId >= 1704844800) {
-			const price = await fetchEthPrice(dayId);
-			totalfees += Number(element.totalFeesUsdc) / 1e6;
-			totalfees += Number(element.totalFeesEth) * price / 1e18;
-		}
-	}));
+	balances._add('0xaf88d065e77c8cc2239327c5edb3a432268e5831', element.totalFeesUsdc);
+	balances._add('0x82af49447d8a07e3bd95bd0d56f35241523fbab1', element.totalFeesEth);
 
 	return {
-		dailyFees: dailyfees ? `${dailyfees}` : undefined,
-		totalFees: totalfees ? `${totalfees}` : undefined,
+		dailyFees: await balances.getUSDString(),
 		timestamp: dayTimestamp,
 	};
 }
