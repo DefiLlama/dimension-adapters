@@ -9,7 +9,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     // 3385640 old query id
     const data = await queryDune("3391484", { endTime: unixTimestamp + 86400 });
     return {
-      dailyVolume:  data?.volume || "0",
+      dailyVolume:  data[0]?.volume || "0",
       timestamp: unixTimestamp,
     };
   } catch (e: any) {
