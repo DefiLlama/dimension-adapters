@@ -51,6 +51,10 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
         timestamp: dayTimestamp,
         dailyVolume: dailyData.protocolStatistics[0].volumeUSD,
         totalVolume: totalData.protocolState.totalVolumeUSD,
+        totalPremiumVolume: totalData.protocolState.totalVolumeUSD,
+        totalNotionalVolume: totalData.protocolState.totalVolumeUSD,
+        dailyPremiumVolume: dailyData.protocolStatistics[0].volumeUSD,
+        dailyNotionalVolume: dailyData.protocolStatistics[0].volumeUSD,
     }
 }
 
@@ -59,9 +63,6 @@ const adapter: SimpleAdapter = {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
             start: async () => 1697760000,
-            meta:{
-                methodology: methodology,
-            },
         },
     },
 }
