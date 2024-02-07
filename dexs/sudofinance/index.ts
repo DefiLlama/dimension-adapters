@@ -15,19 +15,15 @@ const url: IUrl = {
 interface IVolume {
   totalVolume: number,
   dailyVolume: number,
-  weekVolume: number,
-  monthVolume: number,
 }
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const volume: IVolume = (await fetchURL(url[chain]))?.data;
+    const volume: IVolume = (await fetchURL(`${url[chain]}?timestamp=${timestamp}`))?.data;
     return {
-      totalVolume: `${volume?.totalVolume || undefined}`,
-      dailyVolume: `${volume?.dailyVolume || undefined}`,
-      weekVolume: `${volume?.weekVolume || undefined}`,
-      monthVolume: `${volume?.monthVolume || undefined}`,
+      totalVolume: `${volume?.totalVolume}`,
+      dailyVolume: `${volume?.dailyVolume}`,
       timestamp: dayTimestamp,
     };
   };
@@ -38,7 +34,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch: fetch(CHAIN.SUI),
       runAtCurrTime: true,
-      start: async () => 1682121600,
+      start: async () => 1704412800,
     }
   },
 };
