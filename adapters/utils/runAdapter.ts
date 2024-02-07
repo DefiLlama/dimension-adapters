@@ -5,7 +5,7 @@ import { getBlock } from "../../helpers/getBlock";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string) {
-  const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
+  const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
     [chain: string]: {
@@ -44,7 +44,6 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
 
   function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks) {
-    const closeToCurrentTime = Math.trunc(Date.now() / 1000) - timestamp < 12 * 60 * 60 // 12 hours
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
@@ -54,7 +53,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false,}: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
@@ -75,6 +74,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
 
   async function setChainValidStart(chain: string) {
+    const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     const _start = volumeAdapter[chain]?.start
     if (_start === undefined) return;
     if (typeof _start === 'number') {
@@ -84,11 +84,13 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       }
     } else if (_start) {
       const defaultStart = Math.trunc(Date.now() / 1000)
-      validStart[chain] = { // intentionally set to true to allow for backfilling
-        canRun: true,
-        startTimestamp: defaultStart
+      if (closeToCurrentTime) {// intentionally set to true to allow for backfilling
+        validStart[chain] = {
+          canRun: true,
+          startTimestamp: defaultStart
+        }
+        return;
       }
-      return;
       const start = await (_start as any)().catch(() => {
         console.error(`Failed to get start time for ${id} ${version} ${chain}`)
         return defaultStart
