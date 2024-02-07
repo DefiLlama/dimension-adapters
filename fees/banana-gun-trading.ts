@@ -68,10 +68,17 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 const fethcFeesSolana = async (timestamp: number): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const value = await queryDune("3410455", { endTime: todaysTimestamp + 86400 });
-  return {
-    dailyFees: value[0]?.fees_usd || "0",
-    timestamp
+  try {
+    const value = await queryDune("3410455", { endTime: todaysTimestamp + 86400 });
+    return {
+      dailyFees: value[0]?.fees_usd || "0",
+      timestamp
+    }
+  } catch (error: any) {
+    return {
+      dailyFees: "0",
+      timestamp
+    }
   }
 }
 
