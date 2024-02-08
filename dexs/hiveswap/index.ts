@@ -1,11 +1,17 @@
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
+import {univ2Adapter} from "../../helpers/getUniSubgraphVolume";
+import {CHAIN} from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.MAP]: "https://makalu-graph.maplabs.io/subgraphs/name/map/hiveswap2",
+    [CHAIN.MAP]: "https://graph.mapprotocol.io/subgraphs/name/hiveswap/exchange-v3",
 };
 
-const adapter = univ2Adapter(endpoints, {});
+const adapter = univ2Adapter(
+    endpoints,
+    {
+        factoriesName: "factories",
+        dayData: "pancakeDayData",
+        dailyVolume: "volumeUSD"
+    });
 
 adapter.adapter.map.start = 1657929600;
 
