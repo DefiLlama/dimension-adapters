@@ -61,7 +61,7 @@ const convertSymbol = (symbol: string): ITokenInfo => {
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const poolCall = (await fetchURL(URL))?.data;
+  const poolCall = (await fetchURL(URL));
   const poolDetail = poolCall
     .map((pool: any) => pool.volume
     .map((p: ICallPoolData) => p)).flat();
@@ -88,7 +88,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch,
-      start: async () => 0,
+      start: 0,
       runAtCurrTime: true
     },
   },

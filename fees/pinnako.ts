@@ -50,7 +50,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
             fetch: graphs(endpoints)(CHAIN.ERA),
-            start: async () => 1670659200,
+            start: 1670659200,
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

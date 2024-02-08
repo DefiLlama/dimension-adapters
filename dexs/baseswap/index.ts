@@ -3,7 +3,7 @@ import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, DEFAULT_DAILY
 import { CHAIN } from "../../helpers/chains";
 import type { BreakdownAdapter, ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions, wrapGraphError } from "../../helpers/getUniSubgraph";
 import { handle200Errors } from "../../helpers/getUniSubgraph/utils";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { gql, request } from "graphql-request";
@@ -75,7 +75,7 @@ const derivativesGraph = (chain: Chain) => {
     const tokens = derivativesTokenIds[chain];
     const prices = await getPrices(derivativesTokenIds[chain].map(e => chain + ":" + e), timestamp);
 
-    const graphResTotalVolume = await request(derivativesEndpoints[chain], totalVolumeQuery, { tokens }).catch(handle200Errors).catch(e => console.error(`Failed to get total volume on ${chain} with graph ${derivativesEndpoints[chain]}: ${e.message}`));
+    const graphResTotalVolume = await request(derivativesEndpoints[chain], totalVolumeQuery, { tokens }).catch(handle200Errors).catch(e => console.error(`Failed to get total volume on ${chain} with graph ${derivativesEndpoints[chain]}: ${wrapGraphError(e).message}`));
     const totalVolume = graphResTotalVolume['datas'].reduce((acc: number, e: any) => acc + Number(e.cumulativeVolume * prices[chain + ":" + e.id].price), 0) / 1e8;
     const totalFees = graphResTotalVolume['datas'].reduce((acc: number, e: any) => acc + Number(e.cumulativeFees * prices[chain + ":" + e.id].price), 0) / 1e8;
 
@@ -124,7 +124,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: async () => 1690495200,
+          start: 1690495200,
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         }
@@ -135,7 +135,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: derivativesGraph(chain as Chain),
-          start: async () => 1693353600,
+          start: 1693353600,
           customBackfill: customBackfill(chain, derivativesGraph),
           meta: { methodology: derivativesMethodology },
         }

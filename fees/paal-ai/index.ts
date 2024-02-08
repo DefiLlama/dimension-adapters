@@ -79,7 +79,6 @@ async function usdEquivalent(_: string, timestamp: number) {
       return dailyFees;
     } catch (error) {
       await sql.end({ timeout: 3 })
-      console.error(error);
       throw error;
     }
 }
@@ -96,7 +95,7 @@ const adapter: Adapter = {
                     dailyFees: dailyFees.toString(),
                 };
             },
-            start: async () => 1690070400,
+            start: 1690070400,
         },
     },
 }

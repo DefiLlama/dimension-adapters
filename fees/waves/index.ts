@@ -26,10 +26,10 @@ const fetch = async (timestamp: number) => {
   let blockHeaders: IBlockHeader[] = [];
   while (startBlock < endBlock) {
     if (startBlock + limitPerRequest <= endBlock) {
-      blockHeaders = blockHeaders.concat((await fetchURL(`${blockHeadersEndpoint}/${startBlock}/${startBlock + limitPerRequest}`))?.data);
+      blockHeaders = blockHeaders.concat((await fetchURL(`${blockHeadersEndpoint}/${startBlock}/${startBlock + limitPerRequest}`)));
       startBlock += limitPerRequest;
     } else {
-      blockHeaders = blockHeaders.concat((await fetchURL(`${blockHeadersEndpoint}/${startBlock}/${endBlock}`))?.data);
+      blockHeaders = blockHeaders.concat((await fetchURL(`${blockHeadersEndpoint}/${startBlock}/${endBlock}`)));
       break;
     }
   }
@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.WAVES]: {
       fetch,
-      start: async () => 1623024000
+      start: 1623024000
     },
   },
   protocolType: ProtocolType.CHAIN

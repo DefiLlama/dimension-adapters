@@ -19,3 +19,4 @@ export async function fetchVolume(kind: "daily" | "total", marketInfos: MarketIn
 
     return result.reduce((a: number, b: number) => a + b, 0);
 }
+

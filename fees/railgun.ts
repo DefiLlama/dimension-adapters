@@ -109,19 +109,19 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1651363200,
+      start: 1651363200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1674864000,
+      start: 1674864000,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1682899200,
+      start: 1682899200,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees(CHAIN.BSC),
-      start: async () => 1682899200,
+      start: 1682899200,
     },
   }
 }

@@ -70,21 +70,21 @@ const adapter: Adapter = {
   adapter: {
     [BSC]: {
       fetch: graphs(endpoints)(BSC),
-      start: async () => 1682870400,
+      start: 1682870400,
       meta: {
         methodology,
       },
     },
     [MANTLE]: {
       fetch: graphs(endpoints)(MANTLE),
-      start: async () => 1693843200,
+      start: 1693843200,
       meta: {
         methodology,
       },
     },
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1705248000,
+      start: 1705248000,
       meta: {
         methodology,
       },

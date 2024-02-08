@@ -180,11 +180,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1654214400,
+      start: 1654214400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1672358400,
+      start: 1672358400,
     },
   },
 };

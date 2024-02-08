@@ -12,8 +12,8 @@ const graphs: Fetch = async (_timestamp: number) => {
 
   return {
     timestamp: Math.trunc(Date.now() / 1000),
-    dailyVolume: res?.data?.volume24h,
-    totalVolume: res?.data?.totalvolume,
+    dailyVolume: res?.volume24h,
+    totalVolume: res?.totalvolume,
   };
 };
 
@@ -22,7 +22,7 @@ export default {
     [BSC]: {
       fetch: graphs,
       runAtCurrTime: true,
-      start: async () => 0
+      start: 0
     },
   },
 } as Adapter;

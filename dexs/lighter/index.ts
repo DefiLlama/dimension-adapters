@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => 1677934513,
+      start: 1677934513,
     },
   },
 };

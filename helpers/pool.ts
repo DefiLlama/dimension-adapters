@@ -10,7 +10,7 @@ const yieldPool = "https://yields.llama.fi/poolsOld";
 
 // get top pool from yield.llama
 export async function getTopPool(project: string, chain: string): Promise<IYield[]> {
-  const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
+  const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data;
   const poolsData: IYield[] = poolsCall
     .filter((e: IYield) => e.project === project)
     .filter((e: IYield) => e.chain.toLowerCase() === chain.toLowerCase());

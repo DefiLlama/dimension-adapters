@@ -1,12 +1,6 @@
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import axios from "axios";
-
-interface IVolumeall {
-  timestamp: string;
-  volume: string;
-  close_x18: string;
-}
+import { httpGet, httpPost } from "../../utils/fetchURL";
 
 interface IProducts {
   spot_products: number[];
@@ -18,15 +12,13 @@ const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
 const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 
 const fetchValidSymbols = async (): Promise<number[]> => {
-  const symbols = (await axios.get(`${gatewayBaseUrl}/symbols`)).data;
+  const symbols = (await httpGet(`${gatewayBaseUrl}/symbols`));
   return symbols.map((product: { product_id: number }) => product.product_id);
 };
 
 const fetchProducts = async (): Promise<IProducts> => {
   const validSymbols = await fetchValidSymbols();
-  const allProducts = (
-    await axios.get(`${gatewayBaseUrl}/query?type=all_products`)
-  ).data.data;
+  const allProducts = (await httpGet(`${gatewayBaseUrl}/query?type=all_products`)).data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
@@ -42,7 +34,7 @@ const fetchProducts = async (): Promise<IProducts> => {
 
 const computeVolume = async (timestamp: number, productIds: number[]) => {
   const snapshots = (
-    await axios.post(archiveBaseUrl, {
+    await httpPost(archiveBaseUrl, {
       market_snapshots: {
         interval: {
           count: 2,
@@ -52,7 +44,7 @@ const computeVolume = async (timestamp: number, productIds: number[]) => {
         product_ids: productIds,
       },
     })
-  ).data.snapshots;
+  ).snapshots;
   const lastCumulativeVolumes: Record<string, string> =
     snapshots[0].cumulative_volumes;
   const prevCumulativeVolumes: Record<string, string> =
@@ -98,13 +90,13 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSpots,
-        start: async () => startTime,
+        start: startTime,
       },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        start: async () => startTime,
+        start: startTime,
       },
     },
   },

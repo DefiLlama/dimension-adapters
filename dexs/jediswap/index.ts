@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
           fetch: fetch,
-          start: async () => 1669593600,
+          start: 1669593600,
         },
     },
 };

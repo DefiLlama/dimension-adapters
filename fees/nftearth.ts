@@ -93,15 +93,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
         fetch: fetch(CHAIN.OPTIMISM),
-        start: async ()  => 1675036800,
+        start: 1675036800,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1676332800,
+      start: 1676332800,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1675036800,
+      start: 1675036800,
     },
   }
 }

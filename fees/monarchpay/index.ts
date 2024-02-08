@@ -38,7 +38,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
-      start: async () => 1694044800
+      start: 1694044800
     },
   }
 }

@@ -29,7 +29,7 @@ const linea = {
     "exchange":"linea"
 }
 const evm_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZKEVM_URL,zk_evm)).data.data;
+    const volumeData: VolumeInfo = (await postURL(ZKEVM_URL,zk_evm)).data;
     
     return {
             totalVolume: volumeData.totalTradVol,
@@ -41,7 +41,7 @@ const evm_fetch  =  async (_timestamp: number) => {
 };
 
 const era_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,zk_era)).data.data;
+    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,zk_era)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -53,7 +53,7 @@ const era_fetch  =  async (_timestamp: number) => {
 };
 
 const linea_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,linea)).data.data;
+    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,linea)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -65,7 +65,7 @@ const linea_fetch  =  async (_timestamp: number) => {
 };
 
 const scroll_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,scroll)).data.data;
+    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,scroll)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -80,22 +80,22 @@ const adapter: SimpleAdapter = {
         [CHAIN.POLYGON_ZKEVM]: {
             fetch:evm_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.ERA]: {
             fetch:era_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.LINEA]: {
             fetch:linea_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         },
         [CHAIN.SCROLL]: {
             fetch:scroll_fetch,
             runAtCurrTime: true,
-            start: async () => 1684003134,
+            start: 1684003134,
         }
     },
 };

@@ -49,7 +49,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     }
   } catch (error) {
     await sql.end({ timeout: 3 })
-    console.error(error);
     throw error;
   }
 
@@ -60,7 +59,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1690675200,
+      start: 1690675200,
     },
   },
 };

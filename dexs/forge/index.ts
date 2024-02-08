@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EVMOS]: {
       fetch: v1Graph(CHAIN.EVMOS),
-      start: async () => 1680480000,
+      start: 1680480000,
     }
   },
 };

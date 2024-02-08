@@ -107,13 +107,13 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSwapValue,
-        start: async () => 1704758400,
+        start: 1704758400,
       }
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchDerivativesValue,
-        start: async () => 1704758400,
+        start: 1704758400,
       }
     }
   }

@@ -61,23 +61,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: async () => 1678404995, // birthBlock timestamp
+      start: 1678404995, // birthBlock timestamp
     },
     [CHAIN.BSC]: {
       fetch: graphs(CHAIN.BSC),
-      start: async () => 1689581494,
+      start: 1689581494,
     },
     [CHAIN.POLYGON]: {
       fetch: graphs(CHAIN.POLYGON),
-      start: async () => 1689582144,
+      start: 1689582144,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),
-      start: async () => 1689582249,
+      start: 1689582249,
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: async () => 1691491872,
+      start: 1691491872,
     },
   },
 };

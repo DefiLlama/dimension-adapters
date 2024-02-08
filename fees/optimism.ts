@@ -136,7 +136,6 @@ const feesAdapter = async (timestamp: number, chainBlocks: ChainBlocks) => {
         };
     } catch (error) {
         await sql.end({ timeout: 3 })
-        console.error(error);
         throw error;
     }
 
@@ -147,7 +146,7 @@ const adapter: Adapter = {
     adapter: {
         [OPTIMISM]: {
             fetch: feesAdapter,
-            start: async () => 1598671449,
+            start: 1598671449,
         },
     },
     protocolType: ProtocolType.CHAIN

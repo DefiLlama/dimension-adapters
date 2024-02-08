@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ROLLUX]: {
       fetch: graphs(CHAIN.ROLLUX),
-      start: async () => 1688083200
+      start: 1688083200
     },
   },
 };

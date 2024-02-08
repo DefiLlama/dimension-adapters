@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
                     totalVolume: totalVolume.toString()
                 }
             },
-            start: async () => 1688628356
+            start: 1688628356
         },
         sei: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
                     totalVolume: totalVolume.toString()
                 }
             },
-            start: async () => 1691305909
+            start: 1691305909
         },
         injective: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
                     totalVolume: totalVolume.toString()
                 }
             },
-            start: async () => 1695738685
+            start: 1695738685
         }
     }
 }

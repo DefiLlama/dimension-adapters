@@ -84,59 +84,54 @@ const contract_address: IContractAddress = {
 
 const fetchFees = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      const toTimestamp = timestamp;
-      const fromTimestamp = timestamp - 60 * 60 * 24;
-      const toBlock = await getBlock(toTimestamp, chain, {});
-      const fromBlock = await getBlock(fromTimestamp, chain, {});
-      const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.getEventLogs({
-        target: address,
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic_0]
-      })))).flat();
-      const rawData = logs.map((log: ILog) => {
-        const data = log.data.replace('0x', '');
-        const amount = Number('0x'+data.slice((3*64), (3*64) + 64));
-        const address = data.slice((11*64), (11*64) + 64);
-        const addressString = `0x${address.slice(24)}`;
-        return {
-          amount: amount,
-          address: addressString,
-        }
-      });
-      const linkETH = `${CHAIN.ETHEREUM}:0x514910771af9ca656af840dff83e8264ecf986ca`
-      const coins = [...new Set(rawData.map((e: any) => `${chain}:${e.address}`)), linkETH];
-      const prices = await getPrices(coins, timestamp);
-      const dailyFees  = rawData.reduce((acc: number, { amount, address }: any) => {
-        if (chain === CHAIN.BSC && address === '0x404460c6a5ede2d891e8297795264fde62adbb75') {
-          const price = prices[linkETH].price;
-          const decimals = prices[linkETH].decimals;
-          const normalizedAmount = amount / (10 ** decimals);
-          return acc + (normalizedAmount * price);
-        }
-        if (chain === CHAIN.POLYGON && address === '0xb0897686c545045afc77cf20ec7a532e3120e0f1') {
-          const price = prices[linkETH].price;
-          const decimals = prices[linkETH].decimals;
-          const normalizedAmount = amount / (10 ** decimals);
-          return acc + (normalizedAmount * price);
-        }
-        const price = prices[`${chain}:${address}`].price;
-        const decimals = prices[`${chain}:${address}`].decimals;
+    const toTimestamp = timestamp;
+    const fromTimestamp = timestamp - 60 * 60 * 24;
+    const toBlock = await getBlock(toTimestamp, chain, {});
+    const fromBlock = await getBlock(fromTimestamp, chain, {});
+    const logs: ILog[] = (await Promise.all(contract_address[chain].map((address: string) => sdk.getEventLogs({
+      target: address,
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic_0]
+    })))).flat();
+    const rawData = logs.map((log: ILog) => {
+      const data = log.data.replace('0x', '');
+      const amount = Number('0x' + data.slice((3 * 64), (3 * 64) + 64));
+      const address = data.slice((11 * 64), (11 * 64) + 64);
+      const addressString = `0x${address.slice(24)}`;
+      return {
+        amount: amount,
+        address: addressString,
+      }
+    });
+    const linkETH = `${CHAIN.ETHEREUM}:0x514910771af9ca656af840dff83e8264ecf986ca`
+    const coins = [...new Set(rawData.map((e: any) => `${chain}:${e.address}`)), linkETH];
+    const prices = await getPrices(coins, timestamp);
+    const dailyFees = rawData.reduce((acc: number, { amount, address }: any) => {
+      if (chain === CHAIN.BSC && address === '0x404460c6a5ede2d891e8297795264fde62adbb75') {
+        const price = prices[linkETH].price;
+        const decimals = prices[linkETH].decimals;
         const normalizedAmount = amount / (10 ** decimals);
         return acc + (normalizedAmount * price);
-      }, 0);
+      }
+      if (chain === CHAIN.POLYGON && address === '0xb0897686c545045afc77cf20ec7a532e3120e0f1') {
+        const price = prices[linkETH].price;
+        const decimals = prices[linkETH].decimals;
+        const normalizedAmount = amount / (10 ** decimals);
+        return acc + (normalizedAmount * price);
+      }
+      const price = prices[`${chain}:${address}`].price;
+      const decimals = prices[`${chain}:${address}`].decimals;
+      const normalizedAmount = amount / (10 ** decimals);
+      return acc + (normalizedAmount * price);
+    }, 0);
 
-      return {
-        timestamp,
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: '0'
-      };
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
+    return {
+      timestamp,
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: '0'
+    };
   }
 }
 
@@ -144,31 +139,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees(CHAIN.BSC),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.BASE]: {
       fetch: fetchFees(CHAIN.BASE),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1688515200,
+      start: 1688515200,
     },
     [CHAIN.AVAX]: {
       fetch: fetchFees(CHAIN.AVAX),
-      start: async () => 1688515200,
+      start: 1688515200,
     }
   }
 }

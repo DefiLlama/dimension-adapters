@@ -35,24 +35,16 @@ const fetch = (chain: string) => async (timestamp: number) => {
     new Date(timestamp * 1000)
   );
 
-  try {
-    const data = (
-      await fetchURL(
-        `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[chain]}&timestamps=${unixTimestamp}`
-      )
-    ).data.data?.volumes?.[0];
+  const data = (
+    await fetchURL(
+      `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[chain]}&timestamps=${unixTimestamp}`
+    )
+  ).data?.volumes?.[0];
 
-    return {
-      dailyVolume: data?.value ?? "0",
-      timestamp: unixTimestamp,
-    };
-  } catch (e) {
-    console.log(e);
-    return {
-      dailyVolume: "0",
-      timestamp: unixTimestamp,
-    };
-  }
+  return {
+    dailyVolume: data.value,
+    timestamp: unixTimestamp,
+  };
 };
 
 const adapter: any = {
@@ -62,7 +54,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => 1685491200,
+          start: 1685491200,
         },
       };
     }, {}),

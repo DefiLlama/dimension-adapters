@@ -1,6 +1,6 @@
-import axios from "axios"
 import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 interface IRaw  {
   XO_RoyaltiesPaidUSD: number;
@@ -14,11 +14,11 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const toDayTime = new Date(timestamp * 1000).toISOString().split("T")[0];
   const toDayTimeStr = new Date(beforeTime * 1000).toISOString().split("T")[0];
   const url = `https://api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`;
-  const response: IRaw[] = (await axios.get(url, {
+  const response: IRaw[] = (await httpGet(url, {
     headers: {
       origin: 'https://xoxno.com',
     }
-  })).data;
+  }));
   // const fs = require('fs');
   // fs.writeFileSync('./xoxno.json', JSON.stringify(response));
   // const response: IRaw[] = require('./xoxno.json');
@@ -37,7 +37,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetchFees,
-      start: async () => 1683849600,
+      start: 1683849600,
     }
   }
 }

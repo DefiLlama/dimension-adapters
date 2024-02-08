@@ -163,7 +163,7 @@ classic[CHAIN.FANTOM] = {
       dailyRevenue: vol * 0.003,
     }
   },
-  start: async() => 0
+  start: 0
 }
 
 export default classic

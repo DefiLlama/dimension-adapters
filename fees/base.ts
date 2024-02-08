@@ -122,7 +122,6 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
         }
     } catch(error) {
         await sql.end({ timeout: 3 })
-        console.error(error);
         throw error;
     }
 }
@@ -131,7 +130,7 @@ const adapter: Adapter = {
   adapter: {
       [CHAIN.BASE]: {
           fetch: fetch,
-          start: async () => 1687474800,
+          start: 1687474800,
       },
   },
   protocolType: ProtocolType.CHAIN

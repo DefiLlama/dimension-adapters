@@ -74,7 +74,7 @@ const getFees = () => {
       adapter: {
           [CHAIN.EON]: {
               fetch: getFees(),
-              start: async () => 1698796800,
+              start: 1698796800,
 
           meta: {
             methodology: {

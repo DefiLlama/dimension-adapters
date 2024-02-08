@@ -20,7 +20,7 @@ const url = 'https://app.astroport.fi/api/trpc/protocol.stats?input={"json":{"ch
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const results = (await fetchURL(url)).data?.result.data.json.chains[chainId];
+    const results = (await fetchURL(url)).result.data.json.chains[chainId];
     const totalVolume24h = results?.dayVolumeUSD;
     return {
       timestamp: dayTimestamp,
@@ -35,25 +35,25 @@ const adapter: SimpleAdapter = {
       fetch: fetch("phoenix-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
     [CHAIN.INJECTIVE]: {
       fetch: fetch("injective-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
     neutron: {
       fetch: fetch("neutron-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
     [CHAIN.SEI]: {
       fetch: fetch("pacific-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     }
   },
 };

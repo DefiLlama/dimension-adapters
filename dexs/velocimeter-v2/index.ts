@@ -9,7 +9,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CANTO]: {
       fetch: getDexVolumeExports({ chain: CHAIN.CANTO, factory: FACTORY_ADDRESS }),
-      start: async () => 1678512026, // when PairFactory was created https://tuber.build/address/0xF80909DF0A01ff18e4D37BF682E40519B21Def46
+      start: 1678512026, // when PairFactory was created https://tuber.build/address/0xF80909DF0A01ff18e4D37BF682E40519B21Def46
     },
   },
 }

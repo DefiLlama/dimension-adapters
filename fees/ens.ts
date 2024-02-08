@@ -130,7 +130,7 @@ const adapter: Adapter = {
             timestamp
           }
         },
-        start: async ()  => 1677110400,
+        start: 1677110400,
         meta: {
           methodology
         }

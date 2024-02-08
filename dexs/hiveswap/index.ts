@@ -13,6 +13,6 @@ const adapter = univ2Adapter(
         dailyVolume: "volumeUSD"
     });
 
-adapter.adapter.map.start = async () => 1657929600;
+adapter.adapter.map.start = 1657929600;
 
 export default adapter

@@ -15,7 +15,7 @@ const graph = (chain: Chain) => {
     try {
       const startblock = (await getBlock(fromTimestamp, chain, {}));
       const endblock = (await getBlock(toTimestamp, chain, {}));
-      const data: string[] = (await fetchURL('https://scatter-api.fly.dev/api/contracts')).data.body;
+      const data: string[] = (await fetchURL('https://scatter-api.fly.dev/api/contracts')).body;
       const to_address = data
         .map(toBytea)
 
@@ -46,7 +46,6 @@ const graph = (chain: Chain) => {
       }
     } catch (error) {
       indexa.end({ timeout: 3 });
-      console.error(error);
       throw error;
     }
   }
@@ -57,8 +56,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      // start: async ()  => 1650844800,
-      start: async ()  => 1656633600, //
+      // start: 1650844800,
+      start: 1656633600, //
     },
   }
 }

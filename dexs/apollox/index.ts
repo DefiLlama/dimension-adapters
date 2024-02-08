@@ -1,8 +1,7 @@
-import axios from "axios";
-import BigNumber from "bignumber.js";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 type ResponseItem = {
   symbol: string;
@@ -42,68 +41,46 @@ const v2VolumeAPI =
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
 const fetchV2Volume = async (chain: Chain) => {
-  try {
-    const { data = [] } = (
-      await axios.get(v2VolumeAPI, { params: { chain, excludeCake: true } })
-    ).data as { data: ResponseItem[] };
+  const data = [] = (
+    await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
+  ) as  ResponseItem[] 
 
-    const dailyVolume = data.reduce(
-      (p, c) => p.plus(c.qutoVol),
-      new BigNumber(0)
-    );
+  const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
 
-    return dailyVolume.toString();
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  return dailyVolume
 };
 
 const fetchV1Volume = async () => {
-  const data = (await axios.get(v1VolumeAPI)).data as V1TickerItem[];
-  const dailyVolume = data.reduce(
-    (p, c) => p.plus(c.quoteVolume),
-    new BigNumber(0)
-  );
+  const data = (await httpGet(v1VolumeAPI)) as V1TickerItem[];
+  const dailyVolume = data.reduce((p, c) => p + +c.quoteVolume, 0);
 
-  return dailyVolume.toString();
+  return dailyVolume
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: async (timestamp) => {
-        const [v2DailyVolume, v1DailyVolume] = await Promise.allSettled([
+        const [v1, v2] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
           fetchV1Volume(),
         ]);
-
-        const v1 =
-          v1DailyVolume.status === "fulfilled"
-            ? new BigNumber(v1DailyVolume.value)
-            : new BigNumber(0);
-
-        const v2 =
-          v2DailyVolume.status === "fulfilled"
-            ? new BigNumber(v2DailyVolume.value)
-            : new BigNumber(0);
-
         return {
-          dailyVolume: v1.plus(v2).toString(),
+          dailyVolume: v1 + v2,
           timestamp,
         };
       },
-      start: async () => 1682035200,
+      start: 1682035200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: async (timestamp) => {
         const dailyVolume = await fetchV2Volume(CHAIN.ARBITRUM);
         return {
           timestamp,
-          dailyVolume,
+          dailyVolume: dailyVolume,
         };
       },
-      start: async () => 1682035200,
+      start: 1682035200,
     },
   },
 };

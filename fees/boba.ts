@@ -83,7 +83,7 @@ const adapter: Adapter = {
           throw error
         }
       },
-      start: async () => 1664582400
+      start: 1664582400
     },
   },
   protocolType: ProtocolType.CHAIN

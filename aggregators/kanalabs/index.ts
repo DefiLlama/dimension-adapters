@@ -21,23 +21,14 @@ export enum KanaChainID {
 
 const fetch = (chain: KanaChainID) => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = (
-      await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`)
-    ).data;
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+  const data = (
+    await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`)
+  );
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume: data.today.volume,
+    totalVolume: data.totalVolume.volume,
+  };
 };
 
 // Define the adapter
@@ -46,32 +37,32 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(KanaChainID.ethereum),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
     [CHAIN.BSC]: {
       fetch: fetch(KanaChainID.bsc),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(KanaChainID.Avalanche),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(KanaChainID.Arbitrum),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(KanaChainID.polygon),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
     [CHAIN.ZKSYNC]: {
       fetch: fetch(KanaChainID.zkSync),
       runAtCurrTime: false,
-      start: async () => 1695897839,
+      start: 1695897839,
     },
   },
 };

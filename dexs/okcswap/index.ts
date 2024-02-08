@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: async () => 1661126400,
+      start: 1661126400,
     },
   },
 };

@@ -61,14 +61,14 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1630468800,
+      start: 1630468800,
       meta: {
         methodology
       }
     },
     [AVAX]: {
       fetch: graphs(endpoints)(AVAX),
-      start: async () => 1641445200,
+      start: 1641445200,
       meta: {
         methodology
       }

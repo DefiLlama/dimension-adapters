@@ -1,40 +1,45 @@
 import { FetchResultFees } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { getFees, } from "./utils";
+import { ethers } from "ethers";
 
 const factory = "0xC3179AC01b7D68aeD4f27a19510ffe2bfb78Ab3e";
 const event_market_create =
   "event MarketCreated (uint256 indexed marketId, address premium, address collateral, address underlyingAsset, address token, string name, uint256 strike, address controller)";
 
+const tokens = [
+  "0x912ce59144191c1204e64559fe8253a0e49e6548", // ARB
+  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1", // WETH
+];
+const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
+const topic0_transfer = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const event_transfer = "event Transfer (address indexed from, address indexed to, uint256 amount)";
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
 
-  const fromBlock = await getBlock(fromTimestamp, CHAIN.ARBITRUM, {});
-  const toBlock = await getBlock(toTimestamp, CHAIN.ARBITRUM, {});
+const fetch = async (timestamp: number, _, { getLogs, api, createBalances, }): Promise<FetchResultFees> => {
 
-  const market_create = await sdk.getEventLogs({
+  const market_create = await getLogs({
     target: factory,
     fromBlock: 96059531,
-    toBlock: toBlock,
     eventAbi: event_market_create,
-    chain: CHAIN.ARBITRUM,
-    onlyArgs: true,
+    cacheInCloud: true,
   })
 
   const premium = market_create.map((e: any) => e.premium.toLowerCase());
   const collateral = market_create.map((e: any) => e.collateral.toLowerCase());
   const vaults = [...new Set([...premium, ...collateral])];
-  const dailyFees = await getFees(vaults, fromBlock, toBlock, timestamp);
+  const dailyFees = createBalances()
 
-  return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyFees}`,
-    timestamp,
-  };
+  for (const token of tokens) {
+    for (const vault of vaults) {
+      const transfer_treasury = await getLogs({
+        target: token,
+        eventAbi: event_transfer,
+        topics: [topic0_transfer, ethers.zeroPadValue(vault, 32), ethers.zeroPadValue(treasury, 32)],
+      })
+      transfer_treasury.forEach((i: any) => api.add(token, i.amount))
+    }
+  }
+
+  return { dailyFees, dailyRevenue: dailyFees, timestamp, };
 };
 
 export default fetch;

@@ -30,38 +30,33 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-  try {
-    const logs: ILog[] = (await sdk.getEventLogs({
-      target: friendRoomSharesAddress,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.ETHEREUM,
-      topics: [topic0_trade]
-    })) as ILog[];
+  const logs: ILog[] = (await sdk.getEventLogs({
+    target: friendRoomSharesAddress,
+    toBlock: toBlock,
+    fromBlock: fromBlock,
+    chain: CHAIN.ETHEREUM,
+    topics: [topic0_trade]
+  })) as ILog[];
 
-    const fees_details: IFee[] = logs.map((e: ILog) => {
-      const value = contract_interface.parseLog(e);
-      const protocolEthAmount = Number(value!.args.protocolEthAmount) / 10 ** 18;
-      const subjectEthAmount = Number(value!.args.subjectEthAmount) / 10 ** 18;
-      return {
-        fees: protocolEthAmount + subjectEthAmount,
-        rev: protocolEthAmount
-      } as IFee
-    })
-    const dailyFees = fees_details.reduce((a: number, b: IFee) => a+b.fees, 0)
-    const dailyRev = fees_details.reduce((a: number, b: IFee) => a+b.rev, 0)
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    const dailyFeesUSD = (dailyFees) * ethPrice;
-    const dailyRevUSD = (dailyRev) * ethPrice;
+  const fees_details: IFee[] = logs.map((e: ILog) => {
+    const value = contract_interface.parseLog(e);
+    const protocolEthAmount = Number(value!.args.protocolEthAmount) / 10 ** 18;
+    const subjectEthAmount = Number(value!.args.subjectEthAmount) / 10 ** 18;
     return {
-      dailyFees: `${dailyFeesUSD}`,
-      dailyRevenue: `${dailyRevUSD}`,
-      timestamp
-    }
-  } catch (error) {
-    console.error(error)
-    throw error;
+      fees: protocolEthAmount + subjectEthAmount,
+      rev: protocolEthAmount
+    } as IFee
+  })
+  const dailyFees = fees_details.reduce((a: number, b: IFee) => a + b.fees, 0)
+  const dailyRev = fees_details.reduce((a: number, b: IFee) => a + b.rev, 0)
+  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+  const dailyFeesUSD = (dailyFees) * ethPrice;
+  const dailyRevUSD = (dailyRev) * ethPrice;
+  return {
+    dailyFees: `${dailyFeesUSD}`,
+    dailyRevenue: `${dailyRevUSD}`,
+    timestamp
   }
 
 }
@@ -70,8 +65,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch,
-        start: async ()  => 1693731179,
+      fetch: fetch,
+      start: 1693731179,
     },
   }
 }

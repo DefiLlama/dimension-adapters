@@ -58,7 +58,6 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
       timestamp
     }
   } catch (error) {
-    console.error(error)
     throw error;
   }
 
@@ -67,7 +66,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
-      start: async () => 1693267200
+      start: 1693267200
     }
   }
 }

@@ -21,8 +21,8 @@ export default (chain: Chain, graphs: IGraphs): Fetch => async (timestamp: numbe
     Object.keys(resultPreviousDayN).filter((key) => key.includes('total')).forEach(key => {
         const dimension = `daily${key.slice(5)}`
         if (resultDayN[dimension] === undefined) {
-            const dataResultDayN = resultDayN[key]
-            const dataResultPreviousDayN = resultPreviousDayN[key]
+            const dataResultDayN = resultDayN[key] as any
+            const dataResultPreviousDayN = resultPreviousDayN[key] as any
             if (dataResultPreviousDayN !== undefined && dataResultDayN !== undefined) {
                 if (typeof dataResultDayN === 'object' && typeof dataResultPreviousDayN === 'object') {
                     response[dimension] = Object.keys(dataResultDayN).reduce((acc, key) => {

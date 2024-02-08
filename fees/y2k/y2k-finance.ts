@@ -1,8 +1,5 @@
 import { FetchResultFees } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { getFees } from "./utils";
+import { ethers } from "ethers";
 
 const vault_factory = "0x984e0eb8fb687afa53fc8b33e12e04967560e092";
 
@@ -11,41 +8,35 @@ const abis: any = {
   "marketIndex": "uint256:marketIndex"
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toTimestamp = timestamp;
-    const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const toBlock = await getBlock(toTimestamp, chain, {});
+const tokens = [
+  "0x912ce59144191c1204e64559fe8253a0e49e6548", // ARB
+  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1", // WETH
+];
+const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
+const topic0_transfer = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const event_transfer = "event Transfer (address indexed from, address indexed to, uint256 amount)";
 
-    const poolLength = (
-      await sdk.api2.abi.call({
-        target: vault_factory,
-        chain: chain,
-        abi: abis.marketIndex,
+
+const fetch = async (timestamp: number, _, { api, createBalances, getLogs, }): Promise<FetchResultFees> => {
+  const vaultRes = await api.fetchList({ lengthAbi: abis.marketIndex, itemAbi: abis.getVaults, target: vault_factory })
+
+  const vaults = vaultRes
+    .flat()
+    .map((e: string) => e.toLowerCase());
+  const dailyFees = createBalances()
+
+  for (const token of tokens) {
+    for (const vault of vaults) {
+      const transfer_treasury = await getLogs({
+        target: token,
+        eventAbi: event_transfer,
+        topics: [topic0_transfer, ethers.zeroPadValue(vault, 32), ethers.zeroPadValue(treasury, 32)],
       })
-    );
+      transfer_treasury.forEach((i: any) => api.add(token, i.amount))
+    }
+  }
 
-    const vaultRes = await sdk.api2.abi.multiCall({
-      abi: abis.getVaults,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i: any) => ({
-        target: vault_factory,
-        params: i,
-      })),
-      chain: chain,
-    });
-
-    const vaults = vaultRes
-      .flat()
-      .map((e: string) => e.toLowerCase());
-    const dailyFees = await getFees(vaults, fromBlock, toBlock, timestamp);
-
-    return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString(),
-      timestamp,
-    };
-  };
+  return { dailyFees, dailyRevenue: dailyFees, timestamp, };
 };
 
 export default fetch;

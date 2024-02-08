@@ -60,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [BSC]: {
         fetch: graphs(endpoints)(BSC),
-        start: async ()  => 1598671449,
+        start: 1598671449,
     },
   },
   protocolType: ProtocolType.CHAIN

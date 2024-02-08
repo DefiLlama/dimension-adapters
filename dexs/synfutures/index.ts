@@ -1,12 +1,10 @@
 // SynFutures v1 volume
-import { Adapter, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import { Chain } from '@defillama/sdk/build/general';
-import customBackfill from "../../helpers/customBackfill";
 import { getPrices } from "../../utils/prices";
-const { request, gql } = require("graphql-request");
+const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
   polygon: {
@@ -71,19 +69,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1628128417,
+      start: 1628128417,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1659750817,
+      start: 1659750817,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: async () => 1628128417,
+      start: 1628128417,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async () => 1628128417,
+      start: 1628128417,
     },    
   },
 };

@@ -1,17 +1,17 @@
-import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 const dailyVolEndpoint =
   "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
 async function fetch(type: "perp" | "spot") {
-  const volumeResponse = await axios.get(
+  const volumeResponse = await httpGet(
     `${dailyVolEndpoint}?${
       type === "perp" ? "perpMarkets" : "spotMarkets"
     }=true`
   );
 
-  const rawVolumeQuotePrecision = volumeResponse.data.data.volume;
+  const rawVolumeQuotePrecision = volumeResponse.data.volume;
 
   // Volume will be returned in 10^6 precision
   const volumeNumber =
@@ -31,14 +31,14 @@ const adapter = {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("spot"),
         runAtCurrTime: true,
-        start: async () => 1690239600,
+        start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("perp"),
         runAtCurrTime: true,
-        start: async () => 1690239600,
+        start: 1690239600,
       },
     },
   },

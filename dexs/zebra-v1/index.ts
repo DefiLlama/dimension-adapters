@@ -9,6 +9,6 @@ const endpoints = {
 const adapter = univ2Adapter(endpoints, {
 });
 
-adapter.adapter.scroll.start = async () => 1698364800
+adapter.adapter.scroll.start = 1698364800
 
 export default adapter

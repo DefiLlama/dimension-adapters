@@ -14,6 +14,6 @@ const adapters = univ2Adapter({
   dayData: "uniswapDayData"
 });
 
-adapters.adapter.cronos.start = async () => 1664409600;
+adapters.adapter.cronos.start = 1664409600;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

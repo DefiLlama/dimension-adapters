@@ -5,6 +5,7 @@ import { BaseAdapter, ChainBlocks } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
+import { wrapGraphError } from "./getUniSubgraph";
 
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
@@ -102,14 +103,14 @@ function getChainVolume({
         try {
           return JSON.parse(e.response.error).data
         } catch (error) {
-          console.error(`Failed to get total volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
         }
       }) : undefined;
       let graphResDaily = hasDailyVolume ? await request(graphUrls[chain], graphQueryDailyVolume, { id }).catch(e => {
         try {
           return JSON.parse(e.response.error).data
         } catch (error) {
-          console.error(`Failed to get daily volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get daily volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
         }
       }) : undefined;
       let dailyVolumeValue = graphResDaily ? graphResDaily[dailyVolume.factory]?.[dailyVolume.field] : undefined
@@ -118,7 +119,7 @@ function getChainVolume({
           try {
             return JSON.parse(e.response.error).data
           } catch (error) {
-            console.error(`Failed to get daily volume via alternative query on ${chain}: ${e.message}`)
+            console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
           }
         });
         const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
@@ -161,7 +162,6 @@ function getChainVolumeWithGasToken({
         dailyVolume,
       } = await basic(chain)(timestamp, chainBlocks);
 
-      console.log(chain, dailyVolume, timestamp)
       const balances = new Balances({ chain, timestamp})
       balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
 

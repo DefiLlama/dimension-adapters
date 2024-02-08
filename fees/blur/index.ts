@@ -108,7 +108,6 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     }
   } catch (e) {
     await sql.end({ timeout: 5 })
-    console.error(e)
     throw e;
   }
 
@@ -118,7 +117,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: async () => 1688256000
+      start: 1688256000
     }
   }
 }

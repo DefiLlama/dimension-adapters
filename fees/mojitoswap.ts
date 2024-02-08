@@ -27,6 +27,6 @@ const adapter = univ2DimensionAdapter({
   }
 });
 
-adapter.adapter.kcc.start = async () => 1634200191;
+adapter.adapter.kcc.start = 1634200191;
 
 export default adapter

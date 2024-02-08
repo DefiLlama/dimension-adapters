@@ -15,7 +15,7 @@ interface IVolumeall {
 const graph = (_chain: number) => {
 	return async (timestamp: number) => {
   		const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  		const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint+_chain))?.data[0]?.chainEntries;
+  		const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint+_chain))[0]?.chainEntries;
   		const totalVolume = historicalVolume
     		.filter(volItem => volItem.date <= dayTimestamp)
     		.reduce((acc, { volumeUSD }) => acc + Number(volumeUSD), 0)
@@ -36,19 +36,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graph(250),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.OPTIMISM]: {
       fetch: graph(10),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(42161),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
     [CHAIN.SHIMMER_EVM]: {
       fetch: graph(148),
-      start: async () => 1680048000,
+      start: 1680048000,
     },
   },
 };

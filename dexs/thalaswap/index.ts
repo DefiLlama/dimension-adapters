@@ -19,19 +19,19 @@ interface IVolumeall {
 }
 
 const fetch = async (timestamp: number) => {
-    const dayVolumeQuery = (await fetchURL(volumeEndpoint(timestamp, "1D")))?.data.data;
+    const dayVolumeQuery = (await fetchURL(volumeEndpoint(timestamp, "1D"))).data;
     const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalVolumeQuery = (await fetchURL(volumeEndpoint(0, "ALL")))?.data.data;
+    const totalVolumeQuery = (await fetchURL(volumeEndpoint(0, "ALL"))).data;
     const totalVolume = totalVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data.data;
+    const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D"))).data;
     const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data.data;
+    const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL"))).data;
     const totalFees = totalFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
     
-    const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL))?.data.data;
+    const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL)).data;
     const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
     const totalProtocolRevenue = totalFees * protocolFeeRatio;
 
@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: async () => 1680652406 
+      start: 1680652406 
     },
   },
 };

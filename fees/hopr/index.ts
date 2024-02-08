@@ -70,9 +70,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }).filter(elem => elem !== undefined) as string[];
 
   const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async(transactionHash) => {
-    const tx = await provider.getTransaction(transactionHash);
-    const input = tx!.data;
-    const decodedInput = iface.decodeFunctionData('execTransactionFromModule', input)
+    const tx = await provider.getTransaction(transactionHash) as any;
+    const data = tx!.input;
+    const decodedInput = iface.decodeFunctionData('execTransactionFromModule', data)
     const hexValue = '0x' + decodedInput[2].substring(138,202);
     return hexValue;
   }));
@@ -98,7 +98,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
-      start: async () => 1693440000,
+      start: 1693440000,
       meta: {
         methodology
       }

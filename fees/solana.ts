@@ -1,6 +1,5 @@
 import { Adapter, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import axios from 'axios';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 import { queryDune } from "../helpers/dune";
@@ -34,7 +33,7 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyRevenue.toString(),
         };
       },
-      start: async () => 1610841600
+      start: 1610841600
     },
   },
   protocolType: ProtocolType.CHAIN

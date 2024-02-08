@@ -47,7 +47,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
-      start: async () => 1693267200,
+      start: 1693267200,
       meta: {
         methodology:
           "All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.",

@@ -37,15 +37,15 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
           fetch: v3Graphs(CHAIN.ERA),
-          start:  async () => 1688515200
+          start:  1688515200
         },
         [CHAIN.BASE]: {
           fetch: v3Graphs(CHAIN.BASE),
-          start:  async () => 1692296100
+          start:  1692296100
         },
         [CHAIN.OP_BNB]: {
           fetch: v3Graphs(CHAIN.OP_BNB),
-          start:  async () => 1695275237
+          start:  1695275237
         }
     }
 };

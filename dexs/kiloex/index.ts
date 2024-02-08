@@ -24,7 +24,7 @@ interface IVolume {
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]))?.data;
+    const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
 
     const totalVolume = historicalVolume
       .find(item => item.time === dayTimestamp)?.totalTradeAmount
@@ -44,13 +44,13 @@ const fetch = (chainId: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: async () => 1686528000
+      fetch: fetch(CHAIN.BSC), start: 1686528000
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: async () => 1696636800
+      fetch: fetch(CHAIN.OP_BNB), start: 1696636800
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: async () => 1698796800
+      fetch: fetch(CHAIN.MANTA), start: 1698796800
     },
   },
 };

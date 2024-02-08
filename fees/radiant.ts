@@ -76,15 +76,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1679097600,
+      start: 1679097600,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1679788800,
+      start: 1679788800,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: async ()  => 1698796800,
+      start: 1698796800,
     },
   }
 }

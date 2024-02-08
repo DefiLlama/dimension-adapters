@@ -63,23 +63,19 @@ const graphs = (chain: Chain) => {
     };
 };
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1670198400,
-    [CHAIN.OPTIMISM]: 1677603600,
-  };
-  return startTimestamps[chain];
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1670198400,
+  [CHAIN.OPTIMISM]: 1677603600,
 };
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: async () => getStartTimestamp(CHAIN.FANTOM),
+      start: startTimestamps[CHAIN.FANTOM],
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: async () => getStartTimestamp(CHAIN.OPTIMISM),
+      start: startTimestamps[CHAIN.OPTIMISM],
     },
   },
 };

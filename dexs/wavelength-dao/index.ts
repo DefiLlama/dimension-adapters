@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VELAS]: {
       fetch: graphs(CHAIN.VELAS),
-      start: async () => 1666263553,
+      start: 1666263553,
       customBackfill: customBackfill(CHAIN.VELAS, graphs as unknown as IGraphs)
     },
   },

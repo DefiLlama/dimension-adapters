@@ -26,7 +26,7 @@ const fetch = (chainId: number) => {
       await fetchURL(
         `https://api.plexus.app/v1/dashboard/fee?date=${dateString}`
       )
-    ).data.data;
+    ).data;
     const dailyFee: number = data[chainId] || 0;
     return {
       timestamp,
@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(ChainId[chain]),
-        start: async () => 1675209600,
+        start: 1675209600,
       },
     };
   }, {}),

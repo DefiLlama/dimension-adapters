@@ -1,7 +1,7 @@
 import { request } from "graphql-request";
 import BigNumber from "bignumber.js";
 
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
@@ -52,13 +52,10 @@ interface IGraph {
 }
 
 function graphs() {
-  return (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultFees> => {
-      const yesterdaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const todaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
-      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+  return (chain: Chain): any => {
+    return async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultFees> => {
+      const todaysBlock = await getToBlock();
+      const yesterdaysBlock = await getFromBlock();
 
       const graphRes: IGraph = await request(
         endpoints[chain],
@@ -101,273 +98,79 @@ function graphs() {
             }`
       );
 
-      const coins = [...graphRes.todayTokens, ...graphPvPRes.todayPvPTokens].map((token: IToken | IPvPToken) => {
-        if (token.id === "0xfb5b838b6cfeedc2873ab27866079ac55363d37e") {
-          return "coingecko:floki";
-        } else {
-          return chain + ":" + token.id;
-        }
-      });
 
-      const currentPrices = await getPrices(
-        [...coins, `coingecko:binance-usd`],
-        timestamp
-      );
-
-      if (chain === BSC) {
-        // Floki price taken from CG
-        currentPrices["bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e"] =
-          currentPrices["coingecko:floki"];
-        currentPrices["bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56"] = currentPrices["coingecko:binance-usd"];
-        currentPrices['bsc:0xe9e7cea3dedca5984780bafc599bd69add087d56'].decimals = 18;
-        currentPrices['bsc:0xfb5b838b6cfeedc2873ab27866079ac55363d37e'].decimals = 9;
-        // Hardcoding TITANO price since it migrated to SWYCH
-        if (!currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"]) {
-          currentPrices["bsc:0x4e3cabd3ad77420ff9031d19899594041c420aee"] = {
-            decimals: 18,
-            symbol: "TITANO",
-            price: 0.000015,
-            timestamp,
-          };
-        }// Hardcoding MDB+ price
-        if (!currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"]) {
-          currentPrices["bsc:0x9f8bb16f49393eea4331a39b69071759e54e16ea"] = {
-            decimals: 18,
-            symbol: "MDB+",
-            price: 1.2,
-            timestamp,
-          };
-        }
-        // Hardcoding INF-MDB
-        if (!currentPrices["bsc:0xacc966b91100f879c9ed4839ed2f77c70e3e97ed"]) {
-          currentPrices["bsc:0xacc966b91100f879c9ed4839ed2f77c70e3e97ed"] = {
-            decimals: 18,
-            symbol: "INF-MDB",
-            price: 0, // There was 0 volume anyway
-            timestamp,
-          };
-        }
-      }
-
-      const dailyUserFees: TBalance = {};
-      const dailyFees: TBalance = {};
-      const dailyRevenue: TBalance = {};
-      const dailyProtocolRevenue: TBalance = {};
-      const dailyHoldersRevenue: TBalance = {};
-      const dailySupplySideRevenue: TBalance = {};
-      const totalUserFees: TBalance = {};
-      const totalFees: TBalance = {};
-      const totalRevenue: TBalance = {};
-      const totalProtocolRevenue: TBalance = {};
-      const totalDailyHoldersRevenue: TBalance = {};
-      const totalSupplySideRevenue: TBalance = {};
+      const dailyUserFees = createBalances()
+      const dailyFees = createBalances()
+      const dailyRevenue = createBalances()
+      const dailyProtocolRevenue = createBalances()
+      const dailyHoldersRevenue = createBalances()
+      const dailySupplySideRevenue = createBalances()
+      const totalFees = createBalances()
+      const totalRevenue = createBalances()
+      const totalProtocolRevenue = createBalances()
+      const totalDailyHoldersRevenue = createBalances()
+      const totalSupplySideRevenue = createBalances()
       for (const token of graphRes.todayTokens) {
-        let tokenKey = chain + `:` + token.id.split(':')[0];
-        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          console.log('not found token: ',tokenKey);
-        }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
+        let tokenKey = token.id.split(':')[0];
+        const { dividendAmount, bankAmount, partnerAmount, treasuryAmount, teamAmount } = token
 
-        totalUserFees[tokenKey] = fromWei(
-          toBN(token.dividendAmount)
-            .plus(token.bankAmount)
-            .plus(token.partnerAmount)
-            .plus(token.treasuryAmount)
-            .plus(token.teamAmount),
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-        totalFees[tokenKey] = totalUserFees[tokenKey];
-
-        totalSupplySideRevenue[tokenKey] = fromWei(
-          toBN(token.bankAmount).plus(token.partnerAmount),
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalProtocolRevenue[tokenKey] = fromWei(
-          toBN(token.treasuryAmount).plus(token.teamAmount),
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalDailyHoldersRevenue[tokenKey] = fromWei(
-          token.dividendAmount,
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalRevenue[tokenKey] =
-          totalProtocolRevenue[tokenKey] + totalDailyHoldersRevenue[tokenKey];
+        totalFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount)
+        dailyFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount)
+        totalSupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
+        dailySupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
+        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
+        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
+        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
+        dailyHoldersRevenue.add(tokenKey, +dividendAmount)
+        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
+        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
       for (const token of graphPvPRes.todayPvPTokens) {
-        let tokenKey = chain + `:` + token.id.split(':')[0];
-        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          console.log('not found token: ',tokenKey);
-        }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
-
-        if (!totalUserFees[tokenKey]) {
-          totalUserFees[tokenKey] = 0
-          totalSupplySideRevenue[tokenKey] = 0
-          totalProtocolRevenue[tokenKey] = 0
-          totalDailyHoldersRevenue[tokenKey] = 0
-        }
-
-        totalUserFees[tokenKey] += fromWei(
-          toBN(token.dividendAmount)
-            .plus(token.initiatorAmount)
-            .plus(token.treasuryAmount)
-            .plus(token.teamAmount),
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-        totalFees[tokenKey] = totalUserFees[tokenKey];
-
-        totalSupplySideRevenue[tokenKey] += fromWei(
-          token.initiatorAmount,
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalProtocolRevenue[tokenKey] += fromWei(
-          toBN(token.treasuryAmount).plus(token.teamAmount),
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalDailyHoldersRevenue[tokenKey] += fromWei(
-          token.dividendAmount,
-          tokenDecimals
-        )
-          .multipliedBy(tokenPrice)
-          .toNumber();
-
-        totalRevenue[tokenKey] =
-          totalProtocolRevenue[tokenKey] + totalDailyHoldersRevenue[tokenKey];
+        let tokenKey = token.id.split(':')[0];
+        const { dividendAmount, initiatorAmount, treasuryAmount, teamAmount } = token
+        totalFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount)
+        dailyFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount)
+        totalSupplySideRevenue.add(tokenKey,  +initiatorAmount)
+        dailySupplySideRevenue.add(tokenKey,  +initiatorAmount)
+        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
+        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
+        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
+        dailyHoldersRevenue.add(tokenKey, +dividendAmount)
+        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
+        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
 
       for (const token of graphRes.yesterdayTokens) {
-        const tokenKey = chain + `:` + token.id;
-        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          console.log('not found token: ',tokenKey);
-        }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
-
-        dailyUserFees[tokenKey] =
-          totalUserFees[tokenKey] -
-          fromWei(
-            toBN(token.dividendAmount)
-              .plus(token.bankAmount)
-              .plus(token.partnerAmount)
-              .plus(token.treasuryAmount)
-              .plus(token.teamAmount),
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
-        dailyFees[tokenKey] = dailyUserFees[tokenKey];
-
-        dailyHoldersRevenue[tokenKey] =
-          totalDailyHoldersRevenue[tokenKey] -
-          fromWei(token.dividendAmount, tokenDecimals)
-            .multipliedBy(tokenPrice)
-            .toNumber();
-
-        dailyProtocolRevenue[tokenKey] =
-          totalProtocolRevenue[tokenKey] -
-          fromWei(
-            toBN(token.treasuryAmount).plus(token.teamAmount),
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
-        dailyRevenue[tokenKey] =
-          dailyHoldersRevenue[tokenKey] + dailyProtocolRevenue[tokenKey];
-
-        dailySupplySideRevenue[tokenKey] =
-          totalSupplySideRevenue[tokenKey] -
-          fromWei(
-            toBN(token.bankAmount).plus(token.partnerAmount),
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
+        let tokenKey = token.id.split(':')[0];
+        const { dividendAmount, bankAmount, partnerAmount, treasuryAmount, teamAmount } = token
+        dailyFees.add(tokenKey, 0 - +dividendAmount - +bankAmount - +partnerAmount - +treasuryAmount - +teamAmount)
+        dailyHoldersRevenue.add(tokenKey, 0 - +dividendAmount)
+        dailyProtocolRevenue.add(tokenKey, 0 - +treasuryAmount - +teamAmount)
+        dailyRevenue.add(tokenKey, 0 - +treasuryAmount - +teamAmount - +dividendAmount)
+        dailySupplySideRevenue.add(tokenKey, 0 - +bankAmount - +partnerAmount)
       }
       for (const token of graphPvPRes.yesterdayPvPTokens) {
-        const tokenKey = chain + `:` + token.id;
-        if (!currentPrices[tokenKey.toLocaleLowerCase()]) {
-          console.log('not found token: ',tokenKey);
-        }
-        const tokenDecimals = currentPrices[tokenKey]?.decimals || 0;
-        const tokenPrice = currentPrices[tokenKey]?.price || 0;
-
-        if (!dailyUserFees[tokenKey]) {
-          dailyUserFees[tokenKey] = 0
-          dailyHoldersRevenue[tokenKey] = 0
-          dailyProtocolRevenue[tokenKey] = 0
-          dailySupplySideRevenue[tokenKey] = 0
-        }
-
-        dailyUserFees[tokenKey] -=
-          fromWei(
-            toBN(token.dividendAmount)
-              .plus(token.initiatorAmount)
-              .plus(token.treasuryAmount)
-              .plus(token.teamAmount),
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
-        dailyFees[tokenKey] = dailyUserFees[tokenKey];
-
-        dailyHoldersRevenue[tokenKey] -=
-          fromWei(token.dividendAmount, tokenDecimals)
-            .multipliedBy(tokenPrice)
-            .toNumber();
-
-        dailyProtocolRevenue[tokenKey] -=
-          fromWei(
-            toBN(token.treasuryAmount).plus(token.teamAmount),
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
-        dailyRevenue[tokenKey] =
-          dailyHoldersRevenue[tokenKey] + dailyProtocolRevenue[tokenKey];
-
-        dailySupplySideRevenue[tokenKey] -=
-          fromWei(
-            token.initiatorAmount,
-            tokenDecimals
-          )
-            .multipliedBy(tokenPrice)
-            .toNumber();
+        let tokenKey = token.id.split(':')[0];
+        const { dividendAmount, initiatorAmount, treasuryAmount, teamAmount } = token
+        dailyFees.add(tokenKey, 0 - +dividendAmount - +initiatorAmount - +treasuryAmount - +teamAmount)
+        dailyHoldersRevenue.add(tokenKey, 0 - +dividendAmount)
+        dailyProtocolRevenue.add(tokenKey, 0 - +treasuryAmount - +teamAmount)
+        dailyRevenue.add(tokenKey, 0 - +treasuryAmount - +teamAmount - +dividendAmount)
+        dailySupplySideRevenue.add(tokenKey, 0 - +initiatorAmount)
       }
       return {
         timestamp,
-        dailyFees: Object.values(dailyFees).reduce((a: number, b: number) => a + b, 0).toString(),
-        dailyUserFees: Object.values(dailyUserFees).reduce((a: number, b: number) => a + b, 0).toString(),
-        dailyRevenue: Object.values(dailyRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        dailyProtocolRevenue: Object.values(dailyProtocolRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        dailyHoldersRevenue: Object.values(dailyHoldersRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        dailySupplySideRevenue: Object.values(dailySupplySideRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        totalFees: Object.values(totalFees).reduce((a: number, b: number) => a + b, 0).toString(),
-        totalUserFees: Object.values(totalUserFees).reduce((a: number, b: number) => a + b, 0).toString(),
-        totalRevenue: Object.values(totalRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        totalProtocolRevenue: Object.values(totalProtocolRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        totalSupplySideRevenue: Object.values(totalSupplySideRevenue).reduce((a: number, b: number) => a + b, 0).toString(),
-        // totalDailyHoldersRevenue,
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+        dailySupplySideRevenue,
+        totalFees,
+        totalUserFees: totalFees,
+        totalRevenue,
+        totalProtocolRevenue,
+        totalSupplySideRevenue,
       };
     };
   };
@@ -432,22 +235,22 @@ const meta = {
 const adapter: Adapter = {
   adapter: {
     [BSC]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(BSC),
       meta,
     },
     [POLYGON]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(POLYGON),
       meta,
     },
     [AVAX]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(AVAX),
       meta,
     },
     [ARBITRUM]: {
-      start: async () => 1658880000,
+      start: 1658880000,
       fetch: graphs()(ARBITRUM),
       meta,
     },

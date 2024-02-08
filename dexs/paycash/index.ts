@@ -1,9 +1,9 @@
-import axios from "axios";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpPost } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.paycashswap.com/"
 const requestBody = {
@@ -19,7 +19,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.post(historicalVolumeEndpoint, requestBody))?.data.data.totalVolumeChart.points;
+  const historicalVolume: IVolumeall[] = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { value }) => acc + Number(value), 0)
@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EOS]: {
       fetch,
-      start: async () => 1618370204,
+      start: 1618370204,
       customBackfill: customBackfill(CHAIN.EOS as Chain, (_chian: string) => fetch)
     },
   },

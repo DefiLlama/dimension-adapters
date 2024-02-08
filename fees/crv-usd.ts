@@ -5,7 +5,7 @@ import { getBlock } from "../helpers/getBlock";
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../utils/prices";
 
-type TContract  = {
+type TContract = {
   [s: string | Chain]: string[];
 }
 const controller: TContract = {
@@ -27,37 +27,32 @@ interface ILog {
 
 const fetchFees = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      const toTimestamp = timestamp
-      const fromTimestamp = timestamp - 60 * 60 * 24
-      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-      const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const toTimestamp = timestamp
+    const fromTimestamp = timestamp - 60 * 60 * 24
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ILog[] = (await Promise.all(controller[chain].map((address: string) => sdk.getEventLogs({
-        target: address,
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic0]
-      })))).flat();
-      const crvUSDAddress = `${CHAIN.ETHEREUM}:0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E`
-      const prices = await getPrices([crvUSDAddress], timestamp);
-      const crvUSDPrice = prices[crvUSDAddress]?.price || 1;
-      const dailyFees = logs.reduce((acc: number, log: ILog) => {
-        const data = log.data.replace('0x', '');
-        const fee = (Number('0x' + data.slice(0, 64)) / 1e18) * crvUSDPrice;
-        return acc + fee;
-      },0)
+    const logs: ILog[] = (await Promise.all(controller[chain].map((address: string) => sdk.getEventLogs({
+      target: address,
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic0]
+    })))).flat();
+    const crvUSDAddress = `${CHAIN.ETHEREUM}:0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E`
+    const prices = await getPrices([crvUSDAddress], timestamp);
+    const crvUSDPrice = prices[crvUSDAddress]?.price || 1;
+    const dailyFees = logs.reduce((acc: number, log: ILog) => {
+      const data = log.data.replace('0x', '');
+      const fee = (Number('0x' + data.slice(0, 64)) / 1e18) * crvUSDPrice;
+      return acc + fee;
+    }, 0)
 
-      return {
-        dailyFees: `${dailyFees}`,
-        dailyHoldersRevenue: `${dailyFees}`,
-        dailyRevenue: `${dailyFees}`,
-        timestamp
-      }
-    } catch (e) {
-      console.error(e)
-      throw e;
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyHoldersRevenue: `${dailyFees}`,
+      dailyRevenue: `${dailyFees}`,
+      timestamp
     }
   }
 }
@@ -66,7 +61,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1684047600
+      start: 1684047600
     }
   }
 }
