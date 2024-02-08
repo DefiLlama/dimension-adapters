@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getDexFeesExports({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS }),
-      start: async () => 1682380800,
+      start: 1682380800,
     },
   }
 };

@@ -8,7 +8,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 114041129, chain: CHAIN.ARBITRUM,  }),
-      start: async () => 1690070400,
+      start: 1690070400,
     }
   }
 }

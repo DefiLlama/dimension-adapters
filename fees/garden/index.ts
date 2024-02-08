@@ -25,11 +25,11 @@ type IApiFeeResponse = {
 const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultFees> => {
     const dailyFeeResponse: IApiFeeResponse = (
         await fetchURL(feeUrl(chainMapper[chain], timestamp, "day"))
-    ).data;
+    );
 
     const totalFeeResponse: IApiFeeResponse = (
         await fetchURL(feeUrl(chainMapper[chain], timestamp))
-    ).data;
+    );
 
     const dailyUserFees = new BigNumber(dailyFeeResponse.data.fee);
     const totalUserFees = new BigNumber(totalFeeResponse.data.fee);
@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch: fetch(chain as CHAIN),
-                start: async () => 1698796799,
+                start: 1698796799,
                 meta: {
                     methodology: {
                         Fees: "Users pay 0.3% for each swap along with a base fee",

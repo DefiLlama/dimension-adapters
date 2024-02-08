@@ -171,7 +171,7 @@ const adapter: BreakdownAdapter = {
           }
           return response as FetchResultGeneric
         },
-        start: async () => 1541203200,
+        start: 1541203200,
         meta: {
           methodology
         },
@@ -201,7 +201,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,

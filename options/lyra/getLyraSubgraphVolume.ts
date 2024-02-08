@@ -1,6 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { wrapGraphError } from "../../helpers/getUniSubgraph";
 
 const UNIT = 1e18
 
@@ -55,7 +56,7 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
           dailyVolumeQuery,
           { timestamp: cleanTimestamp }
         ).catch((e) =>
-          console.error(`Failed to get total volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get total volume on ${chain}: ${wrapGraphError(e).message}`)
         );
 
 

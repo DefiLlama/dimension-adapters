@@ -81,7 +81,7 @@ const adapter: BreakdownAdapter = {
         "gamma": {
             [CHAIN.ETHEREUM]: {
                 fetch,
-                start: async () => 1609200000
+                start: 1609200000
             }
         }
     }

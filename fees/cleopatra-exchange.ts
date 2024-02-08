@@ -50,7 +50,7 @@ const v2Graphs = getGraphDimensions({
     const adapter: SimpleAdapter = {
         adapter: {
           [CHAIN.MANTLE]: {fetch: v2Graphs(MANTLE),
-            start: async () => startTimeV2[CHAIN.MANTLE],
+            start: startTimeV2[CHAIN.MANTLE],
             meta: {
               methodology: {
                 ...methodology,

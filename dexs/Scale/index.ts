@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getDexVolumeExports({ chain: CHAIN.BASE, factory: FACTORY_ADDRESS }),
-      start: async () => 1695458888,
+      start: 1695458888,
     },
   }
 };

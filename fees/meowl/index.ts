@@ -12,7 +12,7 @@ const adapter: Adapter = {
                     dailyRevenue: fees.toString(),
                 };
             },
-            start: async () => 1685332595
+            start: 1685332595
         },
     }
 }

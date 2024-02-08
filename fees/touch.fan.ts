@@ -98,7 +98,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
             timestamp
         }
     } catch (error) {
-        console.error(error)
         throw error;
     }
 
@@ -109,7 +108,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
             fetch: fetch,
-            start: async () => 1698494400,
+            start: 1698494400,
         },
     }
 }

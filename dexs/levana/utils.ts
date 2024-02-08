@@ -17,5 +17,5 @@ export async function queryContract<T>({contract, chain, msg}:{contract: string,
       await fetchURL(
         `${endpoint}/cosmwasm/wasm/v1/contract/${contract}/smart/${data}`
       )
-    ).data.data;
+    ).data;
 }

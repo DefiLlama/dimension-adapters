@@ -66,7 +66,7 @@ const adapter: Adapter = {
         }
 
       },
-      start: async () => 1679616000 // March 24, 2023
+      start: 1679616000 // March 24, 2023
     },
   },
   protocolType: ProtocolType.CHAIN

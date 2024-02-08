@@ -46,7 +46,6 @@ const graph = (chain: Chain) => {
       }
     } catch (err) {
       await sql.end({ timeout: 3 })
-      console.log(err);
       throw err;
     }
 
@@ -58,7 +57,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graph(CHAIN.ETHEREUM),
-        start: async ()  => 1673827200,
+        start: 1673827200,
     },
   }
 }

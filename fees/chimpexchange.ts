@@ -59,7 +59,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
               (p: IPool) => p.id.split("-")[0] === e.id.split("-")[0]
             )?.swapFees || 0
           );
-          console.log("yesterdayValue", yesterdayValue.toNumber());
           if (yesterdayValue.toNumber() === 0) return new BigNumber("0");
           return new BigNumber(e.swapFees).minus(yesterdayValue);
         })
@@ -119,7 +118,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints)(CHAIN.LINEA),
-      start: async () => 1699488000,
+      start: 1699488000,
       meta: {
         methodology,
       },

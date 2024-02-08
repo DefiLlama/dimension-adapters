@@ -62,7 +62,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       timestamp
     }
   } catch (error) {
-    console.error(error)
     throw error;
   }
 
@@ -73,7 +72,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
         fetch: fetch,
-        start: async ()  => 1703255087,
+        start: 1703255087,
     },
   }
 }

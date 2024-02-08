@@ -64,7 +64,7 @@ const adapter: BreakdownAdapter = {
           ...acc,
           [chain]: {
             fetch: getFetch(chain),
-            start: async () => 0
+            start: 0
           }
         }
       }, {})

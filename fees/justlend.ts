@@ -4,7 +4,7 @@ import * as sdk from "@defillama/sdk";
 import { BigNumberish } from "ethers";
 import { getPrices } from "../utils/prices";
 import { fromHex, toHex } from "tron-format-address";
-import axios from "axios";
+import { httpGet } from "../utils/fetchURL";
 
 interface IPrices {
   [address: string]: {
@@ -189,8 +189,8 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
 const endpoint = `https://api.trongrid.io`
 const getLogs = async (address: string, min_block_timestamp: number, max_block_timestamp: number) => {
   const url = `${endpoint}/v1/contracts/${fromHex(address)}/events?event_name=AccrueInterest&min_block_timestamp=${min_block_timestamp}&max_block_timestamp=${max_block_timestamp}&limit=200`;
-  const res = await axios.get(url, {});
-  return res.data.data;
+  const res = await httpGet(url);
+  return res.data;
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -250,7 +250,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch: fetch,
-      start: async () => 1700352000,
+      start: 1700352000,
       // runAtCurrTime: true,
     },
   },

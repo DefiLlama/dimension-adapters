@@ -15,7 +15,7 @@ interface IYield {
 const graphs = () => {
   return (chain: CHAIN) => {
     return async (timestamp: number) => {
-      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
+      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data;
       const pools = poolsCall
         .filter((e: IYield) => e.project === "tarot")
         .filter((e: IYield) => e.chain.toLowerCase() === chain.toLowerCase());
@@ -38,12 +38,12 @@ const adapter: Adapter = {
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
         runAtCurrTime: true,
-        start: async () => 0,
+        start: 0,
     },
     [OPTIMISM]: {
       fetch: graphs()(CHAIN.OPTIMISM),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
   },
   },
 }

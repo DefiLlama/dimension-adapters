@@ -10,7 +10,7 @@ interface IVolumeall {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const plentyData: IVolumeall[] = (await fetchURL("https://analytics.plenty.network/api/v1/overall-volume/24hours")).data;
+  const plentyData: IVolumeall[] = (await fetchURL("https://analytics.plenty.network/api/v1/overall-volume/24hours"));
   const dailyVolumeItem = plentyData.find(e => e.time === dateString)?.value
 
   return {
@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: async () => 1672531200,
+      start: 1672531200,
     },
   },
 };

@@ -7,7 +7,7 @@ const adapters = univ2Adapter({
   [CHAIN.MOONBEAN]: 'https://api.thegraph.com/subgraphs/name/toadguy/padswap-subgraph-moonbeam',
 }, {});
 
-adapters.adapter.bsc.start = async () => 1620518400;
-// adapters.adapter.moonriver.start = async () => 1635638400;
-adapters.adapter.moonbeam.start = async () => 1642032000;
+adapters.adapter.bsc.start = 1620518400;
+// adapters.adapter.moonriver.start = 1635638400;
+adapters.adapter.moonbeam.start = 1642032000;
 export default adapters;

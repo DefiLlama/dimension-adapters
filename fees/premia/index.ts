@@ -38,7 +38,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV2Data(v2Endpoints[chain], ts),
-          start: async () => v2StartTimes[chain],
+          start: v2StartTimes[chain],
           meta: {
             methodology: {
               UserFees:
@@ -58,7 +58,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
-          start: async () => v3StartTimes[chain],
+          start: v3StartTimes[chain],
           meta: {
             methodology: {
               UserFees:

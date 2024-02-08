@@ -53,66 +53,61 @@ const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-  try {
-      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-      const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.getEventLogs({
-        target: Vault_Fee_Manager_Contracts[chain],
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic0_fees_withdraw]
-      })) as ILog[] : [];
+    const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.getEventLogs({
+      target: Vault_Fee_Manager_Contracts[chain],
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic0_fees_withdraw]
+    })) as ILog[] : [];
 
-      const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.getEventLogs({
-        target: Performance_Fee_Management_Contracts[chain],
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic0_token_earned]
-      })) as ILog[] : [];
+    const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.getEventLogs({
+      target: Performance_Fee_Management_Contracts[chain],
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic0_token_earned]
+    })) as ILog[] : [];
 
-      const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
-        const value = contract_interface.parseLog(e);
-        const token = value!.args.token;
-        const amount = Number(value!.args.amount);
-        return {
-          token: token,
-          amount: amount,
-        } as IRAW
-      })
-
-      const raw_token_earned: IRAW[] = log_token_earned.map((e: ILog) => {
-        const value = contract_interface.parseLog(e);
-        const token = value!.args.perfToken;
-        const amount = Number(value!.args.amount);
-        return {
-          token: token,
-          amount: amount,
-        } as IRAW
-      })
-
-      const coins = [...new Set([...raw_withdraw,...raw_token_earned].map((e: IRAW) => `${chain}:${e.token}`.toLowerCase()))]
-      const prices = await getPrices(coins, timestamp);
-      const dailyFeesUSD = [...raw_withdraw, ...raw_token_earned].map((e: IRAW) => {
-        const price = (prices[`${chain}:${e.token}`.toLowerCase()]?.price || 0);
-        const decimals = (prices[`${chain}:${e.token}`.toLowerCase()]?.decimals || 0);
-        return (Number(e.amount) / 10 ** decimals) * price;
-      }).reduce((a: number, b: number) => a+b, 0)
-      const dailyFees = dailyFeesUSD;
-      const dailyRevenue = dailyFees * .5;
-      const totalSupplySideRevenue = dailyFees * .5;
+    const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
+      const value = contract_interface.parseLog(e);
+      const token = value!.args.token;
+      const amount = Number(value!.args.amount);
       return {
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyRevenue}`,
-        dailyHoldersRevenue: `${dailyRevenue}`,
-        dailySupplySideRevenue: `${totalSupplySideRevenue}`,
-        timestamp
-      }
-    } catch (error) {
-      console.log(error)
-      throw error;
+        token: token,
+        amount: amount,
+      } as IRAW
+    })
+
+    const raw_token_earned: IRAW[] = log_token_earned.map((e: ILog) => {
+      const value = contract_interface.parseLog(e);
+      const token = value!.args.perfToken;
+      const amount = Number(value!.args.amount);
+      return {
+        token: token,
+        amount: amount,
+      } as IRAW
+    })
+
+    const coins = [...new Set([...raw_withdraw, ...raw_token_earned].map((e: IRAW) => `${chain}:${e.token}`.toLowerCase()))]
+    const prices = await getPrices(coins, timestamp);
+    const dailyFeesUSD = [...raw_withdraw, ...raw_token_earned].map((e: IRAW) => {
+      const price = (prices[`${chain}:${e.token}`.toLowerCase()]?.price || 0);
+      const decimals = (prices[`${chain}:${e.token}`.toLowerCase()]?.decimals || 0);
+      return (Number(e.amount) / 10 ** decimals) * price;
+    }).reduce((a: number, b: number) => a + b, 0)
+    const dailyFees = dailyFeesUSD;
+    const dailyRevenue = dailyFees * .5;
+    const totalSupplySideRevenue = dailyFees * .5;
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyRevenue}`,
+      dailyHoldersRevenue: `${dailyRevenue}`,
+      dailySupplySideRevenue: `${totalSupplySideRevenue}`,
+      timestamp
     }
   }
 }
@@ -122,23 +117,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
-      start: async () => 1691193600,
+      start: 1691193600,
     },
   }
 };

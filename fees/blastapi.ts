@@ -78,35 +78,35 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: async ()  => 1675382400,
+        start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     // [CHAIN.XDAI]: {
     //   fetch: fetch(CHAIN.XDAI),
-    //   start: async ()  => 1675382400,
+    //   start: 1675382400,
     // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     }
   }
 }

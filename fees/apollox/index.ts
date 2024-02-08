@@ -1,7 +1,7 @@
-import axios from "axios";
-import {Adapter, ChainEndpoints} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {Chain} from "@defillama/sdk/build/general";
+import { Adapter, ChainEndpoints } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
+import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
     [CHAIN.BSC]: "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all",
@@ -10,7 +10,7 @@ const endpoints = {
 const request = (urls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async (timestamp: number) => {
-            const { data } = (await axios.get(urls[chain])).data;
+            const { data } = await httpGet(urls[chain]);
             const { alpFeeVOFor24Hour, allAlpFeeVO } = data
             return {
                 timestamp,
@@ -27,7 +27,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BSC]: {
             fetch: request(endpoints)(CHAIN.BSC),
-            start: async () => 1689609600,
+            start: 1689609600,
         },
     }
 }

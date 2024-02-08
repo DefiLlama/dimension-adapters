@@ -9,12 +9,11 @@ interface tokenInfo {
   token: string;
   amount: number;
 }
-const fetchFees =  (chain: Chain) => {
+const fetchFees = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-        const now = new Date(timestamp * 1e3)
-        const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-        const query =`
+    const now = new Date(timestamp * 1e3)
+    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+    const query = `
           SELECT
             data,
             contract_address,
@@ -67,37 +66,33 @@ const fetchFees =  (chain: Chain) => {
             and topics[2] = '0x000000000000000000000000d4ce1f1b8640c1988360a6729d9a73c85a0c80a3'
             AND BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'
         `
-        const token_tranfer = await queryFlipside(query, 260)
+    const token_tranfer = await queryFlipside(query, 260)
 
-        const token_info: tokenInfo[] = token_tranfer.filter((e: any) => e[2] === chain).map((item: any) => {
-          const token = item[1];
-          const amount = Number(item[0]);
-          return {
-            token,
-            amount
-          }
-        })
-        const coins = [...new Set(token_info.map((item: any) => `${chain}:${item.token}`))];
-        const prices = await getPrices(coins, timestamp);
-        const fees = token_info.reduce((acc: number, item: any) => {
-          const price = prices[`${chain}:${item.token}`]?.price || 0;
-          const decimals = prices[`${chain}:${item.token}`]?.decimals || 0;
-          if (price === 0 || decimals === 0) return acc;
-          const fee = (Number(item.amount) / 10 ** decimals) * price;
-          return acc + fee;
-        }, 0)
-        const dailyFees = fees;
-        const dailyRevenue = dailyFees;
-        const dailyProtocolRevenue = dailyFees;
-        return {
-          dailyFees: `${dailyFees}`,
-          dailyProtocolRevenue: `${dailyProtocolRevenue}`,
-          dailyRevenue: `${dailyRevenue}`,
-          timestamp
+    const token_info: tokenInfo[] = token_tranfer.filter((e: any) => e[2] === chain).map((item: any) => {
+      const token = item[1];
+      const amount = Number(item[0]);
+      return {
+        token,
+        amount
       }
-    } catch (e) {
-      console.error(e)
-      throw e
+    })
+    const coins = [...new Set(token_info.map((item: any) => `${chain}:${item.token}`))];
+    const prices = await getPrices(coins, timestamp);
+    const fees = token_info.reduce((acc: number, item: any) => {
+      const price = prices[`${chain}:${item.token}`]?.price || 0;
+      const decimals = prices[`${chain}:${item.token}`]?.decimals || 0;
+      if (price === 0 || decimals === 0) return acc;
+      const fee = (Number(item.amount) / 10 ** decimals) * price;
+      return acc + fee;
+    }, 0)
+    const dailyFees = fees;
+    const dailyRevenue = dailyFees;
+    const dailyProtocolRevenue = dailyFees;
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+      dailyRevenue: `${dailyRevenue}`,
+      timestamp
     }
   }
 }
@@ -106,19 +101,19 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1696896000
+      start: 1696896000
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: async () => 1696896000
+      start: 1696896000
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1696896000
+      start: 1696896000
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1696896000
+      start: 1696896000
     }
   }
 }

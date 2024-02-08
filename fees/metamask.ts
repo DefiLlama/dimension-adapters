@@ -42,10 +42,9 @@ const graph = (chain: Chain) => {
 
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-    try {
-      const startblock = (await getBlock(fromTimestamp, chain, {}));
-      const endblock = (await getBlock(toTimestamp, chain, {}));
-      const query = `
+    const startblock = (await getBlock(fromTimestamp, chain, {}));
+    const endblock = (await getBlock(toTimestamp, chain, {}));
+    const query = `
         select
           input_data,
           TX_HASH
@@ -56,56 +55,52 @@ const graph = (chain: Chain) => {
       `
 
 
-      const value: string[][] = (await queryFlipside(query, 210))
-      const rawData = value.map((a: string[]) => {
-        const data = a[0].replace('0x5f575529', '');
-        const address = data.slice(64, 128);
-        const amount = Number('0x'+data.slice(128, 192));
-        const tokenAddress = '0x' + address.slice(24, address.length);
-        return {
-          amount: amount,
-          tokenAddress: tokenAddress,
-          tx: a[1]
-        } as IVolume
-      })
-      const coins =[...new Set(rawData.map((a: IVolume) => `${chain}:${a.tokenAddress.toLowerCase()}`))]
-      const coins_split = [];
-      for(let i = 0; i < coins.length; i+=100) {
-        coins_split.push(coins.slice(i, i + 100))
-      }
-      const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
-      const prices: TPrice = Object.assign({}, {});
-      prices_result.map((a: any) => Object.assign(prices, a))
-
-      const volumeUSD: IVolume[] = rawData.map((e: IVolume) => {
-        const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
-        const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
-        if (!price || !decimals) return {
-          amount: 0,
-          tokenAddress: e.tokenAddress,
-          tx: e.tx
-        } as IVolume;
-        const amount = (Number(e.amount) / 10 ** decimals) * price;
-        return  {
-          amount: amount,
-          tokenAddress: e.tokenAddress,
-          tx: e.tx
-        } as IVolume
-      }).filter((a: IVolume) => !isNaN(a.amount))
-        .filter((a: IVolume) => !blackList[chain]?.includes(a.tokenAddress.toLowerCase()))
-        .filter((a: IVolume) => a.amount < 10_000_000)
-      const dailyVolume = volumeUSD.reduce((a: number, b: IVolume) => a + b.amount, 0);
-      const dailyFees = dailyVolume * 0.0085
-
+    const value: string[][] = (await queryFlipside(query, 210))
+    const rawData = value.map((a: string[]) => {
+      const data = a[0].replace('0x5f575529', '');
+      const address = data.slice(64, 128);
+      const amount = Number('0x' + data.slice(128, 192));
+      const tokenAddress = '0x' + address.slice(24, address.length);
       return {
-        dailyFees: `${dailyFees}`,
-        dailyProtocolRevenue: `${dailyFees}`,
-        dailyRevenue: `${dailyFees}`,
-        timestamp
-      }
-    } catch (err) {
-      console.log(err);
-      throw err;
+        amount: amount,
+        tokenAddress: tokenAddress,
+        tx: a[1]
+      } as IVolume
+    })
+    const coins = [...new Set(rawData.map((a: IVolume) => `${chain}:${a.tokenAddress.toLowerCase()}`))]
+    const coins_split = [];
+    for (let i = 0; i < coins.length; i += 100) {
+      coins_split.push(coins.slice(i, i + 100))
+    }
+    const prices_result: any = (await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)))).flat().flat().flat();
+    const prices: TPrice = Object.assign({}, {});
+    prices_result.map((a: any) => Object.assign(prices, a))
+
+    const volumeUSD: IVolume[] = rawData.map((e: IVolume) => {
+      const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
+      const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
+      if (!price || !decimals) return {
+        amount: 0,
+        tokenAddress: e.tokenAddress,
+        tx: e.tx
+      } as IVolume;
+      const amount = (Number(e.amount) / 10 ** decimals) * price;
+      return {
+        amount: amount,
+        tokenAddress: e.tokenAddress,
+        tx: e.tx
+      } as IVolume
+    }).filter((a: IVolume) => !isNaN(a.amount))
+      .filter((a: IVolume) => !blackList[chain]?.includes(a.tokenAddress.toLowerCase()))
+      .filter((a: IVolume) => a.amount < 10_000_000)
+    const dailyVolume = volumeUSD.reduce((a: number, b: IVolume) => a + b.amount, 0);
+    const dailyFees = dailyVolume * 0.0085
+
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyProtocolRevenue: `${dailyFees}`,
+      dailyRevenue: `${dailyFees}`,
+      timestamp
     }
 
   }
@@ -115,19 +110,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: async ()  => 1672531200,
+      start: 1672531200,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: async ()  => 1672531200,
+      start: 1672531200,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async ()  => 1672531200,
+      start: 1672531200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async ()  => 1672531200,
+      start: 1672531200,
     }
   }
 }

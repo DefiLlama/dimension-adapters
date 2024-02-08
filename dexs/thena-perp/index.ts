@@ -83,7 +83,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: async () => 1702892400
+      start: 1702892400
     }
   }
 }

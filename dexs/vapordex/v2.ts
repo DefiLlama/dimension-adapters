@@ -40,7 +40,7 @@ const v2 = Object.keys(endpointsV2).reduce(
     ...acc,
     [chain]: {
       fetch: v2Graphs(chain as Chain),
-      start: async () => startTimeV2[chain],
+      start: startTimeV2[chain],
     },
   }),
   {}

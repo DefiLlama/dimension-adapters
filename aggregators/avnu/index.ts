@@ -14,7 +14,7 @@ interface IAPIResponse {
 }
 const fetch = async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const {dailyVolume, totalVolume}: IAPIResponse = (await fetchURL(`${URL}${endpoint}${timestamp * 1000}`)).data;
+    const {dailyVolume, totalVolume}: IAPIResponse = (await fetchURL(`${URL}${endpoint}${timestamp * 1000}`));
     return {
         dailyVolume,
         totalVolume,
@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
           fetch,
-          start: async () => startTimestamp,
+          start: startTimestamp,
         },
     },
 };

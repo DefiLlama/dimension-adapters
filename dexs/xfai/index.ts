@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
             "Total fees are calculated by checking the token balances of the Xfai INFT",
         },
       },
-      start: async () => 1692347965, // Aug-18-2023 08:39:25 AM +UTC
+      start: 1692347965, // Aug-18-2023 08:39:25 AM +UTC
     },
   },
 };

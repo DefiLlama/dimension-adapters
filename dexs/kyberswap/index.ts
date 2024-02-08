@@ -34,16 +34,16 @@ const kyberswapElasticV2 = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-kyberswapElasticV2.adapter.ethereum.start = async () => 1654905600;
-kyberswapElasticV2.adapter.bsc.start = async () => 1654732800;
-kyberswapElasticV2.adapter.polygon.start = async () => 1654732800;
-kyberswapElasticV2.adapter.avax.start = async () => 1654905600;
-kyberswapElasticV2.adapter.arbitrum.start = async () => 1655942400;
-kyberswapElasticV2.adapter.optimism.start = async () => 1656460800;
-kyberswapElasticV2.adapter.fantom.start = async () => 1654732800;
-kyberswapElasticV2.adapter.bittorrent.start = async () => 1658188800;
-kyberswapElasticV2.adapter.oasis.start = async () => 1660780800;
-kyberswapElasticV2.adapter.cronos.start = async () => 1660780800;
+kyberswapElasticV2.adapter.ethereum.start = 1654905600;
+kyberswapElasticV2.adapter.bsc.start = 1654732800;
+kyberswapElasticV2.adapter.polygon.start = 1654732800;
+kyberswapElasticV2.adapter.avax.start = 1654905600;
+kyberswapElasticV2.adapter.arbitrum.start = 1655942400;
+kyberswapElasticV2.adapter.optimism.start = 1656460800;
+kyberswapElasticV2.adapter.fantom.start = 1654732800;
+kyberswapElasticV2.adapter.bittorrent.start = 1658188800;
+kyberswapElasticV2.adapter.oasis.start = 1660780800;
+kyberswapElasticV2.adapter.cronos.start = 1660780800;
 
 // velas, oasis & bittorrent missing
 const elasticChains = ["ethereum", "polygon", "bsc", "avax", "fantom", "arbitrum", "optimism"]

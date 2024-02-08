@@ -72,87 +72,82 @@ const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp - 60 * 60 * 24
     const toTimestamp = timestamp
-    try {
-      const lpTokens = pools[chain]
-      const [underlyingToken0, underlyingToken1] = await Promise.all(
-        ['address:getTokenX', 'address:getTokenY'].map((method: string) =>
-          sdk.api2.abi.multiCall({
-            abi: method,
-            calls: lpTokens.map((address: string) => ({
-              target: address,
-            })),
-            chain: chain
-          })
-        )
-      );
+    const lpTokens = pools[chain]
+    const [underlyingToken0, underlyingToken1] = await Promise.all(
+      ['address:getTokenX', 'address:getTokenY'].map((method: string) =>
+        sdk.api2.abi.multiCall({
+          abi: method,
+          calls: lpTokens.map((address: string) => ({
+            target: address,
+          })),
+          chain: chain
+        })
+      )
+    );
 
-      const tokens0 = underlyingToken0;
-      const tokens1 = underlyingToken1;
-      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-      const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const tokens0 = underlyingToken0;
+    const tokens1 = underlyingToken1;
+    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+    const toBlock = (await getBlock(toTimestamp, chain, {}));
 
-      const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
-        target: address,
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        chain: chain,
-        topics: [topic0]
-      })))) as any;
+    const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
+      target: address,
+      toBlock: toBlock,
+      fromBlock: fromBlock,
+      chain: chain,
+      topics: [topic0]
+    })))) as any;
 
-        const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
-        const coins = [...new Set(rawCoins)]
-        const prices = await getPrices(coins, timestamp);
+    const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${chain}:${e}`);
+    const coins = [...new Set(rawCoins)]
+    const prices = await getPrices(coins, timestamp);
 
 
-        const untrackVolumes: any[] = lpTokens.map((_: string, index: number) => {
-          const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
-          const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
-          const log: IAmount[] = logs[index]
-            .map((e: ILog) => { return { ...e } })
-            .map((p: ILog) => {
-              const value = contract_interface.parseLog(p);
-              const protocolFeesX = Number('0x'+'0'.repeat(32)+value!.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
-              const protocolFeesY = Number('0x'+'0'.repeat(32)+value!.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
-              const totalFeesX = Number('0x'+'0'.repeat(32)+value!.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
-              const totalFeesY = Number('0x'+'0'.repeat(32)+value!.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
-              return {
-                protocolFeesX,
-                protocolFeesY,
-                totalFeesX,
-                totalFeesY,
-                // tx: p.transactionHash, // for debugging
-                // token0Decimals,
-                // token1Decimals
-              } as IAmount
-            });
-
-            const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
-            const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
-          const totalFeesX = log
-            .reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0)  * token1Price;
-            const totalFeesY = log
-            .reduce((a: number, b: IAmount) => Number(b.totalFeesY) + a, 0)  * token0Price;
-          const totalProtocolFeesX = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0) * token1Price;
-          const totalProtocolFeesY = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0) * token0Price;
+    const untrackVolumes: any[] = lpTokens.map((_: string, index: number) => {
+      const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
+      const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
+      const log: IAmount[] = logs[index]
+        .map((e: ILog) => { return { ...e } })
+        .map((p: ILog) => {
+          const value = contract_interface.parseLog(p);
+          const protocolFeesX = Number('0x' + '0'.repeat(32) + value!.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
+          const protocolFeesY = Number('0x' + '0'.repeat(32) + value!.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
+          const totalFeesX = Number('0x' + '0'.repeat(32) + value!.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
+          const totalFeesY = Number('0x' + '0'.repeat(32) + value!.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
           return {
-            fees: (totalFeesX + totalFeesY),
-            rev: (totalProtocolFeesX + totalProtocolFeesY),
-          };
+            protocolFeesX,
+            protocolFeesY,
+            totalFeesX,
+            totalFeesY,
+            // tx: p.transactionHash, // for debugging
+            // token0Decimals,
+            // token1Decimals
+          } as IAmount
         });
 
-        const dailyFees = untrackVolumes.reduce((a: number, b: any) => a + b.fees, 0);
-        const dailyRevenue = untrackVolumes.reduce((a: number, b: any) => a + b.rev, 0);
-        return {
-          dailyFees: `${dailyFees}`,
-          dailyRevenue: `${dailyRevenue}`,
-          dailyHoldersRevenue: `${dailyRevenue}`,
-          dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
-          timestamp,
-        };
-    } catch(error) {
-      console.error(error);
-      throw error;
-    }
+      const token0Price = (prices[`${chain}:${tokens0[index]}`]?.price || 0);
+      const token1Price = (prices[`${chain}:${tokens1[index]}`]?.price || 0);
+      const totalFeesX = log
+        .reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0) * token1Price;
+      const totalFeesY = log
+        .reduce((a: number, b: IAmount) => Number(b.totalFeesY) + a, 0) * token0Price;
+      const totalProtocolFeesX = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0) * token1Price;
+      const totalProtocolFeesY = log.reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0) * token0Price;
+      return {
+        fees: (totalFeesX + totalFeesY),
+        rev: (totalProtocolFeesX + totalProtocolFeesY),
+      };
+    });
+
+    const dailyFees = untrackVolumes.reduce((a: number, b: any) => a + b.fees, 0);
+    const dailyRevenue = untrackVolumes.reduce((a: number, b: any) => a + b.rev, 0);
+    return {
+      dailyFees: `${dailyFees}`,
+      dailyRevenue: `${dailyRevenue}`,
+      dailyHoldersRevenue: `${dailyRevenue}`,
+      dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
+      timestamp,
+    };
   }
 }
 
@@ -161,15 +156,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async () => 1682121600,
+      start: 1682121600,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: async () => 1681084800,
+      start: 1681084800,
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: async () => 1682467200,
+      start: 1682467200,
     },
   }
 };

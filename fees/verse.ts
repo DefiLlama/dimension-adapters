@@ -9,8 +9,8 @@ const adapterObj = volumeAdapter.adapter;
 const fetch = (chain: string, totalFees: number, revenueFee: number, ssrFee: number) => {
     return async (timestamp: number, chainBlocks: ChainBlocks) => {
         const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-        const chainDailyVolume = fetchedResult.dailyVolume;
-        const chainTotalVolume = fetchedResult.totalVolume;
+        const chainDailyVolume = fetchedResult.dailyVolume as any;
+        const chainTotalVolume = fetchedResult.totalVolume as any;
 
         return {
         timestamp,

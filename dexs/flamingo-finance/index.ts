@@ -5,7 +5,7 @@ const { getUniqStartOfTodayTimestamp } = require("../../helpers/getUniSubgraphVo
 const fetch = async (timestamp: number) => {
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const data = (await fetchURL('https://api.flamingo.finance/project-info/defillama-volume?timestamp=' + dayTimestamp)).data;
+  const data = (await fetchURL('https://api.flamingo.finance/project-info/defillama-volume?timestamp=' + dayTimestamp));
 
   return {
     dailyVolume: data.volume,
@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     neo: {
       fetch,
-      start: async () => 1639130007,
+      start: 1639130007,
     },
   },
 };

@@ -78,7 +78,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: async () => 1684397388,
+      start: 1684397388,
     },
   },
 };

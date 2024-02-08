@@ -1,8 +1,8 @@
-import axios from "axios";
 import type { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getPrices } from "../../utils/prices";
+import { httpGet } from "../../utils/fetchURL";
 
 interface IVolumeall {
   time: string;
@@ -14,7 +14,7 @@ const historicalVolumeEndpoint = "https://api-mainnet-prod.minswap.org/defillama
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const vols: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data;
+  const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
 
   const dailyVolume = vols
     .find(dayItem => new Date(Number(dayItem.time)).getTime() / 1000 === dayTimestamp)?.volume
@@ -34,7 +34,7 @@ const fetch = async (timestamp: number) => {
 }
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data;
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   return (new Date(Number(historicalVolume[0].time)).getTime()) / 1000;
 }
 

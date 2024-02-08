@@ -1,8 +1,9 @@
 import { Chain } from "@defillama/sdk/build/general";
-import axios from "axios";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpPost } from "../../utils/fetchURL";
+
 interface IEndpoint {
   dailyFees: string;
   realtimeCompanyRevenue: string;
@@ -42,12 +43,12 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily fees and revenue
-    const dailyRes = await axios.post(endpoints[chain].dailyFees, { date: formattedDate });
-    const dailyData = dailyRes.data as IDailyFeeData;
+    const dailyRes = await httpPost(endpoints[chain].dailyFees, { date: formattedDate });
+    const dailyData = dailyRes as IDailyFeeData;
 
     // * call api for realtime total fees and revenue
-    const realtimeRes = await axios.post(endpoints[chain].realtimeCompanyRevenue);
-    const realtimeData = realtimeRes.data as ICompanyRevenue;
+    const realtimeRes = await httpPost(endpoints[chain].realtimeCompanyRevenue, {});
+    const realtimeData = realtimeRes as ICompanyRevenue;
 
     return {
       timestamp,
@@ -64,7 +65,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1701907200,
+      start: 1701907200,
     },
   },
 };

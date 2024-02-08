@@ -49,7 +49,7 @@ const adapter: Adapter = {
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     acc[chain] = {
       fetch: graphs(chain as Chain),
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
       meta: {
         methodology,
       },

@@ -26,11 +26,11 @@ interface IBlockHeader {
 type RewardShares = { [address: string]: number };
 
 const getData = async (address: string, key: string): Promise<IData> => {
-    return (await fetchURL(`${WAVES_NODE}/addresses/data/${address}/${key}`)).data
+    return fetchURL(`${WAVES_NODE}/addresses/data/${address}/${key}`)
 }
 
 const getHeaders = async (start: number, end: number): Promise<IBlockHeader[]> => {
-    return (await fetchURL(`${WAVES_NODE}/blocks/headers/seq/${start}/${end}`)).data
+    return fetchURL(`${WAVES_NODE}/blocks/headers/seq/${start}/${end}`)
 }
 
 const extractShareReward = (rewardShares: RewardShares, miner: string): number => {
@@ -81,7 +81,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.WAVES]: {
             fetch,
-            start: async () => 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
+            start: 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
 }

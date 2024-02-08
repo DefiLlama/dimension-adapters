@@ -100,7 +100,6 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
     };
   } catch (error) {
     await sql.end({ timeout: 3 });
-    console.error(error);
     throw error;
   }
 };
@@ -109,7 +108,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch: fetch,
-      start: async () => 1694217600,
+      start: 1694217600,
     },
   },
   protocolType: ProtocolType.CHAIN,

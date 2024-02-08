@@ -35,5 +35,5 @@ const adapters = univ2DimensionAdapter({
   }
 });
 
-adapters.adapter.bsc.start = async () => 1661780137;
+adapters.adapter.bsc.start = 1661780137;
 export default adapters;

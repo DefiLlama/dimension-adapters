@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v3Graphs(CHAIN.BSC),
-      start: async () => 1704758400
+      start: 1704758400
     },
   },
 };

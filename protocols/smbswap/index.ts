@@ -111,7 +111,7 @@ const adapter: BreakdownAdapter = {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphs(chain as Chain),
-        start: async () => startTimes[chain],
+        start: startTimes[chain],
         meta: {
           methodology
         }
@@ -121,14 +121,14 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graph(chain as Chain),
-        start: async () => v3StartTimes[chain],
+        start: v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphsStableSwap(chain as Chain),
-        start: async () => stableTimes[chain],
+        start: stableTimes[chain],
         meta: {
           methodology : {
             UserFees: "User pays 0.25% fees on each swap.",

@@ -13,7 +13,7 @@ interface IAPIResponse {
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const { dailyVolume, totalVolume }: IAPIResponse = (
     await fetchURL(`${URL}${endpoint}${timestamp}`)
-  ).data;
+  );
   return {
     dailyVolume,
     totalVolume,
@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => startTimestamp,
+      start: startTimestamp,
     },
   },
 };

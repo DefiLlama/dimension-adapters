@@ -8,7 +8,7 @@ const endpoint = "https://api.aark.digital/stats/volume/futures";
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-  const res = (await fetchURL(`${endpoint}/${timestamp}`))?.data
+  const res = (await fetchURL(`${endpoint}/${timestamp}`))
 
   return {
     totalVolume: res.data.totalVolume,
@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: async () => 1691845200,
+      start: 1691845200,
     },
   },
 };

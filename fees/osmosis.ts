@@ -12,7 +12,7 @@ interface IChartItem {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-  const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))?.data
+  const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))
 
   const totalFee = historicalFees
     .filter(feeItem => (new Date(feeItem.time).getTime() / 1000) <= dayTimestamp)
@@ -35,7 +35,7 @@ const adapter: Adapter = {
     [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1665964800,
+      start: 1665964800,
     },
   }
 }

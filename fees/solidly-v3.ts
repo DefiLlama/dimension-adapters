@@ -56,23 +56,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: async () => 1693526400,
+      start: 1693526400,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: async () => 0,
+      start: 0,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 0,
+      start: 0,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 0,
+      start: 0,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async () => 0,
+      start: 0,
     },
   },
 };

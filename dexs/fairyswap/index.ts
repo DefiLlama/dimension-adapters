@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FINDORA]: {
       fetch: graphs(CHAIN.FINDORA),
-      start: async () => 1647684000,
+      start: 1647684000,
     },
   },
 };

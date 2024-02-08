@@ -76,14 +76,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs()(CHAIN.ETHEREUM),
-      start: async () => 1653523200,
+      start: 1653523200,
       meta: {
         methodology
       }
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs()(CHAIN.OPTIMISM),
-      start: async () => 1636606800,
+      start: 1636606800,
       meta: {
         methodology
       }

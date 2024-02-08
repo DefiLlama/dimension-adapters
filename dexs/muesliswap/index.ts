@@ -1,7 +1,7 @@
-import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { getPrices } from "../../utils/prices";
+import { httpGet } from "../../utils/fetchURL";
 
 interface IVolumeall {
   time: number;
@@ -12,7 +12,7 @@ const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp*1000))
-  const vols: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data;
+  const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   const totalVolume = vols
     .filter((volItem: IVolumeall) => Number(volItem.time) <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0);
@@ -37,12 +37,12 @@ const adapters = (() => {
   });
 
   milkomeda.adapter[CHAIN.CARDANO] = {
-    start: async () => 1638057600,
+    start: 1638057600,
     fetch: fetch,
   };
   return milkomeda;
 })();
 
 
-adapters.adapter.milkomeda.start = async () => 1648427924;
+adapters.adapter.milkomeda.start = 1648427924;
 export default adapters;

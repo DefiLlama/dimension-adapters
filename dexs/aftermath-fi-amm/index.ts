@@ -7,7 +7,7 @@ const URL = "https://aftermath.finance/api/pools/volume-24hrs";
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dailyVolume = (
     await fetchURL(`${URL}`)
-  ).data;
+  );
 
   return {
     dailyVolume,
@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch,
-      start: async () => 1689811200
+      start: 1689811200
     },
   },
 };

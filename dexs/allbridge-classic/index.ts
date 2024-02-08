@@ -10,7 +10,7 @@ interface ChainData {
 
 const getVolume = async (chainCode: string, fromDate: string, toDate: string): Promise<number> => {
   const url = `https://stats.a11bd.net/aggregated?dateFrom=${fromDate}&dateTo=${toDate}`;
-  const responseBody = (await fetchURL(url)).data;
+  const responseBody = (await fetchURL(url));
   const chainData = responseBody.data.chains
     .filter((d: ChainData) => d.id === chainCode)
     .pop();
@@ -81,7 +81,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getVolumeFunction(chain),
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)

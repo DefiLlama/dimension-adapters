@@ -80,7 +80,7 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: async () => 1582761600,
+        start: 1582761600,
         customBackfill: customBackfill(CHAIN.ETHEREUM, v1graphs)
       },
     },

@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: async () => START_TIME,
+      start: START_TIME,
       customBackfill: customBackfill(CHAIN.TEZOS as Chain, () => fetch)
     },
   },

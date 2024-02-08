@@ -3,7 +3,7 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
-const axios = require('axios');
+import { httpGet } from "../utils/fetchURL";
 const profitShareAPI = "https://aimbotapi.onrender.com/api/openBot/profitShare";
   
 interface IData {
@@ -43,18 +43,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     }).reduce((a: number, b: number) => a+b,0);
 
     // fetch profit data from OpenBot profitShare API
-    const openBotFundData = await axios.get(profitShareAPI, (error:Error, response:any, body:string)=> {
-      if (!error && response.statusCode === 200) {
-        const res = JSON.parse(body);
-        console.log("Got a response: ", res);
-        return res;
-      } else {
-        console.log("Got an error: ", error, ", status code: ", response.statusCode);
-        return "";
-      }
-    });
+    const openBotFundData = await httpGet(profitShareAPI);
   
-    const openBotFundAmount = openBotFundData.data['total'];
+    const openBotFundAmount = openBotFundData['total'];
     
     const totalAmount = amount + openBotFundAmount;
     const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
@@ -70,7 +61,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     }
   } catch (error) {
     await sql.end({ timeout: 3 })
-    console.error(error);
     throw error;
   }
 
@@ -80,7 +70,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1690934400,
+      start: 1690934400,
     },
   },
 };

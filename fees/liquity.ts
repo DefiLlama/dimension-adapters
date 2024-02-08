@@ -56,7 +56,7 @@ const adapter: Adapter = {
               dailyHoldersRevenue: dailyFee.toString(),
           };
         },
-        start: async () => 1575158400
+        start: 1575158400
     },
   }
 }

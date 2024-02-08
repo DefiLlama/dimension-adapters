@@ -21,11 +21,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
 	adapter: {
-		[CHAIN.KCC]:		{ fetch: graph(CHAIN.KCC),		start: async () => 1670188701,	meta: { methodology }	},
-		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: async () => 1670226950,	meta: { methodology }	},	/// ! typeof CHAIN
-		[CHAIN.FANTOM]: 	{ fetch: graph(CHAIN.FANTOM),	start: async () => 1671580916,	meta: { methodology }	},
-		//[CHAIN.ECHELON]:	{ fetch: graph(CHAIN.ECHELON),	start: async () => 1671608400,	meta: { methodology }	},	/// ded!?
-		[CHAIN.KAVA]:		{ fetch: graph(CHAIN.KAVA),		start: async () => 1676855943,	meta: { methodology }	}
+		[CHAIN.KCC]:		{ fetch: graph(CHAIN.KCC),		start: 1670188701,	meta: { methodology }	},
+		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: 1670226950,	meta: { methodology }	},	/// ! typeof CHAIN
+		[CHAIN.FANTOM]: 	{ fetch: graph(CHAIN.FANTOM),	start: 1671580916,	meta: { methodology }	},
+		//[CHAIN.ECHELON]:	{ fetch: graph(CHAIN.ECHELON),	start: 1671608400,	meta: { methodology }	},	/// ded!?
+		[CHAIN.KAVA]:		{ fetch: graph(CHAIN.KAVA),		start: 1676855943,	meta: { methodology }	}
 	}
 };
 

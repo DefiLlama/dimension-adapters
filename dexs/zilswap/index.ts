@@ -12,7 +12,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
   const _dailyVolume =  historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === dayTimestamp);
   const dailyVolume = Math.abs(Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length-1].value))
   const priceId = 'coingecko:zilliqa';
@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
     zilliqa: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1673049600,
+      start: 1673049600,
     },
   },
 };

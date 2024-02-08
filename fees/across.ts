@@ -308,19 +308,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: async () => 1682840443,
+      start: 1682840443,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: async () => 1682840443,
+      start: 1682840443,
     },
     [CHAIN.OPTIMISM]: {
       fetch: graph(CHAIN.OPTIMISM),
-      start: async () => 1682840443,
+      start: 1682840443,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: async () => 1682840443,
+      start: 1682840443,
     },
   }
 };

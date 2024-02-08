@@ -70,11 +70,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1688428800,
+      start: 1688428800,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1688428800,
+      start: 1688428800,
     },
   },
 };
