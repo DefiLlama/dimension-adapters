@@ -40,7 +40,7 @@ export async function getDexVolume({ factory, timestamp, pools, fetchOptions, }:
   }
 }
 
-export function getDexVolumeExports(options: getDexVolumeExportsParams) {
+export function getDexVolumeExports(options: getDexVolumeExportsParams): any {
   return async (timestamp: number, _cb: any, fetchOptions: FetchOptions) => {
     const params = { ...options, timestamp, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, fetchOptions }
     return getDexVolume(params)
@@ -83,7 +83,7 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
   }
 }
 
-export function getDexFeesExports(options: getDexFeesExportParams) {
+export function getDexFeesExports(options: getDexFeesExportParams): any {
   return async (timestamp: number, _cb: any, fetchOptions: FetchOptions) => {
     const params = { ...options, timestamp, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, fetchOptions, }
     return getDexFees(params)
@@ -142,7 +142,7 @@ export function getDexVolumeExportsV3(options: getDexVolumeExportsParamsV3) {
 }
 
 
-export function getDexFeesExportsV3(options: getDexVolumeExportsParamsV3) {
+export function getDexFeesExportsV3(options: getDexVolumeExportsParamsV3): any {
   return async (timestamp: number, _cb: any, fetchOptions: FetchOptions) => {
     const params = { ...options, timestamp, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, fetchOptions, isFee: true, }
     return getDexVolumeFeeV3(params)
