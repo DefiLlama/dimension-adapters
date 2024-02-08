@@ -32,6 +32,7 @@ const adapter: any = {
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(),
           start: 1639526400,
+          runAtCurrTime: true,
         },
       };
     }, {}),

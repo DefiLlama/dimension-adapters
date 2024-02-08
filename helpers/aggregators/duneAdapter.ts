@@ -47,7 +47,8 @@ const getAdapter = (
           ...acc,
           [chain]: {
             fetch: fetch(chain),
-            start: start,
+            runAtCurrTime: true,
+            start,
           },
         };
       }, {}),

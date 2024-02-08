@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 import { indexa, toBytea } from "../helpers/db"
+import { queryDune } from "../helpers/dune";
 
 
 interface IData {
@@ -64,11 +65,32 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 }
 
+const fethcFeesSolana = async (timestamp: number): Promise<FetchResultFees> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  try {
+    const value = await queryDune("3410455", { endTime: todaysTimestamp + 86400 });
+    return {
+      dailyFees: value[0]?.fees_usd || "0",
+      timestamp
+    }
+  } catch (error: any) {
+    return {
+      dailyFees: "0",
+      timestamp
+    }
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: 1685577600,
+    },
+    [CHAIN.SOLANA]: {
+      fetch: fethcFeesSolana,
+      runAtCurrTime: true,
+      start: async () => 1685577600,
     },
   },
 };

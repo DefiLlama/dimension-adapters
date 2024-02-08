@@ -14,10 +14,10 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.marketstats;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.data.marketstats;
 
   const volume = historicalVolume
-    .filter((e: IVolumeall) => e.market_type === "spot")
+    .filter((e: IVolumeall) => e.market_type === "futures")
     .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume), 0) / 1e18;
 
   return {
@@ -30,7 +30,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARBON]: {
       fetch,
-      start: START_TIME,
+      runAtCurrTime: true,
+      start: async () => 1707004800,
     },
   },
 };
