@@ -44,5 +44,5 @@ const adapters = (() => {
 })();
 
 
-adapters.adapter.milkomeda.start = async () => 1648427924;
+adapters.adapter.milkomeda.start = 1648427924;
 export default adapters;

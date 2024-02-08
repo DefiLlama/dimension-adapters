@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs()(),
-        start: async ()  => 1438228800,
+        start: 1438228800,
     },
   },
   protocolType: ProtocolType.CHAIN

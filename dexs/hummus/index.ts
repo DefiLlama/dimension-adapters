@@ -10,7 +10,6 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances, toTim
   const dailyVolume = createBalances();
 
   const logs: any[] = await getLogs({ target: "0x248fD66e6ED1E0B325d7b80F5A7e7d8AA2b2528b", eventAbi: abi_event.swap, })
-  console.log(logs, logs.length)
   logs.forEach((log: any) => dailyVolume.add(log.toToken, Number(log.toAmount)));
 
   return { dailyVolume, timestamp: toTimestamp, };

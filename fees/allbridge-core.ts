@@ -83,7 +83,6 @@ const tronRpc = `https://api.trongrid.io`
 const getTronLogs = async (address: string, eventName: string, minBlockTimestamp: number, maxBlockTimestamp: number) => {
   const url = `${tronRpc}/v1/contracts/${address}/events?event_name=${eventName}&min_block_timestamp=${minBlockTimestamp}&max_block_timestamp=${maxBlockTimestamp}&limit=200`;
   const res = await httpGet(url);
-  console.log(res.data)
   return res.data;
 }
 

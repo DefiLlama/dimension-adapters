@@ -188,8 +188,7 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
 
     return finalBaseAdapter;
   } else {
-    console.log("volumeAdapter", volumeAdapter)
-    console.log(`Failed to grab dex volume data (volume adapter not include 'volume' props)`)
+    console.log(`Failed to grab dex volume data (volume adapter not include 'volume' props)`, volumeAdapter)
     return {}
   }
 }

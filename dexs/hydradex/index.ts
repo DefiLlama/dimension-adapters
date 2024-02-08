@@ -8,6 +8,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
+  wrapGraphError,
 } from '../../helpers/getUniSubgraph';
 import request, { gql } from 'graphql-request';
 import disabledAdapter from '../../helpers/disabledAdapter';
@@ -24,20 +25,23 @@ const VOLUME_USD = 'volumeUSD';
 const FEES_USD = 'feesUSD';
 
 const getV2CustomBlock = async (timestamp: number) => {
-  const blockGraphQuery = gql`
+  const blockGraphQuery = `
     query get_block {
       blocks(orderBy: "height", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
       }
     }
   `;
-
-  const blocks = (await request(v2Endpoints[CHAIN.HYDRA], blockGraphQuery)).blocks;
-  return Number(blocks[0].number);
+  try {
+    const blocks = (await request(v2Endpoints[CHAIN.HYDRA], blockGraphQuery)).blocks;
+    return Number(blocks[0].number);
+  } catch (e) {
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+  }
 };
 
 const getV3CustomBlock = async (timestamp: number) => {
-  const blockGraphQuery = gql`
+  const blockGraphQuery = `
     query get_block {
       blocks(orderBy: "number", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
@@ -45,10 +49,14 @@ const getV3CustomBlock = async (timestamp: number) => {
     }
   `;
 
-  const blocks = (
-    await request('https://graph.hydradex.org/subgraphs/name/blocklytics/ethereum-blocks', blockGraphQuery)
-  ).blocks;
-  return Number(blocks[0].number);
+  try {
+    const blocks = (
+      await request('https://graph.hydradex.org/subgraphs/name/blocklytics/ethereum-blocks', blockGraphQuery)
+    ).blocks;
+    return Number(blocks[0].number);
+  } catch (e) {
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+  }
 };
 
 const v2Graph = getGraphDimensions({

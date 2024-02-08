@@ -81,12 +81,6 @@ async function getChainData(
 
   for (const curr of data) {
     const parsedJson = curr.parsedJson;
-    // console.log(parsedJson);
-
-    // const prices = await getPrices(
-    //   ["sui:0x" + parsedJson.o_token.name, "sui:0x" + parsedJson.b_token.name],
-    //   Number(curr.timestampMs) / 1000
-    // );
 
     let o_token_name: string;
     let dailyNotionalVolume: number;
@@ -146,8 +140,6 @@ async function getChainData(
       }
     }
   }
-
-  // console.log(acc);
 
   acc.dailyNotionalVolume = (await sdk.Balances.getUSDString(acc.dailyNotionalVolume, end_timestamp)) as any;
   acc.dailyPremiumVolume = (await sdk.Balances.getUSDString(acc.dailyPremiumVolume, end_timestamp)) as any;

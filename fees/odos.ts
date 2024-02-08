@@ -30,30 +30,11 @@ To do:
 
 */
 
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers } from "ethers";
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-interface IAmount {
-  feesAmount: number;
-}
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
-const topic0_swap_one = '0x823eaf01002d7353fbcadb2ea3305cc46fa35d799cb0914846d185ac06f8ad05';
-const ROUTER_ADDRESS_FTM_V2 = '0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd';
-
-const contract_interface = new ethers.Interface([
-  event_swap
-]);
 
 type TPool = {
   [c: string]: string[];
@@ -67,73 +48,22 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.AVAX]: ['0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC',],
   [CHAIN.BSC]: ['0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E',],
   [CHAIN.FANTOM]: ['0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd',],
-  //[CHAIN.ZKSYNC]:       [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
+  [CHAIN.ZKSYNC]:       [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
   [CHAIN.POLYGON_ZKEVM]: ['0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC',],
 }
 
-const graph = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
+const graph = (chain: Chain): any => {
+  return async (timestamp: number, _: ChainBlocks, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultFees> => {
     const feeCollectors = FEE_COLLECTORS[chain];
+    const dailyFees = createBalances()
+    const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap, })
+    logs.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
 
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-
-    //console.log(feeCollectors,fromBlock,toBlock,chain);
-
-    const logs: ILog[][] = (await Promise.all(feeCollectors.map((address: string) => sdk.getEventLogs({
-      target: address,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
-      topics: [topic0_swap_one]
-    })))) as ILog[][];
-
-    const rawCoinsPerTreasury: string[][] = feeCollectors.map((_: string, index: number) => {
-      const logsToTokenList: string[] = logs[index]
-        .map((e: ILog) => { return { ...e } })
-        .map((p: ILog) => {
-          return `${chain}:${contract_interface.parseLog(p)!.args.outputToken}`;
-        });
-      return (logsToTokenList);
-    });
-
-    const rawCoins: string[] = rawCoinsPerTreasury.reduce((a: string[], b: any) => [...a, ...b]);
-    const coins = [...new Set(rawCoins)];
-    const prices = await getPrices(coins, timestamp);
-
-
-    const untrackVolumes: any[] = feeCollectors.map((_: string, index: number) => {
-      //const token0Decimals = prices[`${chain}:${tokens0[index]}`]?.decimals || 0
-      //const token1Decimals = prices[`${chain}:${tokens1[index]}`]?.decimals || 0
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => { return { ...e } })
-        .map((p: ILog) => {
-          const value = contract_interface.parseLog(p);
-          const _token = value!.args.outputToken;
-          const _price = (prices[`${chain}:${_token}`]?.price || 0);
-          const _deci = prices[`${chain}:${_token}`]?.decimals || 0;
-          const _slip = Number(value!.args.slippage);
-          const feesAmount = (_slip > 0 ? _slip : 0) / 10 ** _deci * _price;
-          return {
-            feesAmount,
-          } as IAmount
-        });
-
-      const totalFees = log.reduce((a: number, b: IAmount) => Number(b.feesAmount) + a, 0);
-      return {
-        fees: totalFees
-      };
-    });
-
-    const dailyFees = untrackVolumes.reduce((a: number, b: any) => a + b.fees, 0);
-    const dailyRevenue = untrackVolumes.reduce((a: number, b: any) => a + b.rev, 0);
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
-      dailyHoldersRevenue: `${0}`,
-      dailySupplySideRevenue: `${0}`,
+      dailyFees: dailyFees,
+      dailyRevenue: dailyFees,
+      dailyHoldersRevenue: 0,
+      dailySupplySideRevenue: 0,
       timestamp,
     };
   }

@@ -43,12 +43,10 @@ interface IGraphResponse {
 
 const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-//  console.log(dayTimestamp, timestamp);
   
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDailyData, {
     dayTime: String(dayTimestamp),
   })
-  //console.log('dailyData', chain, dailyData);
   let dailyVolume = 0;
   for(let i in dailyData.marketInfoDailies) {
     dailyVolume += parseFloat(dailyData.marketInfoDailies[i].totalVol)
@@ -60,10 +58,6 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
     totalVolume += parseFloat(totalData.markets[i].totalVol)
   }
 
-  //console.log('totalData', chain, totalData);
-  
-  //console.log(dailyVolume, totalVolume);
-  
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyVolume.toString(),

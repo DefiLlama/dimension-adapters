@@ -133,14 +133,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: async ()  => 1675382400,
+        start: 1675382400,
         meta: {
           methodology
         }
     },
     // [CHAIN.XDAI]: {
     //   fetch: fetch(CHAIN.XDAI),
-    //   start: async ()  => 1675382400,
+    //   start: 1675382400,
     //   meta: {
     //     methodology
     //   }

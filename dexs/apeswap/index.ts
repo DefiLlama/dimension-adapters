@@ -9,10 +9,10 @@ const adapters = univ2Adapter({
   // [CHAIN.TELOS]: "https://telos.apeswapgraphs.com/subgraphs/name/ape-swap/apeswap-graph"
 }, {});
 
-adapters.adapter.bsc.start = async () => 1613273226;
-adapters.adapter.polygon.start = async () => 1623814026;
-adapters.adapter.ethereum.start = async () => 1652239626;
-// adapters.adapter.telos.start = async () => 1665880589;
-adapters.adapter.arbitrum.start = async () => 1678406400;
+adapters.adapter.bsc.start = 1613273226;
+adapters.adapter.polygon.start = 1623814026;
+adapters.adapter.ethereum.start = 1652239626;
+// adapters.adapter.telos.start = 1665880589;
+adapters.adapter.arbitrum.start = 1678406400;
 
 export default adapters;

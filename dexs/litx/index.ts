@@ -13,7 +13,7 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.bsc.start = async () => 1687305600;
-adapters.adapter.pulse.start = async () => 1686096000;
+adapters.adapter.bsc.start = 1687305600;
+adapters.adapter.pulse.start = 1686096000;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

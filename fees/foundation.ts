@@ -130,7 +130,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1612137600,
+      start: 1612137600,
     },
   }
 }

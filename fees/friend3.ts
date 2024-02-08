@@ -40,11 +40,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: async () => 1692835200,
+      start: 1692835200,
     },
     [CHAIN.OP_BNB]: {
       fetch: fetchOpbnb,
-      start: async () => 1698710400,
+      start: 1698710400,
     },
   }
 }

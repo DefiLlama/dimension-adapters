@@ -30,7 +30,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
         fetch: fetch,
-        start: async ()  => 1577836800,
+        start: 1577836800,
     },
   },
   protocolType: ProtocolType.CHAIN

@@ -37,7 +37,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {
         fetch: fetch,
-        start: async ()  => 1646784000,
+        start: 1646784000,
     },
   }
 }

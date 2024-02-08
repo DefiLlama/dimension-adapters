@@ -80,31 +80,31 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
         fetch: fetch(CHAIN.OPTIMISM),
-        start: async ()  => 1675382400,
+        start: 1675382400,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.ARBITRUM_NOVA]: {
       fetch: fetch(CHAIN.ARBITRUM_NOVA),
-      start: async ()  => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: async ()  => 1679961600,
+      start: 1679961600,
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch(CHAIN.POLYGON_ZKEVM),
-      start: async ()  => 1679961600,
+      start: 1679961600,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: async ()  => 1692662400,
+      start: 1692662400,
     },
     [CHAIN.LINEA]: {
       fetch: fetch(CHAIN.LINEA),
-      start: async ()  => 1692662400,
+      start: 1692662400,
     }
   }
 }

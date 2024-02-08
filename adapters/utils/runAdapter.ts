@@ -27,7 +27,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
-        if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
+        if (value === undefined || value === null) { // dont store undefined or null values
+          delete result[key]
+          continue;
+        }
+        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) result[key] = await value.getUSDString()
         result[key] = +Number(result[key]).toFixed(0)
         if (isNaN(result[key] as number)) throw new Error(`[${chain}]Value: ${value} ${key} is NaN`)

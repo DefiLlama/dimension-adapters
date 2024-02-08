@@ -156,9 +156,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const rawCoins = [...tokens0, ...tokens1, ...allBribedTokens].map((e: string) => `${CHAIN_SLUG}:${e}`);
   const coins = [...new Set(rawCoins)];
 
-  // const prices = await getPrices(coins, timestamp);
-  // { getPrices } function breaks above 100 tokens..splitting into chunks of 100
-
   const coins_split: string[][] = [];
   for (let i = 0; i < coins.length; i += 100) {
     coins_split.push(coins.slice(i, i + 100))
@@ -208,7 +205,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         const _token = _log.args.reward;
         const _price = (prices[`${CHAIN_SLUG}:${_token}`]?.price || 0);
         const _deci = prices[`${CHAIN_SLUG}:${_token}`]?.decimals || 0;
-        //console.log("_log.args.from", _log.args.from);
         const amount = Number(p.data) / 10 ** _deci * _price;
         return { amount } as IAmountUSD
       }) as IAmountUSD[];

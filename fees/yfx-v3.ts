@@ -51,8 +51,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
         liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFee) 
       }
 
-      //console.log(swapFee, liquidityFee);
-      
       return {
         timestamp,
         dailyFees: (swapFee+liquidityFee).toString(),

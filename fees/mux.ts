@@ -89,23 +89,23 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getFees(CHAIN_ID.ARB),
-      start: async ()  => 1659312000, // 2022-08-01
+      start: 1659312000, // 2022-08-01
     },
     [BSC]: {
       fetch: getFees(CHAIN_ID.BSC),
-      start: async ()  => 1659312000, // 2022-08-01
+      start: 1659312000, // 2022-08-01
     },
     [AVAX]: {
       fetch: getFees(CHAIN_ID.AVALANCHE),
-      start: async ()  => 1659312000, // 2022-08-01
+      start: 1659312000, // 2022-08-01
     },
     [FANTOM]: {
       fetch: getFees(CHAIN_ID.FTM),
-      start: async ()  => 1659312000, // 2022-08-01
+      start: 1659312000, // 2022-08-01
     },
     [OPTIMISM]: {
       fetch: getFees(CHAIN_ID.OPTIMISM),
-      start: async ()  => 1672876800, // 2023-01-05
+      start: 1672876800, // 2023-01-05
     },
   }
 }

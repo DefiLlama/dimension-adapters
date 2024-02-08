@@ -10,5 +10,5 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.arbitrum.start = async () => 1685574000;
+adapters.adapter.arbitrum.start = 1685574000;
 export default adapters;

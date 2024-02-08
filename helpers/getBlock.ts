@@ -10,9 +10,13 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
     if (chainBlocks[chain] !== undefined)
         return chainBlocks[chain]
 
-    
 
-    let block: number | undefined = await sdk.blocks.getBlockNumber(chain, timestamp)
+
+    let block: number | undefined
+    try {
+        block = await sdk.blocks.getBlockNumber(chain, timestamp)
+    } catch (e) { console.log('error fetching block', e) }
+
     if (block) {
         chainBlocks[chain] = block
         return block
@@ -24,7 +28,6 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
         }))?.result?.blockNumber)));
     else if (chain === CHAIN.KAVA)
         block = Number((await retry(async () => (await httpGet(`https://explorer.kava.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-            console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.result?.blockNumber)));
     else if (chain === CHAIN.ONUS)
@@ -47,7 +50,6 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
         }))?.result?.blockNumber)));
     else
         block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
-            console.log(`Error getting block: ${chain} ${timestamp} ${e.message}`)
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.height, { retries: 3 })));
     if (block) chainBlocks[chain] = block

@@ -14,6 +14,6 @@ const adapters = univ2Adapter(
     hasTotalVolume: true,
   }
 );
-adapters.adapter.bsc.start = async () => 1671580800;
+adapters.adapter.bsc.start = 1671580800;
 
 export default adapters;

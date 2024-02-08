@@ -37,7 +37,7 @@ const adapter: Adapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.MANTA]: {
         fetch: v3Graphs(CHAIN.MANTA),
-        start:  async () => 1703548800
+        start:  1703548800
       }
     }
 };
