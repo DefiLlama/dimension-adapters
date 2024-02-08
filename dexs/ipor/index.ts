@@ -41,7 +41,7 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
     dailyNotionalVolume.add('tether', balance / 1e18, { skipChain: true })
   })
 
-  return { timestamp, dailyNotionalVolume, };
+  return { timestamp, dailyVolume: dailyNotionalVolume };
 };
 
 const adapter: BreakdownAdapter = {
