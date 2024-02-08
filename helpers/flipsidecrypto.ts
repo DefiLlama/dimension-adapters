@@ -50,10 +50,10 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
             }
           })
           if(query?.result?.queryRun?.id){
-            token[sqlQuery] = query?.data.result.queryRun.id
+            token[sqlQuery] = query?.result.queryRun.id
           } else {
-            console.log("error query data", query?.data)
-            throw query?.data.error.message
+            console.log("error query data", query)
+            throw query?.error.message
           }
         } catch(e:any){
           if(e?.response?.statusText === 'Payment Required'){
@@ -69,7 +69,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               throw error
             }
           }
-          console.log("make query flipside", e.response)
+          console.log("make query flipside", e.response, e)
           throw e
         }
       }
@@ -132,8 +132,8 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
           throw e
         }
       } else if (status === "QUERY_STATE_FAILED") {
-        console.log(`Flipside query ${sqlQuery} failed`, queryStatus.data)
-        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus.data)}`))
+        console.log(`Flipside query ${sqlQuery} failed`, queryStatus)
+        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus)}`))
         return []; // not returned but just there to make typescript happy
       } else if (status ===  "QUERY_STATE_RUNNING" && (attempt === MAX_RETRIES)) {
         console.log(`Flipside queryRunId ${token[sqlQuery]} still run will cancel!!`)
