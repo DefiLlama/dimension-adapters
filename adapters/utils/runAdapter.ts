@@ -1,4 +1,4 @@
-import { Balances, ChainApi, getEventLogs } from '@defillama/sdk'
+import { Balances, ChainApi, getEventLogs, getProvider } from '@defillama/sdk'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchResultGeneric, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 
@@ -67,6 +67,15 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     // we intentionally add a delay to avoid fetching the same block before it is cached
     await randomDelay()
 
+    let fromBlock, toBlock
+    // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
+    if (getProvider(chain)) {
+      fromBlock = await getFromBlock()
+      toBlock = await getToBlock()
+    }
+    const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
+    const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
+
     return {
       createBalances,
       getBlock,
@@ -76,8 +85,8 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       getToBlock,
       getLogs,
       chain,
-      fromApi: new ChainApi({ chain, timestamp: fromTimestamp, block: await getFromBlock()}),
-      api: new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: await getToBlock()}),
+      fromApi,
+      api,
     }
   }
 
