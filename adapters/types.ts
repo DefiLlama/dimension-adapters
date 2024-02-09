@@ -47,7 +47,7 @@ export type FetchGetLogsOptions = {
 export type Fetch = (
   timestamp: number,
   chainBlocks: ChainBlocks,
-  options?: FetchOptions,
+  options: FetchOptions,
 ) => Promise<FetchResult>;
 
 export type IStartTimestamp = () => Promise<number>

@@ -1,4 +1,3 @@
-import postgres from "postgres";
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
