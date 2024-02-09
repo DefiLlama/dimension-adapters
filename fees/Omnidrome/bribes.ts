@@ -36,7 +36,7 @@ interface IBribes {
 const lphelper = '0x11D66FF243715169d6C14865E18fcc30d3557830';
 
 const abis: any = {
-  "all": "function getLPDetailsPaginated(uint256 pageNumber, uint256 pageLength, address factory, address account) view returns (((address lp, address factory, string symbol, uint8 decimals, string name, bool stable, uint256 totalSupply), (address token0, uint8 token0Decimals, uint256 reserve0, string token0Name, string token0Symbol), (address token1, uint8 token1Decimals, uint256 reserve1, string token1Name, string token1Symbol), (address gauge, uint256 gaugeTotalSupply, uint256 emissions, address emissionsToken, uint8 emissionsDecimals, string emissionSymbol, bool gaugeAlive), (address feeAddress, address bribeAddress, address factoryAddress, uint256 poolFee, uint256 token0Fees, uint256 token1Fees), (uint256 accountBalance, uint256 accountEarned, uint256 accountStaked, uint256 claimable0, uint256 claimable1))[])"
+  "getLPDetailsPaginated": "function getLPDetailsPaginated(uint256 pageNumber, uint256 pageLength, address factory, address account) view returns (((address lp, address factory, string symbol, uint8 decimals, string name, bool stable, uint256 totalSupply), (address token0, uint8 token0Decimals, uint256 reserve0, string token0Name, string token0Symbol), (address token1, uint8 token1Decimals, uint256 reserve1, string token1Name, string token1Symbol), (address gauge, uint256 gaugeTotalSupply, uint256 emissions, address emissionsToken, uint8 emissionsDecimals, string emissionSymbol, bool gaugeAlive), (address feeAddress, address bribeAddress, address factoryAddress, uint256 poolFee, uint256 token0Fees, uint256 token1Fees), (uint256 accountBalance, uint256 accountEarned, uint256 accountStaked, uint256 claimable0, uint256 claimable1))[])"
 }
 
 export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
@@ -44,7 +44,7 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
   const bribeVotingReward: string[] = (await sdk.api2.abi.call({
     target: lphelper,
     params: [1, 1000, "0x769d1BcB5FDf30F5a9D19f1ab8A3cF8b60a6e855", '0x0000000000000000000000000000000000000000'],
-    abi: abis.all,
+    abi: abis.getLPDetailsPaginated,
     chain: CHAIN.ZETA,
   })).map((e: any) => {
     return e[4].bribeAddress;
