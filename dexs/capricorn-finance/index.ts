@@ -10,5 +10,13 @@ const adapters = univ2Adapter({
   dayData: "hswapDayData",
 });
 
+adapters.adapter[CHAIN.CUBE].start = 1630000000;
+adapters.adapter[CHAIN.CUBE].fetch = async (timestamp: number) => {
+  return {
+    dailyVolume: 0,
+    timestamp,
+  }
+}
+
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;
