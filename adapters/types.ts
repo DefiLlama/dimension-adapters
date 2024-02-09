@@ -27,6 +27,7 @@ export type FetchOptions = {
   getToBlock: () => Promise<number>;
   chain: string,
   api: ChainApi,
+  fromApi: ChainApi,
 }
 
 export type FetchGetLogsOptions = {

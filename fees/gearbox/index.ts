@@ -1,8 +1,6 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import BigNumber from "bignumber.js";
-import { getPrices } from "../../utils/prices";
-import postgres from "postgres";
+import { queryIndexer } from "../../helpers/indexer";
 
 type IMapDieselToken = {
   [l: string]: string;
@@ -30,6 +28,8 @@ const mapDieselToken: IMapDieselToken = {
   "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": "0xda00010eda646913f273e10e7a5d1f659242757d",
 };
 
+Object.keys(mapDieselToken).forEach((key: string) => mapDieselToken[key.toLowerCase()] = mapDieselToken[key])
+
 
 const tokenBlacklist = ["0xe397ef3e332256f38983ffae987158da3e18c5ec", "0xbfa9180729f1c549334080005ca37093593fb7aa"];
 interface IAmount {
@@ -49,12 +49,12 @@ interface ILog {
   transaction_hash: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const sql = postgres(process.env.INDEXA_DB!);
-  try {
-    const now = new Date(timestamp * 1e3);
-    const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
-    const logEventTranferErc20ToTreasury = await sql`
+
+const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+
+  const dailyFees = options.createBalances();
+
+  const logEventTranferErc20ToTreasury = await queryIndexer(`
     SELECT
       substr(encode(topic_1, 'hex'), 25) AS origin,
       substr(encode(topic_2, 'hex'), 25) AS destination,
@@ -68,7 +68,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       block_number > 13733671 -- gearbox multisig creation block
       AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' -- erc20 transfer event
       AND topic_2 = '\\x0000000000000000000000007b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1' -- erc20 transfer to gearbox multisig
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+      AND block_time BETWEEN llama_replace_date_range
     union all
     SELECT
       substr(encode(topic_1, 'hex'), 25) AS origin,
@@ -83,10 +83,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       block_number > 13733671 -- gearbox multisig creation block
       AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' -- erc20 transfer event
       AND topic_1 = '\\x0000000000000000000000007b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1' -- erc20 transfer from gearbox multisig
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `;
+      AND block_time BETWEEN llama_replace_date_range;
+      `, options);
 
-    const logEventTxToTreasury = await sql`
+  const logEventTxToTreasury = await queryIndexer(`
     SELECT
       encode(et.from_address, 'hex') AS origin,
       encode(et.to_address, 'hex') AS destination,
@@ -98,7 +98,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ethereum.transactions et
     WHERE
       et.to_address = '\\x7b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()}
+      AND block_time BETWEEN llama_replace_date_range
     union all
       SELECT
       encode(et.from_address, 'hex') AS origin,
@@ -111,32 +111,32 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       ethereum.transactions et
     WHERE
       et.from_address = '\\x7b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `;
+      AND block_time BETWEEN llama_replace_date_range;
+      `, options);
 
-    const logEventTranfer: ITx[] = logEventTranferErc20ToTreasury
-      .map((p: any) => {
-        return {
-          ...p,
-          event: "ERC20",
-        }
-      })
-      .concat(logEventTxToTreasury.map((e: any) => {
-        return {
-          ...e,
-          event: "DAO",
-        }
-      }))
-      .map((p: any) => {
-        return {
-          data: `0x${p.value}`,
-          transactionHash: `0x${p.hash}`.toLowerCase(),
-          token: `0x${p.contract_address}`.toLowerCase(),
-          event: p.event,
-        } as ITx;
-      }) as ITx[];
+  const logEventTranfer: ITx[] = logEventTranferErc20ToTreasury
+    .map((p: any) => {
+      return {
+        ...p,
+        event: "ERC20",
+      }
+    })
+    .concat(logEventTxToTreasury.map((e: any) => {
+      return {
+        ...e,
+        event: "DAO",
+      }
+    }))
+    .map((p: any) => {
+      return {
+        data: `0x${p.value}`,
+        transactionHash: `0x${p.hash}`.toLowerCase(),
+        token: `0x${p.contract_address}`.toLowerCase(),
+        event: p.event,
+      } as ITx;
+    }) as ITx[];
 
-    const logs_contract: ILog[] = (await sql`
+  const logs_contract: ILog[] = await queryIndexer(`
     SELECT
       '0x' || encode(contract_address, 'hex') AS contract_address,
       '0x' || encode(transaction_hash, 'hex') AS transaction_hash
@@ -152,49 +152,21 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         '\\x460ad03b1cf79b1d64d3aefa28475f110ab66e84649c52bb41ed796b9b391981', -- close credit account v2
         '\\x7dfecd8419723a9d3954585a30c2a270165d70aafa146c11c1e1b88ae1439064' -- liquidate credit account v2
       )
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-    `) as ILog[];
+      AND block_time BETWEEN llama_replace_date_range;
+      `, options) as any;
 
-    const coins = Object.values(mapDieselToken).map((address: string) => `ethereum:${address.toLowerCase()}`);
-    const prices = await getPrices(coins, timestamp);
-    const logHashs: string[] = logs_contract.map((e: ILog) => e.transaction_hash);
-    const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
-    const txAmountUSD: IAmount[] = logEventTranfer
-      .filter((e: ITx) => hashEvent.includes(e.transactionHash))
-      .map((transfer_events: ITx, _: number) => {
-        if (tokenBlacklist.includes(transfer_events?.token || "")) {
-          return {
-            amount: 0,
-            amountUsd: 0,
-            transactionHash: transfer_events.transactionHash,
-            event: transfer_events.event + "Blacklist",
-          } as IAmount;
-        }
-        const indexTokenMap = Object.keys(mapDieselToken)
-          .map((e: any) => e.toLowerCase())
-          .findIndex((e: string) => e === transfer_events?.token);
-        const token = Object.values(mapDieselToken)[indexTokenMap];;
-        const price = prices[`ethereum:${token.toLowerCase()}`].price;
-        const decimals = prices[`ethereum:${token.toLowerCase()}`].decimals;
-        const amount = new BigNumber(transfer_events.data).toNumber();
-        return {
-          amount: amount / 10 ** decimals,
-          amountUsd: (amount / 10 ** decimals) * price,
-          transactionHash: transfer_events.transactionHash,
-          event: transfer_events.event,
-        } as IAmount;
-      });
-    const dailyFees = [...new Set([...txAmountUSD.map((e) => e.amountUsd)])].reduce((a: number, b: number) => a + b, 0);
-    await sql.end({ timeout: 5 });
-    return {
-      timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: (dailyFees * 0.5).toString(),
-    };
-  } catch (e) {
-    await sql.end({ timeout: 5 });
-    throw e;
-  }
+  const logHashs: string[] = logs_contract.map((e: ILog) => e.transaction_hash);
+  const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
+  logEventTranfer
+    .filter((e: ITx) => hashEvent.includes(e.transactionHash))
+    .forEach((transfer_events: ITx, _: number) => {
+      if (!transfer_events?.token || tokenBlacklist.includes(transfer_events?.token)) return;
+      const token = mapDieselToken[transfer_events!.token!.toLowerCase()] ?? transfer_events?.token;
+      dailyFees.add(token, transfer_events.data)
+    });
+  const dailyRevenue = dailyFees.clone()
+  dailyRevenue.resizeBy(0.5);
+  return { timestamp, dailyFees, dailyRevenue, };
 };
 
 const adapter: Adapter = {

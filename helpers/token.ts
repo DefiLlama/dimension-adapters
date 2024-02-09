@@ -4,7 +4,7 @@ import axios from 'axios'
 import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 
-const nullAddress = '0x0000000000000000000000000000000000000000'
+export const nullAddress = '0x0000000000000000000000000000000000000000'
 
 export async function addGasTokensReceived(params: {
   multisig?: string;
