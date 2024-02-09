@@ -15,7 +15,7 @@ const account = '0xbd35135844473187163ca197ca93b2ab014370587bb0ed3befff9e902d6bb
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
 const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 
-const  getResources = async (account: string): Promise<any[]> => {
+const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
   let lastData: any;
   let cursor
@@ -23,7 +23,7 @@ const  getResources = async (account: string): Promise<any[]> => {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
     const res = await httpGet(url, undefined, { withMetadata: true })
-    lastData = res
+    lastData = res.data
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
   } while (lastData.length === 9999)
