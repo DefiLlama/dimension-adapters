@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "update-submodules": "git submodule update --init --recursive --remote --merge",
-    "test": "yarn run update-submodules && ts-node cli/testAdapter.ts",
+    "test": "yarn run update-submodules && ts-node --transpile-only cli/testAdapter.ts",
     "ts-check": "yarn run update-submodules && tsc --project tsconfig.json",
     "ts-check-cli": "yarn run update-submodules && tsc --project tsconfig.cli.json",
     "interactive": "node cli/interactive.js"

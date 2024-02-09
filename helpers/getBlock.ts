@@ -6,7 +6,53 @@ import * as sdk from "@defillama/sdk"
 import { httpGet } from "../utils/fetchURL";
 const retry = require("async-retry")
 
-const blacklistedChains = ['sui']
+const blacklistedChains: string[] = [
+  "tron",
+  "juno",
+  "cardano",
+  "litecoin",
+  "bitcoin",
+  "tezos",
+  "solana",
+  "elrond",
+  "defichain",
+  "stacks",
+  "KARURA",
+  "hedera",
+  "eos",
+  "icon",
+  "clv",
+  "stellar",
+  "algorand",
+  "mixin",
+  "thorchain",
+  "flow",
+  "aptos",
+  "neo",
+  "phantasma",
+  "starknet",
+  "carbon",
+  "vechain",
+  "wax",
+  "injective",
+  "ton",
+  "obyte",
+  "zksync",
+  "sora",
+  "cosmos",
+  "hydra",
+  "icp",
+  "hydradx",
+  "osmosis",
+  "sei",
+  "ergo",
+  "radixdlt",
+  "near",
+  "persistence",
+  "sui",
+  "neutron",
+  "terra2"
+];
 
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
     if (blacklistedChains.includes(chain)) {
@@ -42,9 +88,9 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
     else if (chain as CHAIN === CHAIN.POLYGON_ZKEVM || chain === CHAIN.VISION || chain as CHAIN === CHAIN.ERA)
         return sdk.api.util.lookupBlock(timestamp, { chain }).then((blockData: any) => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
     else if (chain as CHAIN === CHAIN.WAVES)
-        block = Number((await retry(async () => (await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${timestamp}`).catch((e) => {
+        block = Number((await retry(async () => (await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${(timestamp * 1000)}`).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.height)));
+        }))?.height, { retries: 3 })));
     else if (chain === CHAIN.BASE)
         block = Number((await retry(async () => (await httpGet(`https://base.blockscout.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
@@ -56,7 +102,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
     else
         block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.height, { retries: 3 })));
+        }))?.height, { retries: 1 })));
     if (block) chainBlocks[chain] = block
     return block
     // https://base.blockscout.com
