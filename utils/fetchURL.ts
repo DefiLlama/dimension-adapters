@@ -30,11 +30,12 @@ function formAxiosError(url: string, error: any, options?: any) {
   return e
 }
 
-export async function httpGet(url: string, options?: AxiosRequestConfig) {
+export async function httpGet(url: string, options?: AxiosRequestConfig, { withMetadata = false } = {}) {
   try {
     const res = await axios.get(url, options)
     if (res.status !== 200) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
     if (!res.data) throw new Error(`Error fetching ${url}: no data`)
+    if (withMetadata) return res
     return res.data
   } catch (error) {
     throw formAxiosError(url, error, { method: 'GET' })
