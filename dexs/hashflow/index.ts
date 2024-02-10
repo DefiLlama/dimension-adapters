@@ -6,7 +6,7 @@ import { httpGet } from "../../utils/fetchURL";
 const chains = [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.POLYGON]
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
-const normalizeChain = (c: string) => c === "Avalanche" ? "avax" : c.toLowerCase()
+const normalizeChain = (c: string) => c === "avalanche" ? "avax" : c.toLowerCase()
 
 interface IAPIResponse {
   data: {
