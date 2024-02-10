@@ -43,8 +43,10 @@ export async function addTokensReceived(params: {
   options: FetchOptions;
   balances?: sdk.Balances;
   tokens?: string[];
+  toAddressFilter?: string | null;
+  tokenTransform?: (token: string) => string;
 }) {
-  let { target, targets, options, balances, tokens, fromAddressFilter = null } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i } = params;
   const { chain, createBalances, getLogs, } = options
 
   if (!balances) balances = createBalances()
@@ -55,12 +57,12 @@ export async function addTokensReceived(params: {
     clonedOptions.balances = balances
     await Promise.all(targets.map(target => addTokensReceived({ ...clonedOptions, target })))
     return balances
-  } else if (!target) {
-    throw new Error('target or targets required')
+  } else if (!target && !fromAddressFilter) {
+    throw new Error('target/fromAddressFilter or targets required')
   }
 
 
-  if (!tokens) {
+  if (!tokens && target) {
     if (!ankrChainMapping[chain]) throw new Error('Chain Not supported: ' + chain)
     const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
     tokens = ankrTokens[ankrChainMapping[chain]] ?? []
@@ -68,18 +70,18 @@ export async function addTokensReceived(params: {
 
   if (!tokens!.length) return balances
 
-  const toAddressFilter = ethers.zeroPadValue(target, 32)
+  const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
   if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)
   const logs = await getLogs({
     targets: tokens,
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
-    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter],
+    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter as any],
   })
 
   logs.forEach((logs, index) => {
     const token = tokens![index]
-    logs.forEach((i: any) => balances!.add(token, i.value))
+    logs.forEach((i: any) => balances!.add(tokenTransform(token), i.value))
   })
   return balances
 }

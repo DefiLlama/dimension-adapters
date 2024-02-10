@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResultFees } from "../../adapters/types";
-import { ethers } from "ethers";
+import { addTokensReceived } from '../../helpers/token';
 
 const factory = "0xC3179AC01b7D68aeD4f27a19510ffe2bfb78Ab3e";
 const event_market_create =
@@ -11,11 +11,9 @@ const tokens = [
   ADDRESSES.arbitrum.WETH, // WETH
 ];
 const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
-const topic0_transfer = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const event_transfer = "event Transfer (address indexed from, address indexed to, uint256 amount)";
 
-
-const fetch = async (timestamp: number, _, { getLogs, api, createBalances, }): Promise<FetchResultFees> => {
+const fetch = async (timestamp: number, _, options): Promise<FetchResultFees> => {
+  const { createBalances, getLogs, } = options
 
   const market_create = await getLogs({
     target: factory,
@@ -29,16 +27,9 @@ const fetch = async (timestamp: number, _, { getLogs, api, createBalances, }): P
   const vaults = [...new Set([...premium, ...collateral])];
   const dailyFees = createBalances()
 
-  for (const token of tokens) {
-    for (const vault of vaults) {
-      const transfer_treasury = await getLogs({
-        target: token,
-        eventAbi: event_transfer,
-        topics: [topic0_transfer, ethers.zeroPadValue(vault, 32), ethers.zeroPadValue(treasury, 32)],
-      })
-      transfer_treasury.forEach((i: any) => api.add(token, i.amount))
-    }
-  }
+  for (const vault of vaults)
+    await addTokensReceived({ options, tokens, fromAddressFilter: vault, target: treasury, balances: dailyFees })
+
 
   return { dailyFees, dailyRevenue: dailyFees, timestamp, };
 };

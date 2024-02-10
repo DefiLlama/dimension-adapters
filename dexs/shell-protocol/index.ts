@@ -1,78 +1,18 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import BigNumber from "bignumber.js";
-import { getPrices } from "../../utils/prices";
+import { addTokensReceived } from "../../helpers/token";
 
-const DAI_CONTRACT = ADDRESSES.optimism.DAI;
-const USDC_CONTRACT = ADDRESSES.arbitrum.USDC;
-const USDT_CONTRACT = ADDRESSES.arbitrum.USDT;
-const WBTC_CONTRACT = ADDRESSES.arbitrum.WBTC;
 
-const topic = 'Transfer (index_topic_1 address from, index_topic_2 address to, uint256 value)';
-const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const topic1 = '0x000000000000000000000000c32eb36f886f638fffd836df44c124074cfe3584';
-
-interface ITokenList {
-  address: string;
-}
-
-const tokenList: ITokenList[] = [
-  {
-    address: DAI_CONTRACT,
-  },
-  {
-    address: USDC_CONTRACT,
-  },
-  {
-    address: USDT_CONTRACT,
-  },
-  {
-    address: WBTC_CONTRACT,
-  }
-];
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-}
-
-const fetch = async (timestamp: number) => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-
-  const fromBlock = (await getBlock(fromTimestamp, 'arbitrum', {}));
-  const toBlock = (await getBlock(toTimestamp, 'arbitrum', {}));
-  const logs: ILog[][] = (await Promise.all(tokenList.map(({ address }) => sdk.getEventLogs({
-    target: address,
-    topic: topic,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    chain: 'arbitrum',
-    topics: [topic0, topic1]
-  })))) as any;
-  const coins = tokenList.map(({ address }) => `arbitrum:${address}`);
-  const prices = await getPrices(coins, timestamp);
-  const untrackVolumes = tokenList.map((token: ITokenList, index: number) => {
-    const log = logs[index]
-      .map((e: ILog) => { return { ...e, data: e.data } })
-      .map((p: ILog) => {
-        const { decimals, price } = prices[`arbitrum:${token.address}`];
-        const amountUSD = new BigNumber(p.data)
-          .div(new BigNumber(10).pow(decimals))
-          .multipliedBy(price);
-        return amountUSD.toNumber()
-      })
-    return log.reduce((a: number, b: number) => a + b, 0);
-  });
-
-  const dailyVolume = untrackVolumes.reduce((a: number, b: number) => a + b, 0);
-  return {
-    timestamp,
-    dailyVolume: dailyVolume.toString()
-  }
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+  const tokens = [
+    ADDRESSES.arbitrum.DAI,
+    ADDRESSES.arbitrum.USDC,
+    ADDRESSES.arbitrum.USDT,
+    ADDRESSES.arbitrum.WBTC,
+  ]
+  const dailyVolume = await addTokensReceived({ tokens, options, fromAddressFilter: '0xC32eB36f886F638fffD836DF44C124074cFe3584' })
+  return { timestamp, dailyVolume }
 }
 
 

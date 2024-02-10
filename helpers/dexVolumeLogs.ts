@@ -56,8 +56,8 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
   const { api } = fetchOptions
   if (!pools) pools = await api.fetchList({ lengthAbi, itemAbi, target: factory! })
 
-  const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
-  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
+  const token0s = await api.multiCall({ abi: 'address:token0', calls: pools!, permitFailure: true, })
+  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools!, permitFailure: true,  })
 
   const logs = await fetchOptions.getLogs({
     targets: pools,
@@ -67,7 +67,7 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
   logs.forEach((log: any[], index: number) => {
     const token0 = token0s[index]
     const token1 = token1s[index]
-    if (!log.length) return
+    if (!log.length || !token0 || !token1) return
     log.forEach((i: any) => {
       api.add(token0, i.amount0)
       api.add(token1, i.amount1)

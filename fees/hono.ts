@@ -1,11 +1,8 @@
-import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getPrices } from "../utils/prices";
-
 
 interface IData {
   id: string;
@@ -27,22 +24,18 @@ const graph = (graphUrls: ChainEndpoints) => {
   }`;
 
   return (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultFees> => {
-      const fromTimestamp = timestamp - 60 * 60 * 24
-      const toTimestamp = timestamp
+    return async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
+      const dailyFees = createBalances()
 
       const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
         timestampFrom: fromTimestamp,
         timestampTo: toTimestamp
       })).dailyRevenueAggregators;
-      const ethcoinID = "ethereum:" + ADDRESSES.null;
-      const prices = await getPrices([ethcoinID], timestamp);
-      const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue) / 10 ** 18, 0);
-      const dailyRevenue = (value) * prices[ethcoinID].price;
-      const dailyFees = dailyRevenue;
+      const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue), 0);
+      dailyFees.addGasToken(value)
       return {
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyRevenue}`,
+        dailyFees,
+        dailyRevenue: dailyFees,
         timestamp
       }
     }

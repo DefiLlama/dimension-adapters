@@ -1,11 +1,8 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from '@defillama/sdk/build/general';
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { addTokensReceived } from '../helpers/token';
 
 
 const methodology = {
@@ -15,10 +12,6 @@ const methodology = {
   Fees: "Fees generated on each synthetic asset exchange, between 0.1% and 1% (usually 0.3%)",
 }
 
-const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const topic1 = '0x0000000000000000000000000000000000000000000000000000000000000000';
-const topic2 = '0x000000000000000000000000feefeefeefeefeefeefeefeefeefeefeefeefeef';
-
 type IContract = {
   [l: string | Chain]: string;
 }
@@ -26,47 +19,18 @@ const contract_address: IContract = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.sUSD,
   [CHAIN.OPTIMISM]: ADDRESSES.optimism.sUSD
 }
-interface ITx {
-  data: string;
-  transactionHash: string;
-}
-interface IFee {
-  amount: number;
-}
-
 const graphs = () => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-      const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-      const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-      const logs: ITx[] = (await sdk.getEventLogs({
-        target: contract_address[chain],
-        fromBlock: fromBlock,
-        toBlock: toBlock,
-        topics: [topic0, topic1, topic2],
-        chain: chain
-      })).map((e: any) => { return { data: e.data, transactionHash: e.transactionHash } as ITx});
-
-      const sUSD = `${chain}:${contract_address[chain].toLowerCase()}`;
-      const sUSDPrice = (await getPrices([sUSD], timestamp))[sUSD].price;
-      const fees = logs.map((e: ITx) => {
-        const amount = Number(e.data) / 10 ** 18;
-        return {
-          amount: amount
-        } as IFee;
-      });
-
-      const dailyFee = fees.reduce((a: number, b: IFee) => a+b.amount, 0) * sUSDPrice; // sUSD
-
+    return async (timestamp: number , _: ChainBlocks, options : FetchOptions) => {
+      const token = contract_address[chain]
+      const dailyFee = await addTokensReceived({ tokens: [token], options, target: '0xfeefeefeefeefeefeefeefeefeefeefeefeefeef'})
+      
       return {
         timestamp,
-        dailyUserFees: dailyFee.toString(),
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
-        dailyHoldersRevenue: dailyFee.toString()
+        dailyUserFees: dailyFee,
+        dailyFees: dailyFee,
+        dailyRevenue: dailyFee,
+        dailyHoldersRevenue: dailyFee
       };
     };
   };
