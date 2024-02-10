@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import {Adapter, FetchResultFees} from "../adapters/types";
 import {CHAIN} from "../helpers/chains";
 import {Chain} from "@defillama/sdk/build/general";
@@ -34,7 +35,7 @@ const graphs = (chain: Chain) => {
         `
       const graphRes: ISwap[] = (await request(endpoints[chain], query)).fees;
 
-      const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+      const ethAddress = "ethereum:" + ADDRESSES.null;
       const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
       const dailyFees = graphRes.map((e: ISwap) => {
         const decimals = 18;

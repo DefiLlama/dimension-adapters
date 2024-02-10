@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -33,7 +34,7 @@ const weth_address_tranfer_topic:TTopics = {
 }
 
 const weth_address: TAddress  = {
-  [CHAIN.ARBITRUM]: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
+  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH
 }
 
 const fetch = (chain: Chain) => {
@@ -70,7 +71,7 @@ const fetch = (chain: Chain) => {
           } as IData
         });
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = "ethereum:" + ADDRESSES.null;
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const buybackAmount = logs_fund_disposit.reduce((sum: number, a: IData) => sum + a.amount, 0);
     const dividends = logs_dividends.reduce((a: number, b: IData) => a + b.amount, 0);

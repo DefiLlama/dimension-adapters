@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -17,7 +18,7 @@ type TFeeDetail = {
 }
 const fee_detail: TFeeDetail = {
   [CHAIN.AVAX]: {
-    target: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e',
+    target: ADDRESSES.avax.USDC,
     targetDecimal: 6,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -25,7 +26,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.BSC]: {
-    target: '0x55d398326f99059fF775485246999027B3197955',
+    target: ADDRESSES.bsc.USDT,
     targetDecimal: 18,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -33,7 +34,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.FANTOM]: {
-    target: '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75',
+    target: ADDRESSES.fantom.USDC,
     targetDecimal: 6,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -41,7 +42,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.POLYGON]: {
-    target: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+    target: ADDRESSES.polygon.USDC,
     targetDecimal: 6,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -49,7 +50,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.ARBITRUM]: {
-    target: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
+    target: ADDRESSES.arbitrum.USDC,
     targetDecimal: 6,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -57,7 +58,7 @@ const fee_detail: TFeeDetail = {
     ]
   },
   [CHAIN.OPTIMISM]: {
-    target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+    target: ADDRESSES.optimism.USDC,
     targetDecimal: 6,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',

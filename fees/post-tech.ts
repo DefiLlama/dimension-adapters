@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock"
@@ -48,7 +49,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     })
     const dailyFees = fees_details.reduce((a: number, b: IFee) => a+b.fees, 0)
     const dailyRev = fees_details.reduce((a: number, b: IFee) => a+b.rev, 0)
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = "ethereum:" + ADDRESSES.null;
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const dailyFeesUSD = (dailyFees) * ethPrice;
     const dailyRevUSD = (dailyRev) * ethPrice;

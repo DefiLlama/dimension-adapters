@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
@@ -85,7 +86,7 @@ export const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const fees = (marketplace_fee + creator_fee);
   const rev = (marketplace_fee);
-  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethAddress = "ethereum:" + ADDRESSES.null;
   const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
   const dailyFees = (fees * ethPrice)
   const dailyRevenue = (rev * ethPrice)

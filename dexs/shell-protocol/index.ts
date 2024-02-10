@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -5,10 +6,10 @@ import { getBlock } from "../../helpers/getBlock";
 import BigNumber from "bignumber.js";
 import { getPrices } from "../../utils/prices";
 
-const DAI_CONTRACT = '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1';
-const USDC_CONTRACT = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8';
-const USDT_CONTRACT = '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9';
-const WBTC_CONTRACT = '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f';
+const DAI_CONTRACT = ADDRESSES.optimism.DAI;
+const USDC_CONTRACT = ADDRESSES.arbitrum.USDC;
+const USDT_CONTRACT = ADDRESSES.arbitrum.USDT;
+const WBTC_CONTRACT = ADDRESSES.arbitrum.WBTC;
 
 const topic = 'Transfer (index_topic_1 address from, index_topic_2 address to, uint256 value)';
 const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';

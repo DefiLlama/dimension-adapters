@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { Chain } from '@defillama/sdk/build/general';
@@ -46,7 +47,7 @@ const graphs = (chain: Chain) => {
       return amount;
     });
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = "ethereum:" + ADDRESSES.null;
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const dailyFee = rawLogsData.reduce((a: number, b: number) => a+b, 0);
     const dailyFeeUSD = dailyFee * ethPrice;

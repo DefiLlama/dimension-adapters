@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock"
@@ -16,7 +17,7 @@ const osTokenCtrlTopic = '0xb27a3a9979877b12952e21e91eeded34f5ecc7d5147544ca7b58
 const osTokenCtrlInterface = new ethers.Interface([
   'event StateUpdated(uint256 profitAccrued,uint256 treasuryShares,uint256 treasuryAssets)'
 ]);
-const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+const ethAddress = "ethereum:" + ADDRESSES.null;
 
 interface ILog {
   data: string;

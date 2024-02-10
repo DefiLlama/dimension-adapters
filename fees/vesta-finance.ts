@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -25,10 +26,10 @@ const event_reward_staker = 'event RewardReceived(uint256 reward)';
 
 const VST_ADDRESS = "0x64343594ab9b56e99087bfa6f2335db24c2d1f17";
 const ACTIVE_POOL_ADDRESS = "0xbe3de7fb9aa09b3fa931868fb49d5ba5fee2ebb1";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const GMX_STAKER = "0xB9b8f95568D5a305c6D70D10Cc1361d9Df3e9F9a";
 const GLP_STAKER = "0xDB607928F10Ca503Ee6678522567e80D8498D759";
-const ETHEREUM = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
+const ETHEREUM = ADDRESSES.arbitrum.WETH;
 
 const contract_interface = new ethers.Interface([
   event_redemption,

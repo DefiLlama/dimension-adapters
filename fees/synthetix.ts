@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from '@defillama/sdk/build/general';
@@ -22,8 +23,8 @@ type IContract = {
   [l: string | Chain]: string;
 }
 const contract_address: IContract = {
-  [CHAIN.ETHEREUM]: '0x57ab1ec28d129707052df4df418d58a2d46d5f51',
-  [CHAIN.OPTIMISM]: '0x8c6f28f2f1a3c87f0f938b96d27520d9751ec8d9'
+  [CHAIN.ETHEREUM]: ADDRESSES.ethereum.sUSD,
+  [CHAIN.OPTIMISM]: ADDRESSES.optimism.sUSD
 }
 interface ITx {
   data: string;

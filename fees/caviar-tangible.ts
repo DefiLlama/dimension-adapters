@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock";
@@ -6,7 +7,7 @@ import * as sdk from "@defillama/sdk";
 const topic0_evt_transfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const topic1_evt_transfer = '0x000000000000000000000000bbc843dcb1009bc7dc988bceb5bb1b50299d9a6d';
 const topic2_evt_transfer = '0x0000000000000000000000006ced48efbb581a141667d7487222e42a3fa17cf7';
-const usdc = '0x2791bca1f2de4661ed88a30c99a7a9449aa84174';
+const usdc = ADDRESSES.polygon.USDC;
 
 interface ILog {
   data: string;

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -22,7 +23,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const graphQuery = gql
         `
       {
-        loans(where:{owner_not: "0x0000000000000000000000000000000000000000"}, block:{ number: ${todaysBlock}}) {
+        loans(where:{owner_not: ADDRESSES.null}, block:{ number: ${todaysBlock}}) {
           interest
           borrowed
         }
@@ -30,7 +31,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       `;
 
       const graphRes: IGraph[] = (await request(graphUrls[chain], graphQuery)).loans;
-      const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+      const ethAddress = "ethereum:" + ADDRESSES.null;
       const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
       const dailyFeePerSec = graphRes.reduce((a: number, b: IGraph) => a + (Number(b.interest) * Number(b.borrowed)), 0)
       const dailyFee = dailyFeePerSec / 1e36 * ONE_DAY_IN_SECONDS * ethPrice;

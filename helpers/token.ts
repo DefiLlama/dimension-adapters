@@ -1,10 +1,11 @@
+import ADDRESSES from './coreAssets.json'
 import { FetchOptions } from "../adapters/types";
 import * as sdk from '@defillama/sdk'
 import axios from 'axios'
 import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 
-export const nullAddress = '0x0000000000000000000000000000000000000000'
+export const nullAddress = ADDRESSES.null
 
 export async function addGasTokensReceived(params: {
   multisig?: string;

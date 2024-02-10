@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { queryAllium } from "../helpers/allium";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { httpGet, httpPost } from "../utils/fetchURL";
@@ -23,8 +24,8 @@ async function optimism(start: number, end: number) {
     return {
         volume: await sumPricedTokens(start, data, {
             "ETH": "ethereum",
-            "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": "optimism",
-            "0x4200000000000000000000000000000000000006": "ethereum"
+            [ADDRESSES.avax.WAVAX]: "optimism",
+            [ADDRESSES.optimism.WETH_1]: "ethereum"
         }),
     }
 }
@@ -35,7 +36,7 @@ async function avalanche(start: number, end: number) {
         volume: await sumPricedTokens(start, data.map(([token, value]: any)=>[token, token.startsWith("0x")?value:value/1e18]), {
             "ETH": "avalanche-2",
             "AVAX": "avalanche-2",
-            "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": "avalanche-2"
+            [ADDRESSES.avax.WAVAX]: "avalanche-2"
         }),
     }
 }

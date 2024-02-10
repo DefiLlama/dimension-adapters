@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -113,7 +114,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     ...logs_mint_from_fixed_price_drop,
     ...logs_withdraw_creator_revenue_from_dutch_auction,
   ]
-  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethAddress = "ethereum:" + ADDRESSES.null;
   const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
   const totalFees = total_logs.reduce((a: number, b: IFee) => a + b.totalFees, 0)
   const dailyFees = totalFees * ethPrice

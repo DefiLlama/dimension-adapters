@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -44,7 +45,7 @@ const fetch = (chain: Chain) => {
       chain: chain
     })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
 
-    const ethAddress = chain !== CHAIN.POLYGON ? "ethereum:0x0000000000000000000000000000000000000000" : 'ethereum:0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
+    const ethAddress = chain !== CHAIN.POLYGON ? ["ethereum:" + ADDRESSES.null]: 'ethereum:' + ADDRESSES.ethereum.MATIC;
     const payableToken: string[] = logs.map((tx: ITx) => {
       const postionPayableToken = Number(tx.data.slice(320, 384)) === 1 ? 6 : 11;
       const address = tx.data.slice(postionPayableToken*64, (postionPayableToken*64)+64); // 11

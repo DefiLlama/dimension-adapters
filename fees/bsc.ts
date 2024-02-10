@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, ProtocolType } from "../adapters/types";
 import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -38,7 +39,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const dailyFee = new BigNumber(graphRes["today"]["totalFees"]).minus(new BigNumber(graphRes["yesterday"]["totalFees"]))
 
-      const bnbAddress = "bsc:0x0000000000000000000000000000000000000000";
+      const bnbAddress = "bsc:" + ADDRESSES.null;
       const pricesObj: any = await getPrices([bnbAddress], todaysTimestamp);
       const latestPrice = new BigNumber(pricesObj[bnbAddress]["price"])
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { getPrices } from "../../utils/prices";
 import { ethers } from "ethers";
@@ -37,10 +38,10 @@ const abis: any = {
 }
 
 export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+  const ZERO_ADDRESS = ADDRESSES.null;
   const bribeVotingReward: string[] = (await sdk.api2.abi.call({
     target: gurar,
-    params: [1000, 0, '0x0000000000000000000000000000000000000000'],
+    params: [1000, 0, ADDRESSES.null],
     abi: abis.all,
     chain: CHAIN.BASE,
   })).map((e: any) => {

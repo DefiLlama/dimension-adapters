@@ -1,3 +1,4 @@
+import ADDRESSES from './coreAssets.json'
 import { ChainBlocks, FetchOptions, FetchResultFees, } from "../adapters/types";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 
@@ -10,8 +11,8 @@ async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaul
   const balances = createBalances();
   const eventAbi = 'event Withdrawal (uint256 value, address to, address from, uint8 withdrawalNetwork)'
 
-  await api.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
-  await fromApi.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
+  await api.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
+  await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
 
   const logs = await getLogs({ targets: feeVaults, eventAbi, })
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
@@ -44,7 +45,7 @@ const fetchVolume = (chain: Chain) => {
     const coins = [...new Set(historicalData.map((e: IGraph) => `${chain}:${e.makerAssetAddr}`))]
     const prices = await getPrices(coins, toTimestamp);
     if (!prices[`ethereum:0x3212b29e33587a00fb1c83346f5dbfa69a458923`]) {
-      prices[`ethereum:0x3212b29e33587a00fb1c83346f5dbfa69a458923`] = prices[`ethereum:0x2260fac5e5542a773aa44fbcfedf7c193bc2c599`] // imBTC
+      prices[`ethereum:0x3212b29e33587a00fb1c83346f5dbfa69a458923`] = prices[`ethereum:` + ADDRESSES.ethereum.WBTC] // imBTC
     }
     const dailyVolume = historicalData.map((e: IGraph) => {
       const price = prices[`${chain}:${e.makerAssetAddr}`]?.price || 0;

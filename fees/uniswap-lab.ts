@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
@@ -20,7 +21,7 @@ const fetchFees = (chain: Chain) => {
           from
             ethereum.core.fact_event_logs
           WHERE
-            contract_address = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+            contract_address ='${ADDRESSES.ethereum.USDC}'
             and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
             and (
               topics[2] = '0x0000000000000000000000006460d14dbaeb27aefec8ebef85db35defa31c3b9'
@@ -36,7 +37,7 @@ const fetchFees = (chain: Chain) => {
           from
             ${CHAIN.OPTIMISM}.core.fact_event_logs
           WHERE
-            contract_address = '0x0b2c639c533813f4aa9d7837caf62653d097ff85'
+            contract_address ='${ADDRESSES.optimism.USDC_CIRCLE}'
             and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
             and topics[2] = '0x000000000000000000000000d4ce1f1b8640c1988360a6729d9a73c85a0c80a3'
             AND BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'
@@ -48,7 +49,7 @@ const fetchFees = (chain: Chain) => {
           from
             ${CHAIN.POLYGON}.core.fact_event_logs
           WHERE
-            contract_address = '0x2791bca1f2de4661ed88a30c99a7a9449aa84174'
+            contract_address ='${ADDRESSES.polygon.USDC}'
             and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
             and topics[2] = '0x000000000000000000000000ce946931adf7afc0797de2a76270a28458f487ed'
             AND BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'
@@ -60,7 +61,7 @@ const fetchFees = (chain: Chain) => {
           from
             ${CHAIN.ARBITRUM}.core.fact_event_logs
           WHERE
-            contract_address = '0xaf88d065e77c8cc2239327c5edb3a432268e5831'
+            contract_address ='${ADDRESSES.arbitrum.USDC_CIRCLE}'
             and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
             and topics[2] = '0x000000000000000000000000d4ce1f1b8640c1988360a6729d9a73c85a0c80a3'
             AND BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'

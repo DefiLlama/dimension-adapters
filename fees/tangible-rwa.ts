@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains"
 import * as sdk from "@defillama/sdk";
@@ -5,7 +6,7 @@ import { getBlock } from "../helpers/getBlock";
 
 const topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const topic2 = '0x0000000000000000000000006ced48efbb581a141667d7487222e42a3fa17cf7'
-const usdc = '0x2791bca1f2de4661ed88a30c99a7a9449aa84174'
+const usdc = ADDRESSES.polygon.USDC
 const list_from_addres_hex = [
   '0x00000000000000000000000043e656716cf49c008435a8196d8f825f66f37254',
   '0x000000000000000000000000cb7daa45ed2a9253ad3c900583b33bed822e8283',

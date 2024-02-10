@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -62,7 +63,7 @@ const fetch = (chain: Chain) => {
       } as ISaleData
     });
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+    const ethAddress = "ethereum:" + ADDRESSES.null;
     const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
     const marketplace_fee = rawLogsData.reduce((a: number, b: ISaleData) => a+b.marketplace_fee, 0);
     const creator_fee = rawLogsData.reduce((a: number, b: ISaleData) => a+b.creator_fee, 0);

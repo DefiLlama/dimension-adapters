@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResultFees } from "../../adapters/types";
 import { ethers } from "ethers";
 
@@ -6,8 +7,8 @@ const event_market_create =
   "event MarketCreated (uint256 indexed marketId, address premium, address collateral, address underlyingAsset, address token, string name, uint256 strike, address controller)";
 
 const tokens = [
-  "0x912ce59144191c1204e64559fe8253a0e49e6548", // ARB
-  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1", // WETH
+  ADDRESSES.arbitrum.ARB, // ARB
+  ADDRESSES.arbitrum.WETH, // WETH
 ];
 const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
 const topic0_transfer = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";

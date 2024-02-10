@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -98,7 +99,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   });
 
   const voterGauges = poolsGauges.filter((_vg: string) =>
-    _vg !== '0x0000000000000000000000000000000000000000'
+    _vg !== ADDRESSES.null
   );
 
 

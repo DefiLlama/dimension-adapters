@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ethers } from "ethers";
@@ -26,7 +27,7 @@ const gqlQuery = gql`
   }
 `
 
-const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84"
+const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH
 const SY_WSTETH_ARBITRUM = "0x80c12d5b6cc494632bf11b03f09436c8b61cc5df";
 const SY_WSTETH_OP = "0x96a528f4414ac3ccd21342996c93f2ecdec24286"
 

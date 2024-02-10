@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -34,7 +35,7 @@ const graph = (graphUrls: ChainEndpoints) => {
         timestampFrom: fromTimestamp,
         timestampTo: toTimestamp
       })).dailyRevenueAggregators;
-      const ethcoinID = "ethereum:0x0000000000000000000000000000000000000000";
+      const ethcoinID = "ethereum:" + ADDRESSES.null;
       const prices = await getPrices([ethcoinID], timestamp);
       const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue) / 10 ** 18, 0);
       const dailyRevenue = (value) * prices[ethcoinID].price;

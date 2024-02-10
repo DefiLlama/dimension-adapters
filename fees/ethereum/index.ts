@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, ProtocolType } from "../../adapters/types";
 import { ETHEREUM } from "../../helpers/chains";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -28,7 +29,7 @@ const graphs = () => {
         .filter(item => item.Timestamp === yesterdaysTimestamp)
         .find(item => item)?.Result || 0
 
-      const ethAddress = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+      const ethAddress = "ethereum:" + ADDRESSES.ethereum.WETH;
       const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
       const latestPrice = new BigNumber(pricesObj[ethAddress]["price"])
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { getBalance } from "@defillama/sdk/build/eth";
 import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
@@ -46,7 +47,7 @@ const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<Fetch
     .plus((new BigNumber(protocolBalanceEnd).minus(protocolBalanceStart)))
   const fees: BigNumber = ethBalance.dividedBy(10 ** 18)
   const dailyFee: number = fees.dividedBy(.7).toNumber()
-  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethAddress = "ethereum:" + ADDRESSES.null;
   const pricesObj: any = await getPrices([ethAddress], toTimestamp);
   const latestPrice = pricesObj[ethAddress]["price"]
   const dailyFees = dailyFee * latestPrice;

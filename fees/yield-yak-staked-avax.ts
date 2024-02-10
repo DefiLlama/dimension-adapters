@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { ethers } from "ethers";
@@ -12,7 +13,7 @@ const topic_0_distribution = '0xb6bcab815b7a952b8759f2f92fc9981dc1156f6c11bf4dc7
 const topic_0_paid = '0x4f2d18324ee95128de091ed2adc501295479000ce4c2cec607aeb1b67e189e2f';
 const event_distribution = 'event Distribution(uint256 indexed epoch,address indexed by,uint256 amount)';
 const event_paid = 'event Paid(uint256 indexed epoch,address indexed payee,uint256 amount)';
-const AVAX = '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
+const AVAX = ADDRESSES.avax.WAVAX;
 const yield_yak_master = '0x0cf605484a512d3f3435fed77ab5ddc0525daf5f';
 const yak_gov = '0x5925c5c6843a8f67f7ef2b55db1f5491573c85eb';
 const contract_interface = new ethers.Interface([

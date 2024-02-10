@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -85,22 +86,22 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
   const max_block_timestamp = toTimestamp * 1000;
 
   const underlyings: string[] = [
-    'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
-    'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-    'TMwFHYXLJaRUPeW6421aqXL4ZEzPRFGkGT',
-    'TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9',
+    ADDRESSES.tron.WTRX,
+    ADDRESSES.tron.USDT,
+    ADDRESSES.tron.USDJ,
+    ADDRESSES.tron.SUN_1,
     'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7',
-    'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9',
-    'TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9',
-    'TKfjV9RNKJJCqPvBtK8L7Knykh7DNWvnYt',
-    'THb4CqiFdwNHsWsQCs4JhzwjMWys4aqCbF',
-    'TUpMhErZL2fhh4sVNULAbNKLokS4GjC1F4',
+    ADDRESSES.tron.BTC,
+    ADDRESSES.tron.JST,
+    ADDRESSES.tron.WBTT,
+    ADDRESSES.tron.ETH,
+    ADDRESSES.tron.TUSD,
     'TFczxzPhnThNSqr5by8tvxsdCFRRz6cPNq',
-    'TSSMHYeV2uE9qYH95DqyoCuNCzEL1NvU3S',
-    'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8',
-    'TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4',
-    'TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn',
-    'TMz2SWatiAtZVVcH2ebpsbVtYwUPT9EdjH',
+    ADDRESSES.tron.SUN,
+    ADDRESSES.tron.USDC,
+    ADDRESSES.tron.BTT,
+    ADDRESSES.tron.USDD,
+    ADDRESSES.tron.BUSD,
     'TU3kjFuhtEo42tsCBtfYUAZxoqQ4yuSLQ5',
     'TRFe3hT5oYhjSZ6f3ji5FJ7YCfrkWnHRvh',
     'TGkxzkDKyMeq2T7edKnyjZoFypyzjkkssq'
@@ -179,7 +180,7 @@ const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{under
     permitFailure: true,
   });
   const _underlyings =  underlyings;
-  _underlyings[0]  = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR';
+  _underlyings[0]  = ADDRESSES.tron.WTRX;
   return {
     underlyings: _underlyings,
     reserveFactors: reserveFactors,

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -88,7 +89,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
         let fees = [...fan_fees_details, ...touch_fees_details]
         const dailyFees = fees.reduce((a: number, b: IFee) => a + b.fees, 0)
         const dailyRev = fees.reduce((a: number, b: IFee) => a + b.rev, 0)
-        const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+        const ethAddress = "ethereum:" + ADDRESSES.null;
         const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
         const dailyFeesUSD = (dailyFees) * ethPrice;
         const dailyRevUSD = (dailyRev) * ethPrice;
