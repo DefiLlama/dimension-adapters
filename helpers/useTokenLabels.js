@@ -10,7 +10,9 @@ const path = require('path')
 // const rootFolder = projectsDir + '/zharta'
 const rootFolder = projectsDir
 
-const ignoredChains = ['tezos', 'waves', 'algorand', 'klaytn', 'astar', 'iotex', 'elrond', 'defichain', 'cardano',]
+
+const ibcChains = ['ibc', 'terra', 'terra2', 'crescent', 'osmosis', 'kujira', 'stargaze', 'juno', 'injective', 'cosmos', 'comdex', 'umee', 'orai', 'persistence', 'fxcore', 'neutron', 'quasar', 'chihuahua', 'sei', 'archway', 'migaloo', 'secret', 'aura', 'xpla', 'bostrom']
+const ignoredChains = ['tezos', 'waves', 'algorand', 'klaytn', 'astar', 'iotex', 'elrond', 'defichain', 'cardano', ...ibcChains]
 
 function run() {
   ignoredChains.forEach(i => delete allLabels[i])
@@ -52,14 +54,14 @@ function updateFile(file) {
     if (!address || !address.length) return;
     if (!updateFile) {
       updateFile = (new RegExp(address, 'i')).test(fileStr)
-      // if (updateFile)
-      //   console.log(updateFile, address, new RegExp(address, 'i'), file)
+      if (updateFile)
+        console.log(updateFile, address, new RegExp(address, 'i'), file)
     }
     if (!updateFile) return;
     const tokensBareRegex = new RegExp('["\']' + address + '["\']\\s*:', 'gi')
     const tokensBareRegex2 = new RegExp('["\']' + address + '["\']', 'gi')
-    const tokensRegex = new RegExp('(["\'])(\\w+:)' + address + '["\']\\s*:', 'gi')
-    const tokensRegex2 = new RegExp('(["\'])(\\w+:)' + address + '["\']', 'gi')
+    const tokensRegex = new RegExp('([`"\'])(\\w+:)' + address + '[`"\']\\s*:', 'gi')
+    const tokensRegex2 = new RegExp('([`"\'])(\\w+:)' + address + '[`"\']', 'gi')
     fileStr = fileStr.replace(tokensBareRegex, `[${label}]:`)
     fileStr = fileStr.replace(tokensBareRegex2, label)
     fileStr = fileStr.replace(tokensRegex, `[$1$2$1 + ${label}]:`)
