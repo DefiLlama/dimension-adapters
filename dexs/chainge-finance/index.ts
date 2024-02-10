@@ -13,7 +13,7 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const response: IAPIResponse = (await fetchURL(URL)).data.Total;
   return {
-    dailyVolume: `${response.totalVolume}`,
+    dailyVolume: `${response?.totalVolume}` || undefined,
     timestamp: dayTimestamp,
   };
 };

@@ -30,10 +30,11 @@ function formAxiosError(url: string, error: any, options?: any) {
   return e
 }
 
+const successCodes: number[] = [200, 201, 202, 203, 204, 205, 206, 207, 208, 226];
 export async function httpGet(url: string, options?: AxiosRequestConfig, { withMetadata = false } = {}) {
   try {
     const res = await axios.get(url, options)
-    if (res.status !== 200) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
+    if (!successCodes.includes(res.status)) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
     if (!res.data) throw new Error(`Error fetching ${url}: no data`)
     if (withMetadata) return res
     return res.data
@@ -45,7 +46,7 @@ export async function httpGet(url: string, options?: AxiosRequestConfig, { withM
 export async function httpPost(url: string, data: any, options?: AxiosRequestConfig) {
   try {
     const res = await axios.post(url, data, options)
-    if (res.status !== 200) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
+    if (!successCodes.includes(res.status)) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
     if (!res.data) throw new Error(`Error fetching ${url}: no data`)
     return res.data
   } catch (error) {
