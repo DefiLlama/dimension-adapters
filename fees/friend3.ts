@@ -29,8 +29,8 @@ const fetchOpbnb = (async (timestamp: number, _cb: any, { getLogs, createBalance
     dailyFees.addGasToken(i.protocolAmount)
     dailyFees.addGasToken(i.subjectAmount)
     dailyFees.addGasToken(i.holderAmount)
-    dailyRevenue.addGasToken(i.protocolEthAmount)
-    dailyRevenue.addGasToken(i.referralAmount * -1)
+    dailyRevenue.addGasToken(i?.protocolEthAmount || BigInt(0))
+    dailyRevenue.addGasToken(BigInt(i.referralAmount * BigInt(-1)))
   })
   return { dailyFees, dailyRevenue, timestamp }
 }) as Fetch
