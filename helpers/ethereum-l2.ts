@@ -8,7 +8,7 @@ const baseFeeVault = '0x4200000000000000000000000000000000000019';
 async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaults: string[], gasToken?: string }) {
   const { api, fromApi, createBalances, getLogs } = options;
   const balances = createBalances();
-  const eventAbi = 'event Withdrawal (uint256 value, address to, address from, uint8 withdrawalNetwork)'
+  const eventAbi = 'event Withdrawal(uint256 value, address to, address from)'
 
   await api.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
   await fromApi.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
@@ -21,6 +21,7 @@ async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaul
     else
       balances.addGasToken(log.value)
   })
+
   balances.addBalances(api.getBalancesV2())
   balances.subtract(fromApi.getBalancesV2())
   return balances
