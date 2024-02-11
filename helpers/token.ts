@@ -45,9 +45,12 @@ export async function addTokensReceived(params: {
   tokens?: string[];
   toAddressFilter?: string | null;
   tokenTransform?: (token: string) => string;
+  fetchTokenList?: boolean;
+  token?: string;
 }) {
-  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList= false, token } = params;
   const { chain, createBalances, getLogs, } = options
+  if (!tokens && token) tokens = [token]
 
   if (!balances) balances = createBalances()
 
@@ -62,13 +65,13 @@ export async function addTokensReceived(params: {
   }
 
 
-  if (!tokens && target) {
+  if (!tokens && target && fetchTokenList) {
     if (!ankrChainMapping[chain]) throw new Error('Chain Not supported: ' + chain)
     const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
     tokens = ankrTokens[ankrChainMapping[chain]] ?? []
   }
 
-  if (!tokens!.length) return balances
+  if (!tokens?.length) return balances
 
   const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
   if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)
