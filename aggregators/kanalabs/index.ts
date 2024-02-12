@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -52,48 +52,57 @@ const fetch =
 
 const startTimeBlock = 1695897800;
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(KanaChainID.ethereum),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    swap: {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetch(KanaChainID.ethereum),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.BSC]: {
+        fetch: fetch(KanaChainID.bsc),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetch(KanaChainID.Avalanche),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetch(KanaChainID.Arbitrum),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.POLYGON]: {
+        fetch: fetch(KanaChainID.polygon),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.ZKSYNC]: {
+        fetch: fetch(KanaChainID.zkSync),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.APTOS]: {
+        fetch: fetch(KanaChainID.aptos),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+      [CHAIN.SUI]: {
+        fetch: fetch(KanaChainID.sui),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
     },
-    [CHAIN.BSC]: {
-      fetch: fetch(KanaChainID.bsc),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(KanaChainID.Avalanche),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(KanaChainID.Arbitrum),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(KanaChainID.polygon),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.ZKSYNC]: {
-      fetch: fetch(KanaChainID.zkSync),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.APTOS]: {
-      fetch: fetch(KanaChainID.aptos),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
-    [CHAIN.SUI]: {
-      fetch: fetch(KanaChainID.sui),
-      runAtCurrTime: false,
-      start: startTimeBlock,
-    },
+    trade :{
+      [CHAIN.APTOS]: {
+        fetch: fetch(KanaChainID.aptos , true),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
+    }
   },
 };
 
