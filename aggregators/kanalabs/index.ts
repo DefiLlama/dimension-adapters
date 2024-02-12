@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { BreakdownAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -21,20 +21,12 @@ export enum KanaChainID {
 }
 
 const fetch =
-  (chain: KanaChainID, isTrade?: Boolean) => async (timestamp: number) => {
+  (chain: KanaChainID) => async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(timestamp * 1000)
     );
-    let data: any;
     try {
-      if (isTrade) {
-        data = await fetchURL(
-          `${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`
-        );
-      } else {
-        data = await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`);
-      }
-
+      const data = await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`);
       return {
         timestamp: dayTimestamp,
         dailyVolume: data.today.volume,
@@ -52,9 +44,8 @@ const fetch =
 
 const startTimeBlock = 1695897800;
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    swap: {
+const adapter: SimpleAdapter = {
+  adapter: {
       [CHAIN.ETHEREUM]: {
         fetch: fetch(KanaChainID.ethereum),
         runAtCurrTime: false,
@@ -95,14 +86,11 @@ const adapter: BreakdownAdapter = {
         runAtCurrTime: false,
         start: startTimeBlock,
       },
-    },
-    trade :{
-      [CHAIN.APTOS]: {
-        fetch: fetch(KanaChainID.aptos , true),
+      [CHAIN.SOLANA]: {
+        fetch: fetch(KanaChainID.solana),
         runAtCurrTime: false,
         start: startTimeBlock,
-      },
-    }
+      }
   },
 };
 
