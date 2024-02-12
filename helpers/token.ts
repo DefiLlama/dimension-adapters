@@ -4,6 +4,7 @@ import * as sdk from '@defillama/sdk'
 import axios from 'axios'
 import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
+import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 
 export const nullAddress = ADDRESSES.null
 
@@ -72,6 +73,8 @@ export async function addTokensReceived(params: {
   }
 
   if (!tokens?.length) return balances
+
+  tokens = getUniqueAddresses(tokens, options.chain)
 
   const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
   if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)

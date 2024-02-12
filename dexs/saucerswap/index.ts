@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getPrices } from "../../utils/prices";
@@ -11,26 +11,26 @@ interface IVolumeall {
   valueHbar: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
     'origin': 'https://analytics.saucerswap.finance',
   }}));
 
   const totalVolume = historicalVolume
-    .filter(volItem => Number(volItem.timestampSeconds) <= dayTimestamp)
+    .filter(volItem => Number(volItem.timestampSeconds) <= startOfDay)
     .reduce((acc, { valueHbar }) => acc + Number(valueHbar), 0)
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.timestampSeconds) === dayTimestamp)?.valueHbar
+  const _dailyVolume = historicalVolume
+    .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)?.valueHbar
 
-  const coinId = "coingecko:hedera-hashgraph";
-  const prices = await getPrices([coinId], dayTimestamp)
+
+  const dailyVolume = createBalances()
+  dailyVolume.addCGToken("hedera-hashgraph", (_dailyVolume as any)/1e8)
 
   return {
     // totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e8 * prices[coinId].price) : "0",
-    timestamp: dayTimestamp,
+    dailyVolume,
+    timestamp: startOfDay,
   };
 };
 

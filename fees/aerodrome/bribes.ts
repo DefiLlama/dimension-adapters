@@ -1,28 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { ethers } from "ethers";
-import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from '../../adapters/types';
 
 const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
-const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
-
-const topic0_geuge_created = '0xef9f7d1ffff3b249c6b9bf2528499e935f7d96bb6d6ec4e7da504d1d3c6279e1';
-const contract_interface = new ethers.Interface([
-  event_notify_reward,
-  event_geuge_created
-]);
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-
-interface IBribes {
-  token: string;
-  amount: number;
-}
-
 
 const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
 

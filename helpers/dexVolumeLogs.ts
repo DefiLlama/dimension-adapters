@@ -1,18 +1,18 @@
 
 import { FetchOptions } from "../adapters/types";
 
-const swapEvent = "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)"
+const _swapEvent = "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)"
 // const swapTopic = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
 
-type getDexVolumeParams = { chain: string, fromTimestamp: number, toTimestamp?: number, factory?: string, timestamp: number, pools?: string[], fetchOptions: FetchOptions, }
+type getDexVolumeParams = { chain: string, fromTimestamp: number, toTimestamp?: number, factory?: string, timestamp: number, pools?: string[], fetchOptions: FetchOptions, pairLengthAbi?: string, pairItemAbi?: string, swapEvent?: string, }
 type getDexVolumeFeeParamsV3 = { chain: string, fromTimestamp: number, toTimestamp?: number, factory?: string, factoryFromBlock?: number, timestamp: number, pools?: string[], isFee?: boolean, fetchOptions: FetchOptions, }
 
-type getDexVolumeExportsParams = { chain: string, factory?: string, pools?: string[], }
-type getDexVolumeExportsParamsV3 = { chain: string, factory?: string, pools?: string[], factoryFromBlock?: number, }
+type getDexVolumeExportsParams = { chain: string, factory?: string, pools?: string[], pairLengthAbi?: string, pairItemAbi?: string, }
+type getDexVolumeExportsParamsV3 = { chain: string, factory?: string, pools?: string[], factoryFromBlock?: number, swapEvent?: string, }
 
-export async function getDexVolume({ factory, timestamp, pools, fetchOptions, }: getDexVolumeParams) {
+export async function getDexVolume({ factory, timestamp, pools, fetchOptions, pairLengthAbi = 'allPairsLength', pairItemAbi = 'allPairs', swapEvent = _swapEvent }: getDexVolumeParams) {
   const { api } = fetchOptions;
-  if (!pools) pools = await api.fetchList({ lengthAbi: 'allPairsLength', itemAbi: 'allPairs', target: factory! })
+  if (!pools) pools = await api.fetchList({ lengthAbi: pairLengthAbi, itemAbi: pairItemAbi, target: factory! })
 
   const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
   const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
@@ -33,10 +33,9 @@ export async function getDexVolume({ factory, timestamp, pools, fetchOptions, }:
       api.add(token1, i.amount1Out)
     })
   })
-  const { usdTvl } = await api.getUSDJSONs()
   return {
     timestamp,
-    dailyVolume: Number(usdTvl).toFixed(0),
+    dailyVolume: api.getBalancesV2(),
   }
 }
 
@@ -57,7 +56,7 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
   if (!pools) pools = await api.fetchList({ lengthAbi, itemAbi, target: factory! })
 
   const token0s = await api.multiCall({ abi: 'address:token0', calls: pools!, permitFailure: true, })
-  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools!, permitFailure: true,  })
+  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools!, permitFailure: true, })
 
   const logs = await fetchOptions.getLogs({
     targets: pools,
@@ -73,8 +72,7 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
       api.add(token1, i.amount1)
     })
   })
-  const { usdTvl } = await api.getUSDJSONs()
-  const value = Number(usdTvl).toFixed(0)
+  const value = api.getBalancesV2()
   return {
     timestamp,
     dailyFees: value,
@@ -130,7 +128,7 @@ export async function getDexVolumeFeeV3({ factory, timestamp, pools, factoryFrom
   })
   return {
     timestamp,
-    dailyVolume: await api.getUSDString(),
+    dailyVolume: await api.getBalancesV2(),
   }
 }
 

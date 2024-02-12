@@ -1,8 +1,7 @@
-import { Adapter, FetchResult, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResult, ProtocolType } from "../adapters/types";
 import { IDate } from "../helpers/bitqueryFees";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
 import { httpPost } from "../utils/fetchURL";
 
 
@@ -35,7 +34,8 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
   return result;
 }
 const startTime = 1577836800;
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
+  const dailyFees = createBalances()
   const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const startTimestamp = getTimestampAtStartOfDayUTC(startTime);
   const tillTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
@@ -43,15 +43,12 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITxAda[] = await adapterQuery(form, till, "cardano");
   const totalFees = result.filter((a: ITxAda) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITxAda)=> a + b.feeValue, 0);
-  const dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
-  const price_id = 'coingecko:cardano'
-  const price = (await getPrices([price_id], dayTimestamp))[price_id].price;
-  const dailyFeesUsd = (dailyFees || 0) * price;
-  const totalFeesUsd = (totalFees * price)
+  const _dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
+  dailyFees.addCGToken('cardano', _dailyFees)
   return {
     timestamp,
-    totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd.toString(),
+    dailyFees,
+    // totalFees,
   };
 };
 

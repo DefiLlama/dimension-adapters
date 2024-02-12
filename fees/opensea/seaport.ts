@@ -37,6 +37,7 @@ const contracts: IConrtact[] = [
   }
 ]
 const topic0 = '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31';
+const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)"
 const fees_collector = '0x0000a26b00c1f0df003000390027140000faa719';
 
 export const fetch = async (timestamp: number): Promise<FetchResultFees> => {
