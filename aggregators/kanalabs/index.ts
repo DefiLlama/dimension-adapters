@@ -1,9 +1,10 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
+const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
 
 export enum KanaChainID {
   "solana" = 1,
@@ -19,50 +20,84 @@ export enum KanaChainID {
   "base" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const data = (
-    await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`)
-  );
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume: data.today.volume,
-    totalVolume: data.totalVolume.volume,
+const fetch =
+  (chain: KanaChainID, isTrade?: Boolean) => async (timestamp: number) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1000)
+    );
+    let data: any;
+    try {
+      if (isTrade) {
+        data = await fetchURL(
+          `${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`
+        );
+      } else {
+        data = await fetchURL(`${URL}?timestamp=${timestamp}&chainId=${chain}`);
+      }
+
+      return {
+        timestamp: dayTimestamp,
+        dailyVolume: data.today.volume,
+        totalVolume: data.totalVolume.volume,
+      };
+    } catch (err) {
+      console.log(err);
+      return {
+        timestamp: dayTimestamp,
+        dailyVolume: "0",
+        totalVolume: "0",
+      };
+    }
   };
-};
+
+const startTimeBlock = 1695897800;
 
 // Define the adapter
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(KanaChainID.ethereum),
-      runAtCurrTime: false,
-      start: 1695897839,
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    swap: {
+      [CHAIN.ETHEREUM]: {
+        fetch: fetch(KanaChainID.ethereum),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.BSC]: {
+        fetch: fetch(KanaChainID.bsc),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetch(KanaChainID.Avalanche),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetch(KanaChainID.Arbitrum),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.POLYGON]: {
+        fetch: fetch(KanaChainID.polygon),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.ZKSYNC]: {
+        fetch: fetch(KanaChainID.zkSync),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
+      [CHAIN.APTOS]: {
+        fetch: fetch(KanaChainID.aptos),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
     },
-    [CHAIN.BSC]: {
-      fetch: fetch(KanaChainID.bsc),
-      runAtCurrTime: false,
-      start: 1695897839,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(KanaChainID.Avalanche),
-      runAtCurrTime: false,
-      start: 1695897839,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(KanaChainID.Arbitrum),
-      runAtCurrTime: false,
-      start: 1695897839,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(KanaChainID.polygon),
-      runAtCurrTime: false,
-      start: 1695897839,
-    },
-    [CHAIN.ZKSYNC]: {
-      fetch: fetch(KanaChainID.zkSync),
-      runAtCurrTime: false,
-      start: 1695897839,
+    trade: {
+      [CHAIN.APTOS]: {
+        fetch: fetch(KanaChainID.aptos, true),
+        runAtCurrTime: false,
+        start: async () => startTimeBlock,
+      },
     },
   },
 };
