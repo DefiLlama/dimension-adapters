@@ -95,6 +95,11 @@ const adapter: BreakdownAdapter = {
         runAtCurrTime: false,
         start: startTimeBlock,
       },
+      [CHAIN.SOLANA]: {
+        fetch: fetch(KanaChainID.solana),
+        runAtCurrTime: false,
+        start: startTimeBlock,
+      },
     },
     trade :{
       [CHAIN.APTOS]: {
