@@ -1,18 +1,13 @@
-import {Adapter, FetchResultVolume} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {Chain} from "@defillama/sdk/build/general";
-import {request, gql} from "graphql-request";
-import {getTimestampAtStartOfDayUTC} from "../../utils/date";
-import { getPrices } from "../../utils/prices";
-import { getBlock } from "../../helpers/getBlock";
-import * as sdk from "@defillama/sdk";
-import { type } from "os";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { Chain } from "@defillama/sdk/build/general";
+import { request, } from "graphql-request";
 
 type TEndpoint = {
   [s: Chain | string]: string;
 }
 const endpoints: TEndpoint = {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/crocswap/croc-mainnet",
+  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/crocswap/croc-mainnet",
 }
 interface IPool {
   quote: string;
@@ -22,12 +17,12 @@ interface ISwap {
   pool: IPool;
   dex: string;
 }
+
+const toPositive = (n: any) => +n > 0 ? +n : n * -1
+
 const graphs = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
-        const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-        const fromTimestamp = todaysTimestamp - 60 * 60 * 24
-        const toTimestamp = todaysTimestamp
-        const query = gql`
+  return async (timestamp: number, _: ChainBlocks, { fromTimestamp, toTimestamp, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+    const query = `
           {
             swaps(where: {
               time_gte: ${fromTimestamp}
@@ -42,19 +37,13 @@ const graphs = (chain: Chain) => {
             }
           }
         `
-      const graphRes: ISwap[] = (await request(endpoints[chain], query)).swaps;
-      const coins = [...new Set(graphRes.map((e: ISwap) => `${chain}:${e.pool.quote.toLowerCase()}`))]
-      const prices = await getPrices(coins, todaysTimestamp);
-      const dailyVolume = graphRes.map((e: ISwap) => {
-        const decimals = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.decimals || 0;
-        const price = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.price || 0;
-        return (Number(e.quoteFlow.replace('-','')) / 10 ** decimals) * price
-      }).reduce((a: number, b: number) => a + b, 0)
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
-    }
+    const graphRes: ISwap[] = (await request(endpoints[chain], query)).swaps;
+    const dailyVolume = createBalances()
+    graphRes.map((e: ISwap) => {
+      dailyVolume.add(e.pool.quote, toPositive(e.quoteFlow))
+    })
+    return { dailyVolume, timestamp, }
+  }
 }
 
 const swapEvent = 'event CrocSwap (address indexed base, address indexed quote, uint256 poolIdx, bool isBuy, bool inBaseQty, uint128 qty, uint16 tip, uint128 limitPrice, uint128 minOut, uint8 reserveFlags, int128 baseFlow, int128 quoteFlow)';
@@ -67,48 +56,29 @@ interface ILog {
   quoteFlow: string;
 }
 const contract_address: TContractAddress = {
-  [CHAIN.SCROLL]: '0xaaaaaaaacb71bf2c8cae522ea5fa455571a74106'
+  [CHAIN.SCROLL]: '0xaaaaaaaacb71bf2c8cae522ea5fa455571a74106',
 }
 
 const fetchVolume = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
-        const toTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-        const fromTimestamp = toTimestamp - 60 * 60 * 24
-        const balances = new sdk.Balances({ chain, timestamp })
-        const fromBlock = await getBlock(fromTimestamp, chain, {})
-        const toBlock = await getBlock(toTimestamp, chain, {})
-
-        const logs: ILog[] = (await sdk.getEventLogs({
-          target: contract_address[chain],
-          toBlock: toBlock,
-          fromBlock: fromBlock,
-          chain,
-          eventAbi: swapEvent,
-          flatten: false,
-          onlyArgs: true,
-        })) as ILog[];
-        logs.forEach((log: ILog) => {
-          balances.add(log.quote, log.quoteFlow)
-        });
-        return {
-            dailyVolume: await balances.getUSDString(),
-            timestamp,
-        }
-    }
+  return async (timestamp: number, _: ChainBlocks, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+    const dailyVolume = createBalances()
+    const logs: ILog[] = await getLogs({ target: contract_address[chain], eventAbi: swapEvent, })
+    logs.forEach((log: ILog) => dailyVolume.add(log.quote, Number(log.quoteFlow) < 0 ? 0 : log.quoteFlow));
+    return { dailyVolume, timestamp, }
+  }
 }
 
-
 const adapter: Adapter = {
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch: graphs(CHAIN.ETHEREUM),
-            start: 1685232000,
-        },
-        [CHAIN.SCROLL]: {
-            fetch: fetchVolume(CHAIN.SCROLL),
-            start: async () => 1685232000,
-        },
-    }
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: graphs(CHAIN.ETHEREUM),
+      start: 1685232000,
+    },
+    [CHAIN.SCROLL]: {
+      fetch: fetchVolume(CHAIN.SCROLL),
+      start: 1685232000,
+    },
+  }
 }
 
 export default adapter;

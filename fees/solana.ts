@@ -1,4 +1,4 @@
-import { Adapter, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
@@ -13,24 +13,19 @@ interface IFees {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: async (timestamp: number) => {
-        const ts = getTimestampAtStartOfDayUTC(timestamp)
-        const next = ts + 86400;
-        const dailyFees: IFees = (await queryDune('3277066', {
-          endTime: next,
-        }))[0]
+      fetch: async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+        const next = startOfDay + 86400;
+        const _dailyFees: IFees = (await queryDune('3277066', {          endTime: next,        }))[0]
 
-
-        const solanaFee = dailyFees.total_fees;
-        const pricesObj = await getPrices(["coingecko:solana"], ts);
-        const usdFees = (solanaFee * pricesObj["coingecko:solana"].price);
-        const dailyRevenue = usdFees * 0.5;
+        const dailyFees = createBalances()
+        dailyFees.addCGToken('solana', _dailyFees.total_fees)
+        const dailyRevenue = dailyFees.clone(0.5)
 
         return {
           timestamp,
-          dailyFees: usdFees.toString(),
-          dailyRevenue: dailyRevenue.toString(),
-          dailyHoldersRevenue: dailyRevenue.toString(),
+          dailyFees: dailyFees,
+          dailyRevenue: dailyRevenue,
+          dailyHoldersRevenue: dailyRevenue,
         };
       },
       start: 1610841600

@@ -1,7 +1,6 @@
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types"
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 import { fees_bribes } from "./bribes";
 import { getDexFees } from "../../helpers/dexVolumeLogs";
 
@@ -21,17 +20,13 @@ const multiCall = async (callN: any) => {
   })).output.map((r: any) => r.output).flat()
 }
 
-const fetch = async (timestamp: number, _, fetchOptions): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
   const forSwaps = await sdk.api2.abi.call({ target: gurar, abi: abis.forSwaps, chain: CHAIN.BASE, })
   const pools = forSwaps.map((e: any) => e.lp)
   fetchOptions.api.multiCall = multiCall
-  const res: any = await getDexFees({ chain: CHAIN.BASE, fromTimestamp, toTimestamp, pools, timestamp, fetchOptions })
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
-  const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
-  res.dailyBribesRevenue = dailyBribesRevenue.toString();
+  const res: any = await getDexFees({ chain: CHAIN.BASE, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, pools, timestamp, fetchOptions })
+  res.dailyBribesRevenue = await fees_bribes(fetchOptions);
+
   return res
 
 }

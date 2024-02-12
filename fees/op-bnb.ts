@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees, ProtocolType } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
@@ -13,8 +14,8 @@ async function getFees(options: FetchOptions) {
   const balances = createBalances();
   const eventAbi = 'event Withdrawal (uint256 value, address to, address from, uint8 withdrawalNetwork)'
 
-  await api.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
-  await fromApi.sumTokens({ owners: feeVaults, tokens: ['0x0000000000000000000000000000000000000000'] })
+  await api.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
+  await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
 
   const logs = await getLogs({ targets: feeVaults, eventAbi, })
 

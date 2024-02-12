@@ -16,10 +16,7 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
 	const dailyVolume = createBalances();
 	const lpTokens = await api.fetchList({ lengthAbi: ABIs.getNumberOfLBPairs, itemAbi: ABIs.getLBPairAtIndex, target: FACTORY_ADDRESS })
 
-	const [underlyingToken0, underlyingToken1] = await Promise.all(['address:getTokenX', 'address:getTokenY'].map((abi: string) => api.multiCall({ abi, calls: lpTokens, })));
-
-	const tokens0 = underlyingToken0;
-	const tokens1 = underlyingToken1;
+	const [tokens0, tokens1] = await Promise.all(['address:getTokenX', 'address:getTokenY'].map((abi: string) => api.multiCall({ abi, calls: lpTokens, })));
 
 	const logs: any[][] = await getLogs({
 		targets: lpTokens,

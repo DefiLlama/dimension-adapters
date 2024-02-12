@@ -64,6 +64,8 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
 
     let block: number | undefined
     try {
+        if (chain === CHAIN.WAVES)
+            timestamp = Math.floor(timestamp * 1000)
         block = await sdk.blocks.getBlockNumber(chain, timestamp)
     } catch (e) { console.log('error fetching block', e) }
 

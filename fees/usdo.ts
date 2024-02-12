@@ -36,6 +36,7 @@ const contract_interface = new ethers.Interface([
 ]);
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+  throw new Error("I think neither of these should be counted as fees? or we just count 0.5% of redeemed USDO as fees?")
 
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
