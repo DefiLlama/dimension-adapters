@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDexVolumeExportsV3 } from "../../helpers/dexVolumeLogs";
 
@@ -14,18 +14,18 @@ const methodology = {
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
-      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 70309749, chain: CHAIN.FANTOM,  }),
-      start: async () => 1699300000,
+      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 70309749, chain: CHAIN.FANTOM,  }) as Fetch,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     },
     [CHAIN.ARBITRUM]: {
-      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 148243463, chain: CHAIN.ARBITRUM,  }),
-      start: async () => 1699300000,
+      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 148243463, chain: CHAIN.ARBITRUM,  }) as Fetch,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     },
     [CHAIN.BASE]: {
-      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 6314325, chain: CHAIN.BASE,  }),
-      start: async () => 1699300000,
+      fetch: getDexVolumeExportsV3({ factory: poolFactoryAddress, factoryFromBlock: 6314325, chain: CHAIN.BASE,  }) as Fetch,
+      start: 1699300000,
       meta: { methodology: { ...methodology, } },
     }
   }

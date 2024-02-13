@@ -49,10 +49,10 @@ interface IOpenInterest {
 const getVolume = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: any[] = (await Promise.all(symbol.map((coins: string) => fetchURL(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24)))))
-        .map((e: any) => Object.values(e.data.data)).flat().flat()
+        .map((e: any) => Object.values(e.data)).flat().flat()
         .map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, price: e.c } });
     const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => fetchURL(allTiker(coins)))))
-        .map((e: any) => e.data.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
+        .map((e: any) => e.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
     const dailyOpenInterest = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
     const historicalUSD = historical.map((e: IVolumeall) => {
         return {
@@ -77,7 +77,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: getVolume,
-            start: async () => 1664928000,
+            start: 1664928000,
         }
     },
 };

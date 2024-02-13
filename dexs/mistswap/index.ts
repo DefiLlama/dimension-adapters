@@ -13,6 +13,6 @@ const adapters = univ2Adapter({
   dailyVolumeTimestampField: "date"
 });
 
-adapters.adapter.smartbch.start = async () => 1633220803;
+adapters.adapter.smartbch.start = 1633220803;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

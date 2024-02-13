@@ -59,15 +59,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async () => 1699520408,
+      start: 1699520408,
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-      start: async () => 1679921168,
+      start: 1679921168,
     },
     [CHAIN.MANTA]: {
       fetch: graphs(endpoints)(CHAIN.MANTA),
-      start: async () => 1698838028,
+      start: 1698838028,
     },
   },
 };

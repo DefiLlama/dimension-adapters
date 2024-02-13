@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
-import axios from "axios";
 import * as sdk from "@defillama/sdk";
+import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
@@ -152,7 +152,7 @@ const getResources = async (account: string): Promise<any[]> => {
   do {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
-    const res = await axios.get(url)
+    const res = await httpGet(url, undefined, { withMetadata: true })
     lastData = res.data
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
@@ -213,13 +213,13 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
     if (start < 0) break;
     const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
-      const event: any[] = (await axios.get(getEventByCreation)).data;
+      const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
       const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
-      const block = (await axios.get(urlBlock)).data;
+      const block = (await httpGet(urlBlock));
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
       if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp) {
@@ -257,13 +257,13 @@ const adapter: BreakdownAdapter = {
             timestamp: timestamp
           }
         },
-        start: async () => 1680307200,
+        start: 1680307200,
       }
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphs(chain as Chain),
-        start: async () => startTimes[chain],
+        start: startTimes[chain],
         meta: {
           methodology
         }
@@ -281,14 +281,14 @@ const adapter: BreakdownAdapter = {
           }
 
         },
-        start: async () => v3StartTimes[chain],
+        start: v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphsStableSwap(chain as Chain),
-        start: async () => stableTimes[chain],
+        start: stableTimes[chain],
         meta: {
           methodology: {
             UserFees: "User pays 0.25% fees on each swap.",
@@ -306,7 +306,7 @@ const adapter: BreakdownAdapter = {
 };
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
-  start: async () => 1699488000,
+  start: 1699488000,
   // runAtCurrTime: true,
 }
 

@@ -15,7 +15,7 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date"
 });
 
-adapter.adapter.fantom.start = async () => 1673827200;
+adapter.adapter.fantom.start = 1673827200;
 
 // Metropolis was acquired by Swapline.
 // Currently, both adapters (tvl) are the same code.

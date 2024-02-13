@@ -49,19 +49,15 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BASE]: 1696856400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.BASE]: 1696856400,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),
-      start: async () => getStartTimestamp(CHAIN.BASE),
+      start: startTimestamps[CHAIN.BASE],
     }
   },
 };

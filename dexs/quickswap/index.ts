@@ -67,12 +67,12 @@ const v3GraphsUni = getGraphDimensions({
 
 
 const fetchLiquidityHub = async (timestamp: number) => {
-    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1')).data;
+    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1'));
 
     let rows = dailyResult.result.rows;
     let lastDay = rows[rows.length - 1];
     let dailyVolume = lastDay.daily_total_calculated_value;
-    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).data.result.rows[0].total_calculated_value;
+    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).result.rows[0].total_calculated_value;
 
     return {
         dailyVolume: `${dailyVolume}`,
@@ -88,31 +88,31 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
-        start: async () => 1602118043
+        start: 1602118043
       },
     },
     v3: {
       [CHAIN.POLYGON]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON),
-        start: async () => 1662425243
+        start: 1662425243
       },
       // [CHAIN.DOGECHAIN]: {
       //   fetch: graphsV3(CHAIN.DOGECHAIN),
-      //   start: async () => 1660694400
+      //   start: 1660694400
       // },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
-        start: async () => 1679875200
+        start: 1679875200
       },
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
-        start: async () => 1697690974
+        start: 1697690974
       }
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
         fetch: fetchLiquidityHub,
-        start: async () => 1695042000
+        start: 1695042000
       },
     },
   },

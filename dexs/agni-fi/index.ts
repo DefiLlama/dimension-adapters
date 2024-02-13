@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v3Graphs(CHAIN.MANTLE),
-      start: async () => 1689724800,
+      start: 1689724800,
     },
   },
 };

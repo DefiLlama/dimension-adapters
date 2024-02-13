@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -76,7 +77,7 @@ const v3Endpoints = {
 const VOLUME_USD = "volumeUSD";
 
 // fees results are in eth, needs to be converted to a balances objects
-const ETH_ADDRESS = "ethereum:0x0000000000000000000000000000000000000000";
+const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
 const v1Graph = getGraphDimensions({
   graphUrls: v1Endpoints,
   totalVolume: {
@@ -171,7 +172,7 @@ const adapter: BreakdownAdapter = {
           }
           return response as FetchResultGeneric
         },
-        start: async () => 1541203200,
+        start: 1541203200,
         meta: {
           methodology
         },
@@ -201,7 +202,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,

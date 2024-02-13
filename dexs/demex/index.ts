@@ -14,7 +14,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.data.marketstats;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.marketstats;
 
   const volume = historicalVolume
     .filter((e: IVolumeall) => e.market_type === "spot")
@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARBON]: {
       fetch,
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   },
 };

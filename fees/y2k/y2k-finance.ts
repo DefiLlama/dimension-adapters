@@ -1,8 +1,6 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResultFees } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { getFees } from "./utils";
+import { addTokensReceived } from '../../helpers/token';
 
 const vault_factory = "0x984e0eb8fb687afa53fc8b33e12e04967560e092";
 
@@ -11,41 +9,25 @@ const abis: any = {
   "marketIndex": "uint256:marketIndex"
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toTimestamp = timestamp;
-    const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const toBlock = await getBlock(toTimestamp, chain, {});
+const tokens = [
+  ADDRESSES.arbitrum.ARB, // ARB
+  ADDRESSES.arbitrum.WETH, // WETH
+];
+const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
 
-    const poolLength = (
-      await sdk.api2.abi.call({
-        target: vault_factory,
-        chain: chain,
-        abi: abis.marketIndex,
-      })
-    );
 
-    const vaultRes = await sdk.api2.abi.multiCall({
-      abi: abis.getVaults,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i: any) => ({
-        target: vault_factory,
-        params: i,
-      })),
-      chain: chain,
-    });
+const fetch = async (timestamp: number, _, options): Promise<FetchResultFees> => {
+  const { api, createBalances, getLogs, } = options
+  const vaultRes = await api.fetchList({ lengthAbi: abis.marketIndex, itemAbi: abis.getVaults, target: vault_factory })
 
-    const vaults = vaultRes
-      .flat()
-      .map((e: string) => e.toLowerCase());
-    const dailyFees = await getFees(vaults, fromBlock, toBlock, timestamp);
+  const vaults = vaultRes.flat()
+  const dailyFees = createBalances()
 
-    return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString(),
-      timestamp,
-    };
-  };
+  for (const vault of vaults)
+    await addTokensReceived({ options, tokens, fromAddressFilter: vault, target: treasury, balances: dailyFees })
+
+
+  return { dailyFees, dailyRevenue: dailyFees, timestamp, };
 };
 
 export default fetch;

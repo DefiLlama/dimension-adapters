@@ -21,7 +21,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AURORA]: {
       fetch: getDexVolumeExports({ chain: CHAIN.AURORA, pools }),
-      start: async () => 1678838400,
+      start: 1678838400,
     }
   }
 }

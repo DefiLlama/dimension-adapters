@@ -6,9 +6,6 @@ import { CHAIN } from "../../helpers/chains";
 const stableStatsUrl = "https://bridgeapi.anyswap.exchange/data/stats/stable";
 const statsUrl = "https://bridgeapi.anyswap.exchange/data/stats";
 
-interface ICall {
-  data: IStats
-};
 interface IStats {
   h24fee: string;
   allfee: string;
@@ -16,7 +13,6 @@ interface IStats {
 
 const fetch = async (timestamp: number) => {
   const stats: IStats[] = (await Promise.all([fetchURL(stableStatsUrl),fetchURL(statsUrl)]))
-    .map((e: ICall) => e.data);
   const fees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.h24fee), 0);
   const totalFees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.allfee), 0);
   return {
@@ -34,7 +30,7 @@ const adapter: Adapter = {
     ["anyswap"]: {
         fetch: fetch,
         runAtCurrTime: true,
-        start: async () => 0,
+        start: 0,
     },
   },
 }

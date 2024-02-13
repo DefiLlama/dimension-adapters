@@ -82,7 +82,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFees(CHAIN.ARBITRUM),
-      start: async () => 1675036800,
+      start: 1675036800,
     },
   },
 };

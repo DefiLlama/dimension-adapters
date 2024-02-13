@@ -71,7 +71,7 @@ const volume = Object.keys(endpoints).reduce(
     ...acc,
     [chain]: {
       fetch: fetch(chain),
-      start: async () => startTime[chain],
+      start: startTime[chain],
     },
   }),
   {}

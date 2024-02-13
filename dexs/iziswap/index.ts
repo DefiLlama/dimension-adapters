@@ -44,8 +44,8 @@ const fetch = (chain: Chain) => {
     const historical: IVolumeall[] = [];
     while (isSuccess) {
       const response = (await fetchURL(historicalVolumeEndpoint(chains[chain], page)));
-      if (response.data.is_success){
-        Array.prototype.push.apply(historical, response.data.data);
+      if (response.is_success){
+        Array.prototype.push.apply(historical, response.data);
         page += 1;
       } else {
         isSuccess = false;
@@ -77,7 +77,7 @@ for (const chain in chains) {
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch(chain),
-      start: async () => startTime,
+      start: startTime,
       customBackfill: customBackfill(chain, fetch)
     };
   };

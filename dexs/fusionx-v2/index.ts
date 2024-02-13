@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v2Graphs(CHAIN.MANTLE),
-      start: async () => 1689206400,
+      start: 1689206400,
     },
   },
 };

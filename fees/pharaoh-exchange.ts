@@ -50,7 +50,7 @@ const v2Graphs = getGraphDimensions({
     const adapter: SimpleAdapter = {
         adapter: {
           [CHAIN.AVAX]: {fetch: v2Graphs(AVAX),
-            start: async () => startTimeV2[CHAIN.AVAX],
+            start: startTimeV2[CHAIN.AVAX],
             meta: {
               methodology: {
                 ...methodology,

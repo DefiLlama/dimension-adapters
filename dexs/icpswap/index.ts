@@ -26,7 +26,7 @@ const fetch  = async (timestamp: number): Promise<FetchResultVolume> => {
   const pools = pairs.map((e: IPairs) => e.pool_id);
   const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-  const historicalVolume: IVolume[]  = (await Promise.all(pools.map((e: string) => fetchURL(volumeURL(e))))).map((e: any) => e.data).flat();
+  const historicalVolume: IVolume[]  = (await Promise.all(pools.map((e: string) => fetchURL(volumeURL(e))))).map((e: any) => e).flat();
   const dailyVolume = historicalVolume.filter((e: IVolume) => Number(e.day) === dateId)
     .reduce((a: number, b: IVolume) => a + Number(b.volumeUSD), 0)
   const totalVolume = historicalVolume.filter((e: IVolume) => Number(e.day) <= dateId)
@@ -43,7 +43,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ICP]: {
       fetch: fetch,
-      start: async () => 1689465600,
+      start: 1689465600,
     },
   }
 }

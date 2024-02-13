@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { httpGet } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.dexalot.com/api/stats/dailyvolumes"
 
@@ -14,9 +14,9 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers: {
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {
     'origin': 'https://app.dexalot.com'
-  }}))?.data;
+  }}))
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { volumeusd }) => acc + Number(volumeusd), 0)
@@ -32,9 +32,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers: {
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {
     'origin': 'https://app.dexalot.com'
-  }}))?.data;
+  }}))
   return (new Date(historicalVolume[0].date).getTime()) / 1000
 }
 

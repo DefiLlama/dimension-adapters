@@ -10,5 +10,5 @@ const adapters = univ2Adapter({
 });
 
 
-adapters.adapter.linea.start = async () => 1689638400;
+adapters.adapter.linea.start = 1689638400;
 export default adapters;

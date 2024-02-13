@@ -2,32 +2,35 @@ import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { httpPost } from "../../utils/fetchURL";
 
 interface IEndpoint {
-  dailyFee: string;
+  dailyFees: string;
   realtimeCompanyRevenue: string;
 }
 
 interface IDailyFeeData {
-  tokenInterestProfit: string;
-  feeProfit: string;
-  feeAuction: string;
-  totalDailyFee: string;
+  claimable_token_interest: string;
+  held_token_interest: string;
+  fee_profit: string;
+  fee_auction: string;
+  daily_revenue: string;
+  daily_fees: string;
 }
 
 interface ICompanyRevenue {
-  totalInterestProfit: string;
-  totalFeeProfit: string;
-  totalFeeAuction: string;
-  totalRevenue: string;
+  total_claimable_token_interest: string;
+  total_held_token_interest: string;
+  total_fee_profit: string;
+  total_fee_auction: string;
+  total_revenue: string;
+  total_fees: string;
 }
 
 const endpoints: Record<Chain, IEndpoint> = {
   [CHAIN.AVAX]: {
-    dailyFee: "https://app.fwx.finance/api/43114/v1/dashboard/company-revenue",
-    realtimeCompanyRevenue:
-      "https://app.fwx.finance/api/43114/v1//realtime/company-revenue",
+    dailyFees: "https://app.fwx.finance/api/43114/v1/dashboard/daily-fees",
+    realtimeCompanyRevenue: "https://app.fwx.finance/api/43114/v1/realtime/company-revenue",
   },
 };
 
@@ -39,34 +42,21 @@ const fetch = (chain: Chain) => {
     const date = new Date(dayTimestamp * 1e3);
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
-    // * call api for daily fee data
-    const dailyFeeRes = await axios.post(endpoints[chain].dailyFee, {
-      date: formattedDate,
-    });
-    const dailyFeeData = dailyFeeRes.data as IDailyFeeData;
-    const tokenInterestProfit = parseFloat(dailyFeeData.tokenInterestProfit);
-    const dailyHoldersRevenue = 9 * tokenInterestProfit;
-    const dailyFees =
-      parseFloat(dailyFeeData.totalDailyFee) + dailyHoldersRevenue;
-    const dailyProtocolRevenueString = dailyFeeData.totalDailyFee;
-    const dailyRevenueString = dailyProtocolRevenueString;
+    // * call api for daily fees and revenue
+    const dailyRes = await httpPost(endpoints[chain].dailyFees, { date: formattedDate });
+    const dailyData = dailyRes as IDailyFeeData;
 
-    // * call api for total fee data
-    const companyRevenueRes = await axios.post(
-      endpoints[chain].realtimeCompanyRevenue
-    );
-    const companyRevenue = companyRevenueRes.data as ICompanyRevenue;
-    const totalFee =
-      parseFloat(companyRevenue.totalRevenue) +
-      9 * parseFloat(companyRevenue.totalInterestProfit);
+    // * call api for realtime total fees and revenue
+    const realtimeRes = await httpPost(endpoints[chain].realtimeCompanyRevenue, {});
+    const realtimeData = realtimeRes as ICompanyRevenue;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenueString,
-      dailyProtocolRevenue: dailyProtocolRevenueString,
-      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
-      totalFees: totalFee.toString(),
       timestamp,
+      dailyFees: dailyData.daily_fees,
+      dailyRevenue: dailyData.daily_revenue,
+      dailySupplySideRevenue: dailyData.claimable_token_interest,
+      totalFees: realtimeData.total_fees,
+      totalRevenue: realtimeData.total_revenue,
     };
   };
 };
@@ -75,7 +65,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1701907200,
+      start: 1701907200,
     },
   },
 };

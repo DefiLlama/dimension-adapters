@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 import request from "graphql-request"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types"
@@ -38,7 +39,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   }
   `
   const result: IResponse = await request("https://api.thegraph.com/subgraphs/name/0xandee/arcanedex", query)
-  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+  const ethAddress = "ethereum:" + ADDRESSES.null;
 
   const dailyVolumeInEth = Number(result.today.totalVolumeInEth) - Number(result.yesterday.totalVolumeInEth)
   const totalVolumeInEth = Number(result.today.totalVolumeInEth)
@@ -52,7 +53,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: async () => 1700092800
+      start: 1700092800
       ,
     }
   }

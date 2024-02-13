@@ -142,7 +142,7 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.BASE]: {
         fetch: graphs(CHAIN.BASE),
-        start: async () => 1690495200,
+        start: 1690495200,
         customBackfill: customBackfill(CHAIN.BASE, graphs),
         meta: { methodology },
       }
@@ -150,13 +150,13 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.BASE]: {
         fetch: graphsV3(CHAIN.BASE),
-        start: async () => 1690443269,
+        start: 1690443269,
       }
     },
     perps: {
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-        start: async () => 1688913853,
+        start: 1688913853,
       }
     }
   },

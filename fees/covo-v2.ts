@@ -85,7 +85,7 @@ const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
-      start: async () => 1680070802,
+      start: 1680070802,
       meta: {
         methodology
       }

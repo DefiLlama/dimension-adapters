@@ -36,7 +36,7 @@ const adapters: SimpleAdapter = {
           ...data
         };
       },
-      start: async () => 1700524800,
+      start: 1700524800,
     }
   }
 }

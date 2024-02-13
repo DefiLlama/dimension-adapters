@@ -1,7 +1,6 @@
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import axios from 'axios';
 import { queryAllium } from "../helpers/allium";
-import { gql, request } from "graphql-request";
+import { httpGet } from "../utils/fetchURL";
 
 function getUsersChain(chain: string) {
     return async (start: number, end: number) => {
@@ -95,7 +94,7 @@ function findClosestItem(results:any[], timestamp:number, getTimestamp:(x:any)=>
 const toIso = (d:number) => new Date(d*1e3).toISOString()
 function coinmetricsData(assetID: string) {
     return async (start: number, end: number) => {
-        const result = (await axios.get(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24*3600)}&end_time=${toIso(end + 24*3600)}`)).data.data;
+        const result = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24*3600)}&end_time=${toIso(end + 24*3600)}`)).data;
         const closestDatapoint = findClosestItem(result, start, t=>t.time)
         if (!closestDatapoint) {
             throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${end}, no data`);
@@ -108,7 +107,7 @@ function coinmetricsData(assetID: string) {
 /*
 // https://tronscan.org/#/data/stats2/accounts/activeAccounts
 async function tronscan(start: number, _end: number) {
-    const results = (await axios.get(`https://apilist.tronscanapi.com/api/account/active_statistic?type=day&start_timestamp=${(start - 2*24*3600)*1e3}`)).data.data;
+    const results = (await httpGet(`https://apilist.tronscanapi.com/api/account/active_statistic?type=day&start_timestamp=${(start - 2*24*3600)*1e3}`)).data;
     return findClosestItem(results, start, t=>t.day_time).active_count
 }
 */

@@ -36,7 +36,7 @@ const adapter: Adapter = {
     seaport: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(CHAIN.ETHEREUM),
-        start: async () => 1655055510,
+        start: 1655055510,
       },
     }
   }

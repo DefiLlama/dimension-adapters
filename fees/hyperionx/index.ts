@@ -58,7 +58,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKFAIR]: {
       fetch: graphs(CHAIN.ZKFAIR),
-      start: async () => 1706659200,
+      start: 1706659200,
     },
   },
 };

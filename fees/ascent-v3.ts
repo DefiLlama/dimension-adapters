@@ -48,7 +48,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EON]: {
       fetch: v3Graphs(CHAIN.EON),
-      start: async () => 1699401600,
+      start: 1699401600,
     },
   },
 };

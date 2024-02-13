@@ -52,7 +52,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetch(CHAIN.CELO),
-      start: async () => 1690848000,
+      start: 1690848000,
     },
   },
 };

@@ -102,11 +102,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async () => 1668643200,
+      start: 1668643200,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1687392000,
+      start: 1687392000,
     }
   },
 };

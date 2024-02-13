@@ -27,7 +27,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => 1655003840,
+        start: 1655003840,
         customBackfill: customBackfill(chain as Chain, graphs)
       }
     }

@@ -7,6 +7,6 @@ const endpoints = {
 
 const adapter = univ2Adapter(endpoints, {});
 
-adapter.adapter.boba.start = async () => 1635938988;
+adapter.adapter.boba.start = 1635938988;
 
 export default adapter

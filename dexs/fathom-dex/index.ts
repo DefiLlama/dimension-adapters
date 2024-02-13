@@ -9,5 +9,5 @@ const adapters = univ2Adapter({
 });
 
 
-adapters.adapter.xdc.start = async () => 1682640000;
+adapters.adapter.xdc.start = 1682640000;
 export default adapters;

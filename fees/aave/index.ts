@@ -406,51 +406,51 @@ const adapter: Adapter = {
     v1: {
       [ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-        start: async ()  => 1578459600
+        start: 1578459600
       },
     },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
-        start: async ()  => 1606971600
+        start: 1606971600
       },
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: async ()  => 1606971600
+        start: 1606971600
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: async ()  => 1606971600
+        start: 1606971600
       },
     },
     v3: {
       [AVAX]: {
         fetch: v3Graphs(v3Endpoints)(AVAX),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [POLYGON]: {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [ARBITRUM]: {
         fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [FANTOM]: {
         fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
       [CHAIN.ETHEREUM]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
-        start: async ()  => 1647230400
+        start: 1647230400
       },
     }
   }

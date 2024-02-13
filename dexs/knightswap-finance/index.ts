@@ -26,11 +26,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: async () => 1635379200,
+      start: 1635379200,
     },
     [CHAIN.FANTOM]: {
       fetch: v2Graph(CHAIN.FANTOM),
-      start: async () => 1637798400,
+      start: 1637798400,
     },
   },
 };

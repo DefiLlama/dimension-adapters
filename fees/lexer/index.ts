@@ -71,7 +71,7 @@ const fetch: Fetch = async(timestamp): Promise<FetchResultFees> => {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
-            start: async () => 1704758400,
+            start: 1704758400,
             fetch,
             meta:{
                 methodology: "api calls from grpahql"

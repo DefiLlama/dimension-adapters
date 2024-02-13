@@ -2,7 +2,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { httpPost } from "../../utils/fetchURL";
 
 interface IConfigs {
   pairs: IPairData[];
@@ -56,19 +56,19 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily volume
-    const pairDataRes = await axios.post(endpoints[chain].pairData);
-    const pairData = pairDataRes as { data: IConfigs };
-    const pairs = pairData.data.pairs.map((p: IPairData) => p.pair_name);
+    const pairDataRes = await httpPost(endpoints[chain].pairData, {});
+    const pairData = pairDataRes as IConfigs
+    const pairs = pairData.pairs.map((p: IPairData) => p.pair_name);
 
     // * call api for daily volume
-    const tradingVolumeRes = await axios.post(endpoints[chain].tradingVolume, {
+    const tradingVolumeRes = await httpPost(endpoints[chain].tradingVolume, {
       from_date: formattedDate,
       to_date: formattedDate,
       pair_names: pairs,
       type: ["all"],
     });
-    const tradingVolume = tradingVolumeRes as { data: IChartRes };
-    const totalVolumeData = tradingVolume.data.charts.find(
+    const tradingVolume = tradingVolumeRes as IChartRes
+    const totalVolumeData = tradingVolume.charts.find(
       (x: IChart) => x.type == "all"
     );
     const dailyVolumeData = totalVolumeData?.data.find(
@@ -77,14 +77,14 @@ const fetch = (chain: Chain) => {
     )?.daily_data;
 
     // * call api for daily open interest
-    const openInterestRes = await axios.post(endpoints[chain].openInterest, {
+    const openInterestRes = await httpPost(endpoints[chain].openInterest, {
       from_date: formattedDate,
       to_date: formattedDate,
       pair_names: pairs,
       type: ["all"],
     });
-    const openInterest = openInterestRes as { data: IChartRes };
-    const openInterestData = openInterest.data.charts.find(
+    const openInterest = openInterestRes as  IChartRes 
+    const openInterestData = openInterest.charts.find(
       (x: IChart) => x.type == "all"
     );
     const dailyOpenInterestData = openInterestData?.data.find(
@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: async () => 1701907200,
+      start: 1701907200,
     },
   },
 };

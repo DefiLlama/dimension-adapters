@@ -11,11 +11,11 @@ const graph = (_chain: Chain) =>
 
 const adapter: SimpleAdapter = {
 	adapter: {
-		[CHAIN.KCC]: { fetch: graph(CHAIN.KCC), start: async () => 1670188701 },
-		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: async () => 1670226950 },	/// ! typeof CHAIN
-		[CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: async () => 1671580916 },
-		//[CHAIN.ECHELON]:	{ fetch: graph(CHAIN.ECHELON),	start: async () => 1671608400 },	/// ded!?
-		[CHAIN.KAVA]: { fetch: graph(CHAIN.KAVA), start: async () => 1676855943 }
+		[CHAIN.KCC]: { fetch: graph(CHAIN.KCC), start: 1670188701 },
+		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: 1670226950 },	/// ! typeof CHAIN
+		[CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: 1671580916 },
+		//[CHAIN.ECHELON]:	{ fetch: graph(CHAIN.ECHELON),	start: 1671608400 },	/// ded!?
+		[CHAIN.KAVA]: { fetch: graph(CHAIN.KAVA), start: 1676855943 }
 	}
 };
 

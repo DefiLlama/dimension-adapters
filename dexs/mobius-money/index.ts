@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: graphs(CHAIN.CELO),
-      start: async () => 1636514733,
+      start: 1636514733,
       // customBackfill: customBackfill(CHAIN.CELO as Chain, graphs)
     },
   },

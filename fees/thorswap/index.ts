@@ -1,7 +1,7 @@
-import axios from "axios"
 import { FetchResultFees, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 interface IRevenue {
   DAY: string;
@@ -49,10 +49,10 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const url2 = "https://api.flipsidecrypto.com/api/v2/queries/46dc4fa4-a362-420e-97ec-d3a58d46b9e7/data/latest"
   const url3 = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=400`
   const [reveune, fees, earnings]: any = (await Promise.all([
-    axios.get(url1),
-    axios.get(url2),
-    axios.get(url3, { headers: {"x-client-id": "defillama"}})
-  ])).map(res => res.data)
+    httpGet(url1),
+    httpGet(url2),
+    httpGet(url3, { headers: {"x-client-id": "defillama"}})
+  ]))
 
   const reveuneData: IRevenue[] = reveune;
   const feesData: IFees[] = fees;
@@ -84,7 +84,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch: fetchFees,
-      start: async () => 1618099200,
+      start: 1618099200,
     }
   }
 }

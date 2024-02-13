@@ -1,25 +1,24 @@
 import { CHAIN } from "../helpers/chains";
 import volumeAdapter from "../dexs/zkSwap_Finance";
-import { BaseAdapter, Adapter, ChainBlocks } from "../adapters/types";
+import { BaseAdapter, Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
 import BigNumber from "bignumber.js";
 
 
 const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, totalFees: number, revenueFee: number) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks) => {
+  return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
     const FEE_COLLECTED_START_TIME = 1696118400
 
-    const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-    const fetchedResultStartTime = await adapterObj[chain].fetch(FEE_COLLECTED_START_TIME, chainBlocks);
+    const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks, options);
+    const fetchedResultStartTime = await adapterObj[chain].fetch(FEE_COLLECTED_START_TIME, chainBlocks, options);
 
-    const chainDailyVolume = fetchedResult.dailyVolume || '0';    
+    const chainDailyVolume = fetchedResult.dailyVolume as number || '0';    
     const chainTotalVolumeFromFeeCollectedDate = (Number(fetchedResult.totalVolume) - Number(fetchedResultStartTime.totalVolume))
     const chainTotalVolume = chainTotalVolumeFromFeeCollectedDate  || '0';   
 
     const ssrFee = totalFees - revenueFee
     const protocolFee =  revenueFee
-    const buybackFee = 0
 
     return {
       timestamp,
@@ -50,7 +49,7 @@ const baseAdapter: BaseAdapter = {
     ...adapterObj[CHAIN.ERA],
     fetch: fetch(CHAIN.ERA, 0.0008, 0.0004),
     customBackfill: fetch(CHAIN.ERA, 0.0008, 0.0004),
-    start: async () => 1696118400,
+    start: 1696118400,
     meta: {
       methodology
     }

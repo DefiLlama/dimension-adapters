@@ -93,11 +93,11 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
-      start: async () => 1656154800,
+      start: 1656154800,
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
-      start: async () => 1674691200,
+      start: 1674691200,
     },
   },
 };

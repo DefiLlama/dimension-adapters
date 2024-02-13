@@ -62,14 +62,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: async () => 1690020000,
+      start: 1690020000,
       meta: {
         methodology,
       },
     },
     [CHAIN.BSC]: {
       fetch: graphs(CHAIN.BSC),
-      start: async () => 1686783600,
+      start: 1686783600,
       meta: {
         methodology,
       },

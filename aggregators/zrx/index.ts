@@ -49,24 +49,17 @@ const fetch = (chain: string) => async (timestamp: number) => {
     new Date(timestamp * 1000)
   );
 
-  try {
-    const data = await getVolumeByChain(chain);
-    const dayData = data.find(
-      ({ timestamp }: { timestamp: number }) =>
-        getUniqStartOfTodayTimestamp(new Date(timestamp)) ===
-        unixTimestamp
-    );
+  const data = await getVolumeByChain(chain);
+  const dayData = data.find(
+    ({ timestamp }: { timestamp: number }) =>
+      getUniqStartOfTodayTimestamp(new Date(timestamp)) ===
+      unixTimestamp
+  );
 
-    return {
-      dailyVolume: dayData?.volumeUSD ?? '0',
-      timestamp: unixTimestamp,
-    };
-  } catch (e) {
-    return {
-      dailyVolume: '0',
-      timestamp: unixTimestamp,
-    };
-  }
+  return {
+    dailyVolume: dayData.volumeUSD,
+    timestamp: unixTimestamp,
+  };
 };
 
 const adapter: any = {
@@ -76,7 +69,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => 1671062400,
+          start: 1671062400,
         },
       };
     }, {}),

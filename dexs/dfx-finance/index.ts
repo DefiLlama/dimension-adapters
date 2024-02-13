@@ -9,6 +9,6 @@ const adapter = univ2Adapter({
     dayData: "dfxdayData",
     dailyVolume: "dailyVolumeUSD"
 });
-adapter.adapter.ethereum.start = async () => 1621418717;
-adapter.adapter.polygon.start = async () => 1626861917;
+adapter.adapter.ethereum.start = 1621418717;
+adapter.adapter.polygon.start = 1626861917;
 export default adapter;

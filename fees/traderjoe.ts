@@ -38,7 +38,7 @@ const adapterV1 = getDexChainFees({
 const graph = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IData[] = (await fetchURL(endpointsV2[chain]))?.data;
+    const historical: IData[] = (await fetchURL(endpointsV2[chain]));
     const dailyFees = historical
       .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
     const dailyRevenue = historical
@@ -61,15 +61,15 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.AVAX]: {
         fetch: graph(CHAIN.AVAX),
-        start: async () => 1669420800
+        start: 1669420800
       },
       [CHAIN.ARBITRUM]: {
         fetch: graph(CHAIN.ARBITRUM),
-        start: async () => 1672012800
+        start: 1672012800
       },
       [CHAIN.BSC]: {
         fetch: graph(CHAIN.BSC),
-        start: async () => 1678147200
+        start: 1678147200
       }
     }
   }

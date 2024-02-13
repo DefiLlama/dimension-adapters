@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: getDexVolumeExports({ chain: CHAIN.KAVA, factory: FACTORY_ADDRESS }),
-      start: async () => 1677888000,
+      start: 1677888000,
     },
   }
 };
