@@ -62,23 +62,8 @@ const v2Graphs = (chain: Chain) => {
     };
   };
 
-
-const v1graphs = getChainVolume({
-  graphUrls: {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer"
-  },
-  ...graphParams
-});
-
 const adapter: BreakdownAdapter = {
   breakdown: {
-    v1: {
-      [CHAIN.ETHEREUM]: {
-        fetch: v1graphs(CHAIN.ETHEREUM),
-        start: 1582761600,
-        customBackfill: customBackfill(CHAIN.ETHEREUM, v1graphs)
-      },
-    },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
