@@ -42,6 +42,27 @@ const fetch =
     }
   };
 
+const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(
+    new Date(timestamp * 1000)
+  );
+  try {
+    const data = await fetchURL(`${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`);
+    return {
+      timestamp: dayTimestamp,
+      dailyVolume: data.today.volume,
+      totalVolume: data.totalVolume.volume,
+    };
+  } catch (err) {
+    console.log(err);
+    return {
+      timestamp: dayTimestamp,
+      dailyVolume: "0",
+      totalVolume: "0",
+    };
+  }
+}
+
 const startTimeBlock = 1695897800;
 
 const adapter: SimpleAdapter = {
@@ -77,7 +98,14 @@ const adapter: SimpleAdapter = {
         start: startTimeBlock,
       },
       [CHAIN.APTOS]: {
-        fetch: fetch(KanaChainID.aptos),
+        fetch: async (timestamp: number) => {
+          const swap = await fetch(KanaChainID.aptos)(timestamp);
+          const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
+          return {
+            dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
+            timestamp
+          }
+        },
         runAtCurrTime: false,
         start: startTimeBlock,
       },
@@ -90,7 +118,7 @@ const adapter: SimpleAdapter = {
         fetch: fetch(KanaChainID.solana),
         runAtCurrTime: false,
         start: startTimeBlock,
-      }
+      },
   },
 };
 
