@@ -84,7 +84,7 @@ export async function queryDune(queryId: string, query_parameters = {}) {
       throw new Error("Still running")
     },
     {
-      retries: API_KEYS.length + 1,
+      retries: 5 * API_KEYS.length + 3,
       maxTimeout: 1000 * 60 * 5
     }
   );
