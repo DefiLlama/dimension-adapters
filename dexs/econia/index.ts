@@ -20,12 +20,12 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const dayISO = new Date(dayTimestamp * 1000).toISOString();
 
-  const markets: IMarkets[] = (await fetchURL(`${BASE_URL}/markets?quote_account_address=eq.0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa&quote_module_name=eq.asset&quote_struct_name=eq.USDC`))?.data;
+  const markets: IMarkets[] = (await fetchURL(`${BASE_URL}/markets?quote_account_address=eq.0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa&quote_module_name=eq.asset&quote_struct_name=eq.USDC`));
   const volumesPerMarket = await Promise.all(
     markets.map(async m =>
       await fetchURL(`${BASE_URL}/rpc/volume_history?market_id=${m.market_id}&time=${dayISO}`)
         .then(res => (
-          { daily: res.data[0].daily * m.tick_size / 1000000, total: res.data[0].total * m.tick_size / 1000000 }
+          { daily: res[0].daily * m.tick_size / 1000000, total: res[0].total * m.tick_size / 1000000 }
         ))
     )
   );
