@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: {
       fetch: v2Graphs(CHAIN.MODE),
-      start: 3093279,
+      start: 1706313600,
     },
   },
 };
