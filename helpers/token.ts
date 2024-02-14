@@ -49,7 +49,7 @@ export async function addTokensReceived(params: {
   fetchTokenList?: boolean;
   token?: string;
 }) {
-  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList= false, token } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token } = params;
   const { chain, createBalances, getLogs, } = options
   if (!tokens && token) tokens = [token]
 
@@ -74,7 +74,7 @@ export async function addTokensReceived(params: {
 
   if (!tokens?.length) return balances
 
-  tokens = getUniqueAddresses(tokens, options.chain)
+  tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
   const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
   if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)

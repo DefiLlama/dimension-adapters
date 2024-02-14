@@ -98,6 +98,7 @@ const fetch = (chain: Chain) => {
     const allSy: string[] = allSyDatas
       .filter((token: any) => token.type === "SY")
       .map((token: any) => token.id.toLowerCase());
+
     const rewardTokens: string[] = (
       await api.multiCall({
         permitFailure: true,
@@ -105,11 +106,17 @@ const fetch = (chain: Chain) => {
         calls: allSy,
       })
     ).flat();
-    const exchangeRates: StringNumber[] = await api.multiCall({
-      permitFailure: true,
-      abi: exchangeRateABI,
-      calls: allSy,
-    });
+
+    const exchangeRates: String | null[] = [];
+    for (const sy of allSy) {
+      try {
+        const exchangeRate = await api.call({ target: sy, abi: exchangeRateABI, });
+        exchangeRates.push(exchangeRate)
+      } catch (e) {
+        console.error(e)
+        exchangeRates.push(null)
+      }
+    }
 
     const dailyFees = await addTokensReceived({
       options,
@@ -142,7 +149,7 @@ const fetch = (chain: Chain) => {
 
       let assetAmount = new BigNumber(rawAmount)
       if (allSyDatas[index].accountingAssetType === 0) {
-        assetAmount = assetAmount.times(exchangeRates[index])
+        assetAmount = assetAmount.times(exchangeRates[index] ?? 0)
           .dividedToIntegerBy(1e18);
       }
 
