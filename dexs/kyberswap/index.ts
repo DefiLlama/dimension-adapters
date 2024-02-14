@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import request from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -97,7 +98,7 @@ const optimismElastic = async (timestamp: number) => {
   const url = "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-optimism";
   const blacklisted = [
     '0xa00e3a3511aac35ca78530c85007afcd31753819',
-    '0x8c6f28f2f1a3c87f0f938b96d27520d9751ec8d9',
+    ADDRESSES.optimism.sUSD,
     '0xb448ec505c924944ca8b2c55ef05c299ee0781df'
   ]
   const poolBlacklist = [

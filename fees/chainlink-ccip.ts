@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -105,7 +106,7 @@ const fetchFees = (chain: Chain) => {
         address: addressString,
       }
     });
-    const linkETH = `${CHAIN.ETHEREUM}:0x514910771af9ca656af840dff83e8264ecf986ca`
+    const linkETH = `${CHAIN.ETHEREUM}:${ADDRESSES.ethereum.LINK}`;
     const coins = [...new Set(rawData.map((e: any) => `${chain}:${e.address}`)), linkETH];
     const prices = await getPrices(coins, timestamp);
     const dailyFees = rawData.reduce((acc: number, { amount, address }: any) => {

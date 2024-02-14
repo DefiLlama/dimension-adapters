@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { queryIndexer } from "../helpers/indexer";
@@ -56,11 +57,11 @@ const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
 
   logs_funds_distribution.map((e: any, index: number) => {
     const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
-    const token = isEthBase ? '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
     e.forEach((i: any) => dailyFees.add(token, i.netInterest_))
   })
 
-  logs_claim_funds.map((e: any) => dailyFees.add('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', e.netInterest_))
+  logs_claim_funds.map((e: any) => dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_))
   logsTranferERC20.forEach((b: any) => {
     dailyFees.add(b.contract_address, b.value)
     dailyRevenue.add(b.contract_address, b.value)

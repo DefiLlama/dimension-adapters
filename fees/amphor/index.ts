@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { ethers, EventFilter } from 'ethers';
 
@@ -156,9 +157,9 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     });
 
     const TOKENS = {
-        USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        WSTETH: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
-        WBTC: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+        USDC: ADDRESSES.ethereum.USDC,
+        WSTETH: ADDRESSES.ethereum.WSTETH,
+        WBTC: ADDRESSES.ethereum.WBTC,
     }
     const totalFees = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
     const totalRevenue = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
@@ -37,7 +38,7 @@ const fetch = (chain: Chain) => {
               AND ethereum.event_logs.block_time BETWEEN llama_replace_date_range
               GROUP by sum`, options);
 
-      gasUsed.map((e: any) => dailyRevenue.add('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', e.sum * -1 / e._count))
+      gasUsed.map((e: any) => dailyRevenue.add(ADDRESSES.ethereum.WETH, e.sum * -1 / e._count))
     }
 
     return { dailyUserFees: dailyFees, dailyFees, dailyRevenue, timestamp }

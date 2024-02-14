@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { getPrices } from "../../utils/prices";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
+import { ChainBlocks, FetchOptions } from "../../adapters/types";
 
 interface IVolumeall {
   time: number;
@@ -10,21 +10,19 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp*1000))
+const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
+  const dailyVolume = createBalances();
+  const totalVolume = createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
-  const totalVolume = vols
-    .filter((volItem: IVolumeall) => Number(volItem.time) <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0);
-  const dailyVolume = vols
-    .find((dayItem: IVolumeall) => Number(dayItem.time) === dayTimestamp)?.volume
+  vols
+    .filter((volItem: IVolumeall) => Number(volItem.time) <= startOfDay)
+    .map(({ volume }) => totalVolume.addGasToken(volume));
+  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === startOfDay)?.volume)
 
-  const coinId = "coingecko:cardano";
-  const prices = await getPrices([coinId], dayTimestamp)
   return {
-    timestamp: dayTimestamp,
-    totalVolume: totalVolume ? String(totalVolume/1e6 * prices[coinId].price) : "0",
-    dailyVolume: dailyVolume ? String(dailyVolume/1e6 * prices[coinId].price) : "0"
+    timestamp: startOfDay,
+    dailyVolume,
+    // totalVolume,
   }
 }
 

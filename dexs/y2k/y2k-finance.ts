@@ -1,7 +1,8 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultVolume } from "../../adapters/types";
 
 const vault_factory = "0x984e0eb8fb687afa53fc8b33e12e04967560e092";
-const WETH = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+const WETH = ADDRESSES.arbitrum.WETH;
 const event_deposit = "event Deposit (address indexed user, address indexed receiver, uint256 id, uint256 assets)";
 
 const abis: any = {

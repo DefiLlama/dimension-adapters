@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 
@@ -5,7 +6,7 @@ const contract = '0xBa5e05cb26b78eDa3A2f8e3b3814726305dcAc83'
 const eventAbi = 'event ArtistsEarned(uint256 indexed day,uint256 amount)';
 const protocol_fees = 10; // 10% fees
 
-const ethAddress = "0x0000000000000000000000000000000000000000";
+const ethAddress = ADDRESSES.null;
 
 const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultFees> => {
   const logs = await getLogs({ target: contract, eventAbi })

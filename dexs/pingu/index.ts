@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
@@ -24,8 +25,8 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 		}`;
 	const response: IGraph = (await request(URL, query)).dayData;
 	const element = response;
-	balances._add('0xaf88d065e77c8cc2239327c5edb3a432268e5831', element.volumeUsdc);
-	balances._add('0x82af49447d8a07e3bd95bd0d56f35241523fbab1', element.volumeEth);
+	balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, element.volumeUsdc);
+	balances._add(ADDRESSES.arbitrum.WETH, element.volumeEth);
 
 	return {
 		dailyVolume: await balances.getUSDString(),

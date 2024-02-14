@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryFlipside } from "../helpers/flipsidecrypto";
@@ -46,7 +47,7 @@ const adapter: Adapter = {
               BlockTotals bt ON tt.BLOCK_NUMBER = bt.BLOCK_NUMBER;`
 
         const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee, 260)).flat();
-        const maticAddress = "ethereum:0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0";
+        const maticAddress = "ethereum:" + ADDRESSES.ethereum.MATIC;
 
         dailyFees.addTokenVannila(maticAddress, tx_fee * 1e18);
         dailyRevenue.addTokenVannila(maticAddress, burn_fee * 1e18);

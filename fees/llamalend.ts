@@ -1,10 +1,8 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import { request, } from "graphql-request";
+import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 
 const endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/0xngmi/llamalend",
@@ -17,12 +15,11 @@ interface IGraph {
 }
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysBlock = (await getBlock(timestamp, chain, {}));
-      const graphQuery = gql
-        `
+    return async (timestamp: number , _: ChainBlocks, { createBalances, getToBlock }: FetchOptions) => {
+      const dailyFees = createBalances();
+      const graphQuery =  `
       {
-        loans(where:{owner_not: "0x0000000000000000000000000000000000000000"}, block:{ number: ${todaysBlock}}) {
+        loans(where:{owner_not: ADDRESSES.null}, block:{ number: ${await getToBlock()}}) {
           interest
           borrowed
         }
@@ -30,19 +27,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
       `;
 
       const graphRes: IGraph[] = (await request(graphUrls[chain], graphQuery)).loans;
-      const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-      const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-      const dailyFeePerSec = graphRes.reduce((a: number, b: IGraph) => a + (Number(b.interest) * Number(b.borrowed)), 0)
-      const dailyFee = dailyFeePerSec / 1e36 * ONE_DAY_IN_SECONDS * ethPrice;
+      graphRes.map((b: IGraph) => dailyFees.addGasToken((Number(b.interest) * Number(b.borrowed) * ONE_DAY_IN_SECONDS / 1e18)))
 
       return {
         timestamp: timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyUserFees: dailyFee.toString(),
-        dailySupplySideRevenue: dailyFee.toString(),
-        dailyRevenue: "0",
-        dailyHoldersRevenue: "0",
-        dailyProtocolRevenue: "0"
+        dailyFees: dailyFees,
+        dailyUserFees: dailyFees,
+        dailySupplySideRevenue: dailyFees,
       };
     };
   };

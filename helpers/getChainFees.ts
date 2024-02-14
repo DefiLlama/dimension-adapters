@@ -9,10 +9,7 @@ export const chainAdapter = (adapterKey: string, assetID: string, startTime: num
 
         return {
             timestamp,
-            dailyFees: dailyFee.toString(),
-            totalRevenue: "0",
-            dailyRevenue: "0",
-            dailyHoldersRevenue: "0",
+            dailyFees: dailyFee,
         };
     };
 

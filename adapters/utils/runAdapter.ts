@@ -1,6 +1,7 @@
 import { Balances, ChainApi, getEventLogs, getProvider } from '@defillama/sdk'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchResultGeneric, } from '../types'
+import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -47,7 +48,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
   }
 
-  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks) {
+  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
@@ -75,6 +76,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
     const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
+    const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
 
     return {
       createBalances,
@@ -87,6 +89,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       chain,
       fromApi,
       api,
+      startOfDay,
     }
   }
 
