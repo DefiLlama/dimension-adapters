@@ -25,7 +25,8 @@ const gqlQuery = `
   }) {
     id,
     type
-    underlyingAsset {
+    accountingAssetType
+    accountingAsset {
       id
     }
   }
@@ -34,6 +35,7 @@ const gqlQuery = `
 
 const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const EETH_ETHEREUM = "ethereum:0x35fa164735182de50811e8e2e824cfb9b6118ac2";
+const WETH_ETHEREUM = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 
 const BRIDGED_ASSETS = [
   {
@@ -47,6 +49,10 @@ const BRIDGED_ASSETS = [
   {
     sy: "0xa6c895eb332e91c5b3d00b7baeeaae478cc502da",
     asset: EETH_ETHEREUM,
+  },
+  {
+    sy: "0x9d6d509c0354aca187aac6bea7d063d3ef68e2a0",
+    asset: WETH_ETHEREUM
   },
 ];
 
@@ -83,7 +89,8 @@ const fetch = (chain: Chain) => {
     const allSyDatas: {
       id: string;
       type: string;
-      underlyingAsset: {
+      accountingAssetType: number;
+      accountingAsset: {
         id: string;
       };
     }[] = (await request(chainConfig[chain].endpoint, gqlQuery)).assets;
@@ -122,7 +129,8 @@ const fetch = (chain: Chain) => {
       const rawAmount = allTokenList[token];
       dailyFees.removeTokenBalance(token);
 
-      let underlyingAsset = allSyDatas[index].underlyingAsset.id;
+      let underlyingAsset = allSyDatas[index].accountingAsset.id;
+
       let isBridged = false;
       for (const bridge of BRIDGED_ASSETS) {
         if (bridge.sy.toLowerCase() === tokenAddr.toLowerCase()) {
@@ -132,17 +140,20 @@ const fetch = (chain: Chain) => {
         }
       }
 
-      const assetAmount = new BigNumber(rawAmount)
-        .times(exchangeRates[index])
-        .dividedToIntegerBy(1e18);
+      let assetAmount = new BigNumber(rawAmount)
+      if (allSyDatas[index].accountingAssetType === 0) {
+        assetAmount = assetAmount.times(exchangeRates[index])
+          .dividedToIntegerBy(1e18);
+      }
+
 
       dailyFees.addToken(
         underlyingAsset,
         assetAmount,
         isBridged
           ? {
-              skipChain: true,
-            }
+            skipChain: true,
+          }
           : undefined
       );
     }
