@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";

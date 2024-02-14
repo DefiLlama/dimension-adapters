@@ -54,7 +54,7 @@ async function runAdapter(adapterPath, debugMode) {
     }
 
     const startTime = Date.now()
-    const child = childProcess.spawn('ts-node', ['--transpile-only', 'cli/testAdapter.ts',  ...adapterPath.split('/')], {
+    const child = childProcess.spawn('npx', ['ts-node', '--transpile-only', 'cli/testAdapter.ts',  ...adapterPath.split('/')], {
       env,
     })
 

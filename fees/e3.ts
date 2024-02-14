@@ -1,27 +1,10 @@
-import { SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers } from "ethers";
 
-interface ILog {
-	data: string;
-	transactionHash: string;
-	topics: string[];
-}
-interface IAmount {
-	protocolFeesX: number;
-	protocolFeesY: number;
-	totalFeesX: number;
-	totalFeesY: number;
-}
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)';
-const topic0 = '0xad7d6f97abf51ce18e17a38f4d70e975be9c0708474987bb3e26ad21bd93ca70';
 const FACTORY_ADDRESS = '0x8597db3ba8de6baadeda8cba4dac653e24a0e57b';
 
-const contract_interface = new ethers.Interface([event_swap]);
 
 type TABI = {
 	[k: string]: string;
@@ -32,104 +15,56 @@ const ABIs: TABI = {
 }
 
 const graph = (_chain: Chain) => {
-	return async (timestamp: number) => {
-		const fromTimestamp = timestamp - 60 * 60 * 24
-		const toTimestamp = timestamp
-		const poolLength = (await sdk.api2.abi.call({
-			target: FACTORY_ADDRESS,
-			chain: _chain,
-			abi: ABIs.getNumberOfLBPairs,
-		}));
+	return async (timestamp: number, _: ChainBlocks, { createBalances, api, getLogs, }: FetchOptions) => {
 
-		const poolsRes = await sdk.api2.abi.multiCall({
-			abi: ABIs.getLBPairAtIndex,
-			calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-				target: FACTORY_ADDRESS,
-				params: i,
-			})),
-			chain: _chain
-		});
-
-		const lpTokens = poolsRes
-
-		const [underlyingToken0, underlyingToken1] = await Promise.all(
+		const lpTokens = await api.fetchList({ lengthAbi: ABIs.getNumberOfLBPairs, itemAbi: ABIs.getLBPairAtIndex, target: FACTORY_ADDRESS })
+		const dailyFees = createBalances();
+		const dailyRevenue = createBalances();
+		const [tokenXs, tokenYs] = await Promise.all(
 			['address:getTokenX', 'address:getTokenY'].map((method: string) =>
-				sdk.api2.abi.multiCall({
+				api.multiCall({
 					abi: method,
-					calls: lpTokens.map((address: string) => ({
-						target: address,
-					})),
-					chain: _chain
+					calls: lpTokens,
 				})
 			)
 		);
+		const decimalsXs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenXs })
+		const decimalsYs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenYs })
 
-		const tokens0 = underlyingToken0;
-		const tokens1 = underlyingToken1;
-		const fromBlock = (await getBlock(fromTimestamp, _chain, {}));
-		const toBlock = (await getBlock(toTimestamp, _chain, {}));
+		const logs: any[][] = await getLogs({
+			targets: lpTokens,
+			eventAbi: event_swap,
+			flatten: false,
+		})
 
-		const logs: ILog[][] = (await Promise.all(lpTokens.map((address: string) => sdk.getEventLogs({
-			target: address,
-			toBlock: toBlock,
-			fromBlock: fromBlock,
-			chain: _chain,
-			topics: [topic0]
-		})))) as any;
-
-		const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${_chain}:${e}`);
-		const coins = [...new Set(rawCoins)]
-		const prices = await getPrices(coins, timestamp);
-
-
-		const untrackVolumes: any[] = lpTokens.map((_: string, index: number) => {
-			const token0Decimals = prices[`${_chain}:${tokens0[index]}`]?.decimals || 0
-			const token1Decimals = prices[`${_chain}:${tokens1[index]}`]?.decimals || 0
-			const log: IAmount[] = logs[index]
-				.map((e: ILog) => { return { ...e } })
-				.map((p: ILog) => {
-					const value = contract_interface.parseLog(p);
-					const protocolFeesX = Number('0x' + '0'.repeat(32) + value!.args.protocolFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals
-					const protocolFeesY = Number('0x' + '0'.repeat(32) + value!.args.protocolFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals
-					const totalFeesX = Number('0x' + '0'.repeat(32) + value!.args.totalFees.replace('0x', '').slice(0, 32)) / 10 ** token1Decimals;
-					const totalFeesY = Number('0x' + '0'.repeat(32) + value!.args.totalFees.replace('0x', '').slice(32, 64)) / 10 ** token0Decimals;
-					return {
-						protocolFeesX,
-						protocolFeesY,
-						totalFeesX,
-						totalFeesY,
-						// tx: p.transactionHash, // for debugging
-						// token0Decimals,
-						// token1Decimals
-					} as IAmount
+		lpTokens.map((_: string, index: number) => {
+			logs[index]
+				.map((p: any) => {
+					const token0 = tokenXs[index];
+					const token1 = tokenYs[index];
+					const decimalsX = decimalsXs[index];
+					const decimalsY = decimalsYs[index];
+          const protocolFeesY = Number('0x' + p.protocolFees.replace('0x', '').slice(0, 32))
+          const protocolFeesX = Number('0x' + p.protocolFees.replace('0x', '').slice(32, 64))
+          const totalFeesY = Number('0x' + p.totalFees.replace('0x', '').slice(0, 32));
+          const totalFeesX = Number('0x' + p.totalFees.replace('0x', '').slice(32, 64));
+					dailyFees.add(token0, totalFeesX )
+					dailyFees.add(token1, totalFeesY )
+					dailyRevenue.add(token0, protocolFeesX)
+					dailyRevenue.add(token1, protocolFeesY)
 				});
-
-			const token0Price = (prices[`${_chain}:${tokens0[index]}`]?.price || 0);
-			const token1Price = (prices[`${_chain}:${tokens1[index]}`]?.price || 0);
-			const protocolFeesX = log
-				.reduce((a: number, b: IAmount) => Number(b.protocolFeesX) + a, 0) * token1Price;
-			const protocolFeesY = log
-				.reduce((a: number, b: IAmount) => Number(b.protocolFeesY) + a, 0) * token0Price;
-			const totalFeesX = log
-				.reduce((a: number, b: IAmount) => Number(b.totalFeesX) + a, 0) * token1Price;
-			const totalFeesY = log
-				.reduce((a: number, b: IAmount) => Number(b.totalFeesY) + a, 0) * token0Price;
-
-			return ({
-				totalFees: (totalFeesX + totalFeesY),
-				protocolFees: (protocolFeesX + protocolFeesY)
-			});
 		});
 
-		const dailyFees = untrackVolumes.reduce((a: number, b: any) => a + b.totalFees, 0);
-		const dailyProtocolFees = untrackVolumes.reduce((a: number, b: any) => a + b.protocolFees, 0);
+		const dailySupplySideRevenue = dailyFees.clone();
+		dailySupplySideRevenue.subtract(dailyRevenue);
+		
 		return {
-			dailyFees: `${dailyFees}`,
-			dailyUserFees: `${dailyFees}`,
-			dailyProtocolRevenue: `${dailyProtocolFees}`,
-			dailyRevenue: `${dailyProtocolFees}`,
-			dailyHoldersRevenue: `${dailyProtocolFees}`,
-			dailySupplySideRevenue: `${dailyFees - dailyProtocolFees}`,
+			dailyFees: dailyFees,
+			dailyUserFees: dailyFees,
+			dailyRevenue: dailyRevenue,
+			dailyProtocolRevenue: dailyRevenue,
+			dailyHoldersRevenue: dailyRevenue,
+			dailySupplySideRevenue,
 			timestamp,
 		};
 	}

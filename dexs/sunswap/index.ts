@@ -15,7 +15,8 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).data;
+
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0)

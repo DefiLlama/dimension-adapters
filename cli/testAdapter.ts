@@ -59,4 +59,5 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
       printVolumes(res, breakdownAdapter[version])
     })
   } else throw new Error("No compatible adapter found")
+  process.exit(0)
 })()

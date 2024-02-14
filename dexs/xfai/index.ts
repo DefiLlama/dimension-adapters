@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
@@ -5,7 +6,7 @@ import { getBlock } from "../../helpers/getBlock";
 
 const FACTORY_ADDRESS = "0xa5136eAd459F0E61C99Cec70fe8F5C24cF3ecA26";
 const INFT_ADDRESS = "0xa155f12D3Be29BF20b615e1e7F066aE9E3C5239a";
-const LINEA_WETH_ADDRESS = "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f";
+const LINEA_WETH_ADDRESS = ADDRESSES.linea.WETH;
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const FEE_VOLUME_MULTIPLIER = 1000 / 2;
 

@@ -152,8 +152,8 @@ const getResources = async (account: string): Promise<any[]> => {
   do {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
-    const res = await httpGet(url)
-    lastData = res
+    const res = await httpGet(url, undefined, { withMetadata: true })
+    lastData = res.data
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
   } while (lastData.length === 9999)

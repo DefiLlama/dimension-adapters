@@ -23,10 +23,12 @@ export type FetchOptions = {
   getLogs: (params: FetchGetLogsOptions) => Promise<any[]>;
   toTimestamp: number;
   fromTimestamp: number;
+  startOfDay: number;
   getFromBlock: () => Promise<number>;
   getToBlock: () => Promise<number>;
   chain: string,
   api: ChainApi,
+  fromApi: ChainApi,
 }
 
 export type FetchGetLogsOptions = {
@@ -46,7 +48,7 @@ export type FetchGetLogsOptions = {
 export type Fetch = (
   timestamp: number,
   chainBlocks: ChainBlocks,
-  options?: FetchOptions,
+  options: FetchOptions,
 ) => Promise<FetchResult>;
 
 export type IStartTimestamp = () => Promise<number>

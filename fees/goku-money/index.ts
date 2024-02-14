@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { Adapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -15,15 +16,15 @@ const BORROW_CONTRACT_ADDRESS = [
 const PYTH_CONFIG = {
   USDC: {
     contractAddress: "0x5B27B4ACA9573F26dd12e30Cb188AC53b177006e",
-    address: '0xb73603C5d87fA094B7314C74ACE2e64D165016fb',
+    address: ADDRESSES.manta.USDC,
   },
   USDT: {
     contractAddress: "0x2D18cE2adC5B7c4d8558b62D49A0137A6B87049b",
-    address: '0xf417F5A458eC102B90352F697D6e2Ac3A3d2851f',
+    address: ADDRESSES.manta.USDT,
   },
   WETH: {
     contractAddress: "0x17Efd0DbAAdc554bAFDe3cC0E122f0EEB94c8661",
-    address: '0x0Dc808adcE2099A9F62AA87D9670745AbA741746',
+    address: ADDRESSES.manta.WETH,
   },
   TIA: {
     contractAddress: "0xaa41F9e1f5B6d27C22f557296A0CDc3d618b0113",

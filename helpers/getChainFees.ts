@@ -9,10 +9,7 @@ export const chainAdapter = (adapterKey: string, assetID: string, startTime: num
 
         return {
             timestamp,
-            dailyFees: dailyFee.toString(),
-            totalRevenue: "0",
-            dailyRevenue: "0",
-            dailyHoldersRevenue: "0",
+            dailyFees: dailyFee,
         };
     };
 
@@ -30,5 +27,5 @@ export const getOneDayFees = async (assetID: string, startDate: string, endDate:
         throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${endDate}`);
     }
 
-    return parseFloat(result.data.data[0]['FeeTotUSD']);
+    return parseFloat(result.data[0]['FeeTotUSD']);
 }

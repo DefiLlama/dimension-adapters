@@ -1,10 +1,10 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
+import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const START_TIME = 1659312000;
-const historicalVolumeEndpoint = () => `https://api.carbon.network/carbon/marketstats/v1/stats`
+const historicalVolumeEndpoint = () => `https://api.carbon.network/carbon/marketstats/v1/stats`;
 
 interface IVolumeall {
   market_type: string;
@@ -12,27 +12,38 @@ interface IVolumeall {
   date: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.marketstats;
+const fetch = (market_type: string) => {
+  return async (timestamp: number) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.marketstats;
 
-  const volume = historicalVolume
-    .filter((e: IVolumeall) => e.market_type === "spot")
-    .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume), 0) / 1e18;
+    const volume =
+      historicalVolume
+        .filter((e: IVolumeall) => e.market_type === market_type)
+        .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume), 0) / 1e18;
 
-  return {
-    dailyVolume: volume ? `${volume}` : undefined,
-    timestamp: dayTimestamp,
+    return {
+      dailyVolume: volume ? `${volume}` : undefined,
+      timestamp: dayTimestamp,
+    };
   };
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.CARBON]: {
-      fetch,
-      start: START_TIME,
+const adapters: BreakdownAdapter = {
+  breakdown: {
+    demex: {
+      [CHAIN.CARBON]: {
+        fetch: fetch("spot"),
+        start: START_TIME,
+      },
     },
+    "demex-perp": {
+      [CHAIN.CARBON]: {
+        fetch: fetch("futures"),
+        start: START_TIME,
+      },
+    }
   },
 };
 
-export default adapter;
+export default adapters;

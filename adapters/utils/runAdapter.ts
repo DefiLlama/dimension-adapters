@@ -1,6 +1,7 @@
-import { Balances, ChainApi, getEventLogs } from '@defillama/sdk'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchResultGeneric, } from '../types'
+import { Balances, ChainApi, getEventLogs, getProvider } from '@defillama/sdk'
+import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -20,7 +21,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   async function getChainResult(chain: string) {
     const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
     try {
-      const options = getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
       const result: FetchResultGeneric = await fetchFunction(options.toTimestamp, chainBlocks, options);
       const ignoreKeys = ['timestamp', 'block']
       // if (id)
@@ -47,7 +48,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
   }
 
-  function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks) {
+  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
@@ -64,6 +65,19 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, })
     }
 
+    // we intentionally add a delay to avoid fetching the same block before it is cached
+    await randomDelay()
+
+    let fromBlock, toBlock
+    // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
+    if (getProvider(chain)) {
+      fromBlock = await getFromBlock()
+      toBlock = await getToBlock()
+    }
+    const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
+    const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
+    const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+
     return {
       createBalances,
       getBlock,
@@ -73,8 +87,16 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       getToBlock,
       getLogs,
       chain,
-      api: new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, }),
+      fromApi,
+      api,
+      startOfDay,
     }
+  }
+
+  // code for random 1-4 second delay
+  async function randomDelay() {
+    const delay = Math.floor(Math.random() * 4) + 1
+    return new Promise((resolve) => setTimeout(resolve, delay * 1000))
   }
 
   async function setChainValidStart(chain: string) {

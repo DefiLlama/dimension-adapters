@@ -74,9 +74,9 @@ export async function queryDune(queryId: string, query_parameters = {}) {
 
       const status = queryStatus.state
       if (status === "QUERY_STATE_COMPLETED") {
-        return queryStatus.data.result.rows
+        return queryStatus.result.rows
       } else if (status === "QUERY_STATE_FAILED") {
-        console.log(queryStatus.data)
+        console.log(queryStatus)
         const error = new Error("Dune query failed")
         bail(error)
         throw error
@@ -84,7 +84,7 @@ export async function queryDune(queryId: string, query_parameters = {}) {
       throw new Error("Still running")
     },
     {
-      retries: MAX_RETRIES,
+      retries: 5 * API_KEYS.length + 3,
       maxTimeout: 1000 * 60 * 5
     }
   );
