@@ -1,6 +1,7 @@
 import { gql, GraphQLClient } from "graphql-request";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getEnv } from "../../helpers/env";
 
 const chains = [CHAIN.ETHEREUM, CHAIN.POLYGON]
 
@@ -32,7 +33,7 @@ const getHistoricalDataQuery = (timestamp: number) => {
 
 const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
 const getGQLClient = () => {
-  graphQLClient.setHeader("0x-api-key", process.env.ZEROx_API_KEY ?? process.env.ZEROX_API_KEY ?? '')
+  graphQLClient.setHeader("0x-api-key",  getEnv('ZEROX_API_KEY'))
   return graphQLClient
 }
 

@@ -1,7 +1,8 @@
 
 import { Sequelize } from 'sequelize';
 import { FetchOptions } from '../adapters/types';
-const dbString = process.env.INDEXA_DB!;
+import { getEnv } from './env';
+const dbString = getEnv('INDEXA_DB')
 
 let connection: Sequelize;
 

@@ -5,6 +5,7 @@ import axios from 'axios'
 import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
+import { getEnv } from './env';
 
 export const nullAddress = ADDRESSES.null
 
@@ -136,7 +137,7 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
 
     const options = {
       method: 'POST',
-      url: `https://rpc.ankr.com/multichain/${process.env.ANKR_API_KEY}`,
+      url: `https://rpc.ankr.com/multichain/${getEnv('ANKR_API_KEY')}`,
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       data: {
         jsonrpc: '2.0',

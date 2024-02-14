@@ -1,5 +1,6 @@
 import { GraphQLClient, gql } from 'graphql-request';
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
+import { getEnv } from '../../helpers/env';
 
 const CHAINS = [
   'Arbitrum',
@@ -15,10 +16,7 @@ const CHAINS = [
 
 const graphQLClient = new GraphQLClient('https://api.0x.org/data/v0');
 const getGQLClient = () => {
-  graphQLClient.setHeader(
-    '0x-api-key',
-    process.env.ZEROx_API_KEY ?? ''
-  );
+  graphQLClient.setHeader('0x-api-key', getEnv('ZEROX_API_KEY'));
   return graphQLClient;
 };
 

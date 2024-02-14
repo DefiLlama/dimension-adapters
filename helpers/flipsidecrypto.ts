@@ -1,9 +1,10 @@
 import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
-const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
+const FLIPSIDE_API_KEYS = getEnv('FLIPSIDE_API_KEY').split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
 

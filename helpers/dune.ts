@@ -1,11 +1,11 @@
 import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
-const API_KEYS = process.env.DUNE_API_KEYS?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
+const API_KEYS =getEnv('DUNE_API_KEYS').split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
 let API_KEY_INDEX = 0;
-const MAX_RETRIES = 20;
 
 export async function queryDune(queryId: string, query_parameters = {}) {
   /* const error = new Error("Dune: queryId is required")

@@ -1,7 +1,8 @@
 import retry from "async-retry";
 import fetchURL from "../utils/fetchURL";
+import { getEnv } from "./env";
 
-const API_KEYS = process.env.DUNE_API_KEYS?.split(",") ?? [];
+const API_KEYS = getEnv('DUNE_API_KEYS').split(",") ?? [];
 type IRequest = {
   [key: string]: Promise<any>;
 }
