@@ -1,7 +1,5 @@
-import BigNumber from "bignumber.js";
-import fetchURL from "../../utils/fetchURL";
-const plimit = require('p-limit');
-const limit = plimit(1);
+import { getEnv } from "../../helpers/env";
+import { httpGet } from "../../utils/fetchURL";
 
 const INDEXER_URL = "https://indexer-mainnet.levana.finance";
 const QUERIER_URL = "https://querier-mainnet.levana.finance";
@@ -32,11 +30,13 @@ export async function fetchVolume(kind: "daily" | "total", marketInfos: MarketIn
 
     const url = (marketsStr: string) => `${INDEXER_URL}/rolling_trade_volume?market=${marketsStr}&timestamp=${timestamp}&interval_days=${intervalDays}`;
 
-    const result = (await Promise.all(marketInfos.map(marketInfo => limit(() => fetchURL(url(marketInfo.addr))))))
-        .map((response: any) => response)
-        .map((data: any) => BigNumber(data));
+    const result = (await Promise.all(marketInfos.map(marketInfo =>  httpGet(url(marketInfo.addr), {
+        headers: {
+            'x-levana-access': getEnv('LEVANA_API_KEY')
+        }
+    }))))
 
-    return result.reduce((a: BigNumber, b: BigNumber) => a.plus(b), BigNumber(0))
+    return result.reduce((a: number, b: number) => a + +b, 0)
 }
 
 export async function fetchMarketInfos(chain: Chain): Promise<MarketInfo[]> {
@@ -47,7 +47,7 @@ export async function fetchMarketInfos(chain: Chain): Promise<MarketInfo[]> {
         }
     }
     const url = `${QUERIER_URL}/v1/perps/factory-market-status?network=${networkName[chain]}&factory=${factoryAddr[chain]}`
-    const result:FactoryResponse = await fetchURL(url);
+    const result:FactoryResponse = await httpGet(url);
 
     return Object.entries(result).reduce((acc, [addr, {market_id}]) => {
         acc.push({

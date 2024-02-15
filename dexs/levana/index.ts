@@ -1,4 +1,4 @@
-import {FetchResultVolume, SimpleAdapter} from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { fetchMarketInfos, fetchVolume } from "./fetch";
 
 const adapter: SimpleAdapter = {
@@ -11,11 +11,7 @@ const adapter: SimpleAdapter = {
                     fetchVolume("daily", marketInfos, timestamp),
                     fetchVolume("total", marketInfos, timestamp)
                 ]);
-                return {
-                    timestamp,
-                    dailyVolume: dailyVolume.toString(),
-                    totalVolume: totalVolume.toString()
-                }
+                return { timestamp, dailyVolume, totalVolume, }
             },
             start: 1688628356
         },
@@ -28,11 +24,7 @@ const adapter: SimpleAdapter = {
                     fetchVolume("total", marketInfos, timestamp)
                 ]);
 
-                return {
-                    timestamp,
-                    dailyVolume: dailyVolume.toString(),
-                    totalVolume: totalVolume.toString()
-                }
+                return { timestamp, dailyVolume, totalVolume, }
             },
             start: 1691305909
         },
@@ -45,11 +37,7 @@ const adapter: SimpleAdapter = {
                     fetchVolume("total", marketInfos, timestamp)
                 ]);
 
-                return {
-                    timestamp,
-                    dailyVolume: dailyVolume.toString(),
-                    totalVolume: totalVolume.toString()
-                }
+                return { timestamp, dailyVolume, totalVolume, }
             },
             start: 1695738685
         }
