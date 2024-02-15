@@ -7,7 +7,9 @@ const v3Endpoint = {
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/50473/exchange-clmm/version/latest",
   [CHAIN.OPTIMISM]:
-    "https://api.studio.thegraph.com/query/50473/v3-optimism/version/latest"
+    "https://api.studio.thegraph.com/query/50473/v3-optimism/version/latest",
+  [CHAIN.ARBITRUM]:
+      "https://api.studio.thegraph.com/query/50473/v3-arbitrum/version/latest",
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -33,6 +35,7 @@ const v3Graph = getGraphDimensions({
 const v3StartTimes = {
   [CHAIN.BASE]: 1691712000,
   [CHAIN.OPTIMISM]: 1705993200,
+  [CHAIN.ARBITRUM]: 1707928837,
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {
@@ -44,6 +47,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.OPTIMISM]: {
       fetch: v3Graph(CHAIN.OPTIMISM),
       start: async () => v3StartTimes[CHAIN.OPTIMISM]
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: v3Graph(CHAIN.ARBITRUM),
+      start: async () => v3StartTimes[CHAIN.ARBITRUM]
     },
   },
 };
