@@ -3,6 +3,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const historicalVolumeEndpoint = "https://app.bitflow.finance/api/totalVolume";
 
@@ -34,7 +35,7 @@ const fetch = async (timestamp: number) => {
 
   const totalVolume = historicalVolume[historicalVolume.length - 1].tvl.total;
 
-  const dailyVolume = getDailyVolume(timestamp, historicalVolume);
+  const dailyVolume = await getDailyVolume(timestamp, historicalVolume);
 
   return {
     totalVolume: `${totalVolume}`,
@@ -71,8 +72,9 @@ const getDailyVolume = async (
   timestamp: number,
   historicalVolume: HistoricalTotalVolume[]
 ) => {
-  const startOfDay = timestamp - ONE_DAY_IN_SECONDS;
-  const endOfDay = timestamp;
+  const startTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const startOfDay = startTimestamp - ONE_DAY_IN_SECONDS;
+  const endOfDay = startTimestamp;
 
   const dayTVL = historicalVolume.find(
     (dayItem) =>
