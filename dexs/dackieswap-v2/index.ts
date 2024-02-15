@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
         start: async () =>
             chain === CHAIN.BASE ? 1690173000
                 : chain === CHAIN.OPTIMISM ? 1705993200
-                    : chain === CHAIN.ARBITRUM ? 1707928837
+                    : chain === CHAIN.ARBITRUM ? 1707885300
                         : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},

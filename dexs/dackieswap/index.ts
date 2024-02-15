@@ -35,7 +35,7 @@ const v3Graph = getGraphDimensions({
 const v3StartTimes = {
   [CHAIN.BASE]: 1691712000,
   [CHAIN.OPTIMISM]: 1705993200,
-  [CHAIN.ARBITRUM]: 1707928837,
+  [CHAIN.ARBITRUM]: 1707885300,
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {
