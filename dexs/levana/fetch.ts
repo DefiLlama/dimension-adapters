@@ -14,9 +14,8 @@ export async function fetchVolume(kind: "daily" | "total", marketInfos: MarketIn
     const url = (marketsStr: string) => `${INDEXER_URL}/rolling_trade_volume?market=${marketsStr}&timestamp=${timestamp}&interval_days=${intervalDays}`
 
     const result = (await Promise.all(marketInfos.map(marketInfo => limit(() => fetchURL(url(marketInfo.addr))))))
-        .map((response: any) => response.data)
+        .map((response: any) => response)
         .map((data: any) => Number(data));
 
     return result.reduce((a: number, b: number) => a + b, 0);
 }
-
