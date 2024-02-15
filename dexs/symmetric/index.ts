@@ -62,6 +62,15 @@ const v2Graphs = (chain: Chain) => {
     };
   };
 
+type TTime = {
+  [s: string]: number;
+}
+const startTimes: TTime = {
+  [CHAIN.XDAI]: 1655251200,
+  [CHAIN.CELO]: 1654560000,
+  [CHAIN.TELOS]: 1699920000,
+}
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
@@ -69,13 +78,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graphs(chain),
-          start: getStartTimestamp({
-            endpoints,
-            chain: chain,
-            dailyDataField: `balancerSnapshots`,
-            dateField: 'timestamp',
-            volumeField: 'totalSwapVolume'
-          }),
+          start: startTimes[chain],
         }
       }
     }, {} as BaseAdapter)
