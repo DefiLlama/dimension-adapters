@@ -68,7 +68,7 @@ const getToDateVolume = async (chain: string, timestamp: number) => {
   let returnCount = 1000;
   let dayMiliseconds = 24 * 60 * 60;
   let volumSum = 0;
-  
+
   let startTimestampQuery = 0;
   const endDateTimestamp = Number(startDayTimestamp) + dayMiliseconds;
 
@@ -104,7 +104,7 @@ const getToDateVolume = async (chain: string, timestamp: number) => {
 
 export const fetchVolume = (_chain: string) => {
   return async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-    return getData(options);
+    return getData({...options, startOfDay: _timestamp});
     // const totalVolume = await getToDateVolume(options);
   };
 };
