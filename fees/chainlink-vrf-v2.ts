@@ -84,7 +84,7 @@ const fetch = (chain: Chain, version: number) => {
     }).reduce((a: number, b: number) => a + b, 0);
 
     const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-vrf-v2' }))
       .map((e: any) => {
         const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
         return amount

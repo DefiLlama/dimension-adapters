@@ -55,7 +55,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
       cowswapData[log.transactionHash.toLowerCase()] = contract_interface.parseLog(log)?.args
     })
   }
-  const data: any = await getTransactions(chain, logs.map((log: any) => log.transactionHash), { cacheKey: 'bebop-tx-' + chain })
+  const data: any = await getTransactions(chain, logs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
   for (const d of data) {
     if (!d) continue;
     const decoded = contract_interface.parseTransaction(d)
