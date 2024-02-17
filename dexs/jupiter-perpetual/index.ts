@@ -1,13 +1,15 @@
 import { FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { queryDune } from "../../helpers/dune";
 
-const fetch = async (): Promise<FetchResult> => {
-  const data = await httpGet('https://cache.jup.ag/stats/day')
+const fetch = async (timestamp: number): Promise<FetchResult> => {
+  const unixTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  // 3385640 old query id
+  const data = await queryDune("3391484", { endTime: unixTimestamp + 86400 });
   return {
-    dailyVolume: data.volumeInUSD[0].amount,
-    totalVolume: data.totalVolumeInUSD,
-    timestamp: Math.floor( +new Date(data.volumeInUSD[0].groupTimestamp)/1e3),
+    dailyVolume: data[0].volume,
+    timestamp: unixTimestamp,
   };
 };
 
