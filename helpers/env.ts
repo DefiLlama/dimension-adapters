@@ -21,7 +21,8 @@ export const ENV_KEYS = new Set([
   'PERENNIAL_V2_SUBGRAPH_API_KEY',
   'LEVANA_API_KEY',
   'ZEROx_API_KEY',
-  'ZEROX_API_KEY'
+  'ZEROX_API_KEY',
+  'AGGREGATOR_0X_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

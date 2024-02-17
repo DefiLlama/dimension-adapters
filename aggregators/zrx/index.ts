@@ -1,22 +1,23 @@
-import { GraphQLClient, gql } from 'graphql-request';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
-import { getEnv } from '../../helpers/env';
+import { GraphQLClient, gql } from "graphql-request";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getEnv } from "../../helpers/env";
 
 const CHAINS = [
-  'Arbitrum',
-  'Avalanche',
-  'Base',
-  'BSC',
-  'Celo',
-  'Ethereum',
-  'Fantom',
-  'Optimism',
-  'Polygon',
+  "Arbitrum",
+  "Avalanche",
+  "Base",
+  "BSC",
+  "Celo",
+  "Ethereum",
+  "Fantom",
+  "Optimism",
+  "Polygon",
 ];
 
-const graphQLClient = new GraphQLClient('https://api.0x.org/data/v0');
+const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
 const getGQLClient = () => {
-  graphQLClient.setHeader('0x-api-key', getEnv('ZEROX_API_KEY'));
+  graphQLClient.setHeader("0x-api-key", getEnv("AGGREGATOR_0X_API_KEY"));
+
   return graphQLClient;
 };
 
@@ -36,9 +37,7 @@ const getVolumeByChain = async (chain: string) => {
     }
   `;
 
-  const data = (await client.request(req))[
-    'aggTransactionsDailyRouter'
-  ];
+  const data = (await client.request(req))["aggTransactionsDailyRouter"];
   return data;
 };
 
@@ -50,8 +49,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
   const data = await getVolumeByChain(chain);
   const dayData = data.find(
     ({ timestamp }: { timestamp: number }) =>
-      getUniqStartOfTodayTimestamp(new Date(timestamp)) ===
-      unixTimestamp
+      getUniqStartOfTodayTimestamp(new Date(timestamp)) === unixTimestamp
   );
 
   return {
