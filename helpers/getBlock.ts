@@ -50,7 +50,6 @@ const blacklistedChains: string[] = [
   "sui",
   "neutron",
   "terra2",
-  "ronin"
 ];
 
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
