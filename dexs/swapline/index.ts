@@ -10,18 +10,15 @@ interface IVolumeall {
   date: number;
 }
 
-const fetch = async (_timestamp: number , _: ChainBlocks, { startOfDay,api }: FetchOptions) => {
+const fetch = async (_timestamp: number , _: ChainBlocks, { startOfDay,api, createBalances }: FetchOptions) => {
   const dayTimestamp = startOfDay
+  const dailyVolume = createBalances();
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + api.getChainId()))[0]?.chainEntries;
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.date <= dayTimestamp)
-    .reduce((acc, { volumeUSD }) => acc + Number(volumeUSD), 0)
-
-  const dailyVolume = historicalVolume
+  const dailyVolumes = historicalVolume
     .find(dayItem => dayItem.date === dayTimestamp)?.volumeUSD
+  dailyVolume.addCGToken('tether', dailyVolumes)
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   }
