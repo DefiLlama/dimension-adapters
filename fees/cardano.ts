@@ -3,6 +3,7 @@ import { IDate } from "../helpers/bitqueryFees";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "../helpers/env";
 
 
 interface ITxAda {
@@ -28,7 +29,7 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
     variables: value
   });
 
-  const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEY || '', "Content-Type": "application/json"};
+  const headers =  {"X-API-KEY": getEnv('BIT_QUERY_API_KEY'), "Content-Type": "application/json"};
   const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
 
   return result;

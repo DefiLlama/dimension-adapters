@@ -23,9 +23,14 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                     const amount = await getEtherscanFees(options, url)
                     const dailyFees = options.createBalances()
                     if (cgToken)
-                        dailyFees.addCGToken(cgToken, amount/1e18)
+                        dailyFees.addCGToken(cgToken, amount / 1e18)
                     else
                         dailyFees.addGasToken(amount)
+
+                    if (options.chain === 'fantom') {
+                        const dailyRevenue = dailyFees.clone(0.3)
+                        return { timestamp: options.startOfDay, dailyFees, dailyRevenue }
+                    }
 
                     return {
                         timestamp: options.startOfDay, dailyFees,

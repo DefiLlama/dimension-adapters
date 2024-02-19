@@ -1,9 +1,10 @@
 import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
-const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
+const FLIPSIDE_API_KEYS = getEnv('FLIPSIDE_API_KEY')?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
 
@@ -58,7 +59,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
         } catch(e:any){
           if(e?.response?.statusText === 'Payment Required'){
             if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)){
-              const nextIndex = FLIPSIDE_API_KEYS.findIndex(k=>k===FLIPSIDE_API_KEY) + 1
+              const nextIndex = FLIPSIDE_API_KEYS.findIndex((k: any)=>k===FLIPSIDE_API_KEY) + 1
               if(API_KEY_INDEX < nextIndex){
                 API_KEY_INDEX = nextIndex;
               }

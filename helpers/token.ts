@@ -5,6 +5,7 @@ import axios from 'axios'
 import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
+import { getEnv } from './env';
 
 export const nullAddress = ADDRESSES.null
 
@@ -49,7 +50,7 @@ export async function addTokensReceived(params: {
   fetchTokenList?: boolean;
   token?: string;
 }) {
-  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList= false, token } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token } = params;
   const { chain, createBalances, getLogs, } = options
   if (!tokens && token) tokens = [token]
 
@@ -74,7 +75,7 @@ export async function addTokensReceived(params: {
 
   if (!tokens?.length) return balances
 
-  tokens = getUniqueAddresses(tokens, options.chain)
+  tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
   const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
   if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)
@@ -136,7 +137,7 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
 
     const options = {
       method: 'POST',
-      url: `https://rpc.ankr.com/multichain/${process.env.ANKR_API_KEY}`,
+      url: `https://rpc.ankr.com/multichain/${getEnv('ANKR_API_KEY')}`,
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       data: {
         jsonrpc: '2.0',

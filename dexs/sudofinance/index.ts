@@ -9,7 +9,7 @@ type IUrl = {
 }
 
 const url: IUrl = {
-  [CHAIN.SUI]: "https://e5370tyxcb.execute-api.ap-northeast-1.amazonaws.com/volume"
+  [CHAIN.SUI]: "https://api.sudofinance.xyz/volume"
 }
 
 interface IVolume {

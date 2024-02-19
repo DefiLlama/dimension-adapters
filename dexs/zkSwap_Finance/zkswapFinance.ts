@@ -17,7 +17,8 @@ const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
   let dayMiliseconds = 24 * 60 * 60;
   let returnCount = 1000;
 
-  let lasTimestampQuery = startOfDay;
+  let fromTimestamp = startOfDay - dayMiliseconds;
+  const todaysTimestamp = startOfDay;
 
   while (returnCount == 1000) {
     const graphQL = `{
@@ -25,9 +26,7 @@ const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
         orderBy: timestamp
         orderDirection: asc
         first: 1000
-        where: {timestamp_gte: ${lasTimestampQuery}, timestamp_lt: ${
-          startOfDay + dayMiliseconds
-    } }
+        where: {timestamp_gte: ${fromTimestamp}, timestamp_lt: ${todaysTimestamp} }
         ) {
           amount0In
           amount0Out
@@ -44,7 +43,7 @@ const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
     const data = await request(info[chain].subgraph_v1, graphQL);
     returnCount = data.swaps.length;
 
-    lasTimestampQuery = data?.swaps[returnCount - 1]?.timestamp;
+    fromTimestamp = data?.swaps[returnCount - 1]?.timestamp;
 
     for (const swap of data.swaps) {
       const token0Id = swap.pair.token0.id;
@@ -68,7 +67,7 @@ const getToDateVolume = async (chain: string, timestamp: number) => {
   let returnCount = 1000;
   let dayMiliseconds = 24 * 60 * 60;
   let volumSum = 0;
-  
+
   let startTimestampQuery = 0;
   const endDateTimestamp = Number(startDayTimestamp) + dayMiliseconds;
 
@@ -104,7 +103,7 @@ const getToDateVolume = async (chain: string, timestamp: number) => {
 
 export const fetchVolume = (_chain: string) => {
   return async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-    return getData(options);
+    return getData({...options, startOfDay: _timestamp});
     // const totalVolume = await getToDateVolume(options);
   };
 };

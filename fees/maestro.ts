@@ -7,7 +7,7 @@ const dispatcher: any = {
   [CHAIN.BSC]: "0xB8c4879D4cF2ABF672C4b59Ed9d1226ab53E9C7f",
   [CHAIN.ARBITRUM]: "0x7776607E2E0bD61052e60d59F1fDd11dFbeC27e8",
 }
-const feesAddress = '0xcac0f1a06d3f02397cfb6d7077321d73b504916e'
+const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
 async function fetch(timestamp: number, _1: any, options: FetchOptions) {
   const dailyFees = options.createBalances()
