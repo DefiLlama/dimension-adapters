@@ -12,7 +12,7 @@ const config: any = {
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = await addTokensReceived({ ...config[options.chain], options})
-  return { timestamp, dailyFees, dailyBribesRevenue: dailyFees, dailyRevenue: dailyFees }
+  return { timestamp, dailyFees, dailyRevenue: dailyFees }
 }
 
 const adapters: SimpleAdapter = {
