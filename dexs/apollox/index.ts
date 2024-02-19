@@ -41,10 +41,9 @@ const v2VolumeAPI =
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
 const fetchV2Volume = async (chain: Chain) => {
-  const data = [] = (
+  const { data = [] } = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
-  ) as  ResponseItem[] 
-
+  ) as  { data: ResponseItem[] }
   const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
 
   return dailyVolume
