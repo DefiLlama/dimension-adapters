@@ -1,7 +1,10 @@
 import type { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const contract_address = {
+type TChainAddress = {
+  [chain: string]: string;
+}
+const contract_address: TChainAddress  = {
   [CHAIN.ARBITRUM]: "0x3e0199792ce69dc29a0a36146bfa68bd7c8d6633",
   [CHAIN.BSC]: "0x855e99f768fad76dd0d3eb7c446c0b759c96d520",
   [CHAIN.AVAX]: "0x0ba2e492e8427fad51692ee8958ebf936bee1d84",
