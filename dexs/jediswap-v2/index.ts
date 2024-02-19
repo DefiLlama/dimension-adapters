@@ -8,7 +8,7 @@ interface IGraph {
   date: string;
   pairId: string;
   totalVolumeUSD: string;
-  dailyVolumeUSD: string;
+  volumeUSD: string;
   reserveUSD: string;
 }
 
@@ -26,12 +26,11 @@ const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: Fet
     }
   }
   `
-  const response: IGraph[] = (await request(URL, query)).pairDayDatas;
-  const volume = response.filter(e =>Number(e.reserveUSD) > 10000)
+  const response: IGraph[] = (await request(URL, query)).poolsDayData;
+  const volume = response
     .filter((e: IGraph) => e.dayId === dayID)
-    .sort((a: IGraph, b: IGraph) => Number(b.dailyVolumeUSD) - Number(a.dailyVolumeUSD))
-    .filter((e: IGraph) => Number(e.dailyVolumeUSD) < 10_000_000)
-    .reduce((acc: number, e: IGraph) => e.dailyVolumeUSD ? acc + Number(e.dailyVolumeUSD) : acc, 0);
+    .filter((e: IGraph) => Number(e.volumeUSD) < 10_000_000)
+    .reduce((acc: number, e: IGraph) => e.volumeUSD ? acc + Number(e.volumeUSD) : acc, 0);
   const dailyVolume = createBalances();
   dailyVolume.addCGToken('tether', volume);
   return {
