@@ -35,6 +35,7 @@ import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
+const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
 
 type TPool = {
   [c: string]: string[];
@@ -48,7 +49,7 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.AVAX]: ['0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC',],
   [CHAIN.BSC]: ['0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E',],
   [CHAIN.FANTOM]: ['0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd',],
-  [CHAIN.ZKSYNC]:       [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
+  [CHAIN.ERA]:       [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
   [CHAIN.POLYGON_ZKEVM]: ['0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC',],
 }
 
@@ -57,7 +58,9 @@ const graph = (chain: Chain): any => {
     const feeCollectors = FEE_COLLECTORS[chain];
     const dailyFees = createBalances()
     const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap, })
+    const multiswapLogs = await getLogs({ targets: feeCollectors, eventAbi: event_multiswap, })
     logs.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
+    multiswapLogs.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01/100))) // 0.01% fixed fee
 
     return {
       dailyFees: dailyFees,
@@ -79,9 +82,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: 1689292800 },
     [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: 1689292800 },
     [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: 1689292800 },
-    //[CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: 1689292800 },
+    [CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: 1689292800 },
     [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: 1689292800 },
-    //[CHAIN.ZKSYNC]:       { fetch: graph(CHAIN.ZKSYNC),         start: 1689292800 },
+    [CHAIN.ERA]:       { fetch: graph(CHAIN.ERA),         start: 1689292800 },
     [CHAIN.POLYGON_ZKEVM]: { fetch: graph(CHAIN.POLYGON_ZKEVM), start: 1689292800 }
   }
 };
