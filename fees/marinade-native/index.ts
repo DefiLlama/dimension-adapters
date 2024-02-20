@@ -5,7 +5,7 @@ import BigNumber from "bignumber.js"
 
 const fetch = async (): Promise<FetchResult> => {
   // Amounts in SOL lamports
-  const amounts = await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')
+  const amounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).native
 
   const coin = 'solana:So11111111111111111111111111111111111111112'
   const priceResponse = await fetchURL(`https://coins.llama.fi/prices/current/${coin}`)
@@ -36,11 +36,11 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
-          UserFees: 'Marinade management fee 6% on staking rewards',
+          UserFees: 'No Marinade fees in native staking',
           Fees: 'Staking rewards',
           Revenue: ' = ProtocolRevenue',
           ProtocolRevenue: ' = UserFees',
-          SupplySideRevenue: 'Stakers revenue = Fees - UserFees'
+          SupplySideRevenue: 'Stakers revenue = Fees'
         },
         hallmarks:[
           [1667865600, 'FTX collapse'],
