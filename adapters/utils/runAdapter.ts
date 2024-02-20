@@ -76,7 +76,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
     const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
-    const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    const startOfDay = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
 
     return {
       createBalances,
