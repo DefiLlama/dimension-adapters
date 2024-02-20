@@ -1,4 +1,4 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL"
 
@@ -7,11 +7,13 @@ interface IVolume {
   target_volume: number;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResultVolume> => {
   const volume: IVolume[] = (await fetchURL(URL));
   const dailyVolume = volume.reduce((e: number, a: IVolume) => a.target_volume + e, 0);
+  const dailyVolumeBN = createBalances();
+  dailyVolumeBN.addCGToken('tether', dailyVolume);
   return {
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume: dailyVolumeBN,
     timestamp
   }
 }
