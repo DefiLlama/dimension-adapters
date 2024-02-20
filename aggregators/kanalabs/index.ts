@@ -91,7 +91,7 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: false,
       start: startTimeBlock,
     },
-    [CHAIN.ZKSYNC]: {
+    [CHAIN.ERA]: {
       fetch: fetch(KanaChainID.zkSync),
       runAtCurrTime: false,
       start: startTimeBlock,

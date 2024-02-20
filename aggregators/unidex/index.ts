@@ -1,6 +1,7 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { CHAIN } from "../../helpers/chains";
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
@@ -12,7 +13,7 @@ const chainsMap: Record<string, string> = {
   FANTOM: "fantom",
   METIS: "metis",
   GNOSIS: "gnosis",
-  ZKSYNC: "zksync",
+  [CHAIN.ERA]: "zksync",
   AVALANCHE: "avax",
 };
 
