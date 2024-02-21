@@ -81,6 +81,26 @@ const adapter: SimpleAdapter = {
       },
       start: 1682035200,
     },
+    [CHAIN.OP_BNB]: {
+      fetch: async (timestamp) => {
+        const dailyVolume = await fetchV2Volume('opbnb');
+        return {
+          timestamp,
+          dailyVolume: dailyVolume,
+        };
+      },
+      start: 1682035200,
+    },
+    [CHAIN.BASE]: {
+      fetch: async (timestamp) => {
+        const dailyVolume = await fetchV2Volume(CHAIN.BASE);
+        return {
+          timestamp,
+          dailyVolume: dailyVolume,
+        };
+      },
+      start: 1682035200,
+    },
   },
 };
 
