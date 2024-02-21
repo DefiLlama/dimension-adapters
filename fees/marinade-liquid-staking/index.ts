@@ -1,29 +1,58 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResult, SimpleAdapter } from "../../adapters/types"
+import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import BigNumber from "bignumber.js"
 
-const fetch = async (): Promise<FetchResult> => {
+interface MarinadeAmounts {
+  dailyFees: string;
+  totalFees: string;
+  dailyUserFees: string;
+  totalRevenue: string;
+  dailyRevenue: string;
+  dailyProtocolRevenue: string;
+  dailySupplySideRevenue: string;
+  totalProtocolRevenue: string;
+  totalSupplySideRevenue: string;
+  totalUserFees: string;
+}
+
+const fetch = async (timestamp: number, _:ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
   // Amounts in SOL lamports
-  const amounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).liquid
+  const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).liquid
+  const coin = 'So11111111111111111111111111111111111111112'
+  const dailyFees = createBalances();
+  const totalFees = createBalances();
+  const dailyUserFees = createBalances();
+  const totalRevenue = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const totalProtocolRevenue = createBalances();
+  const totalSupplySideRevenue = createBalances();
+  const totalUserFees = createBalances();
 
-  const coin = 'solana:So11111111111111111111111111111111111111112'
-  const priceResponse = await fetchURL(`https://coins.llama.fi/prices/current/${coin}`)
-  const price = priceResponse.coins[coin].price
-  const decimals = Math.pow(10, priceResponse.coins[coin].decimals)
+  dailyFees.add(coin, amounts.dailyFees);
+  totalFees.add(coin, amounts.totalFees);
+  dailyUserFees.add(coin, amounts.dailyUserFees);
+  totalRevenue.add(coin, amounts.totalRevenue);
+  dailyRevenue.add(coin, amounts.dailyRevenue);
+  dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
+  dailySupplySideRevenue.add(coin, amounts.dailySupplySideRevenue);
+  totalProtocolRevenue.add(coin, amounts.totalProtocolRevenue);
+  totalSupplySideRevenue.add(coin, amounts.totalSupplySideRevenue);
+  totalUserFees.add(coin, amounts.totalUserFees);
 
   return {
-    timestamp: new Date().getTime() / 1000,
-    totalFees: new BigNumber(amounts.totalFees).multipliedBy(price).dividedBy(decimals).toString(),
-    dailyFees: new BigNumber(amounts.dailyFees).multipliedBy(price).dividedBy(decimals).toString(),
-    dailyUserFees: new BigNumber(amounts.dailyUserFees).multipliedBy(price).dividedBy(decimals).toString(),
-    totalRevenue: new BigNumber(amounts.totalRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    dailyRevenue: new BigNumber(amounts.dailyRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    dailyProtocolRevenue: new BigNumber(amounts.dailyProtocolRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    dailySupplySideRevenue: new BigNumber(amounts.dailySupplySideRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    totalProtocolRevenue: new BigNumber(amounts.totalProtocolRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    totalSupplySideRevenue: new BigNumber(amounts.totalSupplySideRevenue).multipliedBy(price).dividedBy(decimals).toString(),
-    totalUserFees: new BigNumber(amounts.totalUserFees).multipliedBy(price).dividedBy(decimals).toString(),
+    timestamp: timestamp,
+    dailyFees,
+    totalFees,
+    dailyUserFees,
+    totalRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    totalProtocolRevenue,
+    totalSupplySideRevenue,
+    totalUserFees,
   }
 }
 
