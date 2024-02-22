@@ -70,17 +70,18 @@ const getStartTimestamp = async (chain: Chain) => {
   return (new Date(historical[0].time).getTime()) / 1000
 }
 
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(chainsMap).reduce((acc, chain: any) => {
+const adapteragges: any = {
+  "mux-protocol-agge": Object.keys(chainsMap).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, fetch),
+        start: 1708387200,
       }
     }
   }, {})
 };
 
-export default adapter;
+export {
+  adapteragges
+}

@@ -1,5 +1,6 @@
-import type { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import type { BreakdownAdapter, ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { adapteragges }  from "./agge";
 
 type TChainAddress = {
   [chain: string]: string;
@@ -57,8 +58,8 @@ const fetchVolume = async (timestamp: number, _: ChainBlocks, { createBalances, 
   };
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
+const adapter: any = {
+  "mux-protocol": {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
       start: 1680393600,
@@ -78,4 +79,11 @@ const adapter: SimpleAdapter = {
   }
 }
 
-export default adapter;
+const breakdownAdapter: BreakdownAdapter = {
+  breakdown: {
+    "mux-protocol": adapter["mux-protocol"],
+    "mux-protocol-agge": adapteragges["mux-protocol-agge"],
+  }
+}
+
+export default breakdownAdapter;
