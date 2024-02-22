@@ -1,7 +1,5 @@
 import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
-import { queryFlipside } from "../../helpers/flipsidecrypto";
 import { queryIndexer } from "../../helpers/indexer";
 
 const adapter: Adapter = {
@@ -11,21 +9,18 @@ const adapter: Adapter = {
 
         const dailyFees = options.createBalances();
         const dailyRevenue = options.createBalances();
-        const startblock = (await getBlock(options.fromTimestamp, CHAIN.ETHEREUM, {}));
-        const endblock = (await getBlock(options.toTimestamp, CHAIN.ETHEREUM, {}));
-        // Flipside doesn't currently support zkSync Era so collect fee data from fee collecting address's on L1
-        const feeQuery = await queryFlipside(`
+        const eth_transfer_logs: any = await queryIndexer(`
             SELECT
-              SUM(AMOUNT)
-            FROM ethereum.core.ez_eth_transfers
-            WHERE (
-                eth_to_address = lower('0xfeeE860e7AAE671124e9a4E61139f3A5085dFEEE')
-                OR eth_to_address = lower('0xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
-            )
-            AND BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-          `)
+              sum("value")/1e18 AS eth_value
+            FROM
+              ethereum.traces
+            WHERE
+              block_number > 14645816
+              AND to_address in ('\\xfeeE860e7AAE671124e9a4E61139f3A5085dFEEE', '\\xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
+              AND block_time BETWEEN llama_replace_date_range;
+          `, options);
 
-        const fees = Number(feeQuery[0][0])
+        const fees = Number(eth_transfer_logs[0]['eth_value'])
 
         const sequencerGas: any = await queryIndexer(`
               SELECT
