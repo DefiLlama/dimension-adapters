@@ -1,8 +1,7 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { httpGet } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
