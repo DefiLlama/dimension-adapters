@@ -2,6 +2,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
+import { fetchURLWithRetry } from "../../helpers/duneRequest";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
@@ -14,6 +15,8 @@ interface IFee {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3186689" : "3186714"))
+    // const queryId = chain === CHAIN.ARBITRUM ? "3186689" : "3186714";
+    // const fees: IFee[] = (await fetchURLWithRetry(`https://api.dune.com/api/v1/query/${queryId}/results`)).result.rows;
     // const fees: IFee[] = require(`./${chain}.json`);
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
