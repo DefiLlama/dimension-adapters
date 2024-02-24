@@ -102,11 +102,11 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("base"),
       start: 1682121600,
     },
-     [CHAIN.AVALANCHE]: {
+     [CHAIN.AVAX]: {
       fetch: fetchFees("avalanche"),
       start: 1682121600,
     },
-     [CHAIN.GNOSIS]: {
+     [CHAIN.XDAI]: {
       fetch: fetchFees("gnosis"),
       start: 1682121600,
     },
