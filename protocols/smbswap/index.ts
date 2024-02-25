@@ -18,6 +18,11 @@ const v3Endpoint = {
 }
 
 const VOLUME_USD = "volumeUSD";
+const blackListedPairs = {
+  [CHAIN.BSC]: [
+    "0x609f59c97ddf58475c7d3f3fc829c3ff9fc4f76f"
+  ]
+}
 
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
@@ -40,7 +45,8 @@ const graphs = getGraphDimensions({
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
     Revenue: 0.08
-  }
+  },
+  blacklistTokens: blackListedPairs
 });
 
 const graphsStableSwap = getGraphDimensions({
