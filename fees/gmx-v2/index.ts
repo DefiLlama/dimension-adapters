@@ -14,7 +14,7 @@ interface IFee {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3186689" : "3186714"))
+    const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3464532" : "3464559"))
     // const queryId = chain === CHAIN.ARBITRUM ? "3186689" : "3186714";
     // const fees: IFee[] = (await fetchURLWithRetry(`https://api.dune.com/api/v1/query/${queryId}/results`)).result.rows;
     // const fees: IFee[] = require(`./${chain}.json`);

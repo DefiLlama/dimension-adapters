@@ -2,6 +2,8 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
+const plimit = require('p-limit');
+const limit = plimit(1);
 
 const token = {} as IJSON<string>
 const API_KEYS =getEnv('DUNE_API_KEYS')?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
@@ -19,12 +21,12 @@ export async function queryDune(queryId: string, query_parameters = {}) {
       let query: undefined | any = undefined
       if (!token[queryId]) {
         try {
-          query = await httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
+          query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
             headers: {
               "x-dune-api-key": API_KEY,
               'Content-Type': 'application/json'
             }
-          })
+          }))
           if (query?.execution_id) {
             token[queryId] = query?.execution_id
           } else {
@@ -52,11 +54,11 @@ export async function queryDune(queryId: string, query_parameters = {}) {
 
       let queryStatus = undefined
       try {
-        queryStatus = await httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/results?limit=5`, {
+        queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/results?limit=5&offset=0`, {
           headers: {
             "x-dune-api-key": API_KEY
           }
-        })
+        }))
       } catch (e: any) {
         if (API_KEY_INDEX < API_KEYS.length - 1) {
           API_KEY_INDEX = API_KEY_INDEX + 1
@@ -98,7 +100,7 @@ export async function queryDune(queryId: string, query_parameters = {}) {
     },
     {
       retries: MAX_RETRIES,
-      minTimeout: 1000 * 15,
+      minTimeout: 1000 * 2,
       maxTimeout: 1000 * 60 * 5
     }
   );
