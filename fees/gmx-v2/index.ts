@@ -39,10 +39,12 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: 1690848000,
+      runAtCurrTime: true,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
       start: 1692835200,
+      runAtCurrTime: true,
     },
   },
 };

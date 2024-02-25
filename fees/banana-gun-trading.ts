@@ -67,7 +67,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
-      // runAtCurrTime: true,
+      runAtCurrTime: true,
       start: async () => 1685577600,
     },
   },

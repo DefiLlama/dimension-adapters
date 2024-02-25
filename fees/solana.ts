@@ -26,7 +26,8 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyRevenue,
         };
       },
-      start: 1610841600
+      start: 1610841600,
+      runAtCurrTime: true,
     },
   },
   protocolType: ProtocolType.CHAIN
