@@ -18,6 +18,11 @@ const v3Endpoint = {
 }
 
 const VOLUME_USD = "volumeUSD";
+const blackListedPairs = {
+  [CHAIN.BSC]: [
+    "0x609f59c97ddf58475c7d3f3fc829c3ff9fc4f76f"
+  ]
+}
 
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
@@ -40,7 +45,8 @@ const graphs = getGraphDimensions({
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
     Revenue: 0.08
-  }
+  },
+  blacklistTokens: blackListedPairs
 });
 
 const graphsStableSwap = getGraphDimensions({
@@ -108,16 +114,22 @@ const adapter: BreakdownAdapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BSC]: disabledAdapter
     },
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: startTimes[chain],
+    v2: {
+      [CHAIN.BSC]: {
+        fetch: async (timestamp: number) => {
+          const volume = await graphs(CHAIN.BSC)(timestamp, {})
+          return {
+            timestamp,
+            dailyFees: volume.dailyFees,
+            dailyVolume: volume.dailyVolume,
+          }
+        },
+        start: startTimes[CHAIN.BSC],
         meta: {
           methodology
         }
       }
-      return acc
-    }, {} as BaseAdapter),
+    },
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graph(chain as Chain),

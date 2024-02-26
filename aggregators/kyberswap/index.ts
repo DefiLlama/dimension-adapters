@@ -12,7 +12,7 @@ const chains = [
   CHAIN.POLYGON,
   CHAIN.LINEA,
   CHAIN.SCROLL,
-  CHAIN.ZKSYNC,
+  CHAIN.ERA,
   CHAIN.CRONOS,
 ];
 
@@ -26,7 +26,7 @@ const chainToId: Record<string, number> = {
   [CHAIN.POLYGON]: 137,
   [CHAIN.LINEA]: 59144,
   [CHAIN.SCROLL]: 534352,
-  [CHAIN.ZKSYNC]: 324,
+  [CHAIN.ERA]: 324,
   [CHAIN.CRONOS]: 25,
 };
 

@@ -27,5 +27,5 @@ export const getOneDayFees = async (assetID: string, startDate: string, endDate:
         throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${endDate}`);
     }
 
-    return parseFloat(result.data[0]['FeeTotUSD']);
+    return parseFloat(result.data[1]['FeeTotUSD']);
 }

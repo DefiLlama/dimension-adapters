@@ -2,27 +2,31 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
+const plimit = require('p-limit');
+const limit = plimit(1);
 
 const token = {} as IJSON<string>
 const API_KEYS =getEnv('DUNE_API_KEYS')?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
 let API_KEY_INDEX = 0;
+
+const MAX_RETRIES = 6 * API_KEYS.length + 3;
 
 export async function queryDune(queryId: string, query_parameters = {}) {
   /* const error = new Error("Dune: queryId is required")
   delete error.stack
   throw error */
   return await retry(
-    async (bail, _attempt: number) => {
+    async (bail, attempt: number) => {
       const API_KEY = API_KEYS[API_KEY_INDEX]
       let query: undefined | any = undefined
       if (!token[queryId]) {
         try {
-          query = await httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
+          query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
             headers: {
               "x-dune-api-key": API_KEY,
               'Content-Type': 'application/json'
             }
-          })
+          }))
           if (query?.execution_id) {
             token[queryId] = query?.execution_id
           } else {
@@ -50,11 +54,11 @@ export async function queryDune(queryId: string, query_parameters = {}) {
 
       let queryStatus = undefined
       try {
-        queryStatus = await httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/results`, {
+        queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/results?limit=5&offset=0`, {
           headers: {
             "x-dune-api-key": API_KEY
           }
-        })
+        }))
       } catch (e: any) {
         if (API_KEY_INDEX < API_KEYS.length - 1) {
           API_KEY_INDEX = API_KEY_INDEX + 1
@@ -73,6 +77,17 @@ export async function queryDune(queryId: string, query_parameters = {}) {
 
 
       const status = queryStatus.state
+      if (["QUERY_STATE_PENDING", "QUERY_STATE_EXECUTING"].includes(status) && MAX_RETRIES === attempt) {
+        const url = `https://api.dune.com/api/v1/execution/${token[queryId]}/cancel`
+        await httpPost(url, {}, {
+          headers: {
+            "x-dune-api-key": API_KEY
+          }
+        })
+        console.error('Dune query cancelled', token[queryId])
+        bail(new Error("Dune query cancelled"))
+        throw new Error("Dune query cancelled")
+      }
       if (status === "QUERY_STATE_COMPLETED") {
         return queryStatus.result.rows
       } else if (status === "QUERY_STATE_FAILED") {
@@ -84,7 +99,8 @@ export async function queryDune(queryId: string, query_parameters = {}) {
       throw new Error("Still running")
     },
     {
-      retries: 5 * API_KEYS.length + 3,
+      retries: MAX_RETRIES,
+      minTimeout: 1000 * 2,
       maxTimeout: 1000 * 60 * 5
     }
   );

@@ -82,12 +82,44 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("binance"),
       start: 1682121600,
     },
+    [CHAIN.MOONBEAM]: {
+      fetch: fetchFees("moonbeam"),
+      start: 1682121600,
+    },
     [CHAIN.ROLLUX]: {
       fetch: fetchFees(CHAIN.ROLLUX),
       start: 1682121600,
     },
     [CHAIN.LINEA]: {
       fetch: fetchFees(CHAIN.LINEA),
+      start: 1682121600,
+    },
+     [CHAIN.MANTA]: {
+      fetch: fetchFees("manta"),
+      start: 1682121600,
+    },
+     [CHAIN.BASE]: {
+      fetch: fetchFees("base"),
+      start: 1682121600,
+    },
+     [CHAIN.AVAX]: {
+      fetch: fetchFees("avalanche"),
+      start: 1682121600,
+    },
+     [CHAIN.XDAI]: {
+      fetch: fetchFees("gnosis"),
+      start: 1682121600,
+    },
+     [CHAIN.MANTLE]: {
+      fetch: fetchFees("mantle"),
+      start: 1682121600,
+    },
+     [CHAIN.CELO]: {
+      fetch: fetchFees("celo"),
+      start: 1682121600,
+    },
+     [CHAIN.METIS]: {
+      fetch: fetchFees("metis"),
       start: 1682121600,
     },
   }
