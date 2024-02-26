@@ -8,11 +8,11 @@ const adapters = univ2Adapter(
   },
   {
     factoriesName: "factories",
-    dayData: "DayData",
+    dayData: "dayDatas",
     dailyVolume: "dailyVolumeUSD",
     totalVolume: "totalVolumeUSD",
   }
 );
 
-adapters.adapter.linea.start = 2517108;
+adapters.adapter.linea.start = 1708921010;
 export default adapters;
