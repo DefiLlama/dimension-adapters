@@ -8,11 +8,12 @@ const adapters = univ2Adapter(
   },
   {
     factoriesName: "factories",
-    dayData: "dayDatas",
+    dayData: "dayData",
     dailyVolume: "dailyVolumeUSD",
     totalVolume: "totalVolumeUSD",
   }
 );
 
-adapters.adapter.linea.start = 1708921010;
+// New v1 factory contract created at block 2202427 = UNIX timestamp 1707620640
+adapters.adapter.linea.start = 1707620640;
 export default adapters;
