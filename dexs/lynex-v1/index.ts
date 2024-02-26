@@ -8,6 +8,7 @@ const adapters = univ2Adapter(
   },
   {
     factoriesName: "factories",
+    dayData: "dayData",
     dailyVolume: "dailyVolumeUSD",
     totalVolume: "totalVolumeUSD",
   }
