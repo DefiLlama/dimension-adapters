@@ -114,16 +114,22 @@ const adapter: BreakdownAdapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BSC]: disabledAdapter
     },
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: startTimes[chain],
+    v2: {
+      [CHAIN.BSC]: {
+        fetch: async (timestamp: number) => {
+          const volume = await graphs(CHAIN.BSC)(timestamp, {})
+          return {
+            timestamp,
+            dailyFees: volume.dailyFees,
+            dailyVolume: volume.dailyVolume,
+          }
+        },
+        start: startTimes[CHAIN.BSC],
         meta: {
           methodology
         }
       }
-      return acc
-    }, {} as BaseAdapter),
+    },
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graph(chain as Chain),
