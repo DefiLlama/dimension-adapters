@@ -1,5 +1,5 @@
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import {BreakdownAdapter, FetchOptions} from "../../adapters/types";
+import {CHAIN} from "../../helpers/chains";
 
 interface IChainData {
   startTimestamp: number;
@@ -18,6 +18,12 @@ const chainsData: { [key: string]: IChainData } = {
       MiltonUsdc: "0x137000352B4ed784e8fa8815d225c713AB2e7Dc9",
     }),
     stETHs: []
+  },
+  [CHAIN.ARBITRUM]: {
+      startTimestamp: 1708504270,
+      iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
+      stables: [],
+      stETHs: []
   }
 }
 
@@ -38,7 +44,7 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
 
   logs.forEach(log => {
     const balance = Number(log.money?.notional || log.amounts?.notional)
-    dailyNotionalVolume.add('tether', balance / 1e18, { skipChain: true })
+    dailyNotionalVolume.addToken(log.asset, balance / 1e18, { skipChain: true })
   })
 
   return { timestamp, dailyVolume: dailyNotionalVolume };
@@ -49,6 +55,9 @@ const adapter: BreakdownAdapter = {
     "derivatives": {
       [CHAIN.ETHEREUM]: {
         fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
       }
     }
   }
