@@ -7,6 +7,24 @@ const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://a
 const coins = {
     'ethusdc': 'coingecko:ethereum',
     'btcusdc': 'coingecko:bitcoin',
+    'arbusdc': 'coingecko:arbitrum',
+    'solusdc': 'coingecko:solana',
+    'linkusdc': 'coingecko:link',
+    'memeusdc': 'coingecko:meme',
+    'ordiusdc': 'coingecko:ordi',
+    'wldusdc': 'coingecko:wld',
+    'agixusdc': 'coingecko:agix',
+    'arusdc': 'coingecko:ar',
+    'tiausdc': 'coingecko:tia',
+    'strkusdc': 'coingecko:strk',
+    'avaxusdc': 'coingecko:avax',
+    'xrpusdc': 'coingecko:xrp',
+    'trxusdc': 'coingecko:trx',
+    'rndrusdc': 'coingecko:rndr',
+    'adausdc': 'coingecko:ada',
+    'altusdc': 'coingecko:alt',
+    'dogeusdc': 'coingecko:doge',
+    'xaiusdc': 'coingecko:xai'
 }
 
 interface IVolumeall {
@@ -43,10 +61,6 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        // [CHAIN.ERA]: {
-        //     fetch: getFetch("zksync"),
-        //     start: 1687017600,
-        // }, // error
         [CHAIN.ARBITRUM]: {
             fetch: getFetch("arbitrum"),
             start: 1687017600,
