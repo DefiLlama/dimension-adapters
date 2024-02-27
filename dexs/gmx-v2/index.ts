@@ -1,8 +1,9 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { adapter_trade } from './gmx-v2-trade/index'
 
 interface ILog {
   data: string;
@@ -66,7 +67,7 @@ const fetch = (chain: Chain) => {
 }
 
 
-const adapter: SimpleAdapter = {
+const adapter: any = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
@@ -78,4 +79,11 @@ const adapter: SimpleAdapter = {
     },
   },
 };
-export default adapter;
+
+const adapters: BreakdownAdapter = {
+  breakdown: {
+    "gmx-v2-swap": adapter["adapter"],
+    "gmx-v2-trade": adapter_trade["adapter"],
+  }
+}
+export default adapters;
