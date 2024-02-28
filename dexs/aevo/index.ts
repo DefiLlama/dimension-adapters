@@ -23,11 +23,10 @@ const adapter: SimpleAdapter = {
 };
 
 export async function fetchAevoVolumeData(
-  /** Timestamp representing the end of the 24 hour period */
+  /** Timestamp representing the start of the 24 hour period */
   timestamp: number
 ) {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const url = aevoVolumeEndpoint(dayTimestamp * 1e9)
+  const url = aevoVolumeEndpoint(timestamp * 1e9)
   const aevoVolumeData = await getAevoVolumeData(url);
   const dailyVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
   const totalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
