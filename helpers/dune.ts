@@ -53,24 +53,25 @@ const inquiryStatus = async (queryId: string) => {
 const submitQuery = async (queryId: string, query_parameters = {}) => {
     let query: undefined | any = undefined
     if (!token[queryId]) {
-    try {
-      query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
-        headers: {
-          "x-dune-api-key": API_KEYS[API_KEY_INDEX],
-          'Content-Type': 'application/json'
+      try {
+        query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
+          headers: {
+            "x-dune-api-key": API_KEYS[API_KEY_INDEX],
+            'Content-Type': 'application/json'
+          }
+        }))
+        if (query?.execution_id) {
+          token[queryId] = query?.execution_id
+          return query
+        } else {
+          console.log("error query data", query)
+          return null
         }
-      }))
-      if (query?.execution_id) {
-        token[queryId] = query?.execution_id
-        return query
-      } else {
-        console.log("error query data", query)
-        return null
+      } catch (e: any) {
+        return null;
       }
-    } catch (e: any) {
-      return null;
-    }
   }
+  return 'ALREADY_SUBMITTED';
 }
 
 
@@ -105,6 +106,9 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
         } else {
           bail(new Error("SubmitQuery Dune: there is no more api key"))
         }
+      }
+      if (execute === 'ALREADY_SUBMITTED') {
+        break;
       }
     }
 
