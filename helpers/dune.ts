@@ -29,6 +29,7 @@ const getLatestData = async (queryId: string) => {
     throw e;
   }
 }
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const inquiryStatus = async (queryId: string) => {
   let _status = undefined;
@@ -40,6 +41,10 @@ const inquiryStatus = async (queryId: string) => {
           "x-dune-api-key": API_KEYS[API_KEY_INDEX]
         }
       }))).state
+      if (['QUERY_STATE_PENDING', 'QUERY_STATE_EXECUTING'].includes(_status)) {
+        console.info(`waiting for query id ${queryId} to complete...`)
+        await delay(5000) // 5s
+      }
     } catch (e: any) {
       throw e;
     }
