@@ -28,6 +28,7 @@ const getLatestData = async (queryId: string) => {
     }
     return undefined
   } catch (e: any) {
+    console.error("GetLatestData Dune: error query data: " + e.message)
     return null
   }
 }
@@ -61,6 +62,7 @@ const submitQuery = async (queryId: string, query_parameters = {}) => {
       }))
       if (query?.execution_id) {
         token[queryId] = query?.execution_id
+        return query
       } else {
         console.log("error query data", query)
         return null
@@ -89,7 +91,7 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
           }
         }
       }
-      return latest_result
+      if (latest_result !== undefined) return latest_result
     }
 
     let execute = undefined;
