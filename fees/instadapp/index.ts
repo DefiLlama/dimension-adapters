@@ -1,7 +1,7 @@
 import { Chain } from "@defillama/sdk/build/types";
 import { CHAIN } from "../../helpers/chains";
 import { 
-  FetchV2,
+  FetchV2, 
   SimpleAdapter,
 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
@@ -47,10 +47,11 @@ const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
     ],
   });
 
-  const fee = await call({
-    target,
-    abi: "function InstaFeeBPS() external view returns (uint256)",
-  });
+  const fee = 5;
+  // const fee = await call({
+  //   target,
+  //   abi: "function InstaFeeBPS() external view returns (uint256)",
+  // });
 
   logs.map((l: any) => {
     dailyFees.add(l.tokens, l.amounts);
