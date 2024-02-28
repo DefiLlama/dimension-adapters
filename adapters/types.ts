@@ -33,6 +33,7 @@ export type FetchOptions = {
   chain: string,
   api: ChainApi,
   fromApi: ChainApi,
+  toApi: ChainApi,
   startTimestamp: number,
   endTimestamp: number,
   getStartBlock: () => Promise<number>,

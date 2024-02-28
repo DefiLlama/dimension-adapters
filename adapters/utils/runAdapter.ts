@@ -91,6 +91,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const endTimestamp = toTimestamp
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
+    const toApi = api
 
     return {
       createBalances,
@@ -102,6 +103,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       getLogs,
       chain,
       fromApi,
+      toApi,
       api,
       startOfDay,
       startTimestamp,
