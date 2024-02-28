@@ -1,8 +1,6 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.scopuly.com/api/liquidity_pools_volume"
@@ -38,8 +36,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STELLAR]: {
       fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.STELLAR as Chain, (_chian: string) => fetch)
+      start: 1706572800,
     },
   },
 };
