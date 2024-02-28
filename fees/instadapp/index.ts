@@ -1,10 +1,11 @@
 import { Chain } from "@defillama/sdk/build/types";
 import { CHAIN } from "../../helpers/chains";
-import {
+import { 
   FetchV2,
   SimpleAdapter,
 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
+import { call } from "@defillama/sdk/build/abi/abi2";
 
 const instaFlashAggregators: {
   [chain: Chain]: { address: string; deployedAt: number };
@@ -35,19 +36,27 @@ const instaFlashAggregators: {
 const eventAbi: any = "event LogFlashloan(address indexed account, uint256 indexed route, address[] tokens, uint256[] amounts)";
 
 const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
+  const target = instaFlashAggregators[chain].address;
+  const dailyFees: Balances = createBalances();
+
   const logs: any[] = await getLogs({
-    target: instaFlashAggregators[chain].address,
+    target,
     eventAbi,
     topics: [
       "0xc1478ebc6913c43dfd556f53459164d7d6a0f586144857acf0e6ade0181fb510",
     ],
   });
 
-  const dailyFees: Balances = createBalances();
+  const fee = await call({
+    target,
+    abi: "function InstaFeeBPS() external view returns (uint256)",
+  });
 
   logs.map((l: any) => {
     dailyFees.add(l.tokens, l.amounts);
   });
+
+  dailyFees.resizeBy(fee / 10000);
 
   return {
     dailyFees,
