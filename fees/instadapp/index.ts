@@ -1,9 +1,7 @@
 import { Chain } from "@defillama/sdk/build/types";
 import { CHAIN } from "../../helpers/chains";
 import {
-  ChainBlocks,
-  FetchOptions,
-  FetchResultFees,
+  FetchV2,
   SimpleAdapter,
 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
@@ -34,74 +32,34 @@ const instaFlashAggregators: {
   },
 };
 
-const eventAbi: any = {
-  anonymous: false,
-  inputs: [
-    {
-      indexed: true,
-      internalType: "address",
-      name: "account",
-      type: "address",
-    },
-    {
-      indexed: true,
-      internalType: "uint256",
-      name: "route",
-      type: "uint256",
-    },
-    {
-      indexed: false,
-      internalType: "address[]",
-      name: "tokens",
-      type: "address[]",
-    },
-    {
-      indexed: false,
-      internalType: "uint256[]",
-      name: "amounts",
-      type: "uint256[]",
-    },
-  ],
-  name: "LogFlashloan",
-  type: "event",
-};
+const eventAbi: any = "event LogFlashloan(address indexed account, uint256 indexed route, address[] tokens, uint256[] amounts)";
 
-const fetchFees = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    { createBalances, getLogs }: FetchOptions,
-  ): Promise<FetchResultFees> => {
-    const logs: any[] = await getLogs({
-      target: instaFlashAggregators[chain].address,
-      eventAbi,
-      topics: [
-        "0xc1478ebc6913c43dfd556f53459164d7d6a0f586144857acf0e6ade0181fb510",
-      ],
-    });
+const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
+  const logs: any[] = await getLogs({
+    target: instaFlashAggregators[chain].address,
+    eventAbi,
+    topics: [
+      "0xc1478ebc6913c43dfd556f53459164d7d6a0f586144857acf0e6ade0181fb510",
+    ],
+  });
 
-    const dailyFees: Balances = createBalances();
+  const dailyFees: Balances = createBalances();
 
-    logs.map((l: any) => {
-      const token = l[2][0];
-      const amount = l[3][0];
-      dailyFees.add(token, amount);
-    });
+  logs.map((l: any) => {
+    dailyFees.add(l.tokens, l.amounts);
+  });
 
-    return {
-      timestamp,
-      dailyFees,
-    };
+  return {
+    dailyFees,
   };
 };
 
-const adapter: SimpleAdapter = { adapter: {} };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, };
 
 Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
   adapter.adapter[chain] = {
-    fetch: fetchFees(chain),
+    fetch,
     start: instaFlashAggregators[chain].deployedAt,
-    runAtCurrTime: false,
     meta: {
       methodology: "Counts the 0.05% fee taken on flashswaps.",
     },
