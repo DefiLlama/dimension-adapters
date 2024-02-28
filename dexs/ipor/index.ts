@@ -44,7 +44,7 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
 
   logs.forEach(log => {
     const balance = Number(log.money?.notional || log.amounts?.notional)
-    dailyNotionalVolume.add(log.asset, balance / 1e18, { skipChain: true })
+      dailyNotionalVolume.add(log.asset, balance)
   })
 
   return { timestamp, dailyVolume: dailyNotionalVolume };
