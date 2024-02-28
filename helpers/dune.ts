@@ -101,7 +101,7 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
           API_KEY_INDEX = API_KEY_INDEX + 1
           execute = undefined
         } else {
-          bail(new Error("submitQuery Dune: there is no more api key"))
+          bail(new Error("SubmitQuery Dune: there is no more api key"))
         }
       }
     }
@@ -115,7 +115,7 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
           API_KEY_INDEX = API_KEY_INDEX + 1
           _status = undefined
         } else {
-          bail(new Error("inquiryStatus Dune: there is no more api key"))
+          bail(new Error("InquiryStatus Dune: there is no more api key"))
         }
       }
       if (_status === 'QUERY_STATE_COMPLETED') {
@@ -136,7 +136,7 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
         }))
         return queryStatus.result.rows
       } catch (e: any) {
-        bail(new Error("ex Dune: error query data: " + e.message))
+        bail(new Error("Execution Dune: error query data: " + e.message))
       }
     }
   }, {
