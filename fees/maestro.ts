@@ -4,9 +4,9 @@ import { getTokenDiff } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
 const dispatcher: any = {
-  [CHAIN.ETHEREUM]: "0x7776607E2E0bD61052e60d59F1fDd11dFbeC27e8",
-  [CHAIN.BSC]: "0xB8c4879D4cF2ABF672C4b59Ed9d1226ab53E9C7f",
-  [CHAIN.ARBITRUM]: "0x7776607E2E0bD61052e60d59F1fDd11dFbeC27e8",
+  [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
+  [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
+  [CHAIN.ARBITRUM]: "0x34b5561c30a152b5882c8924973f19df698470f4",
 }
 const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 

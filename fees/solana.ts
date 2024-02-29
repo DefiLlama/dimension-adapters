@@ -30,6 +30,7 @@ const adapter: Adapter = {
       runAtCurrTime: true,
     },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

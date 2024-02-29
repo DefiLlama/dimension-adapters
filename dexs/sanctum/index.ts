@@ -21,6 +21,7 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true,
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

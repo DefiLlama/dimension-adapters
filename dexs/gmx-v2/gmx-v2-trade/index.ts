@@ -1,7 +1,7 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { FetchResultVolume, SimpleAdapter } from "../../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
+import { getBlock } from "../../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
@@ -89,7 +89,7 @@ const fetch = (chain: Chain) => {
 }
 
 
-const adapter: SimpleAdapter = {
+const adapter_trade: any = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
@@ -101,4 +101,6 @@ const adapter: SimpleAdapter = {
     },
   },
 };
-export default adapter;
+export {
+  adapter_trade
+}

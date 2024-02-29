@@ -40,6 +40,7 @@ const adapter: any = {
       };
     }, {}),
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
