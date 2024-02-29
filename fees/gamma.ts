@@ -4,7 +4,6 @@
 // import * as sdk from "@defillama/sdk";
 // import { CHAIN } from "../helpers/chains";
 // import { getPrices } from "../utils/prices";
-// import { queryFlipside } from "../helpers/flipsidecrypto";
 
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";

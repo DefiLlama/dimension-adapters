@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
@@ -24,46 +24,34 @@ const eventAbis = {
   "Unshield": "event Unshield(address to, (uint8 tokenType, address tokenAddress, uint256 tokenSubID) token, uint256 amount, uint256 fee)",
 }
 
-const fetchFees = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = createBalances()
-    const logs_shield = await getLogs({ target: contract[chain], topics: [topic0_shield], eventAbi: eventAbis.Shield })
-    const logs_unshield = await getLogs({ target: contract[chain], topics: [topic0_unshield], eventAbi: eventAbis.Unshield })
-    
-    logs_shield.forEach((log) => {
-      dailyFees.addTokens(log.commitments.map((i: any) => i.token.tokenAddress), log.fees)
-    })
-    logs_unshield.forEach((log) => {
-      dailyFees.add(log.token.tokenAddress, log.fee)
-    })
+const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
+  const dailyFees = createBalances()
+  const logs_shield = await getLogs({ target: contract[chain], topics: [topic0_shield], eventAbi: eventAbis.Shield })
+  const logs_unshield = await getLogs({ target: contract[chain], topics: [topic0_unshield], eventAbi: eventAbis.Unshield })
 
-    return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyFees,
-      dailyBribesRevenue: dailyFees,
-      timestamp,
-    }
+  logs_shield.forEach((log) => {
+    dailyFees.addTokens(log.commitments.map((i: any) => i.token.tokenAddress), log.fees)
+  })
+  logs_unshield.forEach((log) => {
+    dailyFees.add(log.token.tokenAddress, log.fee)
+  })
+
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyBribesRevenue: dailyFees,
   }
 }
+
+const options: any = { fetch: fetchFees, start: 1651363200 }
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1651363200,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
-      start: 1674864000,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
-      start: 1682899200,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchFees(CHAIN.BSC),
-      start: 1682899200,
-    },
-  }
+    [CHAIN.ETHEREUM]: options,
+    [CHAIN.ARBITRUM]: options,
+    [CHAIN.POLYGON]: options,
+    [CHAIN.BSC]: options,
+  },
+  version: 2,
 }
 
 export default adapters;

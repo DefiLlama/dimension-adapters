@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import volumeAdapter from "../dexs/apeswap";
-import { BaseAdapter, Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { BaseAdapter, Adapter, ChainBlocks, FetchOptions, Fetch } from "../adapters/types";
 import BigNumber from "bignumber.js";
 
 
@@ -8,7 +8,7 @@ const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, totalFees: number, revenueFee: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
-    const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks, options);
+    const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
     const chainDailyVolume = fetchedResult.dailyVolume as number || '0';
     const chainTotalVolume = fetchedResult.totalVolume as number || '0';
     const ssrFee = totalFees - revenueFee
