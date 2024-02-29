@@ -88,20 +88,21 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
-export type SimpleAdapter = {
+export type AdapterBase = {
   timetravel?: boolean
-  adapter: BaseAdapter
+  isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
 }
 
-export type BreakdownAdapter = {
-  timetravel?: boolean
-  version?: number;
+export type SimpleAdapter = AdapterBase & {
+  adapter: BaseAdapter
+}
+
+export type BreakdownAdapter = AdapterBase & {
   breakdown: {
     [version: string]: BaseAdapter
   };
-  protocolType?: ProtocolType;
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;

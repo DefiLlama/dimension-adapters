@@ -71,6 +71,7 @@ const adapter: SimpleAdapter = {
       start: async () => 1685577600,
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

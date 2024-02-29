@@ -1,4 +1,4 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { fetchURLWithRetry } from "../../helpers/duneRequest";
 
@@ -43,6 +43,7 @@ const adapter: any = {
       };
     }, {}),
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
