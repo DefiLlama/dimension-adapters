@@ -1,5 +1,5 @@
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import { queryAllium } from "../helpers/allium";
+import { queryAllium, startAlliumQuery } from "../helpers/allium";
 import { httpGet } from "../utils/fetchURL";
 
 function getUsersChain(chain: string) {
@@ -120,26 +120,25 @@ async function bitcoinUsers(start: number, end: number) {
 
 function getAlliumUsersChain(chain: string) {
     return async (start: number, end: number) => {
-        const query = await queryAllium(`select count(DISTINCT from_address) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        const queryId = await startAlliumQuery(`select count(DISTINCT from_address) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
         return {
-            all: {
-                users: query[0].usercount,
-                txs: query[0].txcount
-            }
+            queryId
         }
     }
 }
 
 function getAlliumNewUsersChain(chain: string) {
     return async (start: number, end: number) => {
-        const query = await queryAllium(`select count(DISTINCT from_address) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-        return query[0].usercount
+        const queryId = await queryAllium(`select count(DISTINCT from_address) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return {
+            queryId
+        }//query[0].usercount
     }
 }
 
 export default [
     ...([
-        "bsc", "gnosis"
+        "gnosis"
         // "terra2", "flow"
     ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
     {
@@ -184,5 +183,5 @@ export default [
     id: `chain#${chain.name}`,
     getUsers: (start:number, end:number)=>chain.getUsers(start, end).then(u=>typeof u === "object"?u:({all:{users:u}})),
 })).concat([
-    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base"
+    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base", "scroll", "polygon_zkevm", "bsc", "starknet"
 ].map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) })))
