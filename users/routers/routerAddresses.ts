@@ -1785,7 +1785,7 @@ export default ([
             ]
         }
     },*/
-    {
+   /*{ // commented due to inactive project/returning error
         "id":"392",
         "name":"WardenSwap",
         "addresses":{
@@ -1806,7 +1806,7 @@ export default ([
                 "0x7EA8c22E6Dcd7bd69eb180664Da68e1f1F11D696"
             ],
         }
-    },
+    },*/
     {
         "id":"351",
         "name":"Gravity Finance",
