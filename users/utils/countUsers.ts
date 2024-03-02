@@ -140,5 +140,5 @@ return finalNumbers
 }
 
 export const isAddressesUsable = (addresses:ProtocolAddresses)=>{
-    return addresses.addresses.bsc === undefined && Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
+    return Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
 }
