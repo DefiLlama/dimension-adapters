@@ -65,11 +65,11 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: 1685577600,
     },
-    [CHAIN.SOLANA]: {
-      fetch: fethcFeesSolana,
-      runAtCurrTime: true,
-      start: async () => 1685577600,
-    },
+    // [CHAIN.SOLANA]: {
+    //   fetch: fethcFeesSolana,
+    //   runAtCurrTime: true,
+    //   start: async () => 1685577600,
+    // },
   },
   isExpensiveAdapter: true,
 };
