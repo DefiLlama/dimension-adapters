@@ -5,7 +5,6 @@ import {
   SimpleAdapter,
 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
-import { call } from "@defillama/sdk/build/abi/abi2";
 
 const instaFlashAggregators: {
   [chain: Chain]: { address: string; deployedAt: number };

@@ -1,5 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchResultVolume, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -161,7 +160,7 @@ const getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume = async (timestamp: number) => {
+const fetchVolume: FetchV2 = async ({ endTimestamp: timestamp, createBalances }) => {
   const fromTimestamp = timestamp - 86400;
   const toTimestamp = timestamp;
   const account_resource: any[] = (await getResources(account))
@@ -192,7 +191,7 @@ const fetchVolume = async (timestamp: number) => {
     numberOfTrade[e]['count'] = 0;
     numberOfTrade[e]['volume'] = 0;
   })
-  const balances = new sdk.Balances({ chain: CHAIN.APTOS, timestamp })
+  const balances: sdk.Balances = createBalances() 
   logs_swap.map((e: ISwapEventData) => {
     const [token0, token1] = getToken(e.type);
     balances.add(token0, e.amount_x_out)
@@ -200,7 +199,6 @@ const fetchVolume = async (timestamp: number) => {
   })
 
   return {
-    timestamp,
     dailyVolume: await balances.getUSDString(),
     dailyFees: "0",
   }
@@ -247,15 +245,16 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
 const adapter: BreakdownAdapter = {
+  version: 2, 
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BSC]: {
-        fetch: async (timestamp: number) => {
+        fetch: async ({ startTimestamp }) => {
           const totalVolume = 103394400000;
           return {
             totalVolume: `${totalVolume}`,
-            timestamp: timestamp
+            timestamp: startTimestamp
           }
         },
         start: 1680307200,
@@ -263,7 +262,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: graphs(chain as Chain),
+        fetch: async ({ chain, startTimestamp, getBlock }) => graphs(chain)(startTimestamp, getBlock),
         start: startTimes[chain],
         meta: {
           methodology
@@ -273,12 +272,12 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async (timestamp: number) => {
-          const v3stats = await v3Graph(chain)(timestamp, {})
+        fetch: async ({ chain, startTimestamp, getBlock }) => {
+          const v3stats = await v3Graph(chain)(startTimestamp, getBlock)
           if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
           return {
             ...v3stats,
-            timestamp
+            timestamp: startTimestamp
           }
 
         },
@@ -288,7 +287,7 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: graphsStableSwap(chain as Chain),
+        fetch: async ({ chain, startTimestamp, getBlock }) => graphsStableSwap(chain)(startTimestamp, getBlock),
         start: stableTimes[chain],
         meta: {
           methodology: {
