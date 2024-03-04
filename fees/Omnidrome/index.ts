@@ -69,11 +69,14 @@ const fetch = async (
     timestamp,
     fetchOptions,
   });
-  const fromBlock = await getBlock(fromTimestamp, CHAIN.ZETA, {});
-  const toBlock = await getBlock(toTimestamp, CHAIN.ZETA, {});
-  const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
-  res.dailyBribesRevenue = dailyBribesRevenue.toString();
-  return res;
+  // const fromBlock = await getBlock(fromTimestamp, CHAIN.ZETA, {});
+  // const toBlock = await getBlock(toTimestamp, CHAIN.ZETA, {});
+  // const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
+  // res.dailyBribesRevenue = dailyBribesRevenue.toString();
+  // return res;
+  const { dailyBribesRevenue } = await fees_bribes(fetchOptions);
+  res.dailyBribesRevenue = dailyBribesRevenue
+  return res
 };
 const adapters: SimpleAdapter = {
   adapter: {
