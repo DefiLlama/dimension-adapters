@@ -1,20 +1,35 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
+import {
+  ChainBlocks,
+  FetchOptions,
+  FetchResultFees,
+  SimpleAdapter,
+} from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "../../helpers/getBlock";
 import { fees_bribes } from "./bribes";
 import { getDexFees } from "../../helpers/dexVolumeLogs";
 
-const lphelper = '0x1f176AABA9c6e2014455E5C199afD15A70f9e34e';
+const lphelper = "0x1f176AABA9c6e2014455E5C199afD15A70f9e34e";
 const abis: any = {
-  "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, bool stable, address token0, address token1, address factory, uint256 poolFee)[])"
-}
+  forSwaps:
+    "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, bool stable, address token0, address token1, address factory, uint256 poolFee)[])",
+};
 
-const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  const forSwaps = await sdk.api2.abi.call({ target: lphelper, params: [1000, 0], abi: abis.forSwaps, chain: CHAIN.ZETA, })
-  const pools = forSwaps.map((e: any) => e.lp)
+const fetch = async (
+  timestamp: number,
+  _: ChainBlocks,
+  fetchOptions: FetchOptions
+): Promise<FetchResultFees> => {
+  const fromTimestamp = timestamp - 60 * 60 * 24;
+  const toTimestamp = timestamp;
+  const forSwaps = await sdk.api2.abi.call({
+    target: lphelper,
+    params: [1000, 0],
+    abi: abis.forSwaps,
+    chain: CHAIN.ZETA,
+  });
+  const pools = forSwaps.map((e: any) => e.lp);
   // const pools: string[] =  [
   //   '0x22e48B354eA9806e46D18554fCC44dAe0E6c8e0a',
   //   '0x739Cd2720F35D5176EC05067739BC2533c1314a7',
@@ -46,20 +61,26 @@ const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptio
   //   '0x7d3292145320594B48cAf8383E70d98BeEdfC90f'
   // ]
 
-  const res: any = await getDexFees({ chain: CHAIN.ZETA, fromTimestamp, toTimestamp, pools, timestamp, fetchOptions })
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ZETA, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.ZETA, {}));
+  const res: any = await getDexFees({
+    chain: CHAIN.ZETA,
+    fromTimestamp,
+    toTimestamp,
+    pools,
+    timestamp,
+    fetchOptions,
+  });
+  const fromBlock = await getBlock(fromTimestamp, CHAIN.ZETA, {});
+  const toBlock = await getBlock(toTimestamp, CHAIN.ZETA, {});
   const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
   res.dailyBribesRevenue = dailyBribesRevenue.toString();
-  return res
-
-}
+  return res;
+};
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ZETA]: {
       fetch: fetch,
       start: 1707177600,
-    }
-  }
-}
+    },
+  },
+};
 export default adapters;
