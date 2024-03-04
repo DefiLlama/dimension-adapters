@@ -6,8 +6,7 @@ import { BreakdownAdapter } from "../../adapters/types";
 const endpointsV3 = {
   [CHAIN.LINEA]:
     "https://linea-graph-node.metavault.trade/subgraphs/name/metavault/v3",
-  [CHAIN.SCROLL]:
-    "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
+  [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
 };
 
 const v3Graphs = getGraphDimensions({
