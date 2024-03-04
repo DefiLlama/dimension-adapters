@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
@@ -10,8 +10,8 @@ interface IChartItem {
   fees_spent: number
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+const fetch: FetchV2 = async ({ startTimestamp }) => {
+  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(startTimestamp)
   const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))
 
   const totalFee = historicalFees
@@ -31,6 +31,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
