@@ -13,7 +13,6 @@ const abis: any = {
 const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
-  // const forSwaps = await sdk.api2.abi.call({ target: lphelper, abi: abis.forSwaps, chain: CHAIN.ZETA, })
   const pools: string[] =  [
     '0x22e48B354eA9806e46D18554fCC44dAe0E6c8e0a',
     '0x739Cd2720F35D5176EC05067739BC2533c1314a7',
@@ -46,10 +45,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptio
   ]
 
   const res: any = await getDexFees({ chain: CHAIN.ZETA, fromTimestamp, toTimestamp, pools, timestamp, fetchOptions })
-  // const fromBlock = (await getBlock(fromTimestamp, CHAIN.ZETA, {}));
-  // const toBlock = (await getBlock(toTimestamp, CHAIN.ZETA, {}));
-  // const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
-  // res.dailyBribesRevenue = dailyBribesRevenue.toString();
+  const { dailyBribesRevenue } = await fees_bribes(fetchOptions);
+  res.dailyBribesRevenue = dailyBribesRevenue
   return res
 
 }
