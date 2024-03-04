@@ -182,12 +182,11 @@ function getGraphDimensions({
       }
     }
     `: undefined
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
+    return async (timestamp: number, getBlock: any) => {
+      const customBlockFunc = getCustomBlock ? getCustomBlock : getBlock
+      const block = await customBlockFunc(timestamp).catch((e: any) => console.log(wrapGraphError(e).message)) ?? undefined
       // Get params
       const id = String(getUniswapDateId(new Date(timestamp * 1000)));
-      const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const customBlockFunc = getCustomBlock ? getCustomBlock : chainBlocks?.[chain] ? async (_: number) => chainBlocks[chain] : getBlock
-      const block = await customBlockFunc(timestamp, chain, chainBlocks).catch(e => console.log(wrapGraphError(e).message)) ?? undefined
       // Execute queries
       // DAILY VOLUME
       let graphResDailyVolume
@@ -212,7 +211,7 @@ function getGraphDimensions({
         dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
         if (!graphResDailyVolume || !dailyVolume) {
           console.info("Attempting with alternative query...")
-          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: cleanTimestamp }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
+          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
           const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
           dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[graphFieldsDailyVolume.field]), 0);
         }

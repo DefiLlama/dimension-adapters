@@ -157,12 +157,20 @@ const startTimeV3:TStartTime = {
   [CHAIN.ERA]: 1693440000
 }
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          const keys = ["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"]
+        fetch: async ({ chain, endTimestamp, getEndBlock }) => {
+          const response = await v1Graph(chain)(endTimestamp, getEndBlock);
+          const keys = [
+            "dailyUserFees",
+            "dailyProtocolRevenue",
+            "dailySupplySideRevenue",
+            "dailyHoldersRevenue",
+            "dailyRevenue",
+            "dailyFees",
+          ];
           for (const key of keys) {
             if (typeof response[key] === 'string') {
               response[key] = await sdk.Balances.getUSDString({
@@ -180,9 +188,10 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const response = await v2Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          response.totalVolume = Number(response.dailyVolume) + 1079453198606.2229;
+        fetch: async ({ chain, endTimestamp, getEndBlock }) => {
+          const response = await v2Graph(chain)(endTimestamp, getEndBlock);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
           response.totalFees = Number(response.totalVolume) * 0.003;
           response.totalUserFees = Number(response.totalVolume) * 0.003;
           response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
@@ -201,7 +210,8 @@ const adapter: BreakdownAdapter = {
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: async ({ endTimestamp, getEndBlock }) =>
+          v3Graphs(chain as Chain)(endTimestamp, getEndBlock),
         start: startTimeV3[chain],
         meta: {
           methodology: {
@@ -214,8 +224,8 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter)
   }
 }
-// adapter.breakdown.v3.bsc.fetch = async (timestamp, chainBlocks) => {
-//   const response = await v3Graphs(CHAIN.BSC)(timestamp, chainBlocks)
+// adapter.breakdown.v3.bsc.fetch = async ({ endTimestamp, getEndBlock }) => {
+//   const response = await v3Graphs(CHAIN.BSC)(endTimestamp, getEndBlock);
 //   const totalVolume = Number(response.totalVolume) - 10_000_000_000;
 //   return {
 //     ...response,
