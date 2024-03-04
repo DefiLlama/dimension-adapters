@@ -7,10 +7,7 @@ interface IFees {
   feesUSD: number;
 }
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
-  // const result = await queryDune("3211435");
-  // const fs = require('fs');
-  // fs.writeFileSync('bonk-bot.json', JSON.stringify(result, null, 2));
-  const result = require('./bonk-bot.json');
+  const result = await queryDune("3211435");
   const date = new Date(timestamp * 1000);
   const dateTime = date.toISOString().split('T')[0];
   const dayItem = result.find((item: IFees) => item.block_date.split(' ')[0] === dateTime);
