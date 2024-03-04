@@ -6,8 +6,9 @@ import {
 } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
+import { getEnv } from "../../helpers/env";
 
-const SMARDEX_SUBGRAPH_API_KEY = process.env.SMARDEX_SUBGRAPH_API_KEY;
+const SMARDEX_SUBGRAPH_API_KEY = getEnv('SMARDEX_SUBGRAPH_API_KEY');
 const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
 
 // if (!SMARDEX_SUBGRAPH_API_KEY) {

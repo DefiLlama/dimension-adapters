@@ -1,3 +1,4 @@
+import ADDRESSES from './coreAssets.json'
 import { Fetch, FetchOptions } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 
@@ -22,7 +23,7 @@ export async function getFees(market: string, { createBalances, api, getLogs, }:
   const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
   const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
   underlyings.forEach((underlying, index) => {
-    if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
+    if (!underlying) underlyings[index] = ADDRESSES.null
   })
   const reserveFactors = await api.multiCall({ calls: markets, abi: abis.reserveFactor ?? comptrollerABI.reserveFactor, });
   const logs: any[] = (await getLogs({

@@ -1,9 +1,7 @@
 // SynFutures v1 volume
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from '@defillama/sdk/build/general';
-import { getPrices } from "../../utils/prices";
 const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
@@ -21,21 +19,14 @@ const info: {[key: string]: any} = {
   },
 }
 
-interface DailyVolume {
-  timestamp: number;
-  quoteAddr: string;
-  volume: number;
-}
-
 export function dayIdFromTimestamp(timestamp: number): number {
   return Math.floor(timestamp / 86400);
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const totdayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const endDayId = dayIdFromTimestamp(totdayTimestamp);
-  
+  return async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+    const dailyVolume = createBalances()
+    const endDayId = dayIdFromTimestamp(startOfDay);
     const graphQL = `{
       quoteDataDailySnapshots(first: 1000, where: {dayId: ${endDayId}}) {
         id
@@ -43,6 +34,7 @@ const fetch = (chain: Chain) => {
         quote{
           id
           symbol
+          decimals
         }
         dayTradeVolume
       }
@@ -50,17 +42,13 @@ const fetch = (chain: Chain) => {
 
     const data = await request(info[chain].subgraph, graphQL);
 
-    let sum = 0;
     for (const dailyData of data.quoteDataDailySnapshots) {
-      const tokenId = chain+':'+dailyData.quote.id;
-      const prices = await getPrices([tokenId], totdayTimestamp);
-      sum += Number(dailyData.dayTradeVolume) / 10 ** 18 * prices[tokenId].price;
+      dailyVolume.add(dailyData.quote.id, Number(dailyData.dayTradeVolume) / (10 ** (18 - Number(dailyData.quote.decimals))));
     }
 
     return {
-      totalVolume: undefined,
-      dailyVolume: `${sum}`,
-      timestamp: totdayTimestamp,
+      dailyVolume,
+      timestamp: startOfDay,
     };
   }
 };
@@ -82,10 +70,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: 1628128417,
-    },    
+    },
   },
 };
 
 export default adapter;
-
-

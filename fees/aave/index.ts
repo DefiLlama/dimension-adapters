@@ -403,12 +403,12 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   breakdown: {
-    v1: {
-      [ETHEREUM]: {
-        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-        start: 1578459600
-      },
-    },
+    // v1: {
+    //   [ETHEREUM]: {
+    //     fetch: v1Graphs(v1Endpoints)(ETHEREUM),
+    //     start: 1578459600
+    //   },
+    // },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),

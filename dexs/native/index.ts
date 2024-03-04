@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
             0
           );
 
-          const dateEntry = response.data.find(
+          const dateEntry = response.find(
             (entry: ResEntry) => entry.date === cleanTimestamp
           );
           const dailyVol = dateEntry ? dateEntry.volumeUSD : undefined;

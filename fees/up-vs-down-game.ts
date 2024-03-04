@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock"
 import * as sdk from "@defillama/sdk";

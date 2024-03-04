@@ -7,16 +7,18 @@ interface IRaw  {
   XO_FeesPaidUSD: number;
   Day: string;
 }
+
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const startTime = 1683849600;
   const beforeTime = timestamp + 86400;
   const startTimeStr = new Date(startTime * 1000).toISOString().split("T")[0];
   const toDayTime = new Date(timestamp * 1000).toISOString().split("T")[0];
   const toDayTimeStr = new Date(beforeTime * 1000).toISOString().split("T")[0];
-  const url = `https://api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`;
+  const url = `https://proxy-api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`;
   const response: IRaw[] = (await httpGet(url, {
     headers: {
       origin: 'https://xoxno.com',
+      referer: 'https://xoxno.com/'
     }
   }));
   // const fs = require('fs');

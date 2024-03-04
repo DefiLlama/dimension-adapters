@@ -1,16 +1,8 @@
 import { Chain } from "@defillama/sdk/build/general"
 import { CHAIN } from "../helpers/chains";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 
-type TPrice = {
-  [s: string]: {
-    price: number;
-    decimals: number
-  };
-}
 interface IVolume {
   amount: number;
   tokenAddress: string;
@@ -38,12 +30,8 @@ const blackList: TKeyArray = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async (timestamp: number , _: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions): Promise<FetchResultFees> => {
 
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const startblock = (await getBlock(fromTimestamp, chain, {}));
-    const endblock = (await getBlock(toTimestamp, chain, {}));
     const query = `
         select
           input_data,
@@ -51,11 +39,11 @@ const graph = (chain: Chain) => {
         from
           ${chain}.core.fact_transactions
         WHERE to_address = '${address[chain]}'
-        and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+        and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
       `
 
 
-    const value: string[][] = (await queryFlipside(query, 210))
+    const value: string[][] = (await queryFlipside(query, 510))
     const rawData = value.map((a: string[]) => {
       const data = a[0].replace('0x5f575529', '');
       const address = data.slice(64, 128);
@@ -67,39 +55,18 @@ const graph = (chain: Chain) => {
         tx: a[1]
       } as IVolume
     })
-    const coins = [...new Set(rawData.map((a: IVolume) => `${chain}:${a.tokenAddress.toLowerCase()}`))]
-    const coins_split = [];
-    for (let i = 0; i < coins.length; i += 100) {
-      coins_split.push(coins.slice(i, i + 100))
-    }
-    const prices_result: any = (await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)))).flat().flat().flat();
-    const prices: TPrice = Object.assign({}, {});
-    prices_result.map((a: any) => Object.assign(prices, a))
+    const dailyFees = createBalances()
 
-    const volumeUSD: IVolume[] = rawData.map((e: IVolume) => {
-      const price = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.price || 0;
-      const decimals = prices[`${chain}:${e.tokenAddress.toLowerCase()}`]?.decimals || 0;
-      if (!price || !decimals) return {
-        amount: 0,
-        tokenAddress: e.tokenAddress,
-        tx: e.tx
-      } as IVolume;
-      const amount = (Number(e.amount) / 10 ** decimals) * price;
-      return {
-        amount: amount,
-        tokenAddress: e.tokenAddress,
-        tx: e.tx
-      } as IVolume
-    }).filter((a: IVolume) => !isNaN(a.amount))
-      .filter((a: IVolume) => !blackList[chain]?.includes(a.tokenAddress.toLowerCase()))
-      .filter((a: IVolume) => a.amount < 10_000_000)
-    const dailyVolume = volumeUSD.reduce((a: number, b: IVolume) => a + b.amount, 0);
-    const dailyFees = dailyVolume * 0.0085
+    rawData.map((e: IVolume) => {
+      dailyFees.add(e.tokenAddress, e.amount)
+    })
+
+    dailyFees.resizeBy(0.0085)
 
     return {
-      dailyFees: `${dailyFees}`,
-      dailyProtocolRevenue: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
+      dailyFees: dailyFees,
+      dailyProtocolRevenue: dailyFees,
+      dailyRevenue: dailyFees,
       timestamp
     }
 

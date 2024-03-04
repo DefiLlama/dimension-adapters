@@ -6,6 +6,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
+import { getEnv } from "../../helpers/env";
 
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
@@ -15,7 +16,7 @@ const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v2-arb",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
-  [CHAIN.OP_BNB]: `${process.env.PANCAKESWAP_OPBNB_SUBGRAPH}/subgraphs/name/pancakeswap/exchange-v2`
+  [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`
 };
 
 const stablesSwapEndpoints = {
@@ -30,7 +31,7 @@ const v3Endpoint = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-arb",
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v3-base/version/latest",
-  [CHAIN.OP_BNB]: `${process.env.PANCAKESWAP_OPBNB_SUBGRAPH}/subgraphs/name/pancakeswap/exchange-v3`
+  [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
 }
 
 const VOLUME_USD = "volumeUSD";
@@ -152,8 +153,8 @@ const getResources = async (account: string): Promise<any[]> => {
   do {
     let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
-    const res = await httpGet(url)
-    lastData = res
+    const res = await httpGet(url, undefined, { withMetadata: true })
+    lastData = res.data
     data.push(...lastData)
     cursor = res.headers['x-aptos-cursor']
   } while (lastData.length === 9999)

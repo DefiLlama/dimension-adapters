@@ -8,11 +8,11 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
-const chains = [
+export const chains = [
   CHAIN.ARBITRUM,
   CHAIN.ETHEREUM
 ];
-const endpoints = {
+export const endpoints = {
   [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/integralhq/integral-size",
   [CHAIN.ARBITRUM]:

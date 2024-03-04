@@ -29,7 +29,7 @@ const chains = [
    CHAIN.BASE,
    CHAIN.LINEA,
    CHAIN.SCROLL,
-   CHAIN.MANTA
+  //  CHAIN.MANTA
 ]
 
 interface IDailyResponse {

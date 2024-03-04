@@ -13,6 +13,10 @@ export type FetchResultBase = {
   block?: number;
 };
 
+export type FetchResultV2 = {
+  [key: string]: FetchResponseValue | undefined;
+};
+
 export type FetchResultGeneric = FetchResultBase & {
   [key: string]: FetchResponseValue | undefined;
 }
@@ -23,10 +27,17 @@ export type FetchOptions = {
   getLogs: (params: FetchGetLogsOptions) => Promise<any[]>;
   toTimestamp: number;
   fromTimestamp: number;
+  startOfDay: number;
   getFromBlock: () => Promise<number>;
   getToBlock: () => Promise<number>;
   chain: string,
   api: ChainApi,
+  fromApi: ChainApi,
+  toApi: ChainApi,
+  startTimestamp: number,
+  endTimestamp: number,
+  getStartBlock: () => Promise<number>,
+  getEndBlock: () => Promise<number>,
 }
 
 export type FetchGetLogsOptions = {
@@ -39,6 +50,7 @@ export type FetchGetLogsOptions = {
   toBlock?: number,
   flatten?: boolean,
   cacheInCloud?: boolean,
+  entireLog?: boolean,
   skipCacheRead?: boolean,
   topics?: string[],
 }
@@ -46,15 +58,19 @@ export type FetchGetLogsOptions = {
 export type Fetch = (
   timestamp: number,
   chainBlocks: ChainBlocks,
-  options?: FetchOptions,
+  options: FetchOptions,
 ) => Promise<FetchResult>;
+
+export type FetchV2 = (
+  options: FetchOptions,
+) => Promise<FetchResultV2>;
 
 export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
     start: IStartTimestamp | number
-    fetch: Fetch;
+    fetch: Fetch|FetchV2;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch;
     meta?: {
@@ -72,18 +88,21 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
-export type SimpleAdapter = {
+export type AdapterBase = {
   timetravel?: boolean
-  adapter: BaseAdapter
+  isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
+  version?: number;
 }
 
-export type BreakdownAdapter = {
-  timetravel?: boolean
+export type SimpleAdapter = AdapterBase & {
+  adapter: BaseAdapter
+}
+
+export type BreakdownAdapter = AdapterBase & {
   breakdown: {
     [version: string]: BaseAdapter
   };
-  protocolType?: ProtocolType;
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;

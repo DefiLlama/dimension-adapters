@@ -1,10 +1,10 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const address = '0xbfb083840b0507670b92456264164e5fecd0430b';
 const topic = '0x4c7b764f428c13bbea8cc8da90ebe6eef4dafeb27a4e3d9041d64208c47ca7c2';
 
-const fetch: any = async (timestamp: number, _, { getLogs, }: FetchOptions) => {
+const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, }: FetchOptions) => {
   const logs: any[] = await getLogs({ target: address, topic, })
   const dailyVolume = logs.map((tx: any) => {
     const amount = Number('0x' + tx.data.slice(64, 128)) / 10 ** 18;
