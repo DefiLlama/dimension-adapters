@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1693180800,
+      start: 1708819200,
     },
   },
   version: 2
