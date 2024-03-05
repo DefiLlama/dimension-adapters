@@ -72,7 +72,7 @@ export type BaseAdapter = {
     start: IStartTimestamp | number
     fetch: Fetch|FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch;
+    customBackfill?: Fetch|FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
