@@ -14,7 +14,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
       FROM
         ethereum.event_logs
       WHERE
-          block_number > 17345415
+          block_number > 19170281
           AND contract_address IN (
               SELECT DISTINCT address
               FROM ethereum.traces
@@ -64,6 +64,25 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
   }
 }
 
+const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const logs = await options.getLogs({
+    topic: '0x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f',
+    target: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  });
+  logs.map((log: any) => {
+    const data = log.data.replace('0x', '');
+    const gasToken = data.slice(0, 64);
+    dailyFees.addGasToken(Number('0x' + gasToken));
+  });
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyRevenue,
+    timestamp
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
@@ -75,6 +94,10 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true,
       start: 1685577600,
     },
+    [CHAIN.BLAST]: {
+      fetch: fetchBlats,
+      start: 1685577600,
+    }
   },
   isExpensiveAdapter: true,
 };
