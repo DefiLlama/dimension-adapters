@@ -161,8 +161,8 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async ({ chain, endTimestamp, getEndBlock }) => {
-          const response = await v1Graph(chain)(endTimestamp, getEndBlock);
+        fetch: async (options) => {
+          const response = await v1Graph(options.chain)(options);
           const keys = [
             "dailyUserFees",
             "dailyProtocolRevenue",
@@ -188,8 +188,8 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async ({ chain, endTimestamp, getEndBlock }) => {
-          const response = await v2Graph(chain)(endTimestamp, getEndBlock);
+        fetch: async (options) => {
+          const response = await v2Graph(options.chain)(options);
           response.totalVolume =
             Number(response.dailyVolume) + 1079453198606.2229;
           response.totalFees = Number(response.totalVolume) * 0.003;
@@ -210,8 +210,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async ({ endTimestamp, getEndBlock }) =>
-          v3Graphs(chain as Chain)(endTimestamp, getEndBlock),
+        fetch: v3Graphs(chain as Chain),
         start: startTimeV3[chain],
         meta: {
           methodology: {
