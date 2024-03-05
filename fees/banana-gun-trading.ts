@@ -1,21 +1,13 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { queryDune } from "../helpers/dune";
 import { queryIndexer } from "../helpers/indexer";
 
-
-interface IData {
-  data: string;
-}
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
   const deployer = [
     "xf414d478934c29d9a80244a3626c681a71e53bb2", "x37aab97476ba8dc785476611006fd5dda4eed66b"
   ].map(i => `'\\${i}'::bytea`).join(', ')
-  console.log(deployer)
-
   const transactions = await queryIndexer(`
       SELECT
         encode(data, 'hex') AS data
@@ -43,12 +35,25 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
 
 }
 
-const fethcFeesSolana = async (timestamp: number): Promise<FetchResultFees> => {
+interface IFees {
+  block_date: string;
+  feesSOL: number;
+}
+
+const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   try {
-    const value = await queryDune("3410455", { endTime: todaysTimestamp + 86400 });
+    const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
+    const value: IFees[] = (await queryDune("2685322"));
+    const dayItem = value.find((item: any) => item.block_date.split(' ')[0] === dateStr);
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const fees = (dayItem?.feesSOL || 0) * 1e9;
+    dailyFees.add('So11111111111111111111111111111111111111112', fees);
+    dailyRevenue.add('So11111111111111111111111111111111111111112', fees) ;
     return {
-      dailyFees: value[0]?.fees_usd || "0",
+      dailyFees: dailyFees,
+      dailyRevenue: dailyRevenue,
       timestamp
     }
   } catch (error: any) {
@@ -65,11 +70,11 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: 1685577600,
     },
-    // [CHAIN.SOLANA]: {
-    //   fetch: fethcFeesSolana,
-    //   runAtCurrTime: true,
-    //   start: async () => 1685577600,
-    // },
+    [CHAIN.SOLANA]: {
+      fetch: fethcFeesSolana,
+      runAtCurrTime: true,
+      start: 1685577600,
+    },
   },
   isExpensiveAdapter: true,
 };
