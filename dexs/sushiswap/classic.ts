@@ -166,4 +166,6 @@ classic[CHAIN.FANTOM] = {
   start: 0
 }
 
+classic.version = 2
+
 export default classic

@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -262,7 +262,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async ({ chain, startTimestamp, getBlock }) => graphs(chain)(startTimestamp, getBlock),
+        fetch: graphs(chain),
         start: startTimes[chain],
         meta: {
           methodology
@@ -272,14 +272,10 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async ({ chain, startTimestamp, getBlock }) => {
-          const v3stats = await v3Graph(chain)(startTimestamp, getBlock)
+        fetch: async (options: FetchOptions) => {
+          const v3stats = await v3Graph(chain)(options)
           if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
-          return {
-            ...v3stats,
-            timestamp: startTimestamp
-          }
-
+          return v3stats
         },
         start: v3StartTimes[chain],
       }
@@ -287,7 +283,7 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async ({ chain, startTimestamp, getBlock }) => graphsStableSwap(chain)(startTimestamp, getBlock),
+        fetch: graphsStableSwap(chain),
         start: stableTimes[chain],
         meta: {
           methodology: {

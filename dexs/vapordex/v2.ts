@@ -43,7 +43,7 @@ const v2 = Object.keys(endpointsV2).reduce(
       start: startTimeV2[chain],
     },
   }),
-  {}
+  { version: 2 }
 );
 
 export default v2;
