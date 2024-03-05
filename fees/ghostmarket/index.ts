@@ -12,6 +12,7 @@ const endpoints = {
   [CHAIN.POLYGON]: "https://api-external.ghostmarket.io/defillama/fees?chain=polygon&timestamp=",
   [CHAIN.ETHEREUM]: "https://api-external.ghostmarket.io/defillama/fees?chain=eth&timestamp=",
   [CHAIN.PHANTASMA]: "https://api-external.ghostmarket.io/defillama/fees?chain=pha&timestamp=",
+  [CHAIN.BASE]: "https://api-external.ghostmarket.io/defillama/fees?chain=base&timestamp=",
 }
 
 const buildUrl = async (apiUrl: string, timestamp: number) => {
@@ -94,6 +95,13 @@ const adapter: Adapter = {
     [CHAIN.PHANTASMA]: {
       fetch: apis(endpoints)(CHAIN.PHANTASMA),
       start: 1577664000,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: apis(endpoints)(CHAIN.BASE),
+      start: 1691660245,
       meta: {
         methodology
       }
