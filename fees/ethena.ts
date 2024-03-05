@@ -20,14 +20,22 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
     AND topic_2 = '\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87'
     AND block_time BETWEEN llama_replace_date_range;
 `, options);
-// AND contract_address in ('\\xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', '\\x4c9edd5852cd905f086c759e8383e09bff1e68b3')
-  const dailyFees = options.createBalances();
+  const dailyFeesInflow = options.createBalances();
+
   in_flow.map((log: any) => {
     const amount = Number(log.data);
-    dailyFees.add(log.token, amount);
+    dailyFeesInflow.add(log.token, amount);
   });
+  const dailyFeesMint = options.createBalances();
+  logs.map((log) => {
+    dailyFeesMint.add(log.collateral_asset, log.collateral_amount);
+  });
+
+  dailyFeesMint.resizeBy(0.001)
+  dailyFeesMint.addBalances(dailyFeesInflow);
   return {
-    dailyFees: dailyFees,
+    dailyFees: dailyFeesMint,
+    dailyRevenue: dailyFeesMint,
     timestamp
   }
 }
@@ -36,7 +44,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 0
+      start: 1700784000
     }
   }
 }
