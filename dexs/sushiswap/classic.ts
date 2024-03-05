@@ -7,6 +7,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import {
   getChainVolumeWithGasToken,
 }  from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -150,8 +151,8 @@ const fantomGraphs =  getChainVolumeWithGasToken({
   priceToken: "coingecko:fantom"
 } as any);
 classic[CHAIN.FANTOM] = {
-  fetch: async (timestamp: number) =>   {
-    const values = await fantomGraphs(CHAIN.FANTOM)(timestamp, {});
+  fetch: async (options: FetchOptions) =>   {
+    const values = await fantomGraphs(CHAIN.FANTOM)(options);
     const vol = Number(values.dailyVolume)
     return {
       ...values,
