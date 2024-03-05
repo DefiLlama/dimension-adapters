@@ -14,7 +14,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
       FROM
         ethereum.event_logs
       WHERE
-          block_number > 17345415
+          block_number > 19170281
           AND contract_address IN (
               SELECT DISTINCT address
               FROM ethereum.traces
