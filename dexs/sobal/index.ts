@@ -23,6 +23,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.NEON]: {
       fetch: graphs(CHAIN.NEON),

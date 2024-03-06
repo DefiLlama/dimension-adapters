@@ -64,6 +64,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [RONIN]: {
       fetch: graphs(RONIN),

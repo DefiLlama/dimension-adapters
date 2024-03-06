@@ -1,6 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { Adapter, SimpleAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',

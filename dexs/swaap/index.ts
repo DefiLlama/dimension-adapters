@@ -143,6 +143,7 @@ const v1graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
+    version: 2,
     breakdown: {
         v1: {
             [CHAIN.POLYGON]: {

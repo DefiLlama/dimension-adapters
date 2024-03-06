@@ -61,10 +61,11 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: async (timestamp: number, chainBlocks: any, options: FetchOptions) => {
-        const v2Result = await v2Graphs(ARBITRUM)(timestamp, chainBlocks); // Pass chainBlocks as the second argument
+      fetch: async (options: FetchOptions) => {
+        const v2Result = await v2Graphs(ARBITRUM)(options)
         const bribesResult = await getBribes(options);
         v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 

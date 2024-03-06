@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -109,6 +109,7 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -116,10 +117,9 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.BSC]: {
-        fetch: async (timestamp: number) => {
-          const volume = await graphs(CHAIN.BSC)(timestamp, {})
+        fetch: async (options: FetchOptions) => {
+          const volume = await graphs(CHAIN.BSC)(options)
           return {
-            timestamp,
             dailyFees: volume.dailyFees,
             dailyVolume: volume.dailyVolume,
           }
