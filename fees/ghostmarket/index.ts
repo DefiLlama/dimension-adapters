@@ -92,13 +92,13 @@ const adapter: Adapter = {
         methodology
       }
     },
-    // [CHAIN.PHANTASMA]: {
-    //   fetch: apis(endpoints)(CHAIN.PHANTASMA),
-    //   start: 1577664000,
-    //   meta: {
-    //     methodology
-    //   }
-    // },
+    [CHAIN.PHANTASMA]: {
+      fetch: apis(endpoints)(CHAIN.PHANTASMA),
+      start: 1577664000,
+      meta: {
+        methodology
+      }
+    },
     [CHAIN.BASE]: {
       fetch: apis(endpoints)(CHAIN.BASE),
       start: 1691660245,
