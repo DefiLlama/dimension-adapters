@@ -1,73 +1,105 @@
-import postgres from "postgres";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { queryDune } from "../helpers/dune";
+import { queryIndexer } from "../helpers/indexer";
 
-
-interface IData {
-  data: string;
-}
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const sql = postgres(process.env.INDEXA_DB!);
-
-  const now = new Date(timestamp * 1e3)
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-  try {
-    const transfer_txs = await sql`
+const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const deployer = [
+    "xf414d478934c29d9a80244a3626c681a71e53bb2", "x37aab97476ba8dc785476611006fd5dda4eed66b"
+  ].map(i => `'\\${i}'::bytea`).join(', ')
+  const transactions = await queryIndexer(`
       SELECT
-          block_time,
-          encode(transaction_hash, 'hex') AS HASH,
-          encode(data, 'hex') AS data
+        encode(data, 'hex') AS data
       FROM
-          ethereum.event_logs
+        ethereum.event_logs
       WHERE
-          block_number > 17345415
+          block_number > 19170281
           AND contract_address IN (
               SELECT DISTINCT address
               FROM ethereum.traces
               WHERE
                   block_number > 17345415
-                  AND from_address IN ('\\xf414d478934c29d9a80244a3626c681a71e53bb2', '\\x37aab97476ba8dc785476611006fd5dda4eed66b')
+                  AND from_address IN ( ${deployer} )
                   AND "type" = 'create'
+                  and address is not null
           )
           AND topic_0 = '\\x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f'
-          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-    `;
+          AND block_time BETWEEN llama_replace_date_range;
+    `, options)
+  const dailyFees = options.createBalances();
+  transactions.map((e: any) => {
+    dailyFees.addGasToken(Number('0x' + e.data.slice(0, 64)));
+  })
+  return { dailyFees, dailyRevenue: dailyFees, timestamp }
 
-    const transactions: IData[] = [...transfer_txs] as IData[]
-    const amount = transactions.map((e: IData) => {
-      const amount = Number('0x'+e.data.slice(0, 64)) / 10 ** 18
-      return amount;
-    }).reduce((a: number, b: number) => a+b,0);
+}
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
-    const amountUSD = Math.abs(amount * ethPrice);
-    const dailyFees = amountUSD;
-    const dailyRevenue = dailyFees;
-    await sql.end({ timeout: 3 })
+interface IFees {
+  block_date: string;
+  feesSOL: number;
+}
+
+const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  try {
+    const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
+    const value: IFees[] = (await queryDune("2685322"));
+    const dayItem = value.find((item: any) => item.block_date.split(' ')[0] === dateStr);
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const fees = (dayItem?.feesSOL || 0) * 1e9;
+    dailyFees.add('So11111111111111111111111111111111111111112', fees);
+    dailyRevenue.add('So11111111111111111111111111111111111111112', fees) ;
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
+      dailyFees: dailyFees,
+      dailyRevenue: dailyRevenue,
       timestamp
     }
-  } catch (error) {
-    await sql.end({ timeout: 3 })
-    console.error(error);
-    throw error;
+  } catch (error: any) {
+    return {
+      dailyFees: "0",
+      timestamp
+    }
   }
+}
 
+const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const logs = await options.getLogs({
+    topic: '0x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f',
+    target: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  });
+  logs.map((log: any) => {
+    const data = log.data.replace('0x', '');
+    const gasToken = data.slice(0, 64);
+    dailyFees.addGasToken(Number('0x' + gasToken));
+  });
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyRevenue,
+    timestamp
+  }
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1685577600,
+      start: 1685577600,
     },
+    [CHAIN.SOLANA]: {
+      fetch: fethcFeesSolana,
+      runAtCurrTime: true,
+      start: 1685577600,
+    },
+    [CHAIN.BLAST]: {
+      fetch: fetchBlats,
+      start: 1685577600,
+    }
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

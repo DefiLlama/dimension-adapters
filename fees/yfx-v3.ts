@@ -51,8 +51,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
         liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFee) 
       }
 
-      //console.log(swapFee, liquidityFee);
-      
       return {
         timestamp,
         dailyFees: (swapFee+liquidityFee).toString(),
@@ -67,7 +65,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1691128800,
+      start: 1691128800,
       meta: {
         methodology
       }

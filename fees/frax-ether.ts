@@ -1,25 +1,12 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
-import postgres from "postgres";
+import { queryIndexer } from "../helpers/indexer";
 
-interface IFee {
-  amount: number;
-}
+const fetch = (): any => {
+  return async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+    const dailyFees = options.createBalances();
 
-
-const fetch = () => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const sql = postgres(process.env.INDEXA_DB!);
-      try {
-
-      const now = new Date(timestamp * 1e3)
-      const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-
-
-    const logs = await sql`
+    const logs = await queryIndexer(`
       SELECT
         block_time,
         encode(transaction_hash, 'hex') AS HASH,
@@ -30,41 +17,28 @@ const fetch = () => {
         contract_address = '\\xac3e018457b222d93114458476f3e3416abbe38f'
         and block_number > 15686281
         AND topic_0 = '\\x2fa39aac60d1c94cda4ab0e86ae9c0ffab5b926e5b827a4ccba1d9b5b2ef596e'
-        AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-      `;
+        AND block_time BETWEEN llama_replace_date_range  `, options);
 
-      const log = logs.map((p: any) => {
-          const amount = Number('0x'+p.data) / 10 ** 18;
-        return {
-          amount: amount
-        } as IFee
-      });
+      // event NewRewardsCycle (index_topic_1 uint32 cycleEnd, uint256 rewardAmount)
 
-      const totalRewardAmount = log.reduce((a: number, b: IFee) => a+b.amount, 0);
-      const dailyFees = (totalRewardAmount / .90);
+      logs.map((p: any) => dailyFees.addGasToken('0x'+p.data))
+      dailyFees.resizeBy(1/0.9)
 
 
-      const prices = await getPrices(['coingecko:ethereum'], todaysTimestamp);
-      const ethPrice = prices['coingecko:ethereum'].price;
-      const dailyFeesUsd = dailyFees * ethPrice;
-      const dailySupplySideRevenue = dailyFeesUsd * 0.90;
-      const dailyRevenue = dailyFeesUsd * 0.1;
+      const dailySupplySideRevenue = dailyFees.clone();
+      dailySupplySideRevenue.resizeBy(0.9);
+      const dailyRevenue = dailyFees.clone();
+      dailyRevenue.resizeBy(0.1);
 
-    await sql.end({ timeout: 3 })
 
     return {
       timestamp,
-      dailyFees: dailyFeesUsd.toString(),
-      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-      dailyRevenue: dailyRevenue.toString(),
-      dailyProtocolRevenue: dailyRevenue.toString(),
+      dailyFees,
+      dailySupplySideRevenue: dailySupplySideRevenue,
+      dailyRevenue: dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: '0',
       dailyUserFees: '0',
-    } as FetchResultFees
-
-    } catch (error) {
-      await sql.end({ timeout: 3 })
-      throw error
     }
   }
 }
@@ -73,7 +47,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(),
-        start: async ()  => 1665014400,
+        start: 1665014400,
     },
   }
 }

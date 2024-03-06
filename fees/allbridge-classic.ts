@@ -10,7 +10,7 @@ interface ChainData {
 
 const getFees = async (chainCode: string, fromDate: string, toDate: string): Promise<number> => {
   const url = `https://stats.a11bd.net/aggregated?dateFrom=${fromDate}&dateTo=${toDate}`;
-  const responseBody = (await fetchURL(url)).data;
+  const responseBody = (await fetchURL(url));
   const chainData = responseBody.data.chains
     .filter((d: ChainData) => d.id === chainCode)
     .pop();
@@ -24,7 +24,6 @@ const getFeesFunction = (chain: Chain) => {
     const dailyFees = await getFees(chainCode, dateString, dateString);
     const dailyRevenue = dailyFees * 0.2;
     const dailySupplySideRevenue = dailyFees * 0.8;
-    console.log(`Fees for ${chain} on : ${dailyFees}`)
     return {
       timestamp,
       dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
@@ -91,7 +90,7 @@ const adapter: Adapter = {
     acc[chain] = {
       fetch: getFeesFunction(chain),
       meta: { methodology },
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)

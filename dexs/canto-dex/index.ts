@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CANTO]: {
       fetch: getDexVolumeExports({ chain: CHAIN.CANTO, pools: lpAddress }),
-      start: async () => 1668988800,
+      start: 1668988800,
     },
   }
 };

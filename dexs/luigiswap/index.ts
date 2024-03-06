@@ -10,7 +10,7 @@ interface IData {
 }
 const getUrl = (end: number) => `https://api-scroll.luigiswap.finance/report/volume-day?start_time=${START_TIMESTAMP}&end_time=${end}`;
 const fetchVolume = async (timestamp: number) => {
-  const response: IData[] = (await fetchURL(getUrl(timestamp))).data.data;
+  const response: IData[] = (await fetchURL(getUrl(timestamp))).data;
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
   const dailyVolume = response.find((e: IData) => e.record_date.split('T')[0] === dateString)?.value;
   return {
@@ -22,7 +22,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.SCROLL]: {
       fetch: fetchVolume,
-      start: async () => START_TIMESTAMP,
+      start: START_TIMESTAMP,
     },
   },
 };

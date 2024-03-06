@@ -51,7 +51,7 @@ const adapter: Adapter = {
     adapter: {
         // [BSC]: {
         //     fetch: graphs(endpoints)(BSC),
-        //     start: async () => 1670659200,
+        //     start: 1670659200,
         //     meta: {
         //         methodology: {
         //             Fees: "All mint, burn, margin and liquidation and swap fees are collected",
@@ -62,7 +62,7 @@ const adapter: Adapter = {
         // },
         [ARBITRUM]: {
             fetch: graphs(endpoints)(ARBITRUM),
-            start: async () => 1678147200,
+            start: 1678147200,
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

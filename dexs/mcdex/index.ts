@@ -27,7 +27,7 @@ const chainsMap: chains = {
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.data.rows;
+    const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
 
     const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
       const [time, title, volume] = e;
@@ -55,7 +55,7 @@ const fetch = (chain: Chain) => {
 };
 
 const getStartTimestamp = async (chain: Chain) => {
-  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.data.rows;
+  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
     const [time, title, volume] = e;
     return {

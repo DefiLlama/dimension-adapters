@@ -109,7 +109,7 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
-      start: async () => 1691211277,
+      start: 1691211277,
     },
   }
 }

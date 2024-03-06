@@ -29,10 +29,11 @@ const v2Graph = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: async () => 1702339200
+      start: 1702339200
     },
   },
 };

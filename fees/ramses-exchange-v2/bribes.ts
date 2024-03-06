@@ -1,25 +1,17 @@
-import request, { gql } from "graphql-request";
-import { getPrices } from "../../utils/prices";
-import { CHAIN } from "../../helpers/chains";
-
-type TPrice = {
-  [s: string]: {
-    price: number;
-    decimals: number;
-  };
-};
+import request from "graphql-request";
+import { Balances } from "@defillama/sdk";
 
 interface IBribes {
   amount: number;
   token: {
     id: string;
+    decimals: number;
   };
 }
 
-export const fees_bribes = async (fromBlock: number, timestamp: number): Promise<number> => {
-  try {
-    const endpoint = 'https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph';
-    const graphQuery = gql`
+export const fees_bribes = async (fromBlock: number, timestamp: number, balances: Balances) => {
+  const endpoint = 'https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph';
+  const graphQuery = `
       query GetBribes($fromBlock: Int!) {
         bribes(
           where: { timestamp_gte: ${timestamp} }
@@ -27,35 +19,17 @@ export const fees_bribes = async (fromBlock: number, timestamp: number): Promise
           amount
           token {
             id
+            decimals
           }
         }
       }
     `;
 
-    const graphRes: { bribes: IBribes[] } = await request(endpoint, graphQuery, {
-      fromBlock,
-    });
+  const graphRes: { bribes: IBribes[] } = await request(endpoint, graphQuery, { fromBlock, });
 
-    const logs_bribes = graphRes.bribes;
+  const logs_bribes = graphRes.bribes;
 
-    const coins = [...new Set(logs_bribes.map((e: IBribes) => `${CHAIN.ARBITRUM}:${e.token.id.toLowerCase()}`))];
-    const coins_split: string[][] = [];
-
-    for (let i = 0; i < coins.length; i += 100) {
-      coins_split.push(coins.slice(i, i + 100));
-    }
-
-    const prices_result: TPrice[] = await Promise.all(coins_split.map((a: string[]) => getPrices(a, timestamp)));
-    const prices: TPrice = Object.assign({}, ...prices_result);
-
-    const fees_bribes_usd = logs_bribes.map((e: IBribes) => {
-      const price = prices[`${CHAIN.ARBITRUM}:${e.token.id.toLowerCase()}`]?.price || 0;
-      const decimals = prices[`${CHAIN.ARBITRUM}:${e.token.id.toLowerCase()}`]?.decimals || 0;
-      return (Number(e.amount)) * price;
-    }).reduce((a: number, b: number) => a + b, 0);
-    return fees_bribes_usd;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  logs_bribes.map((e: IBribes) => {
+    balances.add(e.token.id, e.amount * Math.pow(10, e.token.decimals));
+  })
 };

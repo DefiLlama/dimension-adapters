@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.PULSECHAIN]: {
       fetch: fetchVolume(CHAIN.PULSECHAIN),
-      start: async () => 1684540800,
+      start: 1684540800,
     },
   },
 };

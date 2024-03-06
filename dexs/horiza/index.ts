@@ -27,10 +27,11 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: v3Graphs(CHAIN.ARBITRUM),
-      start: async () => 1704585600,
+      start: 1704585600,
     }
   }
 }

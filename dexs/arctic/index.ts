@@ -23,7 +23,7 @@ const chains: TChains =  {
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])))?.data.data;
+    const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])))?.data;
     const historicalVolume = historical.filter(e => e.chainId === chains[chain]);
     const totalVolume = historicalVolume
       .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
@@ -41,7 +41,7 @@ const fetch = (chain: Chain) => {
 };
 
 const getStartTimestamp = async (chain_id: number) => {
-  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chain_id)))?.data.data;
+  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chain_id)))?.data;
   const historicalVolume = historical.filter(e => e.chainId === chain_id);
   return (new Date(historicalVolume[historicalVolume.length - 1].timestamp).getTime());
 }

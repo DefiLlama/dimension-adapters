@@ -2,8 +2,9 @@ import request, { gql } from 'graphql-request'
 import { BreakdownAdapter, Fetch, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume'
+import { getEnv } from '../../helpers/env'
 
-const apiKey = process.env.PERENNIAL_V2_SUBGRAPH_API_KEY
+const apiKey = getEnv('PERENNIAL_V2_SUBGRAPH_API_KEY')
 const graphUrls: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum/api`,
 }
@@ -87,11 +88,8 @@ const getFetch =
     }
   }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1695945600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1695945600,
 }
 
 const adapter: BreakdownAdapter = {
@@ -101,7 +99,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(volumeDataQuery)(chain),
-          start: async () => getStartTimestamp(chain),
+          start: startTimestamps[chain],
         },
       }
     }, {}),

@@ -8,5 +8,5 @@ const adapters = univ2Adapter({
   dayData: "benSwapDayData",
 });
 
-adapters.adapter.smartbch.start = async () => 1632326400;
+adapters.adapter.smartbch.start = 1632326400;
 export default adapters;

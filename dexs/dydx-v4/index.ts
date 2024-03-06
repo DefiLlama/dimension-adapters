@@ -3,7 +3,7 @@ import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const markets = (await fetchURL("https://indexer.dydx.trade/v4/perpetualMarkets")).data.markets;
+  const markets = (await fetchURL("https://indexer.dydx.trade/v4/perpetualMarkets")).markets;
   const dailyolume = Object.values(markets).reduce((a: number, b: any) => a+Number(b.volume24H), 0)
   const dailyOpenInterest = Object.values(markets).reduce((a: number, b: any) => a+(Number(b.openInterest)*Number(b.oraclePrice)), 0)
   return {
@@ -15,10 +15,10 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    "dydx": {
       runAtCurrTime:true,
       fetch,
-      start: async () => 1614211200,
+      start: 1614211200,
     },
   },
 };

@@ -6,8 +6,7 @@ import { BreakdownAdapter } from "../../adapters/types";
 const endpointsV3 = {
   [CHAIN.LINEA]:
     "https://linea-graph-node.metavault.trade/subgraphs/name/metavault/v3",
-  [CHAIN.SCROLL]:
-    "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
+  [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
 };
 
 const v3Graphs = getGraphDimensions({
@@ -40,7 +39,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
+      start: startTimeV3[chain],
       meta: {
         methodology: {
           Fees: "Each pool charge between 0.01% to 1% fee",
@@ -58,6 +57,7 @@ const v3 = Object.keys(endpointsV3).reduce(
 );
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v3: v3,
   },

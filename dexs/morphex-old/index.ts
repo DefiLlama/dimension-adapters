@@ -38,52 +38,49 @@ interface IGraphResponse {
 
 const getFetch =
   (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-      id: String(dayTimestamp) + ":daily",
-      period: "daily",
-    });
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "total",
-      period: "total",
-    });
+    (chain: string): Fetch =>
+      async (timestamp: number) => {
+        const dayTimestamp = getUniqStartOfTodayTimestamp(
+          new Date(timestamp * 1000)
+        );
+        const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+          id: String(dayTimestamp) + ":daily",
+          period: "daily",
+        });
+        const totalData: IGraphResponse = await request(endpoints[chain], query, {
+          id: "total",
+          period: "total",
+        });
 
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume:
-        dailyData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+        return {
+          timestamp: dayTimestamp,
+          dailyVolume:
+            dailyData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+              )
+              : undefined,
+          totalVolume:
+            totalData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-    };
-  };
+              )
+              : undefined,
+        };
+      };
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1677883020,
-  };
-  return startTimestamps[chain];
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1677883020,
 };
 
 const adapter: BreakdownAdapter = {
@@ -92,14 +89,14 @@ const adapter: BreakdownAdapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
-        start: async () => getStartTimestamp(CHAIN.FANTOM),
+        start: startTimestamps[CHAIN.FANTOM],
       },
     },
     derivatives: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.FANTOM),
-        start: async () => getStartTimestamp(CHAIN.FANTOM),
+        start: startTimestamps[CHAIN.FANTOM],
       },
     },
   },

@@ -50,11 +50,8 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.KAVA]: 2578000,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.KAVA]: 2578000,
 }
 
 const adapter: SimpleAdapter = {
@@ -63,7 +60,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: getFetch(chain),
-        start: async () => getStartTimestamp(chain),
+        start: startTimestamps[chain],
         runAtCurrTime: true
       }
     }

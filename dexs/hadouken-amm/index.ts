@@ -24,10 +24,11 @@ const v1graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.GODWOKEN_V1]: {
       fetch: v1graphs(CHAIN.GODWOKEN_V1 as Chain),
-      start: async () => 1669248000,
+      start: 1669248000,
       customBackfill: customBackfill(CHAIN.GODWOKEN_V1 as Chain, v1graphs)
     },
   },

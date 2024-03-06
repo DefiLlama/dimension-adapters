@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains"
 import { getBlock } from "../helpers/getBlock"
 import * as sdk from "@defillama/sdk";
@@ -41,7 +42,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: async () => 1691625600,
+      start: 1691625600,
     }
   }
 }

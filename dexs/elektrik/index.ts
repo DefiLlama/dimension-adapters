@@ -19,10 +19,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.LIGHTLINK_PHOENIX]: {
       fetch: graphs(CHAIN.LIGHTLINK_PHOENIX),
-      start: async () => 1697155200
+      start: 1697155200
     },
   },
 };

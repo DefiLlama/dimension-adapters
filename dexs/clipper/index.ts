@@ -26,12 +26,13 @@ const graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => 1657437036,
+        start: 1657437036,
         customBackfill: customBackfill(chain, graphs),
       }
     }

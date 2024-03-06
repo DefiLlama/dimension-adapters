@@ -39,7 +39,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: async () => 1653134400
+      start: 1653134400
     },
   }
 }

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -19,22 +19,23 @@ const graphs = getChainVolume({
   },
 });
 
+
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const [v1] = await Promise.all([graphs(chain)(timestamp, {})])
+  return async (options: FetchOptions) => {
+    const [v1] = await Promise.all([graphs(chain)(options)])
     const dailyVolume = Number(v1.dailyVolume);
     return {
       dailyVolume: `${dailyVolume}`,
-      timestamp
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1677110400
+      start: 1677110400
     },
   },
 };

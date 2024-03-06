@@ -6,8 +6,9 @@ import {
 } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
+import { getEnv } from "../../helpers/env";
 
-const SMARDEX_SUBGRAPH_API_KEY = process.env.SMARDEX_SUBGRAPH_API_KEY;
+const SMARDEX_SUBGRAPH_API_KEY = getEnv('SMARDEX_SUBGRAPH_API_KEY');
 const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
 
 // if (!SMARDEX_SUBGRAPH_API_KEY) {
@@ -38,6 +39,14 @@ const graphRequestHeaders:IMap = {
   [CHAIN.POLYGON]: defaultHeaders,
 };
 
+const startTimes = {
+  [CHAIN.ARBITRUM]: 1689582249,
+  [CHAIN.BASE]: 1691491872,
+  [CHAIN.BSC]: 1689581494,
+  [CHAIN.ETHEREUM]: 1678404995,
+  [CHAIN.POLYGON]: 1689582144,
+}
+
 /**
  * @note We are using this method that allow us to use http headers
  * The method `getGraphDimensions` try returns daily fees and total fees
@@ -57,29 +66,13 @@ const graphs = getGraphDimensions({
   },
 });
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: graphs(CHAIN.ETHEREUM),
-      start: async () => 1678404995, // birthBlock timestamp
-    },
-    [CHAIN.BSC]: {
-      fetch: graphs(CHAIN.BSC),
-      start: async () => 1689581494,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: graphs(CHAIN.POLYGON),
-      start: async () => 1689582144,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graphs(CHAIN.ARBITRUM),
-      start: async () => 1689582249,
-    },
-    [CHAIN.BASE]: {
-      fetch: graphs(CHAIN.BASE),
-      start: async () => 1691491872,
-    },
-  },
-};
+const adapter: SimpleAdapter = { adapter: {}, version: 2 }
+
+Object.keys(graphUrls).map((chain: string) => {
+  adapter.adapter[chain] = {
+    fetch: graphs(chain), 
+    start: startTimes[chain]
+  }
+})
 
 export default adapter;

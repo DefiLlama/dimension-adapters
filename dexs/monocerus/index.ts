@@ -33,11 +33,12 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: Adapter = {
+  version: 2,
     adapter: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.MANTA]: {
         fetch: v3Graphs(CHAIN.MANTA),
-        start:  async () => 1703548800
+        start:  1703548800
       }
     }
 };

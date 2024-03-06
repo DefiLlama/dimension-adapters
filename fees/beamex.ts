@@ -92,7 +92,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: graphsBeamex(CHAIN.MOONBEAM),
-      start: async () => 1687421388,
+      start: 1687421388,
       meta: {
         methodology: methodologyBeamex,
       },

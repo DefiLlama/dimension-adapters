@@ -1,4 +1,3 @@
-import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { fetchURLWithRetry } from "../duneRequest";
 
@@ -13,39 +12,32 @@ const getAdapter = (
       new Date(timestamp * 1000)
     );
 
-    try {
-      const data = await (
-        await fetchURLWithRetry(
-          "https://api.dune.com/api/v1/query/3321376/results"
-        )
-      ).data?.result?.rows;
+    const data = await (
+      await fetchURLWithRetry(
+        "https://api.dune.com/api/v1/query/3321376/results"
+      )
+    ).result?.rows;
 
-      const dayData = data.find(
-        ({
-          block_date,
-          blockchain,
-          project,
-        }: {
-          block_date: number;
-          blockchain: string;
-          project: string;
-        }) =>
-          getUniqStartOfTodayTimestamp(new Date(block_date)) ===
-            unixTimestamp &&
-          blockchain === (chainMap[chain] || chain) &&
-          project === name
-      );
+    const dayData = data.find(
+      ({
+        block_date,
+        blockchain,
+        project,
+      }: {
+        block_date: number;
+        blockchain: string;
+        project: string;
+      }) =>
+        getUniqStartOfTodayTimestamp(new Date(block_date)) ===
+        unixTimestamp &&
+        blockchain === (chainMap[chain] || chain) &&
+        project === name
+    );
 
-      return {
-        dailyVolume: dayData?.trade_amount ?? "0",
-        timestamp: unixTimestamp,
-      };
-    } catch (e) {
-      return {
-        dailyVolume: "0",
-        timestamp: unixTimestamp,
-      };
-    }
+    return {
+      dailyVolume: dayData?.trade_amount ?? "0",
+      timestamp: unixTimestamp,
+    };
   };
 
   const adapter: any = {
@@ -55,7 +47,8 @@ const getAdapter = (
           ...acc,
           [chain]: {
             fetch: fetch(chain),
-            start: async () => start,
+            runAtCurrTime: true,
+            start,
           },
         };
       }, {}),

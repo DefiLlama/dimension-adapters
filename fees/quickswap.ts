@@ -75,11 +75,12 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: v2Graph(CHAIN.POLYGON),
-        start: async () => 1602118043,
+        start: 1602118043,
         meta: {
           methodology
         },
@@ -88,7 +89,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology
         }

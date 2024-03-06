@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
+import { httpPost } from "../../utils/fetchURL";
 
 const historical = "https://moonswap.fi/api/route/opt/swap/dashboard/global-chart";
 const START_TIME = 1634515198;
@@ -13,7 +13,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.post(historical, {start_time: START_TIME, skip: 0}))?.data.data.uniswapDayDatas;
+  const historicalVolume: IVolumeall[] = (await httpPost(historical, {start_time: START_TIME, skip: 0}))?.data.uniswapDayDatas;
 
   const totalVolume = historicalVolume
     .filter(volItem => Number(volItem.date) <= dayTimestamp)
@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CONFLUX]: {
       fetch,
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   },
 };

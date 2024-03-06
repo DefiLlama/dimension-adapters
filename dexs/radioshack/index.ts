@@ -24,6 +24,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(CHAIN.POLYGON),

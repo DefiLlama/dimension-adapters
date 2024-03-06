@@ -14,6 +14,7 @@ const graphs = getChainVolumeWithGasToken({
   graphUrls: {
     [FANTOM]: endpoints[FANTOM],
   },
+  priceToken: "coingecko:fantom"
 });
 
 const graphsV3 = getChainVolume({
@@ -31,6 +32,7 @@ const graphsV3 = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [FANTOM]: {
       fetch: graphs(FANTOM),
@@ -41,7 +43,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.EON]: {
       fetch: graphsV3(CHAIN.EON),
-      start:  async () => 1698969600
+      start:  1698969600
     },
   },
 };

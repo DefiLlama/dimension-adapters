@@ -21,11 +21,11 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
   // Get market data
   const response = await fetchURL(historicalVolumeEndpoint);
-  const marketsData = response.data.result;
+  const marketsData = response.result;
 
   // Fetch candles for each USD market
   const historical: IVolumeall[] = (await Promise.all(marketsData.map((market: any) => fetchURL(candles(market.id, fromTimestamp, toTimestamp)))))
-    .map((e: any) => e.data.result)
+    .map((e: any) => e.result)
     .flat();
 
   // Calculate daily volume
@@ -44,7 +44,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch: fetchVolume,
-      start: async () => 1700179200, // Replace with actual start timestamp
+      start: 1700179200, // Replace with actual start timestamp
     },
   },
 };

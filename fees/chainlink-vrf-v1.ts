@@ -105,7 +105,7 @@ const fetch = (chain: Chain, version: number) => {
 
 
     const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash).filter(e => !exclude.includes(e)))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-vrf-v1' }))
       .map((e: any) => {
         const amount = (Number(e?.gasUsed || 0) * Number(e?.effectiveGasPrice || 0)) / 10 ** 18
         return amount
@@ -132,15 +132,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     }
   }
 }

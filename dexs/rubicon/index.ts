@@ -12,6 +12,6 @@ const adapters = univ2Adapter({
   dailyVolumeTimestampField: "dayStartUnix"
 });
 
-adapters.adapter.arbitrum.start = async () => 1686345120;
-adapters.adapter.optimism.start = async () => 1637020800;
+adapters.adapter.arbitrum.start = 1686345120;
+adapters.adapter.optimism.start = 1637020800;
 export default adapters;

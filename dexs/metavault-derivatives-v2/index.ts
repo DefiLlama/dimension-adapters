@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(),
-      start: async () => 1701950449,
+      start: 1701950449,
       meta: {
         methodology,
       },

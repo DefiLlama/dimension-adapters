@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "update-submodules": "git submodule update --init --recursive --remote --merge",
-    "test": "yarn run update-submodules && ts-node cli/testAdapter.ts",
+    "test": "yarn run update-submodules && ts-node --transpile-only cli/testAdapter.ts",
     "ts-check": "yarn run update-submodules && tsc --project tsconfig.json",
     "ts-check-cli": "yarn run update-submodules && tsc --project tsconfig.cli.json",
+    "use-token-labels": "node helpers/useTokenLabels.js",
     "interactive": "node cli/interactive.js"
   },
   "repository": {
@@ -31,15 +32,15 @@
     "ethers": "^6.9.2",
     "graphql": "^16.6.0",
     "graphql-request": "5.1.0",
-    "postgres": "^3.3.1",
+    "pg": "^8.11.3",
+    "sequelize": "^6.36.0",
     "tron-format-address": "^0.1.11"
   },
   "devDependencies": {
+    "glob": "^10.3.10",
     "@types/node": "^18.7.23",
-    "@types/promise.allsettled": "^1.0.3",
     "inquirer": "^8.0.0",
     "inquirer-fuzzy-path": "^2.3.0",
-    "promise.allsettled": "^1.0.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.0"
   }

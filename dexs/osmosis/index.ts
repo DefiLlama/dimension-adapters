@@ -12,7 +12,7 @@ interface IChartItem {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
 
@@ -31,7 +31,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))
   return (new Date(historicalVolume[0].time).getTime()) / 1000
 }
 

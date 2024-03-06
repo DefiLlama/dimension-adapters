@@ -27,12 +27,13 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: v3Graphs(chain),
-        start: async () => 1696377600,
+        start: 1696377600,
       }
     }
   }, {})

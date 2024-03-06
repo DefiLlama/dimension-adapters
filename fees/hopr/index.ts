@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
@@ -7,7 +8,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
 
 const channels_address = '0x693Bac5ce61c720dDC68533991Ceb41199D8F8ae';
-const wxHOPR_address = '0xd4fdec44db9d44b8f2b6d529620f9c0c7066a2c1';
+const wxHOPR_address = ADDRESSES.xdai.XHOPR;
 const xHOPR_address = '0xd057604a14982fe8d88c5fc25aac3267ea142a08';
 const chain = 'xdai';
 const topic0 = '0x7165e2ebc7ce35cc98cb7666f9945b3617f3f36326b76d18937ba5fecf18739a'; //TicketRedeemed
@@ -70,9 +71,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }).filter(elem => elem !== undefined) as string[];
 
   const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async(transactionHash) => {
-    const tx = await provider.getTransaction(transactionHash);
-    const input = tx!.data;
-    const decodedInput = iface.decodeFunctionData('execTransactionFromModule', input)
+    const tx = await provider.getTransaction(transactionHash) as any;
+    const data = tx!.input;
+    const decodedInput = iface.decodeFunctionData('execTransactionFromModule', data)
     const hexValue = '0x' + decodedInput[2].substring(138,202);
     return hexValue;
   }));
@@ -98,7 +99,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
-      start: async () => 1693440000,
+      start: 1693440000,
       meta: {
         methodology
       }

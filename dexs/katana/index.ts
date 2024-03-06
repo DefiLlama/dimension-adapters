@@ -64,14 +64,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [RONIN]: {
       fetch: graphs(RONIN),
-      start: getStartTimestamp({
-        endpoints,
-        chain: RONIN,
-        dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-      }),
+      start: 1635724800,
     },
   },
 };

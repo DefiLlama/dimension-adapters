@@ -33,10 +33,11 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: v3Graphs(CHAIN.BSC),
-      start: async () => 1704758400
+      start: 1704758400
     },
   },
 };

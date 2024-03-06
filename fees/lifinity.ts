@@ -16,7 +16,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dateStr = new Date(dayTimestamp * 1000).toLocaleDateString('en-US', { timeZone: 'UTC' })
   const [month, day, year] = dateStr.split('/');
   const formattedDate = `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volume.daily.data;
   const totalFees = historicalVolume
     .filter(volItem => Number(new Date(volItem.date.split('/').join('-')).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { fees }) => acc + Number(fees), 0);
@@ -57,7 +57,7 @@ const methodology = {
 }
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volume.daily.data;
   return Number(new Date(historicalVolume[0].date.split('/').join('-')).getTime() / 1000)
 }
 

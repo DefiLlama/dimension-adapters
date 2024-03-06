@@ -1,10 +1,12 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks } from "../adapters/types";
+import { BaseAdapter, ChainBlocks, FetchOptions } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
-import { getPrices } from "../utils/prices";
+import { Balances } from "@defillama/sdk";
+import { wrapGraphError } from "./getUniSubgraph";
+
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var date_utc = Date.UTC(
@@ -48,7 +50,7 @@ interface IGetChainVolumeParams {
   hasTotalVolume?: boolean
   getCustomBlock?: (timestamp: number) => Promise<number>
 }
-
+// HERE
 function getChainVolume({
   graphUrls,
   totalVolume = {
@@ -91,33 +93,34 @@ function getChainVolume({
   const graphQueryDailyVolume = gql`${hasDailyVolume ? `query get_daily_volume($id: Int) { ${dailyVolumeQuery} }` : ""}`;
 
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const block =
-        (getCustomBlock ?
-          await getCustomBlock(timestamp).catch(e => console.log(e.message)) :
-          await getBlock(timestamp, chain, chainBlocks).catch(e => console.log(e.message))) ?? undefined;
-      const id = getUniswapDateId(new Date(timestamp * 1000));
+    return async (options: FetchOptions) => {
+      const { endTimestamp, getEndBlock } = options;
+      const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
+      const block = (await customBlockFunc(endTimestamp).catch((e: any) =>
+        console.log(wrapGraphError(e).message),
+      )) ?? undefined;
+      const id = getUniswapDateId(new Date(endTimestamp * 1000));
       const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block }).catch(e => {
         try {
           return JSON.parse(e.response.error).data
         } catch (error) {
-          console.error(`Failed to get total volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
         }
       }) : undefined;
       let graphResDaily = hasDailyVolume ? await request(graphUrls[chain], graphQueryDailyVolume, { id }).catch(e => {
         try {
           return JSON.parse(e.response.error).data
         } catch (error) {
-          console.error(`Failed to get daily volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get daily volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
         }
       }) : undefined;
       let dailyVolumeValue = graphResDaily ? graphResDaily[dailyVolume.factory]?.[dailyVolume.field] : undefined
       if (hasDailyVolume && !dailyVolumeValue) {
-        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))).catch(e => {
+        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000)))).catch(e => {
           try {
             return JSON.parse(e.response.error).data
           } catch (error) {
-            console.error(`Failed to get daily volume via alternative query on ${chain}: ${e.message}`)
+            console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
           }
         });
         const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
@@ -125,7 +128,7 @@ function getChainVolume({
       }
 
       return {
-        timestamp,
+        timestamp: endTimestamp,
         block,
         totalVolume: graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined,
         dailyVolume: dailyVolumeValue,
@@ -149,21 +152,25 @@ function getChainVolumeWithGasToken({
   hasDailyVolume = true,
   hasTotalVolume = true,
   getCustomBlock = undefined,
-  priceToken = "coingecko:fantom"
+  priceToken,
 }: IGetChainVolumeParams & {priceToken:string}) {
   const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
+    return async (options: FetchOptions) => {
       const {
         block,
         totalVolume,
         dailyVolume,
-      } = await basic(chain)(timestamp, chainBlocks);
-      const price = await getPrices([priceToken], timestamp)
+      } = await basic(chain)(options);
+
+      const timestamp = options.endTimestamp
+      const balances = new Balances({ chain, timestamp })
+      balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
+
       return {
         timestamp,
         block,
-        dailyVolume: dailyVolume*price[priceToken].price
+        dailyVolume: await balances.getUSDString()
       }
     };
   };

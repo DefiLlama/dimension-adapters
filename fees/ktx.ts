@@ -1,33 +1,36 @@
-import { MANTLE } from "../helpers/chains";
+import { BSC, MANTLE, ARBITRUM } from "../helpers/chains";
 import { Adapter } from "../adapters/types";
-import { BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { ChainEndpoints } from "../adapters/types";
+import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
   [BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
   [MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
-}
+  [ARBITRUM]: "https://arbisubgraph.ktx.systems/subgraphs/name/ktx",
+};
 
 const methodology = {
   Fees: "Fees from open/close position (based on token utilization, capped at 0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  UserFees: "Fees from open/close position (based on token utilization, capped at 0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  UserFees:
+    "Fees from open/close position (based on token utilization, capped at 0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   HoldersRevenue: "30% of all collected fees goes to KTC stakers",
   SupplySideRevenue: "70% of all collected fees goes to KLP holders",
   Revenue: "Revenue is 30% of all collected fees, which goes to KTC stakers",
-  ProtocolRevenue: "Treasury has no revenue"
-}
+  ProtocolRevenue: "Treasury has no revenue",
+};
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = (chain == "bsc" || chain == "mantle")  ? todaysTimestamp : todaysTimestamp + ":daily"
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+      const searchTimestamp =
+        chain == "bsc" || chain == "mantle" || chain == "arbitrum"
+          ? todaysTimestamp
+          : todaysTimestamp + ":daily";
 
-      const graphQuery = gql
-      `{
+      const graphQuery = gql`{
         feeStat(id: "${searchTimestamp}") {
           mint
           burn
@@ -38,10 +41,16 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalDailyFee = (dailyFee / 1e30);
-      const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalUserFee = (userFee / 1e30);
+      const dailyFee =
+        parseInt(graphRes.feeStat.mint) +
+        parseInt(graphRes.feeStat.burn) +
+        parseInt(graphRes.feeStat.marginAndLiquidation) +
+        parseInt(graphRes.feeStat.swap);
+      const finalDailyFee = dailyFee / 1e30;
+      const userFee =
+        parseInt(graphRes.feeStat.marginAndLiquidation) +
+        parseInt(graphRes.feeStat.swap);
+      const finalUserFee = userFee / 1e30;
 
       return {
         timestamp,
@@ -57,25 +66,30 @@ const graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-
 const adapter: Adapter = {
   adapter: {
     [BSC]: {
       fetch: graphs(endpoints)(BSC),
-      start: async () => 1682870400,
+      start: 1682870400,
       meta: {
-        methodology
-      }
+        methodology,
+      },
     },
     [MANTLE]: {
       fetch: graphs(endpoints)(MANTLE),
-      start: async () => 1693843200,
+      start: 1693843200,
       meta: {
-        methodology
-      }
+        methodology,
+      },
     },
-  }
-}
-
+    [ARBITRUM]: {
+      fetch: graphs(endpoints)(ARBITRUM),
+      start: 1705248000,
+      meta: {
+        methodology,
+      },
+    },
+  },
+};
 
 export default adapter;

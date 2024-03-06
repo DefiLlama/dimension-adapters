@@ -54,12 +54,12 @@ async function runAdapter(adapterPath, debugMode) {
     }
 
     const startTime = Date.now()
-    const child = childProcess.spawn('ts-node', ['--transpile-only', 'cli/testAdapter.ts',  ...adapterPath.split('/')], {
+    const child = childProcess.spawn('npx', ['ts-node', '--transpile-only', 'cli/testAdapter.ts',  ...adapterPath.split('/')], {
       env,
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc']
     })
 
     child.stdout.pipe(process.stdout);
+    child.stderr.pipe(process.stderr);
 
     child.on('error', reject)
     child.on('close', function (code) {

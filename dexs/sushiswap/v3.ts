@@ -1,6 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { Adapter, SimpleAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
@@ -63,7 +64,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
+      start: startTimeV3[chain],
       meta: {
         methodology: {
           Fees: "Each pool charge between 0.01% to 1% fee",
