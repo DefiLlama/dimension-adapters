@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/thenaursa/thena-fusion"
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/iliaazhel/thena-info"
 }
 
 const fetch = (chain: Chain) => {
@@ -26,14 +26,14 @@ const fetch = (chain: Chain) => {
     const graphQuery = gql
       `
       {
-        fusionDayData(id: ${dateId}) {
+        algebraDayData(id: ${dateId}) {
           id
           feesUSD
         }
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).fusionDayData;
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
