@@ -29,7 +29,8 @@ const endpointsAlgebraV3 = {
 };
 
 const endpointsUniV3 = {
-  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn"
+  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
+  [CHAIN.ASTAR_ZKEVM]:"https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest"
 };
 
 const graphsAlgebraV3 = getChainVolume({
