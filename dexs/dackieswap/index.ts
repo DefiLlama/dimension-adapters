@@ -38,7 +38,7 @@ const v3StartTimes = {
   [CHAIN.BASE]: 1691712000,
   [CHAIN.OPTIMISM]: 1705993200,
   [CHAIN.ARBITRUM]: 1707885300,
-  [CHAIN.BLAST]: 193913,
+  [CHAIN.BLAST]: 1709722800,
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {

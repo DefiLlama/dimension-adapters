@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
             chain === CHAIN.BASE ? 1690173000
                 : chain === CHAIN.OPTIMISM ? 1705993200
                     : chain === CHAIN.ARBITRUM ? 1707885300
-                        : chain === CHAIN.BLAST ? 193913
+                        : chain === CHAIN.BLAST ? 1709722800
                             : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},
