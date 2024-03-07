@@ -46,6 +46,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     acc[chain] = {
       fetch: graphs(chain as Chain),

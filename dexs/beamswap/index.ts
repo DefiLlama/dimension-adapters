@@ -77,6 +77,7 @@ const methodologyStable = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     classic: {
       [CHAIN.MOONBEAN]: {

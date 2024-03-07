@@ -22,6 +22,7 @@ const v1Graph = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.EVMOS]: {
       fetch: v1Graph(CHAIN.EVMOS),

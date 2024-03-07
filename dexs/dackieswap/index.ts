@@ -25,12 +25,12 @@ const v3Graph = getGraphDimensions({
     factory: "pancakeDayData",
     field: VOLUME_USD,
   },
-  totalFees:{
+  totalFees: {
     factory: "factories",
   },
   dailyFees: {
     factory: "pancakeDayData",
-    field: "feesUSD"
+    field: "feesUSD",
   },
 });
 
