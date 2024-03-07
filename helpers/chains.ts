@@ -135,7 +135,8 @@ export enum CHAIN {
   PERSISTENCE = "persistence",
   JBC = "jbc",
   ZKFAIR = "zkfair",
-  ZETA = "zeta"
+  ZETA = "zeta",
+  ASTAR_ZKEVM = "astar_zkevm"
 }
 
 // Don´t use
