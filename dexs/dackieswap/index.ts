@@ -60,6 +60,7 @@ const adapter: SimpleAdapter = {
       start: async () => v3StartTimes[CHAIN.BLAST]
     },
   },
+  version: 2
 };
 
 export default adapter;
