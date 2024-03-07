@@ -75,6 +75,7 @@ const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptio
     const data = log.data.replace('0x', '');
     const gasToken = data.slice(0, 64);
     dailyFees.addGasToken(Number('0x' + gasToken));
+    dailyRevenue.addGasToken(Number('0x' + gasToken));
   });
   return {
     dailyFees: dailyFees,
