@@ -1,18 +1,27 @@
-import { Adapter, DISABLED_ADAPTER_KEY, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import disabledAdapter from "../helpers/disabledAdapter";
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async ({createBalances, getLogs}: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances()
+  const logs = await getLogs({
+    topic: '0xc9d4f93ded9b42fa24561e02b2a40f720f71601eb1b3f7b3fd4eff20877639ee',
+    target: '0xC605C2cf66ee98eA925B1bb4FeA584b71C00cC4C',
+    eventAbi: 'event Trade (address trader, address subject, bool isBuy, uint256 shareAmount, uint256 amount, uint256 protocolAmount, uint256 subjectAmount, uint256 referralAmount, uint256 supply, uint256 buyPrice, uint256 myShares)'
+  });
+  logs.map((log: any) => {
+    dailyFees.addGasToken(log.protocolAmount+log.subjectAmount+log.referralAmount);
+    dailyRevenue.addGasToken(log.protocolAmount)
+  });
   return {
-    dailyFees: `${0}`,
-    dailyRevenue: `${0}`,
-    timestamp
+    dailyFees,
+    dailyRevenue
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.AVAX]: {
       fetch: fetch,
       start: 1695081600,
