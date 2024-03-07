@@ -136,7 +136,7 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
-  ASTAR_ZKEVM = "astar_zkevm"
+  ASTAR_ZKEVM = "astrzk"
 }
 
 // Don´t use
