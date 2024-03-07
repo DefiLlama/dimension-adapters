@@ -43,8 +43,20 @@ const adapter: Adapter = {
       start: 0,
       meta,
     },
+    celestia: {
+      fetch: fetch("celestia"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
     osmosis: {
       fetch: fetch("osmosis"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    dydx: {
+      fetch: fetch("dydx"),
       runAtCurrTime: true,
       start: 0,
       meta,
@@ -81,6 +93,12 @@ const adapter: Adapter = {
     },
     umee: {
       fetch: fetch("umee"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    comdex: {
+      fetch: fetch("comdex"),
       runAtCurrTime: true,
       start: 0,
       meta,
