@@ -10,8 +10,7 @@ const {
 } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  [RONIN]:
-    "https://thegraph.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue",
+  [RONIN]: "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue",
 };
 
 const blocksGraph =
