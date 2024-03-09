@@ -23,14 +23,14 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances, ch
       const { data, } = await httpGet(endpoint + 'pool_stats', { params: { poolIdx, chainId, base, quote, histTime: endTimestamp, } })
       const { data: dataOld } = await httpGet(endpoint + 'pool_stats', { params: { poolIdx, chainId, base, quote, histTime: startTimestamp, } })
 
-      dailyVolume.add(base, data.baseVolume)
+      // dailyVolume.add(base, data.baseVolume)
       dailyVolume.add(quote, data.quoteVolume)
-      dailyVolume.subtractToken(base, dataOld.baseVolume)
+      // dailyVolume.subtractToken(base, dataOld.baseVolume)
       dailyVolume.subtractToken(quote, dataOld.quoteVolume)
 
-      dailyFees.add(base, data.baseVolume * data.feeRate)
+      // dailyFees.add(base, data.baseVolume * data.feeRate)
       dailyFees.add(quote, data.quoteVolume * data.feeRate)
-      dailyFees.subtractToken(base, dataOld.baseVolume * data.feeRate)
+      // dailyFees.subtractToken(base, dataOld.baseVolume * data.feeRate)
       dailyFees.subtractToken(quote, dataOld.quoteVolume * data.feeRate)
     })
   if (errors?.length) throw errors
