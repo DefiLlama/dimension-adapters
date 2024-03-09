@@ -90,6 +90,8 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
 
   return {
     timestamp,
+    totalPremiumVolume: cumulative.totalFees,
+    dailyPremiumVolume: daily.dailyFees,
     ...cumulative,
     ...daily,
   };
