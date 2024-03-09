@@ -37,7 +37,7 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances, ch
   return { dailyVolume, dailyFees, }
 }
 
-const adapter = { fetch, runAtCurrTime: true, start: 1685232000, }
+const adapter = { fetch, start: 1685232000, }
 
 
 export default {
