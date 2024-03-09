@@ -304,6 +304,7 @@ function univ2DimensionAdapter(params: IGetChainVolumeParams, meta: BaseAdapter[
         },
       };
     }, {} as BaseAdapter),
+    version: 2
   };
 
   return adapter;
