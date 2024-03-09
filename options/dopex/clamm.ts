@@ -62,13 +62,14 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
       return {
         totalNotionalVolume:
           acc.totalNotionalVolume + Number(market.totalVolume),
-        totalFees: acc.totalFees + Number(market.totalPremium),
+        totalPremiumVolume:
+          acc.totalPremiumVolume + Number(market.totalPremium),
         totalRevenue: acc.totalRevenue + Number(market.totalFees),
       };
     },
     {
       totalNotionalVolume: 0,
-      totalFees: 0,
+      totalPremiumVolume: 0,
       totalRevenue: 0,
     }
   );
@@ -77,21 +78,19 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
     (acc, market) => {
       return {
         dailyNotionalVolume: acc.dailyNotionalVolume + Number(market.volume),
-        dailyFees: acc.dailyFees + Number(market.premium),
+        dailyPremiumVolume: acc.dailyPremiumVolume + Number(market.premium),
         dailyRevenue: acc.dailyRevenue + Number(market.fees),
       };
     },
     {
       dailyNotionalVolume: 0,
-      dailyFees: 0,
+      dailyPremiumVolume: 0,
       dailyRevenue: 0,
     }
   );
 
   return {
     timestamp,
-    totalPremiumVolume: cumulative.totalFees,
-    dailyPremiumVolume: daily.dailyFees,
     ...cumulative,
     ...daily,
   };
