@@ -187,7 +187,7 @@ function univ2Adapter(endpoints: {
   hasTotalVolume = true,
   gasToken = null as string|null
 }) {
-  const graphs = (gasToken === null?getChainVolume:getChainVolumeWithGasToken as typeof getChainVolume)({
+  const graphs = (gasToken === null ? getChainVolume : getChainVolumeWithGasToken as typeof getChainVolume)({
     graphUrls: endpoints,
     hasTotalVolume,
     totalVolume: {
@@ -217,7 +217,8 @@ function univ2Adapter(endpoints: {
           }),
         }
       }
-    }, {} as BaseAdapter)
+    }, {} as BaseAdapter),
+    version: 2
   };
 
   return adapter;
