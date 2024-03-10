@@ -91,7 +91,8 @@ const adapter: Adapter = {
       fetch: graph(CHAIN.ARBITRUM),
       start: 1672531200,
     }
-  }
+  },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;
