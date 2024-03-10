@@ -44,6 +44,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: chainAdapter,
     [CHAIN.BASE]: chainAdapter,
     [CHAIN.BSC]: chainAdapter,
+    [CHAIN.AVAX]: chainAdapter,
   },
 
 }
