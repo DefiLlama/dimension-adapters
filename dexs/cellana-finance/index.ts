@@ -1,7 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
+//API
 const cellanaDappUrl = 'https://api.cellana.finance/api/v1/tool/trading-volume-chart?timeframe=';
 
 const dayEndpoint = (endTimestamp: number, timeframe: string) =>
