@@ -1,7 +1,12 @@
-import fetchURL from "../../utils/fetchURL";
+import {httpGet} from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 //API
+const config_rule = {
+    headers: {
+        'user-agent': 'axios/1.6.7'
+    }
+}
 const cellanaDappUrl = 'https://api.cellana.finance/api/v1/tool/trading-volume-chart?timeframe=';
 
 const dayEndpoint = (endTimestamp: number, timeframe: string) =>
@@ -16,16 +21,16 @@ interface IVolumeall {
 }
 
 const fetch = async (timestamp: number) => {
-    const dayVolumeQuery = (await fetchURL(dayEndpoint(timestamp, "VOLUME_1H"))).data;
+    const dayVolumeQuery = (await httpGet(dayEndpoint(timestamp, "VOLUME_1H"), config_rule)).data;
     const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalVolumeQuery = (await fetchURL(totalEndpoint(0, "VOLUME_ALL"))).data;
+    const totalVolumeQuery = (await httpGet(totalEndpoint(0, "VOLUME_ALL"), config_rule)).data;
     const totalVolume = totalVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const dayFeesQuery = (await fetchURL(dayEndpoint(timestamp, "FEE_1H"))).data;
+    const dayFeesQuery = (await httpGet(dayEndpoint(timestamp, "FEE_1H"), config_rule)).data;
     const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalFeesQuery = (await fetchURL(totalEndpoint(0, "FEE_ALL"))).data;
+    const totalFeesQuery = (await httpGet(totalEndpoint(0, "FEE_ALL"), config_rule)).data;
     const totalFees = totalFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
     const dailyProtocolRevenue = 0;
