@@ -21,6 +21,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(CHAIN.CRONOS),

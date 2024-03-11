@@ -40,6 +40,7 @@ const methodologyv3 = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v3: {
       [CHAIN.MOONBEAN]: {

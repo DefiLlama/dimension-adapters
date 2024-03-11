@@ -10,17 +10,17 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances();
-  const totalVolume = createBalances();
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const totalVolume = options.createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   vols
-    .filter((volItem: IVolumeall) => Number(volItem.time) <= startOfDay)
+    .filter((volItem: IVolumeall) => Number(volItem.time) <= options.startOfDay)
     .map(({ volume }) => totalVolume.addGasToken(volume));
-  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === startOfDay)?.volume)
+  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === options.startOfDay)?.volume)
 
   return {
-    timestamp: startOfDay,
+    timestamp: options.startOfDay,
     dailyVolume,
     // totalVolume,
   }

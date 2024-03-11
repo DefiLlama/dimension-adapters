@@ -139,6 +139,16 @@ finalNumbers.all = {
 return finalNumbers
 }
 
+export async function parseChainResponse(queryId:string){
+  const query = await retrieveAlliumResults(queryId)
+  return {
+    all: {
+      users: query[0].usercount,
+      txs: query[0].txcount
+    }
+  }
+}
+
 export const isAddressesUsable = (addresses:ProtocolAddresses)=>{
-    return addresses.addresses.bsc === undefined && Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
+    return Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
 }
