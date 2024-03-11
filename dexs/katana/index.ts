@@ -14,7 +14,7 @@ const endpoints = {
 };
 
 const blocksGraph =
-  "https://thegraph.roninchain.com/subgraphs/name/axieinfinity/ronin-blocks";
+  "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/ronin-blocks";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 const blockQuery = gql`
   query blocks($timestampFrom: Int!, $timestampTo: Int!) {
