@@ -42,7 +42,9 @@ const adapter: Adapter = {
     [CHAIN.OPTIMISM]: chainAdapter,
     [CHAIN.ARBITRUM]: chainAdapter,
     [CHAIN.POLYGON]: chainAdapter,
+    [CHAIN.BASE]: chainAdapter,
     [CHAIN.BSC]: chainAdapter,
+    [CHAIN.AVAX]: chainAdapter,
   },
 
 }
