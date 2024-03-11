@@ -5,7 +5,8 @@ import { CHAIN } from "../../helpers/chains";
 const config_rule = {
     headers: {
         'user-agent': 'axios/1.6.7'
-    }
+    },
+    withCredentials:true
 }
 const cellanaDappUrl = 'https://api.cellana.finance/api/v1/tool/trading-volume-chart?timeframe=';
 
