@@ -26,3 +26,5 @@ const adapter: BreakdownAdapter = {
     },
     protocolType: ProtocolType.PROTOCOL,
 }
+
+export default adapter;
