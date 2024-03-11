@@ -1,4 +1,5 @@
 import { SimpleAdapter } from "../../adapters/types";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const { request, gql } = require("graphql-request");
 const { RONIN } = require("../../helpers/chains");
@@ -32,12 +33,16 @@ const blockQuery = gql`
   }
 `;
 
+
 const getCustomBlock = async (timestamp: number) => {
+
+  const timestampFrom = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+
   const block = Number(
     (
       await request(blocksGraph, blockQuery, {
-        timestampFrom: timestamp - ONE_DAY_IN_SECONDS,
-        timestampTo: timestamp + ONE_DAY_IN_SECONDS,
+        timestampFrom,
+        timestampTo: timestampFrom + ONE_DAY_IN_SECONDS-1,
       })
     ).blocks[0].number
   );
