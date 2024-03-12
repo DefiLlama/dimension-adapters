@@ -1,9 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
 const { request, gql } = require("graphql-request");
 const { RONIN } = require("../../helpers/chains");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -11,12 +9,13 @@ const {
 } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  [RONIN]: "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue",
+  [RONIN]:
+    "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue",
 };
 
 const blocksGraph =
   "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/ronin-blocks";
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const blockQuery = gql`
   query blocks($timestampFrom: Int!, $timestampTo: Int!) {
     blocks(
@@ -33,45 +32,53 @@ const blockQuery = gql`
   }
 `;
 
-
 const getCustomBlock = async (timestamp: number) => {
-
-  const timestampFrom = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const timestampFrom = getUniqStartOfTodayTimestamp(
+    new Date(timestamp * 1000),
+  );
 
   const block = Number(
     (
       await request(blocksGraph, blockQuery, {
         timestampFrom,
-        timestampTo: timestampFrom + ONE_DAY_IN_SECONDS-1,
+        timestampTo: timestampFrom + ONE_DAY_IN_SECONDS - 1,
       })
-    ).blocks[0].number
+    ).blocks[0].number,
   );
 
   return block;
 };
 
-const DAILY_VOLUME_FACTORY = "katanaDayData";
+const fetch: FetchV2 = async (options) => {
+  const data = await getChainVolume({
+    graphUrls: {
+      [RONIN]: endpoints[RONIN],
+    },
+    totalVolume: {
+      factory: "katanaFactories",
+      field: DEFAULT_TOTAL_VOLUME_FIELD,
+    },
+    dailyVolume: {
+      factory: "katanaDayData",
+      field: DEFAULT_DAILY_VOLUME_FIELD,
+    },
+    getCustomBlock,
+  })(options.chain)(options);
 
-const graphs = getChainVolume({
-  graphUrls: {
-    [RONIN]: endpoints[RONIN],
-  },
-  totalVolume: {
-    factory: "katanaFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
-  getCustomBlock,
-});
+  return {
+    dailyFees: data.dailyVolume * 0.003,
+    dailyProtocolRevenue: data.dailyVolume * 0.0005,
+    dailySupplySideRevenue: data.dailyVolume * 0.0025,
+    dailyUserFees: data.dailyVolume * 0.003,
+    ...data,
+  };
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [RONIN]: {
-      fetch: graphs(RONIN),
+      fetch,
       start: 1635724800,
     },
   },
