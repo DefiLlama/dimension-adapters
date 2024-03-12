@@ -16,14 +16,8 @@ const query = gql`
   query {
     markets {
       items {
-        creationTimestamp
-        collateralAsset {
-          address
-          decimals
-        }
         loanAsset {
           address
-          decimals
         }
         state {
           borrowAssets
