@@ -21,7 +21,7 @@ const adapter: BreakdownAdapter = {
                 fetch: fetchPerpVolume,
                 runAtCurrTime: true,
                 customBackfill: undefined,
-                start: 0
+                start: 1710028800 // start time llama collect
             }
         }
     },
