@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: getDexFeesExports({ chain: CHAIN.LINEA, factory: FACTORY_ADDRESS,}),
-      start: 1705053913,
+      start: 1705968000,
     },
   }
 };
