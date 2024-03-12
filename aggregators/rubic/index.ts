@@ -1,0 +1,79 @@
+import fetchURL from "../../utils/fetchURL";
+import {FetchResult, SimpleAdapter} from "../../adapters/types";
+import {CHAIN} from "../../helpers/chains";
+
+
+const chains: Record<string, string> = {
+  [CHAIN.SOLANA]: 'solana',
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BSC]: 'binance-smart-chain',
+  [CHAIN.AVAX]: 'avalanche',
+  // [CHAIN.POLYGON]: 'polygon',
+  // [CHAIN.ARBITRUM]: 'arbitrum',
+  // [CHAIN.ZKSYNC]: 'zk-sync',
+  // [CHAIN.BLAST]: 'blast',
+  // [CHAIN.LINEA]: 'linea',
+  // [CHAIN.SCROLL]: 'scroll',
+  // [CHAIN.ZETA]: 'zetachain',
+  // [CHAIN.MANTLE]: 'mantle',
+  // [CHAIN.MANTA]: 'manta-pacific',
+  // [CHAIN.POLYGON_ZKEVM]: 'polygon-zkevm',
+  // [CHAIN.PULSECHAIN]: 'pulsechain',
+  // [CHAIN.BASE]: 'base',
+  // [CHAIN.FANTOM]: 'fantom',
+  // [CHAIN.BOBA]: 'boba',
+  // [CHAIN.TELOS]: 'telos',
+  // [CHAIN.KAVA]: 'kava',
+  // [CHAIN.OPTIMISM]: 'optimism',
+  // [CHAIN.AURORA]: 'aurora',
+  // [CHAIN.OASIS]: 'oasis',
+  // [CHAIN.METIS]: 'metis',
+  // [CHAIN.KLAYTN]: 'klaytn',
+  // [CHAIN.VELAS]: 'velas',
+  // [CHAIN.SYSCOIN]: 'syscoin',
+  // [CHAIN.MOONRIVER]: 'moonriver',
+  // [CHAIN.TRON]: 'tron',
+  // [CHAIN.MOONBEAM]: 'moonbeam',
+  // [CHAIN.FUSE]: 'fuse',
+  // [CHAIN.CELO]: 'celo',
+  // [CHAIN.OKEXCHAIN]: 'oke-x-chain',
+  // [CHAIN.CRONOS]: 'cronos'
+};
+
+interface ApiResponce {
+  daily_volume_in_usd: string;
+  daily_transaction_count: string;
+  total_volume_in_usd: string;
+  total_transaction_count: string;
+}
+
+const fetch = (chain: string) => async (timestamp: number): Promise<FetchResult> => {
+  const responce: ApiResponce = (
+    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${timestamp}&network=${chain}`)
+  );
+
+  return {
+    dailyVolume: responce?.daily_volume_in_usd || undefined,
+    totalVolume: responce?.total_volume_in_usd || undefined,
+    timestamp,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    ...Object.entries(chains).reduce((acc, chain) => {
+      const key = chain[0];
+      const value = chain[1];
+
+      return {
+        ...acc,
+        [key]: {
+          fetch: fetch(value),
+          start: 1672531200, // 01.01.2023
+        },
+      };
+    }, {}),
+  },
+};
+
+export default adapter;
