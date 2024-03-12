@@ -30,6 +30,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.STARKNET]: {
       fetch,
       start: 1683408691,
+      runAtCurrTime: true
     },
   },
 };
