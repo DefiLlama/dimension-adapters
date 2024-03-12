@@ -1,4 +1,5 @@
 import { BreakdownAdapter, ProtocolType, FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const marketsCombinedVolumeDaily = "https://api.prod.flash.trade/market-stat/volume-all-markets-24hr";
@@ -16,9 +17,9 @@ const fetchPerpVolume = async(
 const adapter: BreakdownAdapter = {
     breakdown: {
         perp: {
-            solana: {
-                fetch: fetchPerpVolume, 
-                runAtCurrTime: true,    
+            [CHAIN.SOLANA]: {
+                fetch: fetchPerpVolume,
+                runAtCurrTime: true,
                 customBackfill: undefined,
                 start: 0
             }
