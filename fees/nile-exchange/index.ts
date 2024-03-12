@@ -11,7 +11,7 @@ type TStartTime = {
   [key: string]: number;
 }
 const startTimeV2: TStartTime = {
-  [CHAIN.LINEA]: 1705053913,
+  [CHAIN.LINEA]: 1705968000,
 }
 
 const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
