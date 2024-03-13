@@ -29,15 +29,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetchVolume,
-      start: 1685574000,
+      start: 1704067200,
     },
     [CHAIN.XDC]: {
       fetch: fetchVolume,
-      start: 1685574000,
+      start: 1704067200,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume,
-      start: 1685574000,
+      start: 1704067200,
     },
   }
 }
