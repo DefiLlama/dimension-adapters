@@ -7,7 +7,7 @@ import { ethers } from "ethers";
 
 export async function filterPools({ api, pairs, createBalances }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
-  const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls })
+  const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   res.forEach((bal, i) => {
@@ -15,7 +15,7 @@ export async function filterPools({ api, pairs, createBalances }: { api: ChainAp
     if (!pairBalances[balanceCalls[i].params]) {
       pairBalances[balanceCalls[i].params] = createBalances()
     }
-    pairBalances[balanceCalls[i].params].add(balanceCalls[i].target, bal)
+    pairBalances[balanceCalls[i].params].add(balanceCalls[i].target, bal ?? 0)
   })
   // we do this to cache price results 
   await balances.getUSDValue()
