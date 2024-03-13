@@ -1,7 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const address = {
+const address: any = {
   [CHAIN.LINEA]: '0x7e0da0deccac2e7b9ad06e378ee09c15b5bdeefa',
   [CHAIN.XDC]: '0x7e0da0deccac2e7b9ad06e378ee09c15b5bdeefa',
   [CHAIN.POLYGON]: '0xA42e5d2A738F83a1e1a907eB3aE031e5A768C085',
