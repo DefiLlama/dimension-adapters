@@ -2,14 +2,15 @@ import { BreakdownAdapter, ProtocolType, FetchResultVolume } from "../../adapter
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const marketsCombinedVolumeDaily = "https://api.prod.flash.trade/market-stat/volume-all-markets-24hr";
+const marketsCombinedVolumeDaily = "https://api.prod.flash.trade/market-stats";
 
 const fetchPerpVolume = async(
     timestamp: number
 ):Promise<FetchResultVolume> => {
-    const dailyStats = (await fetchURL(marketsCombinedVolumeDaily));
+    const marketStats = (await fetchURL(marketsCombinedVolumeDaily));
     return {
-        dailyVolume: dailyStats?.total_volume_in_usd.toString(),
+        dailyVolume: marketStats?.dailyVolumeInUsd.toString(),
+        totalVolume: marketStats?.totalVolumeInUsd.toString(),
         timestamp: timestamp
     }
 }

@@ -8,7 +8,7 @@ const gooseFxEndpoint = "https://api-services.goosefx.io/getDefillamaStats";
 const fetch = async (timestamp: number) => {
   const timeStampInMs = timestamp * 1000;
   const res = await postURL(gooseFxEndpoint, {
-    timeStamp: timeStampInMs
+    timestamp: timeStampInMs 
   });
   return {
     timestamp: timeStampInMs,

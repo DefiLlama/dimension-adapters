@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: getDexVolumeExports({ chain: CHAIN.LINEA, factory: FACTORY_ADDRESS }),
-      start: 1768897,
+      start: 1705968000,
     },
   }
 };

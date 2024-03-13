@@ -17,7 +17,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.WEMIX]: {
       fetch,
-      start:  1705017600
+      start:  1705017600,
+      runAtCurrTime: true
     },
   },
 };
