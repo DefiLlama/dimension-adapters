@@ -10,18 +10,34 @@ type getDexVolumeFeeParamsV3 = { chain: string, fromTimestamp: number, toTimesta
 type getDexVolumeExportsParams = { chain: string, factory?: string, pools?: string[], pairLengthAbi?: string, pairItemAbi?: string, }
 type getDexVolumeExportsParamsV3 = { chain: string, factory?: string, pools?: string[], factoryFromBlock?: number, swapEvent?: string, }
 
+const statbleaAbi: any = {
+  "inputs": [],
+  "name": "stable",
+  "outputs": [
+      {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+      }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+};
+
 export async function getDexVolume({ factory, timestamp, pools, fetchOptions, pairLengthAbi = 'allPairsLength', pairItemAbi = 'allPairs', swapEvent = _swapEvent }: getDexVolumeParams) {
-  const { api } = fetchOptions;
+  const { api, createBalances } = fetchOptions;
   if (!pools) pools = await api.fetchList({ lengthAbi: pairLengthAbi, itemAbi: pairItemAbi, target: factory! })
 
   const token0s = await api.multiCall({ abi: 'address:token0', calls: pools! })
   const token1s = await api.multiCall({ abi: 'address:token1', calls: pools! })
+  const stables = await api.multiCall({ abi: statbleaAbi, calls: pools!, permitFailure: true })
 
   const logs = await fetchOptions.getLogs({
     targets: pools,
     eventAbi: swapEvent,
     flatten: false,
   });
+  const dailyFees = createBalances();
   logs.forEach((log: any[], index: number) => {
     const token0 = token0s[index]
     const token1 = token1s[index]
@@ -31,10 +47,13 @@ export async function getDexVolume({ factory, timestamp, pools, fetchOptions, pa
       api.add(token0, i.amount0Out)
       // api.add(token1, i.amount1In)
       api.add(token1, i.amount1Out)
+      dailyFees.add(token0, Number(i.amount0In) * ((stables[index] ? 1 : 100) / 10000))
+      dailyFees.add(token1, Number(i.amount1In) * ((stables[index] ? 1 : 100) / 10000))
     })
   })
   return {
     timestamp,
+    dailyFees: dailyFees,
     dailyVolume: api.getBalancesV2(),
   }
 }
