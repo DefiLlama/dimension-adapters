@@ -1,7 +1,7 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
-const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";
+const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list";
 
 async function fetch(timestamp: number) {
     const [whirlpools] = await Promise.all([httpGet(wpEndpoint)]);
