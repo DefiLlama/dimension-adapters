@@ -22,6 +22,7 @@ const adapter: SimpleAdapter = {
       start: 0,
     },
   },
+  isExpensiveAdapter: true
 };
 
 export default adapter;
