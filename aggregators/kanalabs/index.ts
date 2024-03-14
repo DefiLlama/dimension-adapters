@@ -43,23 +43,14 @@ const fetch = (chain: KanaChainID) => async (timestamp: number) => {
 
 const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = await fetchURL(
-      `${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`
-    );
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+  const data = await fetchURL(
+    `${TRADE_URL}?timestamp=${dayTimestamp}&chainId=${chain}`
+  );
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume: data.today.volume,
+    totalVolume: data.totalVolume.volume,
+  };
 };
 
 const startTimeBlock = 1695897800;
