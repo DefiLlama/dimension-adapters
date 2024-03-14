@@ -28,7 +28,7 @@ const symbol: string[] = [...new Set([
     'SEIUSDT',      'INJUSDT',      'ENSUSDT',
     '1000SATSUSDT', 'PENDLEUSDT',   'GMTUSDT',
     'MANTAUSDT',    'LINKUSDT',     'SOLUSDT',
-    'MATICUSDT',    'STRKUSDT',     ',SUIUSDT'
+    'MATICUSDT',    'STRKUSDT',     'SUIUSDT'
 ])]
 interface IOpenInterest {
     id: string;
