@@ -43,7 +43,7 @@ const graph = (chain: Chain) => {
       `
 
 
-    const value: string[][] = (await queryFlipside(query, 210))
+    const value: string[][] = (await queryFlipside(query, 510))
     const rawData = value.map((a: string[]) => {
       const data = a[0].replace('0x5f575529', '');
       const address = data.slice(64, 128);
@@ -60,7 +60,7 @@ const graph = (chain: Chain) => {
     rawData.map((e: IVolume) => {
       dailyFees.add(e.tokenAddress, e.amount)
     })
-    
+
     dailyFees.resizeBy(0.0085)
 
     return {
@@ -91,7 +91,8 @@ const adapter: Adapter = {
       fetch: graph(CHAIN.ARBITRUM),
       start: 1672531200,
     }
-  }
+  },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;

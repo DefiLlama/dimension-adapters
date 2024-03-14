@@ -25,6 +25,7 @@ const graphs = getChainVolumeWithGasToken({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     fantom: {
       fetch: graphs("fantom"),

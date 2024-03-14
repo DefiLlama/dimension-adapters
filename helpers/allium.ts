@@ -1,12 +1,13 @@
 import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
 
 const HEADERS = {
   "Content-Type": "application/json",
-  "X-API-KEY": process.env.ALLIUM_API_KEY!,
+  "X-API-KEY": getEnv('ALLIUM_API_KEY'),
 };
 
 export async function startAlliumQuery(sqlQuery: string) {

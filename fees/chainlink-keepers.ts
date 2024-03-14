@@ -56,7 +56,7 @@ const fetchKeeper = (chain: Chain) => {
     })).map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
       .filter((e: ITx) => e.topics.includes(success_topic));
     const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-keepers' }))
       .map((e: any) => {
         const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
         return amount

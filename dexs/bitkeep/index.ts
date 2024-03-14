@@ -39,10 +39,10 @@ const adapter: SimpleAdapter = {
             fetch: graph(CHAIN.ETHEREUM),
             start: 1667232000,
         },
-        [CHAIN.POLYGON]: {
-            fetch: graph(CHAIN.POLYGON),
-            start: 1667232000,
-        },
+        // [CHAIN.POLYGON]: {
+        //     fetch: graph(CHAIN.POLYGON),
+        //     start: 1667232000,
+        // },
         [CHAIN.BSC]: {
             fetch: graph(CHAIN.BSC),
             start: 1667232000,

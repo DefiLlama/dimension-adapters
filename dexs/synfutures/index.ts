@@ -27,7 +27,6 @@ const fetch = (chain: Chain) => {
   return async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
     const dailyVolume = createBalances()
     const endDayId = dayIdFromTimestamp(startOfDay);
-  
     const graphQL = `{
       quoteDataDailySnapshots(first: 1000, where: {dayId: ${endDayId}}) {
         id
@@ -35,6 +34,7 @@ const fetch = (chain: Chain) => {
         quote{
           id
           symbol
+          decimals
         }
         dayTradeVolume
       }
@@ -43,7 +43,7 @@ const fetch = (chain: Chain) => {
     const data = await request(info[chain].subgraph, graphQL);
 
     for (const dailyData of data.quoteDataDailySnapshots) {
-      dailyVolume.add(dailyData.quote.id, Number(dailyData.dayTradeVolume));
+      dailyVolume.add(dailyData.quote.id, Number(dailyData.dayTradeVolume) / (10 ** (18 - Number(dailyData.quote.decimals))));
     }
 
     return {
@@ -70,10 +70,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: 1628128417,
-    },    
+    },
   },
 };
 
 export default adapter;
-
-

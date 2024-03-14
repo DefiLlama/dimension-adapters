@@ -9,7 +9,7 @@ interface IVolumeall {
   period_start: number;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, {startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }: FetchOptions) => {
   const totalVolume = createBalances()
   const dailyVolume = createBalances()
 
@@ -22,8 +22,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, {startOfDay, createBalan
     .find(dayItem => dayItem.period_start === startOfDay)?.volume
   dailyVolume.addCGToken('bitcoin', +(dailyVol as any))
 
-  return { 
-    // totalVolume, 
+  return {
+    // totalVolume,
     dailyVolume, timestamp: startOfDay };
 };
 

@@ -41,10 +41,9 @@ const v2VolumeAPI =
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
 const fetchV2Volume = async (chain: Chain) => {
-  const data = [] = (
+  const { data = [] } = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
-  ) as  ResponseItem[] 
-
+  ) as  { data: ResponseItem[] }
   const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
 
   return dailyVolume
@@ -75,6 +74,26 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: async (timestamp) => {
         const dailyVolume = await fetchV2Volume(CHAIN.ARBITRUM);
+        return {
+          timestamp,
+          dailyVolume: dailyVolume,
+        };
+      },
+      start: 1682035200,
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: async (timestamp) => {
+        const dailyVolume = await fetchV2Volume('opbnb');
+        return {
+          timestamp,
+          dailyVolume: dailyVolume,
+        };
+      },
+      start: 1682035200,
+    },
+    [CHAIN.BASE]: {
+      fetch: async (timestamp) => {
+        const dailyVolume = await fetchV2Volume(CHAIN.BASE);
         return {
           timestamp,
           dailyVolume: dailyVolume,

@@ -18,8 +18,10 @@ const adapter: SimpleAdapter = {
     solana: {
       fetch,
       start: 1657756800,
+      runAtCurrTime: true,
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

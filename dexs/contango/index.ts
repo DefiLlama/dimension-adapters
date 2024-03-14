@@ -59,7 +59,7 @@ const fetchVolume = (chain: Chain) => {
     try {
       response = await request(endpoint[chain], query)
     } catch (error) {
-      console.error('Error fetching contango data', wrapGraphError(error).message);
+      console.error('Error fetching contango data', wrapGraphError(error as Error).message);
       return { timestamp };
     }
 

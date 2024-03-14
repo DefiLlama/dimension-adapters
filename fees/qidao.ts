@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN, } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -25,57 +25,41 @@ const Performance_Fee_Management_Contracts: TAddress = {
 const event_fees_withdraw = 'event FeeWithdrawn(address token,uint256 amount)';
 const event_token_earned = 'event TokensEarned(address indexed perfToken,address indexed recipient,uint256 amount)';
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = createBalances()
-    const log_withdraw_fees = Vault_Fee_Manager_Contracts[chain] ? (await getLogs({
-      target: Vault_Fee_Manager_Contracts[chain],
-      eventAbi: event_fees_withdraw
-    })) : []
+const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
+  const dailyFees = createBalances()
+  const log_withdraw_fees = Vault_Fee_Manager_Contracts[chain] ? (await getLogs({
+    target: Vault_Fee_Manager_Contracts[chain],
+    eventAbi: event_fees_withdraw
+  })) : []
 
-    const log_token_earned = Performance_Fee_Management_Contracts[chain] ? (await getLogs({
-      target: Performance_Fee_Management_Contracts[chain],
-      eventAbi: event_token_earned
-    })) : []
+  const log_token_earned = Performance_Fee_Management_Contracts[chain] ? (await getLogs({
+    target: Performance_Fee_Management_Contracts[chain],
+    eventAbi: event_token_earned
+  })) : []
 
-    log_withdraw_fees.map((e: any) => dailyFees.add(e.token, e.amount))
-    log_token_earned.map((e: any) => dailyFees.add(e.perfToken, e.amount))
-    const dailyRevenue = dailyFees.clone(0.5)
-    const totalSupplySideRevenue = dailyFees.clone(0.5)
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyHoldersRevenue: dailyRevenue,
-      dailySupplySideRevenue: totalSupplySideRevenue,
-      timestamp
-    }
+  log_withdraw_fees.map((e: any) => dailyFees.add(e.token, e.amount))
+  log_token_earned.map((e: any) => dailyFees.add(e.perfToken, e.amount))
+  const dailyRevenue = dailyFees.clone(0.5)
+  const totalSupplySideRevenue = dailyFees.clone(0.5)
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue: totalSupplySideRevenue,
   }
 }
 
-
+const options: any = { fetch, start: 1691193600 }
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1691193600,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: 1691193600,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691193600,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: 1691193600,
-    },
-    [CHAIN.XDAI]: {
-      fetch: fetch(CHAIN.XDAI),
-      start: 1691193600,
-    },
-  }
+    [CHAIN.ARBITRUM]: options,
+    [CHAIN.POLYGON]: options,
+    [CHAIN.OPTIMISM]: options,
+    [CHAIN.AVAX]: options,
+    [CHAIN.XDAI]: options,
+  },
+  version: 2,
 };
 
 export default adapter;

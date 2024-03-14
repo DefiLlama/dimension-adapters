@@ -1,7 +1,7 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
+import { httpGet, httpPost } from "../../utils/fetchURL";
 
 const URL = "https://api.hyperliquid.xyz/info";
 

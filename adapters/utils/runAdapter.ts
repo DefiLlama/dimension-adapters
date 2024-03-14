@@ -1,11 +1,13 @@
 import { Balances, ChainApi, getEventLogs, getProvider } from '@defillama/sdk'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, } from '../types'
+import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string) {
+export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
+  adapterVersion = 1
+}: any = {}) {
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
@@ -22,7 +24,15 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
-      const result: FetchResultGeneric = await fetchFunction(options.toTimestamp, chainBlocks, options);
+      let result: any
+      if (adapterVersion === 1) {
+        result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
+      } else if (adapterVersion === 2) {
+        result = await (fetchFunction as FetchV2)(options);
+        result.timestamp = options.toTimestamp
+      } else {
+        throw new Error(`Adapter version ${adapterVersion} not supported`)
+      }
       const ignoreKeys = ['timestamp', 'block']
       // if (id)
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
@@ -53,16 +63,16 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
     }
-    const toTimestamp = timestamp - 1
+    const toTimestamp = timestamp
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, })
+      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached
@@ -76,7 +86,12 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
     const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
-    const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    const startOfDay = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
+    const startTimestamp = fromTimestamp
+    const endTimestamp = toTimestamp
+    const getStartBlock = getFromBlock
+    const getEndBlock = getToBlock
+    const toApi = api
 
     return {
       createBalances,
@@ -88,8 +103,13 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       getLogs,
       chain,
       fromApi,
+      toApi,
       api,
       startOfDay,
+      startTimestamp,
+      endTimestamp,
+      getStartBlock,
+      getEndBlock,
     }
   }
 

@@ -10,8 +10,6 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
-import { type } from "os";
-import { time } from "console";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -62,13 +60,15 @@ const blacklisted = {
   ]
 }
 
+const KEY = 'a265c39f5a123ab2d40b25dc352adc22'
+
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis?source=uniswap",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-arbitrum-one",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
+  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-optmism-regen",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
+  [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
-  // [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
@@ -157,12 +157,20 @@ const startTimeV3:TStartTime = {
   [CHAIN.ERA]: 1693440000
 }
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          const keys = ["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"]
+        fetch: async (options) => {
+          const response = await v1Graph(options.chain)(options);
+          const keys = [
+            "dailyUserFees",
+            "dailyProtocolRevenue",
+            "dailySupplySideRevenue",
+            "dailyHoldersRevenue",
+            "dailyRevenue",
+            "dailyFees",
+          ];
           for (const key of keys) {
             if (typeof response[key] === 'string') {
               response[key] = await sdk.Balances.getUSDString({
@@ -180,9 +188,10 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const response = await v2Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          response.totalVolume = Number(response.dailyVolume) + 1079453198606.2229;
+        fetch: async (options) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
           response.totalFees = Number(response.totalVolume) * 0.003;
           response.totalUserFees = Number(response.totalVolume) * 0.003;
           response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
@@ -214,8 +223,8 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter)
   }
 }
-// adapter.breakdown.v3.bsc.fetch = async (timestamp, chainBlocks) => {
-//   const response = await v3Graphs(CHAIN.BSC)(timestamp, chainBlocks)
+// adapter.breakdown.v3.bsc.fetch = async ({ endTimestamp, getEndBlock }) => {
+//   const response = await v3Graphs(CHAIN.BSC)(endTimestamp, getEndBlock);
 //   const totalVolume = Number(response.totalVolume) - 10_000_000_000;
 //   return {
 //     ...response,

@@ -78,6 +78,7 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: volume,
 };
 export default adapter;

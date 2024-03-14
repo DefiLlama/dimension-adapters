@@ -4,8 +4,9 @@ import { request, gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getEnv } from "../../helpers/env";
 
-const SMARDEX_SUBGRAPH_API_KEY = process.env.SMARDEX_SUBGRAPH_API_KEY || "";
+const SMARDEX_SUBGRAPH_API_KEY = getEnv('SMARDEX_SUBGRAPH_API_KEY')
 const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
 
 // Headers for GraphQL requests that require an API key

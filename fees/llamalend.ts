@@ -17,9 +17,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number , _: ChainBlocks, { createBalances, getToBlock }: FetchOptions) => {
       const dailyFees = createBalances();
-      const graphQuery =  `
+      const block = await getToBlock()
+      const graphQuery = `
       {
-        loans(where:{owner_not: ADDRESSES.null}, block:{ number: ${await getToBlock()}}) {
+        loans(where:{owner_not: null}, block:{ number: ${block}}) {
           interest
           borrowed
         }

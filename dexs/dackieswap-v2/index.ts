@@ -1,10 +1,4 @@
 import customBackfill from "../../helpers/customBackfill";
-import {
-  DEFAULT_TOTAL_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD
-} from "../../helpers/getUniSubgraphVolume";
 import {CHAIN} from "../../helpers/chains";
 import type {ChainEndpoints, SimpleAdapter} from "../../adapters/types";
 import type {Chain} from "@defillama/sdk/build/general";
@@ -14,6 +8,8 @@ import {getGraphDimensions} from "../../helpers/getUniSubgraph";
 const endpoints: ChainEndpoints = {
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50473/subgraphs-exchange-v2/version/latest",
   [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/50473/v2-optimism/version/latest",
+  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/50473/v2-arbitrum/version/latest",
+  [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/50473/v2-blast/version/latest",
 };
 
 // Fetch function to query the subgraphs
@@ -46,6 +42,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
@@ -54,7 +51,9 @@ const adapter: SimpleAdapter = {
         start: async () =>
             chain === CHAIN.BASE ? 1690173000
                 : chain === CHAIN.OPTIMISM ? 1705993200
-                    : 0,
+                    : chain === CHAIN.ARBITRUM ? 1707885300
+                        : chain === CHAIN.BLAST ? 1709722800
+                            : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},
       }
