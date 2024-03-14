@@ -1,7 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 const {
   getChainVolume,
 } = require("../../helpers/getUniSubgraphVolume");
@@ -33,7 +32,6 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: graphs(chain as Chain),
         start: 1657437036,
-        customBackfill: customBackfill(chain, graphs),
       }
     }
   }, {})
