@@ -1,7 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
@@ -21,24 +21,24 @@ export enum KanaChainID {
 }
 
 const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
   const data = await fetchURL(
-    `${URL}?timestamp=${timestamp}&chainId=${chain}`
+    `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
   return {
-    timestamp: dayTimestamp,
+    timestamp: timestamp,
     dailyVolume: data.today.volume,
     totalVolume: data.totalVolume.volume,
   };
 };
 
 const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
   const data = await fetchURL(
-    `${TRADE_URL}?timestamp=${dayTimestamp}&chainId=${chain}`
+    `${TRADE_URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
   return {
-    timestamp: dayTimestamp,
+    timestamp: timestamp,
     dailyVolume: data.today.volume,
     totalVolume: data.totalVolume.volume,
   };
