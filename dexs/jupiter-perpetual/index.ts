@@ -23,6 +23,7 @@ const adapter = {
       },
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

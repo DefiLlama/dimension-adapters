@@ -2,7 +2,6 @@ import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
@@ -47,5 +46,6 @@ const adapter: Adapter = {
       runAtCurrTime: true,
     },
   },
+  isExpensiveAdapter: true,
 };
 export default adapter;

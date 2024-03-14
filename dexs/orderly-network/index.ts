@@ -29,7 +29,7 @@ const adapter: BreakdownAdapter = {
           const data = await httpGet(apiEVM)
           const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
           return {
-            timestamp: timestamp,
+            timestamp: cleanTimestamp,
             dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
           }
         }

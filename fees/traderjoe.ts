@@ -40,9 +40,9 @@ const graph = (chain: Chain) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: IData[] = (await fetchURL(endpointsV2[chain]));
     const dailyFees = historical
-      .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
+      .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd || 0
     const dailyRevenue = historical
-      .find(dayItem => dayItem.timestamp === dayTimestamp)?.protocolFeesUsd
+      .find(dayItem => dayItem.timestamp === dayTimestamp)?.protocolFeesUsd || 0
     return {
       dailyUserFees: `${dailyFees}`,
       dailyFees: `${dailyFees}`,

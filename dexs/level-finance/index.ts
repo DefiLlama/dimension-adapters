@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { adapter_derivative } from "./level-finance-derivative";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics",
@@ -52,7 +53,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1686344400,
 }
 
-const adapter: SimpleAdapter = {
+const adapter: any = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
@@ -65,4 +66,10 @@ const adapter: SimpleAdapter = {
   },
 };
 
-export default adapter;
+const adapterBreakdown: BreakdownAdapter = {
+  breakdown: {
+    "level-finance": adapter["adapter"],
+    "level-finance-derivative": adapter_derivative["adapter"]
+  }
+}
+export default adapterBreakdown;

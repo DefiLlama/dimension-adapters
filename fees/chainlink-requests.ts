@@ -1,7 +1,6 @@
 import { SimpleAdapter, ChainBlocks, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -132,6 +131,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchRequests(CHAIN.AVAX),
       start: 1675382400,
     },
-  }
+  },
+  isExpensiveAdapter: true,
 }
 export default adapter;

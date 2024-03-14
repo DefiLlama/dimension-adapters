@@ -1,7 +1,7 @@
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { time } from "console";
 
 const endpoints = {
@@ -28,10 +28,11 @@ const graphsClassic = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: async (timestamp: number) => {
-        const data = await graphsClassic(CHAIN.BSC)(timestamp, {});
+      fetch: async (options: FetchOptions) => {
+        const data = await graphsClassic(CHAIN.BSC)(options);
         const removeSpike = Number(data.totalVolume) - 2035654137.527446631277942307129497;
         data.totalVolume = removeSpike > 0 ? removeSpike : data.totalVolume;
         return {

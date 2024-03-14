@@ -57,6 +57,7 @@ const adapter: Adapter = {
       start: 1672531200
     },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

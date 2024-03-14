@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import volumeAdapter from "../dexs/zkSwap_Finance";
-import { BaseAdapter, Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { BaseAdapter, Adapter, ChainBlocks, FetchOptions, Fetch } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { Balances } from "@defillama/sdk";
 
@@ -11,8 +11,8 @@ const fetch = (chain: string, totalFees: number, revenueFee: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
     const FEE_COLLECTED_START_TIME = 1696118400
 
-    const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks, options);
-    const fetchedResultStartTime = await adapterObj[chain].fetch(FEE_COLLECTED_START_TIME, chainBlocks, options);
+    const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
+    const fetchedResultStartTime = await (adapterObj[chain].fetch as Fetch)(FEE_COLLECTED_START_TIME, chainBlocks, options);
 
     const chainDailyVolume = (await (fetchedResult.dailyVolume as Balances).getUSDValue()).toString();
     const chainTotalVolumeFromFeeCollectedDate = (Number(fetchedResult.totalVolume) - Number(fetchedResultStartTime.totalVolume))

@@ -1,7 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 interface IAevoVolumeResponse {
   daily_volume: string;
