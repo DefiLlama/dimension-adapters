@@ -1,3 +1,4 @@
+
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 const { request, gql } = require("graphql-request");
@@ -10,7 +11,7 @@ const {
 
 const endpoints = {
   [RONIN]:
-    "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue",
+    "https://defillama.axiedao.org/graphql/katana",
 };
 
 const blocksGraph =
