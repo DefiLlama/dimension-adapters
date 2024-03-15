@@ -27,6 +27,9 @@ const lpTokenAddresses: TChainAddress = {
   [CHAIN.AVAX]: [
     '0xe827352A0552fFC835c181ab5Bf1D7794038eC9f'
   ],
+  [CHAIN.BASE]: [
+    '0xDA6bb1ec3BaBA68B26bEa0508d6f81c9ec5e96d5'
+  ],
   [CHAIN.OPTIMISM]: [
     '0x3B96F88b2b9EB87964b852874D41B633e0f1f68F'
   ],
@@ -131,6 +134,11 @@ const adapters: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch,
       start: 1698030000,
+      meta,
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: 1706798200,
       meta,
     },
     [CHAIN.OPTIMISM]: {
