@@ -42,7 +42,7 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory}-${chain}.json`
 
-    const { pairs, token0s, token1s } = await cache.readCache(cacheKey)
+    const { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!pairs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
     const pairObject: IJSON<string[]> = {}
     pairs.forEach((pair: string, i: number) => {
@@ -71,8 +71,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
     const iface = new ethers.Interface([poolCreatedEvent])
-
-    let { logs } = await cache.readCache(cacheKey)
+    let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
     logs = logs.map((log: any) => iface.parseLog(log)?.args)
     const pairObject: IJSON<string[]> = {}
