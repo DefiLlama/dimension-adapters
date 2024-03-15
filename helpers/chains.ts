@@ -26,6 +26,7 @@ export enum CHAIN {
   CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
+  BITCOIN_CASH = "bitcoin_cash",
   DOGECHAIN = "dogechain",
   ENERGI = "energi",
   VELAS = "velas",
