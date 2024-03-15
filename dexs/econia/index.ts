@@ -34,9 +34,23 @@ const fetch = async (timestamp: number) => {
     return { daily: prev.daily + curr.daily, total: prev.total + curr.total };
   }, {daily: 0, total: 0});
 
+  const feesPerMarket = await Promise.all(
+    markets.map(async m =>
+      await fetchURL(`${BASE_URL}/fees_24h?market_id=eq.${m.market_id}&day=eq.${dayISO}`)
+        .then(res => (
+          { daily: res[0].fees / 1000000 }
+        ))
+    )
+  );
+
+  const fees = feesPerMarket.reduce((prev, curr) => {
+    return { daily: prev.daily + curr.daily };
+  }, { daily: 0 });
+
   let res = {
     totalVolume: `${volumes.total}`,
     dailyVolume: `${volumes.daily}`,
+    dailyFees: `${fees.daily}`,
     timestamp: dayTimestamp,
   };
 
