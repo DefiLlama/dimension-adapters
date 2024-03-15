@@ -38,8 +38,8 @@ export async function fetchAnyhedgeVolumeData(
   const dayString = new Date(timestamp * 1000).toISOString().slice(0,10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
 
-  const dailyVolume = Number(anyhedgeVolumeData.daily_volume);
-  const totalVolume = Number(anyhedgeVolumeData.total_volume);
+  const dailyVolume = Number(anyhedgeVolumeData?.daily_volume);
+  const totalVolume = Number(anyhedgeVolumeData?.total_volume);
 
   return {
     timestamp,
@@ -48,11 +48,11 @@ export async function fetchAnyhedgeVolumeData(
   };
 }
 
-async function getAnyhedgeVolumeData(endpoint: string): Promise<IAnyhedgeVolumeResponse> {
+async function getAnyhedgeVolumeData(endpoint: string): Promise<IAnyhedgeVolumeResponse | null> {
   try {
     let data = await fetchURL(endpoint);
     data = parseCSV(data);
-    let retval: IAnyhedgeVolumeResponse = {};
+    const retval: IAnyhedgeVolumeResponse = {} as IAnyhedgeVolumeResponse;
     retval.daily_volume = data[0].volume_closed;
     retval.total_volume = data[0].volume_closed_cumulative;
     return retval;
