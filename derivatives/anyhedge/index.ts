@@ -37,7 +37,6 @@ export async function fetchAnyhedgeVolumeData(
 ) {
   const dayString = new Date(timestamp * 1000).toISOString().slice(0,10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
-  console.log(anyhedgeVolumeData);
 
   const dailyVolume = Number(anyhedgeVolumeData.daily_volume);
   const totalVolume = Number(anyhedgeVolumeData.total_volume);
