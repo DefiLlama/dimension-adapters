@@ -16,7 +16,7 @@ interface IAPIResponse {
 }
 
 const fetch = (chain: string) => async () => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data.data;
+  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data;
   return {
     dailyVolume: `${response.getVolume.day}`,
     totalVolume: `${response.getVolume.total}`,
@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: async () => 0,
+        start: 0,
         runAtCurrTime: true
       }
     }

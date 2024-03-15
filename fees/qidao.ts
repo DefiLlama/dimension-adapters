@@ -1,20 +1,10 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
-import { CHAIN, XDAI } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
+import { FetchV2, SimpleAdapter } from "../adapters/types";
+import { CHAIN, } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import { ethers } from "ethers";
 
 
 type TAddress = {
   [s: string | Chain]: string;
-}
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
 }
 
 const Vault_Fee_Manager_Contracts: TAddress = {
@@ -35,116 +25,41 @@ const Performance_Fee_Management_Contracts: TAddress = {
 const event_fees_withdraw = 'event FeeWithdrawn(address token,uint256 amount)';
 const event_token_earned = 'event TokensEarned(address indexed perfToken,address indexed recipient,uint256 amount)';
 
-const topic0_fees_withdraw = '0x78473f3f373f7673597f4f0fa5873cb4d375fea6d4339ad6b56dbd411513cb3f';
-const topic0_token_earned = '0x7750c36249a9e8cdc4a6fb8a68035d55429ff67a4db8b110026b1375dd9d380c';
+const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
+  const dailyFees = createBalances()
+  const log_withdraw_fees = Vault_Fee_Manager_Contracts[chain] ? (await getLogs({
+    target: Vault_Fee_Manager_Contracts[chain],
+    eventAbi: event_fees_withdraw
+  })) : []
 
-const contract_interface = new ethers.utils.Interface([
-  event_fees_withdraw,
-  event_token_earned
-]);
+  const log_token_earned = Performance_Fee_Management_Contracts[chain] ? (await getLogs({
+    target: Performance_Fee_Management_Contracts[chain],
+    eventAbi: event_token_earned
+  })) : []
 
-interface IRAW {
-  token: string;
-  amount: number;
-}
+  log_withdraw_fees.map((e: any) => dailyFees.add(e.token, e.amount))
+  log_token_earned.map((e: any) => dailyFees.add(e.perfToken, e.amount))
+  const dailyRevenue = dailyFees.clone(0.5)
+  const totalSupplySideRevenue = dailyFees.clone(0.5)
 
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-  try {
-      const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-      const toBlock = (await getBlock(toTimestamp, chain, {}));
-
-      const log_withdraw_fees: ILog[] = Vault_Fee_Manager_Contracts[chain] ? (await sdk.api.util.getLogs({
-        target: Vault_Fee_Manager_Contracts[chain],
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain: chain,
-        topics: [topic0_fees_withdraw]
-      })).output as ILog[] : [];
-
-      const log_token_earned: ILog[] = Performance_Fee_Management_Contracts[chain] ? (await sdk.api.util.getLogs({
-        target: Performance_Fee_Management_Contracts[chain],
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain: chain,
-        topics: [topic0_token_earned]
-      })).output as ILog[] : [];
-
-      const raw_withdraw: IRAW[] = log_withdraw_fees.map((e: ILog) => {
-        const value = contract_interface.parseLog(e);
-        const token = value.args.token;
-        const amount = Number(value.args.amount._hex);
-        return {
-          token: token,
-          amount: amount,
-        } as IRAW
-      })
-
-      const raw_token_earned: IRAW[] = log_token_earned.map((e: ILog) => {
-        const value = contract_interface.parseLog(e);
-        const token = value.args.perfToken;
-        const amount = Number(value.args.amount._hex);
-        return {
-          token: token,
-          amount: amount,
-        } as IRAW
-      })
-
-      const coins = [...new Set([...raw_withdraw,...raw_token_earned].map((e: IRAW) => `${chain}:${e.token}`.toLowerCase()))]
-      const prices = await getPrices(coins, timestamp);
-      const dailyFeesUSD = [...raw_withdraw, ...raw_token_earned].map((e: IRAW) => {
-        const price = (prices[`${chain}:${e.token}`.toLowerCase()]?.price || 0);
-        const decimals = (prices[`${chain}:${e.token}`.toLowerCase()]?.decimals || 0);
-        return (Number(e.amount) / 10 ** decimals) * price;
-      }).reduce((a: number, b: number) => a+b, 0)
-      const dailyFees = dailyFeesUSD;
-      const dailyRevenue = dailyFees * .5;
-      const totalSupplySideRevenue = dailyFees * .5;
-      return {
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyRevenue}`,
-        dailyHoldersRevenue: `${dailyRevenue}`,
-        dailySupplySideRevenue: `${totalSupplySideRevenue}`,
-        timestamp
-      }
-    } catch (error) {
-      console.log(error)
-      throw error;
-    }
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue: totalSupplySideRevenue,
   }
 }
 
-
+const options: any = { fetch, start: 1691193600 }
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1691193600,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1691193600,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1691193600,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: async () => 1691193600,
-    },
-    [CHAIN.XDAI]: {
-      fetch: fetch(CHAIN.XDAI),
-      start: async () => 1691193600,
-    },
-  }
+    [CHAIN.ARBITRUM]: options,
+    [CHAIN.POLYGON]: options,
+    [CHAIN.OPTIMISM]: options,
+    [CHAIN.AVAX]: options,
+    [CHAIN.XDAI]: options,
+  },
+  version: 2,
 };
 
 export default adapter;

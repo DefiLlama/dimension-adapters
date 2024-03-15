@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
       },
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
   },
 };

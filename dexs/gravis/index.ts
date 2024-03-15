@@ -8,6 +8,6 @@ const adapters = univ2Adapter({
 }, {
 });
 
-adapters.adapter.polygon.start = async () => 1622766258;
-adapters.adapter.bsc.start = async () => 1620174258;
+adapters.adapter.polygon.start = 1622766258;
+adapters.adapter.bsc.start = 1620174258;
 export default adapters;

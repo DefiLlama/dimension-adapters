@@ -31,7 +31,7 @@ const adapters = univ2DimensionAdapter({
     ProtocolRevenue: "A 0.05% goes to the protocol treasury"
   }
 });
-adapters.adapter.polygon.start = async () => 1622173831;
-adapters.adapter.xdai.start = async () => 1599191431;
+adapters.adapter.polygon.start = 1622173831;
+adapters.adapter.xdai.start = 1599191431;
 
 export default adapters;

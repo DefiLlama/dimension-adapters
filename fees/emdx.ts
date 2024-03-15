@@ -18,15 +18,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const fromBlock = (await getBlock(todaysTimestamp, CHAIN.AVAX, {}));
   const toBlock = (await getBlock(yesterdaysTimestamp, CHAIN.AVAX, {}));
-  const logs: ITx[] = (await sdk.api.util.getLogs({
+  const logs: ITx[] = (await sdk.getEventLogs({
     target: address,
-    topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: [topic0],
-    keys: [],
     chain: CHAIN.AVAX
-  })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+  })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
   const dailyFees = logs.map((tx: ITx) => {
     const amount = Number('0x' + tx.data.slice(192, 256)) / 10 **  18;
     return amount;
@@ -41,7 +39,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: async () => 1653134400
+      start: 1653134400
     },
   }
 }

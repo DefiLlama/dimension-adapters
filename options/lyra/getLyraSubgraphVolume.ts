@@ -1,9 +1,9 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BigNumber } from "ethers";
 import { request, gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { wrapGraphError } from "../../helpers/getUniSubgraph";
 
-const UNIT = BigNumber.from("1000000000000000000");
+const UNIT = 1e18
 
 interface IGetChainVolumeParams {
   graphUrls: {
@@ -56,9 +56,9 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
           dailyVolumeQuery,
           { timestamp: cleanTimestamp }
         ).catch((e) =>
-          console.error(`Failed to get total volume on ${chain}: ${e.message}`)
+          console.error(`Failed to get total volume on ${chain}: ${wrapGraphError(e).message}`)
         );
-        
+
 
         return previousDayVolume.markets.reduce(
           (acc, obj) => {
@@ -73,45 +73,17 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
               obj.volumeAndFeesHistory[0].timestamp != cleanTimestamp
             ) {
               return {
-                notional:
-                  acc.notional,
-                premium:
-                  acc.premium,
-                totalNotional:
-                  acc.totalNotional +
-                  BigNumber.from(
-                    obj.volumeAndFeesHistory[0].totalNotionalVolume
-                  )
-                    .div(UNIT)
-                    .toNumber(),
-                totalPremium:
-                  acc.totalPremium +
-                  BigNumber.from(obj.volumeAndFeesHistory[0].totalPremiumVolume)
-                    .div(UNIT)
-                    .toNumber(),
+                notional: acc.notional,
+                premium: acc.premium,
+                totalNotional: acc.totalNotional + Number(obj.volumeAndFeesHistory[0].totalNotionalVolume) / 1e18,
+                totalPremium: acc.totalPremium + Number(obj.volumeAndFeesHistory[0].totalPremiumVolume) / 1e18,
               };
             }
             return {
-              notional:
-                acc.notional +
-                BigNumber.from(obj.volumeAndFeesHistory[0].notionalVolume)
-                  .div(UNIT)
-                  .toNumber(),
-              premium:
-                acc.premium +
-                BigNumber.from(obj.volumeAndFeesHistory[0].premiumVolume)
-                  .div(UNIT)
-                  .toNumber(),
-              totalNotional:
-                acc.totalNotional +
-                BigNumber.from(obj.volumeAndFeesHistory[0].totalNotionalVolume)
-                  .div(UNIT)
-                  .toNumber(),
-              totalPremium:
-                acc.totalPremium +
-                BigNumber.from(obj.volumeAndFeesHistory[0].totalPremiumVolume)
-                  .div(UNIT)
-                  .toNumber(),
+              notional: acc.notional + Number(obj.volumeAndFeesHistory[0].notionalVolume) / 1e18,
+              premium: acc.premium + Number(obj.volumeAndFeesHistory[0].premiumVolume) / 1e18,
+              totalNotional: acc.totalNotional + Number(obj.volumeAndFeesHistory[0].totalNotionalVolume) / 1e18,
+              totalPremium: acc.totalPremium + Number(obj.volumeAndFeesHistory[0].totalPremiumVolume) / 1e18,
             };
           },
           { notional: 0, premium: 0, totalNotional: 0, totalPremium: 0 }

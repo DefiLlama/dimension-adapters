@@ -17,10 +17,11 @@ const graphs = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.XDC]: {
       fetch: graphs(CHAIN.XDC),
-      start: async () => 1647993600,
+      start: 1647993600,
     },
   },
 }

@@ -51,19 +51,15 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.POLYGON]: 1667520000,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.POLYGON]: 1667520000,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.POLYGON),
-      start: async () => getStartTimestamp(CHAIN.POLYGON),
+      start: startTimestamps[CHAIN.POLYGON],
     },
   },
 };

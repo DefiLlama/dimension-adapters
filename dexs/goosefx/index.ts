@@ -8,12 +8,12 @@ const gooseFxEndpoint = "https://api-services.goosefx.io/getDefillamaStats";
 const fetch = async (timestamp: number) => {
   const timeStampInMs = timestamp * 1000;
   const res = await postURL(gooseFxEndpoint, {
-    timeStamp: timeStampInMs
+    timestamp: timeStampInMs 
   });
   return {
     timestamp: timeStampInMs,
-    dailyVolume: res?.data?.volume24H,
-    totalVolume: res?.data?.totalVolume,
+    dailyVolume: res?.volume24H,
+    totalVolume: res?.totalVolume,
   };
 };
 
@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
     adapter: {
       [CHAIN.SOLANA]: {
         fetch: fetch,
-        start: async () => 1696982400,
+        start: 1696982400,
         customBackfill: customBackfill(CHAIN.SOLANA as CHAIN, () => fetch),
         runAtCurrTime: false,
         meta: {

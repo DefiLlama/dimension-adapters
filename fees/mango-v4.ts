@@ -33,8 +33,8 @@ const methodology = {
 }
 
 const fetchMangoStats = async (timestamp: number): Promise<FetchResultFees> => {
-  const totalStats: TotalStats = (await fetchURL(urlTotalStats)).data;
-  const dailyStats: DailyStats = (await fetchURL(urlDailyStats)).data;
+  const totalStats: TotalStats = (await fetchURL(urlTotalStats));
+  const dailyStats: DailyStats = (await fetchURL(urlDailyStats));
   return {
     timestamp,
     dailyFees: dailyStats.total_fees_24h.toString(),
@@ -51,7 +51,7 @@ const adapter: Adapter = {
       runAtCurrTime: true,
       customBackfill: undefined,
       fetch: fetchMangoStats,
-      start: async () => 0,
+      start: 0,
       meta: {
         methodology,
       },

@@ -1,4 +1,4 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -17,7 +17,7 @@ const blackList: string[] = [
   "0x3d56e63387bc55426941a47d6e8b7571d3b98c72253275d8c449a5f216e75a5"
 ]
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: FetchOptions): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dayID = (dayTimestamp / 86400);
     const query = gql`
@@ -36,11 +36,12 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
       .filter((e: IGraph) => e.dayId === dayID)
       .sort((a: IGraph, b: IGraph) => Number(b.dailyVolumeUSD) - Number(a.dailyVolumeUSD))
       .filter((e: IGraph) => !blackList.includes(e.pairId))
+      .filter((e: IGraph) => Number(e.dailyVolumeUSD) < 10_000_000)
       .reduce((acc: number, e: IGraph) => e.dailyVolumeUSD ? acc + Number(e.dailyVolumeUSD) : acc, 0);
-
+    const dailyVolume = createBalances();
+    dailyVolume.addCGToken('tether', volume);
     return {
-        dailyVolume: volume ? `${volume}` : undefined,
-        // totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
+        dailyVolume: dailyVolume,
         timestamp: dayTimestamp,
     };
 }
@@ -49,7 +50,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
           fetch: fetch,
-          start: async () => 1669593600,
+          start: 1669593600,
         },
     },
 };

@@ -21,7 +21,7 @@ interface IYield {
 const graphs = () => {
   return (chain: CHAIN) => {
     return async (timestamp: number) => {
-      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data.data;
+      const poolsCall: IYield[] = (await fetchURL(yieldPool))?.data;
       const pools = poolsCall
         .filter((e: IYield) => e.project === "impermax-finance")
         .filter((e: IYield) => e.chain.toLowerCase() === chain.toLowerCase());
@@ -46,7 +46,7 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graphs()(CHAIN.ETHEREUM),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }
@@ -54,7 +54,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: graphs()(CHAIN.POLYGON),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }
@@ -62,7 +62,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }
@@ -70,7 +70,7 @@ const adapter: Adapter = {
     [CHAIN.AVAX]: {
       fetch: graphs()(CHAIN.AVAX),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }
@@ -79,7 +79,7 @@ const adapter: Adapter = {
     // [CHAIN.MOONRIVER]: {
     //   fetch: graphs()(CHAIN.MOONRIVER),
       // runAtCurrTime: true,
-    //   start: async () => 1698019200,
+    //   start: 1698019200,
     //   meta: {
     //     methodology
     //   }
@@ -87,7 +87,7 @@ const adapter: Adapter = {
     // [CHAIN.CANTO]: {
     //   fetch: graphs()(CHAIN.CANTO),
       // runAtCurrTime: true,
-    //   start: async () => 1698019200,
+    //   start: 1698019200,
     //   meta: {
     //     methodology
     //   }
@@ -95,7 +95,7 @@ const adapter: Adapter = {
     [CHAIN.ERA]: {
       fetch: graphs()(CHAIN.ERA),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }
@@ -103,7 +103,7 @@ const adapter: Adapter = {
     [CHAIN.FANTOM]: {
       fetch: graphs()(CHAIN.FANTOM),
       runAtCurrTime: true,
-      start: async () => 1698019200,
+      start: 1698019200,
       meta: {
         methodology
       }

@@ -29,7 +29,7 @@ const methodology = {
 
 const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => {
   const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
-  const stats: DailyStats = (await fetchURL(url)).data;
+  const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
     parseInt(stats.liquidityProviderInterest) +
@@ -62,7 +62,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchSolendStats,
-      start: async () => 1675123053,
+      start: 1675123053,
       meta: {
         methodology,
       },

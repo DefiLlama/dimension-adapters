@@ -1,28 +1,23 @@
-import { Adapter, FetchResult, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResult, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getPrices } from "../utils/prices";
 import { adapterBitqueryFeesEthereumNetwork, ITx } from "../helpers/bitqueryFees";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 
 const startTime = 1577836800;
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (_timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => {
+  const dailyFees = createBalances()
   const startTimestamp = getTimestampAtStartOfDayUTC(startTime);
-  const tillTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const tillTimestamp = getTimestampAtStartOfNextDayUTC(startOfDay);
   const form = new Date(startTimestamp * 1000).toISOString().split('T')[0];
   const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITx[] = await adapterBitqueryFeesEthereumNetwork(form, till, "klaytn");
-  const totalFees = result.filter((a: ITx) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITx)=> a + b.gasValue, 0);
-  const dailyFees = result.find((a: ITx) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.gasValue
-  const price_id = 'coingecko:klay-token'
-  const price = (await getPrices([price_id], dayTimestamp))[price_id].price;
-  const dailyFeesUsd = (dailyFees || 0) * price;
-  const totalFeesUsd = (totalFees * price)
+  // const totalFees = result.filter((a: ITx) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITx)=> a + b.gasValue, 0);
+  const _dailyFees = result.find((a: ITx) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(startOfDay).getTime()))?.gasValue
+  if (!_dailyFees) return { timestamp: startOfDay,  };
+  dailyFees.addGasToken(_dailyFees * 1e18);
   return {
-    timestamp,
-    totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd.toString()
+    timestamp: startOfDay, dailyFees,
   };
 };
 
@@ -30,7 +25,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
         fetch: fetch,
-        start: async ()  => 1577836800,
+        start: 1577836800,
     },
   },
   protocolType: ProtocolType.CHAIN

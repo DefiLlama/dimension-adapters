@@ -1,7 +1,7 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import axios from "axios";
+import { httpGet, httpPost } from "../../utils/fetchURL";
 
 const URL = "https://api.hyperliquid.xyz/info";
 
@@ -11,7 +11,7 @@ interface Response {
 }
 
 const fetch = async (timestamp: number) => {
-  const {totalVolume, dailyVolume}: Response = (await axios.post(URL, {"type": "globalStats"})).data;
+  const {totalVolume, dailyVolume}: Response = (await httpPost(URL, {"type": "globalStats"}));
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   return {
@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => 1677283200,
+      start: 1677283200,
     },
   }
 };

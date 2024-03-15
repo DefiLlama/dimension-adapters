@@ -1,4 +1,3 @@
-import { utils } from 'ethers';
 import { request, gql } from "graphql-request";
 
 export const MIN_TIMESTAMP = 1640217600;

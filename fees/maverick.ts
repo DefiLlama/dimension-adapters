@@ -14,28 +14,28 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFee(CHAIN.ETHEREUM),
-      start: async () => 1676851200,
+      start: 1676851200,
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
       fetch: fetchFee(CHAIN.ERA),
-      start: async () => 1681257600,
+      start: 1681257600,
       meta: {
         methodology,
       },
     },
     [CHAIN.BSC]: {
       fetch: fetchFee(CHAIN.BSC),
-      start: async () => 29241049,
+      start: 29241049,
       meta: {
         methodology,
       },
     },
     [CHAIN.BASE]: {
       fetch: fetchFee(CHAIN.BASE),
-      start: async () => 1489614,
+      start: 1489614,
       meta: {
         methodology,
       },

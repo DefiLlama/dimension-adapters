@@ -6,17 +6,17 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/navid-fkh/symmetrical_bsc"
+const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/symmioanalytics_bnb_8_2"
 
 const query = gql`
   query stats($from: String!, $to: String!) {
-    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x75c539eFB5300234e5DaA684502735Fc3886e8b4"}){
+    dailyHistories(where: {timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x650a2d6c263a93cff5edd41f836ce832f05a1cf3"}){
       timestamp
       platformFee
       accountSource
       tradeVolume
     }
-    totalHistories(where: {accountSource: "0x75c539eFB5300234e5DaA684502735Fc3886e8b4"}) {
+    totalHistories(where: {accountSource: "0x650a2d6c263a93cff5edd41f836ce832f05a1cf3"}) {
       timestamp
       platformFee
       accountSource
@@ -83,7 +83,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: async () => 1687880277
+      start: 1702892400
     }
   }
 }

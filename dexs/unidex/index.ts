@@ -15,6 +15,7 @@ const chainIDs: TChainIDs = {
   [CHAIN.ERA]: 324,
   [CHAIN.BASE]: 8453,
   [CHAIN.EVMOS]: 9001,
+  [CHAIN.METIS]: 1088,
 };
 
 interface IDayProduct {
@@ -28,14 +29,14 @@ const fetch = (chain: Chain) => {
 
     const graphQuery = gql`
       query MyQuery {
-        DayProducts(filter: {date: ${todaysTimestamp}}) {
+        DayProducts(limit: 0, filter: {date: ${todaysTimestamp}}) {
           cumulativeVolumeUsd
           _id
         }
       }
     `;
 
-    const endpoint = "https://arkiver.moltennetwork.com/graphql";
+    const endpoint = "https://arkiverbackup.moltennetwork.com/graphql";
     const response = await request(endpoint, graphQuery);
     const dayProducts: IDayProduct[] = response.DayProducts;
 
@@ -65,49 +66,49 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1687422746,
+      start: 1687422746,
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: async () => 1687422746,
+      start: 1687422746,
       meta: {
         methodology,
       },
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1687422746,
+      start: 1687422746,
       meta: {
         methodology,
       },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: async () => 1687422746,
+      start: 1687422746,
       meta: {
         methodology,
       },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async () => 1687422746,
+      start: 1687422746,
       meta: {
         methodology,
       },
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
-      start: async () => 1687898060,
+      start: 1687898060,
       meta: {
         methodology,
       },
     },
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
-      start: async () => 1700104066,
+      start: 1700104066,
       meta: {
         methodology,
       },

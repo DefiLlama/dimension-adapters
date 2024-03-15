@@ -1,19 +1,10 @@
-import { Adapter, ChainBlocks, FetchResultFees } from "../adapters/types"
+import ADDRESSES from '../helpers/coreAssets.json'
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { BigNumber } from "ethers";
-import { getPrices } from "../utils/prices";
+import { BigNumberish } from "ethers";
 import { fromHex, toHex } from "tron-format-address";
-import axios from "axios";
-
-interface IPrices {
-  [address: string]: {
-    decimals: number;
-    price: number;
-    symbol: string;
-    timestamp: number;
-  };
-}
+import { httpGet } from "../utils/fetchURL";
 
 interface IContext {
   currentTimestamp: number;
@@ -24,89 +15,58 @@ interface IContext {
   markets: string[];
   underlyings: string[];
   reserveFactors: string[];
-  prices: IPrices;
 }
 interface IAccrueInterestLog {
   market: string;
-  cashPrior: BigNumber;
-  interestAccumulated: BigNumber;
-  borrowIndexNew: BigNumber;
-  totalBorrowsNew: BigNumber;
+  cashPrior: BigNumberish;
+  interestAccumulated: BigNumberish;
+  borrowIndexNew: BigNumberish;
+  totalBorrowsNew: BigNumberish;
 }
 
-interface ITx {
-  address: string;
-  data: string;
-  topics: string[];
-  transactionHash: string;
-}
-
-const comptrollerABI = {
-  getAllMarkets: "function getAllMarkets() external view returns (address[])",
-};
-
-
-const tokenABI = {
-  underlying: "function underlying() external view returns (address)",
-  accrueInterest:"event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
-  reserveFactorMantissa: "function reserveFactorMantissa() external view returns (uint256)",
-};
-
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const context = await getContext(timestamp, {});
-  const { dailyProtocolFees, dailyProtocolRevenue } = await getDailyProtocolFees(context);
-  const dailySupplySideRevenue = (dailyProtocolFees - dailyProtocolRevenue);
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp,  }: FetchOptions): Promise<FetchResultFees> => {
+  const context = await getContext(timestamp, {}, { fromTimestamp, toTimestamp });
+  const dailyProtocolFees = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  await getDailyProtocolFees(context, { dailyProtocolFees, dailyProtocolRevenue, });
+  const dailySupplySideRevenue = dailyProtocolFees.clone();
+  dailySupplySideRevenue.subtract(dailyProtocolRevenue);
   return {
     timestamp,
-    dailyFees: dailyProtocolFees.toString(),
-    dailyRevenue: dailyProtocolRevenue.toString(),
-    dailyHoldersRevenue: dailyProtocolRevenue.toString(),
-    dailySupplySideRevenue: `${dailySupplySideRevenue}`
+    dailyFees: dailyProtocolFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyProtocolRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue
   }
 }
 
-const getAllMarkets = async (
-  unitroller: string,
-  chain: CHAIN
-): Promise<string[]> => {
-  return (
-    await sdk.api.abi.call({
-      target: unitroller,
-      abi: comptrollerABI.getAllMarkets,
-      chain: chain,
-    })
-  ).output;
-};
-
-const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, toTimestamp }: { fromTimestamp: number, toTimestamp: number}): Promise<IContext> => {
   const min_block_timestamp = fromTimestamp * 1000;
   const max_block_timestamp = toTimestamp * 1000;
 
   const underlyings: string[] = [
-    'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
-    'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-    'TMwFHYXLJaRUPeW6421aqXL4ZEzPRFGkGT',
-    'TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9',
+    ADDRESSES.tron.WTRX,
+    ADDRESSES.tron.USDT,
+    ADDRESSES.tron.USDJ,
+    ADDRESSES.tron.SUN_1,
     'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7',
-    'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9',
-    'TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9',
-    'TKfjV9RNKJJCqPvBtK8L7Knykh7DNWvnYt',
-    'THb4CqiFdwNHsWsQCs4JhzwjMWys4aqCbF',
-    'TUpMhErZL2fhh4sVNULAbNKLokS4GjC1F4',
+    ADDRESSES.tron.BTC,
+    ADDRESSES.tron.JST,
+    ADDRESSES.tron.WBTT,
+    ADDRESSES.tron.ETH,
+    ADDRESSES.tron.TUSD,
     'TFczxzPhnThNSqr5by8tvxsdCFRRz6cPNq',
-    'TSSMHYeV2uE9qYH95DqyoCuNCzEL1NvU3S',
-    'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8',
-    'TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4',
-    'TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn',
-    'TMz2SWatiAtZVVcH2ebpsbVtYwUPT9EdjH',
+    ADDRESSES.tron.SUN,
+    ADDRESSES.tron.USDC,
+    ADDRESSES.tron.BTT,
+    ADDRESSES.tron.USDD,
+    ADDRESSES.tron.BUSD,
     'TU3kjFuhtEo42tsCBtfYUAZxoqQ4yuSLQ5',
     'TRFe3hT5oYhjSZ6f3ji5FJ7YCfrkWnHRvh',
     'TGkxzkDKyMeq2T7edKnyjZoFypyzjkkssq'
   ];
 
-  const allMarketAddressess:string[] =[
+  const allMarketAddressess: string[] = [
     '0x2C7c9963111905d29eB8Da37d28b0F53A7bB5c28',
     '0xea09611b57e89d67FBB33A516eB90508Ca95a3e5',
     '0x6eF7C4870977C6a2543b0E8cF4F659AF883C96Dc',
@@ -129,23 +89,17 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
   ];
 
   const reserveFactors: string[] = [
-    '100000000000000000',  '50000000000000000',
-    '50000000000000000',   '1000000000000000000',
-    '200000000000000000',  '100000000000000000',
-    '200000000000000000',  '200000000000000000',
+    '100000000000000000', '50000000000000000',
+    '50000000000000000', '1000000000000000000',
+    '200000000000000000', '100000000000000000',
+    '200000000000000000', '200000000000000000',
     '1000000000000000000', '50000000000000000',
-    '200000000000000000',  '300000000000000000',
-    '50000000000000000',   '200000000000000000',
-    '50000000000000000',   '1000000000000000000',
-    '100000000000000000',  '100000000000000000',
+    '200000000000000000', '300000000000000000',
+    '50000000000000000', '200000000000000000',
+    '50000000000000000', '1000000000000000000',
+    '100000000000000000', '100000000000000000',
     '50000000000000000'
   ]
-  const prices = await getPrices(
-    [
-      ...underlyings.filter((e: string) => e).map((x: string) => `${CHAIN.TRON}:${x.toLowerCase()}`),
-    ],
-    timestamp
-  );
 
   return {
     currentTimestamp: timestamp,
@@ -156,41 +110,15 @@ const getContext = async (timestamp: number, _: ChainBlocks): Promise<IContext> 
     markets: allMarketAddressess,
     underlyings,
     reserveFactors,
-    prices,
-  };
-};
-
-const getMarketDetails = async (markets: string[], chain: CHAIN): Promise<{underlyings: string[], reserveFactors:string[]}> => {
-  const underlyings = await sdk.api.abi.multiCall({
-    calls: markets.map((market: string) => ({
-      target: market,
-    })),
-    abi: tokenABI.underlying,
-    chain: chain,
-    permitFailure: true,
-  });
-
-  const reserveFactors = await sdk.api.abi.multiCall({
-    calls: markets.map((market: string) => ({
-      target: market,
-    })),
-    abi: tokenABI.reserveFactorMantissa,
-    chain: chain,
-    permitFailure: true,
-  });
-  const _underlyings =  underlyings.output.map((x: any) => x.output);
-  _underlyings[0]  = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR';
-  return {
-    underlyings: _underlyings,
-    reserveFactors: reserveFactors.output.map((x: any) => x.output),
   };
 };
 
 const endpoint = `https://api.trongrid.io`
+// TODO: check and replace code to fetch logs more than 200
 const getLogs = async (address: string, min_block_timestamp: number, max_block_timestamp: number) => {
   const url = `${endpoint}/v1/contracts/${fromHex(address)}/events?event_name=AccrueInterest&min_block_timestamp=${min_block_timestamp}&max_block_timestamp=${max_block_timestamp}&limit=200`;
-  const res = await axios.get(url, {});
-  return res.data.data;
+  const res = await httpGet(url);
+  return res.data;
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -198,14 +126,12 @@ const getDailyProtocolFees = async ({
   markets,
   underlyings,
   reserveFactors,
-  prices,
   startBlock,
   endBlock,
-}: IContext) => {
-  let dailyProtocolFees = 0;
-  let dailyProtocolRevenue = 0;
+}: IContext, { dailyProtocolFees, dailyProtocolRevenue }: { dailyProtocolFees: sdk.Balances, dailyProtocolRevenue: sdk.Balances}) => {
+
   let logs: any[] = [];
-  for(let i = 0; i < markets.length; i++) {
+  for (let i = 0; i < markets.length; i++) {
     const address = markets[i];
     await delay(2500)
     const _logs = await getLogs(address, startBlock, endBlock);
@@ -225,24 +151,12 @@ const getDailyProtocolFees = async ({
     }
   });
 
-
   raw_data.forEach((log: IAccrueInterestLog) => {
     const marketIndex = markets.findIndex((e: string) => e.toLowerCase() === log.market.toLowerCase());
     const underlying = underlyings[marketIndex].toLowerCase();
-    const price = prices[`${CHAIN.TRON}:${underlying?.toLowerCase()}`];
-
-    const interestTokens = Math.abs((Number(log.interestAccumulated) / (10 ** price?.decimals || 0)));
-    const reserveFactor = Math.abs(Number(reserveFactors[marketIndex]) / 1e18);
-    const interestUSD = interestTokens * price?.price || 0
-
-    dailyProtocolFees += interestUSD;
-    dailyProtocolRevenue += interestUSD * reserveFactor;
+    dailyProtocolFees.add(underlying, Number(log.interestAccumulated));
+    dailyProtocolRevenue.add(underlying, Number(log.interestAccumulated) * Number(reserveFactors[marketIndex]) / 1e18);
   });
-
-  return {
-    dailyProtocolFees,
-    dailyProtocolRevenue,
-  };
 };
 
 
@@ -250,7 +164,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch: fetch,
-      start: async () => 1700352000,
+      start: 1700352000,
       // runAtCurrTime: true,
     },
   },

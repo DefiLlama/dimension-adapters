@@ -2,6 +2,7 @@
 export enum CHAIN {
   ARBITRUM = "arbitrum",
   AVAX = "avax",
+  BLAST = "blast",
   BOBA = "boba",
   BSC = "bsc",
   CELO = "celo",
@@ -132,6 +133,10 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
+  JBC = "jbc",
+  ZKFAIR = "zkfair",
+  ZETA = "zeta",
+  ASTAR_ZKEVM = "astrzk"
 }
 
 // Don´t use
@@ -178,5 +183,5 @@ export {
   BITCOIN,
   LITECOIN,
   DOGE,
-  MANTLE,
+  MANTLE
 };

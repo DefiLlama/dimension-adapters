@@ -1,20 +1,33 @@
-import axios, { AxiosResponse } from "axios"
 import retry from "async-retry";
 import { IJSON } from "../adapters/types";
+import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
-const FLIPSIDE_API_KEYS = process.env.FLIPSIDE_API_KEY?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
+const FLIPSIDE_API_KEYS = getEnv('FLIPSIDE_API_KEY')?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const query: IRequest = {};
+
 export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
+  if (!query[sqlQuery]) {
+    query[sqlQuery] = _queryFlipside(sqlQuery, maxAgeMinutes)
+  }
+  return query[sqlQuery]
+}
+
+async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
   return await retry(
     async (bail, attempt: number) => {
       const FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX]
-      let query: undefined | AxiosResponse<any, any> = undefined
+      let query: undefined | any = undefined
       if (!token[sqlQuery]) {
         try{
-          query = await axios.post("https://api-v2.flipsidecrypto.xyz/json-rpc",
+          query = await httpPost("https://api-v2.flipsidecrypto.xyz/json-rpc",
           {
             "jsonrpc": "2.0",
             "method": "createQueryRun",
@@ -37,16 +50,16 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
               'Content-Type': 'application/json'
             }
           })
-          if(query?.data?.result?.queryRun?.id){
-            token[sqlQuery] = query?.data.result.queryRun.id
+          if(query?.result?.queryRun?.id){
+            token[sqlQuery] = query?.result.queryRun.id
           } else {
-            console.log("error query data", query?.data)
-            throw query?.data.error.message
+            console.log("error query data", query)
+            throw query?.error.message
           }
         } catch(e:any){
           if(e?.response?.statusText === 'Payment Required'){
             if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)){
-              const nextIndex = FLIPSIDE_API_KEYS.findIndex(k=>k===FLIPSIDE_API_KEY) + 1
+              const nextIndex = FLIPSIDE_API_KEYS.findIndex((k: any)=>k===FLIPSIDE_API_KEY) + 1
               if(API_KEY_INDEX < nextIndex){
                 API_KEY_INDEX = nextIndex;
               }
@@ -57,7 +70,7 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
               throw error
             }
           }
-          console.log("make query flipside", e.response)
+          console.log("make query flipside", e.response, e)
           throw e
         }
       }
@@ -66,7 +79,7 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
         throw new Error("Couldn't get a token from flipsidecrypto")
       }
 
-      const queryStatus = await axios.post(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
+      const queryStatus = await httpPost(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
         "jsonrpc": "2.0",
         "method": "getQueryRun",
         "params": [
@@ -81,14 +94,14 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
         }
       })
 
-      const status = queryStatus.data.result.queryRun.state
+      const status = queryStatus.result.queryRun.state
       if (status === "QUERY_STATE_SUCCESS") {
         try {
           let fullRows:any[] = []
           let pageNum = 1;
           let maxPages = 1;
           while(pageNum <= maxPages){
-            const results = await axios.post(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
+            const results = await httpPost(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
               "jsonrpc": "2.0",
               "method": "getQueryRunResults",
               "params": [
@@ -107,12 +120,12 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
                 "x-api-key": FLIPSIDE_API_KEY
               }
             })
-            if(results.data.result.rows === null){
+            if(results.result.rows === null){
               return [] // empty result
             }
-            pageNum = results.data.result.page.currentPageNumber + 1;
-            maxPages = results.data.result.page.totalPages;
-            fullRows = fullRows.concat(results.data.result.rows.map((t: any[]) => t.slice(0, -1)))
+            pageNum = results.result.page.currentPageNumber + 1;
+            maxPages = results.result.page.totalPages;
+            fullRows = fullRows.concat(results.result.rows.map((t: any[]) => t.slice(0, -1)))
           }
           return fullRows
         } catch (e) {
@@ -120,12 +133,12 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
           throw e
         }
       } else if (status === "QUERY_STATE_FAILED") {
-        console.log(`Flipside query ${sqlQuery} failed`, queryStatus.data)
-        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus.data)}`))
+        console.log(`Flipside query ${sqlQuery} failed`, queryStatus)
+        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(queryStatus)}`))
         return []; // not returned but just there to make typescript happy
       } else if (status ===  "QUERY_STATE_RUNNING" && (attempt === MAX_RETRIES)) {
         console.log(`Flipside queryRunId ${token[sqlQuery]} still run will cancel!!`)
-        await axios.post(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
+        await httpPost(`https://api-v2.flipsidecrypto.xyz/json-rpc`, {
           "jsonrpc": "2.0",
           "method": "cancelQueryRun",
           "params": [

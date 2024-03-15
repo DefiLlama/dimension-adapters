@@ -28,7 +28,7 @@ const endpoints = {
 };
 
 const fetchV3 = async (timestamp: number): Promise<FetchResult> => {
-  const res: BancorV3Response = (await fetchURL(v3Url)).data.data.totalVolume24h;
+  const res: BancorV3Response = (await fetchURL(v3Url)).data.totalVolume24h;
   return {
     timestamp,
     dailyVolume: res.usd
@@ -40,13 +40,13 @@ const graphs = (chain: string) =>
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     switch (chain) {
       case "ethereum":
-        return fetchURL(endpoints.ethereum(dayTimestamp)).then((res: any) => res.data)
+        return fetchURL(endpoints.ethereum(dayTimestamp))
           .then(({ data }: BancorV2Response) => {
             const volume = data.find(item => (item.timestamp / 1000) === dayTimestamp)
             if (!volume) throw new Error(`Unexpected error: No volume found for ${dayTimestamp}`)
             return {
               timestamp: dayTimestamp,
-              dailyVolume: volume.usd
+              dailyVolume: volume?.usd || "0"
             }
           })
       default:
@@ -63,14 +63,14 @@ const adapter: BreakdownAdapter = {
         fetch: graphs("ethereum"),
         runAtCurrTime: false,
         customBackfill: undefined,
-        start: async () => 1570665600,
+        start: 1570665600,
       }
     },
     "v3": {
       [CHAIN.ETHEREUM]: {
         fetch: fetchV3,
         runAtCurrTime: true,
-        start: async () => 0,
+        start: 0,
       }
     }
   }

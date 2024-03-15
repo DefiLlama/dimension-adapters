@@ -21,10 +21,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(CHAIN.CRONOS),
-      start: async () => 1661731973,
+      start: 1661731973,
     },
   },
 };

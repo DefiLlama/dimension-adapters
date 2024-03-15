@@ -102,7 +102,7 @@ const adapter: Adapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => 1629504000,
+        start: 1629504000,
         meta: {
           methodology
         }

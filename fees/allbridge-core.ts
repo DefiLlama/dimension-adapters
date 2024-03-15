@@ -1,12 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import { ethers } from "ethers";
-import * as sdk from "@defillama/sdk";
-import { getPrices } from "../utils/prices";
-import axios from 'axios';
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { httpGet } from "../utils/fetchURL";
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -40,148 +35,66 @@ const lpTokenAddresses: TChainAddress = {
   ]
 }
 
-const topic0_swap_fromUSD = '0xfc1df7b9ba72a13350b8a4e0f094e232eebded9edd179950e74a852a0f405112';
-const topic0_swap_toUSD = '0xa930da1d3f27a25892307dd59cec52dd9b881661a0f20364757f83a0da2f6873';
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
-const contract_interface = new ethers.utils.Interface([
-  event_swap_fromUSD,
-  event_swap_toUSD
-]);
+const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<number> => {
+  const balances = createBalances();
+  const pools = lpTokenAddresses[chain]
+  const logs_fromUSD = await getLogs({ targets: pools, eventAbi: event_swap_fromUSD, flatten: false, })
+  const logs_toUSD = await getLogs({ targets: pools, eventAbi: event_swap_toUSD, flatten: false, })
+  const tokens = await api.multiCall({ abi: "address:token", calls: pools });
 
-interface IFee {
-  amount: number;
-  lp: string;
-}
-const abi_token = {
-  "inputs": [],
-  "name": "token",
-  "outputs": [
-      {
-          "internalType": "contract ERC20",
-          "name": "",
-          "type": "address"
-      }
-  ],
-  "stateMutability": "view",
-  "type": "function"
-}
+  logs_fromUSD.forEach(addLogs)
+  logs_toUSD.forEach(addLogs)
 
-const fetchFees = async (chain: Chain, timestamp: number): Promise<number> => {
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const fromBlock = await getBlock(fromTimestamp, chain, {});
-  const toBlock = await getBlock(toTimestamp, chain, {});
-  const logs_fromUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
-    return sdk.api.util.getLogs({
-      target: lpTokenAddress,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: chain,
-      topics: [topic0_swap_fromUSD]
-    })
-  })))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
-  const logs_toUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
-    return sdk.api.util.getLogs({
-      target: lpTokenAddress,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: chain,
-      topics: [topic0_swap_toUSD]
-    })
-  })))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
-
-  const lptokens = await sdk.api.abi.multiCall({
-    abi: abi_token,
-    calls: lpTokenAddresses[chain].map((address: string) => ({
-      target: address
-    })),
-    chain: chain
-  });
-  const tokens = lptokens.output.map((res: any) => res.output);
-  const prices = await getPrices(tokens.map((e: any) => `${chain}:${e}`), timestamp);
-  const logs = logs_fromUSD.concat(logs_toUSD);
-  return logs.map((log: any) => {
-    const parsedLog = contract_interface.parseLog(log);
-    const index = lpTokenAddresses[chain].indexOf(log.address);
-    const tokenAdd = tokens[index];
-    const price = prices[`${chain}:${tokenAdd}`].price;
-    let decimals = prices[`${chain}:${tokenAdd}`].decimals;
-    return Number(parsedLog.args.fee._hex) / 10 ** decimals * price;
-  }).reduce((a: number, b: number) => a + b, 0);
+  function addLogs(logs: any, index: number) {
+    const token = tokens[index]
+    logs.forEach((log: any) => balances.add(token, log.fee))
+  }
+  return balances.getUSDValue();
 };
 
-const fetchFeesTron = async (chain: Chain, timestamp: number): Promise<number> => {
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - 60 * 60 * 24
+const fetchFeesTron = async ({ chain, createBalances, toTimestamp, fromTimestamp, api, }: FetchOptions): Promise<number> => {
+  const balances = createBalances();
+  const pools = lpTokenAddresses[chain]
   const minBlockTimestampMs = fromTimestamp * 1000;
   const maxBlockTimestampMs = toTimestamp * 1000;
 
-  const logs_fromUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
+  const logs_fromUSD = (await Promise.all(pools.map(async (lpTokenAddress: string) => {
     return getTronLogs(lpTokenAddress, 'SwappedFromVUsd', minBlockTimestampMs, maxBlockTimestampMs);
-  }))).flat();
-  const logs_toUSD = (await Promise.all(lpTokenAddresses[chain].map(async (lpTokenAddress: string) => {
+  })))
+  const logs_toUSD = (await Promise.all(pools.map(async (lpTokenAddress: string) => {
     return getTronLogs(lpTokenAddress, 'SwappedToVUsd', minBlockTimestampMs, maxBlockTimestampMs);
-  }))).flat();
-  const logs = logs_fromUSD.concat(logs_toUSD);
+  })))
+  const tokens = await api.multiCall({ abi: "address:token", calls: pools });
 
-  const lptokens = await sdk.api.abi.multiCall({
-    abi: abi_token,
-    calls: lpTokenAddresses[chain].map((address: string) => ({
-      target: address
-    })),
-    chain: chain
-  });
-  const tokens = lptokens.output.map((res: any) => res.output);
-  const prices = await getPrices(tokens.map((e: any) => `${chain}:${e}`), timestamp);
+  logs_fromUSD.forEach(addLogs)
+  logs_toUSD.forEach(addLogs)
 
-  return logs.map((log: any) => {
-    const index = lpTokenAddresses[chain].indexOf(log.contract_address);
-    const tokenAdd = tokens[index];
-    const price = prices[`${chain}:${tokenAdd}`].price;
-    let decimals = prices[`${chain}:${tokenAdd}`].decimals;
-    return Number(log.result.fee) / 10 ** decimals * price;
-  }).reduce((a: number, b: number) => a + b, 0);
+  function addLogs(logs: any, index: number) {
+    const token = tokens[index]
+    logs.forEach((log: any) => balances.add(token, log.result.fee))
+  }
+  return balances.getUSDValue()
 };
 
 const tronRpc = `https://api.trongrid.io`
 const getTronLogs = async (address: string, eventName: string, minBlockTimestamp: number, maxBlockTimestamp: number) => {
   const url = `${tronRpc}/v1/contracts/${address}/events?event_name=${eventName}&min_block_timestamp=${minBlockTimestamp}&max_block_timestamp=${maxBlockTimestamp}&limit=200`;
-  const res = await axios.get(url, {});
-  return res.data.data;
+  const res = await httpGet(url);
+  return res.data;
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    try {
-      let fees = 0;
-      if (chain === CHAIN.TRON) {
-        fees = await fetchFeesTron(chain, timestamp);
-      } else {
-        fees = await fetchFees(chain, timestamp);
-      }
-      const dailyFees = fees;
-      const dailyRevenue = dailyFees * 0.2;
-      const dailySupplySideRevenue = dailyFees * 0.8;
-      return {
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-        timestamp,
-      };
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
+const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+  let dailyFees = await (options.chain === CHAIN.TRON ? fetchFeesTron(options) : fetchFees(options));
+  const dailyRevenue = dailyFees * 0.2;
+  const dailySupplySideRevenue = dailyFees * 0.8;
+  return {
+    dailyFees,
+    dailyRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    timestamp,
   };
 };
 
@@ -196,38 +109,38 @@ const meta = {
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: async () => 1684022400,
+      fetch,
+      start: 1684022400,
       meta,
     },
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async () => 1684022400,
+      fetch,
+      start: 1684022400,
       meta,
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async () => 1684022400,
+      fetch,
+      start: 1684022400,
       meta,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1687838400,
+      fetch,
+      start: 1687838400,
       meta,
     },
     [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: async () => 1698030000,
+      fetch,
+      start: 1698030000,
       meta,
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1702868400,
+      fetch,
+      start: 1702868400,
       meta,
     },
     [CHAIN.TRON]: {
-      fetch: fetch(CHAIN.TRON),
-      start: async () => 1685109600,
+      fetch,
+      start: 1685109600,
       meta,
     },
   },

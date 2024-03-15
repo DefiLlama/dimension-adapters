@@ -182,7 +182,7 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
-        start: async () => 1582761600,
+        start: 1582761600,
         meta: {
           methodology: {
             UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
@@ -197,49 +197,49 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
-        start: async () => 1619136000,
+        start: 1619136000,
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
-        start: async () => 1624492800,
+        start: 1624492800,
         meta: {
           methodology
         }
       },
       [CHAIN.ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
-        start: async () => 1630368000,
+        start: 1630368000,
         meta: {
           methodology
         }
       },
       [CHAIN.AVAX]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
-        start: async () => 1677283200,
+        start: 1677283200,
         meta: {
           methodology
         }
       },
       [CHAIN.XDAI]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
-        start: async () => 1673308800,
+        start: 1673308800,
         meta: {
           methodology
         }
       },
       [CHAIN.BASE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-        start: async () => 1690329600,
+        start: 1690329600,
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
-        start: async () => 1686614400,
+        start: 1686614400,
         meta: {
           methodology
         }

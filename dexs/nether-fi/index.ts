@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const graphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
-const startTimestamp = async () => 1693526400;
+const startTimestamp = 1693526400;
 
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {

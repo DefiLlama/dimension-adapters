@@ -11,7 +11,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall = (await fetchURL(historicalVolumeEndpoint))?.data.data.overview;
+  const historicalVolume: IVolumeall = (await fetchURL(historicalVolumeEndpoint)).data.overview;
   return {
     dailyVolume: historicalVolume ? `${historicalVolume.volume24H}` : undefined,
     timestamp: dayTimestamp,
@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THUNDERCORE]: {
       fetch,
-      start: async () => 1673308800,
+      start: 1673308800,
       runAtCurrTime: true
     },
   },

@@ -16,7 +16,7 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const poolCall = Array.from(Array(NUMBER_OF_POOL).keys()).map((e: number) => fetchURL(historicalVolumeEndpoint(e + 1)));
   const historicalVolume: IVolumeall[] = (await Promise.all(poolCall))
-    .map((e:any) => e.data.data).flat()
+    .map((e:any) => e.data).flat()
     .map((p: any) => Object.keys(p.volume_usd).map((x: any) => {
       return {
         volume: p.volume_usd[x].usd,
@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: async () => 1668729600
+      start: 1668729600
     },
   },
 };

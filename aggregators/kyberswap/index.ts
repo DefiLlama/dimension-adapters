@@ -1,20 +1,8 @@
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const chains = [
-  CHAIN.ETHEREUM,
-  CHAIN.ARBITRUM,
-  CHAIN.AVAX,
-  CHAIN.BSC,
-  CHAIN.FANTOM,
-  CHAIN.OPTIMISM,
-  CHAIN.POLYGON,
-  CHAIN.LINEA,
-  CHAIN.SCROLL,
-  CHAIN.ZKSYNC,
-  CHAIN.CRONOS,
-];
 
 const chainToId: Record<string, number> = {
   [CHAIN.ETHEREUM]: 1,
@@ -26,46 +14,63 @@ const chainToId: Record<string, number> = {
   [CHAIN.POLYGON]: 137,
   [CHAIN.LINEA]: 59144,
   [CHAIN.SCROLL]: 534352,
-  [CHAIN.ZKSYNC]: 324,
+  [CHAIN.ERA]: 324,
   [CHAIN.CRONOS]: 25,
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+  const unixTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const url = `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[options.chain]}&timestamps=${unixTimestamp}`;
+  const data = (await httpGet(url, { headers: { 'origin': 'https://common-service.kyberswap.com'}})).data?.volumes?.[0];
 
-  try {
-    const data = (
-      await fetchURL(
-        `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[chain]}&timestamps=${unixTimestamp}`
-      )
-    ).data.data?.volumes?.[0];
-
-    return {
-      dailyVolume: data?.value ?? "0",
-      timestamp: unixTimestamp,
-    };
-  } catch (e) {
-    console.log(e);
-    return {
-      dailyVolume: "0",
-      timestamp: unixTimestamp,
-    };
-  }
+  return {
+    dailyVolume: data.value,
+    timestamp: timestamp,
+  };
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   adapter: {
-    ...chains.reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: fetch(chain),
-          start: async () => 1685491200,
-        },
-      };
-    }, {}),
+    [CHAIN.ETHEREUM]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch,
+      start: 1632268800,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.FANTOM]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetch,
+      start: 1632268800,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.LINEA]: {
+      fetch: fetch,
+      start: 1632268800,
+    },
+    [CHAIN.SCROLL]: {
+      fetch: fetch,
+      start: 1632268800,
+    },
+    [CHAIN.ERA]: {
+      fetch: fetch,
+      start: 1632268800,
+    },
   },
 };
 

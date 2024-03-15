@@ -9,5 +9,5 @@ const adapters = univ2Adapter({
   gasToken: "coingecko:fantom"
 });
 
-adapters.adapter.fantom.start = async () => 1636106400;
+adapters.adapter.fantom.start = 1636106400;
 export default adapters;

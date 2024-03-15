@@ -117,28 +117,28 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),
-            start: async () => 1675209600,
+            start: 1675209600,
             meta: {
                 methodology
             }
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
-            start: async () => 1654646400,
+            start: 1654646400,
             meta: {
                 methodology
             }
         },
         [CHAIN.ARBITRUM]: {
             fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-            start: async () => 1686009600,
+            start: 1686009600,
             meta: {
                 methodology
             }
         },
         [CHAIN.LINEA]: {
             fetch: graphs(endpoints)(CHAIN.LINEA),
-            start: async () => 1691452800,
+            start: 1691452800,
             meta: {
                 methodology
             }

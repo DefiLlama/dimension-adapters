@@ -1,12 +1,9 @@
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getBlock } from "../helpers/getBlock";
-import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
   [ETHEREUM]:
@@ -28,21 +25,15 @@ const collateralYields = {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, chainBlocks));
-      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-
+    return async ({getEndBlock, getStartBlock, startTimestamp, endTimestamp, toApi} : FetchOptions) => {
       const graphQuery = gql
       `query fees {
-        yesterday: collateralTypes(block: {number: ${yesterdaysBlock}}) {
+        yesterday: collateralTypes(block: {number: ${await getStartBlock()}}) {
           id
           totalDebt
           stabilityFee
         }
-        today: collateralTypes(block: {number: ${todaysBlock}}) {
+        today: collateralTypes(block: {number: ${await getEndBlock()}}) {
           id
           totalDebt
           stabilityFee
@@ -51,7 +42,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const secondsBetweenDates = todaysTimestamp - yesterdaysTimestamp;
+      const secondsBetweenDates = endTimestamp - startTimestamp;
       
       const todayDebts: { [id: string]: BigNumber } = {};
       let dailyFee = new BigNumber(0)
@@ -70,9 +61,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
           dailyFee = dailyFee.plus(avgDebt.multipliedBy(accFees))
         }
       }
+      const sparkSupplyAPR = await toApi.call({target: "0xC13e21B648A5Ee794902342038FF3aDAB66BE987", params: ["0x6B175474E89094C44Da98b954EedeAC495271d0F"], abi:{"inputs":[{"internalType":"address","name":"asset","type":"address"}],"name":"getReserveData","outputs":[{"components":[{"components":[{"internalType":"uint256","name":"data","type":"uint256"}],"internalType":"struct DataTypes.ReserveConfigurationMap","name":"configuration","type":"tuple"},{"internalType":"uint128","name":"liquidityIndex","type":"uint128"},{"internalType":"uint128","name":"currentLiquidityRate","type":"uint128"},{"internalType":"uint128","name":"variableBorrowIndex","type":"uint128"},{"internalType":"uint128","name":"currentVariableBorrowRate","type":"uint128"},{"internalType":"uint128","name":"currentStableBorrowRate","type":"uint128"},{"internalType":"uint40","name":"lastUpdateTimestamp","type":"uint40"},{"internalType":"uint16","name":"id","type":"uint16"},{"internalType":"address","name":"aTokenAddress","type":"address"},{"internalType":"address","name":"stableDebtTokenAddress","type":"address"},{"internalType":"address","name":"variableDebtTokenAddress","type":"address"},{"internalType":"address","name":"interestRateStrategyAddress","type":"address"},{"internalType":"uint128","name":"accruedToTreasury","type":"uint128"},{"internalType":"uint128","name":"unbacked","type":"uint128"},{"internalType":"uint128","name":"isolationModeTotalDebt","type":"uint128"}],"internalType":"struct DataTypes.ReserveData","name":"","type":"tuple"}],"stateMutability":"view","type":"function"}})
+      const sparkSupply = await toApi.call({target: "0x4dedf26112b3ec8ec46e7e31ea5e123490b05b8b", params: ["0xAfA2DD8a0594B2B24B59de405Da9338C4Ce23437"], abi:"erc20:balanceOf"})
+      const SECONDS_IN_YEAR = 365*24*60*60
+      const sparkSupplyAPY = (sparkSupplyAPR.currentLiquidityRate/1e27 / SECONDS_IN_YEAR + 1)**(24*3600) - 1
+      
+      dailyFee = dailyFee.plus(sparkSupplyAPY*sparkSupply/1e18)
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyFee.toString(),
       };
@@ -82,10 +78,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: async ()  => 1573672933,
+        start: 1573672933,
     },
   }
 }

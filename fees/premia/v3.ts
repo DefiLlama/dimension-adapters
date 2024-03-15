@@ -1,6 +1,6 @@
 import { FetchResultFees } from "../../adapters/types";
 import { request, gql } from "graphql-request";
-import { utils } from "ethers";
+import { ethers } from "ethers";
 
 
 function get2Days(array: Array<any>, key: string): [string, string] {
@@ -9,7 +9,7 @@ function get2Days(array: Array<any>, key: string): [string, string] {
 }
 
 function toNumber(value: string): number {
-  return Number(utils.formatEther(value));
+  return Number(ethers.formatEther(value));
 }
 
 function calcLast24hrsVolume(values: [string, string]): number {

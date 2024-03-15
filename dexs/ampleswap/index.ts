@@ -6,6 +6,6 @@ const endpoints = {
 };
 const adapter = univ2Adapter(endpoints, {});
 
-adapter.adapter.bsc.start = async()=> 1631404800;
+adapter.adapter.bsc.start = 1631404800;
 
 export default adapter

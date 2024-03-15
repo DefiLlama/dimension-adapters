@@ -40,11 +40,12 @@ const methodologyv3 = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v3: {
       [CHAIN.MOONBEAN]: {
         fetch: v3Graphs(CHAIN.MOONBEAN),
-        start: async () => 1684397388,
+        start: 1684397388,
         customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
         meta: {
           methodology: {

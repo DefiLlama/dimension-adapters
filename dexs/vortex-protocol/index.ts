@@ -50,13 +50,18 @@ const fetch = async (timestamp: number) => {
   }
 }
 
+const fethcEmpty = async (timestamp: number) => {
+  return {
+    timestamp: timestamp,
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
-      fetch: fetch,
+      fetch:  fethcEmpty,
       start: async () => START_TIME,
-      customBackfill: customBackfill(CHAIN.TEZOS as Chain, () => fetch)
-    },
+    }
   },
 };
 
