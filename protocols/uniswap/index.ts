@@ -57,6 +57,7 @@ const blacklisted = {
     '0x8f748aedae750cc4146e0493357778d2cf34c23f',
     '0x0008a519b43d1dd0d81e08b4d569c769524e0593',
     '0x76e222b07c53d28b89b0bac18602810fc22b49a8'
+    '0xd8380E9Ba9957B9db1db3d35A53E0D747F6bBCFB'
   ]
 }
 
