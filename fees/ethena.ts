@@ -17,7 +17,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
   WHERE
     block_number > 18637861
     AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-    AND topic_2 = '\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87'
+    AND topic_2 in ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x000000000000000000000000f2fa332bd83149c66b09b45670bce64746c6b439')
     AND block_time BETWEEN llama_replace_date_range;
 `, options);
   const dailyFeesInflow = options.createBalances();
