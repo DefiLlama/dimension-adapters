@@ -17,7 +17,7 @@ export async function filterPools({ api, pairs, createBalances }: { api: ChainAp
     }
     pairBalances[balanceCalls[i].params].add(balanceCalls[i].target, bal ?? 0)
   })
-  // we do this to cache price results 
+  // we do this to cache price results
   await balances.getUSDValue()
   const filteredPairs: IJSON<number> = {}
   for (const pair of Object.keys(pairs)) {
@@ -78,7 +78,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     const fees: any = {}
     logs.forEach((log: any) => {
       pairObject[log.pool] = [log.token0, log.token1]
-      fees[log.pool] = log.fee.toString() / 1e6
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
     })
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
