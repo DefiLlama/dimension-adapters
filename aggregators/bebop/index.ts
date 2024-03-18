@@ -37,6 +37,10 @@ const abis = {
 const contract_interface = new ethers.Interface(Object.values(abis));
 
 const JamContract = new ethers.Contract('0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b', JAM_ABI)
+const jamAddress = {
+  era:'0x574d1fcF950eb48b11de5DF22A007703cbD2b129',
+  default: '0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b'
+}
 
 
 const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
@@ -80,7 +84,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   }
 
   const jamLogs = await getLogs({
-    target: '0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b',
+    target: jamAddress[chain] || jamAddress.default,
     topics: ['0x7a70845dec8dc098eecb16e760b0c1569874487f0459ae689c738e281b28ed38'] // Settlement,
 
   });
@@ -111,6 +115,7 @@ const adapter: any = {
     polygon: { fetch, start: 1685491200, },
     bsc: { fetch, start: 1685491200, },
     blast: { fetch, start: 1685491200, },
+    era: { fetch, start: 1685491200, },
   },
 };
 
