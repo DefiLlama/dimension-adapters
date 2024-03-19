@@ -1,14 +1,16 @@
-import request, { gql } from "graphql-request";
-import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import request, { gql } from "graphql-request";
 import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
+const endpoint_0_8_0 = "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
+const endpoint = "https://api.studio.thegraph.com/query/62472/intentx-analytics_082/version/latest";
+const endpoint_blast = "https://api.studio.thegraph.com/query/62472/intentx-analytics_082_blast/version/latest";
 
-const query = gql`
+const query_0_8_0 = gql`
   query stats($from: String!, $to: String!) {
     dailyHistories(
       where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x724796d2e9143920B1b58651B04e1Ed201b8cC98" }
@@ -19,6 +21,44 @@ const query = gql`
       tradeVolume
     }
     totalHistories(where: { accountSource: "0x724796d2e9143920B1b58651B04e1Ed201b8cC98" }) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
+    }
+  }
+`;
+
+const query = gql`
+  query stats($from: String!, $to: String!) {
+    dailyHistories(
+      where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x8Ab178C07184ffD44F0ADfF4eA2ce6cFc33F3b86" }
+    ) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
+    }
+    totalHistories(where: { accountSource: "0x8Ab178C07184ffD44F0ADfF4eA2ce6cFc33F3b86" }) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
+    }
+  }
+`;
+
+const queryBlast = gql`
+  query stats($from: String!, $to: String!) {
+    dailyHistories(
+      where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x083267D20Dbe6C2b0A83Bd0E601dC2299eD99015" }
+    ) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
+    }
+    totalHistories(where: { accountSource: "0x083267D20Dbe6C2b0A83Bd0E601dC2299eD99015" }) {
       timestamp
       platformFee
       accountSource
@@ -48,18 +88,39 @@ const toString = (x: BigNumber) => {
 };
 
 const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
+  const response_0_8_0: IGraphResponse = await request(endpoint_0_8_0, query_0_8_0, {
+    from: String(timestamp - ONE_DAY_IN_SECONDS),
+    to: String(timestamp),
+  });
   const response: IGraphResponse = await request(endpoint, query, {
     from: String(timestamp - ONE_DAY_IN_SECONDS),
     to: String(timestamp),
   });
+  const response_blast: IGraphResponse = await request(endpoint_blast, queryBlast, {
+    from: String(timestamp - ONE_DAY_IN_SECONDS),
+    to: String(timestamp),
+  });
 
+  // Merging both responses
   let dailyFees = new BigNumber(0);
+  response_0_8_0.dailyHistories.forEach((data) => {
+    dailyFees = dailyFees.plus(new BigNumber(data.platformFee));
+  });
   response.dailyHistories.forEach((data) => {
+    dailyFees = dailyFees.plus(new BigNumber(data.platformFee));
+  });
+  response_blast.dailyHistories.forEach((data) => {
     dailyFees = dailyFees.plus(new BigNumber(data.platformFee));
   });
 
   let totalFees = new BigNumber(0);
+  response_0_8_0.totalHistories.forEach((data) => {
+    totalFees = totalFees.plus(new BigNumber(data.platformFee));
+  });
   response.totalHistories.forEach((data) => {
+    totalFees = totalFees.plus(new BigNumber(data.platformFee));
+  });
+  response_blast.totalHistories.forEach((data) => {
     totalFees = totalFees.plus(new BigNumber(data.platformFee));
   });
 
@@ -104,7 +165,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: async () => 1698796800,
+      start: 1698796800,
     },
   },
 };

@@ -12,7 +12,7 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL))?.data?.data.pairs;
+  const response: IAPIResponse[] = (await fetchURL(URL))?.data.pairs;
   const dailyVolume = response
     .reduce((acc, { volume_24h }) => acc + Number(volume_24h), 0);
 
@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
       fetch,
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
   }
 };

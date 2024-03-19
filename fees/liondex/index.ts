@@ -19,23 +19,11 @@ const methodology = {
 const VAULT = "0x8eF99304eb88Af9BDe85d58a35339Cb0e2a557B6";
 
 const abis = {
-  "getLPPrice": {
-    "inputs": [],
-    "name": "getLPPrice",
-    "outputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
+  "getLPPrice": "uint256:getLPPrice"
 }
 
 async function lpPrice() {
-  return (await sdk.api.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' })).output;
+  return (await sdk.api2.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' }));
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -66,7 +54,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1686614400,
+      start: 1686614400,
       meta: {
         methodology,
       },

@@ -1,7 +1,6 @@
-import axios from "axios";
-
 import type { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 interface ITicker {
     full_market_name: string;
@@ -29,12 +28,12 @@ interface IExchangeRates {
 const OSWAP_STATS_ENDPOINT = "https://v2-stats.oswap.io/api/v1";
 
 const getTickers = async () => {
-    const tickers: ITickers = (await axios.get(`${OSWAP_STATS_ENDPOINT}/tickers`))?.data;
+    const tickers: ITickers = (await httpGet(`${OSWAP_STATS_ENDPOINT}/tickers`));
     return Object.values(tickers);
 }
 
 const getExchangeRates = async () => {
-    const exchangeRates: IExchangeRates = (await axios.get(`${OSWAP_STATS_ENDPOINT}/exchangeRates`))?.data;
+    const exchangeRates: IExchangeRates = (await httpGet(`${OSWAP_STATS_ENDPOINT}/exchangeRates`));
 
     return exchangeRates;
 }
@@ -82,7 +81,7 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.OBYTE]: {
-            start: async () => 1677542400,
+            start: 1677542400,
             runAtCurrTime: true,
             fetch: fetch
         }

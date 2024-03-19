@@ -23,15 +23,16 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.NEON]: {
       fetch: graphs(CHAIN.NEON),
-      start: async () => 1689613200, // 17TH JULY 5PM GMT
+      start: 1689613200, // 17TH JULY 5PM GMT
       customBackfill: customBackfill(CHAIN.NEON as Chain, graphs),
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
+      start: 1690850000, // 1ST AUG 12:33 AM GMT
       customBackfill: customBackfill(CHAIN.BASE as Chain, graphs),
     }
   }

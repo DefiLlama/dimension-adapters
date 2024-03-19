@@ -1,23 +1,20 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getPrices } from "../../utils/prices";
+import * as sdk from "@defillama/sdk";
 
-const toki = (n:any) =>"starknet:0x"+BigInt(n).toString(16).padStart("049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7".length, "0")
+const toki = (n: any) => "starknet:0x" + BigInt(n).toString(16).padStart("049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7".length, "0")
 
 const fetch = async (timestamp: number) => {
-  const response =  ((await fetchURL("https://mainnet-api.ekubo.org/overview")).data.volumeByToken_24h as any[])
-    .map(t=>({token: toki(t.token), vol: t.volume}))
-  const prices = await getPrices(response.map(t=>t.token), timestamp)
-  const dailyVolume = response.map((token) => {
-    const price = prices[token.token]
-    if(price === undefined){ return 0 }
-    const usdVal = Number(token.vol) * price.price / (10**price.decimals)
-    return usdVal
-  }).reduce((a: number, b: number) => a+b,0);
+  const balances = new sdk.Balances({ chain: CHAIN.STARKNET, timestamp })
+  const response = ((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h as any[])
+    .map(t => ({ token: toki(t.token), vol: t.volume }))
+  response.map((token) => {
+    balances.add(token.token, token.vol, { skipChain: true })
+  })
   return {
     timestamp: timestamp,
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: await balances.getUSDString(),
   };
 }
 
@@ -26,7 +23,7 @@ const adapter: Adapter = {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: async () => 1695081600
+      start: 1695081600
     },
   }
 }

@@ -1,7 +1,7 @@
 import {Adapter} from "../adapters/types";
 import {ETHEREUM} from "../helpers/chains";
 import {request, gql} from "graphql-request";
-import type {ChainEndpoints} from "../adapters/types"
+import type {ChainEndpoints, FetchResultFees} from "../adapters/types"
 import {Chain} from '@defillama/sdk/build/general';
 import {getTimestampAtStartOfDayUTC} from "../utils/date";
 import BigNumber from "bignumber.js";
@@ -23,9 +23,8 @@ const methodology = {
 
 const graph = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
-        return async (timestamp: number) => {
+        return async (timestamp: number): Promise<FetchResultFees> => {
             const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
-            console.log(dateId);
 
             const graphQuery = gql
                     `{
@@ -57,7 +56,8 @@ const graph = (graphUrls: ChainEndpoints) => {
             // All revenue redirected to LPs
             const dailySupplySideRev = snapshot.crvRevenueToLpProvidersAmount.plus(snapshot.cvxRevenueToLpProvidersAmount).plus(snapshot.fxsRevenueToLpProvidersAmount);
             // Revenue to CVX Holders, including bribes (minus Votium fee)
-            const dailyHoldersRevenue = snapshot.bribeRevenue.plus(snapshot.crvRevenueToCvxStakersAmount).plus(snapshot.fxsRevenueToCvxStakersAmount);
+            const dailyHoldersRevenue = snapshot.crvRevenueToCvxStakersAmount.plus(snapshot.fxsRevenueToCvxStakersAmount);
+            const dailyBribeRevenue =  snapshot.bribeRevenue;
             // cvxCRV & cvxFXS liquid lockers revenue
             const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount.plus(snapshot.cvxRevenueToCvxCrvStakersAmount).plus(snapshot.threeCrvRevenueToCvxCrvStakersAmount).plus(snapshot.fxsRevenueToCvxFxsStakersAmount);
             // Share of revenue redirected to treasury, includes call incentives monopolized by the protocol (FXS), POL revenue & vote market bribes
@@ -77,6 +77,7 @@ const graph = (graphUrls: ChainEndpoints) => {
                 dailyHoldersRevenue: dailyHoldersRevenue.toString(),
                 dailyProtocolRevenue: dailyTreasuryRevenue.toString(),
                 dailySupplySideRevenue: dailySupplySideRev.toString(),
+                dailyBribesRevenue: dailyBribeRevenue.toString(),
                 dailyRevenue: dailyRevenue.toString(),
             };
         }
@@ -87,7 +88,7 @@ const adapter: Adapter = {
     adapter: {
         [ETHEREUM]: {
             fetch: graph(endpoints)(ETHEREUM),
-            start: async () => 1621224000,
+            start: 1621224000,
             meta: {
                 methodology
             }

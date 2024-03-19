@@ -1,7 +1,6 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { clearTimeout } from "timers";
-import { Adapter, BaseAdapter, IJSON } from "../adapters/types";
-import { IRunAdapterResponseFulfilled, IRunAdapterResponseRejected } from "../adapters/utils/runAdapter";
+import { BaseAdapter, } from "../adapters/types";
+import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
 export const ERROR_STRING = '------ ERROR ------'
 
@@ -23,7 +22,7 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapter?: BaseAdapter) {
+export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
     volumes.forEach((element) => {
         const methodology = baseAdapter?.[element.chain].meta?.methodology
@@ -36,24 +35,12 @@ export function printVolumes(volumes: IRunAdapterResponseFulfilled[], baseAdapte
         else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
         Object.entries(element).forEach(([attribute, value]) => {
             if (!exclude2Print.includes(attribute)) {
-                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : value
-                console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
+                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any)  * 1e3).toISOString()})` : humanizeNumber(Number(value))
+                    console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
                 if (valueFormatted !== undefined && typeof methodology === 'object' && methodology[attribute.slice(5)])
                     console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }
         })
-        console.info('\n')
-    });
-}
-
-export function printRejectedVolumes(volumes: IRunAdapterResponseRejected[]) {
-    volumes.forEach((element) => {
-        if (typeof element.chain === 'string')
-            console.info(element.chain.toUpperCase(), "👇")
-        if (element.timestamp !== undefined)
-            console.info(`Timestamp attempted: ${formatTimestampAsDate(String(element.timestamp))}`)
-        else console.info("No timestamp defined")
-        console.info(element.error)
         console.info('\n')
     });
 }

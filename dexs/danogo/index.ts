@@ -1,48 +1,27 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { getPrices } from "../../utils/prices";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { DanogoDimensions, DanogoVolumes } from "./types";
+import { DanogoDimensions, } from "./types";
 
 const DANOGO_GATEWAY_ENDPOINT = 'https://danogo-gateway.tekoapis.com/api/v1/defillama-dimensions';
 const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
-const CARDANO_COIN_ID = "coingecko:cardano";
-const ADA_DECIMAL = 6;
 
 const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => { 
     const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
 
-    return response.data.data;
+    return response.data;
 }
 
-const fetchADAprice = async (timestamp: number) => {
-    const price = await getPrices([CARDANO_COIN_ID], timestamp);
-
-    return price[CARDANO_COIN_ID].price;
-}
-
-const lovelaceToUSD = (lovelace: string, price: number) => {
-    const ada = Number(BigInt(lovelace) * BigInt(100) / BigInt(10 ** ADA_DECIMAL)) / 100
-
-    return (ada * price).toString();
-}
-
-const convertDataToUSD = (data: DanogoDimensions, price: number) => {
-    const convertedData: DanogoVolumes = {
-        dailyVolume: lovelaceToUSD(data.dailyVolumeAdaValue, price),
-        totalVolume: lovelaceToUSD(data.totalVolumeAdaValue, price),
-    };
-
-    return convertedData;
-}
-
-const fetchData = async (timestamp: number) => {
-    const dataPromise = fetchDanogoGatewayData(timestamp);
-    const adaPricePromise = fetchADAprice(timestamp);
-    const [data, adaPrice] = await Promise.all([dataPromise, adaPricePromise]);
+const fetchData = async (timestamp: number, _:ChainBlocks, { createBalances, }: FetchOptions) => {
+    const { dailyVolumeAdaValue, totalFeesAdaValue }= await fetchDanogoGatewayData(timestamp);
+    const dailyVolume = createBalances();
+    const totalVolume = createBalances();
+    dailyVolume.addGasToken(dailyVolumeAdaValue)
+    totalVolume.addGasToken(totalFeesAdaValue)
 
     return {
-        timestamp: timestamp,
-        ...convertDataToUSD(data, adaPrice)
+        timestamp,
+        dailyVolume,
+        // totalVolume,
     };
 }
 
@@ -50,7 +29,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         cardano: {
             fetch: fetchData,
-            start: async () => DANOGO_START_TIMESTAMP,
+            start: DANOGO_START_TIMESTAMP,
             runAtCurrTime: false,
         }
     }

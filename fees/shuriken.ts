@@ -1,21 +1,10 @@
-import postgres from "postgres";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { queryIndexer } from "../helpers/indexer";
 
-
-interface IData {
-  data: string;
-}
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const sql = postgres(process.env.INDEXA_DB!);
-
-  const now = new Date(timestamp * 1e3)
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
-  try {
-    const transfer_txs = await sql`
+const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = options.createBalances();
+  const transfer_txs = await queryIndexer(`
       SELECT
           block_time,
           encode(transaction_hash, 'hex') AS HASH,
@@ -33,39 +22,22 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
                   AND "type" = 'create'
           )
           AND topic_0 = '\\x9377d2ca0fa4b8097cf0c9128e900f40fc24811a43eefb75da59072dbbcc8c85'
-          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-    `;
+          AND block_time BETWEEN llama_replace_date_range;
+          `, options);
 
-    const transactions: IData[] = [...transfer_txs] as IData[]
-    const amount = transactions.map((e: IData) => {
-      const amount = Number('0x'+e.data.slice((5 * 64), (5 * 64) + 64)) / 10 ** 18
-      return amount;
-    }).reduce((a: number, b: number) => a+b,0);
+  transfer_txs.map((e: any) => {
+    const amount = Number('0x' + e.data.slice((5 * 64), (5 * 64) + 64))
+    dailyFees.addGasToken(amount);
+  })
 
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
-    const amountUSD = Math.abs(amount * ethPrice);
-    const dailyFees = amountUSD;
-    const dailyRevenue = dailyFees;
-    await sql.end({ timeout: 3 })
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      timestamp
-    }
-  } catch (error) {
-    await sql.end({ timeout: 3 })
-    console.error(error);
-    throw error;
-  }
-
+  return { dailyFees, dailyRevenue: dailyFees, timestamp }
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: async () => 1697155200,
+      fetch: fetch as any,
+      start: 1697155200,
     },
   },
 };

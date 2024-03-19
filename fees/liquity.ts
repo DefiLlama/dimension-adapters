@@ -1,8 +1,5 @@
-import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
 const { request, gql } = require("graphql-request");
 
 
@@ -19,12 +16,8 @@ interface IDailyResponse {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch:  async (timestamp: number, _: ChainBlocks) => {
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-          const startOfDayBlock = (await getBlock(todaysTimestamp, "ethereum", {}));
-          const endOfDayBlock = (await getBlock(yesterdaysTimestamp, "ethereum", {}));
+        fetch:  async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions) => {
+          const dailyFees = createBalances()
 
           const graphQueryDaily = gql
           `query fees($startOfDayBlock: Int!, $endOfDayBlock: Int!) {
@@ -39,24 +32,21 @@ const adapter: Adapter = {
           }`;
 
 
-          const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily, {startOfDayBlock, endOfDayBlock});
+          const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily, {startOfDayBlock: await getFromBlock(), endOfDayBlock: await getToBlock()});
           const borrowingFees =   Number(graphResDaily.today.totalBorrowingFeesPaid) - Number(graphResDaily.yesterday.totalBorrowingFeesPaid);
           const redemptionFeesETH = Number(graphResDaily.today.totalRedemptionFeesPaid) - Number(graphResDaily.yesterday.totalRedemptionFeesPaid);
 
-          const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-          const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-          const latestPrice = pricesObj[ethAddress]["price"]
-          const redemptionFeesUSD = redemptionFeesETH * latestPrice;
-          const dailyFee = borrowingFees + redemptionFeesUSD;
+          dailyFees.addCGToken('tether', borrowingFees);
+          dailyFees.addGasToken(redemptionFeesETH * 10 ** 18);
 
           return {
               timestamp,
-              dailyFees: dailyFee.toString(),
-              dailyRevenue: dailyFee.toString(),
-              dailyHoldersRevenue: dailyFee.toString(),
+              dailyFees: dailyFees,
+              dailyRevenue: dailyFees,
+              dailyHoldersRevenue: dailyFees,
           };
         },
-        start: async () => 1575158400
+        start: 1575158400
     },
   }
 }

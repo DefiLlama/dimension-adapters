@@ -1,0 +1,72 @@
+import fetchURL from "../../utils/fetchURL"
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+
+
+
+interface IMarkets {
+  market_id: number;
+  quote_account_address: number;
+  quote_module_name: number;
+  quote_struct_name: number;
+  tick_size: number;
+};
+
+const BASE_URL = "https://aptos-mainnet-econia.nodeinfra.com";
+
+
+const fetch = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const dayISO = new Date(dayTimestamp * 1000).toISOString();
+
+  const markets: IMarkets[] = (await fetchURL(`${BASE_URL}/markets?quote_account_address=eq.0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa&quote_module_name=eq.asset&quote_struct_name=eq.USDC`));
+  const volumesPerMarket = await Promise.all(
+    markets.map(async m =>
+      await fetchURL(`${BASE_URL}/rpc/volume_history?market_id=${m.market_id}&time=${dayISO}`)
+        .then(res => (
+          { daily: res[0].daily * m.tick_size / 1000000, total: res[0].total * m.tick_size / 1000000 }
+        ))
+    )
+  );
+
+  const volumes = volumesPerMarket.reduce((prev, curr) => {
+    return { daily: prev.daily + curr.daily, total: prev.total + curr.total };
+  }, {daily: 0, total: 0});
+
+  const feesPerMarket = await Promise.all(
+    markets.map(async m =>
+      await fetchURL(`${BASE_URL}/fees_24h?market_id=eq.${m.market_id}&day=eq.${dayISO}`)
+        .then(res => (
+          { daily: res[0].fees / 1000000 }
+        ))
+    )
+  );
+
+  const fees = feesPerMarket.reduce((prev, curr) => {
+    return { daily: prev.daily + curr.daily };
+  }, { daily: 0 });
+
+  let res = {
+    totalVolume: `${volumes.total}`,
+    dailyVolume: `${volumes.daily}`,
+    dailyFees: `${fees.daily}`,
+    timestamp: dayTimestamp,
+  };
+
+  return res;
+};
+
+const getStartTimestamp = async () => {
+  return (new Date('2023-11-23T00:00:00.000Z').getTime() / 1000);
+}
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.APTOS]: {
+      fetch: fetch,
+      start: getStartTimestamp,
+    }
+  },
+};
+
+export default adapter;

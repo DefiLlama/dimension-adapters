@@ -1,8 +1,8 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import { getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { httpGet } from "../utils/fetchURL";
 
 const endpoint = (year: number, month: number) => `https://api.frax.finance/v2/fpifpis/income-expense/detail?year=${year}&month=${month}`;
 interface IFPI {
@@ -18,7 +18,7 @@ const fetch = async (timestamp: number) => {
   const date = new Date((timestamp * 1000));
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
-  const response: IFPI[]  = (await axios.get(endpoint(year, month)))?.data?.details;
+  const response: IFPI[]  = (await httpGet(endpoint(year, month)))?.details;
   const historical = response.filter((e:IFPI) => e.chain === 'ethereum');
   const dailyData = historical
     .filter((p: IFPI) => p.timestampSec >= dayTimestamp)
@@ -40,7 +40,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1653955200
+      start: 1653955200
     },
   }
 }

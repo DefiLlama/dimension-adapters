@@ -7,7 +7,6 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
     [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
-
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -27,14 +26,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
             const graphRes = await request(graphUrls[chain], graphQuery);
 
             const dailyFee = (
-                parseInt(graphRes.feeStat.mint) +
-                parseInt(graphRes.feeStat.burn) +
-                parseInt(graphRes.feeStat.marginAndLiquidation) +
-                parseInt(graphRes.feeStat.swap)
+                parseInt(graphRes?.feeStat?.mint || 0) +
+                parseInt(graphRes?.feeStat?.burn || 0) +
+                parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
+                parseInt(graphRes?.feeStat?.swap || 0)
             ) / 1e30
             const dailyUserFees = (
-                parseInt(graphRes.feeStat.marginAndLiquidation) +
-                parseInt(graphRes.feeStat.swap)
+                parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
+                parseInt(graphRes?.feeStat?.swap || 0)
             ) / 1e30;
 
             return {
@@ -51,7 +50,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
             fetch: graphs(endpoints)(CHAIN.ERA),
-            start: async () => 1670659200,
+            start: 1670659200,
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

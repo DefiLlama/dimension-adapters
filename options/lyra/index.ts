@@ -13,15 +13,17 @@ const subgraph = getChainVolume({
   graphUrls: endpoints,
 });
 
-const adapter: SimpleAdapter = {
+const adapters: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: subgraph(chain as Chain),
-        start: async () => 1656154800,
+        start: 1656154800,
       },
     };
   }, {}),
-};
-export default adapter;
+}
+
+export default adapters;

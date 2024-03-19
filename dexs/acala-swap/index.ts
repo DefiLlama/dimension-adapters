@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ACALA]: {
       fetch: fetch,
-      start: async () => 1671667200
+      start: 1671667200
     },
   },
 };

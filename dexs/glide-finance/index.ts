@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
   factoriesName: "glideFactories",
   dayData: "glideDayData"
 });
-adapters.adapter.elastos.start = async () => 1635479215;
+adapters.adapter.elastos.start = 1635479215;
 export default adapters;

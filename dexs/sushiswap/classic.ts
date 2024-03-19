@@ -7,6 +7,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import {
   getChainVolumeWithGasToken,
 }  from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -146,22 +147,24 @@ const fantomGraphs =  getChainVolumeWithGasToken({
     factory: "dayData",
     field: 'volumeETH',
     dateField: "date"
-  }
+  },
+  priceToken: "coingecko:fantom"
 } as any);
 classic[CHAIN.FANTOM] = {
-  fetch: async (timestamp: number) =>   {
-    const values = await fantomGraphs(CHAIN.FANTOM)(timestamp, {});
+  fetch: async (options: FetchOptions) =>   {
+    const values = await fantomGraphs(CHAIN.FANTOM)(options);
+    const vol = Number(values.dailyVolume)
     return {
       ...values,
-      dailyFees: values.dailyVolume * 0.003,
-      dailyUserFees: values.dailyVolume * 0.003,
-      dailyProtocolRevenue: values.dailyVolume * 0.0005,
-      dailySupplySideRevenue: values.dailyVolume * 0.0025,
+      dailyFees: vol * 0.003,
+      dailyUserFees: vol * 0.003,
+      dailyProtocolRevenue: vol * 0.0005,
+      dailySupplySideRevenue: vol * 0.0025,
       dailyHoldersRevenue: 0,
-      dailyRevenue: values.dailyVolume * 0.003,
+      dailyRevenue: vol * 0.003,
     }
   },
-  start: async() => 0
+  start: 0
 }
 
 export default classic

@@ -107,11 +107,12 @@ const methodologyStable = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {
         fetch: v2Graph(CHAIN.ARBITRUM),
-        start: async () => 1674432000,
+        start: 1674432000,
         meta: {
           methodology
         },
@@ -120,7 +121,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => 1676887200,
+        start: 1676887200,
         meta: {
           methodology: methodologyV3
         }
@@ -130,7 +131,7 @@ const adapter: BreakdownAdapter = {
     stable: {
       [CHAIN.ARBITRUM]: {
         fetch: stableGraph(CHAIN.ARBITRUM),
-        start: async () => 1676113200,
+        start: 1676113200,
         meta: {
           methodology: methodologyStable
         },

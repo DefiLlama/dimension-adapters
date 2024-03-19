@@ -45,7 +45,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+        : '0',
     totalVolume:
       totalData.volumeStats.length == 1
         ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -53,12 +53,9 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.OPTIMISM]: 1683864388,
-    [CHAIN.BASE]:1692688600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.OPTIMISM]: 1683864388,
+  [CHAIN.BASE]:1692688600,
 }
 
 
@@ -66,11 +63,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     // [CHAIN.OPTIMISM]: {
     //   fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
-    //   start: async () => getStartTimestamp(CHAIN.OPTIMISM),
+    //   start: 1683864388,
     // },
     [CHAIN.BASE] :{
       fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-      start: async () => getStartTimestamp(CHAIN.BASE),
+      start: 1692688600,
     }
   },
 };

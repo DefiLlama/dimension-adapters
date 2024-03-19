@@ -6,20 +6,24 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetchVolume(CHAIN.ERA),
-      start: async () => 1681257600,
+      start: 1681257600,
     },
     [CHAIN.FANTOM]: {
       fetch: fetchVolume(CHAIN.FANTOM),
-      start: async () => 1681257600,
+      start: 1681257600,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: async () => 18240112,
+      start: 18240112,
     },
+    // [CHAIN.METIS]: {
+    //   fetch: fetchVolume(CHAIN.METIS),
+    //   start: 1702888970,
+    // },
     // [CHAIN.KAVA]: {
     //   fetch: fetchVolume(CHAIN.KAVA),
-    //   start: async () => 1694476800,
-    // }
+    //   start: 1694476800,
+    // },
   },
 };
 //

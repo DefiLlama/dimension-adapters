@@ -1,14 +1,15 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import * as sdk from "@defillama/sdk";
 
 import {
   getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
-import { type } from "os";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -59,11 +60,13 @@ const blacklisted = {
   ]
 }
 
+const KEY = 'a265c39f5a123ab2d40b25dc352adc22'
+
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis?source=uniswap",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-arbitrum-one",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
+  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-optmism-regen",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
+  [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
   [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
@@ -74,7 +77,7 @@ const v3Endpoints = {
 const VOLUME_USD = "volumeUSD";
 
 // fees results are in eth, needs to be converted to a balances objects
-const ETH_ADDRESS = "ethereum:0x0000000000000000000000000000000000000000";
+const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
 const v1Graph = getGraphDimensions({
   graphUrls: v1Endpoints,
   totalVolume: {
@@ -154,24 +157,30 @@ const startTimeV3:TStartTime = {
   [CHAIN.ERA]: 1693440000
 }
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks)
-          return {
-            ...response,
-            ...["dailyUserFees", "dailyProtocolRevenue", "dailySupplySideRevenue", "dailyHoldersRevenue", "dailyRevenue", "dailyFees"].reduce((acc, resultType) => {
-              const valueInEth = response[resultType]
-              if (typeof valueInEth === 'string')
-                acc[resultType] = {
-                  [ETH_ADDRESS]: valueInEth
-                }
-              return acc
-            }, {} as FetchResultGeneric)
-          } as FetchResultGeneric
+        fetch: async (options) => {
+          const response = await v1Graph(options.chain)(options);
+          const keys = [
+            "dailyUserFees",
+            "dailyProtocolRevenue",
+            "dailySupplySideRevenue",
+            "dailyHoldersRevenue",
+            "dailyRevenue",
+            "dailyFees",
+          ];
+          for (const key of keys) {
+            if (typeof response[key] === 'string') {
+              response[key] = await sdk.Balances.getUSDString({
+                [ETH_ADDRESS]: response[key]
+              } as any)
+            }
+          }
+          return response as FetchResultGeneric
         },
-        start: async () => 1541203200,
+        start: 1541203200,
         meta: {
           methodology
         },
@@ -179,7 +188,17 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: v2Graph(CHAIN.ETHEREUM),
+        fetch: async (options) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
         start: getStartTimestamp({
           endpoints: v2Endpoints,
           chain: CHAIN.ETHEREUM,
@@ -192,7 +211,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,
@@ -204,13 +223,13 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter)
   }
 }
-adapter.breakdown.v3.bsc.fetch = async (timestamp, chainBlocks) => {
-  const response = await v3Graphs(CHAIN.BSC)(timestamp, chainBlocks)
-  const totalVolume = Number(response.totalVolume) - 10_000_000_000;
-  return {
-    ...response,
-    totalVolume
-  } as FetchResultGeneric
-}
+// adapter.breakdown.v3.bsc.fetch = async ({ endTimestamp, getEndBlock }) => {
+//   const response = await v3Graphs(CHAIN.BSC)(endTimestamp, getEndBlock);
+//   const totalVolume = Number(response.totalVolume) - 10_000_000_000;
+//   return {
+//     ...response,
+//     totalVolume
+//   } as FetchResultGeneric
+// }
 
 export default adapter;

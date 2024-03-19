@@ -12,7 +12,7 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL))?.data?.data.list.map((e: any) => {
+  const response: IAPIResponse[] = (await fetchURL(URL))?.data.list.map((e: any) => {
     return {
       time: e[0],
       volume: e[1]
@@ -28,7 +28,7 @@ const fetch = async (timestamp: number) => {
 
   return {
     totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
 };
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MIXIN]: {
       fetch,
-      start: async () => 1600704000,
+      start: 1600704000,
     },
   }
 };

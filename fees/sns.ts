@@ -1,7 +1,7 @@
-import axios from "axios";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { httpGet } from "../utils/fetchURL";
 
 const API_URL = "https://sns-api.bonfida.com/v2/defilama/fees-adapter";
 
@@ -11,10 +11,10 @@ interface IData {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
-  const url = `${API_URL}?from=${todaysTimestamp}&to=${timestamp}`;
-  const { data }: { data: IData } = await axios.get(url);
+  const todaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const url = `${API_URL}?from=${fromTimestamp}&to=${todaysTimestamp-1}`;
+  const data: IData = await httpGet(url);
   return {
     timestamp: todaysTimestamp,
     dailyFees: data.daily_fees.toString(),
@@ -33,7 +33,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: async () => 1624941677,
+      start: 1624941677,
       meta: {
         methodology,
       },

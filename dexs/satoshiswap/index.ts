@@ -13,6 +13,6 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "pancakeDayData",
 });
 
-adapter.adapter.core.start = async()=> 1680825600;
+adapter.adapter.core.start = 1680825600;
 adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapter

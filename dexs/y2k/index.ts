@@ -8,14 +8,14 @@ const adapter: Adapter = {
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {
-        fetch: v1Fetch(CHAIN.ARBITRUM),
-        start: async () => 1667088000,
+        fetch: v1Fetch,
+        start: 1667088000,
       },
     },
     v2: {
       [CHAIN.ARBITRUM]: {
         fetch: v2Fetch,
-        start: async () => 1685404800,
+        start: 1685404800,
       },
     },
   },

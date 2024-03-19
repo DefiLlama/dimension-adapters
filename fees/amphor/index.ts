@@ -129,7 +129,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         chain: CHAIN.ETHEREUM,
     })) as ethers.Log[];
 
-    const eventsPTezETH: ethers.Event[] = (await sdk.getEventLogs({
+    const eventsPTezETH = (await sdk.getEventLogs({
         target: AmphorPTezETHVault_contractAddress,
         topics: eventFilterPTezETH.topics as string[],
         fromBlock: 18535914,
@@ -137,7 +137,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         chain: CHAIN.ETHEREUM,
     })) as ethers.Log[];
 
-    const eventsPTrsETH: ethers.Event[] = (await sdk.getEventLogs({
+    const eventsPTrsETH = (await sdk.getEventLogs({
         target: AmphorPTrsETHVault_contractAddress,
         topics: eventFilterPTrsETH.topics as string[],
         fromBlock: 18535914,
@@ -145,7 +145,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         chain: CHAIN.ETHEREUM,
     })) as ethers.Log[];
 
-    const eventsPTweETH: ethers.Event[] = (await sdk.getEventLogs({
+    const eventsPTweETH = (await sdk.getEventLogs({
         target: AmphorPTweETHVault_contractAddress,
         topics: eventFilterPTweETH.topics as string[],
         fromBlock: 18535914,

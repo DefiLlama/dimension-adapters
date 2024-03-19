@@ -15,7 +15,7 @@ const historicalVolumeEndpoint = "https://ss.klayswap.com/stat/dashboardInfo.jso
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IKlaySwapInfoDayVolumeItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
+  const historicalVolume: IKlaySwapInfoDayVolumeItem[] = (await fetchURL(historicalVolumeEndpoint))
     .dayVolume;
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.dateId).getTime() / 1000) <= dayTimestamp)
@@ -29,7 +29,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IKlaySwapInfoDayVolumeItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
+  const historicalVolume: IKlaySwapInfoDayVolumeItem[] = (await fetchURL(historicalVolumeEndpoint))
     .dayVolume;
 
   return (new Date(historicalVolume[0].dateId).getTime()) / 1000

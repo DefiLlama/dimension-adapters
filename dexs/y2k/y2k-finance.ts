@@ -1,85 +1,22 @@
-import { FetchResultVolume } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { getDeposits } from "./utils";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { FetchOptions, FetchResultVolume } from "../../adapters/types";
 
-const topic0 = "0x4c48fdcd7e3cb84b81aa54aa5dd04105736ae1bc179d84611c6fa5a642e803f2";
-const controller_address = "0x225acf1d32f0928a96e49e6110aba1fdf777c85f";
 const vault_factory = "0x984e0eb8fb687afa53fc8b33e12e04967560e092";
-const WETH = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+const WETH = ADDRESSES.arbitrum.WETH;
+const event_deposit = "event Deposit (address indexed user, address indexed receiver, uint256 id, uint256 assets)";
 
 const abis: any = {
-  getVaults: {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "index",
-        type: "uint256",
-      },
-    ],
-    name: "getVaults",
-    outputs: [
-      {
-        internalType: "address[]",
-        name: "vaults",
-        type: "address[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  marketIndex: {
-    inputs: [],
-    name: "marketIndex",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
+  "getVaults": "function getVaults(uint256 index) view returns (address[] vaults)",
+  "marketIndex": "uint256:marketIndex"
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toTimestamp = timestamp;
-    const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const toBlock = await getBlock(toTimestamp, chain, {});
+const fetch: any = async (timestamp: number, _, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+  const vaults = (await api.fetchList({ lengthAbi: abis.marketIndex, itemAbi: abis.getVaults, target: vault_factory })).flat()
+  const dailyVolume = createBalances()
+  const logs_deposit = await getLogs({ targets: vaults, eventAbi: event_deposit, })
+  logs_deposit.forEach((log: any) => dailyVolume.add(WETH, log.amount))
 
-    const poolLength = (
-      await sdk.api.abi.call({
-        target: vault_factory,
-        chain: chain,
-        abi: abis.marketIndex,
-      })
-    ).output;
-
-    const vaultRes = await sdk.api.abi.multiCall({
-      abi: abis.getVaults,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i: any) => ({
-        target: vault_factory,
-        params: i,
-      })),
-      chain: chain,
-    });
-
-    const vaults = vaultRes.output
-      .map(({ output }: any) => output)
-      .flat()
-      .map((e: string) => e.toLowerCase());
-
-    const dailyVolume = await getDeposits(WETH, vaults, fromBlock, toBlock, timestamp);
-
-    return {
-      dailyVolume: `${dailyVolume}`,
-      timestamp,
-    };
-  };
+  return { dailyVolume, timestamp, };
 };
 
 export default fetch;

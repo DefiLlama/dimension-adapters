@@ -1,8 +1,8 @@
-import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains"
+import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types"
 
-import getV2Data from "./v2";
-import getV3Data from "./v3";
+import getV2Data from "./v2"
+import getV3Data from "./v3"
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.ETHEREUM]:
@@ -13,23 +13,23 @@ const v2Endpoints: ChainEndpoints = {
     "https://api.thegraph.com/subgraphs/name/premiafinance/premia-fantom",
   [CHAIN.OPTIMISM]:
     "https://api.thegraph.com/subgraphs/name/premiafinance/premia-optimism",
-};
+}
 
 const v2StartTimes: { [chain: string]: number } = {
   [CHAIN.ETHEREUM]: 1656201600,
   [CHAIN.ARBITRUM]: 1656201600,
   [CHAIN.FANTOM]: 1656201600,
   [CHAIN.OPTIMISM]: 1659744000,
-};
+}
 
 const v3Endpoints: ChainEndpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/premian-labs/premia-blue",
-};
+    "https://subgraph.satsuma-prod.com/5d8f840fce6d/premia/premia-v3-arbitrum/api",
+}
 
 const v3StartTimes: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1692576000,
-};
+}
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -38,7 +38,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV2Data(v2Endpoints[chain], ts),
-          start: async () => v2StartTimes[chain],
+          start: v2StartTimes[chain],
           meta: {
             methodology: {
               UserFees:
@@ -50,7 +50,7 @@ const adapter: BreakdownAdapter = {
             },
           },
         },
-      };
+      }
     }, {}),
 
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
@@ -58,7 +58,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
-          start: async () => v3StartTimes[chain],
+          start: v3StartTimes[chain],
           meta: {
             methodology: {
               UserFees:
@@ -70,9 +70,9 @@ const adapter: BreakdownAdapter = {
             },
           },
         },
-      };
+      }
     }, {}),
   },
-};
+}
 
-export default adapter;
+export default adapter

@@ -28,10 +28,11 @@ const v2Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v2Graphs(CHAIN.MANTLE),
-      start: async () => 1689206400,
+      start: 1689206400,
     },
   },
 };

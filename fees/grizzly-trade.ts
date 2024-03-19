@@ -1,9 +1,10 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { ARBITRUM, AVAX, BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
     [BSC]: "https://api.thegraph.com/subgraphs/name/metavault-trade/grizzly-bnb-subgraph"
@@ -36,9 +37,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
             const graphRes = await request(graphUrls[chain], graphQuery);
 
-            const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+            const dailyFee = parseInt(graphRes?.feeStat?.mint || 0) + parseInt(graphRes?.feeStat?.burn || 0) + parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) + parseInt(graphRes?.feeStat?.swap || 0)
             const finalDailyFee = (dailyFee / 1e30);
-            const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+            const userFee = parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) + parseInt(graphRes?.feeStat?.swap || 0)
             const finalUserFee = (userFee / 1e30);
 
             return {
@@ -57,9 +58,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
     adapter: {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
-            start: async () => 1689897600,
+            start: 1689897600,
             meta: {
                 methodology
             }

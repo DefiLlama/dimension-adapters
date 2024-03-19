@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://api-osmosis.imperator.co/volume/v2/historical/chart"
+const historicalVolumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart"
 
 interface IChartItem {
   time: string
@@ -12,7 +12,7 @@ interface IChartItem {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
 
@@ -31,7 +31,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))
   return (new Date(historicalVolume[0].time).getTime()) / 1000
 }
 

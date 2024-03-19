@@ -11,7 +11,7 @@ interface IVolume {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const url = `https://dry-ravine-67635.herokuapp.com/pairs`;
-  const historicalVolume: IVolume[] = (await fetchURL(url)).data;
+  const historicalVolume: IVolume[] = (await fetchURL(url));
   const dailyVolume = historicalVolume.reduce((a: number, b: IVolume) => a + b.volume_24h, 0);
 
   return {
@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: async () => 1668643200,
+      start: 1668643200,
     },
   },
 };

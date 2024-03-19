@@ -56,7 +56,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: async () => 1680274800,
+      start: 1680274800,
     },
   },
 };

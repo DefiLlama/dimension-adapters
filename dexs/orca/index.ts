@@ -1,11 +1,11 @@
-import axios from 'axios';
 import { CHAIN } from '../../helpers/chains';
+import { httpGet } from '../../utils/fetchURL';
 
-const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list?whitelisted=true";
+const wpEndpoint = "https://api.mainnet.orca.so/v1/whirlpool/list";
 
 async function fetch(timestamp: number) {
-    const [whirlpools] = await Promise.all([axios.get(wpEndpoint)]);
-    const wpVol = whirlpools.data.whirlpools.reduce((sum: number, pool: any) =>
+    const [whirlpools] = await Promise.all([httpGet(wpEndpoint)]);
+    const wpVol = whirlpools.whirlpools.reduce((sum: number, pool: any) =>
         sum + (pool?.volume?.day || 0)
         , 0);
     return {
@@ -19,7 +19,7 @@ export default {
         [CHAIN.SOLANA]: {
             fetch: fetch,
             runAtCurrTime: true,
-            start: async () => 1663113600,
+            start: 1663113600,
         }
     }
 }

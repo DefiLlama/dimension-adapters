@@ -1,10 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
-import { DISABLED_ADAPTER_KEY, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, DISABLED_ADAPTER_KEY, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import disabledAdapter from "../../helpers/disabledAdapter";
-import { getPrices } from "../../utils/prices";
 
 const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
 
@@ -13,29 +11,24 @@ interface IVolumeall {
   day: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.response;
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = createBalances()
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).response;
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.day)) === dayTimestamp)?.volumeLovelace
-
-    const coinId = "coingecko:cardano";
-    const prices = await getPrices([coinId], timestamp)
-
-
+  dailyVolume.addGasToken(historicalVolume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.day)) === startOfDay)?.volumeLovelace as any)
   return {
-    dailyVolume: dailyVolume ? String(Number(dailyVolume) / 1e6 * prices[coinId].price) : "0",
-    timestamp: dayTimestamp,
+    dailyVolume,
+    timestamp: startOfDay,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
       fetch,
-      start: async () => 1643673600,
+      start: 1643673600,
     },
   },
 };

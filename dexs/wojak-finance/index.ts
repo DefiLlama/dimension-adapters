@@ -61,11 +61,12 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.DOGECHAIN]: {
       fetch: graphs(CHAIN.DOGECHAIN),
-      start: async () => 1661731200,
+      start: 1661731200,
     },
   },
 };

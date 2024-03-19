@@ -37,7 +37,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
+      start: startTimeV3[chain],
       meta: {
         methodology: {
           Fees: "Each pool charge between 0.01% to 1% fee",
@@ -55,6 +55,7 @@ const v3 = Object.keys(endpointsV3).reduce(
 );
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v3: v3,
   },

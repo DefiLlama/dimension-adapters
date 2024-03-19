@@ -15,6 +15,7 @@ const endpoints = {
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/version/latest",
   [CHAIN.LINEA]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-linea",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45576/woofi-base/version/latest",
+  [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
 };
 
 type TStartTime = {
@@ -31,6 +32,7 @@ const startTime: TStartTime = {
   [CHAIN.POLYGON_ZKEVM]: 1688515200,
   [CHAIN.LINEA]: 1691625600,
   [CHAIN.BASE]: 1692057600,
+  [CHAIN.MANTLE]: 1706659200,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
@@ -69,13 +71,14 @@ const volume = Object.keys(endpoints).reduce(
     ...acc,
     [chain]: {
       fetch: fetch(chain),
-      start: async () => startTime[chain],
+      start: startTime[chain],
     },
   }),
   {}
 );
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: volume,
 };
 export default adapter;

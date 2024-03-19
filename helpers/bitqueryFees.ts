@@ -1,4 +1,5 @@
-import axios from "axios";
+import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 
 interface IDate {
   date: string; // ex. 2022-01-01
@@ -29,8 +30,8 @@ const adapterBitqueryFeesEthereumNetwork = async (form: string, till: string, ne
     variables: value
   });
 
-  const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEY || '', "Content-Type": "application/json"};
-  const result: ITx[] = (await axios.post("https://graphql.bitquery.io", body, { headers: headers }))?.data?.data.ethereum.transactions;
+  const headers =  {"X-API-KEY": getEnv('BIT_QUERY_API_KEY'), "Content-Type": "application/json"};
+  const result: ITx[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.ethereum.transactions;
 
   return result;
 }

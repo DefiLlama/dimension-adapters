@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultVolume } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
@@ -37,8 +37,8 @@ interface IPoolSnapshot {
 
 
 const v2Graphs = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    return async ({ endTimestamp }): Promise<FetchResultV2> => {
+      const startTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
       const fromTimestamp = startTimestamp - 60 * 60 * 24
       const toTimestamp = startTimestamp
       const graphQuery = gql
@@ -62,7 +62,6 @@ const v2Graphs = (chain: Chain) => {
 
       return {
         dailyVolume: `${dailyVolume}`,
-        timestamp,
       };
     };
   };
@@ -76,12 +75,12 @@ const v1graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: async () => 1582761600,
-        customBackfill: customBackfill(CHAIN.ETHEREUM, v1graphs)
+        start: 1582761600
       },
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {

@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getPrices } from "../../utils/prices";
 
 const historicalVolumeEndpoint = "https://bisq.markets/bisq/api/markets/volumes?interval=day"
 
@@ -11,31 +9,29 @@ interface IVolumeall {
   period_start: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.period_start <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
+const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }: FetchOptions) => {
+  const totalVolume = createBalances()
+  const dailyVolume = createBalances()
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.period_start === dayTimestamp)?.volume
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
+  historicalVolume
+    .filter(volItem => volItem.period_start <= startOfDay)
+    .map(({ volume }) => totalVolume.addCGToken('bitcoin', +volume))
 
-  const coinId = "coingecko:bitcoin";
-  const prices = await getPrices([coinId], dayTimestamp)
+  const dailyVol = historicalVolume
+    .find(dayItem => dayItem.period_start === startOfDay)?.volume
+  dailyVolume.addCGToken('bitcoin', +(dailyVol as any))
 
   return {
-    totalVolume: totalVolume ? String(Number(totalVolume) * prices[coinId].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume) * prices[coinId].price) : "0",
-    timestamp: dayTimestamp,
-  };
+    // totalVolume,
+    dailyVolume, timestamp: startOfDay };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: async () => 1525651200,
+      start: 1525651200,
     },
   },
 };

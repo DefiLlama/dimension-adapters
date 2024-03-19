@@ -1,6 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 interface IAevoVolumeResponse {
   daily_volume: string;
@@ -18,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchAevoVolumeData,
-      start: async () => 1681430400
+      start: 1681430400
     },
   },
 };
@@ -27,7 +28,8 @@ export async function fetchAevoVolumeData(
   /** Timestamp representing the end of the 24 hour period */
   timestamp: number
 ) {
-  const timestampInNanoSeconds = timestamp * 1e9
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const timestampInNanoSeconds = dayTimestamp * 1e9
   const aevoVolumeData = await getAevoVolumeData(aevoVolumeEndpoint(timestampInNanoSeconds));
 
   const dailyNotionalVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
@@ -45,7 +47,7 @@ export async function fetchAevoVolumeData(
 }
 
 async function getAevoVolumeData(endpoint: string): Promise<IAevoVolumeResponse> {
-  return (await fetchURL(endpoint))?.data;
+  return (await fetchURL(endpoint));
 }
 
 export default adapter;

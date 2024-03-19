@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [CHAIN.AVAX]: {
             fetch: fetch,
-            start: async () => 1635206400,
+            start: 1635206400,
         },
     },
 };

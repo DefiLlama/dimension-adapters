@@ -1,6 +1,6 @@
 import { FetchResultFees } from "../../adapters/types";
 import { request, gql } from "graphql-request";
-import { utils } from "ethers";
+import { ethers } from "ethers";
 import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const ONE_DAY = 24 * 60 * 60;
@@ -59,7 +59,7 @@ const dailyFeesQuery = gql`
 
 
 function toNumber(value: string): number {
-  return Number(utils.formatEther(value));
+  return Number(ethers.formatEther(value));
 }
 
 async function getFeeRevenueData(

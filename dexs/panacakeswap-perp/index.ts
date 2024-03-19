@@ -1,69 +1,42 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
-import * as sdk from "@defillama/sdk";
-import { queryDune } from "../../helpers/dune";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-type TID = {
-  [key: string | Chain]: string;
-}
-type TBrokerID = {
-  [s: string | Chain]: number[];
-}
-const brokerID: TBrokerID = {
-  [CHAIN.BSC]: [2],
-  [CHAIN.ARBITRUM]: [1,2]
-}
-const contract_address: TID = {
-  [CHAIN.BSC]: '2826941',
-  [CHAIN.ARBITRUM]: '2982352'
-}
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-const topic_0_open = '0xa858fcdefab65cbd1997932d8ac8aa1a9a8c46c90b20947575525d9a2a437f8c'
-
-interface IData {
-  dt: string;
-  volume: number;
-  fees: number;
+// https://api.dodoex.io/dodo-contract/list
+const config = {
+  arbitrum: { contract: '0xb3879e95a4b8e3ee570c232b19d520821f540e48', },
+  bsc: { contract: '0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0', },
 }
 
-const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number) => {
-    try {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-      const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-      const query: IData[] = (await queryDune(contract_address[chain]))
-      // const query: IData[] = require(`./${chain}.json`);
-      const dailyVolume = query.find((e: IData) => e.dt.split(' ')[0] === dateString)?.volume;
+import { ChainBlocks, FetchOptions } from "../../adapters/types";
 
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  };
+const abis = {
+  "OpenMarketTrade": "event OpenMarketTrade(address indexed user, bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint64 entryPrice, address pairBase, address tokenIn, uint96 margin, uint64 stopLoss, uint64 takeProfit, uint24 broker, bool isLong, uint96 openFee, int256 longAccFundingFeePerShare, uint96 executionFee, uint40 timestamp, uint80 qty, uint40 holdingFeeRate, uint256 openBlock) ot)",
+}
+
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+  const dailyVolume = createBalances()
+  const target = config[chain].contract
+
+  const openLogs = await getLogs({ target, eventAbi: abis.OpenMarketTrade, topics:['0xa858fcdefab65cbd1997932d8ac8aa1a9a8c46c90b20947575525d9a2a437f8c'], skipCacheRead: true})
+  let tokens = new Set()
+  openLogs.forEach(({ ot }: any) => {
+    tokens.add(ot.tokenIn.toLowerCase())
+  })
+  const tokensArray = Array.from(tokens)
+  const decimals = await api.multiCall({  abi: 'erc20:decimals', calls: tokensArray as any})
+  const decimalMapping: any = {}
+  decimals.forEach((d: any, idx) => {
+    decimalMapping[tokensArray[idx] as any] = d
+  })
+
+  openLogs.forEach(({ ot }: any) => {
+    dailyVolume.addCGToken('tether', Number(ot.entryPrice) * Number(ot.qty) * 10 **(-18))
+  })
+  return { timestamp, dailyVolume }
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetchVolume(CHAIN.BSC),
-      start: async () => 1682035200,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: async () => 1692662400,
-    },
-  },
+const adapter: any = {
+  adapter: {},
 };
+
+Object.keys(config).forEach((chain) => adapter.adapter[chain] = { fetch, start: 1690848000, });
 
 export default adapter;
