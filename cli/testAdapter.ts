@@ -25,18 +25,20 @@ function getTimestamp30MinutesAgo() {
 const adapterType: AdapterType = process.argv[2] as AdapterType
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
-  const cleanDayTimestamp = process.argv[4] ? getUniqStartOfTodayTimestamp(new Date(+process.argv[4] * 1000 + 60 * 60 * 24 * 1000)) : getUniqStartOfTodayTimestamp(new Date())
-  let endCleanDayTimestamp = cleanDayTimestamp - 1
+  const cleanDayTimestamp = process.argv[4] ? Number(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
+  let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`_______________________________________`)
   // Import module to test
   let module: Adapter = (await import(passedFile)).default
   const adapterVersion = module.version
-  let timestamp = endCleanDayTimestamp
+  let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
-    timestamp = (process.argv[4] ? Number(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
+    endTimestamp = (process.argv[4] ? Number(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
   }
-  console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))))}`)
+
+  const runAt = adapterVersion === 2 ? endTimestamp : endTimestamp - 1;
+  console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(getUniqStartOfTodayTimestamp(new Date((runAt * 1000)))))}`)
   console.info(`_______________________________________\n`)
 
   // Get closest block to clean day. Only for EVM compatible ones.
@@ -45,7 +47,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   const chainBlocks: ChainBlocks = {};
   await Promise.all(allChains.map(async (chain) => {
     try {
-      const latestBlock = await getBlock(timestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${timestamp}, ${chain}`))
+      const latestBlock = await getBlock(endTimestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${endTimestamp}, ${chain}`))
       if (latestBlock)
         chainBlocks[chain] = latestBlock
     } catch (e) { console.log(e) }
@@ -54,7 +56,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   if ("adapter" in module) {
     const adapter = module.adapter
     // Get adapter
-    const volumes = await runAdapter(adapter, timestamp, chainBlocks, undefined, undefined, {
+    const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
     })
     printVolumes(volumes, adapter)
@@ -62,7 +64,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   } else if ("breakdown" in module) {
     const breakdownAdapter = module.breakdown
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
-      runAdapter(adapter, timestamp, chainBlocks, undefined, undefined, {
+      runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
       }).then(res => ({ version, res }))
     ))
