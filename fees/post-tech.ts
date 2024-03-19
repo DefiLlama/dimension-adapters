@@ -11,7 +11,8 @@ const adapter: SimpleAdapter = {
       fetch: getFeesExport(contract_address, [event_trade]),
       start: 1693267200
     }
-  }
+  },
+  version: 2,
 }
 
 export default adapter;
