@@ -155,7 +155,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     })).output as ethers.Event[];
 
     const eventsPTweETH: ethers.Event[] = (await sdk.api.util.getLogs({
-        target: AmphorPTrsETHVault_contractAddress,
+        target: AmphorPTweETHVault_contractAddress,
         topic: '',
         topics: eventFilterPTweETH.topics as string[],
         fromBlock: 18535914,
