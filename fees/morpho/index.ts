@@ -41,11 +41,9 @@ const fetch: FetchV2 = async (options) => {
     dailySupplySideRevenue: Balances;
     dailyUserFees: Balances;
     dailyFees?: Balances;
-    dailyRevenue: Balances;
   } = {
     dailySupplySideRevenue: new Balances({ chain }),
     dailyUserFees: new Balances({ chain }),
-    dailyRevenue: new Balances({ chain }),
   };
 
   res.markets.items.map((m: Market) => {
@@ -57,7 +55,6 @@ const fetch: FetchV2 = async (options) => {
 
     marketData.dailySupplySideRevenue.add(address, supply);
     marketData.dailyUserFees.add(address, borrow);
-    marketData.dailyRevenue.add(address, borrow - supply);
   });
 
   marketData.dailyFees = marketData.dailyUserFees;
