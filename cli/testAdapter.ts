@@ -37,7 +37,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     endTimestamp = (process.argv[4] ? Number(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
   }
 
-  const runAt = adapterVersion === 2 ? endTimestamp : endTimestamp - 1;
+  const runAt = adapterVersion === 2 ? endTimestamp : process.argv[4] ?  Number(process.argv[4]) : endTimestamp - 1;
   console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(getUniqStartOfTodayTimestamp(new Date((runAt * 1000)))))}`)
   console.info(`_______________________________________\n`)
 
