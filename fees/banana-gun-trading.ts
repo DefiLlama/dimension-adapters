@@ -2,38 +2,6 @@ import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../ad
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { queryDune } from "../helpers/dune";
-import { queryIndexer } from "../helpers/indexer";
-
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
-  const deployer = [
-    "xf414d478934c29d9a80244a3626c681a71e53bb2", "x37aab97476ba8dc785476611006fd5dda4eed66b"
-  ].map(i => `'\\${i}'::bytea`).join(', ')
-  const transactions = await queryIndexer(`
-      SELECT
-        encode(data, 'hex') AS data
-      FROM
-        ethereum.event_logs
-      WHERE
-          block_number > 19170281
-          AND contract_address IN (
-              SELECT DISTINCT address
-              FROM ethereum.traces
-              WHERE
-                  block_number > 17345415
-                  AND from_address IN ( ${deployer} )
-                  AND "type" = 'create'
-                  and address is not null
-          )
-          AND topic_0 = '\\x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f'
-          AND block_time BETWEEN llama_replace_date_range;
-    `, options)
-  const dailyFees = options.createBalances();
-  transactions.map((e: any) => {
-    dailyFees.addGasToken(Number('0x' + e.data.slice(0, 64)));
-  })
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
-
-}
 
 interface IFees {
   block_date: string;
@@ -64,12 +32,18 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
   }
 }
 
-const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const contract_address: any = {
+  [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  [CHAIN.BASE]: '0x1fba6b0bbae2b74586fba407fb45bd4788b7b130',
+  [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
+}
+
+const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const logs = await options.getLogs({
     topic: '0x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f',
-    target: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+    target: contract_address[options.chain],
   });
   logs.map((log: any) => {
     const data = log.data.replace('0x', '');
@@ -87,7 +61,7 @@ const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptio
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch: fetchFees,
       start: 1685577600,
     },
     [CHAIN.SOLANA]: {
@@ -96,9 +70,13 @@ const adapter: SimpleAdapter = {
       start: 1685577600,
     },
     [CHAIN.BLAST]: {
-      fetch: fetchBlats,
+      fetch: fetchFees,
       start: 1685577600,
-    }
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchFees,
+      start: 1685577600,
+    },
   },
   isExpensiveAdapter: true,
 };
