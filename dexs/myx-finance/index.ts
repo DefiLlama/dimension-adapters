@@ -45,8 +45,8 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyData.tradeVolume.volume,
-    totalVolume: totalData.tradeVolume.volume,
+    dailyVolume: dailyData.tradeVolume?.volume || "0",
+    totalVolume: totalData.tradeVolume?.volume || "0",
   }
 }
 
