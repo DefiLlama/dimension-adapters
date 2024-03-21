@@ -3,14 +3,16 @@
 // This indexer is open source (AGPLv3) and available at:
 // https://gitlab.com/riftenlabs/riftenlabs-indexer
 
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const INDEXER_URL = "https://indexer.cauldron.quest";
 
 const methodology = {
-  DailyVolume: "Scrape the blockchain and filter for spent transaction outputs that match the cauldron contract's redeem script. Check if the transaction has an output with a locking script that matches the redeem script in the input. A match on locking script means the funds are still locked in the DEX contract. Aggregate the difference of funds in contract utxos as trade volume."
+  Volume: "Scrape the blockchain and filter for spent transaction outputs that match the cauldron contract's redeem script. Check if the transaction has an output with a locking script that matches the redeem script in the input. A match on locking script means the funds are still locked in the DEX contract. Aggregate the difference of funds in contract utxos as trade volume.",
+  Fees: "N/A",
+  Revenue: "N/A",
 }
 
 const adapter: SimpleAdapter = {
@@ -26,8 +28,8 @@ const adapter: SimpleAdapter = {
 };
 
 export async function fetchCauldronVolume(
-  timestamp: number
-) {
+  timestamp: number, _, options: FetchOptions
+): Fetch {
   const endpoint = `${INDEXER_URL}/cauldron/contract/volume?end=${timestamp}`;
   const volume = await fetchURL(endpoint)
 
@@ -41,10 +43,16 @@ export async function fetchCauldronVolume(
 
   const COIN = 100000000n;
 
+  const dailyVolume = options.createBalances();
+  const totalVolume = options.createBalances();
+
+  dailyVolume.addCGToken('bitcoin-cash', Number(daily_sats / COIN));
+  totalVolume.addCGToken('bitcoin-cash', Number(total_sats / COIN));
+
   return {
     timestamp,
-    dailyVolume: Number(daily_sats / COIN),
-    totalVolume: Number(total_sats / COIN),
+    dailyVolume,
+    totalVolume,
   };
 }
 
