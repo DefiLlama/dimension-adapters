@@ -15,7 +15,8 @@ type TEndpoint = {
 const endpointsV2: TEndpoint = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2",
   [CHAIN.ARBITRUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/arbitrum?startTime=1672012800&aggregateBy=daily",
-  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily"
+  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily",
+  [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
 interface IVolume {
@@ -95,6 +96,10 @@ const adapter: BreakdownAdapter = {
         fetch: fetchV2,
         start: 1677801600
       },
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchV2,
+        start: 1695513600
+      }
     }
   },
 };
