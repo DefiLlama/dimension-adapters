@@ -1,10 +1,10 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { ethers, EventFilter } from 'ethers';
 
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { getBlock } from "../../helpers/getBlock";
 
 const AmphorILHedgedUSDC_contractAddress: string = '0x3b022EdECD65b63288704a6fa33A8B9185b5096b';
@@ -181,11 +181,11 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
 
     eventsUSDC.forEach(res => {
         const event = AmphorILHedgedUSDC_contract.interface.parseLog(res as any);
-        totalRevenueUSDC += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
-        totalFeesUSDC += BigInt(event!.args.fees)
+        totalRevenueUSDC += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
+        totalFeesUSDC += BigInt(event!.args.fees);
         if (event!.args.timestamp > fromTimestamp && event!.args.timestamp < toTimestamp) {
-            dailyFeesUSDC += BigInt(event!.args.fees)
-            dailyRevenueUSDC = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
+            dailyFeesUSDC += BigInt(event!.args.fees);
+            dailyRevenueUSDC = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
         }
     });
 
@@ -194,18 +194,18 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         totalRevenueWSTETH += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
         totalFeesWSTETH += BigInt(event!.args.fees)
         if (event!.args.timestamp > fromTimestamp && event!.args.timestamp < toTimestamp) {
-            dailyFeesWSTETH += BigInt(event!.args.fees)
-            dailyRevenueWSTETH = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
+            dailyFeesWSTETH += BigInt(event!.args.fees);
+            dailyRevenueWSTETH = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
         }
     });
 
     eventsWBTC.forEach(res => {
         const event = AmphorILHedgedWBTC_contract.interface.parseLog(res as any);
-        totalRevenueWBTC += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
-        totalFeesWBTC += BigInt(event!.args.fees)
+        totalRevenueWBTC += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
+        totalFeesWBTC += BigInt(event!.args.fees);
         if (event!.args.timestamp > fromTimestamp && event!.args.timestamp < toTimestamp) {
-            dailyFeesWBTC += BigInt(event!.args.fees)
-            dailyRevenueWBTC = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
+            dailyFeesWBTC += BigInt(event!.args.fees);
+            dailyRevenueWBTC = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
         }
     });
 
@@ -286,7 +286,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     return {
         timestamp: timestamp,
         totalFees: totalFeesNumber,
-        totalRevenue: Number(await totalRevenue.getUSDValue()).toFixed(0),
+        //totalRevenue: Number(await totalRevenue.getUSDValue()).toFixed(0),
         totalProtocolRevenue: totalFeesNumber,
         totalUserFees: totalFeesNumber,
         dailyFees: Number(await dailyFees.getUSDValue()).toFixed(0),
