@@ -42,15 +42,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: async () => 1710720000,
+      start: async () => 1710037587,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: async () => 1710720000,
+      start: async () => 1710037587,
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: async () => 1710720000,
+      start: async () => 1710037587,
     },
   },
 };
