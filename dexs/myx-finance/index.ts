@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { ChainEndpoints, Fetch, SimpleAdapter } from "../../adapters/types";
+import { ChainEndpoints, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -22,10 +22,10 @@ interface IGraphResponse {
   }
 }
 
-const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const getFetch = async (optios: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
 
-  const dailyData: IGraphResponse = await request(endpoints[chain], gql`
+  const dailyData: IGraphResponse = await request(endpoints[optios.chain], gql`
       query MyQuery {
       tradeVolume(id: "${dayTimestamp}") {
         volume
@@ -34,7 +34,7 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
     }
   `)
 
-  const totalData: IGraphResponse = await request(endpoints[chain], gql`
+  const totalData: IGraphResponse = await request(endpoints[optios.chain], gql`
     query MyQuery {
       tradeVolume(id: "global") {
         volume
@@ -57,11 +57,12 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch()(chain),
+        fetch: getFetch,
         start: startTimestamps[chain],
         meta: {
           methodology: methodology,
