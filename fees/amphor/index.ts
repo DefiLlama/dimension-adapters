@@ -94,15 +94,15 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     };
     const eventFilterPTezETH: EventFilter = {
         address: AmphorPTezETHVault_contractAddress,
-        topics: [ethers.utils.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
+        topics: [ethers.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
     const eventFilterPTrsETH: EventFilter = {
         address: AmphorPTrsETHVault_contractAddress,
-        topics: [ethers.utils.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
+        topics: [ethers.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
     const eventFilterPTweETH: EventFilter = {
         address: AmphorPTweETHVault_contractAddress,
-        topics: [ethers.utils.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
+        topics: [ethers.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
 
     const eventsUSDC = (await sdk.getEventLogs({
