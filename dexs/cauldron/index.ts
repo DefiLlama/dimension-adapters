@@ -3,7 +3,7 @@
 // This indexer is open source (AGPLv3) and available at:
 // https://gitlab.com/riftenlabs/riftenlabs-indexer
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
 
 export async function fetchCauldronVolume(
   timestamp: number, _, options: FetchOptions
-): Fetch {
+): Promise<FetchResult> {
   const endpoint = `${INDEXER_URL}/cauldron/contract/volume?end=${timestamp}`;
   const volume = await fetchURL(endpoint)
 
@@ -57,4 +57,3 @@ export async function fetchCauldronVolume(
 }
 
 export default adapter;
-
