@@ -30,9 +30,12 @@ const graph = (graphUrls: ChainEndpoints) => {
         graphQuery
       );
 
-      if (!snapshot) throw new Error("No data found");
+      if (!snapshot) {
+        dailyRevenue.addCGToken("wrapped-steth", 0);
+      } else {
+        dailyRevenue.addCGToken("wrapped-steth", snapshot.wstETHRevenue * 1e18);
+      }
 
-      dailyRevenue.addCGToken("wrapped-steth", snapshot.wstETHRevenue * 1e18);
 
       const usd = await dailyRevenue.getUSDValue();
       const revenue = (usd / 1e18).toFixed(0);
