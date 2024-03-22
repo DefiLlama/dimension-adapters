@@ -13,7 +13,7 @@ const chains = [
 ];
 
 const NATIVE_ANALYTICS_ENDPOINT =
-  "http://chain-monitoring.native.org/analytics/overview";
+  "https://newapi.native.org/native-offchain-monitor-mono/analytics/overview";
 
 interface ResEntry {
   date: number;
