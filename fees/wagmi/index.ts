@@ -26,13 +26,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
-    // [CHAIN.KAVA]: {
-    //   fetch: fetchFee(CHAIN.KAVA),
-    //   start: 1694476800,
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
+    [CHAIN.KAVA]: {
+      fetch: fetchFee(CHAIN.KAVA),
+      start: 1694476800,
+      meta: {
+        methodology,
+      },
+    },
     [CHAIN.ETHEREUM]: {
       fetch: fetchFee(CHAIN.ETHEREUM),
       start: 18240112,
