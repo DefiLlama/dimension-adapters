@@ -139,7 +139,8 @@ export enum CHAIN {
   ZETA = "zeta",
   ASTAR_ZKEVM = "astrzk",
   FILECOIN = "filecoin",
-  FRAXTAL = "fraxtal"
+  FRAXTAL = "fraxtal",
+  IMX = "imx",
 }
 
 // Don´t use
