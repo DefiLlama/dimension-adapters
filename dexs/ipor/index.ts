@@ -43,10 +43,12 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
   const logs = logsStables.concat(logsStETHs)
 
   logs.forEach(log => {
-    const balance = Number(log.money?.notional || log.amounts?.notional)
-      dailyNotionalVolume.add(log.asset, balance)
+    let balance = Number(log.money?.notional || log.amounts?.notional)
+    if (log.asset.toLowerCase() === '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'.toLowerCase()) {
+      balance = balance / 1e18
+    }
+    dailyNotionalVolume.add(log.asset, balance)
   })
-
   return { timestamp, dailyVolume: dailyNotionalVolume };
 };
 
