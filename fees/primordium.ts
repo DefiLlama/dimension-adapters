@@ -10,7 +10,7 @@ const fetch: any = async (options: FetchOptions) => {
   }));
   dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
 
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees }
 
 }
 
