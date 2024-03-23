@@ -21,7 +21,7 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
     dailyRevenue.add('So11111111111111111111111111111111111111112', fees) ;
     return {
       dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue: 0,
       timestamp
     }
   } catch (error: any) {
@@ -53,7 +53,7 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   });
   return {
     dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue: 0,
     timestamp
   }
 }
