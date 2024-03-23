@@ -13,7 +13,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const dayItem = result.find((item: IFees) => item.block_date.split(' ')[0] === dateTime);
   return {
     dailyFees: dayItem?.feesUSD ?? 0,
-    dailyRevenue: dayItem?.feesUSD ?? 0,
+    dailyRevenue: 0,
     timestamp
   }
 }
