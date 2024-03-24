@@ -15,6 +15,11 @@ type DexData = {
     volumeSellFees: number
 };
 
+const methodology = {
+    Fees: "User pays 0.1% fees on each trade.",
+    Volume: "User buys and sell RWA tokens.."
+}
+
 const fetch = async (timestamp: number) => {
     const stats: DexData = (await fetchURL(`https://aws-api.javlis.com/api/dtoken/stats`)).data;
     console.log(stats)
@@ -30,7 +35,10 @@ const adapter: SimpleAdapter = {
         [CHAIN.DEFICHAIN]: {
             fetch,
             start: 0,
-            runAtCurrTime: true
+            runAtCurrTime: true,
+            meta: {
+                methodology
+            },
         },
     },
 };
