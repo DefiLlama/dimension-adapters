@@ -22,7 +22,6 @@ const methodology = {
 
 const fetch = async (timestamp: number) => {
     const stats: DexData = (await fetchURL(`https://aws-api.javlis.com/api/dtoken/stats`)).data;
-    console.log(stats)
     return {
         totalVolume: `${stats.volumeTotal}`,
         totalFees: `${stats.feeTotal}`,
