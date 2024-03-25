@@ -12,12 +12,15 @@ type DexData = {
     volumeBuyFees: number,
     countSell: number,
     volumeSell: number,
-    volumeSellFees: number
+    volumeSellFees: number,
+    volume24: number,
+    fee24: number
+
 };
 
 const methodology = {
     Fees: "User pays 0.1% fees on each trade.",
-    Volume: "User buys and sell RWA tokens.."
+    Volume: "User buys and sell RWA tokens.",
 }
 
 const fetch = async (timestamp: number) => {
@@ -25,6 +28,8 @@ const fetch = async (timestamp: number) => {
     return {
         totalVolume: `${stats.volumeTotal}`,
         totalFees: `${stats.feeTotal}`,
+        dailyFees: `${stats.fee24}`,
+        dailyVolume: `${stats.volume24}`,
         timestamp,
     };
 };
