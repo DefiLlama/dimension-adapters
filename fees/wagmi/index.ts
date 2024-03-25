@@ -40,13 +40,13 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
-    [CHAIN.METIS]: {
-      fetch: fetchFee(CHAIN.METIS),
-      start: 1702888970,
-      meta: {
-        methodology,
-      },
-    },
+    // [CHAIN.METIS]: {
+    //   fetch: fetchFee(CHAIN.METIS),
+    //   start: 1702888970,
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
   },
 };
 

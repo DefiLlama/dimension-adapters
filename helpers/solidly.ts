@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { ChainBlocks, FetchOptions, FetchResultFees, } from "../adapters/types";
+import { FetchOptions, } from "../adapters/types";
 
 const TOPIC_Notify = 'event NotifyReward(address indexed from, address indexed reward, uint indexed epoch, uint amount)';
 
@@ -19,7 +19,7 @@ const VOTER_ABI: TABI = {
 }
 
 export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRESS: string, FACTORY_ADDRESS: string }) {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, api, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, api, getLogs, }: FetchOptions) => {
 
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
@@ -70,6 +70,6 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRE
         })
     });
 
-    return { dailyFees, dailyRevenue: dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, timestamp, };
+    return { dailyFees, dailyRevenue: dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
   }
 }

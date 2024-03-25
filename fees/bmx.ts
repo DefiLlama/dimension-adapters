@@ -12,11 +12,10 @@ const methodology = {
   Fees: "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   UserFees:
     "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  HoldersRevenue: "30% of all collected fees are distributed to BMX/wBLT LP stakers",
+  HoldersRevenue: "10% of all collected fees are distributed to BMX stakers",
   SupplySideRevenue: "60% of all collected fees are distributed to BLT stakers",
   Revenue:
-    "Governance revenue is 30% of all collected fees, which are distributed to BMX/wBLT LP stakers",
-  ProtocolRevenue: "10% of all collected fees are distributed to the treasury",
+    "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
 };
 
 const graphs = (chain: string) => async (timestamp: number) => {
@@ -49,9 +48,8 @@ const graphs = (chain: string) => async (timestamp: number) => {
     timestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
-    dailyRevenue: (finalDailyFee * 0.3).toString(),
-    dailyProtocolRevenue: (finalDailyFee * 0.1).toString(),
-    dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
+    dailyRevenue: (finalDailyFee * 0.4).toString(),
+    dailyHoldersRevenue: (finalDailyFee * 0.1).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
   };
 };
