@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getDexFeesExports } from "../../helpers/dexVolumeLogs";
+import { getDexFeesExports, exportDexVolumeAndFees } from "../../helpers/dexVolumeLogs";
 import { fees_bribes } from './bribes';
 
 
@@ -38,7 +38,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
-        const v1Results = await getDexFeesExports({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS,})
+        const v1Results = await exportDexVolumeAndFees({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS,})(options.endTimestamp, {}, options)
         const bribesResult = await getBribes(options);
         v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
