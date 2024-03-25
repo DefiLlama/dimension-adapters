@@ -31,6 +31,13 @@ interface VolumeResponse {
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
     const chainId = chainToId[options.chain]
+    if (!chainId) {
+        return {
+            dailyVolume: 0,
+            totalVolume: 0,
+            timestamp: timestamp,
+        }
+    }
     const fetchUrl = `${url}?chainid=${chainId}&timestamp=${timestamp}`
     const data: VolumeResponse = (await httpGet(fetchUrl, { timeout: 100000 }));
 
