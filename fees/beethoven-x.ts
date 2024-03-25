@@ -15,6 +15,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: { fetch: getFeesExport(vaultAddresses[CHAIN.OPTIMISM]), start: 1672531200 },
     [CHAIN.FANTOM]: { fetch: getFeesExport(vaultAddresses[CHAIN.FANTOM]), start: 1672531200 },
-  }
+  },
+  version: 2,
 }
 export default adapters

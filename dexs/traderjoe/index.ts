@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
@@ -15,28 +15,27 @@ type TEndpoint = {
 const endpointsV2: TEndpoint = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2",
   [CHAIN.ARBITRUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/arbitrum?startTime=1672012800&aggregateBy=daily",
-  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily"
+  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily",
+  [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
 interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[chain]));
-    const totalVolume = historicalVolume
-      .filter(volItem => volItem.timestamp <= dayTimestamp)
-      .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
+const fetchV2 = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
+  const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[options.chain]));
+  const totalVolume = historicalVolume
+    .filter(volItem => volItem.timestamp <= dayTimestamp)
+    .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
-    return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-      timestamp: dayTimestamp,
-    }
+  const dailyVolume = historicalVolume
+    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
+  return {
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    timestamp: dayTimestamp,
   }
 }
 
@@ -90,13 +89,17 @@ const adapter: BreakdownAdapter = {
         start: 1668556800
       },
       [CHAIN.ARBITRUM]: {
-        fetch: fetchV2(CHAIN.ARBITRUM),
+        fetch: fetchV2,
         start: 1672012800
       },
       [CHAIN.BSC]: {
-        fetch: fetchV2(CHAIN.BSC),
+        fetch: fetchV2,
         start: 1677801600
       },
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchV2,
+        start: 1695513600
+      }
     }
   },
 };
