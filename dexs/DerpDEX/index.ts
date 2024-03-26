@@ -7,13 +7,13 @@ const endpoints = {
     "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.10",
   [CHAIN.BASE]:
     "https://api.thegraph.com/subgraphs/name/geckocoding/derpdex-amm-base",
-  [CHAIN.OP_BNB]:
-    "https://opbnb.subgraph.derpdex.com/subgraphs/name/geckocoding/derpdex-opbnb",
+  // [CHAIN.OP_BNB]:
+  //   "https://opbnb.subgraph.derpdex.com/subgraphs/name/geckocoding/derpdex-opbnb",
 };
 const v3StartTimes = {
   [CHAIN.ERA]: 1688515200,
   [CHAIN.BASE]: 1692296100,
-  [CHAIN.OP_BNB]: 1695275237,
+  // [CHAIN.OP_BNB]: 1695275237,
 };
 
 const v3Graphs = getGraphDimensions({
