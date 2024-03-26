@@ -12,6 +12,7 @@ const adapters = univ2Adapter({
 });
 
 adapters.adapter.linea.start = 1689373614;
+adapters.adapter.linea.fetch = async (timestamp: number) => { return { timestamp } };
 adapters.adapter.base.start = 1690894800;
 
 export default adapters;
