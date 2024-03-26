@@ -41,7 +41,7 @@ export async function fetchCauldronVolume(
       return acc + Number(token.one_day_sats)
   }, Number(0));
 
-  const COIN = 100000000n;
+  const COIN = 100000000;
 
   const dailyVolume = options.createBalances();
   const totalVolume = options.createBalances();
