@@ -14,5 +14,6 @@ const adapters = univ2Adapter({
 });
 
 adapters.adapter.smartbch.start = 1633220803;
+adapters.adapter.smartbch.fetch = async (timestamp: number) => { return { timestamp } };
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;
