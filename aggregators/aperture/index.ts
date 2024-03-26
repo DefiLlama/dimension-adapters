@@ -14,9 +14,10 @@ const chainToId: Record<string, number> = {
     [CHAIN.SCROLL]: 534352,
     [CHAIN.ERA]: 324,
     [CHAIN.CRONOS]: 25,
+    [CHAIN.MANTA]: 169,
 };
 
-const url = "https://api.hyperfocal.tech/getMetricsBreakDownSinceInception"
+const url = "https://api.aperture.finance/getMetricsBreakDownSinceInception"
 
 interface VolumeInfo {
     chainId: number;
