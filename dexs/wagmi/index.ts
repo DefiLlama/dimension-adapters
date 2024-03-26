@@ -20,10 +20,10 @@ const adapter: SimpleAdapter = {
     //   fetch: fetchVolume(CHAIN.METIS),
     //   start: 1702888970,
     // },
-    // [CHAIN.KAVA]: {
-    //   fetch: fetchVolume(CHAIN.KAVA),
-    //   start: 1694476800,
-    // },
+    [CHAIN.KAVA]: {
+      fetch: fetchVolume(CHAIN.KAVA),
+      start: 1694476800,
+    },
   },
 };
 //
