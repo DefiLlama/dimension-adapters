@@ -53,15 +53,15 @@ const computeVolume = async (timestamp: number, productIds: number[]) => {
     snapshots[1].cumulative_volumes;
   const totalVolume = Number(
     Object.values(lastCumulativeVolumes).reduce(
-      (acc, current) => acc + BigInt(current),
-      BigInt(0)
-    ) / BigInt(10 ** 18)
+      (acc, current) => acc + Number(current),
+      Number(0)
+    ) / Number(10 ** 18)
   );
   const totalVolumeOneDayAgo = Number(
     Object.values(prevCumulativeVolumes).reduce(
-      (acc, current) => acc + BigInt(current),
-      BigInt(0)
-    ) / BigInt(10 ** 18)
+      (acc, current) => acc + Number(current),
+      Number(0)
+    ) / Number(10 ** 18)
   );
   const dailyVolume = totalVolume - totalVolumeOneDayAgo;
   return {

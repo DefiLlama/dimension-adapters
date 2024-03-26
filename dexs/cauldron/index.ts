@@ -34,12 +34,12 @@ export async function fetchCauldronVolume(
   const volume = await fetchURL(endpoint)
 
   const total_sats = volume.reduce((acc, token) => {
-    return acc + BigInt(token.total_sats)
-  }, BigInt(0));
+    return acc + Number(token.total_sats)
+  }, Number(0));
 
   const daily_sats = volume.reduce((acc, token) => {
-      return acc + BigInt(token.one_day_sats)
-  }, BigInt(0));
+      return acc + Number(token.one_day_sats)
+  }, Number(0));
 
   const COIN = 100000000n;
 
