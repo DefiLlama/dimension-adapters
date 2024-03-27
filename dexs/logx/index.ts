@@ -17,17 +17,14 @@ const chain_ids: { [chain: string]: string }  = {
 }
 
 interface IAPIResponse {
+    dailyVolume: string;
     totalVolume: string;
-    totalUsers: string;
-    _24HVolume: string;
-    message: string;
 }
 
 const getFetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions): Promise<FetchResult> => {
-    const { totalVolume, totalUsers, _24HVolume, message }: IAPIResponse = (
+    const { dailyVolume, totalVolume }: IAPIResponse = (
       await fetchURL(`${URL}?chainId=${chain_ids[chain]}&timestamp=${timestamp}`)
     );
-    const dailyVolume = _24HVolume;
     return {
       dailyVolume,
       totalVolume,
