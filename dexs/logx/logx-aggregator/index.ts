@@ -1,6 +1,6 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../../utils/fetchURL";
+import { FetchResult, SimpleAdapter } from "../../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
 
 const URL = "https://logx-data-analytics-xmxmxbqxaq-uc.a.run.app/";
 const endpoint = "defillama/defillama/";
@@ -21,7 +21,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   };
 };
 
-const adapter: SimpleAdapter = {
+const adapterAgg: any = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
@@ -29,5 +29,6 @@ const adapter: SimpleAdapter = {
     },
   },
 };
-
-export default adapter;
+export {
+  adapterAgg
+}

@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
-import { ChainBlocks, Fetch, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, ChainBlocks, Fetch, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { adapterAgg } from './logx-aggregator/index'
 
 const URL = "https://backend-lp.logx.trade/";
 const endpoint = "statistics/header_stats?chainId=";
@@ -35,7 +36,7 @@ const getFetch = async (timestamp: number, _: ChainBlocks, { createBalances, get
     };
   };
 
-const adapter: SimpleAdapter = {
+const adapter: any = {
     adapter: {
       [CHAIN.MANTLE]: {
         fetch: getFetch,
@@ -72,4 +73,13 @@ const adapter: SimpleAdapter = {
     },
   };
 
-  export default adapter;
+
+
+const adapterBreakdown: BreakdownAdapter = {
+  breakdown: {
+    "derivative": adapter["adapter"],
+    "logx-aggregator": adapterAgg["adapter"],
+  }
+}
+
+export default adapterBreakdown;
