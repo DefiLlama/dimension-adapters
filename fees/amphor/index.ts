@@ -290,7 +290,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         totalProtocolRevenue: totalFeesNumber,
         totalUserFees: totalFeesNumber,
         dailyFees: Number(await dailyFees.getUSDValue()).toFixed(0),
-        dailyProtocolRevenue: dailyRevenueNumber,
+        // dailyProtocolRevenue: dailyRevenueNumber,
         //dailyRevenue: dailyRevenueNumber,
     };
 }
