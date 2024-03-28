@@ -17,6 +17,7 @@ const chainToId: Record<string, number> = {
     [CHAIN.MANTA]: 169,
 };
 
+
 const url = "https://api.aperture.finance/getMetricsBreakDownSinceInception"
 
 interface VolumeInfo {
