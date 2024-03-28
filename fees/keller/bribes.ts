@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import { getPrices } from "../../utils/prices";
 import { ethers } from "ethers";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
 const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
@@ -24,12 +24,15 @@ interface IBribes {
 }
 
 
-export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp: number): Promise<number> => {
+export const getBribes = async (options: FetchOptions): Promise<any> => {
   try {
+    const dailyBribesRevenue = options.createBalances();
+    const fromBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
     const voter = '0x30f827DECe6F25c74F37d0dD45bC245d893266e6';
     const logs_geuge_created: ethers.EventLog[] = (await sdk.api.util.getLogs({
       target: voter,
-      fromBlock: 4265908, //Block number of the contract's creation
+      fromBlock: 4265093, //Block number of the contract's creation
       toBlock: toBlock,
       topic: '',
       topics: [topic0_geuge_created],
@@ -37,7 +40,7 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
       keys: []
     })).output;
     const bribes_contract: string[] = logs_geuge_created.map((e: ethers.EventLog) => {
-      const value = contract_interface.parseLog(e);
+      const value = contract_interface.parseLog(e as any);
       return value?.args.bribeVotingReward;
     })
 
@@ -60,14 +63,12 @@ export const fees_bribes = async (fromBlock: number, toBlock: number, timestamp:
         amount: Number(value?.args.amount._hex)
       } as IBribes
     })
-    const coins = [...new Set(logs_bribes.map((e: IBribes) => `${"scroll"}:${e.token.toLowerCase()}`))]
-    const prices = await getPrices(coins, timestamp);
-    const fees_bribes_usd = logs_bribes.map((e: IBribes) => {
-      const price = prices[`${"scroll"}:${e.token.toLowerCase()}`]?.price || 0;
-      const decimals = prices[`${"scroll"}:${e.token.toLowerCase()}`]?.decimals || 0;
-      return (Number(e.amount) / 10 ** decimals) * price;
-    }).reduce((a: number, b: number) => a+b, 0);
-    return fees_bribes_usd;
+    logs_bribes.forEach((e: IBribes) => {
+      dailyBribesRevenue.add(e.token, e.amount)
+    });
+    return {
+      dailyBribesRevenue
+    };
   } catch (error) {
     console.error(error);
     throw error;

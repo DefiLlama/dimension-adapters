@@ -1,35 +1,27 @@
-import { Adapter, FetchResultFees } from '../../adapters/types';
+import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { fetchV2 } from './keller-v2';
-import { fees_bribes } from './bribes';
-import { getBlock } from '../../helpers/getBlock';
-import { getTimestamp } from '@defillama/sdk/build/util';
+import { getBribes } from './bribes';
+import { exportDexVolumeAndFees } from '../../helpers/dexVolumeLogs';
 
-
-const getFees = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.SCROLL, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.SCROLL, {}));
-
-  const  [feeV2, bribes] = await Promise.all([fetchV2(fromBlock, toBlock, timestamp),  fees_bribes(fromBlock, toBlock, timestamp)]);
-  const dailyFees = Number(feeV2.dailyFees);
-  const dailyRevenue = Number(feeV2.dailyRevenue) + bribes;
-  const dailyHoldersRevenue = Number(feeV2.dailyHoldersRevenue) + bribes;
+const FACTORY_ADDRESS = '0xbc83f7dF70aE8A3e4192e1916d9D0F5C2ee86367';
+const getFees = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const v1Results = await exportDexVolumeAndFees({ chain: CHAIN.SCROLL, factory: FACTORY_ADDRESS })(options.endTimestamp, {}, options)
+  const bribesResult = await getBribes(options);
+  v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    dailyHoldersRevenue: `${dailyHoldersRevenue}`,
-    dailyBribesRevenue: `${bribes}`,
-    timestamp
+    dailyFees: v1Results.dailyFees,
+    dailyRevenue: v1Results.dailyRevenue,
+    dailyHoldersRevenue: v1Results.dailyFees,
+    dailyBribesRevenue: v1Results.dailyBribesRevenue,
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.SCROLL]: {
       fetch: getFees,
-      start: async () => getTimestamp(4265908, "scroll"), // TODO: Add accurate timestamp
+      start: 1710806400
     },
   },
 };
