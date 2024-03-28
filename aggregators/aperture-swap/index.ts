@@ -52,7 +52,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
                 }
             })
         }
-        
+
         if (data.totalVolume) {
             data.totalVolume.forEach(r => {
                 if (r.chainId == chainId) {
@@ -60,7 +60,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
                 }
             })
         }
-        
+
         return {
             dailyVolume: dailyVolume,
             totalVolume: totalVolume,
