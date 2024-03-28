@@ -26,6 +26,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: 1677283200,
+      runAtCurrTime: true,
     },
   }
 };

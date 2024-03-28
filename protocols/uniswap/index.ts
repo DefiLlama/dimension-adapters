@@ -4,6 +4,7 @@ import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapter
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
+import {getUniV2LogAdapter} from "../../helpers/uniswap"
 
 import {
   getGraphDimensions,
@@ -156,6 +157,20 @@ const startTimeV3:TStartTime = {
   [CHAIN.BASE]: 1691280000,
   [CHAIN.ERA]: 1693440000
 }
+
+const v2Deployments = {
+  // ethereum: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+  optimism: '0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf',
+  arbitrum: '0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9',
+  avax: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
+  base: '0x8909dc15e40173ff4699343b6eb8132c65e18ec6',
+  bsc: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
+  polygon: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
+  //celo: '0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f',
+  zora: '0x0F797dC7efaEA995bB916f268D919d0a1950eE3C'
+}
+
+
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -207,6 +222,13 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
+      ...Object.keys(v2Deployments).reduce((acc, chain) => {
+        acc[chain] = {
+          fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
+          start: 0,
+        }
+        return acc
+      }, {})
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {

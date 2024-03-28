@@ -65,7 +65,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.DOGECHAIN]: {
-      fetch: graphs(CHAIN.DOGECHAIN),
+      fetch: async (timestamp: number) => {return {timestamp} },
       start: 1661731200,
     },
   },

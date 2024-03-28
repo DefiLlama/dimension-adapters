@@ -1,7 +1,6 @@
 
-import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import {  FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
@@ -22,8 +21,7 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.POLYGON_ZKEVM]: ['0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC',],
 }
 
-async function fetch(timestamp: number, _: ChainBlocks, { getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolume> {
-  timestamp = Math.floor(Date.now() / 1000)
+async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const feeCollectors = FEE_COLLECTORS[chain];
   const dailyVolume = createBalances()
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap, })
@@ -31,11 +29,11 @@ async function fetch(timestamp: number, _: ChainBlocks, { getLogs, createBalance
   logs.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
   multiswapLogs.forEach(i => dailyVolume.add(i.tokensOut, i.amountsOut))
 
-  return { dailyVolume, timestamp, };
+  return { dailyVolume, };
 }
 
 const start = 1689292800
-const adapter: SimpleAdapter = {  adapter: {  }};
+const adapter: SimpleAdapter = { adapter: {}, version: 2, };
 Object.keys(FEE_COLLECTORS).forEach((chain) => adapter.adapter[chain] = { fetch, start, });
 
 export default adapter;

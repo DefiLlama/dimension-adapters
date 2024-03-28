@@ -22,6 +22,10 @@ const adapter: SimpleAdapter = {
       fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),
       start: 1700784000,
     },
+    [CHAIN.BLAST]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.BLAST, factory: FACTORY_ADDRESS }),
+      start: 1710720000,
+    },
     [CHAIN.BSC]: {
       fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),
       start: 1700784000,
@@ -33,6 +37,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.FANTOM]: {
       fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),
       start: 1700784000,
+    },
+    [CHAIN.FILECOIN]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.FILECOIN, factory: FACTORY_ADDRESS }),
+      start: 1710979200,
+    },
+    [CHAIN.FRAXTAL]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.FRAXTAL, factory: FACTORY_ADDRESS }),
+      start: 1710720000,
     },
     [CHAIN.KAVA]: {
       fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),

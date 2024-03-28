@@ -24,7 +24,8 @@ const adapter: Adapter = {
             fetch: fetch,
             start: 1698494400,
         },
-    }
+    },
+    version: 2,
 }
 
 export default adapter; 

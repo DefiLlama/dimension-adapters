@@ -9,6 +9,7 @@ const adapter: Adapter = {
       fetch: getFeesExport('0xbe74a95d159e8e323b8c1a70f825efc85fed27c4'),
       start: 1693180800
     }
-  }
+  },
+  version: 2,
 }
 export default adapter;
