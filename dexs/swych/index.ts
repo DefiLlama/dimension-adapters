@@ -118,7 +118,8 @@ const fetchVolumeStats = async (timestamp: number) => {
         convertedTradingVolume24h,
     ] = [tradingVolume, tradingVolume24h].map(value => convertToUsd(value));
     return {
-        dayVolume: convertedTradingVolume24h.toString(),
+        timestamp,
+        dailyVolume: convertedTradingVolume24h.toString(),
         totalVolume: convertedTradingVolume.toString(),
     };
 };
