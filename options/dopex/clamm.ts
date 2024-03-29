@@ -93,6 +93,10 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
     timestamp,
     ...cumulative,
     ...daily,
+    dailySupplySideRevenue: daily.dailyPremiumVolume,
+    totalSupplySideRevenue: cumulative.totalPremiumVolume,
+    dailyHoldersRevenue: daily.dailyRevenue,
+    totalDailyHoldersRevenue: cumulative.totalRevenue,
   };
 }
 
