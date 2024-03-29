@@ -1,4 +1,6 @@
 import axios from "axios";
+import {CHAIN} from "../../helpers/chains";
+import {getTimestampAtStartOfDayUTC} from "../../utils/date";
 
 const STATUS = {
     FILLED: "FILLED",
@@ -22,12 +24,8 @@ const convertToUsd = (value: bigint, decimals = 30) => {
 };
 
 const calculate24hTimestamps = (timestamp: number) => {
-    const currentDate = new Date(timestamp * 1000);
-    const currentUtcDate = new Date(currentDate.toUTCString());
-    currentUtcDate.setUTCHours(0, 0, 0, 0);
-    const startOfCurrentDay = currentUtcDate.getTime() / 1000;
-    const endOfCurrentDay = startOfCurrentDay + 86400;
-
+    const startOfCurrentDay = getTimestampAtStartOfDayUTC(timestamp);
+    const endOfCurrentDay = startOfCurrentDay + 24 * 60 * 60;
     return {
         startOfCurrentDay,
         endOfCurrentDay,
@@ -41,7 +39,8 @@ const generateOrdersQuery = (timeStart: number = 0, timeEnd: number, skip: numbe
           orders(
             where: {
               submissionTimestamp_gt: "${timeStart}",
-              submissionTimestamp_lt: "${timeEnd}"
+              submissionTimestamp_lt: "${timeEnd}",
+              status: FILLED
             },
             first: ${first},
             skip: ${skip},
@@ -65,10 +64,9 @@ const generateOrdersQuery = (timeStart: number = 0, timeEnd: number, skip: numbe
 const queryOrders = async (timestamp: number) => {
     const timeStart = 0;
     const timeEnd = timestamp;
-    const orders = [];
+    const orders: Array<any> = [];
     const pageSize = 1000;
     let hasMoreData = true;
-
     while (hasMoreData) {
         const query = generateOrdersQuery(timeStart, timeEnd, orders.length, pageSize);
         const response = await axios.post(SUBGRAPHS.pdex, query);
@@ -112,8 +110,9 @@ const calculateTradingVolumeFromOrders = (orders: Array<any>, timestamp: number)
 };
 
 const fetchVolumeStats = async (timestamp: number) => {
-    const orders = await getOrders(timestamp);
-    const {tradingVolume, tradingVolume24h} = calculateTradingVolumeFromOrders(orders, timestamp);
+    const {startOfCurrentDay, endOfCurrentDay} = calculate24hTimestamps(timestamp);
+    const orders = await getOrders(endOfCurrentDay);
+    const {tradingVolume, tradingVolume24h} = calculateTradingVolumeFromOrders(orders, startOfCurrentDay);
     const [
         convertedTradingVolume,
         convertedTradingVolume24h,
@@ -126,11 +125,10 @@ const fetchVolumeStats = async (timestamp: number) => {
 
 export default {
     adapter: {
-        bsc: {
+        [CHAIN.BSC]: {
             fetch: fetchVolumeStats,
-            start: async () => 1701720000,
+            start: 1701720000,
             runAtCurrTime: false,
         },
     },
 };
-
