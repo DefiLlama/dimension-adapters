@@ -15,5 +15,7 @@ const adapters = univ2Adapter({
 
 adapters.adapter.bsc.start = 1687305600;
 adapters.adapter.pulse.start = 1686096000;
+adapters.adapter.bsc.fetch = async (timestamp: number) => {return{timestamp, dailyVolume: 0}}
+adapters.adapter.pulse.fetch = async (timestamp: number) => {return{timestamp, dailyVolume: 0}}
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;
