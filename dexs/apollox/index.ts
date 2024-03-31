@@ -59,6 +59,7 @@ const fetchV1Volume = async () => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
+      runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v1, v2] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
@@ -72,6 +73,7 @@ const adapter: SimpleAdapter = {
       start: 1682035200,
     },
     [CHAIN.ARBITRUM]: {
+      runAtCurrTime: true,
       fetch: async (timestamp) => {
         const dailyVolume = await fetchV2Volume(CHAIN.ARBITRUM);
         return {
@@ -82,6 +84,7 @@ const adapter: SimpleAdapter = {
       start: 1682035200,
     },
     [CHAIN.OP_BNB]: {
+      runAtCurrTime: true,
       fetch: async (timestamp) => {
         const dailyVolume = await fetchV2Volume('opbnb');
         return {
@@ -92,6 +95,7 @@ const adapter: SimpleAdapter = {
       start: 1682035200,
     },
     [CHAIN.BASE]: {
+      runAtCurrTime: true,
       fetch: async (timestamp) => {
         const dailyVolume = await fetchV2Volume(CHAIN.BASE);
         return {
