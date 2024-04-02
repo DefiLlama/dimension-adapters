@@ -72,10 +72,7 @@ const graph = (chain: Chain) => {
     );
 
     logs_fund_disposit_v3.map((a: any) =>
-      dailyFees.add(
-        a.outputToken,
-        Number(a.inputAmount - a.outputAmount) / 1e18,
-      ),
+      dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount)),
     );
 
     logs_filled_replay.map((a: any) =>
@@ -87,10 +84,7 @@ const graph = (chain: Chain) => {
     );
 
     logs_filled_replay_v3.map((a: any) =>
-      dailyFees.add(
-        a.outputToken,
-        Number(a.inputAmount - a.outputAmount) / 1e18,
-      ),
+      dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount)),
     );
 
     return {
