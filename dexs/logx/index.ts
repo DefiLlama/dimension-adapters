@@ -3,8 +3,7 @@ import { BreakdownAdapter, ChainBlocks, Fetch, FetchOptions, FetchResult, Simple
 import { CHAIN } from "../../helpers/chains";
 import { adapterAgg } from './logx-aggregator/index'
 
-const URL = "https://backend-lp.logx.trade/";
-const endpoint = "statistics/header_stats?chainId=";
+const URL = "https://backend-lp.logx.trade/defillama";
 
 const chain_ids: { [chain: string]: string }  = {
     [CHAIN.MANTLE]: "5000",
@@ -18,17 +17,14 @@ const chain_ids: { [chain: string]: string }  = {
 }
 
 interface IAPIResponse {
+    dailyVolume: string;
     totalVolume: string;
-    totalUsers: string;
-    _24HVolume: string;
-    message: string;
 }
 
 const getFetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions): Promise<FetchResult> => {
-    const { totalVolume, totalUsers, _24HVolume, message }: IAPIResponse = (
-      await fetchURL(`${URL}${endpoint}${chain_ids[chain]}`)
+    const { dailyVolume, totalVolume }: IAPIResponse = (
+      await fetchURL(`${URL}?chainId=${chain_ids[chain]}&timestamp=${timestamp}`)
     );
-    const dailyVolume = _24HVolume;
     return {
       dailyVolume,
       totalVolume,
