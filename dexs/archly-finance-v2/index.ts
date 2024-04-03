@@ -78,6 +78,10 @@ const adapter: SimpleAdapter = {
       fetch: getDexVolumeExports({ chain: CHAIN.TELOS, factory: FACTORY_ADDRESS }),
       start: 1700784000,
     },
+    [CHAIN.ZORA]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.ZORA, factory: FACTORY_ADDRESS }),
+      start: 1711929600,
+    },
   }
 };
 
