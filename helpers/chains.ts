@@ -142,7 +142,8 @@ export enum CHAIN {
   FRAXTAL = "fraxtal",
   IMX = "imx",
   KROMA = "kroma",
-  ZORA = "zora"
+  ZORA = "zora",
+  SVM = "svm",
 }
 
 // Don´t use
