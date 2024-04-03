@@ -56,7 +56,12 @@ const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
     }),
   );
 
-  return { dailyFees, dailyRevenue, totalRevenue };
+  return {
+    dailyRevenue,
+    totalRevenue,
+    dailyFees: dailyRevenue,
+    totalFees: totalRevenue,
+  };
 };
 
 const config: {
