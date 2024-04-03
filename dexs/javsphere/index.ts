@@ -18,17 +18,23 @@ type DexData = {
 
 };
 
+type StakingData = {
+    totalFees: number,
+    dailyFees: number,
+};
+
 const methodology = {
-    Fees: "User pays 0.1% fees on each trade.",
+    Fees: "User pays 0.1% fees on each trade. User pays 10% fee of rewards in dusdstaking.",
     Volume: "User buys and sell RWA tokens.",
 }
 
 const fetch = async (timestamp: number) => {
     const stats: DexData = (await fetchURL(`https://aws-api.javlis.com/api/dtoken/stats`)).data;
+    const statsStaking: StakingData = (await fetchURL(`https://aws-api.javlis.com/api/dusdStaking/stats`)).data;
     return {
         totalVolume: `${stats.volumeTotal}`,
-        totalFees: `${stats.feeTotal}`,
-        dailyFees: `${stats.fee24}`,
+        totalFees: `${stats.feeTotal + statsStaking.totalFees}`,
+        dailyFees: `${stats.fee24 + statsStaking.dailyFees}`,
         dailyVolume: `${stats.volume24}`,
         timestamp,
     };
