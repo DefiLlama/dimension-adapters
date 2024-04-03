@@ -3,7 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const API_URL = 'http://localhost:3000/graphql';
+const API_URL = 'https://statistic-api.ashperp.trade/graphql';
 
 interface IVolume {
   volume: string;

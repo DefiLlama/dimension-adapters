@@ -5,7 +5,7 @@ import { queryDune } from "../../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import request from "graphql-request";
 
-const API_URL = 'http://localhost:3000/graphql';
+const API_URL = 'https://statistic-api.ashperp.trade/graphql';
 
 interface IFee {
   time: string;
