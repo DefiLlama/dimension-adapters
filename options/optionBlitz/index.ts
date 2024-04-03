@@ -60,10 +60,10 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   return {
     timestamp: dayTimestamp,
-    dailyNotionalVolume:  await balances.getUSDString(),
-    dailyPremiumVolume: 0,
-    totalNotionalVolume: await balances1.getUSDString(),
-    totalPremiumVolume: 0,
+    dailyNotionalVolume: 0,
+    dailyPremiumVolume:  await balances.getUSDString(),
+    totalNotionalVolume: 0,
+    totalPremiumVolume: await balances1.getUSDString(),
   };
 };
 
