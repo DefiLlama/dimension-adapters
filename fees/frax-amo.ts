@@ -14,8 +14,8 @@ const query = (amo: string, timestamp: number) => gql`
             depositAddress
             name
             fraxAccountingPerDay(
-                first: 3, 
-                orderBy: timestamp, 
+                first: 3,
+                orderBy: timestamp,
                 orderDirection: desc
                 where: {
                     timestamp_lt: ${timestamp}
@@ -42,6 +42,7 @@ const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
   const client = getGQLClient(graph);
   const dailyRevenue = createBalances();
   const totalRevenue = createBalances();
+  const dailyFees = createBalances();
 
   await Promise.all(
     amos.map(async (amo: string) => {
@@ -55,7 +56,7 @@ const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
     }),
   );
 
-  return { dailyRevenue, totalRevenue };
+  return { dailyFees, dailyRevenue, totalRevenue };
 };
 
 const config: {
