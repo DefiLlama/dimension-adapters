@@ -29,7 +29,7 @@ const fetch = async (): Promise<FetchResult> => {
     dayData(id: ${dayTimestamp}) {
       id
       volumeUsdc
-    } 
+    }
   }`;
 
   const totalDataQuery = gql`
@@ -59,9 +59,11 @@ const fetch = async (): Promise<FetchResult> => {
   balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume.toString());
 
   return {
-    dailyPremiumVolume: await balances.getUSDString(),
-    totalPremiumVolume: await balances1.getUSDString(),
     timestamp: dayTimestamp,
+    dailyNotionalVolume:  await balances.getUSDString(),
+    dailyPremiumVolume: 0,
+    totalNotionalVolume: await balances1.getUSDString(),
+    totalPremiumVolume: 0,
   };
 };
 
