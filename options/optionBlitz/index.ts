@@ -3,6 +3,8 @@ import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import * as sdk from "@defillama/sdk";
+import { get } from "http";
+import { getCurrentUnixTimestamp, getTimestampAtStartOfDay } from "../../utils/date";
 
 interface IDayDataGraph {
   id: string;
@@ -16,17 +18,15 @@ interface ITotalDataGraph {
 
 const URL = "https://api.thegraph.com/subgraphs/name/web3dev00/optionblitz";
 
-const fetch = async (): Promise<FetchResult> => {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  const dayTimestamp = date.getTime();
+const fetch = async (timestamp: number): Promise<FetchResult> => {
+  const dayTimestamp = getTimestampAtStartOfDay(timestamp);
   const chain = CHAIN.ARBITRUM;
   const balances = new sdk.Balances({ chain });
   const balances1 = new sdk.Balances({ chain });
 
   const dayDataQuery = gql`
   {
-    dayData(id: ${dayTimestamp}) {
+    dayData(id: ${dayTimestamp * 1000}) {
       id
       volumeUsdc
     }

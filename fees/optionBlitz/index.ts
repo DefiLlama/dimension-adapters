@@ -2,8 +2,8 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
+import { getTimestampAtStartOfDay } from "../../utils/date";
 
 interface IDayDataGraph {
   id: string;
@@ -19,20 +19,18 @@ interface ITotalDataGraph {
 
 const URL = "https://api.thegraph.com/subgraphs/name/web3dev00/optionblitz";
 
-const fetch = async (): Promise<FetchResult> => {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  const dayTimestamp = date.getTime();
+const fetch = async (timestamp: number): Promise<FetchResult> => {
+  const dayTimestamp = getTimestampAtStartOfDay(timestamp);
   const chain = CHAIN.ARBITRUM;
   const balances = new sdk.Balances({ chain });
   const balances1 = new sdk.Balances({ chain });
   const dayDataQuery = gql`
     {
-			dayData(id: ${dayTimestamp}) {
+			dayData(id: ${dayTimestamp * 1000}) {
 				id
         rewardsUsdc
         lossesUsdc
-			} 
+			}
 		}`;
 
   const totalDataQuery = gql`
@@ -48,17 +46,17 @@ const fetch = async (): Promise<FetchResult> => {
   const dayDataResponse: IDayDataGraph = (await request(URL, dayDataQuery)).dayData;
   const totalDataResponse: ITotalDataGraph[] = (await request(URL, totalDataQuery)).totalDatas;
 
-  let perDayIncome = BigInt(0);
-  let totalIncome = BigInt(0);
+  let perDayIncome = 0;
+  let totalIncome = 0;
 
   if (dayDataResponse) {
-    perDayIncome = BigInt(dayDataResponse.rewardsUsdc) - BigInt(dayDataResponse.lossesUsdc);
+    perDayIncome = Math.abs(Number(dayDataResponse.rewardsUsdc) - Number(dayDataResponse.lossesUsdc));
   }
 
   if (totalDataResponse.length > 0) {
-    totalIncome = BigInt(totalDataResponse[0].totalRewardsUsdc) - BigInt(totalDataResponse[0].totalLossesUsdc);
+    totalIncome = Math.abs(Number(totalDataResponse[0].totalRewardsUsdc) - Number(totalDataResponse[0].totalLossesUsdc));
   }
-  
+
   balances.add(ADDRESSES[chain].USDC_CIRCLE, perDayIncome);
   balances1.add(ADDRESSES[chain].USDC_CIRCLE, totalIncome);
 
