@@ -59,8 +59,8 @@ const fetch = async (): Promise<FetchResult> => {
   balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume.toString());
 
   return {
-    dailyPremiumVolume: await balances.getUSDString(),
-    totalPremiumVolume: await balances1.getUSDString(),
+    dailyVolume: await balances.getUSDString(),
+    totalVolume: await balances1.getUSDString(),
     timestamp: dayTimestamp,
   };
 };
