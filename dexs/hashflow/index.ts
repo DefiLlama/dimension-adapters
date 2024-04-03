@@ -3,12 +3,13 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
-const chains = [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.POLYGON]
+const chains = [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.POLYGON, CHAIN.SOLANA]
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
 const normalizeChain = (c: string) => {
   if (c === "bnb") return CHAIN.BSC
   if (c === "avalanche") return CHAIN.AVAX
+  if(c === "solana-mainnet") return CHAIN.SOLANA
   return c
 }
 

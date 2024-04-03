@@ -137,7 +137,13 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
-  ASTAR_ZKEVM = "astrzk"
+  ASTAR_ZKEVM = "astrzk",
+  FILECOIN = "filecoin",
+  FRAXTAL = "fraxtal",
+  IMX = "imx",
+  KROMA = "kroma",
+  ZORA = "zora",
+  SVM = "svm",
 }
 
 // Don´t use

@@ -23,7 +23,8 @@ type TEndpoint = {
 const endpointsV2: TEndpoint = {
   [CHAIN.AVAX]: "https://barn.traderjoexyz.com/v1/dex/analytics/avalanche?startTime=1669420800&aggregateBy=daily",
   [CHAIN.ARBITRUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/arbitrum?startTime=1672012800&aggregateBy=daily",
-  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily"
+  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily",
+  [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
 const adapterV1 = getDexChainFees({
@@ -70,6 +71,10 @@ const adapter: Adapter = {
       [CHAIN.BSC]: {
         fetch: graph(CHAIN.BSC),
         start: 1678147200
+      },
+      [CHAIN.ETHEREUM]: {
+        fetch: graph(CHAIN.ETHEREUM),
+        start: 1695513600
       }
     }
   }

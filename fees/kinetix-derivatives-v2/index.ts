@@ -8,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.KAVA]:
-    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/perpv2",
+    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kava-trade",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

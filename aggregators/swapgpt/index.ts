@@ -10,8 +10,8 @@ interface IVolumeall {
   amount: string;
 }
 
-const baseUrl = "https://stats.swapgpt.ai"
-const endpoint = "stats/getDefiLamaStats"
+const baseUrl = "https://stats.panora.exchange";
+const endpoint = "stats/getDefiLamaStats";
 
 
 const fetch = async (timestamp: number) => {
