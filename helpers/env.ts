@@ -4,7 +4,8 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
-  ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545"
+  ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
+  SVM_RPC: "https://rpc.cosvm.net"
 }
 
 export const ENV_KEYS = new Set([
@@ -38,4 +39,3 @@ export function getEnv(key: string): any {
   const value = process.env[key] ?? DEFAULTS[key]
   return BOOL_KEYS.includes(key) ? !!value : value
 }
-
