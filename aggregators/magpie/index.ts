@@ -2,26 +2,30 @@ import { FetchResult, } from "../../adapters/types";
 import fetchUrl from "../../utils/fetchURL"
 import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
 
 const chainsMap: Record<string, string> = {
-  ETHEREUM: "ethereum",
-  ARBITRUM: "arbitrum",
-  POLYGON: "polygon",
-  BNB: "bnb",
-  AVALANCHE: "avalanche_c",
-  OPTIMISM: "optimism",
-  BASE: "base"
+  ETHEREUM: "ETHEREUM",
+  ARBITRUM: "ARBITRUM",
+  POLYGON: "POLYGON",
+  AVALANCHE: "AVALANCHE",
+  BNB: "BNB",
+  OPTIMISM: "OPTIMISM",
+  BASE: "BASE"
 };
+
+
 
 const fetch =
   (chain: string) =>
     async (timestamp: number): Promise<FetchResult> => {
       const unixTimestamp1 = getTimestampAtStartOfDayUTC(timestamp)
       const unixTimestamp2 = getUniqStartOfTodayTimestamp();
+      console.log(chain, timestamp, unixTimestamp1, unixTimestamp2)
       if (unixTimestamp1 < unixTimestamp2) {
-        const url = `https://script.google.com/macros/s/AKfycbxqWlzQQzpG-KVGVpVLPafPljYkXejEAJ7TpQc8iBaHuvvu5jx5BnRFYEfQu0pqK5j_-Q/exec?timestamp=${timestamp.toString()}`
-        const data = await fetchUrl(url)
+        // console.log("Method 1")
+        const url = `https://script.google.com/macros/s/AKfycbxqWlzQQzpG-KVGVpVLPafPljYkXejEAJ7TpQc8iBaHuvvu5jx5BnRFYEfQu0pqK5j_-Q/exec?timestamp=${unixTimestamp1.toString()}`
+        const data = await fetchUrl(url, 10)
+    
         const chainData = data.result.rows.find(
           (row: any) => chainsMap[row.chain] === chain
         );
@@ -30,8 +34,9 @@ const fetch =
           timestamp: unixTimestamp1,
         };
       } else {
+        // console.log("Method 2")
         const url = `https://api.dune.com/api/v1/query/3587739/results?api_key=eyZHAcPUFcAFvMk5sVysebYKeyrp9CK0`
-        const data = await fetchUrl(url)
+        const data = await fetchUrl(url, 10)
         const chainData = data.result.rows.find(
           (row: any) => chainsMap[row.chain] === chain
         );
