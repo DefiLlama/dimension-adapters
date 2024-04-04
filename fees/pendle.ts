@@ -6,32 +6,24 @@ import {
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import request from "graphql-request";
 import { addTokensReceived } from "../helpers/token";
-import { StringNumber } from "@defillama/sdk/build/types";
 import BigNumber from "bignumber.js";
+import { getConfig } from "../helpers/cache";
+import { ChainApi } from "@defillama/sdk";
+
+const ABI = {
+  assetInfo: "function assetInfo() view returns (uint8,address,uint8)",
+  getRewardTokens: "function getRewardTokens() view returns (address[])",
+  exchangeRate: "function exchangeRate() view returns (uint256)",
+  marketSwapEvent:
+    "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
+};
 
 type IConfig = {
   [s: string | Chain]: {
-    endpoint: string;
     treasury: string;
   };
 };
-
-const gqlQuery = `
-{
-  assets(first: 1000, where: {
-    type_in: ["SY"]
-  }) {
-    id,
-    type
-    accountingAssetType
-    accountingAsset {
-      id
-    }
-  }
-}
-`;
 
 const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const EETH_ETHEREUM = "ethereum:0x35fa164735182de50811e8e2e824cfb9b6118ac2";
@@ -52,31 +44,26 @@ const BRIDGED_ASSETS = [
   },
   {
     sy: "0x9d6d509c0354aca187aac6bea7d063d3ef68e2a0",
-    asset: WETH_ETHEREUM
+    asset: WETH_ETHEREUM,
   },
 ];
 
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
-    endpoint:
-      "https://api.thegraph.com/subgraphs/name/pendle-finance/core-mainnet-23-dec-18",
     treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
   },
   [CHAIN.ARBITRUM]: {
-    endpoint:
-      "https://api.thegraph.com/subgraphs/name/pendle-finance/core-arbitrum-23-dec-18",
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
   },
   [CHAIN.BSC]: {
-    endpoint:
-      "https://api.thegraph.com/subgraphs/name/pendle-finance/core-bsc-23-dec-18",
     treasury: "0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e",
   },
   [CHAIN.OPTIMISM]: {
-    endpoint:
-      "https://api.thegraph.com/subgraphs/name/pendle-finance/core-optimism-23-dec-18",
     treasury: "0xe972d450ec5b11b99d97760422e0e054afbc8042",
   },
+  [CHAIN.MANTLE]: {
+    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+  }
 };
 
 const fetch = (chain: Chain) => {
@@ -85,94 +72,130 @@ const fetch = (chain: Chain) => {
     _: ChainBlocks,
     options: FetchOptions
   ): Promise<FetchResultFees> => {
-    const { api } = options;
-    const allSyDatas: {
-      id: string;
-      type: string;
-      accountingAssetType: number;
-      accountingAsset: {
-        id: string;
-      };
-    }[] = (await request(chainConfig[chain].endpoint, gqlQuery)).assets;
+    await getWhitelistedAssets(options.api);
+    const { api, getLogs, createBalances } = options;
 
-    const allSy: string[] = allSyDatas
-      .filter((token: any) => token.type === "SY")
-      .map((token: any) => token.id.toLowerCase());
+    const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
 
     const rewardTokens: string[] = (
       await api.multiCall({
         permitFailure: true,
-        abi: getRewardTokensABI,
-        calls: allSy,
+        abi: ABI.getRewardTokens,
+        calls: sys,
       })
     ).flat();
 
     const exchangeRates: String | null[] = [];
-    for (const sy of allSy) {
+    const assetInfos: (string[] | null)[] = [];
+    for (const sy of sys) {
       try {
-        const exchangeRate = await api.call({ target: sy, abi: exchangeRateABI, });
-        exchangeRates.push(exchangeRate)
+        const exchangeRate = await api.call({
+          target: sy,
+          abi: ABI.exchangeRate,
+        });
+        const assetInfo = await api.call({ target: sy, abi: ABI.assetInfo });
+        exchangeRates.push(exchangeRate);
+        assetInfos.push(assetInfo);
       } catch (e) {
-        console.error(e)
-        exchangeRates.push(null)
+        exchangeRates.push(null);
+        assetInfos.push(null);
       }
     }
 
-    const dailyFees = await addTokensReceived({
+    const dailySupplySideFees = createBalances();
+    await Promise.all(
+      markets.map(async (market) => {
+        const allSwapEvent = await getLogs({
+          target: market,
+          eventAbi: ABI.marketSwapEvent,
+        });
+
+        for (const swapEvent of allSwapEvent) {
+          const netSyFee = swapEvent.netSyFee;
+          const netSyToReserve = swapEvent.netSyToReserve;
+          dailySupplySideFees.add(
+            marketToSy.get(market)!,
+            netSyFee - netSyToReserve
+          ); // excluding revenue fee
+        }
+      })
+    );
+
+    const dailyRevenue = await addTokensReceived({
       options,
       target: chainConfig[chain].treasury,
-      tokens: rewardTokens.concat(allSy),
+      tokens: rewardTokens.concat(sys),
     });
 
-    const allTokenList = dailyFees.getBalances();
-    for (const token in allTokenList) {
+    const allRevenueTokenList = dailyRevenue.getBalances();
+    const allSupplySideTokenList = dailySupplySideFees.getBalances();
+
+    for (const token in allRevenueTokenList) {
       const tokenAddr = token.split(":")[1];
-      const index = allSyDatas.findIndex(
-        (syData) => syData.id.toLowerCase() === tokenAddr.toLowerCase()
-      );
+      const index = sys.indexOf(tokenAddr);
 
-      if (index == -1) continue;
+      if (index == -1 || !assetInfos[index]) continue;
 
-      const rawAmount = allTokenList[token];
-      dailyFees.removeTokenBalance(token);
+      const rawAmountRevenue = allRevenueTokenList[token];
+      const rawAmountSupplySide = allSupplySideTokenList[token];
 
-      let underlyingAsset = allSyDatas[index].accountingAsset.id;
+      dailyRevenue.removeTokenBalance(token);
+      dailySupplySideFees.removeTokenBalance(token);
+
+      let underlyingAsset = assetInfos[index][1];
 
       let isBridged = false;
       for (const bridge of BRIDGED_ASSETS) {
-        if (bridge.sy.toLowerCase() === tokenAddr.toLowerCase()) {
+        if (bridge.sy === tokenAddr) {
           underlyingAsset = bridge.asset;
           isBridged = true;
           break;
         }
       }
 
-      let assetAmount = new BigNumber(rawAmount)
-      if (allSyDatas[index].accountingAssetType === 0) {
-        assetAmount = assetAmount.times(exchangeRates[index] ?? 0)
+      let assetAmountRevenue = new BigNumber(rawAmountRevenue);
+      let assetAmountSupplySide = new BigNumber(rawAmountSupplySide);
+      if (assetInfos[index][0] === "0") {
+        const rate = exchangeRates[index] ?? 0;
+        assetAmountRevenue = assetAmountRevenue
+          .times(rate)
+          .dividedToIntegerBy(1e18);
+        assetAmountSupplySide = assetAmountSupplySide
+          .times(rate)
           .dividedToIntegerBy(1e18);
       }
 
-
-      dailyFees.addToken(
+      dailyRevenue.addToken(
         underlyingAsset,
-        assetAmount,
+        assetAmountRevenue,
         isBridged
           ? {
-            skipChain: true,
-          }
+              skipChain: true,
+            }
           : undefined
       );
+
+      if (rawAmountSupplySide !== undefined) {
+        dailySupplySideFees.addToken(
+          underlyingAsset,
+          assetAmountSupplySide,
+          isBridged
+            ? {
+                skipChain: true,
+              }
+            : undefined
+        );
+      }
     }
 
-    const dailyRevenue = dailyFees.clone();
-    const dailySupplySideRevenue = dailyFees.clone();
+    const dailyFees = dailyRevenue.clone();
+    dailyFees.addBalances(dailySupplySideFees);
 
     return {
       dailyFees: dailyFees,
-      dailyRevenue: dailyFees,
+      dailyRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
-      dailySupplySideRevenue: dailySupplySideRevenue,
+      dailySupplySideRevenue: dailySupplySideFees,
       timestamp,
     };
   };
@@ -195,11 +218,33 @@ const adapter: SimpleAdapter = {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: 1691733600,
-    }
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetch(CHAIN.MANTLE),
+      start: 1711506087,
+    },
   },
 };
 
-const getRewardTokensABI = "address[]:getRewardTokens";
-const exchangeRateABI = "uint256:exchangeRate";
+async function getWhitelistedAssets(api: ChainApi): Promise<{
+  markets: string[];
+  sys: string[];
+  marketToSy: Map<string, string>;
+}> {
+  const { results } = await getConfig(
+    "pendle/v2/revenue-" + api.chain,
+    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
+  );
+  const markets = results.map((d: any) => d.lp.address);
+  const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
+  const sys = Array.from(sySet);
+
+  const marketToSy = new Map<string, string>();
+  for (const result of results) {
+    marketToSy.set(result.lp.address, result.sy.address);
+  }
+
+  return { markets, sys, marketToSy };
+}
 
 export default adapter;
