@@ -107,7 +107,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.BLAST]: {
       fetch: fetchVolume,
       start: async () => 236678,
     },
