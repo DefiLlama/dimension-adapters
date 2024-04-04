@@ -28,8 +28,10 @@ const fetch = (chain: Chain) => {
     }`;
 
     const dailyFee = (await request(API_URL, feeQuery));
+    const dailyRevenue = Number(dailyFee.trading.getDailyFee.daily_holders_revenue) + Number(dailyFee.trading.getDailyFee.daily_protocol_revenue);
     return {
       dailyFees: `${dailyFee.trading.getDailyFee.daily_fees}`,
+      dailyRevenue: `${dailyRevenue}`,
       dailyHoldersRevenue: `${dailyFee.trading.getDailyFee.daily_holders_revenue}`,
       dailyProtocolRevenue: `${dailyFee.trading.getDailyFee.daily_protocol_revenue}`,
       timestamp,
