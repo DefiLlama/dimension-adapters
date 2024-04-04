@@ -136,13 +136,15 @@ const fetch = (chain: Chain) => {
 
       if (index == -1 || !assetInfos[index]) continue;
 
+      const assetInfo = assetInfos[index]!;
+
       const rawAmountRevenue = allRevenueTokenList[token];
       const rawAmountSupplySide = allSupplySideTokenList[token];
 
       dailyRevenue.removeTokenBalance(token);
       dailySupplySideFees.removeTokenBalance(token);
 
-      let underlyingAsset = assetInfos[index][1];
+      let underlyingAsset = assetInfo[1]!;
 
       let isBridged = false;
       for (const bridge of BRIDGED_ASSETS) {
@@ -155,7 +157,7 @@ const fetch = (chain: Chain) => {
 
       let assetAmountRevenue = new BigNumber(rawAmountRevenue);
       let assetAmountSupplySide = new BigNumber(rawAmountSupplySide);
-      if (assetInfos[index][0] === "0") {
+      if (assetInfo[0] === "0") {
         const rate = exchangeRates[index] ?? 0;
         assetAmountRevenue = assetAmountRevenue
           .times(rate)
