@@ -29,10 +29,17 @@ const fetch =
         const chainData = data.result.rows.find(
           (row: any) => chainsMap[row.chain] === chain
         );
+        if (chainData === undefined ) {
+          return {
+            dailyVolume: 0,
+            timestamp: unixTimestamp2,
+          };
+        } else {
         return {
           dailyVolume: chainData.dailyVolume,
-          timestamp: unixTimestamp1,
+          timestamp: unixTimestamp2,
         };
+      }
       } else {
         // console.log("Method 2")
         const url = `https://api.dune.com/api/v1/query/3587739/results?api_key=eyZHAcPUFcAFvMk5sVysebYKeyrp9CK0`
@@ -40,10 +47,17 @@ const fetch =
         const chainData = data.result.rows.find(
           (row: any) => chainsMap[row.chain] === chain
         );
+        if (chainData === undefined ) {
+          return {
+            dailyVolume: 0,
+            timestamp: unixTimestamp2,
+          };
+        } else {
         return {
           dailyVolume: chainData.dailyVolume,
           timestamp: unixTimestamp2,
         };
+      }
       }
     };
 
