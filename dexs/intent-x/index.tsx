@@ -96,10 +96,6 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     from: String(timestamp - ONE_DAY_IN_SECONDS),
     to: String(timestamp),
   });
-  const response_blast: IGraphResponse = await request(endpoint_blast, queryBlast, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp),
-  });
 
   let dailyVolume = new BigNumber(0);
   response_0_8_0.dailyHistories.forEach((data) => {
@@ -108,10 +104,6 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   response.dailyHistories.forEach((data) => {
     dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
   });
-  response_blast.dailyHistories.forEach((data) => {
-    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
-  });
-
 
   let totalVolume = new BigNumber(0);
   response_0_8_0.totalHistories.forEach((data) => {
@@ -119,6 +111,33 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   });
   response.totalHistories.forEach((data) => {
     totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+  });
+
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+
+  const _dailyVolume = toString(dailyVolume);
+  const _totalVolume = toString(totalVolume);
+
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume: _dailyVolume ?? "0",
+    totalVolume: _totalVolume ?? "0",
+  };
+};
+
+const fetchVolumeBlast = async (timestamp: number): Promise<FetchResultVolume> => {
+  let dailyVolume = new BigNumber(0);
+  let totalVolume = new BigNumber(0);
+
+  const response_blast: IGraphResponse = await request(endpoint_blast, queryBlast, {
+    from: String(timestamp - ONE_DAY_IN_SECONDS),
+    to: String(timestamp),
+  });
+  response_blast.dailyHistories.forEach((data) => {
+    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
   });
   response_blast.totalHistories.forEach((data) => {
     totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
@@ -143,6 +162,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
+      start: 1698796800,
+    },
+    [CHAIN.BLAST]: {
+      fetch: fetchVolumeBlast,
       start: 1698796800,
     },
   },
