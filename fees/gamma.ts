@@ -97,10 +97,6 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("manta"),
       start: 1682121600,
     },
-     [CHAIN.BASE]: {
-      fetch: fetchFees("base"),
-      start: 1682121600,
-    },
      [CHAIN.AVAX]: {
       fetch: fetchFees("avalanche"),
       start: 1682121600,
