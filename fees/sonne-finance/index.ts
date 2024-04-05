@@ -17,8 +17,8 @@ const veAeroHolder = "0x814ae3e7Bc6B20b4Da64b76A7E66BCa0993F22A8";
 
 const methodology = {
   Fees: "Fees are calculated from borrowers' interest payments, which are determined by the Annual Percentage Yield (APY) associated with the borrowed asset.",
-  Revenue: "Revenue is derived as a percentage of collected fees, determined by the reserve factor associated with each asset.",  
-  HoldersRevenue: "All revenue and VELO/AERO LP rewards are allocated entirely to $SONNE stakers.",
+  Revenue: "Revenue is derived as a percentage of collected fees, determined by the reserve factor associated with each asset. Revenue is allocated entirely to stakers.",  
+  TreasuryFarmingRevenue: "Protocol owned LP farming rewards (VELO/AERO) are allocated entirely to $SONNE stakers.",
 }
 
 const getDailyVeloRewards = async ({ api, fromTimestamp, toTimestamp, createBalances }: FetchOptions) => {
@@ -46,18 +46,16 @@ const getDailyAeroRewards = async ({ api, fromTimestamp, toTimestamp, createBala
 
 const fetchoptimism = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const { dailyFees, dailyRevenue } = await getFees(unitrollerOP, options, {});
-  const dailyHoldersRevenue = await getDailyVeloRewards(options);
-  dailyHoldersRevenue.addBalances(dailyRevenue);
+  const dailyTreasuryFarmingRevenue = await getDailyVeloRewards(options);
 
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue };
+  return { timestamp, dailyFees, dailyRevenue, dailyTreasuryFarmingRevenue };
 };
 
 const fetchbase = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const { dailyFees, dailyRevenue } = await getFees(unitrollerBASE, options, {});
-  const dailyHoldersRevenue = await getDailyAeroRewards(options);
-  dailyHoldersRevenue.addBalances(dailyRevenue);
+  const dailyTreasuryFarmingRevenue = await getDailyAeroRewards(options);
 
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue };
+  return { timestamp, dailyFees, dailyRevenue, dailyTreasuryFarmingRevenue };
 };
 
 const adapter: Adapter = {

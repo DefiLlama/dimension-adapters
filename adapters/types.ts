@@ -136,6 +136,8 @@ export type FetchResultFees = FetchResultBase & {
   totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
+  dailyTreasuryFarmingRevenue?: FetchResponseValue;
+  totalTreasuryFarmingRevenue?: FetchResponseValue;
 };
 
 // INCENTIVES
