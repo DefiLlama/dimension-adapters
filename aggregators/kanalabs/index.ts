@@ -80,11 +80,10 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.APTOS]: {
       fetch: async (timestamp: number) => {
-        const swap = await fetch(KanaChainID.aptos)(timestamp);
         const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
         return {
-          dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
-          totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),
+          dailyVolume: (+trade.dailyVolume).toString(),
+          totalVolume: (+trade.totalVolume).toString(),
           timestamp,
         };
       },
