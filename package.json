@@ -28,7 +28,7 @@
     "async-retry": "^1.3.3",
     "axios": "^1.6.5",
     "bignumber.js": "^9.1.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.0.3",
     "ethers": "^6.9.2",
     "graphql": "^16.6.0",
     "graphql-request": "5.1.0",
@@ -37,8 +37,8 @@
     "tron-format-address": "^0.1.11"
   },
   "devDependencies": {
-    "@types/node": "^18.7.23",
     "glob": "^10.3.10",
+    "@types/node": "^18.7.23",
     "inquirer": "^8.0.0",
     "inquirer-fuzzy-path": "^2.3.0",
     "ts-node": "^10.9.1",
