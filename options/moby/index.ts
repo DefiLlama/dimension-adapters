@@ -18,7 +18,7 @@ export const moby_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchMobyVolumeData,
-      start: 1712217600
+      start: 196746973
     },
   },
 };
@@ -46,6 +46,7 @@ export async function fetchMobyVolumeData(
 
 async function getMobyVolumeData(endpoint: string): Promise<IMobyVolumeResponse> {
   const results = await fetchURL(endpoint)
+
   return results.result;
 }
 
