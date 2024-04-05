@@ -11,7 +11,7 @@ interface IMobyVolumeResponse {
 
 // endTime is in ms
 export const mobyVolumeEndpoint = (endTime: number) => {
-  return `https://ikbdfwmzl6.execute-api.ap-northeast-2.amazonaws.com/default/moby-prod-query?method=feedDefillama&end_time=${endTime}`;
+  return `https://kv6mtyhua5.execute-api.ap-northeast-2.amazonaws.com/prod/getVolumeData?end_time=${endTime}`;
 }
 
 export const moby_adapter: SimpleAdapter = {
