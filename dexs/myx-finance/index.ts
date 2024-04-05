@@ -46,7 +46,6 @@ const getFetch = async (optios: FetchOptions) => {
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyData.tradeVolume?.volume || "0",
-    totalVolume: totalData.tradeVolume?.volume || "0",
   }
 }
 
