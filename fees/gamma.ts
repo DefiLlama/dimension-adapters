@@ -121,6 +121,18 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("metis"),
       start: 1682121600,
     },
+    [CHAIN.IMX]: {
+      fetch: fetchFees("immutable_zkevm"),
+      start: 1682121600,
+    },
+     [CHAIN.ASTRZK]: {
+      fetch: fetchFees("astar_zkevm"),
+      start: 1682121600,
+    },
+     [CHAIN.BLAST]: {
+      fetch: fetchFees("blast"),
+      start: 1682121600,
+    },
   }
 }
 
