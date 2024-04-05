@@ -39,7 +39,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 1682121600,
+      start: 1705104000,
     },
   }
 }
