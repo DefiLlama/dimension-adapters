@@ -48,8 +48,8 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
             headers: {
               "x-api-key": FLIPSIDE_API_KEY,
               'Content-Type': 'application/json'
-            }
-          })
+            },
+          }, { withMetadata: true })
           if(query?.result?.queryRun?.id){
             token[sqlQuery] = query?.result.queryRun.id
           } else {
@@ -69,6 +69,10 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               bail(error)
               throw error
             }
+          }
+          if (!e.response) {
+            bail(e)
+            throw e;
           }
           console.log("make query flipside", e.response, e)
           throw e
@@ -92,7 +96,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
         headers: {
           "x-api-key": FLIPSIDE_API_KEY
         }
-      })
+      }, { withMetadata: true })
 
       const status = queryStatus.result.queryRun.state
       if (status === "QUERY_STATE_SUCCESS") {
@@ -119,7 +123,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               headers: {
                 "x-api-key": FLIPSIDE_API_KEY
               }
-            })
+            }, { withMetadata: true })
             if(results.result.rows === null){
               return [] // empty result
             }
@@ -151,13 +155,13 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
           headers: {
             "x-api-key": FLIPSIDE_API_KEY
           }
-        })
+        }, { withMetadata: true })
         bail(new Error('max retries exceeded'))
       }
       throw new Error("Still running")
     },
     {
-      retries: MAX_RETRIES,
+      retries: FLIPSIDE_API_KEYS.length + 3,
       maxTimeout: 1000 * 60 * 5
     }
   );
