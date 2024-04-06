@@ -7,7 +7,7 @@ const fetch: any = async (options: FetchOptions) => {
   const value = (await queryDune("3521814", {
     start: options.startTimestamp,
     end: options.endTimestamp,
-    receiver: '9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco'
+    receiver: 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'
   }));
   dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
 
