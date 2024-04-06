@@ -43,13 +43,14 @@ export async function httpGet(url: string, options?: AxiosRequestConfig, { withM
   }
 }
 
-export async function httpPost(url: string, data: any, options?: AxiosRequestConfig) {
+export async function httpPost(url: string, data: any, options?: AxiosRequestConfig, { withMetadata = false } = {}) {
   try {
     const res = await axios.post(url, data, options)
     if (!successCodes.includes(res.status)) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
     if (!res.data) throw new Error(`Error fetching ${url}: no data`)
     return res.data
   } catch (error) {
+    if (withMetadata) throw error
     throw formAxiosError(url, error, { method: 'POST' })
   }
 }

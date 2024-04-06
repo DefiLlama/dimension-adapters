@@ -62,11 +62,11 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyRevenueData: IRevenue = reveuneData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IRevenue
   const dailyFeesData: IFees = feesData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IFees
   const dailyErningData: IEarning = earningData.find(item => Number(item.startTime) === dayTimestamp) as IEarning
-  const dailyFees = dailyRevenueData.REVENUE;
+  const dailyFees = Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
   const dailyUsersFees = dailyFeesData?.LIQUIDITY_FEES || 0 + dailyRevenueData?.OUTBOUND_FEE || 0;
-  const dailyRevenue = dailyRevenueData.REVENUE;
-  const dailyProtocolRev = dailyRevenueData.REVENUE;
-  const dailyHoldersRevenue = (Number(dailyErningData.bondingEarnings) / 1e8) * Number(dailyErningData.runePriceUSD);
+  const dailyRevenue = Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
+  const dailyProtocolRev =  Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
+  const dailyHoldersRevenue = (Number(dailyErningData.bondingEarnings) / 1e8) *Number(dailyErningData.runePriceUSD);
   const dailySupplySideRevenue = dailyHoldersRevenue
 
 
