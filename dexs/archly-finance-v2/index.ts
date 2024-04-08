@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getDexVolumeExports } from "../../helpers/dexVolumeLogs";
 
 const FACTORY_ADDRESS = '0x12508dd9108Abab2c5fD8fC6E4984E46a3CF7824';
+const FACTORY_ADDRESS_ZKSYNC = '0x30A0DD3D0D9E99BD0E67b323FB706788766dCff2';
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -77,6 +78,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.TELOS]: {
       fetch: getDexVolumeExports({ chain: CHAIN.TELOS, factory: FACTORY_ADDRESS }),
       start: 1700784000,
+    },
+    [CHAIN.ERA]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.ERA, factory: FACTORY_ADDRESS_ZKSYNC }),
+      start: 1708473600,
     },
     [CHAIN.ZORA]: {
       fetch: getDexVolumeExports({ chain: CHAIN.ZORA, factory: FACTORY_ADDRESS }),
