@@ -1,6 +1,6 @@
-import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { SimpleAdapter, FetchResultVolume } from "../../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 
@@ -91,7 +91,7 @@ const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
       }
     });
   }
-  
+
   return totalVolume;
 };
 
@@ -130,8 +130,8 @@ const fetch = (chain: Chain) => {
 
     if (chain === CHAIN.ARBITRUM) {
       const referralVolumeUSD = await fetchReferralVolume(timestamp);
-      const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp);
-      dailyVolumeUSD += referralVolumeUSD + muxReferralVolumeUSD;
+      // const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp); // errror
+      dailyVolumeUSD += referralVolumeUSD;
     }
 
     return {
@@ -147,7 +147,7 @@ const methodology = {
 };
 
 
-const adapter: SimpleAdapter = {
+const adapteraggderivative: any = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
@@ -201,4 +201,6 @@ const adapter: SimpleAdapter = {
   }
 };
 
-export default adapter;
+export {
+  adapteraggderivative
+}
