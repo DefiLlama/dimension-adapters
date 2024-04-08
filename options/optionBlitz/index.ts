@@ -44,19 +44,19 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayDataResponse: IDayDataGraph = (await request(URL, dayDataQuery)).dayData;
   const totalDataResponse: ITotalDataGraph[] = (await request(URL, totalDataQuery)).totalDatas;
 
-  let dailyVolume = BigInt(0);
-  let totalVolume = BigInt(0);
+  let dailyVolume = Number(0);
+  let totalVolume = Number(0);
 
   if (dayDataResponse) {
-    dailyVolume = BigInt(dayDataResponse.volumeUsdc);
+    dailyVolume = Number(dayDataResponse.volumeUsdc) / 1000;
   }
 
   if (totalDataResponse.length > 0) {
-    totalVolume = BigInt(totalDataResponse[0].totalVolumeUsdc);
+    totalVolume = Number(totalDataResponse[0].totalVolumeUsdc) / 1000;
   }
 
-  balances.add(ADDRESSES.arbitrum.USDC_CIRCLE, dailyVolume.toString());
-  balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume.toString());
+  balances.add(ADDRESSES.arbitrum.USDC_CIRCLE, dailyVolume);
+  balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume);
 
   return {
     timestamp: dayTimestamp,
