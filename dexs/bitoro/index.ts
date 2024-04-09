@@ -2,36 +2,28 @@ import type { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
 
-
+// Bitoro volume API endpoint
 const bitoroApiVolumeEndpoint = "https://api.bitoro.network/btr/stats/volume"
-const bitoroLaunchDate = 1706140800
-// get current UTC in seconds
-const currentUTCTimestamp = Math.floor(Date.now() / 1000);
-// get 24 hour ago UTC in seconds
-const lastDayUTCTimestamp = currentUTCTimestamp - 86400;
-
-
+// March 25, 2024 UTC timestamp
+const bitoroLaunchDate = 1711324800
 // constructing request URL
 const makeRequest = (startTime: number, endTime: number) => bitoroApiVolumeEndpoint + `?start=${startTime}&end=${endTime}`
 
 const fetch = async (timestamp: number) => {
-    const startOfDayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const utcTimeNow = Math.ceil(new Date().getTime() / 3600000) * 3600;
+    const startOfDayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) + 86400
+    const endOfDayTimestamp = startOfDayTimestamp + 86400;
 
     // Get today's volume
-    let request = makeRequest(startOfDayTimestamp, utcTimeNow)
+    let request = makeRequest(startOfDayTimestamp, endOfDayTimestamp)
     let data = await httpGet(request)
     const todayVolume = data["volume"]
-    console.log(request)
-
 
     // Get total volume
-    request = makeRequest(bitoroLaunchDate, utcTimeNow)
+    request = makeRequest(bitoroLaunchDate, endOfDayTimestamp)
     data = await httpGet(request)
     const totalVolume = data["volume"]
-    console.log(request)
-
 
     return {
         timestamp,
@@ -44,7 +36,8 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
             start: bitoroLaunchDate,
-            fetch
+            fetch,
+            customBackfill: customBackfill(CHAIN.ARBITRUM, () => fetch)
         }
     }
 }
