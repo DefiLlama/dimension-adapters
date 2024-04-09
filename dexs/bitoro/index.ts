@@ -16,17 +16,22 @@ const lastDayUTCTimestamp = currentUTCTimestamp - 86400;
 const makeRequest = (startTime: number, endTime: number) => bitoroApiVolumeEndpoint + `?start=${startTime}&end=${endTime}`
 
 const fetch = async (timestamp: number) => {
-    const startOfTodayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const startOfDayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    const utcTimeNow = Math.ceil(new Date().getTime() / 3600000) * 3600;
 
     // Get today's volume
-    let request = makeRequest(startOfTodayTimestamp, timestamp)
+    let request = makeRequest(startOfDayTimestamp, utcTimeNow)
     let data = await httpGet(request)
     const todayVolume = data["volume"]
+    console.log(request)
 
-    // Get today's volume
-    request = makeRequest(bitoroLaunchDate, timestamp)
+
+    // Get total volume
+    request = makeRequest(bitoroLaunchDate, utcTimeNow)
     data = await httpGet(request)
     const totalVolume = data["volume"]
+    console.log(request)
+
 
     return {
         timestamp,
@@ -43,6 +48,7 @@ const adapter: SimpleAdapter = {
         }
     }
 }
+
 
 
 export default adapter;
