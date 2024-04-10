@@ -23,8 +23,7 @@ export default {
         const volumeData = await request(subgraphUrl, volumeQuery, {
           endTimestamp: endTimestamp ?? Math.floor(Date.now() / 1000)
         });
-        let dailyVolume = 0;
-        dailyVolume += volumeData.dailyCandles.reduce(
+        const dailyVolume = volumeData.dailyCandles.reduce(
           (acc, { volume }) => acc + volume * 10 ** -18,
           0
         );
