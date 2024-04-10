@@ -29,8 +29,23 @@ export async function _fetchURL(url: string, retries: number = 10) {
 const fetch = async (timestamp: number, _: ChainBlocks, {chain}: FetchOptions): Promise<FetchResult> => {
     const unixTimestamp1 = getTimestampAtStartOfDayUTC(timestamp);
     const unixTimestamp2 = getUniqStartOfTodayTimestamp();
-    if (unixTimestamp1 < unixTimestamp2) {
-      const url = `https://script.google.com/macros/s/AKfycbxqWlzQQzpG-KVGVpVLPafPljYkXejEAJ7TpQc8iBaHuvvu5jx5BnRFYEfQu0pqK5j_-Q/exec?timestamp=${unixTimestamp1.toString()}`;
+    // if (unixTimestamp1 < unixTimestamp2) {
+    //   const url = `https://script.google.com/macros/s/AKfycbxqWlzQQzpG-KVGVpVLPafPljYkXejEAJ7TpQc8iBaHuvvu5jx5BnRFYEfQu0pqK5j_-Q/exec?timestamp=${unixTimestamp1.toString()}`;
+    //   const data = await _fetchURL(url, 10);
+    //   const chainData = data.result.rows.find((row: any) => chainsMap[row.chain] === chain);
+    //   if (chainData === undefined) {
+    //     return {
+    //       dailyVolume: 0,
+    //       timestamp: unixTimestamp2,
+    //     };
+    //   } else {
+    //     return {
+    //       dailyVolume: chainData.dailyVolume,
+    //       timestamp: unixTimestamp2,
+    //     };
+    //   }
+    // } else {
+      const url = `https://api.dune.com/api/v1/query/3587739/results?api_key=eyZHAcPUFcAFvMk5sVysebYKeyrp9CK0`;
       const data = await _fetchURL(url, 10);
       const chainData = data.result.rows.find((row: any) => chainsMap[row.chain] === chain);
       if (chainData === undefined) {
@@ -43,22 +58,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, {chain}: FetchOptions): 
           dailyVolume: chainData.dailyVolume,
           timestamp: unixTimestamp2,
         };
-      }
-    } else {
-      const url = `https://api.dune.com/api/v1/query/3587739/results?api_key=eyZHAcPUFcAFvMk5sVysebYKeyrp9CK0`;
-      const data = await fetchUrl(url, 10);
-      const chainData = data.result.rows.find((row: any) => chainsMap[row.chain] === chain);
-      if (chainData === undefined) {
-        return {
-          dailyVolume: 0,
-          timestamp: unixTimestamp2,
-        };
-      } else {
-        return {
-          dailyVolume: chainData.dailyVolume,
-          timestamp: unixTimestamp2,
-        };
-      }
+      // }
     }
   };
 
