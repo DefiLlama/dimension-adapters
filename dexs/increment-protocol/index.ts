@@ -30,7 +30,7 @@ export default {
         );
         return { dailyVolume };
       },
-      start: 1710004200 // 2024-03-09 09:10
+      start: 1710720000
     }
   }
 };
