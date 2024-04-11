@@ -4,7 +4,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 const adapters = univ2Adapter(
   {
     [CHAIN.LINEA]:
-      "https://api.studio.thegraph.com/query/59052/lynex-v1/v0.0.4",
+      "https://api.studio.thegraph.com/query/59052/lynex-v1/v0.1.0",
   },
   {
     factoriesName: "factories",
