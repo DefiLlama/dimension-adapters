@@ -58,6 +58,8 @@ const startTimeV3: {[key: string]: number} = {
     [CHAIN.POLYGON_ZKEVM]: 1680739200,
     [CHAIN.THUNDERCORE]: 1684281600,
     [CHAIN.BASE]: 1691020800,
+    [CHAIN.CORE]: 1689897600,
+    [CHAIN.BLAST]: 1709337600,
 }
 
 const v3 = Object.keys(endpointsV3).reduce(
