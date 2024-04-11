@@ -4,10 +4,10 @@ import { fetchVolume } from "./wagmi";
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ERA]: {
-      fetch: fetchVolume(CHAIN.ERA),
-      start: 1681257600,
-    },
+    // [CHAIN.ERA]: {
+    //   fetch: fetchVolume(CHAIN.ERA), error: "Wagmi does not exist on Era",
+    //   start: 1681257600,
+    // },
     [CHAIN.FANTOM]: {
       fetch: fetchVolume(CHAIN.FANTOM),
       start: 1681257600,
