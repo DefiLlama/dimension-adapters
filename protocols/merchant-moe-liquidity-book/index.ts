@@ -14,8 +14,8 @@ interface IData {
   timestamp: number;
 }
 
-const graph = async (timestamp: number, _c: ChainBlocks, { chain }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+const graph = async (timestamp: number, _c: ChainBlocks, { chain, startOfDay }: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(startOfDay)
   const historical: IData[] = (await httpGet(endpointsV2[chain]));
   const dailyFees = historical
     .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd || 0
