@@ -7,13 +7,13 @@ const BigNumber = require("bignumber.js");
 
 /*
  * HbarSuite is a decentralized network of features built on Hedera Hashgraph.
- * It is a suite of products that are built on top of the layer 1, 
+ * It is a suite of products that are built on top of the layer 1,
  * relying on the security and speed of the Hedera network.
- * 
- * HbarSute Network relies entirely on HCS (Hedera Consensus Service) for its data storage, 
+ *
+ * HbarSute Network relies entirely on HCS (Hedera Consensus Service) for its data storage,
  * and HFS (Hedera File Service) for its file storage.
- * 
- * It also uses NFTs (Non-Fungible Tokens) to represent the Liquidity Providers' shares in the pools, 
+ *
+ * It also uses NFTs (Non-Fungible Tokens) to represent the Liquidity Providers' shares in the pools,
  * storing the data on IPFS.
  */
 
@@ -45,7 +45,7 @@ const methodology = {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  
+
     // generating a random number, so to grab a random smart-node from the network..
     let randomNode = nodes[Math.floor(Math.random() * nodes.length)];
 
@@ -77,7 +77,8 @@ const adapter: SimpleAdapter = {
       start: async () => 1672531200,
       meta: {
         methodology
-      }
+      },
+      runAtCurrTime: true
     },
   },
 };
