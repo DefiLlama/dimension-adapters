@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: graph,
-      start: 1709251200
+      start: 1711929600
     }
   }
 }
