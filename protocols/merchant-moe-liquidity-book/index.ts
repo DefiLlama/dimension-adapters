@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const endpointsV2 = {
-  [CHAIN.MANTLE]: "https://barn.merchantmoe.com/v1/lb/dex/analytics/mantle?startTime=1712844491&aggregateBy=daily"
+  [CHAIN.MANTLE]: "https://barn.merchantmoe.com/v1/lb/dex/analytics/mantle?startTime=1711929600&aggregateBy=daily"
 }
 
 interface IData {
