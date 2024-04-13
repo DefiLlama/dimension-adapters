@@ -1,5 +1,6 @@
 import { BreakdownAdapter, FetchV2, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { adapter_aggs } from './zrx/index'
 
 // https://0x.org/docs/introduction/0x-cheat-sheet
 const config = {
@@ -91,6 +92,7 @@ const adapter: BreakdownAdapter = {
     // "0x ERC1155": adaptersERC1155,
     // "0x ERC721": adaptersERC721,
     "0x Limit": adaptersERCLimit,
+    "zrx": adapter_aggs["adapter"]
   },
   version: 2
 }
