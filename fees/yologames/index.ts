@@ -126,6 +126,12 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch,
       start: 1709233200, // 29th February 2024
+      meta: {
+        methodology: {
+          Fees: "YOLO Games collects a 1% fee for Moon Or Doom and YOLO winnings, and a 3% fee on Poke The Bear winnings.",
+          Volume: "YOLO Games derives volume data from the deposit transactions into all the games."
+        },
+      },
     },
   },
 };
