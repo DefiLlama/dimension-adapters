@@ -110,7 +110,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     fetchVolume(options),
     fetchFees(options),
   ]);
-  console.log(`Volume, fees`, volume, fees);
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   dailyFees.add(ETHER_ADDRESS, fees);
@@ -126,7 +125,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
-      start: 1709251200,
+      start: 1709233200, // 29th February 2024
     },
   },
 };
