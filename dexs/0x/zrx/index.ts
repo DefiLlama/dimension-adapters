@@ -2,18 +2,22 @@ import { GraphQLClient, gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../../helpers/getUniSubgraphVolume";
 import { getEnv } from "../../../helpers/env";
 import { FetchOptions } from "../../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
 
-const CHAINS = [
-  "Arbitrum",
-  "Avalanche",
-  "Base",
-  "BSC",
-  "Celo",
-  "Ethereum",
-  "Fantom",
-  "Optimism",
-  "Polygon",
-];
+type TChain = {
+  [key: string]: string;
+}
+const CHAINS: TChain = {
+  [CHAIN.ARBITRUM]: "Arbitrum",
+  [CHAIN.AVAX]: "Avalanche",
+  [CHAIN.BASE]: "Base",
+  [CHAIN.BSC]: "BSC",
+  [CHAIN.CELO]: "Celo",
+  [CHAIN.ETHEREUM]: "Ethereum",
+  [CHAIN.FANTOM]: "Fantom",
+  [CHAIN.OPTIMISM]: "Optimism",
+  [CHAIN.POLYGON]: "Polygon",
+};
 
 const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
 const getGQLClient = () => {
@@ -48,9 +52,10 @@ const fetch = async (options: FetchOptions) => {
   );
   try {
     const data = await getVolumeByChain(options.chain);
+    const strDate = new Date(unixTimestamp * 1000).toISOString().split("T")[0];
     const dayData = data.find(
-      ({ timestamp }: { timestamp: number }) =>
-        getUniqStartOfTodayTimestamp(new Date(timestamp)) === unixTimestamp
+      ({ timestamp }: { timestamp: string }) =>
+        timestamp.split("T")[0] === strDate
     );
     return {
       dailyVolume: dayData.volumeUSD,
