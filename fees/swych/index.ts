@@ -1,4 +1,4 @@
-import {Adapter, FetchResult} from "../../adapters/types";
+import {Adapter, Fetch, FetchOptions, FetchResult, FetchResultFees} from "../../adapters/types";
 import {BSC} from "../../helpers/chains";
 import {ethers} from "ethers";
 import axios from "axios";
@@ -40,8 +40,15 @@ const convertToUsd = (value: bigint, decimals = 30) => {
     const wei = toBigInt(10) ** toBigInt(decimals);
     return Number(value / wei);
 };
+interface FeeWithdrawal {
+    amount: bigint;
+    id: string;
+    recipient: string;
+    timestamp: number;
+    token: string;
+}
 
-const generateWithdrawalFeesQuery = (timeStart = 0, skip = 0, limit = 1000) => {
+const generateWithdrawalFeesQuery = (timeStart = 0, endTime = 0, skip = 0, limit = 1000) => {
     return {
         query: `
             {
@@ -50,7 +57,7 @@ const generateWithdrawalFeesQuery = (timeStart = 0, skip = 0, limit = 1000) => {
                 skip: ${skip}
                 orderBy: timestamp
                 orderDirection: asc
-                where: {timestamp_gt: "${timeStart}"}
+                where: {timestamp_gt: "${timeStart}" timestamp_lte: "${endTime}"}
               ) {
                 amount
                 id
@@ -62,15 +69,16 @@ const generateWithdrawalFeesQuery = (timeStart = 0, skip = 0, limit = 1000) => {
     };
 };
 
-const fetchWithdrawalFees = async () => {
-    const data = [];
+const fetchWithdrawalFees = async (timestamp: number): Promise<FeeWithdrawal[]> => {
+    const data: FeeWithdrawal[] = [];
     const pageSize = 1000;
+    const endTime = timestamp + 24 * 60 * 60;
     let hasMoreData = true;
 
     while (hasMoreData) {
-        const query = generateWithdrawalFeesQuery(0, data.length, pageSize);
+        const query = generateWithdrawalFeesQuery(0, endTime, data.length, pageSize);
         const response = await axios.post(SUBGRAPHS.pdex, query);
-        const fetchedData = response?.data?.data?.feeWithdrawals;
+        const fetchedData: FeeWithdrawal[] = response?.data?.data?.feeWithdrawals;
         if (!fetchedData) {
             hasMoreData = false;
             continue;
@@ -83,6 +91,7 @@ const fetchWithdrawalFees = async () => {
 };
 
 const fetchTotalProtocolRevenue = async () => {
+    // swap fees, in/de fees, liquidation fees
     const provider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
     const Pool = new ethers.Contract(contractAddresses.Pool, PoolABI, provider);
     const Oracle = new ethers.Contract(contractAddresses.Oracle, OracleABI, provider);
@@ -96,16 +105,21 @@ const fetchTotalProtocolRevenue = async () => {
     return convertToUsd(fees);
 };
 
-const fetchFees = async () => {
+const fetchFees = async (timestamp: number, _c: any, { startOfDay }: FetchOptions): Promise<FetchResultFees> => {
     const totalRevenue = await fetchTotalProtocolRevenue();
-    const totalWithdrawalFeeData = await fetchWithdrawalFees();
+    const totalWithdrawalFeeData = await fetchWithdrawalFees(startOfDay);
+    const dailyFees = totalWithdrawalFeeData
+        .filter((fee) => Number(fee.timestamp) >= startOfDay)
+        .reduce((acc, fee) => acc + Number(fee.amount), 0);
     const totalWithdrawalFees = totalWithdrawalFeeData.reduce((acc, fee) => acc + fee.amount, toBigInt(0));
     const totalWithdrawalFeesUsd = convertToUsd(totalWithdrawalFees);
     const totalFees = totalRevenue + totalWithdrawalFeesUsd;
 
     return {
+        timestamp,
+        dailyFees: String(dailyFees),
         totalFees
-    } as FetchResult;
+    }
 };
 
 const adapter: Adapter = {
