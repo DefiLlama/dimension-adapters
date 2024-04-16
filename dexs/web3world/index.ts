@@ -63,7 +63,7 @@ const adapter: SimpleAdapter = {
       start: 1713139200, // 2024-04-15T00:00:00.000Z
     },
   },
-  version: 2,
+  version: 1,
 };
 
 export default adapter;
