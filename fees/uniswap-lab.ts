@@ -7,9 +7,9 @@ const config: any = {
   optimism: { tokens: [ADDRESSES.optimism.USDC_CIRCLE], targets: ['0xd4ce1f1b8640c1988360a6729d9a73c85a0c80a3', '0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14'] },
   polygon: { tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.USDC_CIRCLE], targets: ['0xce946931adf7afc0797de2a76270a28458f487ed', '0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14'] },
   arbitrum: { tokens: [ADDRESSES.arbitrum.USDC_CIRCLE], targets: ['0xd4ce1f1b8640c1988360a6729d9a73c85a0c80a3', '0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14'] },
-  base: {tokens: [ADDRESSES.base.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14"]},
-  bsc: {tokens: [ADDRESSES.bsc.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14"]},
-  avax: {tokens: [ADDRESSES.avax.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14"]},
+  base: {tokens: [ADDRESSES.base.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14", "0xd4ce1f1b8640c1988360a6729d9a73c85a0c80a3"]},
+  bsc: {tokens: [ADDRESSES.bsc.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14", "0x33646111e90858c2d88dd4bead9d8fbb11cd67f8"]},
+  avax: {tokens: [ADDRESSES.avax.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14", "0xd4ce1f1b8640c1988360a6729d9a73c85a0c80a3"]},
 }
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
