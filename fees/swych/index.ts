@@ -86,41 +86,21 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
     const logs_decrease_position = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_decrease_position });
     const logs_liquidate_position = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_liquidate_position });
     const logs_swap = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_swap });
-    const collateralToken = [...new Set([...logs_incress_position,
-        ...logs_decrease_position,
-        ...logs_liquidate_position
-    ].map((log) => log.collateralToken))];
-    // const decimals: string[] = await options.api.multiCall({  abi: 'erc20:decimals', calls: collateralToken})
-    // // const oracle: string[] = await options.api.multiCall({  abi: OracleABI.getPrice, calls: collateralToken.map((token) => {
-    // //     return {
-    // //         target: contractAddresses.Oracle,
-    // //         params: [token, true],
-    // //     }
-    // // }) as any }) as string[];
     logs_swap.forEach((log) => {
-        const fee =  Number(log.fee)
-        dailyFees.add(log.tokenIn, fee);
+        const fee =  Number(log.fee) / 1e30;
+        dailyFees.addCGToken('tether', fee);
     })
     logs_incress_position.forEach((log) => {
-        const index = collateralToken.indexOf(log.collateralToken);
-        // const token_decimal = Number(decimals[index]);
-        const collateralPrice = Number(log.indexPrice)
-        const fee =  (Number(log.feeValue)/collateralPrice)
-        dailyFees.add(log.collateralToken, fee);
+        const fee =  (Number(log.feeValue)/ 1e30)
+        dailyFees.addCGToken('tether', fee);
     })
     logs_decrease_position.forEach((log) => {
-        const index = collateralToken.indexOf(log.collateralToken);
-        // const token_decimal = Number(decimals[index]);
-        const collateralPrice = Number(log.indexPrice)
-        const fee =  (Number(log.feeValue)/collateralPrice)
-        dailyFees.add(log.collateralToken, fee);
+        const fee =  (Number(log.feeValue)/ 1e30)
+        dailyFees.addCGToken('tether', fee);
     })
     logs_liquidate_position.forEach((log) => {
-        const index = collateralToken.indexOf(log.collateralToken);
-        // const token_decimal = Number(decimals[index]);
-        const collateralPrice = Number(log.indexPrice)
-        const fee =  (Number(log.feeValue)/collateralPrice)
-        dailyFees.add(log.collateralToken, fee);
+        const fee =  (Number(log.feeValue)/ 1e30)
+        dailyFees.addCGToken('tether', fee);
     });
     return dailyFees;
 };
