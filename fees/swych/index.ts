@@ -23,6 +23,20 @@ interface FeeWithdrawal {
     token: string;
 }
 
+type TIsStable = {
+    [key: string]: boolean;
+}
+const isStable:TIsStable = {
+    "0x55d398326f99059ff775485246999027b3197955": true,
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": false,
+    "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c": false,
+    "0x2170ed0880ac9a755fd29b2688956bd959f933f8": false,
+    "0x570a5d26f7765ecb712c0924e4de545b89fd43df": false,
+}
+const OracleABI = {
+    getPrice: "function getPrice(address token, bool useCache) view returns (uint256)",
+};
+
 const generateWithdrawalFeesQuery = (timeStart = 0, endTime = 0, skip = 0, limit = 1000) => {
     return {
         query: `
@@ -72,28 +86,40 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
     const logs_decrease_position = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_decrease_position });
     const logs_liquidate_position = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_liquidate_position });
     const logs_swap = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_swap });
-    const collateralToken = [...new Set([...logs_incress_position, ...logs_decrease_position, ...logs_liquidate_position].map((log) => log.collateralToken))];
+    const collateralToken = [...new Set([...logs_incress_position,
+        ...logs_decrease_position,
+        ...logs_liquidate_position
+    ].map((log) => log.collateralToken))];
     const decimals: string[] = await options.api.multiCall({  abi: 'erc20:decimals', calls: collateralToken})
-
+    const oracle: string[] = await options.api.multiCall({  abi: OracleABI.getPrice, calls: collateralToken.map((token) => {
+        return {
+            target: contractAddresses.Oracle,
+            params: [token, true],
+        }
+    }) as any }) as string[];
     logs_swap.forEach((log) => {
-        dailyFees.add(log.tokenIn, log.fee);
+        const fee =  Number(log.fee)
+        dailyFees.add(log.tokenIn, fee);
     })
     logs_incress_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
         const token_decimal = Number(decimals[index]);
-        const fee =  Number(log.feeValue)/10 ** (30 - token_decimal)
+        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
+        const fee =  Number(log.feeValue)/collateralPrice
         dailyFees.add(log.collateralToken, fee);
     })
     logs_decrease_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
         const token_decimal = Number(decimals[index]);
-        const fee =  Number(log.feeValue)/10 ** (30 - token_decimal)
+        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
+        const fee =  Number(log.feeValue)/collateralPrice
         dailyFees.add(log.collateralToken, fee);
     })
     logs_liquidate_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
         const token_decimal = Number(decimals[index]);
-        const fee =  Number(log.feeValue)/10 ** (30 - token_decimal)
+        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
+        const fee =  Number(log.feeValue)/collateralPrice
         dailyFees.add(log.collateralToken, fee);
     });
     return dailyFees;
