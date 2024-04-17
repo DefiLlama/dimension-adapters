@@ -22,8 +22,9 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
+export async function printVolumes(volumes: any[], baseAdapter?: BaseAdapter | Function) {
     const exclude2Print = ['startTimestamp', 'chain']
+    if (typeof baseAdapter == "function") baseAdapter = await baseAdapter();
     volumes.forEach((element) => {
         const methodology = baseAdapter?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')

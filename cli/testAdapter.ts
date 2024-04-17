@@ -53,13 +53,14 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     } catch (e) { console.log(e) }
   }))
 
+  const printPromises: Promise<void>[] = []
   if ("adapter" in module) {
     const adapter = module.adapter
     // Get adapter
     const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
     })
-    printVolumes(volumes, adapter)
+    printPromises.push(printVolumes(volumes, adapter))
     console.info("\n")
   } else if ("breakdown" in module) {
     const breakdownAdapter = module.breakdown
@@ -68,11 +69,14 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
         adapterVersion,
       }).then(res => ({ version, res }))
     ))
+
     allVolumes.forEach(({ version, res }) => {
       console.info("Version ->", version.toUpperCase())
       console.info("---------")
-      printVolumes(res, breakdownAdapter[version])
+      printPromises.push(printVolumes(res, breakdownAdapter[version]))
     })
   } else throw new Error("No compatible adapter found")
+  
+  await Promise.all(printPromises)
   process.exit(0)
 })()

@@ -1,9 +1,14 @@
 import { httpGet } from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks } from "../../adapters/types";
 
-const chainMap: Record<string, number> = {};
+const chainMap: Record<string, string> = {
+  "bnb chain": CHAIN.BSC,
+  "polygon pos": CHAIN.POLYGON,
+  "polygon zkevm": CHAIN.POLYGON_ZKEVM,
+  "zksync era": CHAIN.ERA,
+};
 
 const fetch =
   (chainId: number) => async (timestamp: number, _: ChainBlocks) => {
@@ -29,17 +34,18 @@ async function generateAdapter() {
       `https://common-service.kyberswap.com/api/v1/aggregator/supported-chains`,
     )
   ).data.chains;
-  const a = {};
+  
+  const adapter = {};
   chainData.map((c: any) => {
+    if (["196", "25", "199", "81457", "324"].includes(c.chainId)) return;
     const chain =
       chainMap[c.displayName.toLowerCase()] ?? c.displayName.toLowerCase();
-    a[chain] = { fetch: fetch(c.chainId), start: 1622544000 };
+    adapter[chain] = { fetch: fetch(c.chainId), start: 1622544000 };
   });
-  return a;
+
+  return adapter;
 }
 
-const adapter: SimpleAdapter = {
+export default {
   adapter: async () => generateAdapter(),
 };
-
-export default adapter;

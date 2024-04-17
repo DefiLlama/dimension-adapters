@@ -5,9 +5,10 @@ import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
+export default async function runAdapter(volumeAdapter: BaseAdapter | Function, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1
 }: any = {}) {
+  if (typeof volumeAdapter == "function") volumeAdapter = await volumeAdapter();
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
