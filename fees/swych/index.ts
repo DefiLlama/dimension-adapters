@@ -90,36 +90,36 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
         ...logs_decrease_position,
         ...logs_liquidate_position
     ].map((log) => log.collateralToken))];
-    const decimals: string[] = await options.api.multiCall({  abi: 'erc20:decimals', calls: collateralToken})
-    const oracle: string[] = await options.api.multiCall({  abi: OracleABI.getPrice, calls: collateralToken.map((token) => {
-        return {
-            target: contractAddresses.Oracle,
-            params: [token, true],
-        }
-    }) as any }) as string[];
+    // const decimals: string[] = await options.api.multiCall({  abi: 'erc20:decimals', calls: collateralToken})
+    // // const oracle: string[] = await options.api.multiCall({  abi: OracleABI.getPrice, calls: collateralToken.map((token) => {
+    // //     return {
+    // //         target: contractAddresses.Oracle,
+    // //         params: [token, true],
+    // //     }
+    // // }) as any }) as string[];
     logs_swap.forEach((log) => {
         const fee =  Number(log.fee)
         dailyFees.add(log.tokenIn, fee);
     })
     logs_incress_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
-        const token_decimal = Number(decimals[index]);
-        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
-        const fee =  Number(log.feeValue)/collateralPrice
+        // const token_decimal = Number(decimals[index]);
+        const collateralPrice = Number(log.indexPrice)
+        const fee =  (Number(log.feeValue)/collateralPrice)
         dailyFees.add(log.collateralToken, fee);
     })
     logs_decrease_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
-        const token_decimal = Number(decimals[index]);
-        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
-        const fee =  Number(log.feeValue)/collateralPrice
+        // const token_decimal = Number(decimals[index]);
+        const collateralPrice = Number(log.indexPrice)
+        const fee =  (Number(log.feeValue)/collateralPrice)
         dailyFees.add(log.collateralToken, fee);
     })
     logs_liquidate_position.forEach((log) => {
         const index = collateralToken.indexOf(log.collateralToken);
-        const token_decimal = Number(decimals[index]);
-        const collateralPrice = isStable[log.collateralToken.toLowerCase()] ? 10 ** (30 - token_decimal) : Number(10 ** 6)
-        const fee =  Number(log.feeValue)/collateralPrice
+        // const token_decimal = Number(decimals[index]);
+        const collateralPrice = Number(log.indexPrice)
+        const fee =  (Number(log.feeValue)/collateralPrice)
         dailyFees.add(log.collateralToken, fee);
     });
     return dailyFees;
