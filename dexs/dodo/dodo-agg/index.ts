@@ -1,6 +1,6 @@
 
 // https://api.dodoex.io/dodo-contract/list
-const config = {
+const config: any = {
   ethereum: { DODOFeeRouteProxys: ['0x21b9F852534Fb9DdC3A0A7B24f067B50d8AC9a99', '0x50f9bDe1c76bba997a5d6e7FEFff695ec8536194']},
   optimism: { DODOFeeRouteProxys: ['0x716fcc67dcA500A91B4a28c9255262c398D8f971', '0xc7d7CC1e9f5E823887980c9C51F9c418ee3A3e28']},
   bsc: { DODOFeeRouteProxys: ['0xa8b034301Bb5DD3610db585Def3e7C0d52f2319F', '0x0656fD85364d03b103CEEda192FB2D3906A6ac15']},
@@ -16,13 +16,13 @@ const config = {
   scroll: { DODOFeeRouteProxys: ['0xf0512872fEc0173d1d99c2dd8CDCb770054b675b', '0x4e998615aD430C1cA46A69d813edE6EB3EC55eDb']},
 }
 
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { ChainBlocks, FetchOptions } from "../../../adapters/types";
 
 const abis = {
   "OrderHistory": "event OrderHistory (address fromToken, address toToken, address sender, uint256 fromAmount, uint256 returnAmount)",
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain }: FetchOptions) => {
   const dailyVolume = createBalances()
 
   const logs = await getLogs({ targets: config[chain].DODOFeeRouteProxys, eventAbi: abis.OrderHistory, })
@@ -32,10 +32,11 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   return { timestamp, dailyVolume }
 };
 
-const adapter: any = {
+const adapter_agg: any = {
   adapter: {},
 };
 
-Object.keys(config).forEach((chain) => adapter.adapter[chain] = { fetch, start: 1690848000, });
-
-export default adapter;
+Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: 1690848000, });
+export {
+  adapter_agg
+}
