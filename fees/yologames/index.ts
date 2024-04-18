@@ -22,15 +22,11 @@ const fetchDailyStats = async (
 };
 
 const fetch: any = async (timestampSeconds: number, _: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailyVolume = options.createBalances();
   const statsApiResponse = await fetchDailyStats(timestampSeconds);
-  dailyFees.add(ETHER_ADDRESS, statsApiResponse.feesETH);
-  dailyVolume.add(ETHER_ADDRESS, statsApiResponse.volumeETH);
   return {
     timestamp: timestampSeconds,
-    dailyFees,
-    dailyVolume,
+    dailyFees: statsApiResponse.feesETH.toString(),
+    dailyVolume: statsApiResponse.volumeETH.toString(),
   };
 };
 
