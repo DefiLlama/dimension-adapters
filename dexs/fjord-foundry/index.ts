@@ -29,7 +29,6 @@ const getV2Data = async (endTimestamp, chainId) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.volume
 
     return {
-        timestamp: dayTimestamp,
         totalVolume: `${totalVolume}`,
         dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     };

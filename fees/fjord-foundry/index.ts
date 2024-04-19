@@ -29,7 +29,6 @@ const getV2Data = async (endTimestamp, chainId) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        timestamp: dayTimestamp,
         totalFees: `${totalFee}`,
         dailyFees: dailyFee ? `${dailyFee}` : undefined,
         totalRevenue: `${totalFee}`,
