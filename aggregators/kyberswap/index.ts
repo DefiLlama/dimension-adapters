@@ -52,10 +52,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: 1622544000,
     },
-    [CHAIN.BITTORRENT]: {
-      fetch: fetch,
-      start: 1622544000,
-    },
+    // [CHAIN.BITTORRENT]: {
+    //   fetch: fetch,
+    //   start: 1622544000,
+    // },
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: 1622544000,
