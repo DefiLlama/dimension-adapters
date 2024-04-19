@@ -122,6 +122,14 @@ const adapter: Adapter = {
         methodology
       }
     },
+    [CHAIN.LINEA]: {
+      fetch: fetch('linea'),
+      start: 1710028800, // 20024-03-10
+      runAtCurrTime: false,
+      meta: {
+        methodology
+      }
+    },
   },
   isExpensiveAdapter: true,
 };
