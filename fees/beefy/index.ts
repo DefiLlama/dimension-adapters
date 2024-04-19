@@ -24,6 +24,7 @@ interface IRevenue {
   optimism: number;
   BNB: number;
   ethereum: number;
+  linea: number;
 }
 
 const fetch = (chain: Exclude<keyof IRevenue, 'day'>): Fetch => {
@@ -124,7 +125,7 @@ const adapter: Adapter = {
     },
     [CHAIN.LINEA]: {
       fetch: fetch('linea'),
-      start: 1710028800, // 20024-03-10
+      start: 1710028800, // 2024-03-10
       runAtCurrTime: false,
       meta: {
         methodology
