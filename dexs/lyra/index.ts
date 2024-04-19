@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -25,9 +25,9 @@ const adapter: SimpleAdapter = {
 };
 
 export async function fetchLyraVolumeData(
-  timestamp: number
+  timestamp: number, _:ChainBlocks, { endTimestamp }: FetchOptions
 ) {
-  let timestamp_in_ms = timestamp * 1000
+  const timestamp_in_ms = endTimestamp * 1000
   const lyraVolumeData = await getLyraVolumeData(lyraVolumeEndpoint(timestamp_in_ms));
   const dailyVolume = Number(lyraVolumeData.daily_premium_volume).toFixed(2);
   const totalVolume = Number(lyraVolumeData.total_premium_volume).toFixed(2);
