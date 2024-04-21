@@ -15,15 +15,6 @@ async function getBitcoinTx(txId:string){
     return btcRpcCall("decoderawtransaction", [fullTx.result])
 }
 
-function findClosest(arr:number[], target:number){
-    return arr.reduce((best, item)=>{
-        if(Math.abs(target-item) < Math.abs(target-best)){
-            return item
-        }
-        return best
-    })
-}
-
 export default {
     adapter: {
         "ethereum": {
@@ -34,7 +25,7 @@ export default {
                 await Promise.all(mints.concat(burns).map(async event=>{
                     const amount = Number(event.amount)
                     const btcTx = await getBitcoinTx(event.btcTxid)
-                    const btcSend = findClosest(btcTx.result.vout.map(v=>v.value), amount/1e8)
+                    const btcSend = btcTx.result.vout.filter(v=>v.scriptPubKey.address === event.btcDepositAddress).reduce((sum, v)=>sum+v.value, 0)
                     dailyFees.add('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', Math.abs(amount-btcSend*1e8));
                 }))
                 return { dailyFees, dailyRevenue: dailyFees }
