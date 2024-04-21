@@ -40,7 +40,7 @@ export default {
                 return { dailyFees, dailyRevenue: dailyFees }
 
             },
-            start: 0
+            start: 1543017600
         }
     },
     version: 2
