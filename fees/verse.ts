@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, ChainBlocks, FetchOptions, Fetch } from "../adapters/types";
 import volumeAdapter from "../dexs/verse";
 import BigNumber from "bignumber.js";
+import { version } from "os";
 
 
 const adapterObj = volumeAdapter.adapter;
@@ -49,11 +50,12 @@ const baseAdapter: BaseAdapter = {
         meta: {
             methodology
         }
-    }
+    },
 }
 
 const adapter: Adapter = {
-    adapter: baseAdapter
+    adapter: baseAdapter,
+    version: 2
 };
 
 export default adapter;

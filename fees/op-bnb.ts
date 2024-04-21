@@ -36,7 +36,7 @@ const fetch = async (timestamp: number, _chainBlocks: ChainBlocks, options: Fetc
           and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
         `
 
-  const cost_to_l1: number[] = (await queryFlipside(query, 560)).flat();
+  const cost_to_l1: number[] = (await queryFlipside(query, 260)).flat();
   const dailyFees = await getFees(options)
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.addGasToken((cost_to_l1[0] ?? 0) * 1e18 * -1)

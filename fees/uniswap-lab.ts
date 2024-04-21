@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from '../helpers/token';
 
 const config: any = {
@@ -12,15 +12,16 @@ const config: any = {
   avax: {tokens: [ADDRESSES.avax.USDC], targets: ["0x7ffc3dbf3b2b50ff3a1d5523bc24bb5043837b14"]},
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({ ...config[options.chain], options})
-  return { timestamp, dailyFees, dailyRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees }
 }
 
 const adapters: SimpleAdapter = {
   adapter: Object.keys(config).reduce((all, chain)=>({
     ...all,
     [chain]: { fetch, start: 1696896000 }
-  }), {})
+  }), {}),
+  version: 2
 }
 export default adapters;

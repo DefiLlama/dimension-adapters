@@ -46,7 +46,7 @@ const adapter: Adapter = {
           LEFT JOIN
               BlockTotals bt ON tt.BLOCK_NUMBER = bt.BLOCK_NUMBER;`
 
-        const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee, 560)).flat();
+        const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee, 260)).flat();
         const maticAddress = "ethereum:" + ADDRESSES.ethereum.MATIC;
 
         dailyFees.addTokenVannila(maticAddress, tx_fee * 1e18);
