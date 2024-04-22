@@ -2697,6 +2697,15 @@ export default ([
         }
     }, 
     {
+        "id":"3733",
+        "name":"Chat3",
+        "addresses":{
+            "mantle":[
+                "0xAd3dbD09835CF15c543Bc59d31865D659b71060e"
+            ]
+        }
+    }, 
+    {
         "id":"970",
         "name": "Drift",
         "addresses":{
