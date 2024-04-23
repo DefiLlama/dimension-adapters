@@ -8,13 +8,13 @@ const endpoints = {
   [CHAIN.BLAST]: "https://api.synfutures.com/thegraph/v3-blast",
 }
 
-// Fees = LiquidityFee + ProtocolFee
+// Fee = LiquidityFee + ProtocolFee
 // LiquidityFee = MakerRebates + FeesToLP
 const methodology = {
-  TotalFees: "total fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
-  TotalMakerRebates: "total fees rebated received by limit order makers on the protocol, these fees are paid by takers",
-  TotalFeesToLp: "total fees received by AMM LPs on the protocol, these fees are paid by takers",
-  TotalProcotolFees: "total fees received by the protocol from takers, these fees are paid by takers"
+  Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
+  MakerRebates: "fees rebated received by limit order makers on the protocol, these fees are paid by takers",
+  FeesToLp: "fees received by AMM LPs on the protocol, these fees are paid by takers",
+  ProcotolFees: "fees received by the protocol from takers, these fees are paid by takers"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
