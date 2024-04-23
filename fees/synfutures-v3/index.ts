@@ -8,8 +8,13 @@ const endpoints = {
   [CHAIN.BLAST]: "https://api.synfutures.com/thegraph/v3-blast",
 }
 
+// Fees = LiquidityFee + ProtocolFee
+// LiquidityFee = MakerRebates + FeesToLP
 const methodology = {
-  Fees: "Fees paid by takers"
+  TotalFees: "total fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
+  TotalMakerRebates: "total fees rebated received by limit order makers on the protocol, these fees are paid by takers",
+  TotalFeesToLp: "total fees received by AMM LPs on the protocol, these fees are paid by takers",
+  TotalProcotolFees: "total fees received by the protocol from takers, these fees are paid by takers"
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -23,29 +28,50 @@ const graphs = (graphUrls: ChainEndpoints) => {
             id
             symbol
           }
-          takerFee
+          liquidityFee
+          poolFee
           protocolFee
 
-          totalTakerFee
+          totalLiquidityFee
+          totalPoolFee
           totalProtocolFee
         }
       }`;
 
       const dailyFee = createBalances();
+      const dailyMakerRebates = createBalances();
+      const dailyFeesToLP = createBalances();
+      const dailyProcotolFees = createBalances();
+
       const totalFee = createBalances();
+      const totalMakerRebates = createBalances();
+      const totalFeesToLP = createBalances();
+      const totalProcotolFees = createBalances();
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      // console.info(JSON.stringify(graphRes, null, 2));
-
       for (const record of graphRes.dailyQuoteDatas) {
-        dailyFee.addToken(record.quote.id, Number(record.takerFee) + Number(record.protocolFee))
-        totalFee.addToken(record.quote.id, Number(record.totalTakerFee) + Number(record.totalProtocolFee))
+        dailyFee.addToken(record.quote.id, Number(record.liquidityFee) + Number(record.protocolFee))
+        dailyMakerRebates.addToken(record.quote.id, Number(record.liquidityFee) - Number(record.poolFee))
+        dailyFeesToLP.addToken(record.quote.id, Number(record.poolFee))
+        dailyProcotolFees.addToken(record.quote.id, Number(record.protocolFee))
+
+        totalFee.addToken(record.quote.id, Number(record.totalLiquidityFee) + Number(record.totalProtocolFee))
+        totalMakerRebates.addToken(record.quote.id, Number(record.totalLiquidityFee) - Number(record.totalPoolFee))
+        totalFeesToLP.addToken(record.quote.id, Number(record.totalPoolFee))
+        totalProcotolFees.addToken(record.quote.id, Number(record.totalProtocolFee))
       }
 
       return {
         dailyFees: await dailyFee.getUSDValue(),
+        dailyMakerRebates: await dailyMakerRebates.getUSDValue(),
+        dailyFeesToLp: await dailyFeesToLP.getUSDValue(),
+        dailyProcotolFees: await dailyProcotolFees.getUSDValue(),
+
         totalFees: await totalFee.getUSDValue(),
+        totalMakerRebates: await totalMakerRebates.getUSDValue(),
+        totalFeesToLp: await totalFeesToLP.getUSDValue(),
+        totalProcotolFees: await totalProcotolFees.getUSDValue()
       };
     };
     return fetch 
