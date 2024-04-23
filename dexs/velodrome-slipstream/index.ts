@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResult, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 const gurar = '0xc734656F0112CA18cdcaD424ddd8949F3D4c1DdD';
@@ -10,6 +10,7 @@ interface IForSwap {
   lp: string;
   token0: string;
   token1: string;
+  pool_fee: string
 }
 
 interface ILog {
@@ -20,8 +21,9 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
+  const dailyFees = createBalances()
   const forSwaps: IForSwap[] = (await api.call({
     target: gurar,
     params: [3000, 640], // Slipstream launched after ~650 v2 pools were already created
@@ -32,6 +34,7 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
       lp: e.lp,
       token0: e.token0,
       token1: e.token1,
+      pool_fee: e.pool_fee,
     }
   })
 
@@ -44,13 +47,14 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
   })
 
   logs.forEach((logs: ILog[], idx: number) => {
-    const { token0, token1 } = forSwaps[idx]
+    const { token1, pool_fee } = forSwaps[idx]
     logs.forEach((log: any) => {
       dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
+      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
     })
   })
 
-  return { dailyVolume, timestamp }
+  return { dailyVolume, timestamp, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 const adapters: SimpleAdapter = {
   adapter: {
