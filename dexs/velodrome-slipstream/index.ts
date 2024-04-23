@@ -46,7 +46,6 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
   logs.forEach((logs: ILog[], idx: number) => {
     const { token0, token1 } = forSwaps[idx]
     logs.forEach((log: any) => {
-      dailyVolume.add(token0, BigInt(Math.abs(Number(log.amount0))))
       dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
     })
   })

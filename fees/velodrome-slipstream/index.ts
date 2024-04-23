@@ -48,8 +48,7 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
   logs.forEach((logs: ILog[], idx: number) => {
     const { token0, token1, pool_fee } = forSwaps[idx]
     logs.forEach((log: any) => {
-      dailyFees.add(token0, BigInt( Math.round((((Math.abs(Number(log.amount0))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
-      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) 
+      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
     })
   })
 
