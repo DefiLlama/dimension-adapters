@@ -130,8 +130,8 @@ const fetch = (chain: Chain) => {
 
     if (chain === CHAIN.ARBITRUM) {
       const referralVolumeUSD = await fetchReferralVolume(timestamp);
-      // const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp); // errror
-      dailyVolumeUSD += referralVolumeUSD;
+      const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp); // errror
+      dailyVolumeUSD += referralVolumeUSD + muxReferralVolumeUSD;
     }
 
     return {
