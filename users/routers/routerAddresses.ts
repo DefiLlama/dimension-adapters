@@ -479,6 +479,15 @@ export default ([
         }
     },
     {
+        "id":"2306",
+        "name":"Hercules",
+        "addresses":{
+            "metis":[
+                "0x14679D1Da243B8c7d1A4c6d0523A2Ce614Ef027C"
+            ]
+        }
+    },
+    {
         "id":"parent#thena",
         "name":"Thena",
         "addresses":{
