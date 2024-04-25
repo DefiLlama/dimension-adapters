@@ -164,7 +164,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
         bail(new Error('max retries exceeded'))
       }
       await randomDelay()
-      console.info(`Flipside query ${token[sqlQuery]} is still running`)
+      console.info(`Flipside query ${token[sqlQuery]} still running... retrying ${attempt}`)
       throw new Error("Still running")
     },
     {
