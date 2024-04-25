@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { adapteraggderivative } from './unidex/index'
+import { adapteraggderivative } from './unidex-agg-perp/index'
 
 type TChainIDs = {
   [key in Chain]?: number;
