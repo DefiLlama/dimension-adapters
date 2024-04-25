@@ -6,5 +6,5 @@ const adapters = univ2Adapter({
     [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/amm-subgraph-andromeda/"
 }, {});
 
-adapters.adapter.metis.start = 1698103260;
+adapters.adapter.metis.start = 1710115200;
 export default adapters;

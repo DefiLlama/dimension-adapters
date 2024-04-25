@@ -38,7 +38,7 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-const adapter = { fetch, start: 1696331700, }
+const adapter = { fetch, start: 1698983690, }
 
 
 export default {
@@ -47,4 +47,3 @@ export default {
   },
   version: 2,
 };
-

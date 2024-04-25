@@ -11,5 +11,5 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.metis.start = 1696331700;
+adapters.adapter.metis.start = 1698983690;
 export default adapters;
