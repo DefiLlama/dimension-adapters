@@ -25,6 +25,7 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
       timestamp
     }
   } catch (error: any) {
+    console.error('Error fetching fees for Solana', error);
     return {
       dailyFees: "0",
       timestamp
