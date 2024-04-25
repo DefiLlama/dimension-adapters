@@ -65,7 +65,7 @@ const fetchRequests = (chain: Chain) => {
     const query_paid = build_link_query(timestamp)
     const gas_query = build_gas_query(timestamp)
 
-    const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 360))
+    const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 260))
       .map(([data, topics, transactionHash, chain]: [string, string[], string, string]) => {
         return {
           data,
@@ -80,7 +80,7 @@ const fetchRequests = (chain: Chain) => {
       const payments = Number('0x'+data.slice(128, 192)) / 10 ** 18;
       return payments;
     }).reduce((a: number, b: number) => a + b, 0);
-    const ethGas = await queryFlipside(gas_query, 360)
+    const ethGas = await queryFlipside(gas_query, 260)
 
     const gas_fees = ethGas.map(([fee, chain]: [string, string]) => {
       return {

@@ -1,9 +1,9 @@
-import { Adapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, IStartTimestamp } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
-import totalVolumePayload from "./totalVolumePayload";
+import { adapter_agg } from "./dodo-agg/index";
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -95,7 +95,15 @@ const volume = chains.reduce(
   {}
 );
 
-const adapter: SimpleAdapter = {
+const adapter: any = {
   adapter: volume
 };
-export default adapter;
+
+const adapterBreakdown: BreakdownAdapter = {
+  breakdown: {
+    "dodo": adapter.adapter,
+    "dodo-agg": adapter_agg["adapter"],
+  }
+}
+
+export default adapterBreakdown

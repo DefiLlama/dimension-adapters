@@ -1,7 +1,8 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { request, } from "graphql-request";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 type TEndpoint = {
   [s: Chain | string]: string;
@@ -37,8 +38,9 @@ const graphs = (chain: Chain) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BASE]: {
-      fetch: graphs(CHAIN.BASE),
+      fetch: async (timestamp: number) => {return{timestamp}},
       start: 1694131200,
     },
   }

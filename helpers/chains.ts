@@ -144,6 +144,8 @@ export enum CHAIN {
   KROMA = "kroma",
   ZORA = "zora",
   SVM = "svm",
+  ASTRZK = "astrzk",
+  LYRA = "lyra",
 }
 
 // Don´t use

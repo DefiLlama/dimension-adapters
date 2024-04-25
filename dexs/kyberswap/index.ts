@@ -34,7 +34,7 @@ const kyberswapElasticV2 = univ2Adapter({
   dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
-
+kyberswapElasticV2.version = 2;
 kyberswapElasticV2.adapter.ethereum.start = 1654905600;
 kyberswapElasticV2.adapter.bsc.start = 1654732800;
 kyberswapElasticV2.adapter.polygon.start = 1654732800;
@@ -213,19 +213,14 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
         fetch: async (options: FetchOptions) =>  {
             const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await graphs(chain as any)(options))
             const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
-            const dailyVolume = Number(a.dailyVolume) + Number(elasticV2?.dailyVolume || 0)
-            const totalVolume = Number(a.totalVolume) + Number(elasticV2?.totalVolume || 0)
+            const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
+            const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
               dailyVolume: `${dailyVolume}`,
               totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
             };
           },
-          start: getStartTimestamp({
-            endpoints: endpoints,
-            chain: chain,
-            volumeField,
-            dailyDataField
-          })
+          start: 0,
         }
         return acc
       }, {} as BaseAdapter)
@@ -234,7 +229,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
+    // classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)
   }
 }
