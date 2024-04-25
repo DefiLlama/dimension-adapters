@@ -1,14 +1,14 @@
 import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL"
+import {  httpGet } from "../../utils/fetchURL"
 
 const URL = "https://dgw.helixic.io/api/v1/ticker";
 interface IVolume {
-  quoteVolume: number;
+  quoteVolume: string;
 }
 
 const fetch = async (timestamp: number, _chainBlocks: ChainBlocks, _options: FetchOptions): Promise<FetchResultVolume> => {
-    const quoteVolume: IVolume[] = (await fetchURL(URL));
+    const quoteVolume: IVolume[] = (await httpGet(URL));
     const dailyVolume = quoteVolume.reduce((e: number, a: IVolume) => parseFloat(a.quoteVolume) + e, 0);
 
   return {
