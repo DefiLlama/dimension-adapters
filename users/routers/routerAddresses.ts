@@ -479,7 +479,7 @@ export default ([
         }
     },
     {
-        "id":"2306",
+        "id":"4372",
         "name":"Hercules",
         "addresses":{
             "metis":[
