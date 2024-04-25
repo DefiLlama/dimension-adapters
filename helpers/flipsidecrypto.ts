@@ -6,12 +6,17 @@ import { getEnv } from "./env";
 const token = {} as IJSON<string>
 const FLIPSIDE_API_KEYS = getEnv('FLIPSIDE_API_KEY')?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
 let API_KEY_INDEX = 0;
-const MAX_RETRIES = FLIPSIDE_API_KEYS.length + 3;
+const MAX_RETRIES = 20;
 
 type IRequest = {
   [key: string]: Promise<any>;
 }
 const query: IRequest = {};
+
+async function randomDelay() {
+  const delay = Math.floor(Math.random() * 4) + 1
+  return new Promise((resolve) => setTimeout(resolve, delay * 1000))
+}
 
 export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
   if (!query[sqlQuery]) {
@@ -158,6 +163,8 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
         }, { withMetadata: true })
         bail(new Error('max retries exceeded'))
       }
+      await randomDelay()
+      console.info(`Flipside query ${token[sqlQuery]} is still running`)
       throw new Error("Still running")
     },
     {
