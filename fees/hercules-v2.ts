@@ -1,15 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
-import BigNumber from "bignumber.js";
-import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import request from "graphql-request";
+import { FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-
-interface IPoolData {
-  date: number;
-  dailyFeeUSD: string;
-}
 
 type IURL = {
   [l: string | Chain]: string;
@@ -19,43 +11,41 @@ const endpoints: IURL = {
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/amm-subgraph-andromeda/"
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-    const graphQuery = gql
-      `
+const fetch: FetchV2 = async (options) => {
+  const { api, getStartBlock, getEndBlock, createBalances } = options
+  const fromBlock = await getStartBlock()
+  const toBlock = await getEndBlock()
+  const graphQuery = (block: any) => `
       {
-        uniswapDayData(id: ${dateId}) {
+        uniswapFactories(block: { number: ${block}}) {
           id
-          dailyFeeUSD
+          totalFeeUSD
         }
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).uniswapDayData;
-    const dailyFeeUSD = graphRes;
-    const dailyFee = dailyFeeUSD?.dailyFeeUSD ? new BigNumber(dailyFeeUSD.dailyFeeUSD) : undefined
-    if (dailyFee === undefined) return { timestamp }
-    return {
-      timestamp,
-      dailyFees: dailyFee.toString(),
-      dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.4).toString(),
-      dailyProtocolRevenue: dailyFee.multipliedBy(0.05).toString(),
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.35).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.60).toString(),
-    };
-  };
-}
+  const { uniswapFactories: startRes }: any = await request(endpoints[api.chain], graphQuery(fromBlock))
+  const { uniswapFactories: endRes }: any = await request(endpoints[api.chain], graphQuery(toBlock))
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.METIS]: {
-      fetch: fetch(CHAIN.METIS),
-      start: 1698103260,
-    },
-  },
+  let dailyFees = endRes.reduce((acc: number, val: any) => acc + +val.totalFeeUSD, 0) - startRes.reduce((acc: number, val: any) => acc + +val.totalFeeUSD, 0)
+
+  return {
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees * 0.4,
+    dailyProtocolRevenue: dailyFees * 0.05,
+    dailyHoldersRevenue: dailyFees * 0.35,
+    dailySupplySideRevenue: dailyFees * 0.6,
+  };
 };
 
-export default adapter;
+const adapter = { fetch, start: 1685232000, }
+
+
+export default {
+  adapter: {
+    [CHAIN.METIS]: adapter,
+  },
+  version: 2,
+};
+
