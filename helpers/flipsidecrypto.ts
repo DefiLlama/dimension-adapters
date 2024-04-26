@@ -68,15 +68,18 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               if(API_KEY_INDEX < nextIndex){
                 API_KEY_INDEX = nextIndex;
               }
+              console.info("flipside increasing API_KEY_INDEX")
               throw "Increasing API_KEY_INDEX";
             } else {
               const error = new Error(`Payment Required`)
               bail(error)
+              console.error("Payment Required")
               throw error
             }
           }
           if (!e.response) {
             bail(e)
+            console.error("flipside not found response error")
             throw e;
           }
           console.log("make query flipside", e.response, e)
@@ -85,6 +88,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
       }
 
       if (!token[sqlQuery]) {
+        console.error("Couldn't get a token from flipsidecrypto")
         throw new Error("Couldn't get a token from flipsidecrypto")
       }
 
