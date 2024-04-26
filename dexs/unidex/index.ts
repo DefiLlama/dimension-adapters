@@ -4,6 +4,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { adapteraggderivative } from './unidex-agg-perp/index'
+import { adapter_dexs_agg } from './unidex-dexs-agg/index'
 
 type TChainIDs = {
   [key in Chain]?: number;
@@ -121,6 +122,7 @@ const adapterbreakdown: BreakdownAdapter = {
   breakdown: {
     "unidex": adapter["adapter"],
     "unidex-agg-derivative": adapteraggderivative["adapter"],
+    "unidex-dexs-agg": adapter_dexs_agg["adapter"],
   }
 }
 export default adapterbreakdown;
