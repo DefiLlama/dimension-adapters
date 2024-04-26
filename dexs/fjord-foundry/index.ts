@@ -1,5 +1,5 @@
-import { BreakdownAdapter, FetchV2 } from "../../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -15,8 +15,9 @@ const v2ChainIDs = {
     [CHAIN.BSC]: 56,
 };
 
-const getV2Data = async (endTimestamp, chainId) => {
-    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp)
+
+const getV2Data = async (endTimestamp: number, chainId: number) => {
+    const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalVolume = (await fetchURL(feeEndpoint))
 
     const chainData = historicalVolume.stats.find(cd => cd.chainId === chainId);
@@ -30,7 +31,7 @@ const getV2Data = async (endTimestamp, chainId) => {
 
     return {
         totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        dailyVolume: dailyVolume ? `${dailyVolume}` : '0',
     };
 };
 
@@ -40,7 +41,7 @@ const adapter: BreakdownAdapter = {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: async (ts: number) => await getV2Data(ts, v2ChainIDs[chain]),
+                    fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
                     start: 1702857600,
                 },
             }
