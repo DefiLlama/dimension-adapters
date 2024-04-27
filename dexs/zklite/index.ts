@@ -6,6 +6,8 @@ import { CHAIN } from "../../helpers/chains";
 type TMarket = {
   [s: string]: {
     baseVolume: number;
+    usdVolume24h: number;
+    usdVolumeAll: number;
   }
 }
 
@@ -22,15 +24,23 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const markets: TMarket = (await fetchURL('https://api.zklite.io/api/v1/markets'));
   const marketInfos: TMarketInfo = (await fetchURL('https://api.zklite.io/api/v1/marketinfos?chain_id=1&market=' + Object.keys(markets).join(',')));
-  const amountUSD: number[] =  Object.keys(markets).map(market => {
+  let dailyVolume = 0
+  let totalVolume = 0
+  Object.keys(markets).forEach(market => {
+    const { baseVolume, usdVolume24h, usdVolumeAll } = markets[market]
+    if (usdVolume24h) {
+      dailyVolume += usdVolume24h;
+      totalVolume += usdVolumeAll;
+      return;
+    }
+
     const info = marketInfos[market]
-    const { baseVolume } = markets[market]
-    if (!info)  return 0;
-    return baseVolume * info.baseAsset.usdPrice;
+    if (!info) return;
+    dailyVolume += baseVolume * info.baseAsset.usdPrice;
   })
-  const dailyVolume = amountUSD.reduce((a: number, b: number) => a+b, 0)
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume,
+    totalVolume,
     timestamp: dayTimestamp,
   };
 };
