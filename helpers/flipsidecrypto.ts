@@ -68,7 +68,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               if(API_KEY_INDEX < nextIndex){
                 API_KEY_INDEX = nextIndex;
               }
-              console.info("flipside increasing API_KEY_INDEX")
+              console.info("flipside increasing API_KEY_INDEX to -> ", FLIPSIDE_API_KEYS[API_KEY_INDEX])
               throw "Increasing API_KEY_INDEX";
             } else {
               const error = new Error(`Payment Required`)
