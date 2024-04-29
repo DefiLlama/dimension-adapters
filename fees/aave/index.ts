@@ -7,6 +7,8 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC, getTi
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 import { Chain } from "@defillama/sdk/build/general";
 
+//POOL_ADDRESSES_PROVIDER available in https://github.com/bgd-labs/aave-address-book
+//remember to lowercase
 const poolIDs = {
   V1: '0x24a42fd28c976a61df5d00d0599c34c4f90748c8',
   V2: '0xb53c1a33016b2dc2ff3653530bff1848a515c8c5',
@@ -15,6 +17,9 @@ const poolIDs = {
   V2_AVALANCHE: '0xb6a86025f0fe1862b372cb0ca18ce3ede02a318f',
   V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb',
   V3_ETH: '0x2f39d218133afab8f2b819b1066c7e434ad94e9e',
+  V3_BNB: '0xff75b6da14ffbbfd355daf7a2731456b3562ba6d',
+  V3_GNOSIS: '0x36616cf17557639614c1cddb356b1b83fc0b2132',
+  V3_METIS: '0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af',
 }
 type THeader = {
   [s: string]: string;
@@ -37,6 +42,7 @@ const v2Endpoints = {
   [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
 };
 
+//V3 endpoints avilable here: 0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af
 const v3Endpoints = {
   [POLYGON]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon',
   [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-avalanche',
@@ -45,6 +51,9 @@ const v3Endpoints = {
   [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
   [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
   [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
+  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-bnb',
+  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-gnosis',
+  [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/aave/protocol-v3-metis',
 }
 
 
@@ -297,9 +306,26 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
 
 const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
+  let poolid;
+  if (chain === CHAIN.ETHEREUM) {
+    poolid = poolIDs.V3_ETH;
+  }
+  else if (chain === CHAIN.BSC) {
+    poolid = poolIDs.V3_BNB;
+  }
+  else if (chain === CHAIN.XDAI) {
+    poolid = poolIDs.V3_GNOSIS;
+  }
+  else if (chain === CHAIN.METIS) {
+    poolid = poolIDs.V3_METIS;
+  }
+  else {
+    poolid= poolIDs.V3;
+  }
+
   const graphQuery =
   `{
-    reserves(where: { pool: "${chain === CHAIN.ETHEREUM ? poolIDs.V3_ETH : poolIDs.V3}" }) {
+    reserves(where: { pool: "${poolid}" }) {
         id
         paramsHistory(
           where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
@@ -403,12 +429,13 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   breakdown: {
-    // v1: {
-    //   [ETHEREUM]: {
-    //     fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-    //     start: 1578459600
-    //   },
-    // },
+//v1 subgraph no longer responding
+//    v1: {
+//      [ETHEREUM]: {
+//        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
+//        start: 1578459600
+//      },
+//    },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
@@ -451,6 +478,18 @@ const adapter: Adapter = {
       [CHAIN.ETHEREUM]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
         start: 1647230400
+      },
+      [CHAIN.BSC]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.BSC),
+        start: 1700222400
+      },
+      [CHAIN.XDAI]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.XDAI),
+        start: 1696420800
+      },
+      [CHAIN.METIS]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.METIS),
+        start: 1682164800
       },
     }
   }
