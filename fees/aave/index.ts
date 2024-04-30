@@ -7,14 +7,21 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC, getTi
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 import { Chain } from "@defillama/sdk/build/general";
 
+//POOL_ADDRESSES_PROVIDER available in https://github.com/bgd-labs/aave-address-book
+//remember to lowercase
 const poolIDs = {
   V1: '0x24a42fd28c976a61df5d00d0599c34c4f90748c8',
   V2: '0xb53c1a33016b2dc2ff3653530bff1848a515c8c5',
   V2_AMM: '0xacc030ef66f9dfeae9cbb0cd1b25654b82cfa8d5',
   V2_POLYGON: '0xd05e3e715d945b59290df0ae8ef85c1bdb684744',
   V2_AVALANCHE: '0xb6a86025f0fe1862b372cb0ca18ce3ede02a318f',
-  V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb',
+  V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb', // arbitrum, Optimism, fantom, harmony, polygon, avalanche
   V3_ETH: '0x2f39d218133afab8f2b819b1066c7e434ad94e9e',
+  V3_BNB: '0xff75b6da14ffbbfd355daf7a2731456b3562ba6d',
+  V3_GNOSIS: '0x36616cf17557639614c1cddb356b1b83fc0b2132',
+  V3_METIS: '0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af',
+  V3_BASE: '0xe20fcbdbffc4dd138ce8b2e6fbb6cb49777ad64d',
+  V3_SCROLL: '0x69850d0b276776781c063771b161bd8894bcdd04',
 }
 type THeader = {
   [s: string]: string;
@@ -37,6 +44,7 @@ const v2Endpoints = {
   [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
 };
 
+//V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs
 const v3Endpoints = {
   [POLYGON]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon',
   [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-avalanche',
@@ -45,6 +53,11 @@ const v3Endpoints = {
   [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
   [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
   [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
+  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-bnb',
+  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-gnosis',
+  [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
+  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
+  [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
 }
 
 
@@ -297,9 +310,32 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
 
 const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
+  let poolid;
+  if (chain === CHAIN.ETHEREUM) {
+    poolid = poolIDs.V3_ETH;
+  }
+  else if (chain === CHAIN.BSC) {
+    poolid = poolIDs.V3_BNB;
+  }
+  else if (chain === CHAIN.XDAI) {
+    poolid = poolIDs.V3_GNOSIS;
+  }
+  else if (chain === CHAIN.METIS) {
+    poolid = poolIDs.V3_METIS;
+  }
+  else if (chain === CHAIN.BASE) {
+    poolid = poolIDs.V3_BASE;
+  }
+  else if (chain === CHAIN.SCROLL) {
+    poolid = poolIDs.V3_SCROLL;
+  }
+  else {
+    poolid= poolIDs.V3;
+  }
+
   const graphQuery =
   `{
-    reserves(where: { pool: "${chain === CHAIN.ETHEREUM ? poolIDs.V3_ETH : poolIDs.V3}" }) {
+    reserves(where: { pool: "${poolid}" }) {
         id
         paramsHistory(
           where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
@@ -403,12 +439,13 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   breakdown: {
-    // v1: {
-    //   [ETHEREUM]: {
-    //     fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-    //     start: 1578459600
-    //   },
-    // },
+//v1 subgraph no longer responding
+//    v1: {
+//      [ETHEREUM]: {
+//        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
+//        start: 1578459600
+//      },
+//    },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
@@ -451,6 +488,26 @@ const adapter: Adapter = {
       [CHAIN.ETHEREUM]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
         start: 1647230400
+      },
+      [CHAIN.BSC]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.BSC),
+        start: 1700222400
+      },
+      [CHAIN.XDAI]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.XDAI),
+        start: 1696420800
+      },
+      [CHAIN.METIS]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.METIS),
+        start: 1682164800
+      },
+      [CHAIN.BASE]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.BASE),
+        start: 1691496000
+      },
+      [CHAIN.SCROLL]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.SCROLL),
+        start: 1705741200
       },
     }
   }
