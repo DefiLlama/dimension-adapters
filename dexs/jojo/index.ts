@@ -2,11 +2,29 @@ import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.` + chain +`-mainnet.jojo.exchange/v1/platform/tradeVolume?marketId=${symbol}`
+const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.` + chain + `-mainnet.jojo.exchange/v1/platform/tradeVolume?marketId=${symbol}`
 const coins = {
     'ethusdc': 'coingecko:ethereum',
     'btcusdc': 'coingecko:bitcoin',
-    'solusdc': 'coingecko:solana'
+    'solusdc': 'coingecko:solana',
+    'wifusdc': 'coingecko:wif',
+    'enausdc': 'coingecko:ena',
+    'ckbusdc': 'coingecko:ckb',
+    'bomeusdc': 'coingecko:bome',
+    'wusdc': 'coingecko:w',
+    'ethfiusdc': 'coingecko:ethfi',
+    'ondousdc': 'coingecko:ondo',
+    'dogeusdc': 'coingecko:doge',
+    'memeusdc': 'coingecko:meme',
+    'ordiusdc': 'coingecko:ordi',
+    'wldusdc': 'coingecko:wld',
+    'agixusdc': 'coingecko:agix',
+    'tiausdc': 'coingecko:tia',
+    'rndrusdc': 'coingecko:rndr',
+    'altusdc': 'coingecko:alt',
+    'xaiusdc': 'coingecko:xai',
+    'linkusdc': 'coingecko:link'
+
 }
 
 interface IVolumeall {
@@ -20,8 +38,8 @@ const getVolume = async (timestamp: number, chain: string) => {
 
     const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, chain)))));
 
-    const historicalVolume = historical.map((item => item.dailyVolume))    
-    const historicalUSD = historicalVolume.map((a: any, index: number) => a.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index]} })).flat()
+    const historicalVolume = historical.map((item => item.dailyVolume))
+    const historicalUSD = historicalVolume.map((a: any, index: number) => a.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index] } })).flat()
     const historicalUSD2 = historicalUSD.map((e: IVolumeall) => {
         return {
             ...e,
