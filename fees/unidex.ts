@@ -50,7 +50,7 @@ const fetch = (chain: Chain) => {
     const dailyFeeUSD = chainID !== undefined ? feesByChain[chainID] || 0 : 0;
 
     const dailyHoldersRevenue = dailyFeeUSD * 0.15;
-    const dailyProtocolRevenue = dailyFeeUSD * 0.85;
+    const dailyProtocolRevenue = dailyFeeUSD * 0.80;
 
     return {
       dailyFees: dailyFeeUSD.toString(),
