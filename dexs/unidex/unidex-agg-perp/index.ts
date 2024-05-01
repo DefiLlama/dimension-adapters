@@ -25,7 +25,7 @@ const chainIDs: TChainIDs = {
 
 interface IDayProduct {
   cumulativeVolumeUsd: number;
-  _id: string;
+  chainId: number;
 }
 
 const fetchReferralVolume = async (timestamp: number): Promise<number> => {
@@ -53,7 +53,7 @@ const fetchReferralVolume = async (timestamp: number): Promise<number> => {
 };
 
 
-const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
+const fetchMuxReferralVolume = async (chain: Chain, timestamp: number): Promise<number> => {
   const startOfDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const endOfDayTimestamp = startOfDayTimestamp + 86400; // Add one day's worth of seconds for the end of the day
 
@@ -77,7 +77,22 @@ const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
     timestamp_lte: endOfDayTimestamp.toString()
   };
 
-  const referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-arb';
+  let referralEndpoint = '';
+
+  switch (chain) {
+    case CHAIN.ARBITRUM:
+      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-arb';
+      break;
+    case CHAIN.OPTIMISM:
+      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-op';
+      break;
+    case CHAIN.FANTOM:
+      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-ftm';
+      break;
+    default:
+      return 0; // Return 0 for unsupported chains
+  }
+
   const referralRes = await request(referralEndpoint, referralQuery, variables);
 
   // Sum up the volumes
@@ -98,9 +113,6 @@ const fetchMuxReferralVolume = async (timestamp: number): Promise<number> => {
 
 
 
-
-
-
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
@@ -109,7 +121,7 @@ const fetch = (chain: Chain) => {
       query MyQuery {
         DayProducts(filter: {date: ${todaysTimestamp}}) {
           cumulativeVolumeUsd
-          _id
+          chainId
         }
       }
     `;
@@ -118,19 +130,23 @@ const fetch = (chain: Chain) => {
     const response = await request(endpoint, graphQuery);
     const dayProducts: IDayProduct[] = response.DayProducts;
 
-    const chainID = chainIDs[chain];
-    let dailyVolumeUSD = 0;
-
+    const volumeByChain: { [chainId: number]: number } = {};
     dayProducts.forEach((product) => {
-      const productChainID = parseInt(product._id.split(':')[2]);
-      if (productChainID === chainID) {
-        dailyVolumeUSD += product.cumulativeVolumeUsd;
+      const chainId = product.chainId;
+      if (chainId === 360) {
+        // Combine volume for chainID 360 with chainID 42161
+        volumeByChain[42161] = (volumeByChain[42161] || 0) + product.cumulativeVolumeUsd;
+      } else {
+        volumeByChain[chainId] = (volumeByChain[chainId] || 0) + product.cumulativeVolumeUsd;
       }
     });
 
-    if (chain === CHAIN.ARBITRUM) {
+    const chainID = chainIDs[chain];
+    let dailyVolumeUSD = chainID !== undefined ? volumeByChain[chainID] || 0 : 0;
+
+    if (chain === CHAIN.ARBITRUM || chain === CHAIN.OPTIMISM || chain === CHAIN.FANTOM) {
       const referralVolumeUSD = await fetchReferralVolume(timestamp);
-      const muxReferralVolumeUSD = await fetchMuxReferralVolume(timestamp); // errror
+      const muxReferralVolumeUSD = await fetchMuxReferralVolume(chain, timestamp);
       dailyVolumeUSD += referralVolumeUSD + muxReferralVolumeUSD;
     }
 
