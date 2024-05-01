@@ -49,13 +49,15 @@ const fetch = (chain: Chain) => {
     const chainID = chainIDs[chain];
     const dailyFeeUSD = chainID !== undefined ? feesByChain[chainID] || 0 : 0;
 
-    const dailyHoldersRevenue = dailyFeeUSD * 0.15;
-    const dailyProtocolRevenue = dailyFeeUSD * 0.80;
+    const dailyHoldersRevenue = dailyFeeUSD * 0.65;
+    const dailyProtocolRevenue = dailyFeeUSD;
+    const dailySupplySideRevenue = dailyFeeUSD * 0.20;
 
     return {
       dailyFees: dailyFeeUSD.toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
       timestamp,
     };
   };
@@ -64,7 +66,7 @@ const fetch = (chain: Chain) => {
 const methodology = {
   Fees: "Fees collected from user trading fees",
   Revenue: "Fees going to the treasury + holders",
-  HoldersRevenue: "Fees going to token holders",
+  SupplySideFees: "Fees going to liquidity providers of the protocol",
 };
 
 const adapter: Adapter = {
