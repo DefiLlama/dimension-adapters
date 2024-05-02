@@ -425,8 +425,8 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
         treasuryIncomeUSD: 0,
         outstandingTreasuryIncomeUSD: 0
       });
-      const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.outstandingTreasuryIncomeUSD + feeBreakdown.treasuryIncomeUSD
-      const dailyRev = feeBreakdown.treasuryIncomeUSD + feeBreakdown.outstandingTreasuryIncomeUSD
+      const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.treasuryIncomeUSD
+      const dailyRev = feeBreakdown.treasuryIncomeUSD
 
       return {
         timestamp,
