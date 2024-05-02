@@ -17,6 +17,7 @@ async function fetch(timestamp: number): Promise<Stats24H> {
 }
 
 export default {
+    version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
