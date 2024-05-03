@@ -12,13 +12,15 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   try {
     const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
-    const value: IFees[] = (await queryDune("3662383"));
-    const dayItem = value.find((item: any) => item.block_date.split(' ')[0] === dateStr);
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const fees = (dayItem?.feesSOL || 0) * 1e9;
-    dailyFees.add('So11111111111111111111111111111111111111112', fees);
-    dailyRevenue.add('So11111111111111111111111111111111111111112', fees) ;
+    const value = (await queryDune("3521814", {
+      start: options.startTimestamp,
+      end: options.endTimestamp,
+      receiver: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF'
+    }));
+    dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
+    dailyRevenue.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
     return {
       dailyFees: dailyFees,
       dailyRevenue: dailyRevenue,
