@@ -86,7 +86,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.result?.blockNumber)));
     else if (chain as CHAIN === CHAIN.POLYGON_ZKEVM || chain === CHAIN.VISION || chain as CHAIN === CHAIN.ERA)
-        return sdk.api.util.lookupBlock(timestamp, { chain }).then((blockData: any) => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
+        return sdk.api.util.lookupBlock(timestamp, { chain }).then((blockData: any) => blockData.block) // TODO after get block support chain  polygon_zkevm then switch to use api https://coins.llama.fi/block
     else if (chain as CHAIN === CHAIN.WAVES)
         block = Number((await retry(async () => (await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${(timestamp * 1000)}`).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)

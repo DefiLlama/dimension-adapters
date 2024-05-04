@@ -17,7 +17,7 @@ export async function getLatestBlockRetry(chain: string) {
         try {
             return await getLatestBlock(chain);
         } catch (e) {
-            throw new Error(`Couln't get block heights for chain "${chain}"\n${e}`);
+            throw new Error(`Couldn't get block heights for chain "${chain}"\n${e}`);
         }
     }
 }

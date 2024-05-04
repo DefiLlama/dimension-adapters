@@ -75,7 +75,7 @@ const adapter: Adapter = {
         methodology
       }
     },
-    // disable beacause api is not include chain moonriver and canto yet
+    // disable because api is not include chain moonriver and canto yet
     // [CHAIN.MOONRIVER]: {
     //   fetch: graphs()(CHAIN.MOONRIVER),
       // runAtCurrTime: true,

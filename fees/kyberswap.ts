@@ -104,7 +104,7 @@ const graphsElasticV2 = (chain: Chain) => {
 
       const graphQuery = gql
       `{
-        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+        poolDayDatas(first: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
           feesUSD
         }
     }`;
@@ -136,7 +136,7 @@ const graphsElastic = (chain: Chain) => {
 
     const graphQuery =
       `{
-        poolDayDatas(frist: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
+        poolDayDatas(first: 1000, where:{date:${todayTimestamp},tvlUSD_gt: 1000},orderBy:feesUSD, orderDirection: desc) {
           feesUSD
         }
     }`;
