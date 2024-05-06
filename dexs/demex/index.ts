@@ -20,7 +20,7 @@ const fetch = (market_type: string) => {
     const volume =
       historicalVolume
         .filter((e: IVolumeall) => e.market_type === market_type)
-        .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume), 0) / 1e18;
+        .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume) * 2, 0) / 1e18;
 
     return {
       dailyVolume: volume ? `${volume}` : undefined,
