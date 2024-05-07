@@ -57,6 +57,7 @@ export async function getEtherscanFees(
 }
 
 const adapter: Adapter = {
+  version:2,
   adapter: {
     [CHAIN.BITLAYER]: {
       fetch: async (
@@ -83,7 +84,7 @@ const adapter: Adapter = {
           dailyFees,
         };
       },
-      start: 1713089236,
+      start: true,
     },
   },
   protocolType: ProtocolType.CHAIN,
