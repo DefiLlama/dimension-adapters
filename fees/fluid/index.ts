@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "@defillama/sdk/build/util/blocks";
 import BigNumber from "bignumber.js";
-import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
+import { Adapter, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers } from "ethers";
 
 const fluidLiquidity = "0x52aa899454998be5b000ad077a46bbe360f4e497";
 
@@ -25,8 +24,9 @@ const fluidLiquidityResolverAbi = {
     "function getTotalAmounts(address token_) public view returns (uint256)",
 };
 
-// up until block 19662786, must use historical resolver as new one has not been deployed yet
-const vaultResolverExistAfterTimestamp = 1708880700; // vault resolver related revenue only exists after this timestamp. before there has been no such revenue.
+// up until block 19662786, must use historical resolver as new one had not been deployed yet
+const vaultResolverExistAfterTimestamp = 1708931052; // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+const vaultResolverExistAfterBlock = 19313700; // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
 const vaultResolverHistoricalBlock = 19662786;
 const fluidVaultResolverHistorical =
   "0x8DD65DaDb217f73A94Efb903EB2dc7B49D97ECca";
@@ -44,91 +44,154 @@ const fluidVaultAbi = {
     "function constantsView() public view returns((address liquidity,address factory,address adminImplementation,address secondaryImplementation,address supplyToken,address borrowToken,uint8 supplyDecimals,uint8 borrowDecimals,uint vaultId,bytes32 liquiditySupplyExchangePriceSlot,bytes32 liquidityBorrowExchangePriceSlot,bytes32 liquidityUserSupplySlot,bytes32 liquidityUserBorrowSlot))",
 };
 
-const dataStartTimestamp = 1708246655; // when liquidity resolver was deployed, Feb 16 2024
-
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const { api, fromTimestamp, toTimestamp } = options;
-
-  const listedTokens: string[] = await api.call({
-    target: fluidLiquidityResolver,
-    abi: fluidLiquidityResolverAbi.listedTokens,
-  });
-
-  return {
-    timestamp: 0,
-    totalFees: 0,
-    dailyFees: 0,
-    totalRevenue: await getRevenueFromTo(
-      api,
-      listedTokens,
-      dataStartTimestamp,
-      toTimestamp
-    ),
-    dailyRevenue: await getRevenueFromTo(
-      api,
-      listedTokens,
-      fromTimestamp,
-      toTimestamp
-    ),
-  };
+const methodologyFluid = {
+  Fees: "Interest paid by borrowers",
+  Revenue: "Percentage of interest going to treasury",
 };
 
+const dataStartTimestamp = 1708246655; // ~ when liquidity resolver was deployed
+
+const fetch: FetchV2 = async ({ api, fromTimestamp, toTimestamp }) => {
+  return {
+    totalFees: await getFeesFromTo(api, dataStartTimestamp, toTimestamp),
+    dailyFees: await getFeesFromTo(api, fromTimestamp, toTimestamp),
+    totalRevenue: await getRevenueFromTo(api, dataStartTimestamp, toTimestamp),
+    dailyRevenue: await getRevenueFromTo(api, fromTimestamp, toTimestamp),
+  };
+};
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: dataStartTimestamp,
+      meta: {
+        methodology: methodologyFluid,
+      },
     },
   },
 };
 
 export default adapter;
 
-const getRevenueFromTo = async (
+const getFeesFromTo = async (
   api: sdk.ChainApi,
-  tokens: string[],
   fromTimestamp: number,
   toTimestamp: number
 ): Promise<number> => {
-  console.log("\n---------------------");
-  console.log(
-    "GETTING REVENUE fromTimestamp",
-    fromTimestamp,
-    "until toTimestamp",
-    toTimestamp,
-    "(blocks " + (await getBlock(api.chain, fromTimestamp)).number + "-",
-    (await getBlock(api.chain, toTimestamp)).number + "):"
-  );
+  let fromBlock = (await getBlock(api.chain, fromTimestamp)).number;
+  const toBlock = (await getBlock(api.chain, toTimestamp)).number;
 
-  const liquidityRevenue = await getLiquidityRevenueFromTo(
-    api,
-    tokens,
-    fromTimestamp,
-    toTimestamp
-  );
-  console.log("total liquidityRevenue", liquidityRevenue);
+  if (fromTimestamp < vaultResolverExistAfterTimestamp) {
+    fromTimestamp = vaultResolverExistAfterTimestamp;
+    fromBlock = vaultResolverExistAfterBlock;
+  }
+  if (fromTimestamp >= toTimestamp) {
+    return 0;
+  }
 
-  const vaultsMagnifierRevenue = await getVaultsMagnifierRevenueFromTo(
-    api,
-    fromTimestamp,
-    toTimestamp
-  );
-  console.log("----------------");
-  console.log("total liquidityRevenue", liquidityRevenue);
-  console.log("total vaultsMagnifierRevenue", vaultsMagnifierRevenue);
-  console.log("total revenue ", liquidityRevenue + vaultsMagnifierRevenue);
-  console.log("---------------- \n");
+  const liquidityOperateLogs = (await sdk.getEventLogs({
+    target: fluidLiquidity,
+    fromBlock,
+    toBlock,
+    chain: api.chain,
+    onlyArgs: true,
+    eventAbi:
+      "event LogOperate(address indexed user,address indexed token,int256 supplyAmount,int256 borrowAmount,address withdrawTo,address borrowTo,uint256 totalAmounts,uint256 exchangePricesAndConfig)",
+  })) as any[];
 
-  return liquidityRevenue + vaultsMagnifierRevenue;
+  const fromApi = new sdk.ChainApi({
+    chain: api.chain,
+    block: fromBlock,
+  });
+  const toApi = new sdk.ChainApi({
+    chain: api.chain,
+    block: toBlock,
+  });
+  const vaults: string[] = await toApi.call({
+    target: fluidVaultResolver,
+    abi: fluidVaultResolverAbi.getAllVaultsAddresses,
+  });
+
+  for await (const vault of vaults) {
+    let borrowBalance = new BigNumber(0);
+    let borrowToken = "";
+    try {
+      const { constantVariables, totalSupplyAndBorrow } = await fromApi.call({
+        target:
+          fromBlock > vaultResolverHistoricalBlock
+            ? fluidVaultResolver
+            : fluidVaultResolverHistorical,
+        abi: fluidVaultResolverAbi.getVaultEntireData,
+        params: [vault],
+      });
+
+      borrowToken = constantVariables.borrowToken;
+      borrowBalance = new BigNumber(totalSupplyAndBorrow.totalBorrowVault);
+    } catch (ex) {
+      // when vault did not exist yet, getVaultEntireData() will revert. at from block then we start from 0 balance.
+    }
+
+    if (!borrowToken) {
+      const { borrowToken: vaultBorrowToken } = await toApi.call({
+        target: vault,
+        abi: fluidVaultAbi.constantsView,
+      });
+      borrowToken = vaultBorrowToken;
+    }
+
+    // get block numbers where an update to vault borrow amounts happened + start block and end block
+    let vaultOperates = liquidityOperateLogs.filter(
+      (x) =>
+        x[0] == vault && // filter user must be vault
+        x[1] == borrowToken // filter token must be vault borrow token (ignore supply / withdraw)
+    );
+
+    for await (const vaultOperate of vaultOperates) {
+      borrowBalance = borrowBalance.plus(new BigNumber(vaultOperate[3]));
+    }
+
+    const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await toApi.call({
+      target:
+        toBlock > vaultResolverHistoricalBlock
+          ? fluidVaultResolver
+          : fluidVaultResolverHistorical,
+      abi: fluidVaultResolverAbi.getVaultEntireData,
+      params: [vault],
+    });
+
+    toApi.addToken(
+      borrowToken,
+      new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
+        borrowBalance
+      )
+    );
+  }
+
+  return await toApi.getUSDValue();
+};
+
+const getRevenueFromTo = async (
+  api: sdk.ChainApi,
+  fromTimestamp: number,
+  toTimestamp: number
+): Promise<number> => {
+  return (
+    (await getLiquidityRevenueFromTo(api, fromTimestamp, toTimestamp)) +
+    (await getVaultsMagnifierRevenueFromTo(api, fromTimestamp, toTimestamp))
+  );
 };
 
 const getLiquidityRevenueFromTo = async (
   api: sdk.ChainApi,
-  tokens: string[],
   fromTimestamp: number,
   toTimestamp: number
 ) => {
+  const tokens: string[] = await api.call({
+    target: fluidLiquidityResolver,
+    abi: fluidLiquidityResolverAbi.listedTokens,
+  });
+
   const collectRevenueLogs: [string, BigNumber][] = (await sdk.getEventLogs({
     target: fluidLiquidity,
     fromBlock: (await getBlock(api.chain, fromTimestamp)).number,
@@ -174,11 +237,6 @@ const getLiquidityRevenueFromTo = async (
         : new BigNumber(0)
     );
   }
-
-  console.log(
-    "liquidityRevenue balances (revenue for period)",
-    balancesApi.getBalances()
-  );
 
   return await balancesApi.getUSDValue();
 };
@@ -297,24 +355,6 @@ const getVaultsMagnifierRevenueFromTo = async (
   const revenueFrom = await fromBalancesApi.getUSDValue();
   const revenueTo = await toBalancesApi.getUSDValue();
 
-  console.log(
-    "vault magnifier token balances at FROM timestamp",
-    fromBalancesApi.getBalances()
-  );
-  console.log(
-    "vault magnifier token balances at TO timestamp",
-    toBalancesApi.getBalances()
-  );
-
-  console.log(
-    "vault magnifier token balances at FROM timestamp in USD value",
-    revenueFrom
-  );
-  console.log(
-    "vault magnifier token balances at TO timestamp in USD value",
-    revenueTo
-  );
-
   return revenueTo > revenueFrom ? revenueTo - revenueFrom : 0;
 };
 
@@ -365,16 +405,6 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
       balancesApi.addToken(borrowToken, log.debtAmt);
     }
   }
-  console.log(
-    "for vault",
-    vault,
-    "with supply token",
-    supplyToken,
-    "and borrow token",
-    borrowToken,
-    "collected vault magnifier revenue via rebalances in from->to timespan (in USD value):",
-    (await balancesApi.getUSDValue()) - initialBalanceUSD
-  );
 
   return balancesApi;
 };
@@ -397,52 +427,44 @@ const getVaultMagnifierUncollectedRevenueAt = async (
     block: targetBlock,
   });
 
-  const { totalSupplyAndBorrow, constantVariables } = await timestampedApi.call(
-    {
-      target:
-        targetBlock > vaultResolverHistoricalBlock
-          ? fluidVaultResolver
-          : fluidVaultResolverHistorical,
-      abi: fluidVaultResolverAbi.getVaultEntireData,
-      params: [vault],
-    }
-  );
+  try {
+    const { totalSupplyAndBorrow, constantVariables } =
+      await timestampedApi.call({
+        target:
+          targetBlock > vaultResolverHistoricalBlock
+            ? fluidVaultResolver
+            : fluidVaultResolverHistorical,
+        abi: fluidVaultResolverAbi.getVaultEntireData,
+        params: [vault],
+      });
 
-  const totalSupplyVault = new BigNumber(totalSupplyAndBorrow.totalSupplyVault);
-  const totalBorrowVault = new BigNumber(totalSupplyAndBorrow.totalBorrowVault);
-  const totalSupplyLiquidity = new BigNumber(
-    totalSupplyAndBorrow.totalSupplyLiquidity
-  );
-  const totalBorrowLiquidity = new BigNumber(
-    totalSupplyAndBorrow.totalBorrowLiquidity
-  );
+    const totalSupplyVault = new BigNumber(
+      totalSupplyAndBorrow.totalSupplyVault
+    );
+    const totalBorrowVault = new BigNumber(
+      totalSupplyAndBorrow.totalBorrowVault
+    );
+    const totalSupplyLiquidity = new BigNumber(
+      totalSupplyAndBorrow.totalSupplyLiquidity
+    );
+    const totalBorrowLiquidity = new BigNumber(
+      totalSupplyAndBorrow.totalBorrowLiquidity
+    );
 
-  // if more supply at liquidity than at vault -> uncollected profit
-  const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
-    ? totalSupplyLiquidity.minus(totalSupplyVault)
-    : new BigNumber(0);
-  // if less borrow at liquidity than at vault -> profit
-  const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
-    ? totalBorrowVault.minus(totalBorrowLiquidity)
-    : new BigNumber(0);
+    // if more supply at liquidity than at vault -> uncollected profit
+    const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
+      ? totalSupplyLiquidity.minus(totalSupplyVault)
+      : new BigNumber(0);
+    // if less borrow at liquidity than at vault -> profit
+    const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
+      ? totalBorrowVault.minus(totalBorrowLiquidity)
+      : new BigNumber(0);
 
-  //   console.log(
-  //     "for token supply ",
-  //     constantVariables.supplyToken,
-  //     supplyTokenProfit.toString()
-  //   );
-  balancesApi.add(constantVariables.supplyToken, supplyTokenProfit);
-  //   console.log("USD balance now", await balancesApi.getUSDValue());
-
-  //   console.log(
-  //     "for token borrowToken ",
-  //     constantVariables.borrowToken,
-  //     borrowTokenProfit.toString()
-  //   );
-
-  balancesApi.add(constantVariables.borrowToken, borrowTokenProfit);
-
-  //   console.log("USD balance now", await balancesApi.getUSDValue());
+    balancesApi.add(constantVariables.supplyToken, supplyTokenProfit);
+    balancesApi.add(constantVariables.borrowToken, borrowTokenProfit);
+  } catch (ex) {
+    // when vault did not exist yet, getVaultEntireData() will revert. there is no uncollected revenue at that point.
+  }
 
   return balancesApi;
 };
