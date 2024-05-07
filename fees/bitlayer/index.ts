@@ -65,7 +65,6 @@ const adapter: Adapter = {
         options: FetchOptions
       ) => {
         const amount = await getEtherscanFees(
-          //精度 应该是18，后端返回值应该知道
           options,
           "https://api.btrscan.com/scan/v1/chain/txForDefillama"
         );
