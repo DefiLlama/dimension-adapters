@@ -1,6 +1,4 @@
-import { Fetch, FetchOptions } from "../adapters/types";
-import * as sdk from "@defillama/sdk";
-
+import { FetchOptions, FetchV2 } from "../adapters/types";
 
 const event_pools_balance_change = "event PoolBalanceChanged(bytes32 indexed poolId,address indexed liquidityProvider,address[] tokens,int256[] deltas,uint256[] protocolFeeAmounts)"
 const event_flash_bot = "event FlashLoan(address indexed recipient,address indexed token,uint256 amount,uint256 feeAmount)"
@@ -33,7 +31,7 @@ export async function getFees(vault: string, { createBalances, api, getLogs, }: 
 }
 
 export function getFeesExport(vault: string, { revenueRatio = 0.25 }: { revenueRatio?: number } = {}) {
-  return (async (timestamp: number, _: any, options: FetchOptions) => {
+  return (async (options) => {
     const dailyFees = await getFees(vault, options)
     const { createBalances } = options
     const dailyRevenue = createBalances()
@@ -42,6 +40,6 @@ export function getFeesExport(vault: string, { revenueRatio = 0.25 }: { revenueR
     dailySupplySideRevenue.addBalances(dailyFees)
     dailyRevenue.resizeBy(revenueRatio)
     dailySupplySideRevenue.resizeBy(1 - revenueRatio)
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue, timestamp, }
-  }) as Fetch
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue, }
+  }) as FetchV2
 }

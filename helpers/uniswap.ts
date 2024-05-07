@@ -17,7 +17,7 @@ export async function filterPools({ api, pairs, createBalances }: { api: ChainAp
     }
     pairBalances[balanceCalls[i].params].add(balanceCalls[i].target, bal ?? 0)
   })
-  // we do this to cache price results 
+  // we do this to cache price results
   await balances.getUSDValue()
   const filteredPairs: IJSON<number> = {}
   for (const pair of Object.keys(pairs)) {
@@ -42,7 +42,7 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory}-${chain}.json`
 
-    const { pairs, token0s, token1s } = await cache.readCache(cacheKey)
+    const { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!pairs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
     const pairObject: IJSON<string[]> = {}
     pairs.forEach((pair: string, i: number) => {
@@ -71,15 +71,14 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
     const iface = new ethers.Interface([poolCreatedEvent])
-
-    let { logs } = await cache.readCache(cacheKey)
+    let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
     logs = logs.map((log: any) => iface.parseLog(log)?.args)
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
     logs.forEach((log: any) => {
       pairObject[log.pool] = [log.token0, log.token1]
-      fees[log.pool] = log.fee.toString() / 1e6
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
     })
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()

@@ -5,6 +5,8 @@ import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import BigNumber from "bignumber.js";
 
+const RAY = new BigNumber(10).pow(27);
+
 const endpoints = {
   [ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
@@ -21,6 +23,15 @@ const collateralYields = {
   "PSM-GUSD-A": 2,
 } as {
   [rwa:string]:number
+}
+
+const MCD_POT={
+  address: '0x197e90f9fad81970ba7976f33cbd77088e5d7cf7',
+  abis: {
+    Pie: {"constant":true,"inputs":[],"name":"Pie","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+    dsr: {"constant":true,"inputs":[],"name":"dsr","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+    chi: {"constant":true,"inputs":[],"name":"chi","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+  } as any
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -68,9 +79,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
       
       dailyFee = dailyFee.plus(sparkSupplyAPY*sparkSupply/1e18)
 
+      const [Pie, chi, dsr] = await Promise.all(["Pie", "chi", "dsr"].map(async name=>(
+        await toApi.call({
+          target: MCD_POT.address,
+          abi: MCD_POT.abis[name],
+        })
+      )))
+      const dsrTvl = BigNumber(Pie).times(chi).div(1e18).div(RAY) // check against https://makerburn.com/#/
+      const dsrExpenses = BigNumber(dsr).div(RAY).pow(60*60*24).minus(1).times(dsrTvl)
+
       return {
         dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
+        dailyRevenue: dailyFee.minus(dsrExpenses).toString(),
       };
     };
   };

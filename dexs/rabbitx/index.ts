@@ -1,10 +1,11 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/markets"
 const candles = (market: string, timestampFrom: number, timestampTo: number) => {
-  const url = `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
+const url = `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
   return url;
 
 }
@@ -16,8 +17,8 @@ interface IVolumeall {
 }
 
 const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const toTimestamp = getTimestampAtStartOfNextDayUTC(fromTimestamp) - 1;
 
   // Get market data
   const response = await fetchURL(historicalVolumeEndpoint);

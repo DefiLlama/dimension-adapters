@@ -23,9 +23,10 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
+    "hyperliquid": {
       fetch,
       start: 1677283200,
+      runAtCurrTime: true,
     },
   }
 };

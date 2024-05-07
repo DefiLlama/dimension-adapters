@@ -1,0 +1,59 @@
+import fetchURL from "../../utils/fetchURL"
+import type { SimpleAdapter } from "../../adapters/types";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+
+type TMarket = {
+  [s: string]: {
+    baseVolume: number;
+    usdVolume24h: number;
+    usdVolumeAll: number;
+  }
+}
+
+type TMarketInfo = {
+  [s: string]: {
+    baseAsset: {
+      usdPrice: number;
+    };
+  }
+}
+
+
+const fetch = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const markets: TMarket = (await fetchURL('https://api.zklite.io/api/v1/markets'));
+  const marketInfos: TMarketInfo = (await fetchURL('https://api.zklite.io/api/v1/marketinfos?chain_id=1&market=' + Object.keys(markets).join(',')));
+  let dailyVolume = 0
+  let totalVolume = 0
+  Object.keys(markets).forEach(market => {
+    const { baseVolume, usdVolume24h, usdVolumeAll } = markets[market]
+    if (usdVolume24h) {
+      dailyVolume += usdVolume24h;
+      totalVolume += usdVolumeAll;
+      return;
+    }
+
+    const info = marketInfos[market]
+    if (!info) return;
+    dailyVolume += baseVolume * info.baseAsset.usdPrice;
+  })
+  return {
+    dailyVolume,
+    totalVolume,
+    timestamp: dayTimestamp,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ZKSYNC]: {
+      fetch,
+      runAtCurrTime: true,
+      customBackfill: undefined,
+      start: 1712718123,
+    },
+  }
+};
+
+export default adapter;

@@ -11,7 +11,8 @@ const adapter: SimpleAdapter = {
       fetch: getFeesExport({ FACTORY_ADDRESS, VOTER_ADDRESS, }),
       start: 1695458888,
     },
-  }
+  },
+  version: 2,
 };
 
 export default adapter;
