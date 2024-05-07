@@ -30,13 +30,17 @@ const vaultResolverExistAfterBlock = 19313700; // vault resolver related revenue
 const vaultResolverHistoricalBlock = 19662786;
 const fluidVaultResolverHistorical =
   "0x8DD65DaDb217f73A94Efb903EB2dc7B49D97ECca";
-
 const fluidVaultResolver = "0x93CAB6529aD849b2583EBAe32D13817A2F38cEb4";
 const fluidVaultResolverAbi = {
   getAllVaultsAddresses:
     "function getAllVaultsAddresses() external view returns (address[] vaults_)",
   getVaultEntireData:
     "function getVaultEntireData(address vault_) view returns ((address vault, (address liquidity, address factory, address adminImplementation, address secondaryImplementation, address supplyToken, address borrowToken, uint8 supplyDecimals, uint8 borrowDecimals, uint256 vaultId, bytes32 liquiditySupplyExchangePriceSlot, bytes32 liquidityBorrowExchangePriceSlot, bytes32 liquidityUserSupplySlot, bytes32 liquidityUserBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePrice, address rebalancer) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateVault, uint256 borrowRateVault, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, uint256 rewardsRate) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidity, uint256 totalBorrowLiquidity, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable) liquidityUserBorrowData) vaultData_)",
+};
+const fluidVaultResolverTarget = async (api: sdk.ChainApi) => {
+  return (await api.getBlock()) > vaultResolverHistoricalBlock
+    ? fluidVaultResolver
+    : fluidVaultResolverHistorical;
 };
 
 const fluidVaultAbi = {
@@ -109,7 +113,7 @@ const getFeesFromTo = async (
     block: toBlock,
   });
   const vaults: string[] = await toApi.call({
-    target: fluidVaultResolver,
+    target: await fluidVaultResolverTarget(toApi),
     abi: fluidVaultResolverAbi.getAllVaultsAddresses,
   });
 
@@ -118,10 +122,7 @@ const getFeesFromTo = async (
     let borrowToken = "";
     try {
       const { constantVariables, totalSupplyAndBorrow } = await fromApi.call({
-        target:
-          fromBlock > vaultResolverHistoricalBlock
-            ? fluidVaultResolver
-            : fluidVaultResolverHistorical,
+        target: await fluidVaultResolverTarget(fromApi),
         abi: fluidVaultResolverAbi.getVaultEntireData,
         params: [vault],
       });
@@ -152,10 +153,7 @@ const getFeesFromTo = async (
     }
 
     const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await toApi.call({
-      target:
-        toBlock > vaultResolverHistoricalBlock
-          ? fluidVaultResolver
-          : fluidVaultResolverHistorical,
+      target: await fluidVaultResolverTarget(toApi),
       abi: fluidVaultResolverAbi.getVaultEntireData,
       params: [vault],
     });
@@ -312,7 +310,7 @@ const getVaultsMagnifierRevenueFromTo = async (
   toTimestamp: number
 ) => {
   const vaults: string[] = await api.call({
-    target: fluidVaultResolver,
+    target: await fluidVaultResolverTarget(api),
     abi: fluidVaultResolverAbi.getAllVaultsAddresses,
   });
 
@@ -430,10 +428,7 @@ const getVaultMagnifierUncollectedRevenueAt = async (
   try {
     const { totalSupplyAndBorrow, constantVariables } =
       await timestampedApi.call({
-        target:
-          targetBlock > vaultResolverHistoricalBlock
-            ? fluidVaultResolver
-            : fluidVaultResolverHistorical,
+        target: await fluidVaultResolverTarget(timestampedApi),
         abi: fluidVaultResolverAbi.getVaultEntireData,
         params: [vault],
       });
