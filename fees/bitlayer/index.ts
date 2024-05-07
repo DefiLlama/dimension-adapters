@@ -61,8 +61,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BITLAYER]: {
       fetch: async (
-        _timestamp: number,
-        _: ChainBlocks,
         options: FetchOptions
       ) => {
         const amount = await getEtherscanFees(
