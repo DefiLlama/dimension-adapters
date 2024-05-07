@@ -9,6 +9,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 
 export async function getFeeUSD({ startOfDay }: FetchOptions, url: string) {
+  startOfDay -= 86400;
   const dailyFees = await httpPost(url, {
     responseType: "blob",
     headers: {
