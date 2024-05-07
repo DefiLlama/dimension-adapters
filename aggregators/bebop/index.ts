@@ -116,6 +116,7 @@ const adapter: any = {
     bsc: { fetch, start: 1685491200, },
     blast: { fetch, start: 1685491200, },
     era: { fetch, start: 1685491200, },
+    optimism: { fetch, start: 1685491200, },
   },
 };
 

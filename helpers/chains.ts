@@ -147,6 +147,8 @@ export enum CHAIN {
   ASTRZK = "astrzk",
   LYRA = "lyra",
   BITLAYER = "bitlayer",
+  XLAYER = "xlayer",
+  MERLIN = "merlin"
 }
 
 // Don´t use

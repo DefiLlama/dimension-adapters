@@ -34,7 +34,7 @@ export async function fetchIthacaVolumeData(
   timestamp: number
 ) {
   const { response: ithacaStats } = await fetchURL(`https://app.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
-  
+
   const dailyNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
   dailyNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.daily_volume_numeraire.toFixed(6), 6))
   dailyNotionalVolume.addToken(WETH_CONTRACT, parseUnits(`${ithacaStats.daily_volume_underlier}`, 18))
@@ -48,9 +48,9 @@ export async function fetchIthacaVolumeData(
     dailyFees: ithacaStats.daily_fees,
     totalFees: ithacaStats.total_fees,
     dailyPremiumVolume: ithacaStats.daily_premium,
-    totalPremiumVolume: ithacaStats.total_premium,
+    // totalPremiumVolume: ithacaStats.total_premium,
     dailyNotionalVolume,
-    totalNotionalVolume,
+    // totalNotionalVolume,
   };
 }
 

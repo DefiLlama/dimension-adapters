@@ -8,7 +8,7 @@ import { canGetBlock, getBlock } from '../helpers/getBlock';
 import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
 import { execSync } from 'child_process';
 
-function checkIfFileExistsInMasterBranch(filePath) {
+function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
   const resString = res.toString()

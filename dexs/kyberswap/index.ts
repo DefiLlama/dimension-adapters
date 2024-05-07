@@ -229,7 +229,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    // classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
+    classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)
   }
 }

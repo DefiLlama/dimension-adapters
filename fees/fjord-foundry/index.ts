@@ -1,9 +1,10 @@
-import { BreakdownAdapter, FetchV2 } from "../../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { BreakdownAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const feeEndpoint = "https://fjord-api.vercel.app/api/daily-stats?version=2";
+const feeEndpointV1 = "https://fjord-api.vercel.app/api/daily-stats?version=1";
 
 const v2ChainIDs = {
     [CHAIN.ETHEREUM]: 1,
@@ -15,8 +16,14 @@ const v2ChainIDs = {
     [CHAIN.BSC]: 56,
 };
 
-const getV2Data = async (endTimestamp, chainId) => {
-    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp)
+const v1ChainIDs = {
+    [CHAIN.ETHEREUM]: 1,
+    [CHAIN.POLYGON]: 137,
+    [CHAIN.ARBITRUM]: 42161,
+};
+
+const getV2Data = async (endTimestamp: number, chainId: number) => {
+    const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalFees = (await fetchURL(feeEndpoint))
 
     const chainData = historicalFees.stats.find(cd => cd.chainId === chainId);
@@ -30,9 +37,30 @@ const getV2Data = async (endTimestamp, chainId) => {
 
     return {
         totalFees: `${totalFee}`,
-        dailyFees: dailyFee ? `${dailyFee}` : undefined,
+        dailyFees: dailyFee ? `${dailyFee}` : '0',
         totalRevenue: `${totalFee}`,
-        dailyRevenue: dailyFee ? `${dailyFee}` : undefined,
+        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
+    };
+};
+
+const getV1Data = async (endTimestamp: number, chainId: number) => {
+    const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
+    const historicalFees = (await fetchURL(feeEndpointV1))
+
+    const chainData = historicalFees.stats.find(cd => cd.chainId === chainId);
+
+    const totalFee = chainData.stats
+        .filter(item => item.timestamp <= dayTimestamp)
+        .reduce((acc, { fees }) => acc + fees, 0)
+
+    const dailyFee = chainData.stats
+        .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
+
+    return {
+        totalFees: `${totalFee}`,
+        dailyFees: dailyFee ? `${dailyFee}` : '0',
+        totalRevenue: `${totalFee}`,
+        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
     };
 };
 
@@ -47,8 +75,20 @@ const adapter: BreakdownAdapter = {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: async (ts: number) => await getV2Data(ts, v2ChainIDs[chain]),
+                    fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
                     start: 1702857600,
+                    meta: {
+                        methodology,
+                    },
+                },
+            }
+        }, {}),
+        v1: Object.keys(v1ChainIDs).reduce((acc, chain) => {
+            return {
+                ...acc,
+                [chain]: {
+                    fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
+                    start: 1631836800,
                     meta: {
                         methodology,
                     },
