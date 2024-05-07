@@ -74,9 +74,6 @@ const adapter: Adapter = {
           options,
           "https://api.btrscan.com/scan/v1/chain/txForDefillama"
         );
-
-        console.log("amount", amount);
-        console.log("feeUSD", feeUSD);
         const dailyFees = feeUSD.toString();
 
         return {
