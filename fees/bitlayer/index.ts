@@ -84,7 +84,8 @@ const adapter: Adapter = {
           dailyFees,
         };
       },
-      start: true,
+      runAtCurrTime: true,
+      start: 1713089236,
     },
   },
   protocolType: ProtocolType.CHAIN,
