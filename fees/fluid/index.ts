@@ -309,10 +309,9 @@ const getVaultsMagnifierRevenueFromTo = async (
   fromTimestamp: number,
   toTimestamp: number
 ) => {
-  const vaults: string[] = await api.call({
-    target: await fluidVaultResolverTarget(api),
-    abi: fluidVaultResolverAbi.getAllVaultsAddresses,
-  });
+  if (toTimestamp < vaultResolverExistAfterTimestamp) {
+    return 0;
+  }
 
   let fromBalancesApi = new sdk.ChainApi({
     block: await api.getBlock(),
@@ -320,8 +319,13 @@ const getVaultsMagnifierRevenueFromTo = async (
   });
 
   let toBalancesApi = new sdk.ChainApi({
-    block: await api.getBlock(),
+    block: (await getBlock(api.chain, toTimestamp)).number,
     chain: api.chain,
+  });
+
+  const vaults: string[] = await toBalancesApi.call({
+    target: await fluidVaultResolverTarget(toBalancesApi),
+    abi: fluidVaultResolverAbi.getAllVaultsAddresses,
   });
 
   for await (const vault of vaults) {
@@ -363,7 +367,6 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
   toTimestamp: number,
   balancesApi: sdk.ChainApi
 ) => {
-  const initialBalanceUSD = await balancesApi.getUSDValue();
   const rebalanceEventLogs: { colAmt: BigNumber; debtAmt: BigNumber }[] = (
     (await sdk.getEventLogs({
       target: vault,
