@@ -6,6 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const fluidLiquidity = "0x52aa899454998be5b000ad077a46bbe360f4e497";
 
+const fluidRevenueResolverExistAfterBlock = 19784319;
 const fluidRevenueResolver = "0x0F683159f14857D61544650607549Cdc21abE774";
 const fluidRevenueResolverAbi = {
   calcRevenueSimulatedTime:
@@ -290,7 +291,11 @@ const getLiquidityUncollectedRevenueAt = async (
 
   // pass data into revenue resolver, available at current api block, which calculates revenue at the
   // simulated timestamp based on storage slots data
-  const uncollectedRevenue = await api.call({
+
+  const uncollectedRevenue = await new sdk.ChainApi({
+    chain: api.chain,
+    block: fluidRevenueResolverExistAfterBlock,
+  }).call({
     target: fluidRevenueResolver,
     abi: fluidRevenueResolverAbi.calcRevenueSimulatedTime,
     params: [
