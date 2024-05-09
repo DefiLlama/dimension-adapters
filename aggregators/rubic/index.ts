@@ -49,8 +49,8 @@ const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchRes
   );
 
   return {
-    dailyVolume: responce?.daily_volume_in_usd || undefined,
-    totalVolume: responce?.total_volume_in_usd || undefined,
+    dailyVolume: responce?.daily_volume_in_usd || '0',
+    totalVolume: responce?.total_volume_in_usd || '0',
     timestamp: options.startTimestamp,
   };
 };
