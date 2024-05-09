@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import {FetchResult, SimpleAdapter} from "../../adapters/types";
+import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 
 
@@ -43,15 +43,15 @@ interface ApiResponce {
   total_transaction_count: string;
 }
 
-const fetch = (chain: string) => async (timestamp: number): Promise<FetchResult> => {
+const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
   const responce: ApiResponce = (
-    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${timestamp}&network=${chain}`)
+    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
   );
 
   return {
     dailyVolume: responce?.daily_volume_in_usd || undefined,
     totalVolume: responce?.total_volume_in_usd || undefined,
-    timestamp,
+    timestamp: options.startTimestamp,
   };
 };
 
@@ -70,6 +70,7 @@ const adapter: SimpleAdapter = {
       };
     }, {}),
   },
+  version: 2
 };
 
 export default adapter;
