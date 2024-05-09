@@ -32,7 +32,8 @@ const chains: TChains =  {
   [CHAIN.ULTRON]: 1231,
   [CHAIN.LINEA]: 59144,
   [CHAIN.SCROLL]: 534352,
-  [CHAIN.BASE]: 8453
+  [CHAIN.BASE]: 8453,
+  [CHAIN.MANTA]: 169,
 };
 
 const fetch = (chain: Chain) => {
@@ -43,8 +44,8 @@ const fetch = (chain: Chain) => {
     const historical: IVolumeall[] = [];
     while (isSuccess) {
       const response = (await fetchURL(historicalVolumeEndpoint(chains[chain], page)));
-      if (response.data.is_success){
-        Array.prototype.push.apply(historical, response.data.data);
+      if (response.is_success){
+        Array.prototype.push.apply(historical, response.data);
         page += 1;
       } else {
         isSuccess = false;
@@ -72,10 +73,11 @@ for (const chain in chains) {
   if (chain == CHAIN.BSC || chain == CHAIN.ERA){
     startTime = 1680739200;
   };
+  if (chain === CHAIN.AURORA) startTime = 1665446400;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch(chain),
-      start: async () => startTime,
+      start: startTime,
       customBackfill: customBackfill(chain, fetch)
     };
   };

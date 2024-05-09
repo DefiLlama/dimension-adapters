@@ -1,73 +1,87 @@
-import postgres from "postgres";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { queryDune } from "../helpers/dune";
 
-
-interface IData {
-  data: string;
+interface IFees {
+  block_date: string;
+  feesSOL: number;
 }
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+
+const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const sql = postgres(process.env.INDEXA_DB!);
-
-  const now = new Date(timestamp * 1e3)
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
   try {
-    const transfer_txs = await sql`
-      SELECT
-          block_time,
-          encode(transaction_hash, 'hex') AS HASH,
-          encode(data, 'hex') AS data
-      FROM
-          ethereum.event_logs
-      WHERE
-          block_number > 17345415
-          AND contract_address IN (
-              SELECT DISTINCT address
-              FROM ethereum.traces
-              WHERE
-                  block_number > 17345415
-                  AND from_address IN ('\\xf414d478934c29d9a80244a3626c681a71e53bb2', '\\x37aab97476ba8dc785476611006fd5dda4eed66b')
-                  AND "type" = 'create'
-          )
-          AND topic_0 = '\\x0c2a2f565c7774c59e49ef6b3c255329f4d254147e06e724d3a8569bb7bd21ad'
-          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-    `;
-
-    const transactions: IData[] = [...transfer_txs] as IData[]
-    const amount = transactions.map((e: IData) => {
-      const amount = Number('0x'+e.data.slice(0, 64)) / 10 ** 18
-      return amount;
-    }).reduce((a: number, b: number) => a+b,0);
-
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], todaysTimestamp))[ethAddress].price;
-    const amountUSD = Math.abs(amount * ethPrice);
-    const dailyFees = amountUSD;
-    const dailyRevenue = dailyFees;
-    await sql.end({ timeout: 3 })
+    const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const value = (await queryDune("3521814", {
+      start: options.startTimestamp,
+      end: options.endTimestamp,
+      receiver: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF'
+    }));
+    dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
+    dailyRevenue.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
+      dailyFees: dailyFees,
+      dailyRevenue: dailyRevenue,
       timestamp
     }
-  } catch (error) {
-    await sql.end({ timeout: 3 })
-    console.error(error);
-    throw error;
+  } catch (error: any) {
+    console.error('Error fetching fees for Solana', error);
+    return {
+      dailyFees: "0",
+      timestamp
+    }
   }
+}
 
+const contract_address: any = {
+  [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  [CHAIN.BASE]: '0x1fba6b0bbae2b74586fba407fb45bd4788b7b130',
+  [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
+}
+
+const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const logs = await options.getLogs({
+    topic: '0x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f',
+    target: contract_address[options.chain],
+  });
+  logs.map((log: any) => {
+    const data = log.data.replace('0x', '');
+    const gasToken = data.slice(0, 64);
+    dailyFees.addGasToken(Number('0x' + gasToken));
+    dailyRevenue.addGasToken(Number('0x' + gasToken));
+  });
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyRevenue,
+    timestamp
+  }
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: async () => 1685577600,
+      fetch: fetchFees,
+      start: 1685577600,
+    },
+    [CHAIN.SOLANA]: {
+      fetch: fethcFeesSolana,
+      runAtCurrTime: true,
+      start: 1685577600,
+    },
+    [CHAIN.BLAST]: {
+      fetch: fetchFees,
+      start: 1685577600,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchFees,
+      start: 1685577600,
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

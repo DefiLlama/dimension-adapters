@@ -1,10 +1,11 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
   [CHAIN.POLYGON]:
@@ -55,13 +56,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: async () => 1648157552,
+      start: 1648157552,
     },
     // [CHAIN.POLYGON_ZKEVM]: {
     //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-    //   start: async () => 1679923169,
+    //   start: 1679923169,
     // },
   },
 };

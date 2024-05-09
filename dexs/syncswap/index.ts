@@ -13,6 +13,6 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date",
 });
 
-adapter.adapter.era.start = async () => 1679529600
+adapter.adapter.era.start = 1679529600
 
 export default adapter

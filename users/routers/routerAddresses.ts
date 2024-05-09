@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { isAddressesUsable } from "../utils/countUsers";
 import { ProtocolAddresses } from "../utils/types";
 
@@ -474,6 +475,15 @@ export default ([
         "addresses":{
             "arbitrum":[
                 "0xc873fEcbd354f5A56E00E710B90EF4201db2448d"
+            ]
+        }
+    },
+    {
+        "id":"4372",
+        "name":"Hercules",
+        "addresses":{
+            "metis":[
+                "0x14679D1Da243B8c7d1A4c6d0523A2Ce614Ef027C"
             ]
         }
     },
@@ -1784,14 +1794,13 @@ export default ([
             ]
         }
     },*/
-    {
+   /*{ // commented due to inactive project/returning error
         "id":"392",
         "name":"WardenSwap",
         "addresses":{
             "bsc":[
                 "0x451ef8D6B645a60115EB8b8bEa76B39C0C761004",
                 "0x71ac17934b60A4610dc58b715B61e45DCBdE4054",
-                "0x0Bdc24946818C0Fe045A1D84d2Fe630e6e59B77D",
             ],
             "ethereum":[
                 "0x39f97198c5DbC193EB962c4B3B7e447091A18eAB"
@@ -1805,9 +1814,8 @@ export default ([
             "optimism":[
                 "0x7EA8c22E6Dcd7bd69eb180664Da68e1f1F11D696"
             ],
-            "polygon":[],
         }
-    },
+    },*/
     {
         "id":"351",
         "name":"Gravity Finance",
@@ -2154,7 +2162,7 @@ export default ([
     },
     {
         "id":"2899",
-        "name":"Vertex Protocol",
+        "name":"Vertex",
         "addresses":{
             "arbitrum":[
                 "0xbbee07b3e8121227afcfe1e2b82772246226128e", // endpoint
@@ -2328,6 +2336,7 @@ export default ([
         "addresses":{
             "arbitrum":[
                 "0xC67E9Efdb8a66A4B91b1f3731C75F500130373A4",
+                "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7 "
             ],
         }
     },
@@ -2337,7 +2346,7 @@ export default ([
         "addresses":{
             "ethereum":[
                 "0xf403c135812408bfbe8713b5a23a04b3d48aae31",
-                "0x72a19342e8f1838460ebfccef09f6585e32db86e",
+                ADDRESSES.ethereum.vlCVX,
             ],
         }
     },
@@ -2477,7 +2486,7 @@ export default ([
                 "0x04B724389Dd28Ffc9a3A91Ab4149a77530282f04",//PrivateTgeVester
                 "0xA61f0d1d831BA4Be2ae253c13ff906d9463299c2",//PlutusChef
                 "0xb059Fc19371691aa7A3EC66dD80684FFE17A7D5c",//PlutusChef
-                "0x5326E71Ff593Ecc2CF7AcaE5Fe57582D6e74CFF1",//PlvGlpToken
+                ADDRESSES.arbitrum.plvGLP,//PlvGlpToken
                 "0x4E5Cf54FdE5E1237e80E87fcbA555d829e1307CE",//PlutusDAO: plvGLP Farm
                 "0x8c12e3C9b26Ee2e43A1a71cd974e6bF250472129",//SpaDepositor
                 "0x73e7c78E8a85C074733920f185d1c78163b555C8",//
@@ -2697,6 +2706,15 @@ export default ([
         }
     }, 
     {
+        "id":"3733",
+        "name":"Chat3",
+        "addresses":{
+            "mantle":[
+                "0xAd3dbD09835CF15c543Bc59d31865D659b71060e"
+            ]
+        }
+    }, 
+    {
         "id":"970",
         "name": "Drift",
         "addresses":{
@@ -2819,5 +2837,23 @@ export default ([
             ]
         }
     },
+    {
+        "id":"3977",
+        "name": "SquaDeFi",
+        "addresses":{
+            "base":[
+                "0xfad362E479AA318F2De7b2c8a1993Df9BB2B3b1f", // KeyManager
+            ]
+        }
+    },
+    {
+        "id":"3107",
+        "name":"EigenLayer",
+        "addresses":{
+            "ethereum":[
+                "0x858646372cc42e1a627fce94aa7a7033e7cf075a"
+            ]
+        }
+    }
     
 ] as ProtocolAddresses[]).filter(isAddressesUsable)

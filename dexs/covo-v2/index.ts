@@ -63,11 +63,8 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.POLYGON]: 1678855134,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.POLYGON]: 1678855134,
 }
 
 const adapter: BreakdownAdapter = {
@@ -78,7 +75,7 @@ const adapter: BreakdownAdapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {}),
@@ -88,7 +85,7 @@ const adapter: BreakdownAdapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {})

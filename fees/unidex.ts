@@ -3,95 +3,62 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { getPrices } from "../utils/prices";
 
-type TUrl = {
-  [l: string | Chain]: string;
-}
-const endpoints: TUrl = {
-  [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/optimismleveragev2',
-  [CHAIN.ERA]: 'https://zksync.tempsubgraph.xyz/subgraphs/name/unidex-finance/zkssyncleveragev2',
-  [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/fantomleveragev2',
-  // [CHAIN.METIS]: 'https://unidexcronos.xyz/subgraphs/name/unidex-finance/leveragev2', cert has expired
-  [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/unidex-finance/arbitrumleveragev2',
-}
-// hot fix era CERT_HAS_EXPIRED
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+type TChainIDs = { [key in Chain]?: number };
+const chainIDs: TChainIDs = {
+  [CHAIN.FANTOM]: 250,
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.OPTIMISM]: 10,
+  [CHAIN.ERA]: 324,
+  [CHAIN.BASE]: 8453,
+  [CHAIN.EVMOS]: 9001,
+};
 
-interface IDTrade {
-  id: string; // Add this line
-  cumulativeFees: string;
+interface IDayProduct {
+  cumulativeFeesUsd: number;
+  chainId: number;
 }
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
-    // Define token Ids based on the chain
-    let tokenIds: string[] = [];
-    switch (chain) {
-      case CHAIN.FANTOM:
-        tokenIds = [
-          "fantom:0x0000000000000000000000000000000000000000",
-          "fantom:0x04068da6c83afcfa0e13ba15a6696662335d5b75",
-          "fantom:0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
-        ];
-        break;
-      case CHAIN.ARBITRUM:
-        tokenIds = [
-          "arbitrum:0x0000000000000000000000000000000000000000",
-          "arbitrum:0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
-          "arbitrum:0xda10009cbd5d07dd0cecc66161fc93d7c9000da1",
-          "arbitrum:0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-          "arbitrum:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-          "arbitrum:0x912ce59144191c1204e64559fe8253a0e49e6548",
-          "arbitrum:0xfea7a6a0b346362bf88a9e4a88416b77a57d6c2a",
-          "arbitrum:0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a",
-          "arbitrum:0xd85e038593d7a098614721eae955ec2022b9b91b",
-          "arbitrum:0x5979D7b546E38E414F7E9822514be443A4800529",
-          "arbitrum:0x3f56e0c36d275367b8c502090edf38289b3dea0d",
-          "arbitrum:0x18c11FD286C5EC11c3b683Caa813B77f5163A122",
-          "arbitrum:0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418",
-          "arbitrum:0x031d35296154279dc1984dcd93e392b1f946737b",
-          "arbitrum:0x0Ae38f7E10A43B5b2fB064B42a2f4514cbA909ef",
-        ];
-        break;
-      // Add cases for other chains if needed
-    }
-
-    // Fetch prices for the defined token Ids
-    const prices = await getPrices(tokenIds, timestamp);
-
     const graphQuery = gql`
-      {
-        dayDatas(where:{ date: "${todaysTimestamp}"}) {
-          id
-          cumulativeFees
+      query MyQuery {
+        DayProducts(filter: {date: ${todaysTimestamp}}) {
+          cumulativeFeesUsd
+          chainId
         }
       }
     `;
 
-    const graphRes: IDTrade[] = (await request(endpoints[chain], graphQuery)).dayDatas;
+    const endpoint = "https://arkiver.moltennetwork.com/graphql";
+    const response = await request(endpoint, graphQuery);
+    const dayProducts: IDayProduct[] = response.DayProducts;
 
-    let dailyFeeUSD = 0;
-    graphRes.forEach((trade) => {
-      const tokenId = trade.id.split('-')[0]; // Extract the token address part
-      const tokenPriceKey = chain.toLowerCase() + ":" + tokenId; // Construct the key for fetching the price
-      const tokenPrice = prices[tokenPriceKey]?.price || 1;
-      const dailyFee = Number(trade.cumulativeFees || 0) / 10 ** 8;
-      dailyFeeUSD += dailyFee * tokenPrice; // Convert to USD
+    const feesByChain: { [chainId: number]: number } = {};
+    dayProducts.forEach((product) => {
+      const chainId = product.chainId;
+      if (chainId === 360) {
+        feesByChain[42161] = (feesByChain[42161] || 0) + product.cumulativeFeesUsd;
+      } else {
+        feesByChain[chainId] = (feesByChain[chainId] || 0) + product.cumulativeFeesUsd;
+      }
     });
 
-    const dailyHoldersRevenue = dailyFeeUSD * 0.35;
-    const dailyProtocolRevenue = dailyFeeUSD * 0.70;
-    const dailySupplySideRevenue = dailyFeeUSD * 0.3;
+    const chainID = chainIDs[chain];
+    const dailyFeeUSD = chainID !== undefined ? feesByChain[chainID] || 0 : 0;
+
+    const dailyHoldersRevenue = dailyFeeUSD * 0.65;
+    const dailyProtocolRevenue = dailyFeeUSD;
+    const dailySupplySideRevenue = dailyFeeUSD * 0.20;
+
     return {
       dailyFees: dailyFeeUSD.toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       dailyProtocolRevenue: dailyProtocolRevenue.toString(),
-      dailyRevenue: dailyProtocolRevenue.toString(),
       dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-      timestamp
+      timestamp,
     };
   };
 };
@@ -99,48 +66,47 @@ const fetch = (chain: Chain) => {
 const methodology = {
   Fees: "Fees collected from user trading fees",
   Revenue: "Fees going to the treasury + holders",
-  HoldersRevenue: "Fees going to token holders",
-  SupplySideRevenue: "Fees going to liquidity providers of counter party pools"
+  SupplySideFees: "Fees going to liquidity providers of the protocol",
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
-        fetch: fetch(CHAIN.OPTIMISM),
-        start: async ()  => 1687422746,
-        meta: {
-          methodology
-        }
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: async ()  => 1687422746,
-      meta: {
-        methodology
-      }
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1687422746,
-      meta: {
-        methodology
-      }
+      start: 1687422746,
+      meta: { methodology },
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1687422746,
-      meta: {
-        methodology
-      }
+      start: 1687422746,
+      meta: { methodology },
     },
-    // [CHAIN.METIS]: {
-    //   fetch: fetch(CHAIN.METIS),
-    //   start: async ()  => 1687898060,
-    //   meta: {
-    //     methodology
-    //   }
-    // },
-  }
-}
+    [CHAIN.METIS]: {
+      fetch: fetch(CHAIN.METIS),
+      start: 1687898060,
+      meta: { methodology },
+    },
+    [CHAIN.EVMOS]: {
+      fetch: fetch(CHAIN.EVMOS),
+      start: 1700104066,
+      meta: { methodology },
+    },
+  },
+};
 
 export default adapter;

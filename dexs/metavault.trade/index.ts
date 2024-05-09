@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -15,6 +15,15 @@ const historicalData = gql`
   }
 `
 
+const derivativesVolume = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+      liquidation
+      margin
+    }
+  }
+`
+
 interface IGraphResponse {
   volumeStats: Array<{
     burn: string,
@@ -25,13 +34,13 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
+const getFetch = (chain: string, query: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], historicalData, {
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
     id: String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], historicalData, {
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
     id: 'total',
     period: 'total',
   })
@@ -50,24 +59,24 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.POLYGON]: 1654041600,
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.POLYGON]: 1654041600,
+}
+
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    "metavault.trade": {
+      [CHAIN.POLYGON]: {
+        fetch: getFetch(CHAIN.POLYGON, historicalData),
+        start: startTimestamps[CHAIN.POLYGON],
+      },
+    },
+    "metavault-derivative": {
+      [CHAIN.POLYGON]: {
+        fetch: getFetch(CHAIN.POLYGON, derivativesVolume),
+        start: startTimestamps[CHAIN.POLYGON],
+      },
+    },
   }
-  return startTimestamps[chain]
 }
-
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch(chain),
-        start: async () => getStartTimestamp(chain),
-        runAtCurrTime: true
-      }
-    }
-  }, {})
-}
-
 export default adapter;

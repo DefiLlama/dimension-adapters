@@ -5,5 +5,5 @@ const adapters = univ2Adapter({
   [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/levinswap/uniswap-v2"
 }, {});
 
-adapters.adapter.xdai.start = async () => 1610767793;
+adapters.adapter.xdai.start = 1610767793;
 export default adapters;

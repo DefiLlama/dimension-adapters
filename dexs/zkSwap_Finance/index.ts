@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetchVolume(CHAIN.ERA),
-      start: async () => 1684842780,
+      start: 1684842780,
     },
   },
 };

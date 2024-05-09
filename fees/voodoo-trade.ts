@@ -110,7 +110,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),
-      start: async () => 1693997105,
+      start: 1693997105,
       meta: {
         methodology
       }

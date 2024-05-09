@@ -10,7 +10,7 @@ const adapters = univ2Adapter({
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData"
 });
-adapters.adapter.bitgert.start = async () => 1655917200;
-adapters.adapter.core.start = async () => 1675814400;
+adapters.adapter.bitgert.start = 1655917200;
+adapters.adapter.core.start = 1675814400;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

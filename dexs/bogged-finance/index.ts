@@ -26,7 +26,7 @@ const chains: TChains =  {
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])))?.data;
+    const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])));
     const totalVolume = historicalVolume
       .filter(volItem => Math.floor(Number(volItem.timestamp)/1000) <= dayTimestamp)
       .reduce((acc, { dailyVolume }) => acc + Number(dailyVolume), 0)
@@ -43,7 +43,7 @@ const fetch = (chain: Chain) => {
 };
 
 const getStartTimestamp = async (chain: string) => {
-  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])))?.data;
+  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])));
   return (new Date(historical[0].timestamp).getTime() / 1000);
 }
 

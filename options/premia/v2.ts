@@ -1,4 +1,4 @@
-import { utils } from "ethers";
+import { ethers } from "ethers";
 import { request, gql } from "graphql-request";
 
 interface GqlResult {
@@ -57,7 +57,7 @@ function get2Days(array: Array<any>, key: string): [string, string] {
 }
 
 function toNumber(value: string): number {
-  return Number(utils.formatEther(value));
+  return Number(ethers.formatEther(value));
 }
 
 function calcLast24hrsVolume(values: [string, string]): number {

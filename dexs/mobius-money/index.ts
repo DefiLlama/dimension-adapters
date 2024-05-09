@@ -22,10 +22,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.CELO]: {
       fetch: graphs(CHAIN.CELO),
-      start: async () => 1636514733,
+      start: 1636514733,
       // customBackfill: customBackfill(CHAIN.CELO as Chain, graphs)
     },
   },

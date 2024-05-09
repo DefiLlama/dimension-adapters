@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v2Graphs(chain),
-        start: async () => 1633392000,
+        start: 1633392000,
       }
     }
   }, {})

@@ -1,8 +1,8 @@
 import request from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
 import { getPrices } from "../../utils/prices";
+import { wrapGraphError } from "../../helpers/getUniSubgraph";
 import { Chain } from "@defillama/sdk/build/general";
 
 type IEndpoint = {
@@ -31,26 +31,22 @@ interface IResponse {
 }
 interface IAsset {
   id: string;
-  volume: string;
-  openInterest: string;
-  fees: string;
+  volume: number;
+  openInterest: number;
+  fees: number;
 }
-const fetchVolume = (chain: Chain) =>  {
-  return async (timestamp: number) => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+const fetchVolume = (chain: Chain) => {
+  return async (timestamp: number, _: ChainBlocks, { getFromBlock, getToBlock, createBalances, api, }: FetchOptions) => {
     const query = `
     {
-      today:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${toBlock}}) {
+      today:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getToBlock()}}) {
         id
         symbol
         totalVolume
         openInterest
         totalFees
       },
-      yesterday:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${fromBlock}}) {
+      yesterday:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getFromBlock()}}) {
         id
         symbol
         totalVolume
@@ -59,48 +55,50 @@ const fetchVolume = (chain: Chain) =>  {
       }
     }
     `;
-    const response: IResponse = (await request(endpoint[chain], query));
-    const data: IAsset[] = response.today.map((asset) => {
+    let response: IResponse
+    try {
+      response = await request(endpoint[chain], query)
+    } catch (error) {
+      console.error('Error fetching contango data', wrapGraphError(error as Error).message);
+      return { timestamp };
+    }
+
+    const dailyOpenInterest = createBalances();
+    const dailyFees = createBalances();
+    const dailyVolume = createBalances();
+    const totalFees = createBalances();
+    const totalVolume = createBalances();
+
+    const tokens = response.today.map((asset) => asset.id);
+    const decimals = await api.multiCall({  abi: 'erc20:decimals', calls: tokens})
+
+    const data: IAsset[] = response.today.map((asset, index: number) => {
       const yesterday = response.yesterday.find((e: IAssetTotals) => e.id === asset.id);
       const totalVolume = Number(asset.totalVolume) - Number(yesterday?.totalVolume || 0);
       const totalFees = Number(asset.totalFees) - Number(yesterday?.totalFees || 0);
       const openInterest = Math.abs(Number(asset.openInterest));
+      const multipliedBy = 10 ** Number(decimals[index]);
       return {
         id: asset.id,
-        openInterest: openInterest ? `${openInterest}` : 0,
-        fees: totalFees ? `${totalFees}` : 0,
-        volume: totalVolume ? `${totalVolume}` : 0,
+        openInterest: openInterest * multipliedBy,
+        fees: totalFees * multipliedBy,
+        volume: totalVolume * multipliedBy,
       } as IAsset
     })
-    const coins = data.map((e: IAsset) => `${chain}:${e.id}`);
-    const prices = await getPrices(coins, timestamp);
-    const dailyVolume = data.reduce((acc, { volume, id }) => {
-      const price = prices[`${chain}:${id}`]?.price || 0;
-      return acc + Number(volume) * price;
-    }, 0);
-    const dailyFees = data.reduce((acc, { fees, id }) => {
-      const price = prices[`${chain}:${id}`]?.price || 0;
-      return acc + Number(fees) * price;
-    },0);
-    const dailyOpenInterest = data.reduce((acc, { openInterest, id }) => {
-      const price = prices[`${chain}:${id}`]?.price || 0;
-      return acc + Number(openInterest) * price;
-    },0);
-    const totalFees = response.today.reduce((acc , { totalFees, id }) => {
-      const price  = prices[`${chain}:${id}`]?.price || 0;
-      return acc + Number(totalFees) * price;
-    }, 0);
-    const totalVolume  = response.today.reduce((acc , { totalVolume, id }) => {
-      const price  = prices[`${chain}:${id}`]?.price || 0;
-      return acc + Number(totalVolume) * price;
-    }, 0);
+    data.map(({ volume, id, openInterest, fees }) => {
+      dailyVolume.add(id, +volume)
+      dailyOpenInterest.add(id, +openInterest)
+      dailyFees.add(id, +fees)
+    });
+    response.today.map(({ totalFees: tf, id, totalVolume: tv, }, index) => {
+      const multipliedBy = 10 ** Number(decimals[index]);
+      totalFees.add(id, +tf * multipliedBy)
+      totalVolume.add(id, +tv * multipliedBy)
+    });
 
     return {
-      dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
-      dailyFees: `${dailyFees}`,
-      dailyVolume: `${dailyVolume}`,
-      totalFees: totalFees ? `${totalFees}` : undefined,
-      totalVolume: totalVolume ? `${totalVolume}` : undefined,
+      dailyOpenInterest, dailyFees, dailyVolume,
+      // totalFees, totalVolume,
       timestamp
     };
   }
@@ -110,27 +108,27 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: async () => 1696291200,
+      start: 1696291200,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: async () => 1696204800,
+      start: 1696204800,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: async () => 1696291200,
+      start: 1696291200,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: async () => 1697155200,
+      start: 1697155200,
     },
     [CHAIN.BASE]: {
       fetch: fetchVolume(CHAIN.BASE),
-      start: async () => 1696809600,
+      start: 1696809600,
     },
     [CHAIN.XDAI]: {
       fetch: fetchVolume(CHAIN.XDAI),
-      start: async () => 1696550400,
+      start: 1696550400,
     },
   }
 };

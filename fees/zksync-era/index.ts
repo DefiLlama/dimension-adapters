@@ -1,41 +1,30 @@
-import { Adapter, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
-import postgres from 'postgres'
-import { getBlock } from "../../helpers/getBlock";
-import { queryFlipside } from "../../helpers/flipsidecrypto";
+import { queryIndexer } from "../../helpers/indexer";
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
-      fetch: async (timestamp: number) => {
-        const sql = postgres(process.env.INDEXA_DB!);
-        const now = new Date(timestamp * 1e3)
-        const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+      fetch: (async (timestamp: number, _: any, options: FetchOptions) => {
 
-        try {
-          const fromTimestamp = timestamp - 60 * 60 * 24
-          const toTimestamp = timestamp
-
-          const startblock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
-          const endblock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-          // Flipside doesn't currently support zkSync Era so collect fee data from fee collecting address's on L1
-          const feeQuery = await queryFlipside(`
+        const dailyFees = options.createBalances();
+        const dailyRevenue = options.createBalances();
+        const eth_transfer_logs: any = await queryIndexer(`
             SELECT
-              SUM(AMOUNT)
-            FROM ethereum.core.ez_eth_transfers
-            WHERE (
-                eth_to_address = lower('0xfeeE860e7AAE671124e9a4E61139f3A5085dFEEE')
-                OR eth_to_address = lower('0xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
-            )
-            AND BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-          `)
+              sum("value")/1e18 AS eth_value
+            FROM
+              ethereum.traces
+            WHERE
+              block_number > 14645816
+              AND to_address in ('\\xfeeE860e7AAE671124e9a4E61139f3A5085dFEEE', '\\xA9232040BF0E0aEA2578a5B2243F2916DBfc0A69')
+              AND block_time BETWEEN llama_replace_date_range;
+          `, options);
 
-          const fees = Number(feeQuery[0][0])
+        const fees = Number(eth_transfer_logs[0]['eth_value'])
 
-          const sequencerGas = await sql`
+        const sequencerGas: any = await queryIndexer(`
               SELECT
-              sum(t.gas_used * t.gas_price) / (10 ^ 18) AS sum
+              sum(t.gas_used * t.gas_price) AS sum
             FROM
               ethereum.transactions t
             WHERE
@@ -48,25 +37,17 @@ const adapter: Adapter = {
                 OR encode("data", 'hex')
                 LIKE 'ce9dcf16%' -- executeBlocks method
             )
-            AND (block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()});
-          `
-          const seqGas: number = sequencerGas[0].sum
+            AND (block_time BETWEEN llama_replace_date_range);
+            `, options);
+        const seqGas: number = sequencerGas[0].sum
+        dailyFees.addGasToken(fees * 1e18)
+        dailyRevenue.addGasToken(fees * 1e18)
+        dailyRevenue.addGasToken(seqGas * -1)
 
-          const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-          const ethPrice = (await getPrices([ethAddress], toTimestamp))[ethAddress].price;
-          await sql.end({ timeout: 3 })
-          return {
-            timestamp: toTimestamp,
-            dailyFees: (fees * ethPrice).toString(),
-            dailyRevenue: ((fees - seqGas) * ethPrice).toString(),
-          };
-        } catch (error) {
-          await sql.end({ timeout: 3 })
-          throw error
-        }
+        return { timestamp, dailyFees, dailyRevenue, }
 
-      },
-      start: async () => 1679616000 // March 24, 2023
+      }) as any,
+      start: 1679616000 // March 24, 2023
     },
   },
   protocolType: ProtocolType.CHAIN

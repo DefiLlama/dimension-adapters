@@ -16,7 +16,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONRIVER]: {
       fetch: feeAdapter.moonriver.fetch,
-      start:  async () => 1630903340
+      start:  1630903340
     }
   }
 };

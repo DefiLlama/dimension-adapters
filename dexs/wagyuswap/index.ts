@@ -9,6 +9,6 @@ const adapters = univ2Adapter({
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData"
 });
-adapters.adapter.velas.start = async () => 1635653053;
+adapters.adapter.velas.start = 1635653053;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

@@ -10,5 +10,5 @@ const adapters = univ2Adapter({
   totalVolume: "volumeUSD",
 });
 
-adapters.adapter.polygon.start = async () => 1654992851;
+adapters.adapter.polygon.start = 1654992851;
 export default adapters;

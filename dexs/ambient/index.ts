@@ -1,67 +1,51 @@
-import {Adapter, FetchResultVolume} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {Chain} from "@defillama/sdk/build/general";
-import {request, gql} from "graphql-request";
-import {getTimestampAtStartOfDayUTC} from "../../utils/date";
-import { getPrices } from "../../utils/prices";
+import PromisePool from "@supercharge/promise-pool";
+import { FetchV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
-type TEndpoint = {
-  [s: Chain | string]: string;
-}
-const endpoints: TEndpoint = {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/crocswap/croc-mainnet",
-}
-interface IPool {
-  quote: string;
-}
-interface ISwap {
-  quoteFlow: string;
-  pool: IPool;
-  dex: string;
-}
-const graphs = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
-        const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-        const fromTimestamp = todaysTimestamp - 60 * 60 * 24
-        const toTimestamp = todaysTimestamp
-        const query = gql`
-          {
-            swaps(where: {
-              time_gte: ${fromTimestamp}
-              time_lte: ${toTimestamp}
-              dex: "croc"
-            }, orderBy:time, orderDirection: desc) {
-              quoteFlow
-              pool {
-                quote
-              }
-              dex
-            }
-          }
-        `
-      const graphRes: ISwap[] = (await request(endpoints[chain], query)).swaps;
-      const coins = [...new Set(graphRes.map((e: ISwap) => `${chain}:${e.pool.quote.toLowerCase()}`))]
-      const prices = await getPrices(coins, todaysTimestamp);
-      const dailyVolume = graphRes.map((e: ISwap) => {
-        const decimals = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.decimals || 0;
-        const price = prices[`${chain}:${e.pool.quote.toLowerCase()}`]?.price || 0;
-        return (Number(e.quoteFlow.replace('-','')) / 10 ** decimals) * price
-      }).reduce((a: number, b: number) => a + b, 0)
-      return {
-        dailyVolume: `${dailyVolume}`,
-        timestamp,
-      };
-    }
+const config = {
+  scroll: { endpoint: 'https://ambindexer.net/scroll-gcgo/', chainId: '0x82750', poolIdx: '420' },
+  blast: { endpoint: 'https://ambindexer.net/blast-gcgo/', chainId: '0x13e31', poolIdx: '420' },
+  ethereum: { endpoint: 'https://ambindexer.net/gcgo/', chainId: '0x1', poolIdx: '420' },
+  canto: { endpoint: 'https://ambient-graphcache.fly.dev/gcgo/', chainId: '0x1e14', poolIdx: '420' },
 }
 
+const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances, chain }) => {
+  const dailyVolume = createBalances()
+  const dailyFees = createBalances()
+  const { poolIdx, chainId, endpoint, } = config[chain]
+  const { data } = await httpGet(endpoint + 'pool_list', { params: { poolIdx, chainId } })
 
-const adapter: Adapter = {
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch: graphs(CHAIN.ETHEREUM),
-            start: async () => 1685232000,
-        },
-    }
+  const { errors } = await PromisePool
+    .withConcurrency(10)
+    .for(data)
+    .process(async ({ base, quote }: any) => {
+      const { data, } = await httpGet(endpoint + 'pool_stats', { params: { poolIdx, chainId, base, quote, histTime: endTimestamp, } })
+      const { data: dataOld } = await httpGet(endpoint + 'pool_stats', { params: { poolIdx, chainId, base, quote, histTime: startTimestamp, } })
+
+      // dailyVolume.add(base, data.baseVolume)
+      dailyVolume.add(quote, data.quoteVolume)
+      // dailyVolume.subtractToken(base, dataOld.baseVolume)
+      dailyVolume.subtractToken(quote, dataOld.quoteVolume)
+
+      // dailyFees.add(base, data.baseVolume * data.feeRate)
+      dailyFees.add(quote, data.quoteVolume * data.feeRate)
+      // dailyFees.subtractToken(base, dataOld.baseVolume * data.feeRate)
+      dailyFees.subtractToken(quote, dataOld.quoteVolume * data.feeRate)
+    })
+  if (errors?.length) throw errors
+  return { dailyVolume, dailyFees, }
 }
 
-export default adapter;
+const adapter = { fetch, start: 1685232000, }
+
+
+export default {
+  adapter: {
+    [CHAIN.ETHEREUM]: adapter,
+    [CHAIN.SCROLL]: adapter,
+    [CHAIN.CANTO]: adapter,
+    [CHAIN.BLAST]: adapter,
+  },
+  version: 2,
+};

@@ -1,8 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, AVAX } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { ChainEndpoints, FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
@@ -20,9 +19,8 @@ const methodology = {
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp)
       const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
 
       const graphQuery = gql
@@ -43,7 +41,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const finalUserFee = (userFee / 1e30);
 
       return {
-        timestamp,
         dailyFees: finalDailyFee.toString(),
         dailyUserFees: finalUserFee.toString(),
         dailyRevenue: (finalDailyFee * 0.3).toString(),
@@ -53,22 +50,23 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
       };
     };
-  };
+    return fetch 
 };
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [ARBITRUM]: {
-      fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1630468800,
+      fetch: graphs(endpoints),
+      start: 1630468800,
       meta: {
         methodology
       }
     },
     [AVAX]: {
-      fetch: graphs(endpoints)(AVAX),
-      start: async () => 1641445200,
+      fetch: graphs(endpoints),
+      start: 1641445200,
       meta: {
         methodology
       }

@@ -10,6 +10,6 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "pancakeDayData",
 });
 
-adapter.adapter.arbitrum.start = async () => 1676505600;
+adapter.adapter.arbitrum.start = 1676505600;
 
 export default adapter

@@ -6,5 +6,5 @@ const adapter = univ2Adapter({
 },{
     hasTotalVolume: false,
 });
-adapter.adapter.moonriver.start = async () => 1630903340;
+adapter.adapter.moonriver.start = 1630903340;
 export default adapter;

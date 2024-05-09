@@ -1,16 +1,17 @@
 import { CHAIN } from "../helpers/chains";
-import { BaseAdapter, Adapter, ChainBlocks } from "../adapters/types";
+import { BaseAdapter, Adapter, ChainBlocks, FetchOptions, Fetch } from "../adapters/types";
 import volumeAdapter from "../dexs/verse";
 import BigNumber from "bignumber.js";
+import { version } from "os";
 
 
 const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, totalFees: number, revenueFee: number, ssrFee: number) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-        const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-        const chainDailyVolume = fetchedResult.dailyVolume;
-        const chainTotalVolume = fetchedResult.totalVolume;
+    return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
+        const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
+        const chainDailyVolume = fetchedResult.dailyVolume as any;
+        const chainTotalVolume = fetchedResult.totalVolume as any;
 
         return {
         timestamp,
@@ -49,11 +50,12 @@ const baseAdapter: BaseAdapter = {
         meta: {
             methodology
         }
-    }
+    },
 }
 
 const adapter: Adapter = {
-    adapter: baseAdapter
+    adapter: baseAdapter,
+    version: 2
 };
 
 export default adapter;

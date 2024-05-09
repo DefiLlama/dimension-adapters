@@ -1,11 +1,15 @@
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types";
+import type {
+  ChainBlocks,
+  ChainEndpoints,
+  FetchOptions,
+} from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
-import BigNumber from "bignumber.js";
+import fetchURL from "../utils/fetchURL";
+
+const priceUrl = "https://api.aladdin.club/api/coingecko/price";
 
 const endpoints = {
   [ETHEREUM]:
@@ -14,44 +18,33 @@ const endpoints = {
 
 const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
+    return async (
+      _timestamp: number,
+      _: ChainBlocks,
+      { startOfDay }: FetchOptions
+    ) => {
+      const dateId = Math.floor(startOfDay);
       const graphQuery = gql`{
                     dailyRevenueSnapshot(id: ${dateId}) {
                         aCRVRevenue
                     }
                 }`;
 
-      const { dailyRevenueSnapshot } = await request(
+      const { dailyRevenueSnapshot: snapshot } = await request(
         graphUrls[chain],
         graphQuery
       );
-      if (!dailyRevenueSnapshot) {
-        return {
-          timestamp,
-          dailyFees: "0",
-          dailyRevenue: "0",
-        };
-      }
-      Object.keys(dailyRevenueSnapshot).map(function (k) {
-        dailyRevenueSnapshot[k] = new BigNumber(dailyRevenueSnapshot[k]);
-      });
-      const snapshot = dailyRevenueSnapshot;
+      if (!snapshot) throw new Error("No data found");
 
-      const coins = ["aladdin-cvxcrv"].map((item) => `coingecko:${item}`);
-      const coinsUnique = [...new Set(coins)];
-      const prices = await getPrices(coinsUnique, timestamp);
-      const aCRVPrice = prices["coingecko:aladdin-cvxcrv"];
+      const { aCRV } = (await fetchURL(priceUrl))?.data;
 
-      const dailyRevenue = snapshot.aCRVRevenue.times(aCRVPrice.price);
+      const dailyRevenue = snapshot.aCRVRevenue;
 
-      const dailyFees = dailyRevenue * 2;
+      const usd = dailyRevenue * aCRV.usd;
+      const revenue = usd.toFixed(0);
+      const dailyFees = (usd * 2).toFixed(0);
 
-      return {
-        timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-      };
+      return { timestamp: startOfDay, dailyFees, dailyRevenue: revenue };
     };
   };
 };
@@ -60,7 +53,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: async () => 1667911902,
+      start: 1667911902,
     },
   },
 };

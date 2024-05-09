@@ -67,7 +67,7 @@ const getFetch = (query: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const startTimestamp = async () => 1693997105;
+const startTimestamp = 1693997105;
 
 const adapter: BreakdownAdapter = {
   breakdown: {

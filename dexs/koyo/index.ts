@@ -18,10 +18,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BOBA]: {
       fetch: graphs(CHAIN.BOBA),
-      start: async () => 1655104044,
+      start: 1655104044,
       customBackfill: customBackfill(CHAIN.BOBA, graphs),
     },
   },

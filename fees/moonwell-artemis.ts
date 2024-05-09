@@ -43,7 +43,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAN]: {
         fetch: graphs(endpoints)(CHAIN.MOONBEAN),
-        start: async ()  => 1656115200,
+        start: 1656115200,
     },
   }
 }

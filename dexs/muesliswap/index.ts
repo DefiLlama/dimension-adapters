@@ -1,7 +1,7 @@
-import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { getPrices } from "../../utils/prices";
+import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
+import { ChainBlocks, FetchOptions } from "../../adapters/types";
 
 interface IVolumeall {
   time: number;
@@ -10,21 +10,19 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp*1000))
-  const vols: IVolumeall[] = (await axios.get(historicalVolumeEndpoint))?.data;
-  const totalVolume = vols
-    .filter((volItem: IVolumeall) => Number(volItem.time) <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0);
-  const dailyVolume = vols
-    .find((dayItem: IVolumeall) => Number(dayItem.time) === dayTimestamp)?.volume
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const totalVolume = options.createBalances();
+  const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
+  vols
+    .filter((volItem: IVolumeall) => Number(volItem.time) <= options.startOfDay)
+    .map(({ volume }) => totalVolume.addGasToken(volume));
+  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === options.startOfDay)?.volume)
 
-  const coinId = "coingecko:cardano";
-  const prices = await getPrices([coinId], dayTimestamp)
   return {
-    timestamp: dayTimestamp,
-    totalVolume: totalVolume ? String(totalVolume/1e6 * prices[coinId].price) : "0",
-    dailyVolume: dailyVolume ? String(dailyVolume/1e6 * prices[coinId].price) : "0"
+    timestamp: options.startOfDay,
+    dailyVolume,
+    // totalVolume,
   }
 }
 
@@ -36,13 +34,13 @@ const adapters = (() => {
     dayData: "pancakeDayData",
   });
 
-  milkomeda.adapter[CHAIN.CARDADO] = {
-    start: async () => 1638057600,
+  milkomeda.adapter[CHAIN.CARDANO] = {
+    start: 1638057600,
     fetch: fetch,
   };
   return milkomeda;
 })();
 
 
-adapters.adapter.milkomeda.start = async () => 1648427924;
+adapters.adapter.milkomeda.start = 1648427924;
 export default adapters;

@@ -42,7 +42,7 @@ interface IGraphResponse {
 }
 
 const toString = (x: BigNumber) => {
-  if (x.isEqualTo(0)) return undefined
+  if (x.isEqualTo(0)) return '0'
   return x.toString()
 }
 
@@ -106,7 +106,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: async () => 1687880277
+      start: 1687880277
     }
   }
 }

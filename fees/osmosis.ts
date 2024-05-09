@@ -1,25 +1,28 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
-const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical"
+const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical";
 
 interface IChartItem {
-  time: string
-  fees_spent: number
+  time: string;
+  fees_spent: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-  const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))?.data
+const fetch: FetchV2 = async ({ endTimestamp }) => {
+  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
+  const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
   const totalFee = historicalFees
-    .filter(feeItem => (new Date(feeItem.time).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { fees_spent }) => acc + fees_spent, 0)
+    .filter(
+      (feeItem) => new Date(feeItem.time).getTime() / 1000 <= dayTimestamp,
+    )
+    .reduce((acc, { fees_spent }) => acc + fees_spent, 0);
 
-  const dailyFee = historicalFees
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.fees_spent
+  const dailyFee = historicalFees.find(
+    (dayItem) => new Date(dayItem.time).getTime() / 1000 === dayTimestamp,
+  )?.fees_spent;
 
   return {
     timestamp: dayTimestamp,
@@ -31,13 +34,14 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1665964800,
+      start: 1665964800,
     },
-  }
-}
+  },
+};
 
 export default adapter;

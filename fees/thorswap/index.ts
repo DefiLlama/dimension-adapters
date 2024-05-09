@@ -1,7 +1,7 @@
-import axios from "axios"
 import { FetchResultFees, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 interface IRevenue {
   DAY: string;
@@ -45,28 +45,28 @@ interface IEarning {
 
 const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const url1 = "https://api.flipsidecrypto.com/api/v2/queries/1d13d4a1-d073-4a73-a46b-d7aadf060672/data/latest"
-  const url2 = "https://api.flipsidecrypto.com/api/v2/queries/46dc4fa4-a362-420e-97ec-d3a58d46b9e7/data/latest"
+  const url1 = "https://flipsidecrypto.xyz/api/v1/queries/9ed4f699-100a-41e5-a3e6-a7f9ed3bfd5c/data/latest"
+  const url2 = "https://flipsidecrypto.xyz/api/v1/queries/40798a6b-1e67-4ecb-b8b3-8f8354b5798a/data/latest"
   const url3 = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=400`
   const [reveune, fees, earnings]: any = (await Promise.all([
-    axios.get(url1),
-    axios.get(url2),
-    axios.get(url3, { headers: {"x-client-id": "defillama"}})
-  ])).map(res => res.data)
+    httpGet(url1),
+    httpGet(url2),
+    httpGet(url3, { headers: {"x-client-id": "defillama"}})
+  ]))
 
   const reveuneData: IRevenue[] = reveune;
   const feesData: IFees[] = fees;
   const earningData: IEarning[] = earnings.intervals;
 
   const dayTimestampStr = new Date(timestamp * 1000).toISOString().split("T")[0]
-  const dailyRevenueData: IRevenue = reveuneData.find(item => item.DAY === dayTimestampStr) as IRevenue
-  const dailyFeesData: IFees = feesData.find(item => item.DAY === dayTimestampStr) as IFees
+  const dailyRevenueData: IRevenue = reveuneData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IRevenue
+  const dailyFeesData: IFees = feesData.find(item => item.DAY.split(" ")[0] === dayTimestampStr) as IFees
   const dailyErningData: IEarning = earningData.find(item => Number(item.startTime) === dayTimestamp) as IEarning
-  const dailyFees = dailyRevenueData.REVENUE;
+  const dailyFees = Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
   const dailyUsersFees = dailyFeesData?.LIQUIDITY_FEES || 0 + dailyRevenueData?.OUTBOUND_FEE || 0;
-  const dailyRevenue = dailyRevenueData.REVENUE;
-  const dailyProtocolRev = dailyRevenueData.REVENUE;
-  const dailyHoldersRevenue = (Number(dailyErningData.bondingEarnings) / 1e8) * Number(dailyErningData.runePriceUSD);
+  const dailyRevenue = Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
+  const dailyProtocolRev =  Number(dailyRevenueData.REVENUE) * Number(dailyErningData.runePriceUSD);
+  const dailyHoldersRevenue = (Number(dailyErningData.bondingEarnings) / 1e8) *Number(dailyErningData.runePriceUSD);
   const dailySupplySideRevenue = dailyHoldersRevenue
 
 
@@ -83,10 +83,12 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
+      runAtCurrTime: true,
       fetch: fetchFees,
-      start: async () => 1618099200,
+      start: 1618099200,
     }
-  }
+  },
+  isExpensiveAdapter: true
 }
 
 export default adapters

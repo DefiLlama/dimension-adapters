@@ -1,29 +1,26 @@
-import axios from 'axios';
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
-import { Adapter, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
+import { httpGet } from '../utils/fetchURL';
 
-export function blockscoutFeeAdapter(chain:string, url:string, coin:string){
-    const adapter: Adapter = {
-        adapter: {
-          [chain]: {
-              fetch:  async (timestamp: number) => {
-                    const ts = getTimestampAtStartOfDayUTC(timestamp)
-                  const date = new Date(ts*1000).toISOString().slice(0, "2011-10-05".length)
-                  const fees = await axios.get(`${url}&date=${date}`)
-                  const prices = await getPrices([coin], timestamp);
-                  const usdFees = Number(fees.data.result)/1e18*prices[coin].price
+export function blockscoutFeeAdapter(chain: string, url: string, CGToken?: string) {
+  const adapter: Adapter = {
+    adapter: {
+      [chain]: {
+        fetch: async (_timestamp: number, _: ChainBlocks, { createBalances, startOfDay, }: FetchOptions) => {
+          const dailyFees = createBalances()
+          const date = new Date(startOfDay * 1000).toISOString().slice(0, "2011-10-05".length)
+          const fees = await httpGet(`${url}&date=${date}`)
+          if (CGToken) dailyFees.addCGToken(CGToken, fees.result/1e18)
+          else dailyFees.addGasToken(fees.result)
 
-                  return {
-                      timestamp,
-                      dailyFees: usdFees.toString(), 
-                  };
-              },
-              start: async () => 1575158400
-          },
+          return {
+            timestamp: startOfDay, dailyFees,
+          };
+        },
+        start: 1575158400
       },
-        protocolType: ProtocolType.CHAIN
-      }
-    
-    return adapter
+    },
+    protocolType: ProtocolType.CHAIN
+  }
+
+  return adapter
 }

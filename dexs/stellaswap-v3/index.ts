@@ -10,5 +10,5 @@ const adapters = univ2Adapter({
   dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
-adapters.adapter.moonbeam.start = async () => 1672876800;
+adapters.adapter.moonbeam.start = 1672876800;
 export default adapters;

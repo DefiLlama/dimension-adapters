@@ -26,7 +26,7 @@ const fetch = async (timestamp: number) => {
   const query = `?startdt=${startTime.toISOString()}&enddt=${dateToday.toISOString()}&timeunit=day`;
   const url = `${endpoint}${query}`
   const dayTimestamp = getUniqStartOfTodayTimestamp(dateToday);
-  const response: IRawResponse = (await fetchURL(url)).data;
+  const response: IRawResponse = (await fetchURL(url));
 
   const historicalVolume: IVolume[] = response.data.map((val: number, index: number) => {
     return {
@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       customBackfill: customBackfill(CHAIN.KLAYTN as Chain, (_chian: string) => fetch),
-      start: async () => START_TIME,
+      start: START_TIME,
     },
   }
 };

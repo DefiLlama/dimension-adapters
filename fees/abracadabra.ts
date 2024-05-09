@@ -76,23 +76,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.FANTOM]: {
         fetch: graphs(endpoints)(CHAIN.FANTOM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.AVAX]: {
         fetch: graphs(endpoints)(CHAIN.AVAX),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.BSC]: {
         fetch: graphs(endpoints)(CHAIN.BSC),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
   }
 }

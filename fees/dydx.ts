@@ -10,8 +10,8 @@ interface IStats {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint))?.data.markets);
-  const historical: IStats[] = (await Promise.all(markets.map((market: string) => fetchURL(stats(market))))).map((e: any) => Object.values(e.data.markets) as unknown as IStats).flat()
+  const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint)).markets);
+  const historical: IStats[] = (await Promise.all(markets.map((market: string) => fetchURL(stats(market))))).map((e: any) => Object.values(e.markets) as unknown as IStats).flat()
   const dailyFees = historical.filter((e: IStats) => e.fees !== '0')
     .reduce((a: number, b: IStats) => a+Number(b.fees), 0)
   return {
@@ -25,8 +25,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: async () => 1700265600,
-      runAtCurrTime: true,
+      start: 1700265600,
+      // runAtCurrTime: true,
     },
   },
 };

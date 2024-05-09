@@ -1,5 +1,6 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import request from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
@@ -33,17 +34,17 @@ const kyberswapElasticV2 = univ2Adapter({
   dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
-
-kyberswapElasticV2.adapter.ethereum.start = async () => 1654905600;
-kyberswapElasticV2.adapter.bsc.start = async () => 1654732800;
-kyberswapElasticV2.adapter.polygon.start = async () => 1654732800;
-kyberswapElasticV2.adapter.avax.start = async () => 1654905600;
-kyberswapElasticV2.adapter.arbitrum.start = async () => 1655942400;
-kyberswapElasticV2.adapter.optimism.start = async () => 1656460800;
-kyberswapElasticV2.adapter.fantom.start = async () => 1654732800;
-kyberswapElasticV2.adapter.bittorrent.start = async () => 1658188800;
-kyberswapElasticV2.adapter.oasis.start = async () => 1660780800;
-kyberswapElasticV2.adapter.cronos.start = async () => 1660780800;
+kyberswapElasticV2.version = 2;
+kyberswapElasticV2.adapter.ethereum.start = 1654905600;
+kyberswapElasticV2.adapter.bsc.start = 1654732800;
+kyberswapElasticV2.adapter.polygon.start = 1654732800;
+kyberswapElasticV2.adapter.avax.start = 1654905600;
+kyberswapElasticV2.adapter.arbitrum.start = 1655942400;
+kyberswapElasticV2.adapter.optimism.start = 1656460800;
+kyberswapElasticV2.adapter.fantom.start = 1654732800;
+kyberswapElasticV2.adapter.bittorrent.start = 1658188800;
+kyberswapElasticV2.adapter.oasis.start = 1660780800;
+kyberswapElasticV2.adapter.cronos.start = 1660780800;
 
 // velas, oasis & bittorrent missing
 const elasticChains = ["ethereum", "polygon", "bsc", "avax", "fantom", "arbitrum", "optimism"]
@@ -97,7 +98,7 @@ const optimismElastic = async (timestamp: number) => {
   const url = "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-optimism";
   const blacklisted = [
     '0xa00e3a3511aac35ca78530c85007afcd31753819',
-    '0x8c6f28f2f1a3c87f0f938b96d27520d9751ec8d9',
+    ADDRESSES.optimism.sUSD,
     '0xb448ec505c924944ca8b2c55ef05c299ee0781df'
   ]
   const poolBlacklist = [
@@ -209,29 +210,24 @@ const customeElasicVolumeFunctions: {[s: Chain]: any} = {
 function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof classicGraphs, volumeField:string, dailyDataField:string, isElastic: boolean){
     return Object.keys(endpoints).reduce((acc, chain) => {
         acc[chain] = {
-        fetch: async (timestamp: number) =>  {
-            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](timestamp) : (await graphs(chain as any)(timestamp, {}))
-            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(timestamp, {})) : {} as FetchResultVolume;
-            const dailyVolume = Number(a.dailyVolume) + Number(elasticV2?.dailyVolume || 0)
-            const totalVolume = Number(a.totalVolume) + Number(elasticV2?.totalVolume || 0)
+        fetch: async (options: FetchOptions) =>  {
+            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await graphs(chain as any)(options))
+            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
+            const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
+            const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
               dailyVolume: `${dailyVolume}`,
               totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
-              timestamp
             };
           },
-          start: getStartTimestamp({
-            endpoints: endpoints,
-            chain: chain,
-            volumeField,
-            dailyDataField
-          })
+          start: 0,
         }
         return acc
       }, {} as BaseAdapter)
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)

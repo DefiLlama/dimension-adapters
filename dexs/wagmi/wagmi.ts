@@ -27,6 +27,10 @@ export const LINKS: { [key: string]: any } = {
     blocks:
       "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
   },
+  [CHAIN.METIS]: {
+    subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",
+    blocks: "https://metis.graph.wagmi.com/subgraphs/name/blocks",
+  },
 };
 
 interface IData {

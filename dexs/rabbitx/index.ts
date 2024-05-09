@@ -1,10 +1,11 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/markets"
 const candles = (market: string, timestampFrom: number, timestampTo: number) => {
-  const url = `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
+const url = `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
   return url;
 
 }
@@ -16,16 +17,16 @@ interface IVolumeall {
 }
 
 const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
+  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const toTimestamp = getTimestampAtStartOfNextDayUTC(fromTimestamp) - 1;
 
   // Get market data
   const response = await fetchURL(historicalVolumeEndpoint);
-  const marketsData = response.data.result;
+  const marketsData = response.result;
 
   // Fetch candles for each USD market
   const historical: IVolumeall[] = (await Promise.all(marketsData.map((market: any) => fetchURL(candles(market.id, fromTimestamp, toTimestamp)))))
-    .map((e: any) => e.data.result)
+    .map((e: any) => e.result)
     .flat();
 
   // Calculate daily volume
@@ -44,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch: fetchVolume,
-      start: async () => 1700179200, // Replace with actual start timestamp
+      start: 1700179200, // Replace with actual start timestamp
     },
   },
 };

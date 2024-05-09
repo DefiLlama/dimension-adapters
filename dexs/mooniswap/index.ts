@@ -25,6 +25,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [ETHEREUM]: {
       fetch: graphs(ETHEREUM),

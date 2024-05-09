@@ -27,6 +27,7 @@ const graphFetch = getGraphDimensions({
 });
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.TELOS]: {
             fetch: graphFetch(CHAIN.TELOS),

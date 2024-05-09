@@ -17,15 +17,13 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   const fromBlock = (await getBlock(fromTimestamp, CHAIN.KAVA, {}));
   const toBlock = (await getBlock(toTimestamp, CHAIN.KAVA, {}));
-  const logs: ITx[] = (await sdk.api.util.getLogs({
+  const logs: ITx[] = (await sdk.getEventLogs({
     target: address,
-    topic: '',
     fromBlock: fromBlock,
     toBlock: toBlock,
     topics: ['0xfee17e5caac7cbef9c34199cc11ac3c5a17abb3b07d5835053be283278606e43'],
-    keys: [],
     chain: CHAIN.KAVA
-  })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
+  })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx});
   const dailyFees = logs.map((tx: ITx) => {
     const amount = Number('0x' + tx.data) / 10 ** 6;
     return amount;
@@ -40,7 +38,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
-      start: async () => 1694044800
+      start: 1694044800
     },
   }
 }

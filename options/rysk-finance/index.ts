@@ -1,8 +1,8 @@
-import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, FetchResultOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { Fetch, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices"
+
+import * as sdk from "@defillama/sdk";
 
 interface IoTokenTrade {
     timestamp: string
@@ -75,19 +75,13 @@ query trades($timestampFrom: Int!, $timestampTo: Int!) {
 }
 `
 
-const normalizeValues = (value: string, decimals: number) => BigNumber(value).dividedBy(10 ** decimals)
-
 const endpoints = {
     [CHAIN.ARBITRUM]: "https://api.goldsky.com/api/public/project_clhf7zaco0n9j490ce421agn4/subgraphs/arbitrum-one/production/gn",
 };
 
-const prices = {} as IJSON<number>
-const getUnderlyingSpotPrice = async (address: string, timestamp: number) => {
-    const key = `${CHAIN.ARBITRUM}:${address}`
-    if (!prices[address]) prices[address] = (await getPrices([key], timestamp))[key].price
-    return prices[address]
-}
 const fetch: Fetch = async (timestamp) => {
+    const notinalBal = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp })
+    const premiumBal = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp })
     const timestampFrom = timestamp - 60 * 60 * 24
     const response = await request(endpoints[CHAIN.ARBITRUM], query, {
         timestampFrom,
@@ -95,41 +89,31 @@ const fetch: Fetch = async (timestamp) => {
     }) as { optionsBoughtActions: IoTokenTrade[] }
 
     const response_sold = await request(endpoints[CHAIN.ARBITRUM], querySold, {
-      timestampFrom,
-      timestampTo: timestamp,
-  }) as { optionsSoldActions: IoTokenTrade[] }
+        timestampFrom,
+        timestampTo: timestamp,
+    }) as { optionsSoldActions: IoTokenTrade[] }
 
     const fetchResult: FetchResultOptions = { timestamp: timestampFrom }
-    const processed = await response.optionsBoughtActions.reduce(async (accP, curr) => {
-        const acc = await accP
-        const underlyingAssetSpotPrice = await getUnderlyingSpotPrice(curr.otoken.underlyingAsset.id, +curr.timestamp)
-        acc.notional = acc.notional.plus(
-            normalizeValues(curr.amount, 18)
-                .multipliedBy(underlyingAssetSpotPrice)
-        )
-        acc.premium = acc.premium.plus(normalizeValues(curr.premium, 6))
-        return acc
-    }, Promise.resolve({ notional: BigNumber(0), premium: BigNumber(0) }) as Promise<{ notional: BigNumber, premium: BigNumber }>)
-    const processedSold = await response_sold.optionsSoldActions.reduce(async (accP, curr) => {
-      const acc = await accP
-      const underlyingAssetSpotPrice = await getUnderlyingSpotPrice(curr.otoken.underlyingAsset.id, +curr.timestamp)
-      acc.notional = acc.notional.plus(
-          normalizeValues(curr.amount, 18)
-              .multipliedBy(underlyingAssetSpotPrice)
-      )
-      acc.premium = acc.premium.plus(normalizeValues(curr.premium, 6))
-      return acc
-  }, Promise.resolve({ notional: BigNumber(0), premium: BigNumber(0) }) as Promise<{ notional: BigNumber, premium: BigNumber }>)
-    fetchResult.dailyNotionalVolume = processed.notional.plus(processedSold.notional).toString()
-    fetchResult.dailyPremiumVolume = processed.premium.plus(processedSold.premium).toString()
+    response.optionsBoughtActions.forEach((curr: any) => {
+        const token = curr.otoken.underlyingAsset.id
+        notinalBal.add(token, curr.amount)
+        premiumBal.add('tether', curr.premium / 1e6, { skipChain: true })
+    })
+    response_sold.optionsSoldActions.forEach(async (curr: any) => {
+        const token = curr.otoken.underlyingAsset.id
+        notinalBal.add(token, curr.amount)
+        premiumBal.add('tether', curr.premium / 1e6, { skipChain: true })
+    })
+    fetchResult.dailyNotionalVolume = await notinalBal.getUSDString()
+    fetchResult.dailyPremiumVolume = await premiumBal.getUSDString()
     return fetchResult
 }
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: async () => 1688428800
+    adapter: {
+        [CHAIN.ARBITRUM]: {
+            fetch: fetch,
+            start: 1688428800
+        },
     },
-  },
 };
 export default adapter;

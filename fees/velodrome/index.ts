@@ -20,7 +20,7 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: getFees,
-      start: async () => 1677110400, // TODO: Add accurate timestamp
+      start: 1677110400, // TODO: Add accurate timestamp
     },
   },
 };

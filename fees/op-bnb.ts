@@ -1,121 +1,57 @@
-import BigNumber from "bignumber.js";
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import { getBalance } from "@defillama/sdk/build/eth";
-import { Adapter, ChainBlocks, FetchResultFees, ProtocolType } from "../adapters/types";
-import { getPrices } from "../utils/prices";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees, ProtocolType } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import * as sdk from "@defillama/sdk";
-const retry = require("async-retry")
 
-const topic0 = '0xc8a211cc64b6ed1b50595a9fcb1932b6d1e5a6e8ef15b60e5b1f988ea9086bba';
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
+async function getFees(options: FetchOptions) {
 
-async function getFees(toTimestamp:number, fromTimestamp:number, chainBlocks: ChainBlocks){
-  const todaysBlock1 = (await getBlock(toTimestamp,CHAIN.OP_BNB, {}));
-  const todaysBlock = (await getBlock(toTimestamp,CHAIN.OP_BNB, chainBlocks));
-  const yesterdaysBlock = (await getBlock(fromTimestamp,CHAIN.OP_BNB, {}));
   const feeWallet = '0x4200000000000000000000000000000000000011';
   const l1FeeVault = '0x420000000000000000000000000000000000001a';
-  const logsWithdrawal: ILog[] = (await Promise.all([feeWallet, l1FeeVault].map(address => sdk.api.util.getLogs({
-    keys: [],
-    toBlock: todaysBlock1,
-    fromBlock: yesterdaysBlock,
-    target: address,
-    topic: '',
-    topics: [topic0],
-    chain: CHAIN.OP_BNB,
-  })))).map((p: any) => p.output).flat();
-  const withdrawAmount = logsWithdrawal.map((log: ILog) => {
-    const parsedLog = log.data.replace('0x', '')
-    const amount = Number('0x' + parsedLog.slice(0, 64));
-    return amount;
-  }).reduce((a: number, b: number) => a + b, 0);
+  const baseFeeVault = '0x4200000000000000000000000000000000000019';
+  const feeVaults = [l1FeeVault, baseFeeVault, feeWallet];
 
-  return await retry(async () => {
-    try {
+  const { api, fromApi, createBalances, getLogs } = options;
+  const balances = createBalances();
+  const eventAbi = 'event Withdrawal (uint256 value, address to, address from, uint8 withdrawalNetwork)'
 
-      const [feeWalletStart, feeWalletEnd, l1FeeVaultStart, l1FeeVaultEnd] = await Promise.all([
-        getBalance({
-          target: feeWallet,
-          block: yesterdaysBlock,
-          chain:CHAIN.OP_BNB
-        }),
-        getBalance({
-          target: feeWallet,
-          block: todaysBlock,
-          chain:CHAIN.OP_BNB
-        }),
-        getBalance({
-          target: l1FeeVault,
-          block: yesterdaysBlock,
-          chain:CHAIN.OP_BNB
-        }),
-        getBalance({
-          target: l1FeeVault,
-          block: todaysBlock,
-          chain:CHAIN.OP_BNB
-        })
-      ]);
+  await api.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
+  await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
 
-      const ethBalance = (new BigNumber(feeWalletEnd.output).minus(feeWalletStart.output))
-          .plus((new BigNumber(l1FeeVaultEnd.output).minus(l1FeeVaultStart.output)))
+  const logs = await getLogs({ targets: feeVaults, eventAbi, })
 
-      return (ethBalance.plus(withdrawAmount)).div(1e18)
-    } catch (e) {
-      throw e;
-    }
-  }, { retries: 5, minTimeout: 1000 * 60 * 5  });
+  logs.map((log) => balances.addGasToken(log.value))
+  balances.addBalances(api.getBalancesV2())
+  balances.subtract(fromApi.getBalancesV2())
+  return balances
 }
 
-const fetch = async (timestamp: number, chainBlocks: ChainBlocks): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-      const [totalFees] = await Promise.all([
-          getFees(toTimestamp, fromTimestamp, chainBlocks),
-      ]);
-      const endblock = (await getBlock(toTimestamp,CHAIN.BSC, chainBlocks));
-      const startblock = (await getBlock(fromTimestamp,CHAIN.BSC, {}));
-      const query = `
+const fetch = async (timestamp: number, _chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const { getFromBlock, getToBlock, } = options
+  const query = `
           select
             SUM(TX_FEE)
           from
             bsc.core.fact_transactions
           WHERE (to_address = '0x153cab79f4767e2ff862c94aa49573294b13d169')
-          and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
+          and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
         `
 
-      const value: number[] = (await queryFlipside(query, 260)).flat();
-      const cost_to_l1 = value[0]
-      const bnbAddress = "bsc:0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
-      const pricesObj: any = await getPrices([bnbAddress], toTimestamp);
-      const latestPrice = pricesObj[bnbAddress]["price"]
-      const finalDailyFee = totalFees.times(latestPrice)
-      const cost_to_l1_usd =  cost_to_l1 * latestPrice
-      const dailyRevenue = finalDailyFee.minus(cost_to_l1_usd);
-      return {
-        timestamp,
-        dailyFees: `${finalDailyFee}`,
-        dailyRevenue: `${dailyRevenue}`
-      }
-    } catch(error) {
-      console.error(error);
-      throw error;
-    }
+  const cost_to_l1: number[] = (await queryFlipside(query, 260)).flat();
+  const dailyFees = await getFees(options)
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.addGasToken((cost_to_l1[0] ?? 0) * 1e18 * -1)
+
+  return { timestamp, dailyFees, dailyRevenue }
 }
 
 const adapter: Adapter = {
   adapter: {
-      [CHAIN.OP_BNB]: {
-          fetch: fetch,
-          start: async () => 1691971200,
-      },
+    [CHAIN.OP_BNB]: {
+      fetch: fetch as any,
+      start: 1691971200,
+    },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

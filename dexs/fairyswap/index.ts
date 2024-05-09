@@ -56,10 +56,11 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.FINDORA]: {
       fetch: graphs(CHAIN.FINDORA),
-      start: async () => 1647684000,
+      start: 1647684000,
     },
   },
 };

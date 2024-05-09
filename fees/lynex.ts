@@ -52,7 +52,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.LINEA]: {
             fetch: fetch(CHAIN.LINEA),
-            start: async () => 1691394680,
+            start: 1691394680,
         },
     },
 };

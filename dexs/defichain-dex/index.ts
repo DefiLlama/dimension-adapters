@@ -14,7 +14,7 @@ interface IVolume {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IData[] = (await fetchURL(historicalVolumeEndpoint))?.data.data;
+  const historicalVolume: IData[] = (await fetchURL(historicalVolumeEndpoint))?.data;
   const dailyVolume = historicalVolume
     .reduce((acc, { volume }) => acc + Number(volume.h24), 0)
 
@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.DEFICHAIN]: {
       fetch,
-      start: async () => 0,
+      start: 0,
       runAtCurrTime: true
     },
   },

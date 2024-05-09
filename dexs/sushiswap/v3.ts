@@ -17,7 +17,9 @@ const endpointsV3 = {
     [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-polygon',
     [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
-    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1"
+    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1",
+    [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
+    [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
 }
 
 const v3Graphs = getGraphDimensions({
@@ -56,6 +58,8 @@ const startTimeV3: {[key: string]: number} = {
     [CHAIN.POLYGON_ZKEVM]: 1680739200,
     [CHAIN.THUNDERCORE]: 1684281600,
     [CHAIN.BASE]: 1691020800,
+    [CHAIN.CORE]: 1689897600,
+    [CHAIN.BLAST]: 1709337600,
 }
 
 const v3 = Object.keys(endpointsV3).reduce(
@@ -63,7 +67,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
+      start: startTimeV3[chain],
       meta: {
         methodology: {
           Fees: "Each pool charge between 0.01% to 1% fee",

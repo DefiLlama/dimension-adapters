@@ -58,11 +58,8 @@ interface IGraphResponse {
     }
   }
 
-  const getStartTimestamp = async (chain: string) => {
-    const startTimestamps: { [chain: string]: number } = {
-      [CHAIN.ARBITRUM]: 1691211277,
-    }
-    return startTimestamps[chain]
+  const startTimestamps: { [chain: string]: number } = {
+    [CHAIN.ARBITRUM]: 1691211277,
   }
 
   const adapter: BreakdownAdapter = {
@@ -72,7 +69,7 @@ interface IGraphResponse {
           ...acc,
           [chain]: {
             fetch: getFetch(allData)(chain),
-            start: async () => getStartTimestamp(chain)
+            start: startTimestamps[chain]
           }
         }
       }, {}),
@@ -81,7 +78,7 @@ interface IGraphResponse {
           ...acc,
           [chain]: {
             fetch: getFetch(derivativesData)(chain),
-            start: async () => getStartTimestamp(chain)
+            start: startTimestamps[chain]
           }
         }
       }, {})

@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { BigNumberish, utils } from "ethers";
+import { BigNumberish, ethers } from "ethers";
 
 const { request } = require("graphql-request");
 
@@ -11,7 +11,7 @@ const formatAmount = (
   thousandSeparated: boolean = true,
   trimMantissa: boolean = true
 ) => {
-  let formattedAmount = parseFloat(utils.formatUnits(amount, decimals));
+  let formattedAmount = parseFloat(ethers.formatUnits(amount, decimals));
 
   formattedAmount =
     Math.round(formattedAmount * Math.pow(10, mantissa)) /
@@ -114,7 +114,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(),
-      start: async () => 1689768000,
+      start: 1689768000,
     },
   },
 };

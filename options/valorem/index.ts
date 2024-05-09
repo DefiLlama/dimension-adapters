@@ -3,6 +3,7 @@ import { ARBITRUM } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints, FetchResultOptions } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
 import {
   endpoints,
   OSE_DEPLOY_TIMESTAMP_BY_CHAIN,
@@ -47,7 +48,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
           filteredTokenDayDatas as IValoremTokenDayData[];
       });
 
-      const getTodaysStats = () => {
+      const getTodaysStats = async () => {
         let todayStats = {
           dailyNotionalVolume: {} as Record<string, string | undefined>,
           dailyPremiumVolume: undefined,
@@ -58,13 +59,15 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
             (dayData) => dayData.date === formattedTimestamp
           );
           todayStats.dailyNotionalVolume[key] =
-            todaysDataForToken?.notionalVolCoreSum ?? undefined;
+            todaysDataForToken?.notionalVolCoreSum ?? '0';
         });
+
+        todayStats.dailyNotionalVolume = await sdk.Balances.getUSDString(todayStats.dailyNotionalVolume as any) as any
 
         return todayStats;
       };
 
-      const todaysStats = getTodaysStats();
+      const todaysStats = await getTodaysStats();
 
       /** Backfilled USD Metrics */
       // add up totals from each individual preceding day
@@ -98,7 +101,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
           totalPremiumVolume: undefined,
         }
       );
-
+      
       return {
         timestamp,
         dailyNotionalVolume: todaysStats.dailyNotionalVolume,
@@ -114,7 +117,7 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: graphOptions(endpoints)(ARBITRUM),
-      start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
+      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
       meta: {
         methodology,
       },

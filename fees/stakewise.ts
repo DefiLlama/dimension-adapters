@@ -1,65 +1,43 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types"
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { getBlock } from "../helpers/getBlock"
-import * as sdk from "@defillama/sdk"
-import { ethers } from "ethers"
-import { getPrices } from "../utils/prices"
 
-const address = '0x20bc832ca081b91433ff6c17f85701b6e92486c5';
-const topic0 = '0xb9c8611ba2eb0880a25df0ebde630048817ebee5f33710af0da51958c621ffd7';
-const event = 'event RewardsUpdated(uint256 periodRewards,uint256 totalRewards,uint256 rewardPerToken,uint256 distributorReward,uint256 protocolReward)'
-const contract_interface = new ethers.utils.Interface([
-  event
-]);
+const reth2Address = '0x20bc832ca081b91433ff6c17f85701b6e92486c5';
+const osTokenCtrlAddress = '0x2A261e60FB14586B474C208b1B7AC6D0f5000306';
+const fetchFees = async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
 
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
+  // fetch rETH2 logs
+  let logs= await getLogs({
+    target: reth2Address,
+    eventAbi: 'event RewardsUpdated(uint256 periodRewards,uint256 totalRewards,uint256 rewardPerToken,uint256 distributorReward,uint256 protocolReward)'
+  })
+  const rEth2Rewards = logs.map((log: any) => {
+    return Number(log.periodRewards)
+  }).reduce((a: number, b: number) => a + b, 0);
 
-const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.ETHEREUM, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.ETHEREUM, {}));
-    const logs: ILog[] = (await sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      topics: [topic0],
-      chain: CHAIN.ETHEREUM
-    })).output as ILog[]
-    const rewardsUpdated = logs.map((log: ILog) => {
-      const value = contract_interface.parseLog(log);
-      return Number(value.args.periodRewards._hex) / 10 ** 18;
-    }).reduce((a: number, b: number) => a + b, 0);
-    const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-    const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-    const dailyFees = rewardsUpdated * ethPrice;
-    const dailyRevenue = dailyFees * 0.1;
-    const dailySupplySideRevenue = dailyFees * 0.9;
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailySupplySideRevenue: `${dailySupplySideRevenue}`,
-      timestamp
-    }
-  } catch (e) {
-    console.error(e)
-    throw e;
-  }
+  // fetch osETH logs
+  logs = await getLogs({
+    target: osTokenCtrlAddress,
+    eventAbi: 'event StateUpdated(uint256 profitAccrued,uint256 treasuryShares,uint256 treasuryAssets)'
+  })
+  const osEthRewards = logs.map((log: any) => {
+    return Number(log.profitAccrued)
+  }).reduce((a: number, b: number) => a + b, 0);
+
+  dailyFees.addGasToken(osEthRewards + rEth2Rewards)
+  dailyRevenue.addGasToken((osEthRewards * 0.05) + (rEth2Rewards * 0.1))
+  dailySupplySideRevenue.addGasToken((osEthRewards * 0.95) + (rEth2Rewards * 0.9))
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, timestamp }
 
 }
 
-const adapter: SimpleAdapter  = {
+const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: async () => 1641254400
+      start: 1641254400
     }
   }
 }

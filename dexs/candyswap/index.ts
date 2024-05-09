@@ -11,6 +11,6 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "pancakeDayData",
 });
 
-adapter.adapter.meer.start = async () => 1662940800;
+adapter.adapter.meer.start = 1662940800;
 
 export default adapter

@@ -7,6 +7,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import {
   getChainVolumeWithGasToken,
 }  from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -65,6 +66,8 @@ const endpointsClassic = {
   // [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
   [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
   [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
+  [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
+  [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
 };
 
 const VOLUME_FIELD = "volumeUSD";
@@ -146,22 +149,24 @@ const fantomGraphs =  getChainVolumeWithGasToken({
     factory: "dayData",
     field: 'volumeETH',
     dateField: "date"
-  }
+  },
+  priceToken: "coingecko:fantom"
 } as any);
 classic[CHAIN.FANTOM] = {
-  fetch: async (timestamp: number) =>   {
-    const values = await fantomGraphs(CHAIN.FANTOM)(timestamp, {});
+  fetch: async (options: FetchOptions) =>   {
+    const values = await fantomGraphs(CHAIN.FANTOM)(options);
+    const vol = Number(values.dailyVolume)
     return {
       ...values,
-      dailyFees: values.dailyVolume * 0.003,
-      dailyUserFees: values.dailyVolume * 0.003,
-      dailyProtocolRevenue: values.dailyVolume * 0.0005,
-      dailySupplySideRevenue: values.dailyVolume * 0.0025,
+      dailyFees: vol * 0.003,
+      dailyUserFees: vol * 0.003,
+      dailyProtocolRevenue: vol * 0.0005,
+      dailySupplySideRevenue: vol * 0.0025,
       dailyHoldersRevenue: 0,
-      dailyRevenue: values.dailyVolume * 0.003,
+      dailyRevenue: vol * 0.003,
     }
   },
-  start: async() => 0
+  start: 0
 }
 
 export default classic

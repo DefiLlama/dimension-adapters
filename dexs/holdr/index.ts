@@ -23,10 +23,11 @@ const v1graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),
-      start: async () => 1672531200,
+      start: 1672531200,
       customBackfill: customBackfill(CHAIN.AURORA as Chain, v1graphs)
     },
   },

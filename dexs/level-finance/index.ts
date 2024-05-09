@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { adapter_derivative } from "./level-finance-derivative";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics",
@@ -47,26 +48,28 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BSC]: 1670630400,
-    [CHAIN.ARBITRUM]: 1686344400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.BSC]: 1670630400,
+  [CHAIN.ARBITRUM]: 1686344400,
 }
 
-
-const adapter: SimpleAdapter = {
+const adapter: any = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
-      start: async () => getStartTimestamp(CHAIN.BSC),
+      start: startTimestamps[CHAIN.BSC],
     },
     [CHAIN.ARBITRUM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.ARBITRUM),
-      start: async () => getStartTimestamp(CHAIN.ARBITRUM),
+      start: startTimestamps[CHAIN.ARBITRUM],
     }
   },
 };
 
-export default adapter;
+const adapterBreakdown: BreakdownAdapter = {
+  breakdown: {
+    "level-finance": adapter["adapter"],
+    "level-finance-derivative": adapter_derivative["adapter"]
+  }
+}
+export default adapterBreakdown;

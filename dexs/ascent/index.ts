@@ -41,17 +41,18 @@ const graphsV3 = getChainVolume({
 
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.EON]: {
         fetch: graphs(CHAIN.EON),
-        start: async () => 1698796800
+        start: 1698796800
       },
     },
     v3: {
       [CHAIN.EON]: {
         fetch: graphsV3(CHAIN.EON),
-        start: async () => 1699401600
+        start: 1699401600
       },
     }
   }

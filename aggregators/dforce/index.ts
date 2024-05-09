@@ -22,7 +22,7 @@ interface IAPIResponse {
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data;
+  const response: IAPIResponse = (await fetchURL(endpoints[chain]));
   const totalDailyVolume = response.data.preChain.reduce((acc,cur) => {return acc + parseInt(cur.volume)/10**18}, 0)
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   return {
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: async () => 1679097600,
+        start: 1679097600,
         runAtCurrTime: true
       }
     }

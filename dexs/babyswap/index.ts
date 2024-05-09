@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
     factoriesName: "pancakeFactories",
     dayData: "pancakeDayData",
 });
-adapters.adapter.bsc.start = async () => 1622518288;
+adapters.adapter.bsc.start = 1622518288;
 export default adapters;

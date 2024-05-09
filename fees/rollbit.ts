@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 const fetch = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     // Doesnt work because of CF block
-    const historicalVolume: any[] = (await fetchURL(`https://rollbit.com/public/lottery/pools`))?.data.response;
+    const historicalVolume: any[] = (await fetchURL(`https://rollbit.com/public/lottery/pools`)).response;
 
     const dailyDistributed = historicalVolume
         .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.distributed_at)) === dayTimestamp)?.distributed
@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: async () => 1643673600,
+            start: 1643673600,
             meta: {
                 methodology: {
                     Fees: "Money that users lose gambling",

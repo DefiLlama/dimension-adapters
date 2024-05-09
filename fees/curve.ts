@@ -99,49 +99,49 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: async () => 1577854800,
+      start: 1577854800,
       meta: {
         methodology
       }
     },
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
-      start: async () => 1620532800,
+      start: 1620532800,
       meta: {
         methodology
       }
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
-      start: async () => 1632110400,
+      start: 1632110400,
       meta: {
         methodology
       }
     },
     [POLYGON]: {
       fetch: graph(endpoints)(POLYGON),
-      start: async () => 1620014400,
+      start: 1620014400,
       meta: {
         methodology
       }
     },
     [AVAX]: {
       fetch: graph(endpoints)(AVAX),
-      start: async () => 1633492800,
+      start: 1633492800,
       meta: {
         methodology
       }
     },
     [FANTOM]: {
       fetch: graph(endpoints)(FANTOM),
-      start: async () => 1620532800,
+      start: 1620532800,
       meta: {
         methodology
       }
     },
     [XDAI]: {
       fetch: graph(endpoints)(XDAI),
-      start: async () => 1620532800,
+      start: 1620532800,
       meta: {
         methodology
       }

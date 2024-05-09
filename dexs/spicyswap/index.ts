@@ -10,7 +10,7 @@ interface IResponse {
 }
 
 const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-  const response = (await fetchURL(url)).data.spicy_day_data as IResponse[];
+  const response = (await fetchURL(url)).spicy_day_data as IResponse[];
   const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
   const dailyVolume = response.find(item => item.day.split(" ")[0].trim() === dateString)?.dailyvolumeusd
 
@@ -23,7 +23,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetchVolume,
-      start: async () => 1688774400
+      start: 1688774400
     }
   }
 }

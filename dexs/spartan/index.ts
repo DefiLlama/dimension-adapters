@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: async () => 1633305600,
+      start: 1633305600,
       customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
     },
   },

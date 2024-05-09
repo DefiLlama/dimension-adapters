@@ -15,5 +15,5 @@ const v1 = univ2Adapter(
   }
 );
 
-v1.adapter.avax.start = async () => 1663545600;
+v1.adapter.avax.start = 1663545600;
 export default v1.adapter;

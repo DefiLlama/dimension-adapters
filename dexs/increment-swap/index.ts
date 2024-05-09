@@ -1,8 +1,6 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
+import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://app.increment.fi/info/totalinfos"
@@ -13,9 +11,9 @@ interface IVolumeall {
 }
 
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.vol;
+  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint)).vol;
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
     const [time, volume] = e;
     return {
@@ -38,24 +36,12 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.vol;
-  const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
-    const [time, volume] = e;
-    return {
-      time,
-      volume
-    };
-  });
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: getStartTimestamp,
-      // customBackfill: customBackfill(CHAIN.FLOW as Chain, (_chian: string) => fetch)
+      start: 1650844800,
     },
   },
 };

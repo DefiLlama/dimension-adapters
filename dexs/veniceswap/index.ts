@@ -12,7 +12,8 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "veniceDayData",
 });
 
-adapter.adapter.findora.start = async() => 1675036800;
+adapter.adapter.findora.start = 1675036800;
+adapter.adapter.findora.fetch = async (timestamp: number) => {return{timestamp}}
 adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 
 export default adapter

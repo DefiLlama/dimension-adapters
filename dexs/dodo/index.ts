@@ -1,9 +1,9 @@
-import { Adapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, IStartTimestamp } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
-import totalVolumePayload from "./totalVolumePayload";
+import { adapter_agg } from "./dodo-agg/index";
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -29,7 +29,7 @@ const chains = [
    CHAIN.BASE,
    CHAIN.LINEA,
    CHAIN.SCROLL,
-   CHAIN.MANTA
+  //  CHAIN.MANTA
 ]
 
 interface IDailyResponse {
@@ -55,8 +55,8 @@ interface ITotalResponse {
 
 const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
-  // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))).data as ITotalResponse
+  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
+  // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))) as ITotalResponse
 
   return {
     timestamp: dayTimestamp,
@@ -66,7 +66,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 }
 
 const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
-  const response = (await postURL(dailyEndpoint, dailyVolumePayload(chain))).data as IDailyResponse
+  const response = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
   const firstDay = response.data.dashboard_chain_day_data.list.find((item: any) => item.volume[chain] !== '0')
   return firstDay?.timestamp ?? 0
 }
@@ -95,7 +95,15 @@ const volume = chains.reduce(
   {}
 );
 
-const adapter: SimpleAdapter = {
+const adapter: any = {
   adapter: volume
 };
-export default adapter;
+
+const adapterBreakdown: BreakdownAdapter = {
+  breakdown: {
+    "dodo": adapter.adapter,
+    "dodo-agg": adapter_agg["adapter"],
+  }
+}
+
+export default adapterBreakdown

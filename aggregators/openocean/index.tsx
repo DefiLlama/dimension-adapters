@@ -25,30 +25,22 @@ const chains = [
 
 const fetch =
   (chain: string) =>
-  async (timestamp: number): Promise<FetchResult> => {
-    const today = new Date();
-    const timestampDate = new Date(timestamp * 1000);
-    const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);
-    const dayDiff = today.getTime() - timestampDate.getTime();
-    const daysPassed = (dayDiff / (1000 * 3600 * 24)).toFixed(0);
-    try {
+    async (timestamp: number): Promise<FetchResult> => {
+      const today = new Date();
+      const timestampDate = new Date(timestamp * 1000);
+      const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);
+      const dayDiff = today.getTime() - timestampDate.getTime();
+      const daysPassed = (dayDiff / (1000 * 3600 * 24)).toFixed(0);
       const data = await fetchURL(
-        `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${
-          daysPassed || 1
+        `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${daysPassed || 1
         }&total=true`
       );
 
       return {
-        dailyVolume: data.data.data[chainsMap[chain] || chain]?.volume,
+        dailyVolume: data.data[chainsMap[chain] || chain]?.volume,
         timestamp: unixTimestamp,
       };
-    } catch (e) {
-      return {
-        dailyVolume: "0",
-        timestamp: unixTimestamp,
-      };
-    }
-  };
+    };
 
 const adapter: any = {
   adapter: {
@@ -57,7 +49,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch(chain),
-          start: async () => new Date(2023, 6, 1).getTime() / 1000,
+          start: new Date(2023, 6, 1).getTime() / 1000,
         },
       };
     }, {}),
