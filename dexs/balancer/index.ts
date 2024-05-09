@@ -80,8 +80,7 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: 1582761600,
-        customBackfill: customBackfill(CHAIN.ETHEREUM, v1graphs)
+        start: 1582761600
       },
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {

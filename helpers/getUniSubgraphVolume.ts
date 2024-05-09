@@ -63,7 +63,7 @@ function getChainVolume({
     dateField: DEFAULT_DAILY_DATE_FIELD
   },
   customDailyVolume = undefined,
-  hasDailyVolume = true,
+  hasDailyVolume = false,
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {
@@ -94,7 +94,7 @@ function getChainVolume({
 
   return (chain: Chain) => {
     return async (options: FetchOptions) => {
-      const { endTimestamp, getEndBlock } = options;
+      const { endTimestamp, getEndBlock, getFromBlock, getToBlock } = options;
       const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
       const block = (await customBlockFunc(endTimestamp).catch((e: any) =>
         console.log(wrapGraphError(e).message),
@@ -125,6 +125,19 @@ function getChainVolume({
         });
         const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
         dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
+      }
+      if (!hasDailyVolume) {
+        const fromBlock = await getFromBlock()
+        const toBlock = await getToBlock();
+        try {
+          const [yesterdayResult, todayResult] = await Promise.all([request(graphUrls[chain], graphQueryTotalVolume, { block: fromBlock }), request(graphUrls[chain], graphQueryTotalVolume, { block: toBlock })])
+          const todayVolume = todayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
+          const yesterdayVolume = yesterdayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
+          const volume24H = todayVolume - yesterdayVolume;
+          dailyVolumeValue = volume24H;
+        } catch (e: any) {
+          console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
+        }
       }
 
       return {

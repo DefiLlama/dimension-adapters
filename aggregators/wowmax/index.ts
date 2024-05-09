@@ -10,6 +10,7 @@ const chains = [
     CHAIN.SCROLL,
     CHAIN.CRONOS,
     CHAIN.MANTA,
+    CHAIN.BLAST,
 ];
 
 const chainToId: Record<string, number> = {
@@ -19,7 +20,8 @@ const chainToId: Record<string, number> = {
     [CHAIN.LINEA]: 59144,
     [CHAIN.SCROLL]: 534352,
     [CHAIN.CRONOS]: 25,
-    [CHAIN.MANTA]: 169
+    [CHAIN.MANTA]: 169,
+    [CHAIN.BLAST]: 81457,
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {

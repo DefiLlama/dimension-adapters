@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { Fetch, FetchOptions } from "../adapters/types";
+import { BaseAdapter, Fetch, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 
 const comptrollerABI = {
@@ -59,4 +59,24 @@ export function getFeesExport(market: string) {
     })
     return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
   }) as Fetch
+}
+
+export function compoundV2Export(config: IJSON<string>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).map(([chain, market]) => {
+    exportObject[chain] = {
+      fetch: (async (options: FetchOptions) => {
+        const { dailyFees, dailyRevenue } = await getFees(market, options, {})
+        const dailyHoldersRevenue = dailyRevenue
+        const dailySupplySideRevenue = options.createBalances()
+        dailySupplySideRevenue.addBalances(dailyFees)
+        Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
+          dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
+        })
+        return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+      }) ,
+      start: 0,
+    }
+  })
+  return { adapter: exportObject, version: 2 } as SimpleAdapter
 }

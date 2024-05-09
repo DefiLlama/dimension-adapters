@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 const v3Endpoints = {
-  [CHAIN.SHIMMER_EVM]: "https://graph-c.shimmersea.finance/subgraphs/name/shimmersea/shimmer-dex",
+  [CHAIN.SHIMMER_EVM]: "https://graph-c-ha.shimmersea.finance/subgraphs/name/shimmersea/shimmer-dex",
 }
 const v3Graphs = getGraphDimensions({
   graphUrls: v3Endpoints,

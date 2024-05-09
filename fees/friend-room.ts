@@ -11,7 +11,8 @@ const adapter: Adapter = {
       fetch: getFeesExport(friendRoomSharesAddress, [event_trade]),
       start: 1693731179,
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

@@ -10,10 +10,8 @@ type PoolData = {
 const fetch = (chain: string) => async (timestamp: number) => {
   const from = timestamp - 86400; // 60*60*24
   const to = timestamp;
-  const stats: PoolData = (
-    await fetchURL(
-      `https://api.mantissa.finance/api/pool/stats/volume/${chain}/?from_timestamp=${from}&to_timestamp=${to}`
-    )
+  const stats: PoolData = await fetchURL(
+    `https://api.mantissa.finance/api/pool/stats/volume/${chain}/?from_timestamp=${from}&to_timestamp=${to}`
   );
   return {
     totalVolume: `${stats.total_volume}`,
@@ -31,6 +29,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch("1101"),
       start: 1685355566,
+    },
+    [CHAIN.MODE]: {
+      fetch: fetch("34443"),
+      start: 1709717650,
     },
   },
 };

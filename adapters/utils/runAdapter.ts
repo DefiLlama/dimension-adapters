@@ -88,7 +88,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
     const startOfDay = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
     const startTimestamp = fromTimestamp
-    const endTimestamp = toTimestamp
+    const endTimestamp = toTimestamp + 1
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api

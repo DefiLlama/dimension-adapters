@@ -26,7 +26,7 @@ const v3Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    ProtocolRevenue: 10, // 10% of fees are going to LPs
+    ProtocolRevenue: 10, // 10% of fees are going to protocol
     HoldersRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
     SupplySideRevenue: 90, // 90% of fees are going to LPs

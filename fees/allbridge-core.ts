@@ -22,13 +22,19 @@ const lpTokenAddresses: TChainAddress = {
     '0x4C42DfDBb8Ad654b42F66E0bD4dbdC71B52EB0A6',
   ],
   [CHAIN.ARBITRUM]: [
-    '0x690e66fc0F8be8964d40e55EdE6aEBdfcB8A21Df'
+    '0x690e66fc0F8be8964d40e55EdE6aEBdfcB8A21Df',
+    '0x47235cB71107CC66B12aF6f8b8a9260ea38472c7',
   ],
   [CHAIN.AVAX]: [
-    '0xe827352A0552fFC835c181ab5Bf1D7794038eC9f'
+    '0xe827352A0552fFC835c181ab5Bf1D7794038eC9f',
+    '0x2d2f460d7a1e7a4fcC4Ddab599451480728b5784',
+  ],
+  [CHAIN.BASE]: [
+    '0xDA6bb1ec3BaBA68B26bEa0508d6f81c9ec5e96d5'
   ],
   [CHAIN.OPTIMISM]: [
-    '0x3B96F88b2b9EB87964b852874D41B633e0f1f68F'
+    '0x3B96F88b2b9EB87964b852874D41B633e0f1f68F',
+    '0xb24A05d54fcAcfe1FC00c59209470d4cafB0deEA',
   ],
   [CHAIN.TRON]: [
     'TAC21biCBL9agjuUyzd4gZr356zRgJq61b'
@@ -131,6 +137,11 @@ const adapters: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch,
       start: 1698030000,
+      meta,
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: 1706798200,
       meta,
     },
     [CHAIN.OPTIMISM]: {

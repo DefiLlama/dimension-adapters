@@ -16,7 +16,7 @@ const getDailyVolume = () => {
   }`
 }
 
-const graphQLClient = new GraphQLClient("https://api.subquery.network/sq/sora-xor/sora-prod-sub4");
+const graphQLClient = new GraphQLClient("https://api.subquery.network/sq/sora-xor/sora-prod");
 const getGQLClient = () => {
   return graphQLClient
 }

@@ -13,7 +13,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 	}
 	return {
 		dailyVolume: `${dailyVolume}`,
-		totalVolume: `${totalVolume}`,
+		// totalVolume: `${totalVolume}`,
 		timestamp
 	}
 };

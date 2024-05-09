@@ -14,7 +14,8 @@ const adapter: Adapter = {
         }),
         start: 1703255087,
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

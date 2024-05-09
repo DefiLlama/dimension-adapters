@@ -1,4 +1,4 @@
-import type { BreakdownAdapter } from "../../adapters/types";
+import type { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
@@ -12,12 +12,20 @@ const adapter: BreakdownAdapter = {
     "orderly-network": {
       [CHAIN.NEAR]: {
         start: 1669977923,
-        fetch: async(ts)=>{
-          const data = await httpGet(apiNear)
-          const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
-          return {
-            timestamp: cleanTimestamp,
-            dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+        fetch: async(__t: number, _: any, { startOfDay }: FetchOptions) => {
+          try {
+            const data = await httpGet(apiNear) // error
+            const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000))
+            return {
+              timestamp: cleanTimestamp,
+              dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+            }
+          } catch (e) {
+            console.error(e);
+            return {
+              timestamp: startOfDay,
+              dailyVolume: 0
+            }
           }
         }
       },
@@ -25,11 +33,11 @@ const adapter: BreakdownAdapter = {
     "orderly-network-derivatives": {
       [CHAIN.ARBITRUM]: {
         start: 1698278400,
-        fetch: async (timestamp: number) =>{
+        fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) =>{
           const data = await httpGet(apiEVM)
-          const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+          const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000))
           return {
-            timestamp: timestamp,
+            timestamp: cleanTimestamp,
             dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
           }
         }

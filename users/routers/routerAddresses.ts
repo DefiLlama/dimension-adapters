@@ -479,6 +479,15 @@ export default ([
         }
     },
     {
+        "id":"4372",
+        "name":"Hercules",
+        "addresses":{
+            "metis":[
+                "0x14679D1Da243B8c7d1A4c6d0523A2Ce614Ef027C"
+            ]
+        }
+    },
+    {
         "id":"parent#thena",
         "name":"Thena",
         "addresses":{
@@ -2153,7 +2162,7 @@ export default ([
     },
     {
         "id":"2899",
-        "name":"Vertex Protocol",
+        "name":"Vertex",
         "addresses":{
             "arbitrum":[
                 "0xbbee07b3e8121227afcfe1e2b82772246226128e", // endpoint
@@ -2697,6 +2706,15 @@ export default ([
         }
     }, 
     {
+        "id":"3733",
+        "name":"Chat3",
+        "addresses":{
+            "mantle":[
+                "0xAd3dbD09835CF15c543Bc59d31865D659b71060e"
+            ]
+        }
+    }, 
+    {
         "id":"970",
         "name": "Drift",
         "addresses":{
@@ -2828,5 +2846,14 @@ export default ([
             ]
         }
     },
+    {
+        "id":"3107",
+        "name":"EigenLayer",
+        "addresses":{
+            "ethereum":[
+                "0x858646372cc42e1a627fce94aa7a7033e7cf075a"
+            ]
+        }
+    }
     
 ] as ProtocolAddresses[]).filter(isAddressesUsable)

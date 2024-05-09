@@ -1,7 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
@@ -21,45 +21,27 @@ export enum KanaChainID {
 }
 
 const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = await fetchURL(
-      `${URL}?timestamp=${timestamp}&chainId=${chain}`
-    );
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const data = await fetchURL(
+    `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
+  );
+  return {
+    timestamp: timestamp,
+    dailyVolume: data.today.volume,
+    totalVolume: data.totalVolume.volume,
+  };
 };
 
 const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = await fetchURL(
-      `${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`
-    );
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const data = await fetchURL(
+    `${TRADE_URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
+  );
+  return {
+    timestamp: timestamp,
+    dailyVolume: data.today.volume,
+    totalVolume: data.totalVolume.volume,
+  };
 };
 
 const startTimeBlock = 1695897800;
@@ -98,10 +80,10 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.APTOS]: {
       fetch: async (timestamp: number) => {
-        const swap = await fetch(KanaChainID.aptos)(timestamp);
+         const swap = await fetch(KanaChainID.aptos)(timestamp); 
         const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
         return {
-          dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
+          dailyVolume: (+trade.dailyVolume).toString(),
           totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),
           timestamp,
         };

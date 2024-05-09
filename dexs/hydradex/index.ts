@@ -123,12 +123,12 @@ const adapter: BreakdownAdapter = {
     v2: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.HYDRA]: {
-        fetch: v2Graph(CHAIN.HYDRA),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: CHAIN.HYDRA,
-          dailyDataField: 'hydraswapDayDatas',
-        }),
+        fetch: async (timestamp: number) => {
+          return {
+            timestamp
+          }
+        },
+        start: 0,
         meta: {
           methodology,
         },

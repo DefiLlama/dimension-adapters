@@ -3,7 +3,7 @@ import { request, gql } from "graphql-request";
 import { BaseAdapter, FetchOptions, FetchResultGeneric, IJSON, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphFees";
 import BigNumber from "bignumber.js";
-import { getUniswapDateId, handle200Errors } from "./utils";
+import { getUniqStartOfTodayTimestamp, getUniswapDateId, handle200Errors } from "./utils";
 import { getStartTimestamp } from "../getStartTimestamp";
 
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
@@ -234,7 +234,7 @@ function getGraphDimensions({
         dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
         if (!graphResDailyVolume || !dailyVolume) {
           console.info("Attempting with alternative query...")
-          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: endTimestamp }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
+          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000)) }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
           const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
           dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[graphFieldsDailyVolume.field]), 0);
         }

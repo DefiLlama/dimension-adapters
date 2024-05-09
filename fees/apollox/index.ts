@@ -26,6 +26,7 @@ const request = (urls: ChainEndpoints) => {
 const adapter: Adapter = {
     adapter: {
         [CHAIN.BSC]: {
+            runAtCurrTime: true,
             fetch: request(endpoints)(CHAIN.BSC),
             start: 1689609600,
         },

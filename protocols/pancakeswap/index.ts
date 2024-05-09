@@ -19,7 +19,8 @@ const endpoints = {
 };
 
 const stablesSwapEndpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap"
+  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap-arb"
 }
 
 const v3Endpoint = {
@@ -109,7 +110,8 @@ const startTimes = {
 } as IJSON<number>
 
 const stableTimes = {
-  [CHAIN.BSC]: 1663718400
+  [CHAIN.BSC]: 1663718400,
+  [CHAIN.ARBITRUM]: 1705363200
 } as IJSON<number>
 
 const v3StartTimes = {
@@ -191,7 +193,7 @@ const fetchVolume: FetchV2 = async ({ endTimestamp: timestamp, createBalances })
     numberOfTrade[e]['count'] = 0;
     numberOfTrade[e]['volume'] = 0;
   })
-  const balances: sdk.Balances = createBalances() 
+  const balances: sdk.Balances = createBalances()
   logs_swap.map((e: ISwapEventData) => {
     const [token0, token1] = getToken(e.type);
     balances.add(token0, e.amount_x_out)
@@ -245,7 +247,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
 const adapter: BreakdownAdapter = {
-  version: 2, 
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,

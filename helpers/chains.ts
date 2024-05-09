@@ -26,6 +26,7 @@ export enum CHAIN {
   CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
+  BITCOIN_CASH = "bitcoincash",
   DOGECHAIN = "dogechain",
   ENERGI = "energi",
   VELAS = "velas",
@@ -136,7 +137,17 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
-  ASTAR_ZKEVM = "astrzk"
+  ASTAR_ZKEVM = "astrzk",
+  FILECOIN = "filecoin",
+  FRAXTAL = "fraxtal",
+  IMX = "imx",
+  KROMA = "kroma",
+  ZORA = "zora",
+  SVM = "svm",
+  ASTRZK = "astrzk",
+  LYRA = "lyra",
+  XLAYER = "xlayer",
+  MERLIN = "merlin"
 }
 
 // Don´t use
