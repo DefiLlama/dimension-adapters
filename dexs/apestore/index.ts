@@ -1,5 +1,5 @@
 import { httpPost } from "../../utils/fetchURL"
-import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
+import { SimpleAdapter, FetchResultVolume, FetchOptions, FetchResultV2, Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -11,9 +11,8 @@ interface VolumeInfo {
 	timeStamp: number;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-	const volumeData: VolumeInfo = await httpPost(URL, { date: dayTimestamp }, {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+	const volumeData: VolumeInfo = await httpPost(URL, { date: options.startOfDay }, {
 		headers: {
 			"Authorization": "8690be69-3c53-4bc1-8e99-e4fe0472b757"
 		},
@@ -26,10 +25,23 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 	};
 };
 
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
+	version: 2,
 	adapter: {
-		[CHAIN.BASE]: {
-			fetch: fetch,
+		base: {
+			fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
+				const volumeData: VolumeInfo = await httpPost(URL, { date: options.startOfDay }, {
+					headers: {
+						"Authorization": "8690be69-3c53-4bc1-8e99-e4fe0472b757"
+					},
+				});
+
+				return {
+					totalVolume: volumeData.totalVolume,
+					dailyVolume: volumeData.dailyVolume,
+					timestamp: volumeData.timeStamp,
+				};
+			},
 			start: 1712265900,
 		}
 	},
