@@ -30,7 +30,6 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.BASE]: {
 			fetch: fetch,
-			runAtCurrTime: true,
 			start: 1712265900,
 		}
 	},
