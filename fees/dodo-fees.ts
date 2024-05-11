@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, BreakdownAdapter } from "../adapters/types";
 import { request, gql } from "graphql-request";
 
 const feesReq = gql`
@@ -34,5 +34,12 @@ const adapter: Adapter = {
   }), {} as any)
 };
 
+const breakdownAdapter: BreakdownAdapter = {
+  version: 2,
+  breakdown: {
+    "dodo": adapter.adapter
+  }
+}
 
-export default adapter;
+
+export default breakdownAdapter;
