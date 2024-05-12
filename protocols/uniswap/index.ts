@@ -222,13 +222,13 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
-      ...Object.keys(v2Deployments).reduce((acc, chain) => {
-        acc[chain] = {
-          fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
-          start: 0,
-        }
-        return acc
-      }, {})
+      // ...Object.keys(v2Deployments).reduce((acc, chain) => {
+      //   acc[chain] = {
+      //     fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
+      //     start: 0,
+      //   }
+      //   return acc
+      // }, {})
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
