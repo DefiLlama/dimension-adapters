@@ -1,12 +1,13 @@
 import { GraphQLClient, gql } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../../helpers/getUniSubgraphVolume";
-import { getEnv } from "../../../helpers/env";
-import { FetchOptions } from "../../../adapters/types";
-import { CHAIN } from "../../../helpers/chains";
+
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
+import { getEnv } from "../../helpers/env";
 
 type TChain = {
   [key: string]: string;
-}
+};
 const CHAINS: TChain = {
   [CHAIN.ARBITRUM]: "Arbitrum",
   [CHAIN.AVAX]: "Avalanche",
@@ -70,7 +71,7 @@ const fetch = async (options: FetchOptions) => {
   }
 };
 
-const adapter_aggs: any = {
+const adapter: any = {
   version: 2,
   adapter: {
     ...Object.values(CHAINS).reduce((acc, chain) => {
@@ -84,6 +85,5 @@ const adapter_aggs: any = {
     }, {}),
   },
 };
-export {
-  adapter_aggs
-}
+
+export default adapter;
