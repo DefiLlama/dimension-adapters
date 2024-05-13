@@ -17,7 +17,7 @@ const fetch = async (options: FetchOptions) => {
   WHERE
     block_number > 18637861
     AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-    AND topic_2 in ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87')
+    AND topic_2 in ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x0000000000000000000000002b5ab59163a6e93b4486f6055d33ca4a115dd4d5')
     AND block_time BETWEEN llama_replace_date_range;
 `, options);
 

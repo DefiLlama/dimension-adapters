@@ -49,8 +49,10 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.AVAX]: ['0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC',],
   [CHAIN.BSC]: ['0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E',],
   [CHAIN.FANTOM]: ['0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd',],
-  [CHAIN.ERA]:       [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
-  [CHAIN.POLYGON_ZKEVM]: ['0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC',],
+  [CHAIN.ERA]: [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
+  [CHAIN.MODE]: ['0x7E15EB462cdc67Cf92Af1f7102465a8F8c784874',],
+  [CHAIN.LINEA]: ['0x2d8879046f1559E53eb052E949e9544bCB72f414',],
+  [CHAIN.MANTLE]: ['0xD9F4e85489aDCD0bAF0Cd63b4231c6af58c26745',],
 }
 
 const graph = (chain: Chain): any => {
@@ -82,10 +84,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: 1689292800 },
     [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: 1689292800 },
     [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: 1689292800 },
-    [CHAIN.BSC]:          { fetch: graph(CHAIN.BSC),            start: 1689292800 },
+    [CHAIN.BSC]: { fetch: graph(CHAIN.BSC), start: 1689292800 },
     [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: 1689292800 },
-    [CHAIN.ERA]:       { fetch: graph(CHAIN.ERA),         start: 1689292800 },
-    [CHAIN.POLYGON_ZKEVM]: { fetch: graph(CHAIN.POLYGON_ZKEVM), start: 1689292800 }
+    [CHAIN.ERA]: { fetch: graph(CHAIN.ERA), start: 1689292800 },
+    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: 1689292800 },
+    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: 1689292800 },
+    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: 1689292800 },
   }
 };
 

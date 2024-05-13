@@ -31,17 +31,17 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const totalFee = new BigNumber(
-        graphRes.financialsDailySnapshot.cumulativeTotalRevenueUSD
+      const totalFee = Number(
+        graphRes.financialsDailySnapshot?.cumulativeTotalRevenueUSD || '0'
       );
-      const dailyFee = new BigNumber(
-        graphRes.financialsDailySnapshot.dailyTotalRevenueUSD
+      const dailyFee = Number(
+        graphRes.financialsDailySnapshot?.dailyTotalRevenueUSD || '0'
       );
-      const totalRev = new BigNumber(
-        graphRes.financialsDailySnapshot.cumulativeProtocolSideRevenueUSD
+      const totalRev = Number(
+        graphRes.financialsDailySnapshot?.cumulativeProtocolSideRevenueUSD || '0'
       );
-      const dailyRev = new BigNumber(
-        graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD
+      const dailyRev = Number(
+        graphRes.financialsDailySnapshot?.dailyProtocolSideRevenueUSD || '0'
       );
 
       return {
@@ -61,10 +61,10 @@ const adapter: Adapter = {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
       start: 1699520408,
     },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-      start: 1679921168,
-    },
+    // [CHAIN.POLYGON_ZKEVM]: {
+    //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM), // error the graph is not available
+    //   start: 1679921168,
+    // },
     [CHAIN.MANTA]: {
       fetch: graphs(endpoints)(CHAIN.MANTA),
       start: 1698838028,

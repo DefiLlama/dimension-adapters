@@ -10,6 +10,8 @@ const endpoints: ChainEndpoints = {
   [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/50473/v2-optimism/version/latest",
   [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/50473/v2-arbitrum/version/latest",
   [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/50473/v2-blast/version/latest",
+  [CHAIN.MODE]: "https://graph.dackieswap.xyz/mode/subgraphs/name/v2-mode",
+  [CHAIN.XLAYER]: "https://graph.dackieswap.xyz/xlayer/subgraphs/name/v2-xlayer",
 };
 
 // Fetch function to query the subgraphs
@@ -53,7 +55,9 @@ const adapter: SimpleAdapter = {
                 : chain === CHAIN.OPTIMISM ? 1705993200
                     : chain === CHAIN.ARBITRUM ? 1707885300
                         : chain === CHAIN.BLAST ? 1709722800
-                            : 0,
+                            : chain === CHAIN.MODE ? 1712371653
+                              : chain === CHAIN.XLAYER ? 1712369493
+                                  : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},
       }

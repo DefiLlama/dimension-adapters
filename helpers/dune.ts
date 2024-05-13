@@ -1,10 +1,8 @@
-import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
 const plimit = require('p-limit');
 const limit = plimit(1);
 
-const token = {} as IJSON<string>
 const API_KEYS =getEnv('DUNE_API_KEYS')?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
 let API_KEY_INDEX = 0;
 
@@ -31,12 +29,11 @@ const getLatestData = async (queryId: string) => {
 }
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const inquiryStatus = async (queryId: string) => {
+const inquiryStatus = async (execution_id: string, queryId:string) => {
   let _status = undefined;
-  if (token[queryId] === undefined) throw new Error("execution is not undefined.")
   do {
     try {
-      _status = (await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/status`, {
+      _status = (await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${execution_id}/status`, {
         headers: {
           "x-dune-api-key": API_KEYS[API_KEY_INDEX]
         }
@@ -54,23 +51,21 @@ const inquiryStatus = async (queryId: string) => {
 
 const submitQuery = async (queryId: string, query_parameters = {}) => {
     let query: undefined | any = undefined
-    if (!token[queryId]) {
-      try {
-        query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
-          headers: {
-            "x-dune-api-key": API_KEYS[API_KEY_INDEX],
-            'Content-Type': 'application/json'
-          }
-        }))
-        if (query?.execution_id) {
-          token[queryId] = query?.execution_id
-        } else {
-          throw new Error("error query data: " + query)
+    try {
+      query = await limit(() => httpPost(`https://api.dune.com/api/v1/query/${queryId}/execute`, { query_parameters }, {
+        headers: {
+          "x-dune-api-key": API_KEYS[API_KEY_INDEX],
+          'Content-Type': 'application/json'
         }
-      } catch (e: any) {
-        throw e;
+      }))
+      if (query?.execution_id) {
+        return query?.execution_id
+      } else {
+        throw new Error("error query data: " + query)
       }
-  }
+    } catch (e: any) {
+      throw e;
+    }
 }
 
 
@@ -79,12 +74,12 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
       const latest_result = await getLatestData(queryId)
       if (latest_result !== undefined) return latest_result
     }
-    await submitQuery(queryId, query_parameters)
-    const _status = await inquiryStatus(queryId)
+    const execution_id = await submitQuery(queryId, query_parameters)
+    const _status = await inquiryStatus(execution_id, queryId)
     if (_status === 'QUERY_STATE_COMPLETED') {
       const API_KEY = API_KEYS[API_KEY_INDEX]
       try {
-        const queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${token[queryId]}/results?limit=5&offset=0`, {
+        const queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${execution_id}/results?limit=5&offset=0`, {
           headers: {
             "x-dune-api-key": API_KEY
           }

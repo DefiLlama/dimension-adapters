@@ -80,7 +80,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.BLAST]: {
       fetch: fetchVolume,
       start: async () => 236678,
     },
