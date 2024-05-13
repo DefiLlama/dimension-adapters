@@ -1,9 +1,9 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
-const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
+const gurar = '0x066D31221152f1f483DA474d1Ce47a4F50433e22';
 const abis: any = {
-  "forSwaps": "function forSwaps() view returns ((address lp, bool stable, address token0, address token1, address factory)[])"
+  "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, bool stable, address token0, address token1, address factory, uint256 poolFee)[])"
 }
 
 interface IForSwap {
@@ -25,6 +25,7 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
   const forSwaps: IForSwap[] = (await api.call({
     target: gurar,
     abi: abis.forSwaps,
+    params: [1000, 0],
     chain: CHAIN.BASE,
   })).map((e: any) => {
     return {
