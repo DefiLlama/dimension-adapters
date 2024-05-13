@@ -1,8 +1,7 @@
-import { FetchOptions, FetchResult, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
-const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
-const sugar = '0xdE2aE25FB984dd60C77dcF6489Be9ee6438eC195';
+const gurar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
 const abis: any = {
   "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])"
 }
@@ -25,25 +24,17 @@ const event_swap = 'event Swap(address indexed sender, address indexed recipient
 const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  let chunkSize = 400;
-  let currentOffset = 630; // Slipstream launched after ~650 v2 pools were already created
+  const chunkSize = 400;
+  let currentOffset = 965; // Slipstream launched after ~970 v2 pools were already created
   const allForSwaps: IForSwap[] = [];
   let unfinished = true;
-  let sugarContract = sugar;
-
-  // before the new Sugar is deployed, we must use the old Sugar contract, and make one large Sugar call
-  if (timestamp < 1715160600) {
-    chunkSize = 1800;
-    currentOffset = 0;
-    sugarContract = sugarOld;
-  }
 
   while (unfinished) {
     const forSwaps: IForSwap[] = (await api.call({
-      target: sugarContract,
-      params: [chunkSize, currentOffset], // Slipstream launched after ~650 v2 pools were already created
+      target: gurar,
+      params: [chunkSize, currentOffset],
       abi: abis.forSwaps,
-      chain: CHAIN.OPTIMISM,
+      chain: CHAIN.BASE,
     })).filter(t => Number(t.type) > 0).map((e: any) => {
       return {
         lp: e.lp,
@@ -78,9 +69,9 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
 }
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: {
+    [CHAIN.BASE]: {
       fetch: fetch as any,
-      start: 1709724600,
+      start: 1714743000,
     }
   }
 }
