@@ -1,148 +1,23 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import * as sdk from "@defillama/sdk";
 import { FetchOptions } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
 
 const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
+const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
 
-const gurar = '0x066D31221152f1f483DA474d1Ce47a4F50433e22';
-
-const abis: any = {
-  "all": {
-    "stateMutability": "view",
-    "type": "function",
-    "name": "all",
-    "inputs": [
-        {
-            "name": "_limit",
-            "type": "uint256"
-        },
-        {
-            "name": "_offset",
-            "type": "uint256"
-        }
-    ],
-    "outputs": [
-        {
-            "name": "",
-            "type": "tuple[]",
-            "components": [
-                {
-                    "name": "lp",
-                    "type": "address"
-                },
-                {
-                    "name": "symbol",
-                    "type": "string"
-                },
-                {
-                    "name": "decimals",
-                    "type": "uint8"
-                },
-                {
-                    "name": "liquidity",
-                    "type": "uint256"
-                },
-                {
-                    "name": "type",
-                    "type": "int24"
-                },
-                {
-                    "name": "tick",
-                    "type": "int24"
-                },
-                {
-                    "name": "sqrt_ratio",
-                    "type": "uint160"
-                },
-                {
-                    "name": "token0",
-                    "type": "address"
-                },
-                {
-                    "name": "reserve0",
-                    "type": "uint256"
-                },
-                {
-                    "name": "staked0",
-                    "type": "uint256"
-                },
-                {
-                    "name": "token1",
-                    "type": "address"
-                },
-                {
-                    "name": "reserve1",
-                    "type": "uint256"
-                },
-                {
-                    "name": "staked1",
-                    "type": "uint256"
-                },
-                {
-                    "name": "gauge",
-                    "type": "address"
-                },
-                {
-                    "name": "gauge_liquidity",
-                    "type": "uint256"
-                },
-                {
-                    "name": "gauge_alive",
-                    "type": "bool"
-                },
-                {
-                    "name": "fee",
-                    "type": "address"
-                },
-                {
-                    "name": "bribe",
-                    "type": "address"
-                },
-                {
-                    "name": "factory",
-                    "type": "address"
-                },
-                {
-                    "name": "emissions",
-                    "type": "uint256"
-                },
-                {
-                    "name": "emissions_token",
-                    "type": "address"
-                },
-                {
-                    "name": "pool_fee",
-                    "type": "uint256"
-                },
-                {
-                    "name": "unstaked_fee",
-                    "type": "uint256"
-                },
-                {
-                    "name": "token0_fees",
-                    "type": "uint256"
-                },
-                {
-                    "name": "token1_fees",
-                    "type": "uint256"
-                }
-            ]
-        }
-    ]
-}
-}
-
-export const fees_bribes = async ({ getLogs, api, createBalances }: FetchOptions)=> {
+export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: FetchOptions): Promise<sdk.Balances> => {
+  const voter = '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5';
   const dailyFees = createBalances()
-  const bribeVotingReward: string[] = (await Promise.all([0, 400, 800].map(async (offset) => api.call({
-    target: gurar,
-    abi: abis.all,
-    params: [400, offset],
-    chain: CHAIN.BASE
-  })))).flat().map((e: any) => e.bribe)
-  const bribe_contracct = [...new Set(bribeVotingReward)];
+  const logs_geuge_created = (await getLogs({
+    target: voter,
+    fromBlock: 3200601,
+    toBlock: await getToBlock(),
+    eventAbi: event_geuge_created,
+    cacheInCloud: true,
+  }))
+  const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.bribeVotingReward.toLowerCase());
+
   const logs = await getLogs({
-    targets: bribe_contracct,
+    targets: bribes_contract,
     eventAbi: event_notify_reward,
   })
   logs.map((e: any) => {
