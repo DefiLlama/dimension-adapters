@@ -1,5 +1,6 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import disabledAdapter from "../../helpers/disabledAdapter";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints = {
@@ -36,8 +37,9 @@ const v3Graphs = getGraphDimensions({
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ONUS]: {
-      fetch: v3Graphs(CHAIN.ONUS),
+      fetch: async (timestamp: number) => { return { timestamp } },
       start: 1685577600,
     },
   },

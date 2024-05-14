@@ -63,7 +63,7 @@ function getChainVolume({
     dateField: DEFAULT_DAILY_DATE_FIELD
   },
   customDailyVolume = undefined,
-  hasDailyVolume = true,
+  hasDailyVolume = false,
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {

@@ -16,6 +16,11 @@ const chainToId: Record<string, number> = {
   [CHAIN.SCROLL]: 534352,
   [CHAIN.ERA]: 324,
   [CHAIN.CRONOS]: 25,
+  [CHAIN.BASE]: 8453, 
+  [CHAIN.MANTLE]: 5000,
+  [CHAIN.BLAST]: 81457,
+  [CHAIN.POLYGON_ZKEVM]: 1101,
+  [CHAIN.BITTORRENT]: 199
 };
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
@@ -31,6 +36,26 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [CHAIN.BASE]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.BLAST]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      fetch: fetch,
+      start: 1622544000,
+    },
+    // [CHAIN.BITTORRENT]: {
+    //   fetch: fetch,
+    //   start: 1622544000,
+    // },
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: 1622544000,

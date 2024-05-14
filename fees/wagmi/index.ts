@@ -12,13 +12,13 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ERA]: {
-      fetch: fetchFee(CHAIN.ERA),
-      start: 1681257600,
-      meta: {
-        methodology,
-      },
-    },
+    // [CHAIN.ERA]: {
+    //   fetch: fetchFee(CHAIN.ERA),
+    //   start: 1681257600,
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
     [CHAIN.FANTOM]: {
       fetch: fetchFee(CHAIN.FANTOM),
       start: 1681257600,
