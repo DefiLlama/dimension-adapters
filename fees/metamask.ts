@@ -40,6 +40,7 @@ const graph = (chain: Chain) => {
           ${chain}.core.fact_transactions
         WHERE to_address = '${address[chain]}'
         and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
+        and status = 'SUCCESS'
       `
 
 
@@ -90,6 +91,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
       start: 1672531200,
+      runAtCurrTime: true,
     }
   },
   isExpensiveAdapter: true,

@@ -73,17 +73,18 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
             } else {
               const error = new Error(`Payment Required`)
               bail(error)
-              console.error("Payment Required")
-              throw error
+              console.error("Payment Required: " + FLIPSIDE_API_KEY)
+              return []
             }
           }
           if (!e.response) {
             bail(e)
             console.error("flipside not found response error")
-            throw e;
+            return []
           }
           console.log("make query flipside", e.response, e)
-          throw e
+          bail(e)
+          return []
         }
       }
 

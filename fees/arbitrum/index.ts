@@ -25,7 +25,7 @@ const adapter: Adapter = {
           `
         // const seqGas: number = sequencerGas[0].sum
         const seqGas: any = await queryIndexer(sequencerGas, options)
-        const feeQuery = await queryFlipside(`SELECT SUM(TX_FEE) from arbitrum.core.fact_transactions where BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}`, 260)
+        const feeQuery = await queryFlipside(`SELECT SUM(TX_FEE) from arbitrum.core.fact_transactions where BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}`, 360)
         const fees = Number(feeQuery[0][0])
 
         dailyFees.addGasToken(fees * 1e18)
@@ -35,7 +35,8 @@ const adapter: Adapter = {
         return { timestamp, dailyFees, dailyRevenue, };
 
       }) as any,
-      start: 1628553600
+      start: 1628553600,
+      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,

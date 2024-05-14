@@ -68,7 +68,7 @@ const v3Endpoints = {
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-optmism-regen",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   // [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+  // [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
   // [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
@@ -222,13 +222,13 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
-      ...Object.keys(v2Deployments).reduce((acc, chain) => {
-        acc[chain] = {
-          fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
-          start: 0,
-        }
-        return acc
-      }, {})
+      // ...Object.keys(v2Deployments).reduce((acc, chain) => {
+      //   acc[chain] = {
+      //     fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
+      //     start: 0,
+      //   }
+      //   return acc
+      // }, {})
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
