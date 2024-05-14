@@ -3,7 +3,7 @@ import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume, SimpleA
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";
-import { getPrices } from "../../utils/prices";
+import { ethers } from "ethers";
 
 interface IGraph {
   makerAssetAddr: string;
@@ -17,6 +17,107 @@ interface IData {
   swappeds: IGraph[];
   filledRFQs: IGraph[];
 }
+
+const ammABI = [{
+  "anonymous": false,
+  "inputs": [
+    {
+      "components": [
+        {
+          "internalType": "string",
+          "name": "source",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "transactionHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "settleAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "receivedAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "feeFactor",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint16",
+          "name": "subsidyFactor",
+          "type": "uint16"
+        }
+      ],
+      "indexed": false,
+      "internalType": "struct AMMWrapper.TxMetaData",
+      "name": "",
+      "type": "tuple"
+    },
+    {
+      "components": [
+        {
+          "internalType": "address",
+          "name": "makerAddr",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "takerAssetAddr",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "makerAssetAddr",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "takerAssetAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "makerAssetAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "userAddr",
+          "type": "address"
+        },
+        {
+          "internalType": "address payable",
+          "name": "receiverAddr",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "salt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deadline",
+          "type": "uint256"
+        }
+      ],
+      "indexed": false,
+      "internalType": "struct AMMLibEIP712.Order",
+      "name": "order",
+      "type": "tuple"
+    }
+  ],
+  "name": "Swapped",
+  "type": "event"
+}]
+
+const ammDecoder = new ethers.Interface(ammABI)
 
 type TEndpoint = {
   [s: string | Chain]: string;
@@ -34,6 +135,7 @@ const config = {
 const endpoints: TEndpoint = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/consenlabs/tokenlon-v5-exchange",
 };
+const rfqV2Endpoint = "https://subgraph.satsuma-prod.com/61c3dea518e9/imtoken-labs--349710/rfq-v2-subgraph/version/v0.0.1-test-version/api"
 
 const fetchVolume = (chain: Chain) => {
   return async (
@@ -61,16 +163,14 @@ const fetchVolume = (chain: Chain) => {
     });
 
     const rfqv2Query = `{
-    filledRFQs(
-    first: 9
-    orderBy: blockTimestamp
-    orderDirection: desc
-    where: {blockTimestamp_gte: ${fromTimestamp}, blockTimestamp_lte: ${toTimestamp}}
-  ) {
-    makerToken
-    makerTokenAmount
-  }}`
-    const rfqV2Response = await request(    "https://subgraph.satsuma-prod.com/61c3dea518e9/imtoken-labs--349710/rfq-v2-subgraph/version/v0.0.1-test-version/api",rfqv2Query)
+      filledRFQs(
+      first: 1000
+      where: {blockTimestamp_gte: ${fromTimestamp}, blockTimestamp_lte: ${toTimestamp}}
+    ) {
+      makerToken
+      makerTokenAmount
+    }}`
+    const rfqV2Response = await request(rfqV2Endpoint, rfqv2Query)
     const rfqv2Record: IGraph[] = [...rfqV2Response.filledRFQs]
     rfqv2Record.map((e: IGraph) => {
       dailyVolume.add(e.makerToken, e.makerTokenAmount);
@@ -87,6 +187,8 @@ const abis = {
     "event Swapped(string source, bytes32 indexed transactionHash, address indexed userAddr, address takerAssetAddr, uint256 takerAssetAmount, address makerAddr, address makerAssetAddr, uint256 makerAssetAmount, address receiverAddr, uint256 settleAmount, uint256 receivedAmount, uint16 feeFactor, uint16 subsidyFactor)",
   FilledRFQ:
     "event FilledRFQ(bytes32 indexed offerHash,address indexed user,address indexed maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,address recipient,uint256 settleAmount,uint256 feeFactor)",
+  FillOrderByRFQ:
+    "event FillOrder( string source,bytes32 indexed transactionHash,bytes32 indexed orderHash,address indexed userAddr,address takerAssetAddr,uint256 takerAssetAmount,address makerAddr,address makerAssetAddr,uint256 makerAssetAmount,address receiverAddr,uint256 settleAmount,uint16 feeFactor)",
 
   Swap:
     "event Swap(bytes32 indexed swapHash,address indexed maker, address indexed taker,address recipient,address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount)",
@@ -96,12 +198,24 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   const dailyVolume = createBalances();
 
   const pmmLogs = await getLogs({ target: "0x8D90113A1e286a5aB3e496fbD1853F265e5913c6", eventAbi: abis.FillOrder });
-  const ammLogs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", eventAbi: abis.Swapped });
+  const rfqv1Logs = await getLogs({ target: "0xfD6C2d2499b1331101726A8AC68CCc9Da3fAB54F", eventAbi: abis.FillOrderByRFQ });
   const rfqv2Logs = await getLogs({ target: "0x91c986709bb4fe0763edf8e2690ee9d5019bea4a", eventAbi: abis.FilledRFQ });
+  const ammV1Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", eventAbi: abis.Swapped});
+  const ammV2Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", topic: "0xc36ae6e11a161c28ae95fc0f8c0f56d3d0fb7f3a3524499c53fb6733ed86764d"});
 
-  [pmmLogs, ammLogs].flat().forEach((log: any) => {
+  [ammV1Logs, rfqv1Logs, pmmLogs].flat().forEach((log: any) => {
     dailyVolume.add(log.makerAssetAddr, log.makerAssetAmount);
   });
+
+  [ammV2Logs].flat().forEach((log: any) => {
+    const parsedLog = ammDecoder.parseLog(log)
+    if (parsedLog == null) {
+      return
+    }
+    const order = parsedLog.args.order
+    dailyVolume.add(order.makerAssetAddr, order.makerAssetAmount);
+  });
+
   [rfqv2Logs].flat().forEach((log: any) => {
     dailyVolume.add(log.makerToken, log.makerTokenAmount);
   });
