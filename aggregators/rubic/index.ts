@@ -33,7 +33,8 @@ const chains: Record<string, string> = {
   [CHAIN.FUSE]: 'fuse',
   [CHAIN.CELO]: 'celo',
   [CHAIN.OKEXCHAIN]: 'oke-x-chain',
-  [CHAIN.CRONOS]: 'cronos'
+  [CHAIN.CRONOS]: 'cronos',
+  [CHAIN.MODE]: 'mode'
 };
 
 interface ApiResponce {
