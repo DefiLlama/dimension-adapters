@@ -174,7 +174,7 @@ const v2Deployments = {
 const chainv2mapping: any = {
   [CHAIN.ARBITRUM]: "ARBITRUM",
   [CHAIN.ETHEREUM]: "ETHEREUM",
-  [CHAIN.OPTIMISM]: "OPTIMISM",
+  // [CHAIN.OPTIMISM]: "OPTIMISM",
   [CHAIN.POLYGON]: "POLYGON",
   [CHAIN.BASE]: "BASE",
   [CHAIN.BSC]: "BNB",
