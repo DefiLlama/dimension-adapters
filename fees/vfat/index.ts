@@ -41,7 +41,6 @@ const chainSettings: any = {
       logs.forEach((log: any) => {
         dailyFees.add(log.token, log.amount);
       });
-      console.log(dailyFees)
     }
   
     return {
