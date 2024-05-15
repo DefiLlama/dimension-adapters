@@ -37,7 +37,7 @@ const adapter: Adapter = {
         for (const market of markets) {
           const { base, quote, totalValueInBase, totalValueInQuote } = market;
           dailyVolume.add(base, totalValueInBase);
-          dailyVolume.add(quote, totalValueInQuote);
+          // dailyVolume.add(quote, totalValueInQuote);
         }
 
         return { dailyVolume };
