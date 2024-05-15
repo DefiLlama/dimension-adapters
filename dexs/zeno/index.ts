@@ -1,9 +1,10 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.METIS]:
@@ -17,7 +18,9 @@ type MarketStat = {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
+    return async (options: FetchOptions) => {
+      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date());
+
       if (chain === CHAIN.METIS) {
         // Get total trading volume
         const totalTradingVolumeQuery = gql`
@@ -28,6 +31,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           }
         `;
+
         const graphQLClient = new GraphQLClient(graphUrls[chain]);
         graphQLClient.setHeader("origin", "https://zeno.exchange");
         const totalMarketStats = (
@@ -51,9 +55,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
         for (const markets of splitMarket) {
           // Get daily trading volume
           const ids: Array<string> = [];
+
           let latestHourIndex = Math.floor(
-            getTimestampAtStartOfHour(timestamp) / HOUR
+            getTimestampAtStartOfHour(options.startTimestamp) / HOUR
           );
+
           for (let i = 0; i < 24; i++) {
             for (const marketStat of markets) {
               ids.push(`"${latestHourIndex - i}_${marketStat.id}"`);
@@ -73,6 +79,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
               }
             }
           `;
+
           const last24hrMarketStats = (
             await graphQLClient.request(last24hrVolumeQuery)
           ).marketHourlyStats as Array<{ tradingVolume: string }>;
@@ -84,14 +91,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
 
         return {
-          timestamp,
+          timestamp: dayTimestamp,
           totalVolume: totalVolume.toString(),
           dailyVolume: last24hrVolume.toString(),
         };
       }
 
       return {
-        timestamp,
+        timestamp: dayTimestamp,
         totalVolume: "0",
         dailyVolume: "0",
       };
@@ -104,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: graphs(endpoints)(CHAIN.METIS),
-      start: 15176760,
+      start: 1710294153,
     },
   },
 };

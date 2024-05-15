@@ -48,6 +48,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const finalizedDailyFee =
         Number(dailyFeeResp.dailyFeesStat.totalFeePaid) / 1e30;
+
       const finalizedTotalFee =
         Number(totalFeeResp.globalFeesStat.totalFeePaid) / 1e30;
       const finalizedDailyFeeWithoutFundingFee =
@@ -110,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: graphs(endpoints),
-      start: 15176760,
+      start: 1710294153,
     },
   },
 };
