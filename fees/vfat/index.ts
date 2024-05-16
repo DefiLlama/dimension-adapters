@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const chainSettings: any = {
@@ -48,11 +48,11 @@ const chainSettings: any = {
     adapter: {
       [CHAIN.OPTIMISM]: {
         fetch: fetchFees,
-        start: chainSettings.optimism.fromBlock,
+        start: 1710979200,
       },
       [CHAIN.BASE]: {
         fetch: fetchFees,
-        start: chainSettings.base.fromBlock,
+        start: 1710979200,
       },
     }
   }
