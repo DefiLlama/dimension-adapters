@@ -13,42 +13,36 @@ const chainSettings: any = {
       chainName: 'optimism',
     },
   };
-  
+
   const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     const dailyFees = createBalances();
     const settings = chainSettings[chain];
-  
-  
+
+
     // Fetch Deploy events to get all Sickle contract addresses
     const deployLogs = await getLogs({
       target: settings.factory,
       fromBlock: settings.fromBlock,
       eventAbi: 'event Deploy(address indexed admin, address sickle)',
     });
-  
-  
+
     const sickleContracts = deployLogs.map((log: any) => log.sickle);
-  
-  
-    // Fetch FeeCharged events from all Sickle contracts
-    for (const sickle of sickleContracts) {
-      const logs = await getLogs({
-        target: sickle,
-        fromBlock: settings.fromBlock,
-        eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
-      });
-      
-      logs.forEach((log: any) => {
-        dailyFees.add(log.token, log.amount);
-      });
-    }
-  
+
+    const logs = await getLogs({
+      targets: sickleContracts,
+      eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
+    });
+
+    logs.forEach((log: any) => {
+      dailyFees.add(log.token, log.amount);
+    });
+
     return {
       dailyFees,
       dailyRevenue: dailyFees,
   };
   };
-  
+
   const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
@@ -62,7 +56,5 @@ const chainSettings: any = {
       },
     }
   }
-  
+
   export default adapter;
-  
-  
