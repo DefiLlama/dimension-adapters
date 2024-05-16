@@ -1,9 +1,7 @@
-import {BaseAdapter, BreakdownAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {gql, GraphQLClient} from "graphql-request";
-import {Chain} from "@defillama/sdk/build/general";
-import {getTimestampAtStartOfDay,} from "../../utils/date";
-import {getChainVolume} from "../../helpers/getUniSubgraphVolume";
+import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gql, GraphQLClient } from "graphql-request";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 
 interface ChainConfig{
@@ -36,97 +34,54 @@ const config:Record<string, ChainConfig> = {
 }
 
 interface Data {
-    swaapSnapshot: {
+    start: {
         id: string,
         totalSwapVolume: string
-    } | null
+    },
+    end: {
+        id: string,
+        totalSwapVolume: string
+    }
 }
 
-async function getTotalVolume(chain: Chain, timestamp: number): Promise<number | null> {
-    let id = config[chain].id + '-' + timestamp
 
-    const url = config[chain].api
-    const graphQLClient = new GraphQLClient(url);
-    const todayVolumeQuery = gql`
+const  getVolume = async (options: FetchOptions) => {
+    const endtimestamp =  options.startOfDay
+    const starttimestamp = endtimestamp - 86400
+    const startId = config[options.chain].id + '-' + starttimestamp
+    const endId = config[options.chain].id + '-' + endtimestamp
+
+    const query = gql`
     {
-          swaapSnapshot(id:"${id}"){
+        start:swaapSnapshot(id: "${startId}") {
             id
             totalSwapVolume
-          }
-    }
-        `;
-
-    const result = await graphQLClient.request(todayVolumeQuery) as Data
-    return result.swaapSnapshot ? Number(result.swaapSnapshot.totalSwapVolume) : null
-}
-
-/**
- * While the getTotalVolume is null, fetch getTotalVolume of the previous day
- * @param chain
- * @param timestamp
- */
-async function getClosestTotalVolume(chain: Chain, timestamp: number): Promise<number> {
-
-    const minimalTS = config[chain].start
-    if (timestamp <= minimalTS) {
-        return config[chain].firstDayVolume
-    }
-
-
-    let totalVolume = await getTotalVolume(chain, timestamp)
-    if (totalVolume === null) {
-        const yesterdayTS = timestamp - 24 * 3600
-        totalVolume = await getClosestTotalVolume(chain, yesterdayTS)
-    }
-    return totalVolume
-}
-
-
-async function getVolume(chain: Chain, timestamp: number,) {
-
-    const timestampBegin =getTimestampAtStartOfDay(timestamp)
-    const timestampYesterday = timestampBegin - 24 * 3600
-
-    const totalVolume = await getClosestTotalVolume(chain, timestampBegin)
-    const yesterdayVolume = await getClosestTotalVolume(chain, timestampYesterday)
-
-    const dailyVolume = totalVolume - yesterdayVolume
-
-    return {
-        totalVolume,
-        dailyVolume
-    }
-}
-
-const v2graphs = (chain: Chain) => {
-    return async (timestamp: number) => {
-
-        const {totalVolume, dailyVolume} = await getVolume( chain, timestamp)
-        return {
-            timestamp,
-            totalVolume:totalVolume.toString(),
-            dailyVolume:dailyVolume.toString()
-
-        };
-    }
-}
-
-const adapterV2: BaseAdapter = Object.keys(config).reduce((acc, chain) => {
-        return {
-            ...acc,
-            [chain]: {
-                fetch: v2graphs(chain),
-                start: config[chain].start,
-                runAtCurrTime: false,
-                meta: {
-                    methodology: 'Comparing total volume of the current day with the total volume of the previous day, using TheGraph.'
-                }
-            },
         }
-    }, {} as BaseAdapter)
-;
+        end:swaapSnapshot(id: "${endId}") {
+            id
+            totalSwapVolume
+        }
+    }
+    `
+    const url = config[options.chain].api
+    const graphQLClient = new GraphQLClient(url);
+    const result: Data = await graphQLClient.request(query)
+    const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
+    const totalVolume = Number(result.end?.totalSwapVolume || 0)
+    return {
+        dailyVolume,
+        totalVolume,
+    }
+}
 
-// Directly from Balancer adapter
+const v2graphs = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { dailyVolume, totalVolume }  = await getVolume(options)
+    return {
+        dailyVolume,
+        totalVolume
+    }
+}
+
 const graphParams = {
     totalVolume: {
         factory: "swaapProtocols",
@@ -152,11 +107,25 @@ const adapter: BreakdownAdapter = {
                 customBackfill: customBackfill(CHAIN.POLYGON, v1graphs)
             },
         },
-        v2: adapterV2
+        v2: {
+            [CHAIN.ETHEREUM]: {
+                fetch: v2graphs,
+                start: 1688169600,
+
+            },
+            [CHAIN.POLYGON]: {
+                fetch: v2graphs,
+                start: 1688083200,
+
+            },
+            [CHAIN.ARBITRUM]: {
+                fetch: v2graphs,
+                start: 1696464000,
+            },
+        }
     }
 }
 
 
 
 export default adapter;
-
