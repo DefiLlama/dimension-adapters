@@ -19,7 +19,8 @@ type MarketStat = {
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (options: FetchOptions) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date());
+      const startTime = Date.now();
+      const hourStartTime = startTime / 1e3;
 
       if (chain === CHAIN.METIS) {
         // Get total trading volume
@@ -57,7 +58,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
           const ids: Array<string> = [];
 
           let latestHourIndex = Math.floor(
-            getTimestampAtStartOfHour(options.startTimestamp) / HOUR
+            getTimestampAtStartOfHour(hourStartTime) / HOUR
           );
 
           for (let i = 0; i < 24; i++) {
@@ -91,14 +92,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
 
         return {
-          timestamp: dayTimestamp,
+          timestamp: startTime,
           totalVolume: totalVolume.toString(),
           dailyVolume: last24hrVolume.toString(),
         };
       }
 
       return {
-        timestamp: dayTimestamp,
+        timestamp: startTime,
         totalVolume: "0",
         dailyVolume: "0",
       };
