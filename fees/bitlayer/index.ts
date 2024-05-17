@@ -19,11 +19,15 @@ export async function getFeeUSD({ startOfDay, createBalances }: FetchOptions, ur
     });
     const feesToday = response
       .split("\n")
-      .filter((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay);
-
-  const gasToken = "coingecko:bitcoin";
+      .map((line: any) => {
+        return {
+          timestamp: Number((line.split(",")[1] as string)?.replace(/"/g, "")),
+          value: Number((line.split(",")[2] as string)?.replace(/"/g, ""))
+        }
+      }).filter((fee: any) => fee.timestamp === startOfDay)
+  const gasToken = "bitcoin";
   feesToday.forEach((fee: any) => {
-    const value = Number(fee.split(",")[2].slice(1, -2));
+    const value = Number(fee.value);
     const amountReal = value / 1e18;
     dailyFees.addCGToken(gasToken, amountReal);
   });
@@ -36,9 +40,10 @@ const adapter: Adapter = {
     [CHAIN.BITLAYER]: {
       fetch: async (_t: any, _b: any, options: FetchOptions) => {
         const url = "https://api.btrscan.com/scan/v1/chain/txForDefillama";
+        const dailyFees = await getFeeUSD(options, url);
         return {
           timestamp: options.startOfDay,
-          dailyFees: (await getFeeUSD(options,url)),
+          dailyFees: dailyFees,
         };
       },
       start: 1713089236,

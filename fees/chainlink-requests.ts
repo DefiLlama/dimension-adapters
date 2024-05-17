@@ -130,6 +130,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch: fetchRequests(CHAIN.AVAX),
       start: 1675382400,
+      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,

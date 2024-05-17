@@ -1,5 +1,6 @@
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { DISABLED_ADAPTER_KEY, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 
 const lphelper = '0x1f176AABA9c6e2014455E5C199afD15A70f9e34e';
@@ -36,7 +37,7 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
     }
   })
 
-  const targets = forSwaps.map((forSwap: IForSwap) => forSwap.lp)
+  const targets = [...new Set(forSwaps.map((forSwap: IForSwap) => forSwap.lp))]
 
   const logs: ILog[][] = await getLogs({
     targets,
@@ -56,8 +57,9 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
 }
 const adapters: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ZETA]: {
-      fetch: fetch as any,
+      fetch: async (timestamp: number) => {return {timestamp, dailyVolume: '0'}},
       start: 1707177600,
     }
   }

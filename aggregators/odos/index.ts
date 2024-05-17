@@ -1,6 +1,6 @@
 
-import {  FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import {  FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
@@ -18,7 +18,9 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.BSC]: ['0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E',],
   [CHAIN.FANTOM]: ['0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd',],
   [CHAIN.ERA]: ['0x4bBa932E9792A2b917D47830C93a9BC79320E4f7',],
-  [CHAIN.POLYGON_ZKEVM]: ['0x2b8B3f0949dfB616602109D2AAbBA11311ec7aEC',],
+  [CHAIN.MODE]: ['0x7E15EB462cdc67Cf92Af1f7102465a8F8c784874',],
+  [CHAIN.LINEA]: ['0x2d8879046f1559E53eb052E949e9544bCB72f414',],
+  [CHAIN.MANTLE]: ['0xD9F4e85489aDCD0bAF0Cd63b4231c6af58c26745',],
 }
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {

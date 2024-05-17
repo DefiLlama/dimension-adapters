@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpointsV3 = {
-    [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
+    // [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
     [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-arbitrum',
     [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-avalanche',
     [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-bsc',

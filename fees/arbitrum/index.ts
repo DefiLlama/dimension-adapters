@@ -35,7 +35,8 @@ const adapter: Adapter = {
         return { timestamp, dailyFees, dailyRevenue, };
 
       }) as any,
-      start: 1628553600
+      start: 1628553600,
+      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,

@@ -49,6 +49,7 @@ const adapter: Adapter = {
     [CHAIN.OP_BNB]: {
       fetch: fetch as any,
       start: 1691971200,
+      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,
