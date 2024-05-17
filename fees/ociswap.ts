@@ -40,17 +40,16 @@ const adapters: BreakdownAdapter = {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('basic'),
                 start: 1696118400,
-                runAtCurrTime: true
+                // runAtCurrTime: true
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('precision'),
                 start: 1696118400,
-                runAtCurrTime: true
+                // runAtCurrTime: true
             }
         }
-    },
-    isExpensiveAdapter: true
+    }
 }
 export default adapters;
