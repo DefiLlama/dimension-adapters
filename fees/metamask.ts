@@ -44,7 +44,7 @@ const graph = (chain: Chain) => {
       `
 
 
-    const value: string[][] = (await queryFlipside(query, 510))
+    const value: string[][] = (await queryFlipside(query, 260))
     const rawData = value.map((a: string[]) => {
       const data = a[0].replace('0x5f575529', '');
       const address = data.slice(64, 128);
