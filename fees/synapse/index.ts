@@ -63,10 +63,20 @@ const query = `
 }`
 
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+export async function fetchrequest(url: string, query: string) {
+  if (!requests[url])
+    requests[url] = request(url, query)
+  return requests[url]
+}
 const graphs = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IHistory[] = (await request(url, query)).dailyStatisticsByChain;
+    const historical: IHistory[] = (await fetchrequest(url, query)).dailyStatisticsByChain;
     // const historical: IHistory[] = require('./historical.json');
     const historicalVolume = historical
     const date = new Date(timestamp * 1000);
