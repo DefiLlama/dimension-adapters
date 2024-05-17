@@ -6,6 +6,8 @@ import { Balances } from "@defillama/sdk";
 const subgraphEndpoint = "https://gateway-arbitrum.network.thegraph.com/api/7ca317c1d6347234f75513585a71157c/deployments/id/QmQF8cZUUb3hEVfuNBdGAQPBmvRioLsqyxHZbRRgk1zpVV"
 const client = new GraphQLClient(subgraphEndpoint);
 
+
+// event logs can be found here: https://github.com/DefiLlama/dimension-adapters/pull/1492#issuecomment-2118112517
 async function calculateNotionalVolume(balances: Balances, orders: any[]) {
   for (const order of orders) {
     let orderDetails = order.callOrder || order.putOrder;
@@ -24,7 +26,7 @@ async function calculateNotionalVolume(balances: Balances, orders: any[]) {
 }
 
 function calculatePremiumVolume(balances: Balances, optionPremiums: any[]) {
-  for (const premium of optionPremiums) 
+  for (const premium of optionPremiums)
     balances.add(premium.premiumAsset, premium.amount)
 }
 
@@ -105,29 +107,32 @@ async function fetchOptionPremiums(client: GraphQLClient, start: number, end: nu
 export async function fetchSubgraphData({ createBalances, startTimestamp, endTimestamp, }: FetchOptions) {
   const now = endTimestamp;
   const startOfDay = startTimestamp;
-  const [dailyCallData, totalCallData, dailyPutData, totalPutData, dailyPremiumData, totalPremiumData] = await Promise.all([
+  const [
+    dailyCallData, dailyPutData, dailyPremiumData,
+    // totalCallData, totalPutData, totalPremiumData
+  ] = await Promise.all([
     fetchCallOrder(client, startOfDay, now),
-    fetchCallOrder(client, start, now),
     fetchPutOrder(client, startOfDay, now),
-    fetchPutOrder(client, start, now),
     fetchOptionPremiums(client, startOfDay, now),
-    fetchOptionPremiums(client, start, now)
+    // fetchCallOrder(client, start, now),
+    // fetchPutOrder(client, start, now),
+    // fetchOptionPremiums(client, start, now)
   ]);
   const dailyNotionalVolume = createBalances()
   const dailyPremiumVolume = createBalances()
-  const totalNotionalVolume = createBalances()
-  const totalPremiumVolume = createBalances()
+  // const totalNotionalVolume = createBalances()
+  // const totalPremiumVolume = createBalances()
 
   calculateNotionalVolume(dailyNotionalVolume, [...dailyCallData.callOrderEntities, ...dailyPutData.putOrderEntities]);
-  calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
   calculatePremiumVolume(dailyPremiumVolume, dailyPremiumData.optionPremiums);
-  calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
+  // calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
+  // calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
 
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
+    // totalNotionalVolume,
+    // totalPremiumVolume,
   }
 }
 
