@@ -2,8 +2,8 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = "https://app.vooi.io/";
-const endpoint = "api/defilama-stats";
+const URL = "https://defilama-stats.vooi.workers.dev/";
+const endpoint = "";
 const startTimestamp = 1714608000; // 02.05.2024
 
 
