@@ -1,77 +1,31 @@
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
-import { price_id_mapping } from './pythpriceIds';
-import BigNumber from "bignumber.js";
+import { Balances } from "@defillama/sdk";
 
 const subgraphEndpoint = "https://gateway-arbitrum.network.thegraph.com/api/7ca317c1d6347234f75513585a71157c/deployments/id/QmQF8cZUUb3hEVfuNBdGAQPBmvRioLsqyxHZbRRgk1zpVV"
 const client = new GraphQLClient(subgraphEndpoint);
 
-async function getUnderlyingAssetPrice(underlyingAsset: string) {
-  const hermesApiEndpoint = "https://hermes.pyth.network"
-  const mapping = price_id_mapping.find(m => m.token.toLowerCase() == underlyingAsset.toLowerCase());
-  if (!mapping) {
-    console.error(`No price ID found for underlying asset: ${underlyingAsset}`)
-    return 0;
-  }
-  else if (mapping.price == 0) {
-    try {
-      const response = await fetch(`${hermesApiEndpoint}/v2/updates/price/latest?ids[]=${mapping.price_id}`);
-      const data = await response.json();
-      return data.parsed[0].price.price;
-    }
-    catch (error) {
-      console.error(error)
-      return 0;
-    }
-  }
-  else {
-    return mapping.price;
-  }
-}
-
-async function calculateNotionalVolume(orders: any[]) {
-  let notionalVolume = new BigNumber(0)
+async function calculateNotionalVolume(balances: Balances, orders: any[]) {
   for (const order of orders) {
-    let price = 0;
-    let price_bignumber = new BigNumber(0);
     let orderDetails = order.callOrder || order.putOrder;
 
     if (!orderDetails) {
       console.error("No order details found");
       continue;
     }
-    let tokenInfo_underlying = price_id_mapping.find(m => m.token.toLowerCase() == orderDetails.underlyingAsset.toLowerCase());
-    if (tokenInfo_underlying) {
-      price = await getUnderlyingAssetPrice(orderDetails.underlyingAsset);
-      if (order.callOrder) {
-        let tokenInfo_strike = price_id_mapping.find(m => m.token.toLowerCase() == orderDetails.strikeAsset.toLowerCase());
-        if (tokenInfo_strike) {
-          notionalVolume = notionalVolume.plus(new BigNumber(orderDetails.strikeAmount).dividedBy(10 ** tokenInfo_strike.decimals))
-          order.notionalVolume = new BigNumber(orderDetails.strikeAmount).dividedBy(10 ** tokenInfo_strike.decimals).toFixed(2)
-        }
-      }
-      else if (order.putOrder) {
-        price_bignumber = new BigNumber(price).dividedBy(10 ** tokenInfo_underlying.decimals_pyth)
-        let underlyingAmount_bignumber = new BigNumber(orderDetails.underlyingAmount).dividedBy(10 ** tokenInfo_underlying.decimals)
-        notionalVolume = notionalVolume.plus(price_bignumber.multipliedBy(underlyingAmount_bignumber))
-        order.notionalVolume = price_bignumber.multipliedBy(underlyingAmount_bignumber).toFixed(2)
-      }
+    if (order.callOrder) {
+      balances.add(orderDetails.strikeAsset, orderDetails.strikeAmount)
+    }
+    else if (order.putOrder) {
+      balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
     }
   }
-  return notionalVolume.toFixed(2);
 }
 
-function calculatePremiumVolume(optionPremiums: any[]) {
-  let premiumVolume = new BigNumber(0)
-  for (const premium of optionPremiums) {
-    let tokenInfo = price_id_mapping.find(m => m.token.toLowerCase() == premium.premiumAsset.toLowerCase());
-    if (tokenInfo) {
-      let primium_bigNumber = new BigNumber(premium.amount).dividedBy(10 ** tokenInfo.decimals)
-      premiumVolume = premiumVolume.plus(primium_bigNumber);
-    }
-  }
-  return premiumVolume.toFixed(2);
+function calculatePremiumVolume(balances: Balances, optionPremiums: any[]) {
+  for (const premium of optionPremiums) 
+    balances.add(premium.premiumAsset, premium.amount)
 }
 
 async function fetchCallOrder(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
@@ -148,12 +102,9 @@ async function fetchOptionPremiums(client: GraphQLClient, start: number, end: nu
   return allData;
 }
 
-export async function fetchSubgraphData() {
-  for (const mapping of price_id_mapping) {
-    mapping.price = await getUnderlyingAssetPrice(mapping.token);
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const startOfDay = now - (now % 86400);
+export async function fetchSubgraphData({ createBalances, startTimestamp, endTimestamp, }: FetchOptions) {
+  const now = endTimestamp;
+  const startOfDay = startTimestamp;
   const [dailyCallData, totalCallData, dailyPutData, totalPutData, dailyPremiumData, totalPremiumData] = await Promise.all([
     fetchCallOrder(client, startOfDay, now),
     fetchCallOrder(client, start, now),
@@ -162,20 +113,22 @@ export async function fetchSubgraphData() {
     fetchOptionPremiums(client, startOfDay, now),
     fetchOptionPremiums(client, start, now)
   ]);
-  const dailyNotionalVolume = await calculateNotionalVolume([...dailyCallData.callOrderEntities, ...dailyPutData.putOrderEntities]);
-  const dailyPremiumVolume = calculatePremiumVolume(dailyPremiumData.optionPremiums);
+  const dailyNotionalVolume = createBalances()
+  const dailyPremiumVolume = createBalances()
+  const totalNotionalVolume = createBalances()
+  const totalPremiumVolume = createBalances()
 
-  const totalNotionalVolume = await calculateNotionalVolume([...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
-  const totalPremiumVolume = calculatePremiumVolume(totalPremiumData.optionPremiums);
+  calculateNotionalVolume(dailyNotionalVolume, [...dailyCallData.callOrderEntities, ...dailyPutData.putOrderEntities]);
+  calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
+  calculatePremiumVolume(dailyPremiumVolume, dailyPremiumData.optionPremiums);
+  calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
 
-  const transformedData = {
-    dailyNotionalVolume: dailyNotionalVolume,
-    dailyPremiumVolume: dailyPremiumVolume,
-    totalNotionalVolume: totalNotionalVolume,
-    totalPremiumVolume: totalPremiumVolume,
-  };
-
-  return transformedData;
+  return {
+    dailyNotionalVolume,
+    dailyPremiumVolume,
+    totalNotionalVolume,
+    totalPremiumVolume,
+  }
 }
 
 const start = 1715175000
