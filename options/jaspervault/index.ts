@@ -143,7 +143,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchSubgraphData,
-      runAtCurrTime: true,
       start: start,
     },
   }
