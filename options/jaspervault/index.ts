@@ -2,22 +2,62 @@ import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
 import { Balances } from "@defillama/sdk";
-
+import { Chain } from "@defillama/sdk/build/general";
+import BigNumber from "bignumber.js";
+import ADDRESSES from '../../helpers/coreAssets.json'
+type TokenContracts = {
+  [key in Chain]: string[][];
+};
+const contracts: TokenContracts = {
+  [CHAIN.ARBITRUM]: [
+    [ADDRESSES.arbitrum.WETH],
+    [ADDRESSES.arbitrum.WBTC],
+    [ADDRESSES.arbitrum.USDC],
+    [ADDRESSES.arbitrum.USDT],
+  ],
+}
+let tokenDecimals = {}
 const subgraphEndpoint = "https://gateway-arbitrum.network.thegraph.com/api/7ca317c1d6347234f75513585a71157c/deployments/id/QmQF8cZUUb3hEVfuNBdGAQPBmvRioLsqyxHZbRRgk1zpVV"
 const client = new GraphQLClient(subgraphEndpoint);
 
-
+function getDecimals(token_address: string) {
+  let decimalPlaces = 0;
+  if (token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee") {
+    decimalPlaces = 18
+  }
+  else {
+    if (tokenDecimals[token_address.toLowerCase()] != undefined) {
+      decimalPlaces = tokenDecimals[token_address.toLowerCase()]
+    }
+    else {
+      return 0;
+    }
+  }
+  return decimalPlaces;
+}
 // event logs can be found here: https://github.com/DefiLlama/dimension-adapters/pull/1492#issuecomment-2118112517
-async function calculateNotionalVolume(balances: Balances, orders: any[]) {
+function calculateNotionalVolume(balances: Balances, orders: any[]) {
   for (const order of orders) {
     let orderDetails = order.callOrder || order.putOrder;
-
     if (!orderDetails) {
       console.error("No order details found");
       continue;
     }
     if (order.callOrder) {
-      balances.add(orderDetails.strikeAsset, orderDetails.strikeAmount)
+      let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
+      if (decimals_strikeAsset == 0) {
+        console.error("No decimals data found for strikeAsset");
+        continue;
+      }
+      let decimals_underlyingAsset = getDecimals(orderDetails.underlyingAsset);
+      if (decimals_underlyingAsset == 0) {
+        console.error("No decimals data found for underlyingAsset");
+        continue;
+      }
+      let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.underlyingAmount).dividedBy(new BigNumber(10).pow(decimals_underlyingAsset)))
+      notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
+      balances.add(orderDetails.strikeAsset, notionalValue);
+      //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} underlyingAmount:${orderDetails.underlyingAmount},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
     }
     else if (order.putOrder) {
       balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
@@ -104,9 +144,15 @@ async function fetchOptionPremiums(client: GraphQLClient, start: number, end: nu
   return allData;
 }
 
-export async function fetchSubgraphData({ createBalances, startTimestamp, endTimestamp, }: FetchOptions) {
+export async function fetchSubgraphData({ createBalances, startTimestamp, endTimestamp, chain, api }: FetchOptions) {
   const now = endTimestamp;
   const startOfDay = startTimestamp;
+  const tokens = contracts[chain].map(i => i[0]);
+  const decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens })
+  tokenDecimals = tokens.reduce((obj, token, index) => {
+    obj[token] = decimals[index];
+    return obj;
+  }, {});
   const [
     dailyCallData, dailyPutData, dailyPremiumData,
     // totalCallData, totalPutData, totalPremiumData
