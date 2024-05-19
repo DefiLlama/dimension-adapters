@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://defilama-stats.vooi.workers.dev/";
@@ -11,7 +11,7 @@ interface IAPIResponse {
     dailyVolume: string;
     totalVolume: string;
 }
-const fetch = async (options: any): Promise<FetchResult> => {
+const fetch = async (options: any): Promise<FetchResultV2> => {
     let timestamp = options.toTimestamp
     const { dailyVolume, totalVolume }: IAPIResponse = (
         (await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)).data
@@ -19,7 +19,6 @@ const fetch = async (options: any): Promise<FetchResult> => {
     return {
         dailyVolume,
         totalVolume,
-        timestamp
     };
 };
 
