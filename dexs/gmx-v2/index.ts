@@ -1,9 +1,8 @@
-import { BreakdownAdapter, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResultV2, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { adapter_trade } from './gmx-v2-trade/index'
+
 
 interface ILog {
   data: string;
@@ -28,22 +27,12 @@ const contract: TChain = {
   [CHAIN.AVAX]: '0xdb17b211c34240b014ab6d61d4a31fa0c0e20c26'
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const balances = new sdk.Balances({ chain, timestamp })
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-
-    const swap_logs: ILog[] = (await sdk.getEventLogs({
-      target: contract[chain],
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
-      topics: [topic0_ins, topic1_ins]
-    })) as ILog[];
-
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const dailyVolume = options.createBalances();
+    const swap_logs: ILog[] = await options.getLogs({
+      target: contract[options.chain],
+      topics: [topic0_ins, topic1_ins],
+    });
     const raw_in = swap_logs.map((e: ILog) => {
       const data = e.data.replace('0x', '');
       const volume = Number('0x' + data.slice(53 * 64, (53 * 64) + 64));
@@ -56,31 +45,30 @@ const fetch = (chain: Chain) => {
     })
 
     raw_in.map((e: IToken) => {
-      balances.add(e.token, e.amount)
+      dailyVolume.add(e.token, e.amount)
     })
 
     return {
-      dailyVolume: await balances.getUSDString(),
-      timestamp
+      dailyVolume: dailyVolume,
     }
-  }
 }
 
 
 const adapter: any = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
+      fetch: fetch,
       start: 1688428800,
     },
     [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
+      fetch: fetch,
       start: 1688428800,
     },
   },
 };
 
 const adapters: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     "gmx-v2-swap": adapter["adapter"],
     "gmx-v2-trade": adapter_trade["adapter"],

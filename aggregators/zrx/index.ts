@@ -59,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
         timestamp.split("T")[0] === strDate
     );
     return {
-      dailyVolume: dayData.volumeUSD,
+      dailyVolume: dayData?.volumeUSD,
       timestamp: unixTimestamp,
     };
   } catch (e) {
@@ -79,7 +79,7 @@ const adapter: any = {
         ...acc,
         [chain]: {
           fetch: fetch,
-          start: 0,
+          start: 1652745600,
         },
       };
     }, {}),

@@ -44,7 +44,7 @@ const graphs = getGraphDimensions({
 
 const endpointsV3 = {
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/chimpydev/swapbased-algebra-core",
+    "https://api.studio.thegraph.com/query/67101/swapbased-pcsv3-core/version/latest",
 };
 const graphsV3 = getChainVolume({
   graphUrls: endpointsV3,
@@ -53,7 +53,7 @@ const graphsV3 = getChainVolume({
     field: "totalVolumeUSD",
   },
   dailyVolume: {
-    factory: "algebraDayData",
+    factory: "pancakeDayData",
     field: "volumeUSD",
     dateField: "date",
   },

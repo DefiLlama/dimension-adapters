@@ -21,7 +21,7 @@ const fetch = (chain: Chain) => {
     const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
     const daily = fees.find(fee => fee.time.split(' ')[0] === dateString);
     const dailyFees = daily?.v2_fees || 0
-    const total_fees = daily?.total_fees;
+    const total_fees = daily?.total_fees || 0;
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyFees * 0.37}`,
