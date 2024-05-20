@@ -34,18 +34,18 @@ const fetch = (chain: Chain) => {
   return async (timestamp: any): Promise<FetchResultFees> => {
     const fromTimestamp = timestamp.fromTimestamp;
     const toTimestamp = timestamp.toTimestamp;
-
-    const fromBlock = await getBlock(fromTimestamp, CHAIN.ARBITRUM, {});
-    const toBlock = await getBlock(toTimestamp, CHAIN.ARBITRUM, {});
+    const fromBlock = await getBlock(fromTimestamp, chain, {});
+    const toBlock = await getBlock(toTimestamp, chain, {});
+    console.log("target", address[chain]);
 
     console.log({ fromBlock, toBlock });
     const logs: ITx[] = (
       await sdk.getEventLogs({
         target: address[chain],
-        fromBlock: 210487219,
-        toBlock: 210487219 + 100000,
+        fromBlock: fromBlock,
+        toBlock: toBlock,
         topics: [topic0NewTransferAdded],
-        chain: chain,
+        chain,
       })
     ).map((e: any) => {
       return {
