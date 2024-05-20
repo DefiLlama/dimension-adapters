@@ -28,17 +28,21 @@ const getExpansionAddress = (chain: Chain): Address => {
 
 
 const getTVL = async (chain: Chain) => {
-    return (await sdk.api.abi.call(
+    const tvl = (await sdk.api.abi.call(
         {
             target: getExpansionAddress(chain),
             chain: chain,
             abi: expansionABI,
         }
     )).output
+
+    return {
+        tvl: tvl,
+        timestamp: 0
+    }
 }
 
 const adapter: Adapter = {
-    version: 2,
     adapter: {
         [CHAIN.MANTLE]: {
             fetch: async () => getTVL(CHAIN.MANTLE),
