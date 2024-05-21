@@ -35,17 +35,17 @@ const fetchDailyStats = async (timestampSeconds: number): Promise<DailyStats> =>
  * @returns An object containing the timestamp and daily fees.
  */
 const fetch = async (timestampSeconds: number, _: any, options: FetchOptions) => {
-  const TotalRevenue = options.createBalances();
-  const TotalFee = options.createBalances();
+  const totalRevenue = options.createBalances();
+  const totalFees = options.createBalances();
   const today = getTimestampAtStartOfDayUTC(timestampSeconds);
   const statsApiResponse = await fetchDailyStats(today);
-  TotalRevenue.add('0x55d398326f99059fF775485246999027B3197955', statsApiResponse.revenueUSDT * 1e18);
-  TotalFee.add('0x55d398326f99059fF775485246999027B3197955', statsApiResponse.feesUSDT * 1e18);
+  totalRevenue.add('0x55d398326f99059fF775485246999027B3197955', statsApiResponse.revenueUSDT * 1e18);
+  totalFees.add('0x55d398326f99059fF775485246999027B3197955', statsApiResponse.feesUSDT * 1e18);
   
   return {
     timestamp: timestampSeconds,
-    TotalRevenue,
-    TotalFee
+    totalRevenue,
+    totalFees
   };
 };
 
