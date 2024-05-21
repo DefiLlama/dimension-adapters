@@ -30,14 +30,14 @@ const fetch = async (timestampSeconds: number, _: any, options: FetchOptions) =>
   const response = await fetchURL(url);
   const responsedata = response.data;
   const totalRevenue = options.createBalances();
-  const totalFees = options.createBalances();
+ 
   totalRevenue.add('0x55d398326f99059fF775485246999027B3197955', responsedata.Totalrevenue * 1e18);
-  totalFees.add('0x55d398326f99059fF775485246999027B3197955', responsedata.Fee * 1e18);
+ 
   
   return {
     timestamp: timestampSeconds,
-    totalRevenue,
-    totalFees
+    totalRevenue
+  
   };
 };
 
@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch,
-      start: 1709251200, // Start timestamp in seconds.
+      start: 1715986805152, // Start timestamp in seconds.
       meta: {
         methodology: "idlemine revenue from idlemine thumb game and idlemine battle games",
       },
