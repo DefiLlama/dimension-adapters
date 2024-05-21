@@ -136,6 +136,7 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
     recordsProcessed += RECORDS_PER_PAGE
   } while(rewards.length > 0) // keep searching while there are still records
 
+  // console.log('rewardsMap', rewardsMap)
   // total up the fees of all tokens
   let fees = BigNumber('0')
   let revenue = BigNumber('0')
@@ -160,7 +161,7 @@ const adapter: Adapter = {
   adapter: {
     [FANTOM]: {
       fetch: graphs,
-      start: 74897280 // Jan-29-2024 04:49:13 PM +UTC
+      start: 1706546953 // Jan-29-2024 04:49:13 PM +UTC
     },
   },
 }
