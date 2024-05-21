@@ -42,6 +42,7 @@ const fetch = async (timestampSeconds: number, _: any, options: FetchOptions) =>
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
