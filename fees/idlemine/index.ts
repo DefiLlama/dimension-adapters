@@ -30,14 +30,17 @@ function getIncomingTransactions(address: string, apiKey: string): Promise<Trans
 
 const fetch = (timestampSeconds: number, _: any, options: FetchOptions): Promise<{ timestamp: number, totalRevenue?: number }> => {
   const apiKey = "Q8K3QBMMFXMSJ48EKFUVA7X46TJHBSD1P8";
-  const address = "0x3AA21E06e31A038122157b99ABd57730e14FBA83";
+  const address = "0x3aa2609e1aa9A83034F59994D95E495a8904BA83";
 
   return getIncomingTransactions(address, apiKey)
     .then(transactions => {
       let totalRevenue = 0n;  // Using BigInt for accurate large number arithmetic
       transactions.forEach(transaction => {
         const valueInTokens = BigInt(transaction.value) / BigInt(1e18);
-        totalRevenue += valueInTokens;
+        if(valueInTokens<=6000){
+          totalRevenue += valueInTokens;
+        }
+      
         
       });
       return {
