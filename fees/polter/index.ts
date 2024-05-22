@@ -59,6 +59,7 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, endTimestamp, createBalan
     dailyFees.add(reward.rewardsToken, reward.reward)
     dailyRevenue.add(reward.rewardsToken, reward.reward)
   })
+  dailyRevenue.resizeBy(0.5)
   return {
     dailyFees,
     dailyRevenue,
