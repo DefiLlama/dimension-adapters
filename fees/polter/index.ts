@@ -160,7 +160,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [FANTOM]: {
-      fetch: graphs,
+      fetch: async () => {return {} },
       start: 1706546953 // Jan-29-2024 04:49:13 PM +UTC
     },
   },
