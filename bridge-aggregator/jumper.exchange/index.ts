@@ -26,12 +26,11 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
   const dailyVolume = createBalances();
   const data: any[] = await getLogs({
     target: contract[chain],
-    eventAbi: 'event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)'
+    eventAbi: 'event LiFiTransferStarted(bytes32 indexed transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId,bool hasSourceSwaps,bool hasDestinationCall )'
   });
-
   data.forEach((e: any) => {
     if (e.integrator === 'jumper.exchange' || e.integrator === 'jumper.exchange.gas') {
-      dailyVolume.add(e.toAssetId, e.toAmount);
+      dailyVolume.add(e.sendingAssetId, e.minAmount);
     }
   });
 
