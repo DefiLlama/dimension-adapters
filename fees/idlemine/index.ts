@@ -27,7 +27,7 @@ const fetchDailyStats = async (timestampSeconds: number): Promise<DailyStats> =>
     
     };
   } catch (error) {
-    console.error("Failed to fetch daily stats:", error);
+   
     throw new Error("Error fetching daily stats");
   }
 };
