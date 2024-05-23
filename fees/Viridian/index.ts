@@ -22,7 +22,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CORE]: {
       fetch: getFees,
-      start: 1711868972
+      start: 1715904000
     },
   },
 };
