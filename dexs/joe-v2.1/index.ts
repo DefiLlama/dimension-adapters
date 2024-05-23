@@ -47,15 +47,14 @@ const pools: TPool = {
   ]
 }
 
-const fetch: any = async (timestamp: number, _, { api, chain, getLogs, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances();
-  const lpTokens = pools[chain]
+const fetch: any = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const lpTokens = pools[options.chain]
   const [tokens0, tokens1] = await Promise.all(
-    ['address:getTokenX', 'address:getTokenY'].map((abi: string) =>
-      api.multiCall({        abi,        calls: lpTokens,      })    )
+    ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens,}))
   );
 
-  const logs: any[][] = (await getLogs({
+  const logs: any[][] = (await options.getLogs({
     targets: lpTokens,
     eventAbi: event_swap,
     flatten: false,
@@ -71,10 +70,11 @@ const fetch: any = async (timestamp: number, _, { api, chain, getLogs, createBal
       dailyVolume.add(token1, amountInX);
     })
   });
-  return { dailyVolume, timestamp, };
+  return { dailyVolume, };
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: 1682121600, },
     [CHAIN.BSC]: { fetch, start: 1681084800, },
