@@ -42,7 +42,7 @@ const adapter: Adapter = {
       fetch: fetchDailyStats,
       start: 1709251200, // Example start timestamp in seconds.
       meta: {
-        methodology: "Calculates revenue from IdleMine thumb game and IdleMine battle games.",
+        methodology: "Calculates revenues and fees from IdleMine thumb game and IdleMine battle games.",
       },
     },
   },
