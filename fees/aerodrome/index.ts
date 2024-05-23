@@ -21,26 +21,27 @@ const multiCall = async (callN: any) => {
   })).output.map((r: any) => r.output).flat()
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
   const chunkSize = 500;
   let currentOffset = 0;
   let unfinished = true;
   const allPools: any[] = [];
 
   while (unfinished) {
-    const allPoolsChunk = await sdk.api2.abi.call({ target: sugar, abi: abis.forSwaps, params: [chunkSize, currentOffset], chain: CHAIN.BASE, block: "latest", })
+    const allPoolsChunk = await fetchOptions.api.call({ target: sugar, abi: abis.forSwaps, params: [chunkSize, currentOffset], chain: CHAIN.BASE })
     unfinished = allPoolsChunk.length !== 0;
     currentOffset += chunkSize;
     allPools.push(...allPoolsChunk);
   }
 
-  const pools = allPools.map((e: any) => e.lp)
-  fetchOptions.api.multiCall = multiCall
+  const pools = [...new Set(allPools.map((e: any) => e.lp))]
+  const timestamp = fetchOptions.startOfDay;
   const res: any = await getDexFees({ chain: CHAIN.BASE, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, pools, timestamp, fetchOptions })
   res.dailyBribesRevenue = await fees_bribes(fetchOptions);
   return res;
 }
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
