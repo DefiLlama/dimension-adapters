@@ -1,51 +1,83 @@
-import {Adapter} from "../adapters/types";
-import fetchURL from "../utils/fetchURL";
-import {CHAIN} from "../helpers/chains";
-import {getUniqStartOfTodayTimestamp} from "../helpers/getUniSubgraphVolume";
+import request, { gql } from "graphql-request";
+import { Fetch, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
+import customBackfill from "../helpers/customBackfill";
+import { Chain } from "@defillama/sdk/build/general";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.FANTOM]: "https://api.mummy.finance/api/app-stats",
-    [CHAIN.OPTIMISM]: "https://api.mummy.finance/optimism/api/app-stats",
-}
-
-interface IFees {
-    totalFees: string;
-    fee24H: string;
-    totalVolume: string;
+  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats-v2",
+  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/op-stats",
 };
 
-const getFetch = (chain: string) => async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const feesData: IFees = (await fetchURL(endpoints[chain]))?.data;
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: { period: $period, id: $id }) {
+      swap
+    }
+  }
+`;
 
-    const dailyFees = Number(feesData.fee24H) / 10 ** 30;
-    const totalFees = Number(feesData.totalFees) / 10 ** 30;
-    const totalRevenue = totalFees * 0.05;
-    const dailyRevenue = dailyFees && dailyFees * 0.05;
+interface IGraphResponse {
+  volumeStats: Array<{
+    burn: string;
+    liquidation: string;
+    margin: string;
+    mint: string;
+    swap: string;
+  }>;
+}
 
-    return {
-        timestamp: dayTimestamp,
-        totalFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
-        totalRevenue: totalRevenue.toString(),
-        dailyRevenue: (dailyRevenue && dailyFees) ? dailyRevenue.toString() : undefined,
+const graphs = (chain: Chain) => {
+    return async (timestamp: number) => {
+      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+      const searchTimestamp = todaysTimestamp;
+
+      const graphQuery = gql`{
+          feeStat(id: "${searchTimestamp}") {
+            mint
+            burn
+            marginAndLiquidation
+            swap
+          }
+        }`;
+
+      const graphRes = await request(endpoints[chain], graphQuery);
+
+      const dailyFee =
+        parseInt(graphRes.feeStat.mint) +
+        parseInt(graphRes.feeStat.burn) +
+        parseInt(graphRes.feeStat.marginAndLiquidation) +
+        parseInt(graphRes.feeStat.swap);
+      const finalDailyFee = dailyFee / 1e30;
+      const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap);
+      const finalUserFee = userFee / 1e30;
+
+      return {
+        timestamp,
+        dailyFees: finalDailyFee.toString(),
+        dailyUserFees: finalUserFee.toString(),
+				dailyRevenue: (finalDailyFee * 0.4).toString(),
+      };
     };
-}
+};
 
-
-const adapter: Adapter = {
-    adapter: {
-        [CHAIN.FANTOM]: {
-            fetch: getFetch(CHAIN.FANTOM),
-            start: async () => 0,
-            runAtCurrTime: true
-        },
-        [CHAIN.OPTIMISM]: {
-            fetch: getFetch(CHAIN.OPTIMISM),
-            start: async () => 0,
-            runAtCurrTime: true
-        },
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1670198400,
+  [CHAIN.OPTIMISM]: 1677603600,
+};
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.FANTOM]: {
+      fetch: graphs(CHAIN.FANTOM),
+      start: startTimestamps[CHAIN.FANTOM],
     },
-}
+    [CHAIN.OPTIMISM]: {
+      fetch: graphs(CHAIN.OPTIMISM),
+      start: startTimestamps[CHAIN.OPTIMISM],
+    },
+  },
+};
 
 export default adapter;

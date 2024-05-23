@@ -7,6 +7,6 @@ const endpoints = {
 
 const adapter = univ2Adapter(endpoints, {});
 
-adapter.adapter.ethereum.start = async()=> 1672444800;
+adapter.adapter.ethereum.start = 1672444800;
 
 export default adapter

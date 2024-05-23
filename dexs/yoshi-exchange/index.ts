@@ -11,5 +11,6 @@ export default univ2Adapter(endpoints, {
     factoriesName: "factories",
     dayData: "dayData",
     dailyVolume: "volumeUSD",
-    totalVolume: "volumeUSD"
+    totalVolume: "volumeUSD",
+    gasToken: "coingecko:fantom"
 });

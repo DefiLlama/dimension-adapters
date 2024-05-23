@@ -1,9 +1,10 @@
-import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
+import { ChainEndpoints, DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.KLAYTN]: "https://graph-prod.klex.finance/subgraphs/name/klex-staging-2-mainnet",
@@ -24,6 +25,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
@@ -41,5 +43,5 @@ const adapter: SimpleAdapter = {
     }
   }, {})
 };
-
+adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapter;

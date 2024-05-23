@@ -46,10 +46,11 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     acc[chain] = {
       fetch: graphs(chain as Chain),
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
       meta: {
         methodology,
       },

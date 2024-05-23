@@ -1,11 +1,11 @@
 /// Project URL: https://voodoo.trade
 /// Contact: chickenjuju@proton.me
 ///
-/// Voodoo Trade is the ultimate FTM-focused perpetual DEX on Fantom Network.
-/// Voodoo caters solely to FTM/stable pairs, offering the deepest liquidity and most competitive
+/// Voodoo Trade is the ultimate ETH-focused perpetual DEX on Base.
+/// Voodoo caters solely to ETH/stable pairs, offering the deepest liquidity and most competitive
 /// margin fees available, on par with CEX rates. LPs can earn real yield from both margin trades
-/// and swaps on Fantom’s most highly traded pair, with no need to hold any tokens besides FTM
-/// and stables. Voodoo is a fair launch platform with support from an array of Fantom Ecosystem
+/// and swaps on Base's most highly traded pair, with no need to hold any tokens besides ETH
+/// and stables. Voodoo is a fair launch platform with support from an array of Base Ecosystem
 /// stakeholders, and implements a long-term oriented tokenomics system that is the first of its
 /// kind for perpetual DEXs.
 
@@ -14,9 +14,7 @@ import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/chicken-juju/voodoo-fantom-stats",
-}
+const endpoint = "https://api.thegraph.com/subgraphs/name/chicken-juju/voodoo-base-stats"
 
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
@@ -45,13 +43,13 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: number) => {
+const getFetch = (query: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)));
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+  const dailyData: IGraphResponse = await request(endpoint, query, {
     id: String(dayTimestamp) + ":daily",
     period: "daily",
   });
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+  const totalData: IGraphResponse = await request(endpoint, query, {
     id: "total",
     period: "total",
   });
@@ -61,7 +59,7 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+        : '0',
     totalVolume:
       totalData.volumeStats.length == 1
         ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -69,40 +67,24 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1686971650,
-  }
-  return startTimestamps[chain]
-}
+const startTimestamp = 1693997105;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
-    "swap": Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain),
-          meta: {
-            methodology: "Volume from FTM <-> stablecoin swaps. Includes both market swaps and limit orders."
-          }
-        }
-      }
-    }, {}),
-    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain),
-          meta: {
-            methodology: "Volume from leveraged long and short positions on FTM. Includes liquidations and margin fee from market and limit orders."
-          }
-        }
-      }
-    }, {})
-  }
+    swap: {
+      [CHAIN.BASE]: {
+        fetch: getFetch(historicalDataSwap),
+        start: startTimestamp,
+      },
+    },
+
+    derivatives: {
+      [CHAIN.BASE]: {
+        fetch: getFetch(historicalDataDerivatives),
+        start: startTimestamp,
+      },
+    },
+  },
 }
 
-export default adapter;
+export default adapter

@@ -1,7 +1,8 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 
 interface IGraph {
@@ -32,9 +33,10 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
     adapter: {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [CHAIN.AVAX]: {
             fetch: fetch,
-            start: async () => 1635206400,
+            start: 1635206400,
         },
     },
 };

@@ -4,25 +4,26 @@ import { getChainVolume } from "./getLyraSubgraphVolume";
 
 const endpoints: { [chain: string]: string[] } = {
   optimism: [
-    "https://api.lyra.finance/subgraph/optimism/v1/api",
-    "https://api.lyra.finance/subgraph/optimism/v2/api",
+    "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/optimism-mainnet-newport/api"
   ],
-  arbitrum: ["https://api.lyra.finance/subgraph/arbitrum/v2/api"],
+  arbitrum: ["https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/arbitrum-mainnet/api"],
 };
 
 const subgraph = getChainVolume({
   graphUrls: endpoints,
 });
 
-const adapter: SimpleAdapter = {
+const adapters: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: subgraph(chain as Chain),
-        start: async () => 1656154800,
+        start: 1656154800,
       },
     };
   }, {}),
-};
-export default adapter;
+}
+
+export default adapters;

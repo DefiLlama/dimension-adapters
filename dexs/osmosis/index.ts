@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://api-osmosis.imperator.co/volume/v2/historical/chart"
+const historicalVolumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart"
 
 interface IChartItem {
   time: string
@@ -12,14 +12,16 @@ interface IChartItem {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
+
+  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
 
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { value }) => acc + value, 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.value
+    .find(dayItem => dayItem.time === dateStr)?.value
 
   return {
     totalVolume: `${totalVolume}`,
@@ -29,15 +31,15 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))
   return (new Date(historicalVolume[0].time).getTime()) / 1000
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.COSMOS]: {
+    [CHAIN.OSMOSIS]: {
       fetch,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       start: getStartTimestamp,
     },
   },

@@ -6,5 +6,5 @@ const adapters = univ2Adapter({
     [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
 }, {});
 
-adapters.adapter.arbitrum.start = async () => 1668124800;
+adapters.adapter.arbitrum.start = 1668124800;
 export default adapters;

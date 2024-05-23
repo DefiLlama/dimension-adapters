@@ -1,9 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const getDailyVolume = () => {
   return gql`query getTradingVolumeHistory($timezone: String!, $timestampTo: Int!, $timestampFrom: Int!) {
@@ -47,9 +48,10 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: async () => 1643188527,
+      start: 1643188527,
       customBackfill: customBackfill(CHAIN.SOLANA as Chain, () => fetch)
     },
   },

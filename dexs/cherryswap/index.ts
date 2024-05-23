@@ -56,10 +56,15 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.OKEXCHAIN]: {
-      fetch: graphs(CHAIN.OKEXCHAIN),
-      start: async () => 1627385129,
+      fetch: async () => {
+        return {
+          dailyVolume: '0'
+        }
+      },
+      start: 1627385129,
     },
   },
 };

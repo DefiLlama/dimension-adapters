@@ -8,7 +8,7 @@ import { getBlock } from '../helpers/getBlock'
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume'
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: 'https://subgraph.satsuma-prod.com/49eb322da234/solidant/mainnet.unlimited/api',
+  [CHAIN.ARBITRUM]: 'https://subgraph.satsuma-prod.com/bc8f64747511/unlimited/mainnet.unlimited/api',
 }
 interface IData {
   id: string;
@@ -37,6 +37,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
       const id = `DAILY-${dayTimestamp}`
       const client = new GraphQLClient(graphUrls[chain])
+      client.setHeader('origin', 'https://unlimited.trade')
       const graphRes: IData = (await client.request(historicalDataSwap, {
         id: id,
         periodType: 'DAILY',
@@ -73,7 +74,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1684713600,
+      start: 1684713600,
     },
   },
 }

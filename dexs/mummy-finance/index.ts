@@ -2,9 +2,10 @@ import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats",
+  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats-v2",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/op-stats",
 }
 
@@ -51,24 +52,20 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1670198400,
-    [CHAIN.OPTIMISM]: 1677603600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1670198400,
+  [CHAIN.OPTIMISM]: 1677603600,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
-      start: async () => getStartTimestamp(CHAIN.FANTOM),
+      start: startTimestamps[CHAIN.FANTOM],
     },
     [CHAIN.OPTIMISM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
-      start: async () => getStartTimestamp(CHAIN.OPTIMISM),
+      start: startTimestamps[CHAIN.OPTIMISM],
     },
   },
 };

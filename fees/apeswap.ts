@@ -1,20 +1,19 @@
 import { CHAIN } from "../helpers/chains";
 import volumeAdapter from "../dexs/apeswap";
-import { BaseAdapter, Adapter, ChainBlocks } from "../adapters/types";
+import { BaseAdapter, Adapter, ChainBlocks, FetchOptions, Fetch } from "../adapters/types";
 import BigNumber from "bignumber.js";
 
 
 const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, totalFees: number, revenueFee: number) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks) => {
-    const fetchedResult = await adapterObj[chain].fetch(timestamp, chainBlocks);
-    const chainDailyVolume = fetchedResult.dailyVolume;
-    const chainTotalVolume = fetchedResult.totalVolume;
+  return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
+    const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
+    const chainDailyVolume = fetchedResult.dailyVolume as number || '0';
+    const chainTotalVolume = fetchedResult.totalVolume as number || '0';
     const ssrFee = totalFees - revenueFee
     const protocolFee = chain === CHAIN.TELOS ? 0.000375 : revenueFee / 2
     const buybackFee = revenueFee / 2
-
     return {
       timestamp,
       totalUserFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,

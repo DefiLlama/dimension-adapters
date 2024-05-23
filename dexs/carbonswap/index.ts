@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
 }, {
 });
 
-adapters.adapter.energyweb.start = async () => 1618446893;
+adapters.adapter.energyweb.start = 1618446893;
 export default adapters;

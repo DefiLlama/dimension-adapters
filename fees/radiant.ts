@@ -13,7 +13,8 @@ type TAddress = {
 
 const address: TAddress  = {
   [CHAIN.ARBITRUM]: '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f',
-  [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8'
+  [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8',
+  [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797'
 }
 
 interface ITx {
@@ -35,15 +36,13 @@ const fetch = (chain: Chain) => {
 
     const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
     const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.api.util.getLogs({
+    const logs: ITx[] = (await sdk.getEventLogs({
       target: address[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: [topic0NewTransferAdded],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
     const raw_data_logs: IData[] = logs.map((tx: ITx) => {
       const amount = Number('0x'+tx.data);
       const address = tx.topics[1];
@@ -77,11 +76,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1679097600,
+      start: 1679097600,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1679788800,
+      start: 1679788800,
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch: fetch(CHAIN.ETHEREUM),
+      start: 1698796800,
     },
   }
 }

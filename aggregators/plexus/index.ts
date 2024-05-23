@@ -8,14 +8,17 @@ type TChainID = {
 };
 const ChainId: TChainID = {
   [CHAIN.ETHEREUM]: 1,
+  [CHAIN.OPTIMISM]: 10,
   [CHAIN.BSC]: 56,
+  [CHAIN.XDAI]: 100,
   [CHAIN.POLYGON]: 137,
   [CHAIN.FANTOM]: 250,
+  // [CHAIN.ERA]: 324,
+  [CHAIN.POLYGON_ZKEVM]: 1101,
   [CHAIN.KAVA]: 2222,
+  [CHAIN.KLAYTN]: 8217,
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.AVAX]: 43114,
-  [CHAIN.OPTIMISM]: 10,
-  [CHAIN.KLAYTN]: 8217,
   [CHAIN.AURORA]: 1313161554,
 };
 
@@ -26,7 +29,7 @@ const fetch = (chainId: number) => {
       await fetchURL(
         `https://api.plexus.app/v1/dashboard/volume?date=${dateString}`
       )
-    ).data.data;
+    ).data;
     const dailyVolume: number = data[chainId] || 0;
     return {
       dailyVolume: dailyVolume.toString(),
@@ -40,7 +43,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(ChainId[chain]),
-        start: async () => 1675209600,
+        start: 1675209600,
       },
     };
   }, {}),

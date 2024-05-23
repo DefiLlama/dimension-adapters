@@ -121,8 +121,8 @@ const fetch = (chain: Chain) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1658534400,
+      fetch: async (timestamp: number) => {return {timestamp, dailyFees: "0", dailyRevenue: "0", dailySupplySideRevenue: "0", dailyProtocolRevenue: "0"}},
+      start: 1658534400,
     },
   },
 };

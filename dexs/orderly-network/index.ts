@@ -1,28 +1,48 @@
-import axios from "axios";
-import type { SimpleAdapter } from "../../adapters/types";
+import type { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
+const apiNear = "https://api.orderly.org/md/volume/daily_stats"
+const apiEVM = "https://api-evm.orderly.org/md/volume/daily_stats"
 
-const api = "https://api.orderly.org/md/volume/daily_stats"
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    "near":{
-      start: async()=>{
-        const data = await axios.get(api)
-        return dateToTs(data.data[0].date)
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    "orderly-network": {
+      [CHAIN.NEAR]: {
+        start: 1669977923,
+        fetch: async(__t: number, _: any, { startOfDay }: FetchOptions) => {
+          try {
+            const data = await httpGet(apiNear) // error
+            const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000))
+            return {
+              timestamp: cleanTimestamp,
+              dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+            }
+          } catch (e) {
+            console.error(e);
+            return {
+              timestamp: startOfDay,
+              dailyVolume: 0
+            }
+          }
+        }
       },
-      fetch: async(ts)=>{
-        const data = await axios.get(api)
-        const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
-        return {
-          timestamp: cleanTimestamp,
-          dailyVolume: data.data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+    },
+    "orderly-network-derivatives": {
+      [CHAIN.ARBITRUM]: {
+        start: 1698278400,
+        fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) =>{
+          const data = await httpGet(apiEVM)
+          const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000))
+          return {
+            timestamp: cleanTimestamp,
+            dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+          }
         }
       }
     }
   }
-};
-
+}
 export default adapter;

@@ -26,8 +26,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
-      const dailyRev = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
+      const dailyFee = new BigNumber(graphRes.financialsDailySnapshot?.dailyTotalRevenueUSD || 0);
+      const dailyRev = new BigNumber(graphRes.financialsDailySnapshot?.dailyProtocolSideRevenueUSD || 0);
 
       return {
         timestamp,
@@ -43,7 +43,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAN]: {
         fetch: graphs(endpoints)(CHAIN.MOONBEAN),
-        start: async ()  => 1656115200,
+        start: 1656115200,
     },
   }
 }

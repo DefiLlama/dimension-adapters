@@ -2,6 +2,7 @@ import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/dpex-io/core",
@@ -41,7 +42,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+        : '0',
     totalVolume:
       totalData.volumeStats.length == 1
         ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -50,19 +51,15 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.POLYGON]: 1667520000,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.POLYGON]: 1667520000,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.POLYGON),
-      start: async () => getStartTimestamp(CHAIN.POLYGON),
+      start: startTimestamps[CHAIN.POLYGON],
     },
   },
 };

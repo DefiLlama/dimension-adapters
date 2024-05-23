@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -18,6 +18,11 @@ const v3Endpoint = {
 }
 
 const VOLUME_USD = "volumeUSD";
+const blackListedPairs = {
+  [CHAIN.BSC]: [
+    "0x609f59c97ddf58475c7d3f3fc829c3ff9fc4f76f"
+  ]
+}
 
 const graphs = getGraphDimensions({
   graphUrls: endpoints,
@@ -40,7 +45,8 @@ const graphs = getGraphDimensions({
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
     Revenue: 0.08
-  }
+  },
+  blacklistTokens: blackListedPairs
 });
 
 const graphsStableSwap = getGraphDimensions({
@@ -103,32 +109,38 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BSC]: disabledAdapter
     },
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: async () => startTimes[chain],
+    v2: {
+      [CHAIN.BSC]: {
+        fetch: async (options: FetchOptions) => {
+          const volume = await graphs(CHAIN.BSC)(options)
+          return {
+            dailyFees: volume.dailyFees,
+            dailyVolume: volume.dailyVolume,
+          }
+        },
+        start: startTimes[CHAIN.BSC],
         meta: {
           methodology
         }
       }
-      return acc
-    }, {} as BaseAdapter),
+    },
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graph(chain as Chain),
-        start: async () => v3StartTimes[chain],
+        start: v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: graphsStableSwap(chain as Chain),
-        start: async () => stableTimes[chain],
+        start: stableTimes[chain],
         meta: {
           methodology : {
             UserFees: "User pays 0.25% fees on each swap.",

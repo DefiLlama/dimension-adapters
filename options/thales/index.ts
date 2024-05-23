@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: async (timestamp: number) => await getChainData(endpoints[chain], timestamp, chain),
-        start: async () => MIN_TIMESTAMP
+        start: MIN_TIMESTAMP
       }
     }
   }, {})

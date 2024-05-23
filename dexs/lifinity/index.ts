@@ -14,13 +14,16 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volume.daily.data;
+  const dateStr = new Date(dayTimestamp * 1000).toLocaleDateString('en-US', { timeZone: 'UTC' })
+  const [month, day, year] = dateStr.split('/');
+  const formattedDate = `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
   const totalVolume = historicalVolume
     .filter(volItem => Number(new Date(volItem.date.split('/').join('-')).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { volume }) => acc + Number(volume), 0);
 
   const dailyVolume = historicalVolume
-    .find(dayItem => Number(new Date(dayItem.date.split('/').join('-')).getTime() / 1000) === dayTimestamp)?.volume;
+    .find(dayItem => dayItem.date === formattedDate)?.volume;
 
   return {
     totalVolume: `${totalVolume}`,
@@ -30,7 +33,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.volume.daily.data;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volume.daily.data;
   return (new Date(historicalVolume[0].date).getTime()) / 1000
 }
 

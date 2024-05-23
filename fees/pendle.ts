@@ -1,278 +1,252 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import {
+  ChainBlocks,
+  FetchOptions,
+  FetchResultFees,
+  SimpleAdapter,
+} from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ethers } from "ethers";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
 import { Chain } from "@defillama/sdk/build/general";
-import * as sdk from "@defillama/sdk";
-import request, { gql } from "graphql-request";
+import { addTokensReceived } from "../helpers/token";
+import BigNumber from "bignumber.js";
+import { getConfig } from "../helpers/cache";
+import { ChainApi } from "@defillama/sdk";
 
-const contract: string[] = [
-  '0xcbc72d92b2dc8187414f6734718563898740c0bc',
-  '0xd393d1ddd6b8811a86d925f5e14014282581bc04',
-  '0x35c16314d6ee4753289e5cc15a5c5e1dd4ead345',
-  '0x47ba20283be4d72d4afb1862994f4203551539c5',
-  '0xc0dd85720e3bc7959890127b5d3af2d29f6c74f4',
-  '0x7f531a70a240fba0e40169e56eede1c6b7ef8463',
-  '0x677885afde857b70f40741ff8b60f9afba95dd49',
-  '0xcb611d0bd02a74c491b75d51d6ea5558f1887da3',
-  '0x3025680925349c9c01c0f01cf300ec963832ec64',
-  '0xeb83006b0aaddd15ad8afbebe2f4e0937f210673',
-  '0xdf7083f2A0F8a191ab5eEAFebE92ED21cD3Dd915',
-  '0x8267fdabd1b8C8645138f2dE5B0fe24988DC9820',
+const ABI = {
+  assetInfo: "function assetInfo() view returns (uint8,address,uint8)",
+  getRewardTokens: "function getRewardTokens() view returns (address[])",
+  exchangeRate: "function exchangeRate() view returns (uint256)",
+  marketSwapEvent:
+    "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
+};
+
+type IConfig = {
+  [s: string | Chain]: {
+    treasury: string;
+  };
+};
+
+const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
+const EETH_ETHEREUM = "ethereum:0x35fa164735182de50811e8e2e824cfb9b6118ac2";
+const WETH_ETHEREUM = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+
+const BRIDGED_ASSETS = [
+  {
+    sy: "0x80c12d5b6cc494632bf11b03f09436c8b61cc5df",
+    asset: STETH_ETHEREUM,
+  },
+  {
+    sy: "0x96a528f4414ac3ccd21342996c93f2ecdec24286",
+    asset: STETH_ETHEREUM,
+  },
+  {
+    sy: "0xa6c895eb332e91c5b3d00b7baeeaae478cc502da",
+    asset: EETH_ETHEREUM,
+  },
+  {
+    sy: "0x9d6d509c0354aca187aac6bea7d063d3ef68e2a0",
+    asset: WETH_ETHEREUM,
+  },
 ];
-type IAddress = {
-  [s: string | Chain]: string[];
-}
-const contract_address: IAddress = {
-  [CHAIN.ETHEREUM]: contract,
-  [CHAIN.ARBITRUM]: [
-    '0x2066a650AF4b6895f72E618587Aad5e8120B7790',
-    '0xAF699fb0D9F12Bf7B14474aE5c9Bea688888DF73',
-    '0x068DEf65B9dbAFf02b4ee54572a9Fa7dFb188EA3',
-    '0xc79d8a2AA6d769138E599D4DBC30569c9870a6Ee',
-    '0x318EEC91f653cA72fAFB038f9AD792A6bC0d644C',
-    '0xdd4C7313Fe4C92e043B9B7dFE433e239BcD05A0D',
-    '0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df',
-    '0xc0Cf4b266bE5B3229C49590B59E67A09c15b22f4',
-  ]
-}
-const event_claim_reward = 'event ClaimRewards(address indexed user,address[] rewardTokens,uint256[] rewardAmounts)';
-const event_create_ty = 'event CreateYieldContract(address indexed SY,uint256 indexed expiry,address PT,address YT)';
-const event_collect_interest_fees = 'event CollectInterestFee(uint256 amountInterestFee)';
-const event_collect_reward_fees = 'event CollectRewardFee(address indexed rewardToken,uint256 amountRewardFee)';
-const event_swap = 'event Swap(address indexed caller,address indexed receiver,int256 netPtOut,int256 netSyOut,uint256 netSyFee,uint256 netSyToReserve)'
 
-const topic0_collect_interest_fees = '0x004e8d79e4b41c5fad7561dc7c07786ee4e52292da7a3f5dc7ab90e32cc30423';
-const topic0_collect_reward_fees = '0x880a48d40a6133941abdcfabd5c5f9a791b1e6c8afd23138c5a36e3d95039222';
-const topic0_swap = '0x829000a5bc6a12d46e30cdcecd7c56b1efd88f6d7d059da6734a04f3764557c4';
-
-const contract_interface = new ethers.utils.Interface([
-  event_claim_reward,
-  event_create_ty,
-  event_collect_interest_fees,
-  event_collect_reward_fees,
-  event_swap,
-]);
-
-interface IContract {
-  yt: string;
-  sy: string;
-}
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-  address: string;
-}
-
-interface ISY {
-  address: string;
-}
-interface IMarket {
-  address: string;
-  sy: ISY;
-}
-
-type TChainId = {
-  [l: string | Chain]: number;
-}
-const mapChainId: TChainId = {
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.ARBITRUM]: 42161,
-}
-interface IReward {
-  rewardTokens0: string;
-  rewardTokens1: string;
-  rewardAmounts0: number;
-  rewardAmounts1: number;
-}
+const chainConfig: IConfig = {
+  [CHAIN.ETHEREUM]: {
+    treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
+  },
+  [CHAIN.ARBITRUM]: {
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
+  },
+  [CHAIN.BSC]: {
+    treasury: "0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e",
+  },
+  [CHAIN.OPTIMISM]: {
+    treasury: "0xe972d450ec5b11b99d97760422e0e054afbc8042",
+  },
+  [CHAIN.MANTLE]: {
+    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+  }
+};
 
 const fetch = (chain: Chain) => {
-  return  async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const startblock = (await getBlock(fromTimestamp, chain, {}));
-    const endblock = (await getBlock(toTimestamp, chain, {}));
+  return async (
+    timestamp: number,
+    _: ChainBlocks,
+    options: FetchOptions
+  ): Promise<FetchResultFees> => {
+    await getWhitelistedAssets(options.api);
+    const { api, getLogs, createBalances } = options;
 
-    const logs: ILog[][] = (await Promise.all(contract_address[chain].map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: endblock,
-      fromBlock: startblock,
-      keys: [],
-      chain: chain,
-      topics: ['0x2193aa20a3717f5f4ac79482f4f553e5f0afe8f4e6ec3e3d1aa2e138adc4763f']
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
 
-    const raws = logs.map((e: any) => {
-      const value = contract_interface.parseLog(e);
-      return {
-        rewardTokens0: value.args.rewardTokens[0] || '',
-        rewardTokens1: value.args.rewardTokens[1] || '',
-        rewardAmounts0: Number(value.args.rewardAmounts[0]?._hex || 0),
-        rewardAmounts1: Number(value.args.rewardAmounts[1]?._hex || 0),
+    const rewardTokens: string[] = (
+      await api.multiCall({
+        permitFailure: true,
+        abi: ABI.getRewardTokens,
+        calls: sys,
+      })
+    ).flat();
+
+    const exchangeRates: String | null[] = [];
+    const assetInfos: (string[] | null)[] = [];
+    for (const sy of sys) {
+      try {
+        const exchangeRate = await api.call({
+          target: sy,
+          abi: ABI.exchangeRate,
+        });
+        const assetInfo = await api.call({ target: sy, abi: ABI.assetInfo });
+        exchangeRates.push(exchangeRate);
+        assetInfos.push(assetInfo);
+      } catch (e) {
+        exchangeRates.push(null);
+        assetInfos.push(null);
       }
-    })
-    const coins = [...new Set([...raws.map(e => e.rewardTokens0), ...raws.map(e => e.rewardTokens0)].filter((e: string) => e).map((e: string) => `${chain}:${e.toLowerCase()}`))]
-    const prices = await getPrices(coins, timestamp);
-    const rewardAmount = raws.map((e: IReward) => {
-      const price0 = prices[`${chain}:${e.rewardTokens0.toLowerCase()}`]?.price || 0;
-      const price1 = prices[`${chain}:${e.rewardTokens1.toLowerCase()}`]?.price || 0;
-      const decimals0 = prices[`${chain}:${e.rewardTokens0.toLowerCase()}`]?.decimals || 0;
-      const decimals1 = prices[`${chain}:${e.rewardTokens1.toLowerCase()}`]?.decimals || 0;
-      const amount0 = (Number(e.rewardAmounts0) / 10 ** decimals0) * price0;
-      const amount1 = (Number(e.rewardAmounts1) / 10 ** decimals1) * price1;
-      return amount0 + amount1;
-    }).reduce((a: number, b: number) => a+b, 0);
-    const swap_fees = await fetch_swap_fees(chain, timestamp, startblock, endblock);
-    const dailyFees = rewardAmount;
-    const dailyRevenue = (rewardAmount * 0.03) + swap_fees;
-    return {
-      dailyFees: `${dailyFees + swap_fees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      timestamp
     }
-  }
-}
 
+    const dailySupplySideFees = createBalances();
+    await Promise.all(
+      markets.map(async (market) => {
+        const allSwapEvent = await getLogs({
+          target: market,
+          eventAbi: ABI.marketSwapEvent,
+        });
 
-const fetchARB = async (timestamp: number) => {
-  try {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const startblock = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
-    const endblock = (await getBlock(toTimestamp, CHAIN.ARBITRUM, {}));
-    const factory = '0x28de02ac3c3f5ef427e55c321f73fdc7f192e8e4'
+        for (const swapEvent of allSwapEvent) {
+          const netSyFee = swapEvent.netSyFee;
+          const netSyToReserve = swapEvent.netSyToReserve;
+          dailySupplySideFees.add(
+            marketToSy.get(market)!,
+            netSyFee - netSyToReserve
+          ); // excluding revenue fee
+        }
+      })
+    );
 
-    const log_create_contract: ILog[] = (await sdk.api.util.getLogs({
-      target: factory,
-      topic: '',
-      toBlock: endblock,
-      fromBlock: 	62978133,
-      keys: [],
-      chain: CHAIN.ARBITRUM,
-      topics: ['0xaa79d8f17776adeaa316c5411b72e8b0057d064974fa8748f32492ecaa22ecd1']
-    })).output as ILog[];
-    const yt_contract_address: IContract[] = log_create_contract.map((e: ILog) => {
-      const value = contract_interface.parseLog(e);
-      return {
-        yt: value.args.YT,
-        sy: value.args.SY
-      }
+    const dailyRevenue = await addTokensReceived({
+      options,
+      target: chainConfig[chain].treasury,
+      tokens: rewardTokens.concat(sys),
     });
-    const yt_contract = yt_contract_address.map((e: IContract) => e.yt);
-    const sy_contract = yt_contract_address.map((e: IContract) => e.sy);
 
+    const allRevenueTokenList = dailyRevenue.getBalances();
+    const allSupplySideTokenList = dailySupplySideFees.getBalances();
 
-    const logs_collect_interest_fees: ILog[] = (await Promise.all(yt_contract.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: endblock,
-      fromBlock: startblock,
-      keys: [],
-      chain: CHAIN.ARBITRUM,
-      topics: [topic0_collect_interest_fees]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    for (const token in allRevenueTokenList) {
+      const tokenAddr = token.split(":")[1];
+      const index = sys.indexOf(tokenAddr);
 
-      const logs_collect_reward_fees: ILog[] = (await Promise.all(yt_contract.map((address: string) => sdk.api.util.getLogs({
-        target: address,
-        topic: '',
-        toBlock: endblock,
-        fromBlock: startblock,
-        keys: [],
-        chain: CHAIN.ARBITRUM,
-        topics: [topic0_collect_reward_fees]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
-    const rewardToken = logs_collect_reward_fees.map((e: ILog) => contract_interface.parseLog(e).args.rewardToken)
-    const coins = [...new Set([...rewardToken, ...sy_contract])].map((e: string) => `${CHAIN.ARBITRUM}:${e.toLowerCase()}`)
-    const prices = await getPrices(coins, timestamp);
-    const fees_interest: number = logs_collect_interest_fees.map((a: ILog) => {
-      const value = contract_interface.parseLog(a);
-      const yt_contract_index = yt_contract.findIndex((e: string) => e.toLowerCase() === a.address.toLowerCase())
-      const address = sy_contract[yt_contract_index];
-      const price = prices[`${CHAIN.ARBITRUM}:${address.toLowerCase()}`].price;
-      const decimals = prices[`${CHAIN.ARBITRUM}:${address.toLowerCase()}`].decimals;
-      return (Number(value.args.amountInterestFee._hex) / 10 ** decimals) * price;
-    }).reduce((a: number, b: number) => a + b,0)
+      if (index == -1 || !assetInfos[index]) continue;
 
-    const fees_reward: number = logs_collect_reward_fees.map((a: ILog) => {
-      const value = contract_interface.parseLog(a);
-      const price = prices[`${CHAIN.ARBITRUM}:${value.args.rewardToken.toLowerCase()}`].price;
-      const decimals = prices[`${CHAIN.ARBITRUM}:${value.args.rewardToken.toLowerCase()}`].decimals;
-      return (Number(value.args.amountRewardFee._hex) / 10 ** decimals) * price;
-    }).reduce((a: number, b: number) => a + b,0)
+      const assetInfo = assetInfos[index]!;
 
-    const swap_fees = await fetch_swap_fees(CHAIN.ARBITRUM, timestamp, startblock, endblock);
-    const dailyFees = (fees_interest + fees_reward + swap_fees);
-    const dailyRevenue = dailyFees;
+      const rawAmountRevenue = allRevenueTokenList[token];
+      const rawAmountSupplySide = allSupplySideTokenList[token];
 
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      timestamp
-    }
-  } catch (error) {
-    console.error(error)
-    throw error;
-  }
-}
+      dailyRevenue.removeTokenBalance(token);
+      dailySupplySideFees.removeTokenBalance(token);
 
-const fetch_swap_fees = async (chain: Chain, timestamp: number, startblock: number, endblock: number): Promise<number> => {
-  const url = 'https://api-v2.pendle.finance/core/graphql';
-  const graphQueryDaily = gql
-  `{markets(chainId: ${mapChainId[chain]}, limit: 1000) {
-    results {
-      address
-      sy {
-        address
+      let underlyingAsset = assetInfo[1]!;
+
+      let isBridged = false;
+      for (const bridge of BRIDGED_ASSETS) {
+        if (bridge.sy === tokenAddr) {
+          underlyingAsset = bridge.asset;
+          isBridged = true;
+          break;
+        }
+      }
+
+      let assetAmountRevenue = new BigNumber(rawAmountRevenue);
+      let assetAmountSupplySide = new BigNumber(rawAmountSupplySide);
+      if (assetInfo[0] === "0") {
+        const rate = exchangeRates[index] ?? 0;
+        assetAmountRevenue = assetAmountRevenue
+          .times(rate)
+          .dividedToIntegerBy(1e18);
+        assetAmountSupplySide = assetAmountSupplySide
+          .times(rate)
+          .dividedToIntegerBy(1e18);
+      }
+
+      dailyRevenue.addToken(
+        underlyingAsset,
+        assetAmountRevenue,
+        isBridged
+          ? {
+              skipChain: true,
+            }
+          : undefined
+      );
+
+      if (rawAmountSupplySide !== undefined) {
+        dailySupplySideFees.addToken(
+          underlyingAsset,
+          assetAmountSupplySide,
+          isBridged
+            ? {
+                skipChain: true,
+              }
+            : undefined
+        );
       }
     }
-  }}`;
-  const markets: IMarket[] = (await request(url, graphQueryDaily)).markets.results;
-  const markets_addess = markets.map((e: IMarket) => e.address);
-  const coins = markets.map((e: IMarket) =>  `${chain}:${e.sy.address.toLowerCase()}`);
-  const prices = await getPrices(coins, timestamp);
 
-  const logs_collect_reward_fees: ILog[] = (await Promise.all(markets_addess.map((address: string) => sdk.api.util.getLogs({
-    target: address,
-    topic: '',
-    toBlock: endblock,
-    fromBlock: startblock,
-    keys: [],
-    chain: chain,
-    topics: [topic0_swap]
-  }))))
-    .map((p: any) => p)
-    .map((a: any) => a.output).flat();
-  const swap_fees = logs_collect_reward_fees.map((e: ILog) => {
-    const value = contract_interface.parseLog(e);
-    const market = markets.find(e => e.address.toLowerCase() === e.address.toLowerCase())
-    const price = prices[`${chain}:${market?.sy.address.toLowerCase()}`].price;
-    const decimals = prices[`${chain}:${market?.sy.address.toLowerCase()}`].decimals;
-    return (Number(value.args.netSyToReserve) / 10 ** decimals) * price;
-  }).reduce((a: number, b: number) => a+ b, 0)
-  return swap_fees;
-}
+    const dailyFees = dailyRevenue.clone();
+    dailyFees.addBalances(dailySupplySideFees);
+
+    return {
+      dailyFees: dailyFees,
+      dailyRevenue: dailyRevenue,
+      dailyHoldersRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailySupplySideFees,
+      timestamp,
+    };
+  };
+};
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: async () => 1686268800,
+      start: 1686268800,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchARB,
-      start: async () => 1686268800,
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: 1686268800,
     },
-  }
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC),
+      start: 1686268800,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: 1691733600,
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetch(CHAIN.MANTLE),
+      start: 1711506087,
+    },
+  },
 };
+
+async function getWhitelistedAssets(api: ChainApi): Promise<{
+  markets: string[];
+  sys: string[];
+  marketToSy: Map<string, string>;
+}> {
+  const { results } = await getConfig(
+    "pendle/v2/revenue-" + api.chain,
+    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
+  );
+  const markets = results.map((d: any) => d.lp.address);
+  const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
+  const sys = Array.from(sySet);
+
+  const marketToSy = new Map<string, string>();
+  for (const result of results) {
+    marketToSy.set(result.lp.address, result.sy.address);
+  }
+
+  return { markets, sys, marketToSy };
+}
 
 export default adapter;

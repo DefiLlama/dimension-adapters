@@ -3,13 +3,14 @@ import {
   CHAIN,
 } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
   [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-polygon',
   [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-optimism',
   //[CHAIN.KAVA]: 'https://pvt.graph.kava.io/subgraphs/name/sushi-v2/trident-kava',
-  [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/sushi-v2/trident-metis',
-  [CHAIN.BITTORRENT]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v2/trident-bttc',
+  // [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/sushi-v2/trident-metis',
+  // [CHAIN.BITTORRENT]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v2/trident-bttc',
   [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-arbitrum',
   [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-bsc',
   [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-avalanche',
@@ -45,22 +46,21 @@ const trident = Object.keys(endpointsTrident).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: async (timestamp: number) => {
+      fetch: async (options: FetchOptions) => {
         const res = await request(endpointsTrident[chain], tridentQuery, {
-          timestampHigh: timestamp,
-          timestampLow: timestamp - 3600 * 24,
+          timestampHigh: options.endTimestamp,
+          timestampLow: options.startTimestamp,
         });
         const daily = res.factoryDaySnapshots.find((snapshot: any) => {
           return snapshot.factory.type == "ALL"
         })
         return {
-          timestamp: timestamp,
           totalVolume: res.factories[0]?.volumeUSD,
           totalFees: res.factories[0]?.feesUSD,
           totalUserFees: res.factories[0]?.feesUSD,
-          dailyVolume: daily?.volumeUSD,
-          dailyFees: daily?.feesUSD,
-          dailyUserFees: daily?.feesUSD
+          dailyVolume: daily?.volumeUSD || 0,
+          dailyFees: daily?.feesUSD || 0,
+          dailyUserFees: daily?.feesUSD || 0
         }
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),

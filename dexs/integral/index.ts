@@ -8,8 +8,11 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
-const chains = [CHAIN.ARBITRUM, CHAIN.ETHEREUM];
-const endpoints = {
+export const chains = [
+  CHAIN.ARBITRUM,
+  CHAIN.ETHEREUM
+];
+export const endpoints = {
   [CHAIN.ETHEREUM]:
     "https://api.thegraph.com/subgraphs/name/integralhq/integral-size",
   [CHAIN.ARBITRUM]:
@@ -29,6 +32,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,

@@ -4,7 +4,8 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "..
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
 import { Chain, getProvider } from "@defillama/sdk/build/general";
-import getLogs, { notUndefined } from "../helpers/getLogs";
+import * as sdk from "@defillama/sdk";
+import getTxReceipts from "../helpers/getTxReceipts";
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
 const topic1_v1 = '0x56bd374744a66d531874338def36c906e3a6cf31176eb1e9afd9f1de69725d51';
@@ -71,44 +72,52 @@ const fetch = (chain: Chain, version: number) => {
     const toTimestamp = timestamp
     const fromBlock = (await getBlock(fromTimestamp, chain, {}));
     const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs_1: ITx[] = (await getLogs({
+    const logs_1: ITx[] = (await sdk.getEventLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: version === 1 ? [topic0_v1] : [topic0_v2],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
-    const logs_2: ITx[] = (await getLogs({
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+    const logs_2: ITx[] = (await sdk.getEventLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      topic: '',
       fromBlock: fromBlock,
       toBlock: toBlock,
       topics: version === 1 ? [topic1_v1] : [topic1_v2],
-      keys: [],
       chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
-    const provider = getProvider(chain);
-    const tx_hash: string[] = [...new Set([...logs_1, ...logs_2].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
-      provider.getTransactionReceipt(transactionHash)
-    ).map(p => p.catch(() => undefined))))
+    const request_fees: any[] = logs_2.map((e: ITx) => {
+      const fees = Number('0x'+e.data.slice(192, 256)) / 10 ** 18;
+      const id = e.data.slice(256, 320).toUpperCase();
+      return {
+        fees: fees,
+        id: id
+      };
+    })
+    const exclude: string[] = [];
+    const fees_amount = logs_1.map((e: ITx) => {
+      const id =  e.data.slice(0, 64).toUpperCase()
+      const fees = request_fees.find(e => e.id === id);
+      if (!fees?.fees) exclude.push(e.transactionHash);
+      return fees?.fees || 0;
+    }).reduce((a: number, b: number) => a+b, 0)
+
+
+    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash).filter(e => !exclude.includes(e)))]
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-vrf-v1' }))
       .map((e: any) => {
-        if (!e) return
-        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
+        const amount = (Number(e?.gasUsed || 0) * Number(e?.effectiveGasPrice || 0)) / 10 ** 18
         return amount
-      }).filter(notUndefined)
+      })
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = await getPrices([linkAddress, gasToken], timestamp);
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
+    const dailyGas =  txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyGasUsd = dailyGas * gagPrice;
-    const fees = version === 1 ? feesV1[chain] : feesV2[chain]
-    const dailyFees = ((logs_1.length + logs_2.length) * fees) * linkPrice;
+    const dailyFees =(fees_amount * linkPrice);
     const dailyRevenue = dailyFees - dailyGasUsd;
     return {
       dailyFees: dailyFees.toString(),
@@ -123,15 +132,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 1),
-      start: async () => 1675382400,
+      start: 1675382400,
     }
   }
 }

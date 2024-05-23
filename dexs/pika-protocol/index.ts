@@ -45,8 +45,8 @@ const fetch = (chain: Chain) => {
     `;
 
     const res: IValume = (await request(endpoints[chain], graphQuery));
-    const dailyVolume = Number(res.vaultDayData.cumulativeVolume) / 10 ** 8;
-    const totalVolume = Number(res.vaults[0].cumulativeVolume) / 10 ** 8;
+    const dailyVolume = Number(res.vaultDayData?.cumulativeVolume || 0) / 10 ** 8;
+    const totalVolume = Number(res.vaults[0]?.cumulativeVolume || 0) / 10 ** 8;
 
     return {
       timestamp,
@@ -60,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1658534400,
+      start: 1658534400,
     },
   },
 };

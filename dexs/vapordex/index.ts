@@ -1,15 +1,13 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import v1 from "./v1";
+import v2 from "./v2";
+import { BreakdownAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/mejiasd3v/vapordex-avalanche"
-}, {
-  factoriesName: "dexAmmProtocols",
-  totalVolume: "cumulativeVolumeUSD",
-  dayData: "financialsDailySnapshot",
-  dailyVolume: "dailyVolumeUSD",
-  dailyVolumeTimestampField: "timestamp"
-});
+const adapter: BreakdownAdapter = {
+  version: 2,
+  breakdown: {
+    v1: v1,
+    v2: v2,
+  },
+};
 
-adapters.adapter.avax.start = async () => 1663545600;
-export default adapters;
+export default adapter;

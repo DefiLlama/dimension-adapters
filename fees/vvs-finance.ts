@@ -13,14 +13,14 @@ const adapters = univ2DimensionAdapter({
   },
   feesPercent: {
     type: "volume",
-    Fees: 0.2,
-    UserFees: 0.2,
-    Revenue: 0,
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    SupplySideRevenue: 0,
+    Fees: 0.3,
+    UserFees: 0.3,
+    Revenue: 0.1,
+    ProtocolRevenue: 0.02,
+    HoldersRevenue: 0.08,
+    SupplySideRevenue: 0.2,
   }
 }, {
 });
-adapters.adapter.cronos.start = async () => 1632035122;
+adapters.adapter.cronos.start = 1632035122;
 export default adapters;

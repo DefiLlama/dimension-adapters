@@ -145,8 +145,8 @@ const comptrollers = [
                 "0x7D61ed92a6778f5ABf5c94085739f1EDAbec2800",
             ]
         }
-    },
-    {
+    }, 
+    /*{ // commented due to inactive project/returning error // migrated project
         id: "1614",
         name: "0vix",
         comptrollers:{
@@ -157,7 +157,7 @@ const comptrollers = [
                 "0x6EA32f626e3A5c41547235ebBdf861526e11f482",
             ],
         }
-    },
+    },*/
     {
         id: "2382",
         name: "Tender Finance",
@@ -301,7 +301,7 @@ const comptrollers = [
             ]
         }
     },
-    {
+    /*{ // commented due to inactive project/returning error
         id:"387",
         name:"Bearn",
         comptrollers:{
@@ -311,7 +311,7 @@ const comptrollers = [
                 "0xEEea0D4aAd990c4ede8e064A8Cb0A627B432EDa0",//unitroller
             ]
         }
-    },
+    },*/
     {
         id:"995",
         name:"Drops",
@@ -335,7 +335,7 @@ const comptrollers = [
             ]
         }
     },
-    {
+    /*{ // commented due to inactive project/returning error
         id:"2808",
         name:"Whitehole Finance",
         comptrollers:{
@@ -343,7 +343,7 @@ const comptrollers = [
                 "0x1d019f2d14bdb81bab7ba4ec7e20868e669c32b1",
             ]
         }
-    },
+    },*/
     {
         id:"629",
         name:"Cozy Finance",
@@ -450,7 +450,7 @@ const comptrollers = [
             ]
         }
     },
-    {
+    /*{ // commented due to inactive project/returning error
         id:"745",
         name:"Atlantis Loans",
         comptrollers:{
@@ -467,7 +467,7 @@ const comptrollers = [
                 "0xA65722af4957CeF481Edb4cB255f804DD36E8aDc",
             ],
         }
-    },
+    },*/
     {
         id:"996",
         name:"OCP Finance",
@@ -540,7 +540,7 @@ const comptrollers = [
             ]
         }
     },
-    {
+    /*{ // commented due to inactive project/returning error
         id:"1038",
         name:"FireDAO",
         comptrollers:{
@@ -549,7 +549,7 @@ const comptrollers = [
                 "0xF3CbD482Dd5Ac5aB9A0FF9baa68DdaD2f08B1c2f"
             ]
         }
-    },
+    },*/
     {
         id:"parent#quickswap",
         name:"Quickswap",
@@ -628,5 +628,6 @@ export const addresses = comptrollers.map(addresses=>({
 export default addresses.map(addresses=>({
     name: addresses.name,
     id: addresses.id,
+    getAddresses: addresses.getAddresses,
     getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end)
 }))

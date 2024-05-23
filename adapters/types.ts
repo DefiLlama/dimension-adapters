@@ -1,4 +1,4 @@
-import { util } from '@defillama/sdk';
+import { Balances, ChainApi, util } from '@defillama/sdk';
 
 const { blocks: { getChainBlocks } } = util
 
@@ -13,23 +13,66 @@ export type FetchResultBase = {
   block?: number;
 };
 
+export type FetchResultV2 = {
+  [key: string]: FetchResponseValue | undefined;
+};
+
 export type FetchResultGeneric = FetchResultBase & {
-  [key: string]: number | string | undefined | IJSON<string>
+  [key: string]: FetchResponseValue | undefined;
+}
+
+export type FetchOptions = {
+  createBalances: () => Balances;
+  getBlock: (timestamp: number, chain: string, chainBlocks: ChainBlocks) => Promise<number>;
+  getLogs: (params: FetchGetLogsOptions) => Promise<any[]>;
+  toTimestamp: number;
+  fromTimestamp: number;
+  startOfDay: number;
+  getFromBlock: () => Promise<number>;
+  getToBlock: () => Promise<number>;
+  chain: string,
+  api: ChainApi,
+  fromApi: ChainApi,
+  toApi: ChainApi,
+  startTimestamp: number,
+  endTimestamp: number,
+  getStartBlock: () => Promise<number>,
+  getEndBlock: () => Promise<number>,
+}
+
+export type FetchGetLogsOptions = {
+  eventAbi?: string,
+  topic?: string,
+  target?: string,
+  targets?: string[],
+  onlyArgs?: boolean,
+  fromBlock?: number,
+  toBlock?: number,
+  flatten?: boolean,
+  cacheInCloud?: boolean,
+  entireLog?: boolean,
+  skipCacheRead?: boolean,
+  topics?: string[],
 }
 
 export type Fetch = (
   timestamp: number,
-  chainBlocks: ChainBlocks
+  chainBlocks: ChainBlocks,
+  options: FetchOptions,
 ) => Promise<FetchResult>;
+
+export type FetchV2 = (
+  options: FetchOptions,
+) => Promise<FetchResultV2>;
 
 export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp
-    fetch: Fetch;
+    start: IStartTimestamp | number
+    fetch: Fetch|FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch;
+    customBackfill?: Fetch|FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
@@ -45,19 +88,25 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
-export type SimpleAdapter = {
-  adapter: BaseAdapter
+export type AdapterBase = {
+  timetravel?: boolean
+  isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
+  version?: number;
 }
 
-export type BreakdownAdapter = {
+export type SimpleAdapter = AdapterBase & {
+  adapter: BaseAdapter
+}
+
+export type BreakdownAdapter = AdapterBase & {
   breakdown: {
     [version: string]: BaseAdapter
   };
-  protocolType?: ProtocolType;
 };
 
 export type Adapter = SimpleAdapter | BreakdownAdapter;
+export type FetchResponseValue = string | number | Balances;
 
 /**
  * Include here new adaptors types
@@ -65,43 +114,50 @@ export type Adapter = SimpleAdapter | BreakdownAdapter;
 
 // VOLUME
 export type FetchResultVolume = FetchResultBase & {
-  dailyVolume?: string // | IJSON<string>;
-  totalVolume?: string // | IJSON<string>;
+  dailyVolume?: FetchResponseValue
+  totalVolume?: FetchResponseValue
+  dailyShortOpenInterest?: FetchResponseValue
+  dailyLongOpenInterest?: FetchResponseValue
+  dailyOpenInterest?: FetchResponseValue
 };
 
 // FEES
 export type FetchResultFees = FetchResultBase & {
-  totalFees?: string | IJSON<string>;
-  dailyFees?: string | IJSON<string>;
-  dailyUserFees?: string | IJSON<string>;
-  totalRevenue?: string | IJSON<string>;
-  dailyRevenue?: string | IJSON<string>;
-  dailyProtocolRevenue?: string | IJSON<string>;
-  dailyHoldersRevenue?: string | IJSON<string>;
-  dailySupplySideRevenue?: string | IJSON<string>;
-  totalProtocolRevenue?: string | IJSON<string>;
-  totalSupplySideRevenue?: string | IJSON<string>;
-  totalUserFees?: string | IJSON<string>;
-  dailyBribesRevenue?: string | IJSON<string>;
+  totalFees?: FetchResponseValue;
+  dailyFees?: FetchResponseValue;
+  dailyUserFees?: FetchResponseValue;
+  totalRevenue?: FetchResponseValue;
+  dailyRevenue?: FetchResponseValue;
+  dailyProtocolRevenue?: FetchResponseValue;
+  dailyHoldersRevenue?: FetchResponseValue;
+  dailySupplySideRevenue?: FetchResponseValue;
+  totalProtocolRevenue?: FetchResponseValue;
+  totalSupplySideRevenue?: FetchResponseValue;
+  totalUserFees?: FetchResponseValue;
+  dailyBribesRevenue?: FetchResponseValue;
+  dailyTokenTaxes?: FetchResponseValue;
 };
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
-  tokens?: IJSON<string> // | string
+  tokenIncentives?: FetchResponseValue
 };
 
 // AGGREGATORS
 export type FetchResultAggregators = FetchResultBase & {
-  dailyVolume?: string // | IJSON<string>;
-  totalVolume?: string // | IJSON<string>;
+  dailyVolume?: FetchResponseValue
+  totalVolume?: FetchResponseValue
 };
 
 // OPTIONS
 export type FetchResultOptions = FetchResultBase & {
-  totalPremiumVolume?: string // | IJSON<string>
-  totalNotionalVolume?: string // | IJSON<string>
-  dailyPremiumVolume?: string // | IJSON<string>
-  dailyNotionalVolume?: string // | IJSON<string>
+  totalPremiumVolume?: FetchResponseValue
+  totalNotionalVolume?: FetchResponseValue
+  dailyPremiumVolume?: FetchResponseValue
+  dailyNotionalVolume?: FetchResponseValue
+  dailyShortOpenInterest?: FetchResponseValue
+  dailyLongOpenInterest?: FetchResponseValue
+  dailyOpenInterest?: FetchResponseValue
 };
 
 
@@ -113,7 +169,8 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
-  ROYALTIES = 'royalties'
+  ROYALTIES = 'royalties',
+  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives'
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives

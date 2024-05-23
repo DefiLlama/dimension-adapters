@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
-const blocksGraph = "https://thegraph2.astroswap.app/subgraphs/name/astro";
+const blocksGraph = "https://teste.testeborabora.cyou/graphql";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 const blockQuery = gql`
   query blocks($timestampFrom: Int!, $timestampTo: Int!) {
@@ -45,14 +45,15 @@ const graphs = getChainVolume({
     field: "totalSwapVolume",
   },
   hasDailyVolume: false,
-  getCustomBlock,
+  // getCustomBlock,
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.VELAS]: {
       fetch: graphs(CHAIN.VELAS),
-      start: async () => 1666263553,
+      start: 1666263553,
       customBackfill: customBackfill(CHAIN.VELAS, graphs as unknown as IGraphs)
     },
   },

@@ -1,9 +1,10 @@
-import axios from "axios";
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
+import { httpGet } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.viewblock.io/dex/unicly"
 
@@ -16,7 +17,7 @@ const headers = {
 }
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers }))?.data.charts.volume;
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers })).charts.volume;
   const totalVolume = historicalVolume
     .filter(volItem => Math.floor(Number(volItem.timestamp) / 1000) <= dayTimestamp)
     .reduce((acc, { value }) => acc + Number(value), 0)
@@ -32,12 +33,13 @@ const fetch = async (timestamp: number) => {
 };
 
 const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint, { headers }))?.data.charts.volume;
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers })).charts.volume;
   return (new Date(historicalVolume[0].timestamp).getTime()) / 1000
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
       start: getStartTimestamp,

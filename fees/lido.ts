@@ -59,7 +59,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: async ()  => 1608354000,
+        start: 1608354000,
         meta: {
           methodology: {
             UserFees: "Lido takes 10% fee on users staking rewards",

@@ -1,70 +1,31 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
-import { queryFlipside } from "../helpers/flipsidecrypto";
+import { getTokenDiff } from "../helpers/token";
 
-interface IFee {
-  contract_address: string;
-  volume: number;
-}
+const rainbowRouter = '0x00000000009726632680fb29d3f7a9734e3010e2'
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+  const { createBalances, getLogs, } = options
+  const dailyFees = createBalances()
 
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-      try {
+  const ethLogs = await getLogs({ target: rainbowRouter, eventAbi: 'event EthWithdrawn(address indexed target, uint256 amount)' })
+  const tokenLogs = await getLogs({ target: rainbowRouter, eventAbi: 'event TokenWithdrawn(address indexed token, address indexed target, uint256 amount)' })
+  let extraTokens = new Set<string>()
 
-        const startblock = (await getBlock(fromTimestamp, chain, {}));
-        const endblock = (await getBlock(toTimestamp, chain, {}));
+  ethLogs.forEach((log: any) => dailyFees.addGasToken(log.amount))
+  tokenLogs.forEach((log: any) => {
+    extraTokens.add(log.token)
+    dailyFees.add(log.token, log.amount)
+  })
 
+  await getTokenDiff({ options, target: rainbowRouter, balances: dailyFees, extraTokens: [...extraTokens], })
+  dailyFees.removeNegativeBalances()
 
-      const query =`
-        SELECT
-          data,
-          contract_address
-        from
-          ${chain}.core.fact_event_logs
-        WHERE
-          BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-          and topics[0] = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-          and topics[2] = '0x00000000000000000000000000000000009726632680fb29d3f7a9734e3010e2'
-      `;
-
-
-      const logs: [string, string][] = (await queryFlipside(query))
-      const log = logs.map(([data, contract_address]: [string, string]) => {
-          const volume =  Number(data)
-        return {
-          volume: volume,
-          contract_address: contract_address,
-        } as IFee
-      });
-      const tokens = [...new Set(log.map((e: IFee) => `${chain}:${e.contract_address}`.toLowerCase()))]
-      const prices = await getPrices(tokens, timestamp);
-      const amounts = log.map((p: IFee) => {
-        const price = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.price || 0;
-        const decimals = prices[`${chain}:${p.contract_address}`.toLowerCase()]?.decimals || 0;
-        return (p.volume / 10 ** decimals) * price;
-      })
-      const volume = amounts
-        .filter((e: any) => !isNaN(e))
-        .filter((e: number) => e < 100_000_000)
-        .reduce((a: number, b: number) => a+b, 0);
-      const dailyFees = volume * .0085;
-
-      return {
-        timestamp: timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyFees.toString(),
-        dailyProtocolRevenue: dailyFees.toString(),
-      } as FetchResultFees
-
-      } catch (error) {
-        throw error
-      }
+  return {
+    timestamp,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
@@ -73,43 +34,17 @@ const methodology = {
   Revenue: "Take 0.85% from trading volume",
 }
 
+const chainAdapter = { fetch, start: 1672531200, meta: { methodology } }
+
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM),
-        start: async ()  => 1672531200,
-        meta: {
-          methodology
-        }
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1672531200,
-      meta: {
-        methodology
-      }
-    },
+    [CHAIN.ETHEREUM]: chainAdapter,
+    [CHAIN.OPTIMISM]: chainAdapter,
+    [CHAIN.ARBITRUM]: chainAdapter,
+    [CHAIN.POLYGON]: chainAdapter,
+    [CHAIN.BASE]: chainAdapter,
+    [CHAIN.BSC]: chainAdapter,
+    [CHAIN.AVAX]: chainAdapter,
   },
 
 }

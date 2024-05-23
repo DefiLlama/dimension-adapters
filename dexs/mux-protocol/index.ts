@@ -1,70 +1,89 @@
-import axios from "axios";
-import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
+import type { BreakdownAdapter, ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { adapteragges }  from "./agge";
 
-const chains = [CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.FANTOM]
-
-const normalizeChain = (c: string) => c === "avalanche" ? "avax" : c.toLowerCase()
-
-interface IAPIResponse {
-  data: {
-    rows: [string, string, number][] //[dateString, chain ,volume]
-  }
+type TChainAddress = {
+  [chain: string]: string;
 }
-interface IVolumeall {
-  date: string;
-  amountUSD: number;
+const contract_address: TChainAddress  = {
+  [CHAIN.ARBITRUM]: "0x3e0199792ce69dc29a0a36146bfa68bd7c8d6633",
+  [CHAIN.BSC]: "0x855e99f768fad76dd0d3eb7c446c0b759c96d520",
+  [CHAIN.AVAX]: "0x0ba2e492e8427fad51692ee8958ebf936bee1d84",
+  [CHAIN.OPTIMISM]: "0xc6bd76fa1e9e789345e003b361e4a0037dfb7260",
+  [CHAIN.FANTOM]: "0x2e81f443a11a943196c88afcb5a0d807721a88e6",
 }
 
-const url = "https://stats.mux.network/api/public/dashboard/13f401da-31b4-4d35-8529-bb62ca408de8/dashcard/164/card/131?parameters=%5B%5D";
+const fetchVolume = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+  const dailyVolume = createBalances();
+  const logs_openposition = await getLogs({
+    target: contract_address[chain],
+    topics: ["0xdb27855d3e94a6c985e1e59c77870a73484ef3c40d29fbfe14bb3e686da86efb"],
+  });
+  const logs_closeposition = await getLogs({
+    target: contract_address[chain],
+    topics: ["0x645156066afee3ede009256908a9e96538cc1ad681c46b10114f6ce98ebd0600"]
+  });
+  const logs_liqposition = await getLogs({
+    target: contract_address[chain],
+    topics: ["0xd63e21d9ddaf46f8d28d121f06e7ed33fcc0300af1f8c794e69056dbf37e2d6a"]
+  });
+  const hash: string[] = [];
+  logs_openposition.forEach((log) => {
+    if (hash.includes(log.transactionHash)) return;
+    const data = log.data.replace('0x', '');
+    const amount =  Number('0x'+data.slice(3 * 64, 4 * 64)) / 1e18;
+    const assetPrice = Number('0x'+data.slice(4 * 64, 5 * 64)) / 1e18;
+    dailyVolume.addCGToken('tether', amount * assetPrice);
+    hash.push(log.transactionHash);
+  });
+  logs_closeposition.forEach((log) => {
+    if (hash.includes(log.transactionHash)) return;
+    const data = log.data.replace('0x', '');
+    const amount =  Number('0x'+data.slice(4 * 64, 5 * 64)) / 1e18;
+    const assetPrice = Number('0x'+data.slice(5 * 64, 6 * 64)) / 1e18;
+    dailyVolume.addCGToken('tether', amount * assetPrice);
+    hash.push(log.transactionHash);
+  });
+  logs_liqposition.forEach((log) => {
+    if (hash.includes(log.transactionHash)) return;
+    const data = log.data.replace('0x', '');
+    const amount =  Number('0x'+data.slice(4 * 64, 5 * 64)) / 1e18;
+    const assetPrice = Number('0x'+data.slice(5 * 64, 6 * 64)) / 1e18;
+    dailyVolume.addCGToken('tether', amount * assetPrice);
+  });
 
-type TStartTime = {
-  [l: string]: number;
-}
-const startTime: TStartTime = {
-  [CHAIN.ARBITRUM]: 1680393600,
-  [CHAIN.FANTOM]: 1680307200,
-  [CHAIN.AVAX]: 1675555200,
-  [CHAIN.OPTIMISM]: 1678147200,
-  [CHAIN.BSC]: 1663459200,
-}
-const graph = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const response = (await axios.get(url)).data as IAPIResponse
-    const volumehistorical: IVolumeall[] =  response.data.rows.filter(([_, c]) => c.includes('Trading -'))
-      .filter(([_,c]) => normalizeChain(c.split('-')[1].trim().toLowerCase()) == chain)
-      .map(([date, _, ammountUSD]: [string, string, number]) => {
-        return {
-          date: date,
-          amountUSD: ammountUSD
-        } as IVolumeall
-      })
-    const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-    const dailyVolume =  volumehistorical.find((e: IVolumeall) => e.date.split("T")[0] === dateString)?.amountUSD;
-    const totalVolume = volumehistorical
-    .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= cleanTimestamp)
-    .reduce((acc, { amountUSD }) => acc + Number(amountUSD), 0);
-    return {
-      timestamp: cleanTimestamp,
-      dailyVolume: dailyVolume ? `${dailyVolume}`: undefined,
-      totalVolume: dailyVolume? `${totalVolume}`: undefined
-    }
-  }
-}
-
-const adapter: SimpleAdapter = {
-  adapter: chains.reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: graph(chain),
-        start: async () => startTime[chain],
-      }
-    }
-  }, {} as BaseAdapter)
+  return {
+    dailyVolume,
+    timestamp,
+  };
 };
 
-export default adapter;
+const adapter: any = {
+  "mux-protocol": {
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchVolume,
+      start: 1680393600,
+    },
+    [CHAIN.BSC]: {
+      fetch: fetchVolume,
+      start: 1663459200,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchVolume,
+      start: 1675555200,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetchVolume,
+      start: 1678147200,
+    },
+  }
+}
+
+const breakdownAdapter: BreakdownAdapter = {
+  breakdown: {
+    "mux-protocol": adapter["mux-protocol"],
+    "mux-protocol-agge": adapteragges["mux-protocol-agge"],
+  }
+}
+
+export default breakdownAdapter;

@@ -1,5 +1,5 @@
 import { Chain } from '@defillama/sdk/build/general';
-import { BreakdownAdapter, BaseAdapter } from '../../adapters/types';
+import { BreakdownAdapter, BaseAdapter, DISABLED_ADAPTER_KEY } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
 
@@ -8,8 +8,10 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FIELD,
+  wrapGraphError,
 } from '../../helpers/getUniSubgraph';
 import request, { gql } from 'graphql-request';
+import disabledAdapter from '../../helpers/disabledAdapter';
 
 const v2Endpoints = {
   [CHAIN.HYDRA]: 'https://info.hydradex.org/graphql',
@@ -23,20 +25,23 @@ const VOLUME_USD = 'volumeUSD';
 const FEES_USD = 'feesUSD';
 
 const getV2CustomBlock = async (timestamp: number) => {
-  const blockGraphQuery = gql`
+  const blockGraphQuery = `
     query get_block {
       blocks(orderBy: "height", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
       }
     }
   `;
-
-  const blocks = (await request(v2Endpoints[CHAIN.HYDRA], blockGraphQuery)).blocks;
-  return Number(blocks[0].number);
+  try {
+    const blocks = (await request(v2Endpoints[CHAIN.HYDRA], blockGraphQuery)).blocks;
+    return Number(blocks[0].number);
+  } catch (e) {
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+  }
 };
 
 const getV3CustomBlock = async (timestamp: number) => {
-  const blockGraphQuery = gql`
+  const blockGraphQuery = `
     query get_block {
       blocks(orderBy: "number", first: 1, orderDirection: "desc", where: { timestamp_lte: ${timestamp} }) {
         number
@@ -44,10 +49,14 @@ const getV3CustomBlock = async (timestamp: number) => {
     }
   `;
 
-  const blocks = (
-    await request('https://graph.hydradex.org/subgraphs/name/blocklytics/ethereum-blocks', blockGraphQuery)
-  ).blocks;
-  return Number(blocks[0].number);
+  try {
+    const blocks = (
+      await request('https://graph.hydradex.org/subgraphs/name/blocklytics/ethereum-blocks', blockGraphQuery)
+    ).blocks;
+    return Number(blocks[0].number);
+  } catch (e) {
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+  }
 };
 
 const v2Graph = getGraphDimensions({
@@ -109,15 +118,17 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.HYDRA]: {
-        fetch: v2Graph(CHAIN.HYDRA),
-        start: getStartTimestamp({
-          endpoints: v2Endpoints,
-          chain: CHAIN.HYDRA,
-          dailyDataField: 'hydraswapDayDatas',
-        }),
+        fetch: async (timestamp: number) => {
+          return {
+            timestamp
+          }
+        },
+        start: 0,
         meta: {
           methodology,
         },

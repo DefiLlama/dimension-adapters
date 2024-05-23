@@ -1,6 +1,6 @@
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import axios from 'axios';
+import { httpGet } from "../../utils/fetchURL";
 
 const chains = [
     CHAIN.ETHEREUM,
@@ -60,11 +60,8 @@ const getVolume = async (chain: string, timestamp: number): Promise<{
     totalVolume: string;
 }> => {
     const url = `${chainPath(chain)}timestamp=${timestamp}`;
-    const r = await axios.get(url);
-    if (!r.data) {
-        throw new Error("No data found in response");
-    }
-    const data = r.data as IVolumeResponse;
+    const r = await httpGet(url);
+    const data = r as IVolumeResponse;
     return {
         timestamp: data.timestamp || timestamp,
         dailyVolume: data.dailyVolume,
@@ -86,11 +83,8 @@ const adapter: BreakdownAdapter = {
                         fetch: getFetch(chain),
                         start: async () => {
                             const url = `${chainPath(chain)}timestamp=${Math.ceil(Date.now() / 1000)}`;
-                            const r = await axios.get(url);
-                            if (!r.data) {
-                                throw new Error("No data found in response");
-                            }
-                            const data = r.data as IVolumeResponse;
+                            const r = await httpGet(url);
+                            const data = r as IVolumeResponse;
                             return data.earliestTimestamp
                         }
                     }

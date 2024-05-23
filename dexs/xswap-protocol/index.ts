@@ -1,9 +1,28 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
-const adapters = univ2Adapter({
-  [CHAIN.XDC]: "https://graph-node.yodaplus.net:8000/subgraphs/name/pro100skm/factory"
-}, {});
+const endpoints = {
+  [CHAIN.XDC]: "https://analytics.xspswap.finance/subgraphs/name/some/factory"
+}
 
-adapters.adapter.xdc.start = async () => 1647993600;
+const graphs = getGraphDimensions({
+  graphUrls: endpoints,
+  graphRequestHeaders: {
+    [CHAIN.XDC]: {
+      "origin": "https://analytics.xspswap.finance",
+      "referer": "https://analytics.xspswap.finance/home"
+    },
+  },
+});
+
+const adapters: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.XDC]: {
+      fetch: graphs(CHAIN.XDC),
+      start: 1647993600,
+    },
+  },
+}
 export default adapters;

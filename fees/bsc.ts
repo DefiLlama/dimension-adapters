@@ -1,13 +1,9 @@
 import { Adapter, ProtocolType } from "../adapters/types";
 import { BSC } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import { request, } from "graphql-request";
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
 import { ChainBlocks } from "../adapters/types";
-import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
   [BSC]:
@@ -17,39 +13,28 @@ const endpoints = {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+    return async (timestamp: number, _chainBlocks: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions) => {
+      const dailyFees = createBalances()
 
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, chainBlocks));
-      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-
-      const graphQuery = gql
-      `query txFees {
-        yesterday: fee(id: "1", block: { number: ${yesterdaysBlock} }) {
+      const graphQuery = `query txFees {
+        yesterday: fee(id: "1", block: { number: ${await getFromBlock()} }) {
           totalFees
         }
-        today: fee(id: "1", block: { number: ${todaysBlock} }) {
+        today: fee(id: "1", block: { number: ${await getToBlock()} }) {
           totalFees
         }
       }`;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = new BigNumber(graphRes["today"]["totalFees"]).minus(new BigNumber(graphRes["yesterday"]["totalFees"]))
-
-      const bnbAddress = "bsc:0x0000000000000000000000000000000000000000";
-      const pricesObj: any = await getPrices([bnbAddress], todaysTimestamp);
-      const latestPrice = new BigNumber(pricesObj[bnbAddress]["price"])
-
-      const finalDailyFee = dailyFee.multipliedBy(latestPrice)
-      const finalTotalFee = new BigNumber(graphRes["today"]["totalFees"]).multipliedBy(latestPrice)
+      const dailyFee = graphRes["today"]["totalFees"] - graphRes["yesterday"]["totalFees"]
+      console.log(dailyFee, graphRes)
+      dailyFees.addGasToken(dailyFee * 1e18)
 
       return {
-        timestamp,
-        totalFees: finalTotalFee.toString(),
-        dailyFees: finalDailyFee.toString(),
-        dailyRevenue: timestamp<1638234000?"0":(finalDailyFee.times(0.1)).toString(), // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
+        timestamp, dailyFees,
+        // totalFees: finalTotalFee.toString(),
+        dailyRevenue: timestamp < 1638234000 ? 0: dailyFees.clone(0.1), // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
       };
     };
   };
@@ -59,8 +44,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [BSC]: {
-        fetch: graphs(endpoints)(BSC),
-        start: async ()  => 1598671449,
+      fetch: graphs(endpoints)(BSC),
+      start: 1598671449,
     },
   },
   protocolType: ProtocolType.CHAIN

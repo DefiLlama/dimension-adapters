@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const blocksGraph =
   "https://graph.jfswap.com/subgraphs/name/blocklytics/oec-blocks";
@@ -56,10 +57,12 @@ const graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: async () => 1627385129,
+      start: 1627385129,
     },
   },
 };

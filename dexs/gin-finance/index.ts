@@ -6,5 +6,5 @@ const adapters = univ2Adapter({
 }, {
 });
 
-adapters.adapter.boba.start = async () => 1653525524;
+adapters.adapter.boba.start = 1653525524;
 export default adapters;

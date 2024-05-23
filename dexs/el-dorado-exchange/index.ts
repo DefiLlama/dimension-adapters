@@ -1,10 +1,11 @@
 import request, { gql } from "graphql-request";
-import {BreakdownAdapter, Fetch, SimpleAdapter} from "../../adapters/types";
+import {BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
+  // [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
 }
 
@@ -59,14 +60,10 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.BSC]: 1670198400,
-    [CHAIN.ARBITRUM]: 1678118400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.BSC]: 1670198400,
+  [CHAIN.ARBITRUM]: 1678118400,
 }
-
 //
 // const adapter: SimpleAdapter = {
 //   adapter: {
@@ -83,22 +80,26 @@ const getStartTimestamp = async (chain: string) => {
 
 
 const adapter: BreakdownAdapter = {
+
   breakdown: {
+
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
-          fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain)
+          fetch: async (timestamp: number) => {return {timestamp}},
+          start: startTimestamps[chain]
         }
       }
     }, {}),
     "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
-          fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          fetch:  async (timestamp: number) => {return {timestamp}},
+          start: startTimestamps[chain]
         }
       }
     }, {})

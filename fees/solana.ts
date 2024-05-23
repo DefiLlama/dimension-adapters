@@ -1,39 +1,36 @@
-import { Adapter, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import axios from 'axios';
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { queryDune } from "../helpers/dune";
 
 
 interface IFees {
-  date: string;
-  total_tx_fees: number;
+  block_date: string;
+  total_fees: number;
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: async (timestamp: number) => {
-        const ts = getTimestampAtStartOfDayUTC(timestamp)
-        const today = new Date(ts * 1000).toISOString().split('T')[0].split('-').reverse().join('-');
+      fetch: async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+        const next = startOfDay + 86400;
+        const _dailyFees: IFees = (await queryDune('3277066', { endTime: next, }))[0]
 
-        const dailyFees: IFees = (await axios.get(`https://hyper.solana.fm/v3/tx-fees?date=${today}`)).data;
-
-        const solanaFee = dailyFees.total_tx_fees / 1e9;
-        const pricesObj = await getPrices(["coingecko:solana"], ts);
-        const usdFees = (solanaFee * pricesObj["coingecko:solana"].price);
-        const dailyRevenue = usdFees * 0.5;
+        const dailyFees = createBalances()
+        dailyFees.addCGToken('solana', _dailyFees.total_fees)
+        const dailyRevenue = dailyFees.clone(0.5)
 
         return {
           timestamp,
-          dailyFees: usdFees.toString(),
-          dailyRevenue: dailyRevenue.toString(),
-          dailyHoldersRevenue: dailyRevenue.toString(),
+          dailyFees: dailyFees,
+          dailyRevenue: dailyRevenue,
+          dailyHoldersRevenue: dailyRevenue,
         };
       },
-      start: async () => 1610841600
+      start: 1610841600,
+      runAtCurrTime: true,
     },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

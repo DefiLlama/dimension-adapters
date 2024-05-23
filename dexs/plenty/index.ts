@@ -3,27 +3,27 @@ import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
+interface IVolumeall {
+  value: string;
+  time: string;
+}
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const plentyData = (await fetchURL("https://api.analytics.plenty.network/analytics/plenty")).data;
-  const dailyVolumeItem = plentyData.volume.history.find((volItem : any) => Object.keys(volItem)[0] === dayTimestamp.toString());
+  const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
+  const plentyData: IVolumeall[] = (await fetchURL("https://analytics.plenty.network/api/v1/overall-volume/24hours"));
+  const dailyVolumeItem = plentyData.find(e => e.time === dateString)?.value
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyVolumeItem[dayTimestamp.toString()],
+    dailyVolume: dailyVolumeItem ? `${dailyVolumeItem}` : undefined,
   }
-}
-
-const getStartTime = async () => {
-  const plentyData = (await fetchURL("https://api.analytics.plenty.network/analytics/plenty")).data;
-  return parseInt(Object.keys(plentyData.volume.history[0])[0]);
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: getStartTime,
+      start: 1672531200,
     },
   },
 };

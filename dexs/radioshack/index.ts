@@ -6,9 +6,9 @@ import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL
 const endpoints = {
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-polygon",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-bsc",
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-ethereum",
+  // [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-ethereum",
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-avalanche",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-fantom",
+  // [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/radioshackcreator/unigraph-fantom",
 };
 
 const graphs = getChainVolume({
@@ -24,6 +24,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(CHAIN.POLYGON),
@@ -43,15 +44,15 @@ const adapter: SimpleAdapter = {
         dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
       })
     },
-    [CHAIN.ETHEREUM]: {
-      fetch: graphs(CHAIN.ETHEREUM),
-      start: getStartTimestamp({
-        endpoints: endpoints,
-        chain: CHAIN.ETHEREUM,
-        volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-        dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
-      })
-    },
+    // [CHAIN.ETHEREUM]: {
+    //   fetch: graphs(CHAIN.ETHEREUM),
+    //   start: getStartTimestamp({
+    //     endpoints: endpoints,
+    //     chain: CHAIN.ETHEREUM,
+    //     volumeField: DEFAULT_DAILY_VOLUME_FIELD,
+    //     dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
+    //   })
+    // },
     [CHAIN.AVAX]: {
       fetch: graphs(CHAIN.AVAX),
       start: getStartTimestamp({
@@ -61,15 +62,15 @@ const adapter: SimpleAdapter = {
         dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
       })
     },
-    [CHAIN.FANTOM]: {
-      fetch: graphs(CHAIN.FANTOM),
-      start: getStartTimestamp({
-        endpoints: endpoints,
-        chain: CHAIN.FANTOM,
-        volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-        dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
-      })
-    },
+    // [CHAIN.FANTOM]: {
+    //   fetch: graphs(CHAIN.FANTOM),
+    //   start: getStartTimestamp({
+    //     endpoints: endpoints,
+    //     chain: CHAIN.FANTOM,
+    //     volumeField: DEFAULT_DAILY_VOLUME_FIELD,
+    //     dailyDataField: `${DEFAULT_DAILY_VOLUME_FACTORY}s`
+    //   })
+    // },
   },
 };
 

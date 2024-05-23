@@ -7,5 +7,5 @@ const adapters = univ2Adapter({
   factoriesName: "swapFactories",
   dayData: "swapDayData"
 });
-adapters.adapter.bsc.start = async () => 1633046917;
+adapters.adapter.bsc.start = 1633046917;
 export default adapters;

@@ -1,10 +1,6 @@
-import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-var lighterVolumeEndpoint =
-  "https://mensa.elliot.ai/volume?blockchain_id=42161";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 interface IVolumeall {
   totalVolume: number;
@@ -12,27 +8,20 @@ interface IVolumeall {
 }
 
 const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  lighterVolumeEndpoint = lighterVolumeEndpoint.concat(
-    `&timestamp=${dayTimestamp}`
-  );
-
-  const result: IVolumeall = (await fetchURL(lighterVolumeEndpoint)).data;
-
   return {
-    totalVolume: result ? `${result.totalVolume}` : undefined,
-    dailyVolume: result ? `${result.dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: '0',
+    totalVolume: '4913817761.861917',
+    timestamp: timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: async () => 1677934513,
+      start: 1677934513,
     },
   },
 };
-
 export default adapter;

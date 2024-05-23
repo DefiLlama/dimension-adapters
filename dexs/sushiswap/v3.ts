@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpointsV3 = {
-    [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
+    // [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
     [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-arbitrum',
     [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-avalanche',
     [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-bsc',
@@ -12,11 +12,14 @@ const endpointsV3 = {
     [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fantom',
     [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fuse',
     [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-gnosis',
-    [CHAIN.MOONRIVER]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-moonriver',
+    // [CHAIN.MOONRIVER]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-moonriver',
     [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-optimism',
     [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-polygon',
     [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
+    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1",
+    [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
+    [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
 }
 
 const v3Graphs = getGraphDimensions({
@@ -40,20 +43,23 @@ const v3Graphs = getGraphDimensions({
 });
 
 const startTimeV3: {[key: string]: number} = {
-    [CHAIN.ARBITRUM_NOVA]: 4242300,
-    [CHAIN.ARBITRUM]: 75998697,
-    [CHAIN.AVAX]: 28186391,
-    [CHAIN.BSC]: 26976538,
-    [CHAIN.BOBA]: 998556,
-    [CHAIN.ETHEREUM]: 16955547,
-    [CHAIN.FANTOM]: 58860670,
-    [CHAIN.FUSE]: 22556035,
-    [CHAIN.XDAI]: 27232871,
-    [CHAIN.MOONRIVER]: 3945310,
-    [CHAIN.OPTIMISM]: 85432013,
-    [CHAIN.POLYGON]: 41024971,
-    [CHAIN.POLYGON_ZKEVM]: 80860,
-    [CHAIN.THUNDERCORE]: 132536332
+    [CHAIN.ARBITRUM_NOVA]: 1680566400,
+    [CHAIN.ARBITRUM]: 1680307200,
+    [CHAIN.AVAX]: 1680566400,
+    [CHAIN.BSC]: 1680566400,
+    [CHAIN.BOBA]: 1680739200,
+    [CHAIN.ETHEREUM]: 1680652800,
+    [CHAIN.FANTOM]: 1680566400,
+    [CHAIN.FUSE]: 1680566400,
+    [CHAIN.XDAI]: 1680652800,
+    [CHAIN.MOONRIVER]: 1680566400,
+    [CHAIN.OPTIMISM]: 1680652800,
+    [CHAIN.POLYGON]: 1680566400,
+    [CHAIN.POLYGON_ZKEVM]: 1680739200,
+    [CHAIN.THUNDERCORE]: 1684281600,
+    [CHAIN.BASE]: 1691020800,
+    [CHAIN.CORE]: 1689897600,
+    [CHAIN.BLAST]: 1709337600,
 }
 
 const v3 = Object.keys(endpointsV3).reduce(
@@ -61,7 +67,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: v3Graphs(chain as Chain),
-      start: async () => startTimeV3[chain],
+      start: startTimeV3[chain],
       meta: {
         methodology: {
           Fees: "Each pool charge between 0.01% to 1% fee",

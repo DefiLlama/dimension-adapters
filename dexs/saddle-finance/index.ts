@@ -22,14 +22,15 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),
-      start: async () => 1659750817,
+      start: 1659750817,
     },
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: async () => 1628128417,
+      start: 1628128417,
     },
   },
 };

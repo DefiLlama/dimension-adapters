@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-stats",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-stats",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api",
+  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api",
 }
 
 const historicalDataSwap = gql`
@@ -24,6 +24,15 @@ const historicalDataDerivatives = gql`
       }
   }
 `
+const historicalOI = gql`
+  query get_trade_stats($period: String!, $id: String!) {
+    tradingStats(where: {period: $period, id: $id}) {
+      id
+      longOpenInterest
+      shortOpenInterest
+    }
+  }
+`
 
 interface IGraphResponse {
   volumeStats: Array<{
@@ -32,6 +41,13 @@ interface IGraphResponse {
     margin: string,
     mint: string,
     swap: string,
+  }>
+}
+interface IGraphResponseOI {
+  tradingStats: Array<{
+    id: string,
+    longOpenInterest: string,
+    shortOpenInterest: string,
   }>
 }
 
@@ -47,9 +63,27 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     id: 'total',
     period: 'total',
   })
+  let dailyOpenInterest = 0;
+  let dailyLongOpenInterest = 0;
+  let dailyShortOpenInterest = 0;
+
+  if (query === historicalDataDerivatives) {
+    const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
+      id: chain === CHAIN.ARBITRUM
+      ? String(dayTimestamp)
+      : String(dayTimestamp) + ':daily',
+      period: 'daily',
+    });
+    dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
+    dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
+    dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+  }
 
   return {
     timestamp: dayTimestamp,
+    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
+    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+    dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -62,14 +96,11 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1630368000,
-    [CHAIN.AVAX]: 1640131200,
-  }
-  return startTimestamps[chain]
-}
 
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1630368000,
+  [CHAIN.AVAX]: 1640131200,
+}
 const adapter: BreakdownAdapter = {
   breakdown: {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
@@ -77,7 +108,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {}),
@@ -86,7 +117,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {})

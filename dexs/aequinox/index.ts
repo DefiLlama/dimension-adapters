@@ -1,7 +1,9 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const getDailyVolume = () => {
   return gql`{
@@ -35,9 +37,10 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: async () => 1673568000
+      start: 1673568000
     },
   },
 };

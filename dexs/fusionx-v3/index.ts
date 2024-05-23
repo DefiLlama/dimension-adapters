@@ -1,55 +1,44 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
 
-interface IGraph {
-  dailyTradeVolumeUSD: string;
-  dayID: string;
+const v3Endpoints = {
+  [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange-v3"
 }
 
-interface IData {
-  volumeUSD: IGraph;
-}
+const VOLUME_USD = "volumeUSD";
 
-type TEndpoint = {
-  [s: string | Chain]: string;
-};
-
-const endpoints: TEndpoint = {
-  [CHAIN.MANTLE]:"https://graph.fusionx.finance/subgraphs/name/fusionx/exchange-v3",
-};
-
-const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const fromTimestamp = dayTimestamp - 60 * 60 * 24
-    const toTimestamp = dayTimestamp
-    const query = `
-      {
-        poolDayDatas(where:{date_gte: ${fromTimestamp} date_lte: ${toTimestamp}}) {
-          volumeUSD
-          date
-        }
-      }`;
-    const response: IData[] = (await request(endpoints[chain], query)).poolDayDatas;
-    const dailyVolume = response.filter((e: IData) => Number(e.volumeUSD) < 100_000_000)
-      .reduce((a: number, b: IData) => a + Number(b.volumeUSD), 0)
-    return {
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      timestamp: dayTimestamp,
-    };
-  };
-};
+const v3Graphs = getGraphDimensions({
+  graphUrls: v3Endpoints,
+  totalVolume: {
+    factory: "factories",
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  },
+  dailyVolume: {
+    factory: "fusionXDayData",
+    field: VOLUME_USD,
+  },
+  dailyFees: {
+    factory: "fusionXDayData",
+    field: "feesUSD",
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 16.7,
+    HoldersRevenue: 16.7,
+    Fees: 100,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 66.6, // 66% of fees are going to LPs
+    Revenue: 33.4 // Revenue is 33% of collected fees
+  }
+});
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
-      fetch: fetchVolume(CHAIN.MANTLE),
-      start: async () => 1689206400,
+      fetch: v3Graphs(CHAIN.MANTLE),
+      start: 1689206400,
     },
   },
 };

@@ -1,4 +1,5 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const {
   getChainVolume,
@@ -28,7 +29,9 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [BSC]: {
       fetch: graphs(BSC),
       start: getStartTimestamp({

@@ -1,70 +1,43 @@
-import { Chain } from "@defillama/sdk/build/general"
 import { CHAIN } from "../helpers/chains";
-import { Adapter, FetchResultFees } from "../adapters/types";
-import { queryFlipside } from "../helpers/flipsidecrypto";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
+import { Adapter, FetchOptions, } from "../adapters/types";
+import { getTokenDiff } from "../helpers/token";
+import { queryIndexer } from "../helpers/indexer";
 
-type TokenId = {
-  [s: string | Chain]: string;
+const dispatcher: any = {
+  [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
+  [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
+  [CHAIN.ARBITRUM]: "0x34b5561c30a152b5882c8924973f19df698470f4",
 }
+const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
-const gasTokenId: TokenId = {
-  [CHAIN.ETHEREUM]: "coingecko:ethereum",
-  [CHAIN.BSC]: "coingecko:binancecoin",
-  [CHAIN.ARBITRUM]: "coingecko:ethereum",
-}
-
-const graph = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    try {
-      const startblock = (await getBlock(fromTimestamp, chain, {}));
-      const endblock = (await getBlock(toTimestamp, chain, {}));
-      const query = `
-        select
-          ${chain === "bsc"?"BNB_VALUE":"eth_value"}
-        from
-          ${chain}.core.fact_transactions
-        WHERE to_address = '0xcac0f1a06d3f02397cfb6d7077321d73b504916e'
-        and BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}
-      `
-
-      const value: string[] = (await queryFlipside(query)).flat();
-      let amount = value.reduce((a: number, b: string) => a + Number(b), 0)
-      const gasId = gasTokenId[chain];
-      const gasIdPrice = (await getPrices([gasId], timestamp))[gasId].price;
-      const dailyFees = (amount * gasIdPrice)
-      return {
-        dailyFees: `${dailyFees}`,
-        dailyRevenue: `${dailyFees}`,
-        timestamp
-      }
-    } catch (err) {
-      console.log(err);
-      throw err;
-    }
-
+async function fetch(timestamp: number, _1: any, options: FetchOptions) {
+  const dailyFees = options.createBalances()
+  await getTokenDiff({ options, target: feesAddress, balances: dailyFees, tokens: [] })
+  const logs = await options.getLogs({ target: dispatcher[options.chain], eventAbi: 'event BalanceTransfer (address to, uint256 amount)', })
+  logs.map((log: any) => dailyFees.addGasToken(log.amount))
+  if (CHAIN.ETHEREUM === options.chain) {
+    const eth_out: any = await queryIndexer(`
+    SELECT
+      sum("value") / 1e18 AS eth_out
+    FROM
+      ethereum.transactions
+    WHERE
+        from_address = '\\xB0999731f7c2581844658A9d2ced1be0077b7397'
+        AND data = '\\x'
+        AND block_time BETWEEN llama_replace_date_range;
+    `, options);
+    dailyFees.addGasToken(eth_out[0].eth_out * 1e18)
   }
+  return { timestamp, dailyFees, dailyRevenue: dailyFees, }
 }
 
+const chainAdapter = { fetch: fetch as any, start: 1656633600, }
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
-        fetch: graph(CHAIN.ETHEREUM),
-        start: async ()  => 1656633600,
-    },
-    [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
-      start: async ()  => 1656633600,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graph(CHAIN.ARBITRUM),
-      start: async ()  => 1675468800,
-    },
+    [CHAIN.ETHEREUM]: chainAdapter,
+    [CHAIN.BSC]: chainAdapter,
+    [CHAIN.ARBITRUM]: chainAdapter,
   }
 }
 

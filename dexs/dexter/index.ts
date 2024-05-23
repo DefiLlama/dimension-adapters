@@ -10,7 +10,7 @@ const fetch = async (timestamp: number) => {
   const dimensions: IDimensions = await getDimensions(dateStr);
 
   return {
-    totalVolume: `${dimensions.totalVolume}`,
+    // totalVolume: `${dimensions.totalVolume}`,
     dailyVolume: dimensions.dailyVolume ? `${dimensions.dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
     persistence: {
       fetch,
       runAtCurrTime: false,
-      start: getStartTimestamp,
+      start: 1679875200,
     },
   },
 };

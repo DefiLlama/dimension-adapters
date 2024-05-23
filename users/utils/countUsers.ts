@@ -1,10 +1,11 @@
-import { queryAllium } from "../../helpers/allium";
+import { retrieveAlliumResults, startAlliumQuery } from "../../helpers/allium";
 import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start:number, end:number) {
+    const chainArray = Object.keys(addresses).filter((chain)=>isAcceptedChain(chain)).map(convertChainToFlipside)
     const chainAddresses = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain)).reduce((all, c)=>all.concat(c[1]), [] as string[])
-    const query = await queryAllium(`
+    return { queryId: await startAlliumQuery(`
 WITH
   all_new_users AS (
     SELECT DISTINCT
@@ -31,50 +32,15 @@ WITH
       ) AS first_seen_chain
     FROM
       (
-        SELECT
+        ${chainArray.map(chain=>
+        `SELECT
           block_timestamp,
           from_address,
           hash,
           to_address,
-          'ethereum' as chain
+          '${chain}' as chain
         FROM
-          ethereum.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'polygon' as chain
-        FROM
-          polygon.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'arbitrum' as chain
-        FROM
-          arbitrum.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'optimism' as chain
-        FROM
-          optimism.raw.transactions
-        UNION ALL
-        SELECT
-          block_timestamp,
-          from_address,
-          hash,
-          to_address,
-          'avalanche' as chain
-        FROM
-          avalanche.raw.transactions
+          ${chain}.raw.transactions`).join('\nUNION ALL\n')}
       ) t
     WHERE
       t.to_address IN (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})
@@ -86,11 +52,12 @@ FROM
 WHERE
   first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
 `)
-    return query[0].user_count
+    }
+    //return query[0].user_count
 }
 
 function gasPrice(chain:string){
-  if(["avax", "optimism"].includes(chain)){
+  if(["avax", "optimism", "base"].includes(chain)){
     return "gas_price"
   }
   return "receipt_effective_gas_price"
@@ -99,7 +66,9 @@ function gasPrice(chain:string){
 export function countUsers(addresses: ChainAddresses) {
     return async (start: number, end: number) => {
         const chainArray = Object.entries(addresses).filter(([chain])=>isAcceptedChain(chain))
-        const query = await queryAllium(`
+        return {
+          params: chainArray,
+          queryId: await startAlliumQuery(`
 WITH
   ${chainArray.map(([chain, chainAddresses])=>
     `${chain} AS (
@@ -153,18 +122,33 @@ FROM
 both_count CROSS JOIN
 ${chainArray.map(([chain])=>`${chain}_total CROSS JOIN ${chain}_count`).join(' CROSS JOIN ')}`
         )
-        const finalNumbers = Object.fromEntries((chainArray).map(([name])=>[name, {
-            users: query[0][`${name}_count_col`],
-            txs: query[0][`${name}_tx_count`],
-            gas: query[0][`${name}_total_gas`]??0,
-        }]))
-        finalNumbers.all = {
-            users:query[0].both_count
-        } as any
-        return finalNumbers
+        }
     }
 }
 
+export async function parseUserResponse(queryId:string, chainArray:string[]){
+  const query = await retrieveAlliumResults(queryId)
+  const finalNumbers = Object.fromEntries((chainArray).map(([name])=>[name, {
+    users: query[0][`${name}_count_col`],
+    txs: query[0][`${name}_tx_count`],
+    gas: query[0][`${name}_total_gas`]??0,
+}]))
+finalNumbers.all = {
+    users:query[0].both_count
+} as any
+return finalNumbers
+}
+
+export async function parseChainResponse(queryId:string){
+  const query = await retrieveAlliumResults(queryId)
+  return {
+    all: {
+      users: query[0].usercount,
+      txs: query[0].txcount
+    }
+  }
+}
+
 export const isAddressesUsable = (addresses:ProtocolAddresses)=>{
-    return addresses.addresses.bsc === undefined && Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
+    return Object.entries(addresses.addresses).some(([chain, addys])=> isAcceptedChain(chain) && addys && addys.length>0)
 }

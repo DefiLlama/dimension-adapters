@@ -10,8 +10,8 @@ type TEndoint = {
 };
 
 const endpoints: TEndoint = {
-  [CHAIN.BSC]: "http://public.tdex.cz/get_volumes_list?chain_id=56",
-  [CHAIN.HECO]: "http://public.tdex.cz/get_volumes_list?chain_id=128",
+  // [CHAIN.BSC]: "http://public.tdex.cz/get_volumes_list?chain_id=56",
+  // [CHAIN.HECO]: "http://public.tdex.cz/get_volumes_list?chain_id=128",
   [CHAIN.POLYGON]: "http://public.tdex.cz/get_volumes_list?chain_id=137",
 };
 
@@ -23,7 +23,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain]))?.data.result;
+    const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).result;
     const totalVolume = historicalVolume
       .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
       .reduce((acc, { volume }) => acc + Number(volume), 0)
@@ -39,7 +39,7 @@ const graphs = (chain: Chain) => {
 };
 
 const getStartTimestamp = async (chain: Chain) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain]))?.data.result;
+  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).result;
   return (new Date(historicalVolume[0].date).getTime()) / 1000;
 }
 

@@ -9,19 +9,25 @@ interface IAmmPoool {
   totalvolume: string;
   volume24h: number;
 }
+
 interface IAmmPooolStandar {
   volume: number;
+  tvl: number;
 }
+
 const graphs = async (timestamp: number): Promise<FetchResultVolume> => {
-  const ammPool: IAmmPoool = (await fetchURL(urlAmmPool)).data;
-  const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data.data;;
+  const ammPool: IAmmPoool = (await fetchURL(urlAmmPool));
+  const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data;;
   const ammPoolStandardVolume: IAmmPooolStandar[] = ammPoolStandard.map((e: any) => e.day);
-  const dailyVolumeAmmPool = ammPoolStandardVolume.reduce((a: number, b: IAmmPooolStandar) => a + b.volume, 0)
+  const dailyVolumeAmmPool = ammPoolStandardVolume
+    .filter((e: IAmmPooolStandar) => e.tvl > 100_000)
+    .reduce((a: number, b: IAmmPooolStandar) => a + b.volume, 0)
+  const dailyVolume = ammPool?.volume24h ? ammPool?.volume24h + dailyVolumeAmmPool: undefined;
+  const fiveBill = 3_000_000_000; // set the threshold to 3B
 
   return {
-    dailyVolume:  ammPool?.volume24h ? `${ammPool?.volume24h + dailyVolumeAmmPool}`: undefined,
-    // totalVolume:  ammPool?.totalvolume ? `${ammPool?.totalvolume}`: undefined,
-    timestamp: timestamp
+    dailyVolume: dailyVolume ? `${dailyVolume < fiveBill ? dailyVolume : undefined}`: undefined,
+    timestamp: timestamp,
   };
 };
 
@@ -29,9 +35,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     solana: {
       fetch: graphs,
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 1660521600,
     },
     // TODO custom backfill
   },

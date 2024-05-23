@@ -1,10 +1,9 @@
-import axios from "axios";
-import { Adapter, FetchResult, ProtocolType } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResult, ProtocolType } from "../adapters/types";
 import { IDate } from "../helpers/bitqueryFees";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
+import { httpPost } from "../utils/fetchURL";
+import { getEnv } from "../helpers/env";
 
 
 interface ITxAda {
@@ -30,13 +29,14 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
     variables: value
   });
 
-  const headers =  {"X-API-KEY": process.env.BIT_QUERY_API_KEY || '', "Content-Type": "application/json"};
-  const result: ITxAda[] = (await axios.post("https://graphql.bitquery.io", body, { headers: headers }))?.data?.data.cardano.transactions;
+  const headers =  {"X-API-KEY": getEnv('BIT_QUERY_API_KEY'), "Content-Type": "application/json"};
+  const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
 
   return result;
 }
 const startTime = 1577836800;
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
+  const dailyFees = createBalances()
   const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const startTimestamp = getTimestampAtStartOfDayUTC(startTime);
   const tillTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
@@ -44,23 +44,20 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITxAda[] = await adapterQuery(form, till, "cardano");
   const totalFees = result.filter((a: ITxAda) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITxAda)=> a + b.feeValue, 0);
-  const dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
-  const price_id = 'coingecko:cardano'
-  const price = (await getPrices([price_id], dayTimestamp))[price_id].price;
-  const dailyFeesUsd = (dailyFees || 0) * price;
-  const totalFeesUsd = (totalFees * price)
+  const _dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
+  dailyFees.addCGToken('cardano', _dailyFees)
   return {
     timestamp,
-    totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd.toString(),
+    dailyFees,
+    // totalFees,
   };
 };
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.CARDADO]: {
+    [CHAIN.CARDANO]: {
         fetch: fetch,
-        start: async ()  => 1577836800,
+        start: 1577836800,
     },
   },
   protocolType: ProtocolType.CHAIN

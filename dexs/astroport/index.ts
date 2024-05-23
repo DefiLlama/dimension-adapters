@@ -1,52 +1,21 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { request } from "graphql-request";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
-const API_ENDPOINT = "https://multichain-api.astroport.fi/graphql";
-
-const statsQuery = `
-query Stats($chains: [String]!) {
-  stats(chains: $chains, sortDirection: DESC) {
-    chains {
-      chainId
-      totalVolume24h
-    }
-  }
-}
-`;
-
-const fetch = (chainId: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const results = await request(API_ENDPOINT, statsQuery, { chains: [chainId] });
-    const totalVolume24h = results?.stats?.chains[0]?.totalVolume24h;
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: totalVolume24h ? String(totalVolume24h) : undefined,
-    };
-  };
-};
-
+// created a new adapter called astroport-v2
 const adapter: SimpleAdapter = {
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.TERRA]: {
-      fetch: fetch("phoenix-1"),
+      fetch: async (timestamp: number) => {
+        return {
+          timestamp,
+          totalVolume: "32540550409.019516" // stop collect data on terra sinc 1653350400
+        }
+      },
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
-    },
-    [CHAIN.INJECTIVE]: {
-      fetch: fetch("injective-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
-    },
-    neutron: {
-      fetch: fetch("neutron-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
   },
 };

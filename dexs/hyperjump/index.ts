@@ -10,6 +10,6 @@ const adapter = univ2Adapter(endpoints, {
   dayData: "thugswapDayData",
 });
 
-adapter.adapter.bsc.start = async () => 1605139200;
+adapter.adapter.bsc.start = 1605139200;
 
 export default adapter

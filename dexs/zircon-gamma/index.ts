@@ -7,6 +7,6 @@ const endpoints = {
 
 const adapter = univ2Adapter(endpoints, {});
 
-adapter.adapter.moonriver.start = async()=> 1663200000;
+adapter.adapter.moonriver.start = 1663200000;
 
 export default adapter

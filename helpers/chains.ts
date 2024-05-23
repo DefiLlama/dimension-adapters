@@ -2,6 +2,7 @@
 export enum CHAIN {
   ARBITRUM = "arbitrum",
   AVAX = "avax",
+  BLAST = "blast",
   BOBA = "boba",
   BSC = "bsc",
   CELO = "celo",
@@ -22,9 +23,10 @@ export enum CHAIN {
   JUNO = "juno",
   KCC = "kcc",
   WAN = "wan",
-  CARDADO = "cardano",
+  CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
+  BITCOIN_CASH = "bitcoincash",
   DOGECHAIN = "dogechain",
   ENERGI = "energi",
   VELAS = "velas",
@@ -110,7 +112,43 @@ export enum CHAIN {
   PULSECHAIN = "pulse",
   ONUS = "onus",
   OASIS = "oasis",
-  MANTLE = "mantle"
+  MANTLE = "mantle",
+  ICP = "icp",
+  LINEA = "linea",
+  BASE = "base",
+  NEON = "neon_evm",
+  OP_BNB = "op_bnb",
+  HYDRADX = "hydradx",
+  OSMOSIS = "osmosis",
+  SEI = "sei",
+  ERGO = "ergo",
+  SHIMMER_EVM = "shimmer_evm",
+  MEER = "meer",
+  SCROLL = "scroll",
+  RADIXDLT = "radixdlt",
+  LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  EON = "eon",
+  MANTA = "manta",
+  NEAR = "near",
+  EOS_EVM = "eos_evm",
+  ROLLUX = "rollux",
+  MODE = "mode",
+  PERSISTENCE = "persistence",
+  JBC = "jbc",
+  ZKFAIR = "zkfair",
+  ZETA = "zeta",
+  ASTAR_ZKEVM = "astrzk",
+  FILECOIN = "filecoin",
+  FRAXTAL = "fraxtal",
+  IMX = "imx",
+  KROMA = "kroma",
+  ZORA = "zora",
+  SVM = "svm",
+  ASTRZK = "astrzk",
+  LYRA = "lyra",
+  BITLAYER = "bitlayer",
+  XLAYER = "xlayer",
+  MERLIN = "merlin"
 }
 
 // Don´t use
@@ -129,11 +167,12 @@ const POLYGON = "polygon";
 const RONIN = "ronin";
 const XDAI = "xdai";
 const AURORA = "aurora";
-const MOONRIVER = "moonriver"
+const MOONRIVER = "moonriver";
 const BITCOIN = "bitcoin";
 const LITECOIN = "litecoin";
 const DOGE = "doge";
 const ZKSYNC = "zksync";
+const MANTLE = "mantle";
 // Don't use
 export {
   ZKSYNC,
@@ -155,5 +194,6 @@ export {
   MOONRIVER,
   BITCOIN,
   LITECOIN,
-  DOGE
+  DOGE,
+  MANTLE
 };

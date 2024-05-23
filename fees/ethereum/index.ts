@@ -1,54 +1,54 @@
-import { Adapter, ProtocolType } from "../../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../../adapters/types";
 import { ETHEREUM } from "../../helpers/chains";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { getOneDayFees } from "../../helpers/getChainFees";
-import fetchURL from "../../utils/fetchURL";
-import { getPrices } from "../../utils/prices";
-import BigNumber from "bignumber.js";
+import { queryIndexer } from '../../helpers/indexer';
 
-const burnEndpoint = "https://www.theblock.co/api/charts/chart/on-chain-metrics/ethereum/burned-eth-after-eip-1559-daily"
 
-interface IChartItem {
-  Timestamp: number
-  Result: number
-}
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+  const toBlock = await options.getToBlock()
+  const fromBlock = await options.getFromBlock()
+  const eth_txs: any = await queryIndexer(`
+    SELECT
+      SUM(
+        CASE WHEN (TYPE = 0
+          OR TYPE = 1) THEN
+          gas_price * t.gas_used / 1e18
+        WHEN TYPE = 2
+          AND base_fee_per_gas + t.max_priority_fee_per_gas <= t.max_fee_per_gas THEN
+          (base_fee_per_gas + t.max_priority_fee_per_gas) * t.gas_used / 1e18
+        WHEN TYPE = 2
+          AND base_fee_per_gas + max_priority_fee_per_gas > max_fee_per_gas THEN
+          ((max_fee_per_gas) * (t.gas_used)) / 1e18
+        END) AS txn_fees
+    FROM
+      ethereum.transactions t
+      LEFT JOIN ethereum.blocks b ON block_number = number
+      WHERE t.block_time BETWEEN llama_replace_date_range;`, options);
+  const eth_txs_burn: any = await queryIndexer(`
+    SELECT
+      SUM(eb.base_fee_per_gas * eb.gas_used/1e18) AS daily_eth_burned
+    FROM ethereum.blocks AS eb
+    WHERE eb."number" > 12965000
+      and eb.base_fee_per_gas IS NOT NULL
+      AND eb.gas_used IS NOT NULL
+      and eb.number > ${fromBlock} and eb.number < ${toBlock}`, options);
 
-const graphs = () => {
-  return () => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-      const today = new Date(todaysTimestamp * 1000).toISOString()
-      const yesterday = new Date(yesterdaysTimestamp * 1000).toISOString()
-
-      const dailyFee = await getOneDayFees('eth', yesterday, today);
-      const burnData: IChartItem[] = (await fetchURL(burnEndpoint))?.data.chart.jsonFile.Series['ETH Burned']['Data']
-
-      const dailyRevEth = burnData
-        .filter(item => item.Timestamp === yesterdaysTimestamp)
-        .find(item => item)?.Result || 0
-
-      const ethAddress = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-      const pricesObj: any = await getPrices([ethAddress], todaysTimestamp);
-      const latestPrice = new BigNumber(pricesObj[ethAddress]["price"])
-
-      const dailyRev = latestPrice.multipliedBy(new BigNumber(dailyRevEth))
-      
-      return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-        dailyHoldersRevenue: dailyRev.toString(),
-      };
-    };
+  const dailyRev = options.createBalances()
+  dailyRev.addGasToken(eth_txs_burn[0]['daily_eth_burned'] * 10 ** 18)
+  const dailyFee = options.createBalances()
+  dailyFee.addGasToken(Number(eth_txs[0].txn_fees) * 10 ** 18)
+  return {
+    timestamp,
+    dailyFees: dailyFee,
+    dailyRevenue: dailyRev,
+    dailyHoldersRevenue: dailyRev,
   };
 };
 
 const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
-        fetch: graphs()(),
-        start: async ()  => 1438228800,
+      fetch,
+      start: 1438228800,
     },
   },
   protocolType: ProtocolType.CHAIN

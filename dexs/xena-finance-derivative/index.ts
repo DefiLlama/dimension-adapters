@@ -1,0 +1,65 @@
+import request, { gql } from "graphql-request";
+import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+
+const endpoints: { [key: string]: string } = {
+  [CHAIN.BASE]: "https://subgraph.xena.finance/subgraphs/name/analyticsv2",
+}
+
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+      trading
+    }
+  }
+`
+
+interface IGraphResponse {
+  volumeStats: Array<{
+    burn: string,
+    liquidation: string,
+    margin: string,
+    mint: string,
+    swap: string,
+  }>
+}
+
+const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+    id: `day-${String(dayTimestamp)}`,
+    period: 'daily',
+  })
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+    id: 'total',
+    period: 'total',
+  })
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
+        : undefined,
+    totalVolume:
+      totalData.volumeStats.length == 1
+        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
+        : undefined,
+  }
+}
+
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.BASE]: 1696856400,
+}
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),
+      start: startTimestamps[CHAIN.BASE],
+    }
+  },
+};
+
+export default adapter;

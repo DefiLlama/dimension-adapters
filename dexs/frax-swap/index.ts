@@ -33,7 +33,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+    const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint)).items;
     const historicalVolume = historical
       .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
 
@@ -52,7 +52,7 @@ const graphs = (chain: Chain) => {
 };
 
 const getStartTimestamp = async (chain: Chain) => {
-  const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+  const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint)).items;
   const historicalVolume = historical.filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
   return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
 }

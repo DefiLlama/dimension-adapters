@@ -5,26 +5,21 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://backend-info.oraidex.io/volume/v2/historical/chart?range=90&&type=days"
+const historicalVolumeEndpoint = "https://api.oraidex.io/v1/pools/"
 
 interface IVolumeall {
   value: number;
-  time: string;
+  volume24Hour: string;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + Number(value), 0)
-
-  const dateString = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.time.split('T')[0] === dateString)?.value
+    .reduce((acc, { volume24Hour }) => acc + Number(volume24Hour), 0) / 1e6;
 
   return {
-    totalVolume: `${totalVolume}`,
+    // totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
@@ -35,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ORAI]: {
       fetch,
-      start: async () => 1669248000,
+      start: 1669248000,
     },
   },
 };

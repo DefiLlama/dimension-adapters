@@ -1,6 +1,6 @@
 import { Adapter, FetchResult } from "../adapters/types";
-import axios from "axios";
 import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 interface DailyFeeResponse {
   fees: {
@@ -9,19 +9,23 @@ interface DailyFeeResponse {
   };
 }
 
+const chainOverrides: { [key: string]: string } = {
+  "terra": "terra2",
+};
+
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
-    const response = await axios.get<DailyFeeResponse>(
-      `https://edge.stride.zone/api/${chain}/stats/fees`
-    );
+    const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
+    const response: DailyFeeResponse = await httpGet(`https://edge.stride.zone/api/${overriddenChain}/stats/fees`);
 
     return {
       timestamp: timestamp,
-      dailyFees: String(response.data.fees.dailyFees),
-      dailyRevenue: String(response.data.fees.dailyRevenue),
+      dailyFees: String(response.fees.dailyFees),
+      dailyRevenue: String(response.fees.dailyRevenue),
     };
   };
 };
+
 
 const meta = {
   methodology: {
@@ -36,51 +40,69 @@ const adapter: Adapter = {
     [CHAIN.COSMOS]: {
       fetch: fetch("cosmos"),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
+      meta,
+    },
+    celestia: {
+      fetch: fetch("celestia"),
+      runAtCurrTime: true,
+      start: 0,
       meta,
     },
     osmosis: {
       fetch: fetch("osmosis"),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
+      meta,
+    },
+    dydx: {
+      fetch: fetch("dydx"),
+      runAtCurrTime: true,
+      start: 0,
       meta,
     },
     juno: {
       fetch: fetch("juno"),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
       meta,
     },
     stargaze: {
       fetch: fetch("stargaze"),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
       meta,
     },
     terra: {
       fetch: fetch("terra"),
       runAtCurrTime: true,
-      start: async () => 0,
+      start: 0,
       meta,
     },
-      evmos: {
-       fetch: fetch("evmos"),
-       runAtCurrTime: true,
-       start: async () => 0,
-       meta,
-     },
-     injective: {
-       fetch: fetch("injective"),
-       runAtCurrTime: true,
-       start: async () => 0,
-       meta,
-     }, 
-     umee: {
-       fetch: fetch("umee"),
-       runAtCurrTime: true,
-       start: async () => 0,
-       meta,
-     }, 
+    evmos: {
+      fetch: fetch("evmos"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    injective: {
+      fetch: fetch("injective"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    umee: {
+      fetch: fetch("umee"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    comdex: {
+      fetch: fetch("comdex"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
   },
 };
 

@@ -1,8 +1,8 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import axios from "axios";
 import { getPrices } from "../../utils/prices";
+import { httpGet } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=${to}`
 // https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=1682093355
@@ -11,26 +11,26 @@ interface IVolumeall {
   valueHbar: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await axios.get(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
+const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
     'origin': 'https://analytics.saucerswap.finance',
-  }}))?.data;
+  }}));
 
   const totalVolume = historicalVolume
-    .filter(volItem => Number(volItem.timestampSeconds) <= dayTimestamp)
+    .filter(volItem => Number(volItem.timestampSeconds) <= startOfDay)
     .reduce((acc, { valueHbar }) => acc + Number(valueHbar), 0)
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.timestampSeconds) === dayTimestamp)?.valueHbar
+  const _dailyVolume = historicalVolume
+    .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)?.valueHbar
 
-  const coinId = "coingecko:hedera-hashgraph";
-  const prices = await getPrices([coinId], dayTimestamp)
+
+  const dailyVolume = createBalances()
+  dailyVolume.addCGToken("hedera-hashgraph", (_dailyVolume as any)/1e8)
 
   return {
-    totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
-    dailyVolume: dailyVolume ? String(Number(dailyVolume)/1e8 * prices[coinId].price) : "0",
-    timestamp: dayTimestamp,
+    // totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
+    dailyVolume,
+    timestamp: startOfDay,
   };
 };
 
@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      start: async () => 1659571200,
+      start: 1659571200,
     },
   },
 };

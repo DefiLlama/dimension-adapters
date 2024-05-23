@@ -6,4 +6,5 @@ export default univ2Adapter({
 }, {
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData",
+  gasToken : "coingecko:fantom"
 });

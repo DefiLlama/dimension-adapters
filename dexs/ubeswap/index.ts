@@ -7,6 +7,6 @@ const adapters = univ2Adapter({
   factoriesName: "ubeswapFactories",
   dayData: "ubeswapDayData",
 });
-adapters.adapter.celo.start = async () => 1614574153;
+adapters.adapter.celo.start = 1614574153;
 
 export default adapters;

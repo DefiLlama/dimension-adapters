@@ -8,7 +8,7 @@ const adapters = univ2Adapter({
     factoriesName: "honeyswapFactories",
     dayData: "honeyswapDayData",
 });
-adapters.adapter.polygon.start = async () => 1622173831;
-adapters.adapter.xdai.start = async () => 1599191431;
+adapters.adapter.polygon.start = 1622173831;
+adapters.adapter.xdai.start = 1599191431;
 
 export default adapters;

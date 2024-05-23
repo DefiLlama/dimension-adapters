@@ -9,5 +9,12 @@ const adapter = univ2Adapter({
 }, {});
 
 adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter
+adapter.adapter[CHAIN.CRONOS].start = 1690070400
+adapter.adapter[CHAIN.CRONOS].fetch = async (timestamp: number) => {
+  return {
+    dailyVolume: 0,
+    timestamp,
+  }
+}
 
 export default adapter

@@ -8,6 +8,8 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 const endpoints = {
   [CHAIN.ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official",
+  [CHAIN.BASE]:
+    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official-base"
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -29,7 +31,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const totalVolume = parseInt(graphRes.globalInfos[0].volume) / 1e30;
       const dailyVolume =
         parseInt(graphRes.dailyGlobalInfos[0].tradeVolume) / 1e30;
-
       return {
         timestamp,
         totalVolume: totalVolume.toString(),
@@ -43,8 +44,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1687806000,
+      start: 1687806000,
     },
+    [CHAIN.BASE]: {
+      fetch: graphs(endpoints)(CHAIN.BASE),
+      start: 1693785600
+    }
   },
 };
 

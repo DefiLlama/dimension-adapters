@@ -6,7 +6,7 @@ import { FANTOM } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/chimpydev/equity-core",
+  [FANTOM]: "https://api.thegraph.com/subgraphs/name/chimpydev/equity-core2",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [FANTOM]: {
       fetch: graphs(endpoints)(FANTOM),
-      start: async () => 1685464000,
+      start: 1689767230,
       meta: {
         methodology: '100.00% of All & Any Fees generated from All activity on Any Equity Platform Product goes solely to veEQUAL voters.'
       }

@@ -3,15 +3,15 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL"
 import { CHAIN } from "../../helpers/chains";
 
-const volumeEndpoint = "https://perps-api-staging.polynomial.fi/snx-perps/volume"
+const volumeEndpoint = "https://perps-api-experimental.polynomial.fi/snx-perps/volume"
 const oneDay = 86400
 const startTimeStamp = 1679875200
 
 const fetch = async (timestamp: number) => {
     const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
     return {
-        dailyVolume: await getDailyVolume(startDayTimestamp),
-        totalVolume: await getTotalVolume(timestamp),
+      dailyVolume: await getDailyVolume(startDayTimestamp),
+      totalVolume: await getTotalVolume(timestamp),
       timestamp: startDayTimestamp,
     };
   };
@@ -23,7 +23,7 @@ const fetch = async (timestamp: number) => {
   async function getDailyVolume(startDayTimestamp: number) : Promise<string> {
     const endDayTimeStamp = startDayTimestamp + oneDay
     const dailyVolumeQuery = '?from='+startDayTimestamp.toString()+'&to='+endDayTimeStamp.toString()
-    return (await fetchURL(volumeEndpoint+dailyVolumeQuery))?.data.volume;
+    return (await fetchURL(volumeEndpoint+dailyVolumeQuery));
   }
 
   async function getTotalVolume(endtimestamp: number) : Promise<string> {
