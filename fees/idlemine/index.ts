@@ -21,7 +21,7 @@ const fetchDailyStats = async (timestampSeconds: number): Promise<DailyStats> =>
   try {
     const response = await fetchURL(url);
     const idleminedata = response.data; // Adjust these keys based on the actual API response structure
-    console.log(response.data, '');
+   
     
 
     return {
