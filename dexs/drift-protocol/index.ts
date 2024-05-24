@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { queryDune } from "../../helpers/dune";
+import { BreakdownAdapter } from "../../adapters/types";
 
 const DAILY_VOL_ENDPOINT =
   "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
@@ -72,7 +73,7 @@ async function fetch(type: "perp" | "spot") {
   }
 }
 
-const adapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
@@ -89,6 +90,7 @@ const adapter = {
       },
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
