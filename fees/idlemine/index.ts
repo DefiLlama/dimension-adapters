@@ -7,6 +7,8 @@ interface DailyStats {
   timestamp: number;
   totalFees: number;
   totalRevenue: number;
+  dailyFees: number;
+  dailyRevenue: number;
 }
 
 /**
@@ -15,19 +17,23 @@ interface DailyStats {
  * @returns A promise that resolves to the daily stats.
  */
 const fetchDailyStats = async (timestampSeconds: number): Promise<DailyStats> => {
-  const url = "https://api.idlemine.io/api/admin/user/revenue";
+  const url = "https://newdemoback.stringmetaverse.com/idlemine/api/revenuedata";
   try {
     const response = await fetchURL(url);
-    const { Fee, Totalrevenue } = response.data; // Adjust these keys based on the actual API response structure
+    const idleminedata = response.data; // Adjust these keys based on the actual API response structure
+    console.log(response.data, '');
+    
 
     return {
       timestamp: timestampSeconds,
-      totalRevenue: Totalrevenue,
-      totalFees: Fee,
+      dailyRevenue: idleminedata.dailyrevenue,
+      dailyFees: idleminedata.dailyfees,
+      totalRevenue: idleminedata.Totalrevenue,
+      totalFees: idleminedata.Fee,
     
     };
   } catch (error) {
-   
+    console.error("Failed to fetch daily stats:", error);
     throw new Error("Error fetching daily stats");
   }
 };
