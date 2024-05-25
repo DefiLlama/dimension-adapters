@@ -71,6 +71,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
         dailyVolume.add(token1, amountInX);
       })
     });
+    console.info(`joe-v2.1: ${options.chain} done`)
     return { dailyVolume };
   } catch (err: any) {
     console.error(`joe-v2.1: ${options.chain} error ${err}`)
