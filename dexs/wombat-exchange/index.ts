@@ -1,4 +1,4 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import {FetchOptions, FetchResultV2, SimpleAdapter} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -41,9 +41,10 @@ const endpoints: TEndpoint = {
 };
 
 const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
+  return async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { startTimestamp} = options;
     const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
+        new Date(startTimestamp * 1000)
     );
     const todaysBlock = await getBlock(dayTimestamp, chain, {});
     const dayID = dayTimestamp / 86400;
@@ -71,6 +72,7 @@ const fetchVolume = (chain: Chain) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(CHAIN.BSC),

@@ -479,6 +479,15 @@ export default ([
         }
     },
     {
+        "id":"4372",
+        "name":"Hercules",
+        "addresses":{
+            "metis":[
+                "0x14679D1Da243B8c7d1A4c6d0523A2Ce614Ef027C"
+            ]
+        }
+    },
+    {
         "id":"parent#thena",
         "name":"Thena",
         "addresses":{
@@ -2153,7 +2162,7 @@ export default ([
     },
     {
         "id":"2899",
-        "name":"Vertex Protocol",
+        "name":"Vertex",
         "addresses":{
             "arbitrum":[
                 "0xbbee07b3e8121227afcfe1e2b82772246226128e", // endpoint
@@ -2693,6 +2702,15 @@ export default ([
         "addresses":{
             "base":[
                 "0xcf205808ed36593aa40a44f10c7f7c2f67d4a4d4"
+            ]
+        }
+    }, 
+    {
+        "id":"3733",
+        "name":"Chat3",
+        "addresses":{
+            "mantle":[
+                "0xAd3dbD09835CF15c543Bc59d31865D659b71060e"
             ]
         }
     }, 

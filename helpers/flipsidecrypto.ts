@@ -13,6 +13,11 @@ type IRequest = {
 }
 const query: IRequest = {};
 
+async function randomDelay() {
+  const delay = Math.floor(Math.random() * 4) + 1
+  return new Promise((resolve) => setTimeout(resolve, delay * 1000))
+}
+
 export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
   if (!query[sqlQuery]) {
     query[sqlQuery] = _queryFlipside(sqlQuery, maxAgeMinutes)
@@ -48,8 +53,8 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
             headers: {
               "x-api-key": FLIPSIDE_API_KEY,
               'Content-Type': 'application/json'
-            }
-          })
+            },
+          }, { withMetadata: true })
           if(query?.result?.queryRun?.id){
             token[sqlQuery] = query?.result.queryRun.id
           } else {
@@ -63,19 +68,28 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               if(API_KEY_INDEX < nextIndex){
                 API_KEY_INDEX = nextIndex;
               }
+              console.info("flipside increasing API_KEY_INDEX to -> ", FLIPSIDE_API_KEYS[API_KEY_INDEX])
               throw "Increasing API_KEY_INDEX";
             } else {
               const error = new Error(`Payment Required`)
               bail(error)
-              throw error
+              console.error("Payment Required: " + FLIPSIDE_API_KEY)
+              return []
             }
           }
+          if (!e.response) {
+            bail(e)
+            console.error("flipside not found response error")
+            return []
+          }
           console.log("make query flipside", e.response, e)
-          throw e
+          bail(e)
+          return []
         }
       }
 
       if (!token[sqlQuery]) {
+        console.error("Couldn't get a token from flipsidecrypto")
         throw new Error("Couldn't get a token from flipsidecrypto")
       }
 
@@ -92,7 +106,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
         headers: {
           "x-api-key": FLIPSIDE_API_KEY
         }
-      })
+      }, { withMetadata: true })
 
       const status = queryStatus.result.queryRun.state
       if (status === "QUERY_STATE_SUCCESS") {
@@ -119,7 +133,7 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
               headers: {
                 "x-api-key": FLIPSIDE_API_KEY
               }
-            })
+            }, { withMetadata: true })
             if(results.result.rows === null){
               return [] // empty result
             }
@@ -151,9 +165,11 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
           headers: {
             "x-api-key": FLIPSIDE_API_KEY
           }
-        })
+        }, { withMetadata: true })
         bail(new Error('max retries exceeded'))
       }
+      await randomDelay()
+      console.info(`Flipside query ${token[sqlQuery]} still running... retrying ${attempt}`)
       throw new Error("Still running")
     },
     {

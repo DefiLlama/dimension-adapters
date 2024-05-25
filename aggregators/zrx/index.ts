@@ -1,18 +1,24 @@
 import { GraphQLClient, gql } from "graphql-request";
+
+import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 
-const CHAINS = [
-  "Arbitrum",
-  "Avalanche",
-  "Base",
-  "BSC",
-  "Celo",
-  "Ethereum",
-  "Fantom",
-  "Optimism",
-  "Polygon",
-];
+type TChain = {
+  [key: string]: string;
+};
+const CHAINS: TChain = {
+  [CHAIN.ARBITRUM]: "Arbitrum",
+  [CHAIN.AVAX]: "Avalanche",
+  [CHAIN.BASE]: "Base",
+  [CHAIN.BSC]: "BSC",
+  [CHAIN.CELO]: "Celo",
+  [CHAIN.ETHEREUM]: "Ethereum",
+  [CHAIN.FANTOM]: "Fantom",
+  [CHAIN.OPTIMISM]: "Optimism",
+  [CHAIN.POLYGON]: "Polygon",
+};
 
 const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
 const getGQLClient = () => {
@@ -41,31 +47,39 @@ const getVolumeByChain = async (chain: string) => {
   return data;
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
+    new Date(options.endTimestamp * 1000)
   );
-
-  const data = await getVolumeByChain(chain);
-  const dayData = data.find(
-    ({ timestamp }: { timestamp: number }) =>
-      getUniqStartOfTodayTimestamp(new Date(timestamp)) === unixTimestamp
-  );
-
-  return {
-    dailyVolume: dayData.volumeUSD,
-    timestamp: unixTimestamp,
-  };
+  try {
+    const data = await getVolumeByChain(options.chain);
+    const strDate = new Date(unixTimestamp * 1000).toISOString().split("T")[0];
+    const dayData = data.find(
+      ({ timestamp }: { timestamp: string }) =>
+        timestamp.split("T")[0] === strDate
+    );
+    return {
+      dailyVolume: dayData?.volumeUSD,
+      timestamp: unixTimestamp,
+    };
+  } catch (e) {
+    console.error(e);
+    return {
+      dailyVolume: "0",
+      timestamp: unixTimestamp,
+    };
+  }
 };
 
 const adapter: any = {
+  version: 2,
   adapter: {
     ...Object.values(CHAINS).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
-          fetch: fetch(chain),
-          start: 1671062400,
+          fetch: fetch,
+          start: 1652745600,
         },
       };
     }, {}),

@@ -1,26 +1,23 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import * as sdk from "@defillama/sdk";
 import { FetchOptions } from '../../adapters/types';
 
 const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
+const event_geuge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
 
-const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
-
-const abis: any = {
-  "all": "function all(uint256 _limit, uint256 _offset, address _account) view returns ((address lp, string symbol, uint8 decimals, bool stable, uint256 total_supply, address token0, uint256 reserve0, uint256 claimable0, address token1, uint256 reserve1, uint256 claimable1, address gauge, uint256 gauge_total_supply, bool gauge_alive, address fee, address bribe, address factory, uint256 emissions, address emissions_token, uint256 account_balance, uint256 account_earned, uint256 account_staked, uint256 pool_fee, uint256 token0_fees, uint256 token1_fees)[])"
-}
-
-export const fees_bribes = async ({ getLogs, api, createBalances }: FetchOptions)=> {
+export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: FetchOptions): Promise<sdk.Balances> => {
+  const voter = '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5';
   const dailyFees = createBalances()
-  const bribeVotingReward: string[] = (await api.call({
-    target: gurar,
-    params: [1000, 0, ADDRESSES.null],
-    abi: abis.all,
-  })).map((e: any) => {
-    return e.bribe;
-  }).filter((e: string) => e !== ADDRESSES.null);
-  const bribe_contracct = [...new Set(bribeVotingReward)];
+  const logs_geuge_created = (await getLogs({
+    target: voter,
+    fromBlock: 3200601,
+    toBlock: await getToBlock(),
+    eventAbi: event_geuge_created,
+    cacheInCloud: true,
+  }))
+  const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.bribeVotingReward.toLowerCase());
+
   const logs = await getLogs({
-    targets: bribe_contracct,
+    targets: bribes_contract,
     eventAbi: event_notify_reward,
   })
   logs.map((e: any) => {

@@ -40,10 +40,11 @@ const graph = (chain: Chain) => {
           ${chain}.core.fact_transactions
         WHERE to_address = '${address[chain]}'
         and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
+        and status = 'SUCCESS'
       `
 
 
-    const value: string[][] = (await queryFlipside(query, 510))
+    const value: string[][] = (await queryFlipside(query, 260))
     const rawData = value.map((a: string[]) => {
       const data = a[0].replace('0x5f575529', '');
       const address = data.slice(64, 128);
@@ -90,6 +91,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
       start: 1672531200,
+      runAtCurrTime: true,
     }
   },
   isExpensiveAdapter: true,

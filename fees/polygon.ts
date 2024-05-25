@@ -54,8 +54,9 @@ const adapter: Adapter = {
         return { timestamp, dailyFees, dailyRevenue, };
       },
       // start: 1575158400,
-      start: 1672531200
-    },
+      start: 1672531200,
+      runAtCurrTime: true,
+    }
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN

@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultGeneric, BaseAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
@@ -11,6 +11,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
+import request, { gql } from 'graphql-request';
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
@@ -67,10 +68,10 @@ const v3Endpoints = {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
   [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-optmism-regen",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
-  [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+  // [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
+  // [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
+  // [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
@@ -170,6 +171,61 @@ const v2Deployments = {
   zora: '0x0F797dC7efaEA995bB916f268D919d0a1950eE3C'
 }
 
+const chainv2mapping: any = {
+  [CHAIN.ARBITRUM]: "ARBITRUM",
+  [CHAIN.ETHEREUM]: "ETHEREUM",
+  // [CHAIN.OPTIMISM]: "OPTIMISM",
+  [CHAIN.POLYGON]: "POLYGON",
+  [CHAIN.BASE]: "BASE",
+  [CHAIN.BSC]: "BNB",
+}
+
+const fetchV2 = async (options: FetchOptions) => {
+  interface IGraphResponse {
+    v2HistoricalProtocolVolume: Array<{
+      id: string
+      timestamp: number
+      value: string
+      __typename: string
+    }>
+  }
+  const url = 'https://interface.gateway.uniswap.org/v1/graphql';
+  const query = gql`query getVolume($chain: Chain!, $duration: HistoryDuration!) {
+    v2HistoricalProtocolVolume: historicalProtocolVolume(
+      chain: $chain
+      version: V2
+      duration: $duration
+    ) {
+      id
+      timestamp
+      value
+      __typename
+    }
+  }`;
+  try {
+    const response:IGraphResponse  = await request(url, query, { chain: chainv2mapping[options.chain], duration: "MONTH" }, {
+      'accept': '*/*',
+      'accept-language': 'th,en-US;q=0.9,en;q=0.8',
+      'cache-control': 'no-cache',
+      'content-type': 'application/json',
+      'origin': 'https://app.uniswap.org',
+      'pragma': 'no-cache',
+      'priority': 'u=1, i',
+      'referer': 'https://app.uniswap.org/',
+      'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      'sec-ch-ua-mobile': '?0',
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    });
+    const dailyVolume = response.v2HistoricalProtocolVolume.find((item) => item.timestamp === options.startOfDay)?.value;
+    return {dailyVolume: dailyVolume}
+  } catch (e) {
+    console.error(e)
+    return {
+      dailyVolume: "0"
+    }
+  }
+}
+
 
 const adapter: BreakdownAdapter = {
   version: 2,
@@ -222,9 +278,9 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
-      ...Object.keys(v2Deployments).reduce((acc, chain) => {
+      ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
-          fetch: getUniV2LogAdapter({factory: v2Deployments[chain]}),
+          fetch: fetchV2,
           start: 0,
         }
         return acc

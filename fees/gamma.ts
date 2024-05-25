@@ -97,10 +97,6 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("manta"),
       start: 1682121600,
     },
-     [CHAIN.BASE]: {
-      fetch: fetchFees("base"),
-      start: 1682121600,
-    },
      [CHAIN.AVAX]: {
       fetch: fetchFees("avalanche"),
       start: 1682121600,
@@ -119,6 +115,18 @@ const adapter: SimpleAdapter = {
     },
      [CHAIN.METIS]: {
       fetch: fetchFees("metis"),
+      start: 1682121600,
+    },
+    [CHAIN.IMX]: {
+      fetch: fetchFees("immutable_zkevm"),
+      start: 1682121600,
+    },
+     [CHAIN.ASTRZK]: {
+      fetch: fetchFees("astar_zkevm"),
+      start: 1682121600,
+    },
+     [CHAIN.BLAST]: {
+      fetch: fetchFees("blast"),
       start: 1682121600,
     },
   }
