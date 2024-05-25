@@ -1,14 +1,17 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
-  [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/12332/koi-finance-v3/version/latest",
-}, {
-  factoriesName: "factories",
-  dayData: "koiFinanceDayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "totalVolumeUSD",
-});
+const endpoints = {
+    [CHAIN.ERA]: "https://api.studio.thegraph.com/query/12332/koi-finance-v3/version/latest",
+  };
 
-adapters.adapter.ethereum.start = 32830523;
-export default adapters;
+const adapter = univ2Adapter(endpoints, {
+    factoriesName: "factories",
+    dayData: "koiFinanceDayData",
+    dailyVolume: "volumeUSD",
+    totalVolume: "totalVolumeUSD",
+});
+  
+adapter.adapter.era.start = 1679529600
+  
+export default adapter
