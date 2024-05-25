@@ -7,6 +7,7 @@ import {
 import BigNumber from "bignumber.js";
 
 const endpoint = "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn"
+const endpoint_v3 = 'https://api.studio.thegraph.com/query/12332/koi-finance-v3/version/latest'
 
 export const fetchV1 = () => {
   return async (timestamp: number) => {
@@ -51,6 +52,58 @@ export const fetchV1 = () => {
       );
 
       dailyFee = dailyFee.plus(dailyVolume.times(pool.pairFee).div(10000))
+    }
+
+    return {
+      timestamp,
+      dailyFees: dailyFee.toString(),
+      dailyRevenue: dailyFee.times(0.2).toString(),
+    };
+  };
+};
+
+
+export const fetchV2 = () => {
+  return async (timestamp: number) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
+    const todaysBlock = await getBlock(
+      todaysTimestamp,
+      "era",
+      {}
+    );
+
+    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "era", {});
+
+    const query = gql`
+      query fees {
+        yesterday: pools(block: {number: ${yesterdaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000, orderBy:volumeUSD, orderDirection:desc) {
+          id
+          volumeUSD
+          feeTier
+        }
+        today: pools(block: {number: ${todaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000, orderBy:volumeUSD, orderDirection:desc) {
+          id
+          volumeUSD
+          feeTier
+        }
+      }
+    `;
+    const todayVolume: { [id: string]: BigNumber } = {};
+    const graphRes = await request(endpoint, query);
+    let dailyFee = new BigNumber(0);
+    for (const pool of graphRes["today"]) {
+      todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
+    }
+
+    for (const pool of graphRes["yesterday"]) {
+      if (!todayVolume[pool.id]) continue;
+
+      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(
+        pool.volumeUSD
+      );
+
+      dailyFee = dailyFee.plus(dailyVolume.times(pool.feeTier).div(10000))
     }
 
     return {
