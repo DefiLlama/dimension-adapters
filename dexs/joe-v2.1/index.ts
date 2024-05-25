@@ -51,9 +51,8 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
   const dailyVolume = options.createBalances();
   const lpTokens = pools[options.chain]
   try {
-    const [tokens0, tokens1] = await Promise.all(
-      ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens, permitFailure: true }))
-    );
+    const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
+    const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
 
     const logs: any[][] = (await options.getLogs({
       targets: lpTokens,
