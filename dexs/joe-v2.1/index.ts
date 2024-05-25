@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)';
@@ -47,30 +47,35 @@ const pools: TPool = {
   ]
 }
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
   const lpTokens = pools[options.chain]
-  const [tokens0, tokens1] = await Promise.all(
-    ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens,}))
-  );
+  try {
+    const [tokens0, tokens1] = await Promise.all(
+      ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens }))
+    );
 
-  const logs: any[][] = (await options.getLogs({
-    targets: lpTokens,
-    eventAbi: event_swap,
-    flatten: false,
-  }))
+    const logs: any[][] = (await options.getLogs({
+      targets: lpTokens,
+      eventAbi: event_swap,
+      flatten: false,
+    }))
 
-  logs.map((log: any, index: number) => {
-    const token0 = tokens0[index];
-    const token1 = tokens1[index];
-    log.forEach((i: any) => {
-      const amountInX = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(0, 32))
-      const amountInY = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(32, 64))
-      dailyVolume.add(token0, amountInY);
-      dailyVolume.add(token1, amountInX);
-    })
-  });
-  return { dailyVolume, };
+    logs.map((log: any, index: number) => {
+      const token0 = tokens0[index];
+      const token1 = tokens1[index];
+      log.forEach((i: any) => {
+        const amountInX = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(0, 32))
+        const amountInY = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(32, 64))
+        dailyVolume.add(token0, amountInY);
+        dailyVolume.add(token1, amountInX);
+      })
+    });
+    return { dailyVolume };
+  } catch (err: any) {
+    console.error(`joe-v2.1: ${options.chain} error ${err}`)
+    return { dailyVolume };
+  }
 }
 
 const adapter: SimpleAdapter = {
