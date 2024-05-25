@@ -52,7 +52,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
   const lpTokens = pools[options.chain]
   try {
     const [tokens0, tokens1] = await Promise.all(
-      ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens }))
+      ['address:getTokenX', 'address:getTokenY'].map((abi: string) => options.api.multiCall({abi,calls: lpTokens, permitFailure: true }))
     );
 
     const logs: any[][] = (await options.getLogs({
