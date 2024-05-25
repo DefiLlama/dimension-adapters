@@ -90,7 +90,7 @@ export const fetchV2 = () => {
       }
     `;
     const todayVolume: { [id: string]: BigNumber } = {};
-    const graphRes = await request(endpoint, query);
+    const graphRes = await request(endpoint_v3, query);
     let dailyFee = new BigNumber(0);
     for (const pool of graphRes["today"]) {
       todayVolume[pool.id] = new BigNumber(pool.volumeUSD);
