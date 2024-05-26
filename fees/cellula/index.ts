@@ -16,9 +16,8 @@ const adapter: Adapter = {
     [CHAIN.BSC]: {
       fetch: (async ({ getLogs, createBalances, }) => {
         // Fees
-        const totalFees = createBalances()
+        // const totalFees = createBalances()
         const dailyFees = createBalances() // ✅
-        const dailyUserFees = createBalances()
 
         // Revenue
         const dailyRevenue = createBalances() // ✅ 
@@ -34,9 +33,7 @@ const adapter: Adapter = {
 
         const logs = await getLogs({ target: CELL_ADDRESS, eventAbi: CELL_ABI })
         logs.map((e: any) => {
-          totalFees.addGasToken(e.amount)
-          dailyFees.addGasToken(e.amount)
-          dailyUserFees.addGasToken(e.amount)
+          dailyFees.addGasToken(e.amount * BigInt(20))
 
           dailyRevenue.addGasToken(e.amount * BigInt(20))
           dailyProtocolRevenue.addGasToken(e.amount * BigInt(14))
@@ -53,11 +50,12 @@ const adapter: Adapter = {
           "604800": "11900000000000000",
         }
         buyFoodLogs.map(e => {
+          dailyFees.addGasToken(workTimePrice[e.workTime])
           dailyRevenue.addGasToken(workTimePrice[e.workTime])
           dailyProtocolRevenue.addGasToken(workTimePrice[e.workTime])
         })
         return {
-          totalFees, dailyFees, dailyUserFees,
+          dailyFees, 
           dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue
         }
       }) as FetchV2,
