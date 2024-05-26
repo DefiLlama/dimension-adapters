@@ -58,6 +58,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
       targets: lpTokens,
       eventAbi: event_swap,
       flatten: false,
+      skipCacheRead: true
     }))
 
     logs.map((log: any, index: number) => {
