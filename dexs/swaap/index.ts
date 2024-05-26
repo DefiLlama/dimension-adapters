@@ -2,7 +2,6 @@ import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/ty
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 
 interface ChainConfig{
     api: string,
@@ -64,7 +63,7 @@ const  getVolume = async (options: FetchOptions) => {
     }
     `
     const url = config[options.chain].api
-    const graphQLClient = new GraphQLClient(url);
+    const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
     const result: Data = await graphQLClient.request(query)
     const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
     const totalVolume = Number(result.end?.totalSwapVolume || 0)
@@ -94,7 +93,7 @@ const v1graphs = getChainVolume({
     graphUrls: {
         [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv1"
     },
-    ...graphParams
+    ...graphParams,
 });
 
 const adapter: BreakdownAdapter = {
@@ -103,8 +102,7 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: v1graphs(CHAIN.POLYGON),
-                start: 1655195452,
-                customBackfill: customBackfill(CHAIN.POLYGON, v1graphs)
+                start: 1655195452
             },
         },
         v2: {

@@ -58,9 +58,9 @@ const dataStartTimestamp = 1708246655; // ~ when liquidity resolver was deployed
 
 const fetch: FetchV2 = async ({ api, fromTimestamp, toTimestamp }) => {
   return {
-    totalFees: await getFeesFromTo(api, dataStartTimestamp, toTimestamp),
+    // totalFees: await getFeesFromTo(api, dataStartTimestamp, toTimestamp),
     dailyFees: await getFeesFromTo(api, fromTimestamp, toTimestamp),
-    totalRevenue: await getRevenueFromTo(api, dataStartTimestamp, toTimestamp),
+    // totalRevenue: await getRevenueFromTo(api, dataStartTimestamp, toTimestamp),
     dailyRevenue: await getRevenueFromTo(api, fromTimestamp, toTimestamp),
   };
 };

@@ -30,10 +30,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
       }
     `;
+    const [startBlock, endBlock] = await Promise.all([
+      getStartBlock(),
+      getEndBlock(),
+    ]);
 
     const graphRes = await request(graphUrls[chain], graphQuery, {
-      startOfDayBlock: await getStartBlock(),
-      endOfDayBlock: (await getEndBlock()) - 2,
+      startOfDayBlock: startBlock,
+      endOfDayBlock: endBlock - 2,
     });
 
     const borrowingFees =

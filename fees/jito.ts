@@ -3,15 +3,14 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryDune } from "../helpers/dune"
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_t: any, _a: any,  options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const result = await queryDune("3733728", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  });
-  dailyFees.add('So11111111111111111111111111111111111111112', result[0].sol_tip * 1e9)
-  dailyRevenue.add('So11111111111111111111111111111111111111112', result[0].sol_tip * 1e9)
+  const result = await queryDune("3740661");
+  const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
+  const day = result.find((r: any) => r.day === dateStr)
+  dailyFees.add('So11111111111111111111111111111111111111112', day.sol_tip * 1e9)
+  dailyRevenue.add('So11111111111111111111111111111111111111112', day.sol_tip * 1e9)
   dailyRevenue.resizeBy(0.04)
 
   return {
@@ -22,7 +21,7 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,

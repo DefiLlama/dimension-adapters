@@ -42,7 +42,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
             0 as number
           ) / 1e30;
 
-        const chunkSize = 40;
+        const chunkSize = 10;
         const splitMarket: MarketStat[][] = [];
         for (let i = 0; i < totalMarketStats.length; i += chunkSize) {
           const chunk = totalMarketStats.slice(i, i + chunkSize);
@@ -56,8 +56,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
           let latestHourIndex = Math.floor(
             getTimestampAtStartOfHour(timestamp) / HOUR
           );
-          for (let i = 0; i < 24; i++) {
-            for (const marketStat of markets) {
+
+          for (const marketStat of markets) {
+            for (let i = 1; i < 25; i++) {
               ids.push(`"${latestHourIndex - i}_${marketStat.id}"`);
             }
           }
@@ -75,9 +76,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
               }
             }
           `;
+
           const last24hrMarketStats = (
             await graphQLClient.request(last24hrVolumeQuery)
           ).marketHourlyStats as Array<{ tradingVolume: string }>;
+
           last24hrVolume +=
             last24hrMarketStats.reduce(
               (accum, t) => accum + parseInt(t.tradingVolume),
