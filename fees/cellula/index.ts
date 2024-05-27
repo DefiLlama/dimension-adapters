@@ -41,9 +41,9 @@ const adapter: Adapter = {
           dailySupplySideRevenue.addGasToken(e.amount * BigInt(5))
         })
         const buyFoodLogs = await getLogs({ target: LIFE_ADDRESS, eventAbi: LIFE_ABI })
-        // 0.0017 BNB / 1D
-        // 0.0051 BNB / 3D
-        // 0.0119 BNB / 7D
+        // 0.0017 BNB / 1 D
+        // 0.0051 BNB / 3 D
+        // 0.0119 BNB / 7 D
         const workTimePrice = {
           "86400": "1700000000000000",
           "259200": "5100000000000000",
