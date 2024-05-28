@@ -18,6 +18,7 @@ const fetch = async (options: FetchOptions) => {
     ethereum.event_logs
   WHERE
     block_number > 18637861
+    AND contract_address NOT IN ('\\x4c9edd5852cd905f086c759e8383e09bff1e68b3')
     AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
     AND topic_1 NOT IN ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x0000000000000000000000002b5ab59163a6e93b4486f6055d33ca4a115dd4d5')
     AND topic_2 in ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x0000000000000000000000002b5ab59163a6e93b4486f6055d33ca4a115dd4d5')
@@ -35,6 +36,7 @@ const fetch = async (options: FetchOptions) => {
     ethereum.event_logs
   WHERE
     block_number > 18637861
+    AND contract_address NOT IN ('\\x4c9edd5852cd905f086c759e8383e09bff1e68b3')
     AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
     AND topic_2 in ('\\x000000000000000000000000f2fa332bd83149c66b09b45670bce64746c6b439')
     AND block_time BETWEEN llama_replace_date_range;
