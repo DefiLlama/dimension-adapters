@@ -8,7 +8,8 @@ export default ([
         "name":"YFX",
         "addresses":{
             "arbitrum":[
-                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028"
+                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028", // yfx-v3
+				"0xcC619251bB94b7605A7Ea7391fEB7D18C32552D5", // yfx-v4
             ]
         }
     },
