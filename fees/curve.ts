@@ -94,11 +94,23 @@ const fetch = (chain: string) => async (ts:number) => {
   const fees = (response.data as any[]).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
-  return {
+  const allFees:any = {
     dailyFees: `${fees}`,
     dailyRevenue: `${fees/2}`,
     dailyHoldersRevenue: `${fees/2}`,
   };
+  if(chain === ETHEREUM){
+    const bribes:any[] = (await fetchURL(`https://raw.githubusercontent.com/pierremarsotlyon1/chainhub-backend/main/data/stats.json`)).claimsLast7Days.claims
+    const yesterday = bribes.reduce((closest, item)=>{
+      const timeDiff = (val:any) => Math.abs(val.timestamp - (Date.now()/1e3-24*3600))
+      if(timeDiff(item) < timeDiff(closest)){
+        return item
+      }
+      return closest
+    })
+    allFees.dailyBribesRevenue = (bribes[bribes.length-1].value - yesterday.value).toString()
+  }
+  return allFees
 };
 
 const methodology = {
