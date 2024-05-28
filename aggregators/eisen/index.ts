@@ -20,10 +20,10 @@ const FEE_COLLECTORS: TPool = {
 };
 
 const START_BLOCKS = {
-  [CHAIN.MODE]: 5257432,
-  [CHAIN.SCROLL]: 67559,
-  [CHAIN.MANTLE]: 64201716,
-  [CHAIN.BLAST]: 3258143,
+  [CHAIN.MODE]: 1704067200,
+  [CHAIN.SCROLL]: 1704067200,
+  [CHAIN.MANTLE]: 1704067200,
+  [CHAIN.BLAST]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
