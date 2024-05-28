@@ -10,9 +10,9 @@ type TPool = {
 }
 const pools: TPool = {
   [CHAIN.BSC]: [
-    '0xdce12347b429a32a177708646d4024449827a69a',
-    '0x3708d924f627d8109687ce10f6c324445c28347c',
-    '0x7e6857d4b2efaf9ff29f88f6d7d083a160e0849e',
+    // '0xdce12347b429a32a177708646d4024449827a69a',
+    // '0x3708d924f627d8109687ce10f6c324445c28347c',
+    // '0x7e6857d4b2efaf9ff29f88f6d7d083a160e0849e',
   ],
   [CHAIN.AVAX]: [
     '0xd9fa522f5bc6cfa40211944f2c8da785773ad99d',
