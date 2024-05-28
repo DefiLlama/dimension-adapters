@@ -50,7 +50,7 @@ const pools: TPool = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, api }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs, api }: FetchOptions) => {
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();
     const lpTokens = pools[chain]
@@ -62,15 +62,17 @@ const graph = (chain: Chain) => {
         })
       )
     );
-    const decimalsXs = await api.multiCall({  abi: 'erc20:decimals', calls: tokenXs})
-    const decimalsYs = await api.multiCall({  abi: 'erc20:decimals', calls: tokenYs})
+    const decimalsXs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenXs })
+    const decimalsYs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenYs })
 
 
-    const logs: any[][] = await getLogs({
-      targets: lpTokens,
-      eventAbi: event_swap,
-      flatten: false,
-    })
+    let logs: any[][] = []
+    if (lpTokens.length)
+      logs = await getLogs({
+        targets: lpTokens,
+        eventAbi: event_swap,
+        flatten: false,
+      })
 
     lpTokens.map((_: string, index: number) => {
       logs[index]
@@ -99,13 +101,13 @@ const graph = (chain: Chain) => {
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue,
-      timestamp,
     };
   }
 }
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
