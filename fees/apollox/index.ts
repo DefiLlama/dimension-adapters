@@ -30,7 +30,8 @@ const adapter: Adapter = {
             fetch: request(endpoints)(CHAIN.BSC),
             start: 1689609600,
         },
-    }
+    },
+    version: 1
 }
 
 export default adapter;
