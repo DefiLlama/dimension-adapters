@@ -39,6 +39,7 @@ const graphs = () => {
 
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [FANTOM]: {
