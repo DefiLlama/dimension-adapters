@@ -72,19 +72,21 @@ async function fetch(type: "perp" | "spot") {
     };
   }
 }
-
+const emtry = async (timestamp: number) => {return{timestamp}}
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("spot"),
+        // fetch: () => fetch("spot"),
+        fetch: emtry,
         runAtCurrTime: true,
         start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("perp"),
+        // // fetch: () => fetch("perp"),
+        fetch: emtry,
         runAtCurrTime: true,
         start: 1690239600,
       },
