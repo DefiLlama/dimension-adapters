@@ -38,6 +38,7 @@ function formatTimestampAsDate(timestamp: number) {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
