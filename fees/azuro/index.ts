@@ -1,4 +1,4 @@
-import { Adapter, ChainEndpoints, FetchResultFees } from "../../adapters/types";
+import { Adapter, ChainEndpoints, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Bet, BetResult } from "./types";
 import { Chain } from "@defillama/sdk/build/general";
@@ -66,16 +66,12 @@ const calculateAmounts = (bets: Bet[]) => {
 
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
-        return async (timestamp: number): Promise<FetchResultFees> => {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-            const fromTimestamp = todaysTimestamp - 60 * 60 * 24;
-            const toTimestamp = todaysTimestamp;
-            
+        return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
             const [bets, totalBets] = await Promise.all([
-                fetchAllBets(graphUrls[chain], fromTimestamp, toTimestamp, false),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], toTimestamp, false),
-                fetchAllBets(graphUrls[chain], fromTimestamp, toTimestamp, true),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], toTimestamp, true)
+                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, false),
+                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], endTimestamp, false),
+                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, true),
+                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], endTimestamp, true)
             ]);
             
             const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(bets);
@@ -85,7 +81,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
             const dailyPoolProfit = dailyBetAmount - dailyWonAmount;
             
             return {
-                timestamp,
                 dailyFees: dailyPoolProfit.toString(),
                 dailyRevenue: dailyPoolProfit.toString(),
                 totalFees: totalFees.toString(),
@@ -128,6 +123,7 @@ const adapter: Adapter = {
             meta: { methodology },
         },
     },
+    version: 2
 };
 
 export default adapter;
