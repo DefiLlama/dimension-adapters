@@ -7,7 +7,7 @@ import { ETHEREUM } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { getBlock } from "../../helpers/getBlock";
 
-const AmphorILHedgedWSTETH_contractAddress: string = '0xcDC51F2B0e5F0906f2fd5f557de49D99c34Df54e';
+const AmphorILHedgedWETH_contractAddress: string = '0xcDC51F2B0e5F0906f2fd5f557de49D99c34Df54e';
 const AmphorPTezETHVault_contractAddress: string = '0xeEE8aED1957ca1545a0508AfB51b53cCA7e3c0d1';
 const AmphorPTrsETHVault_contractAddress: string = '0xB05cABCd99cf9a73b19805edefC5f67CA5d1895E';
 const AmphorPTweETHVault_contractAddress: string = '0xc69Ad9baB1dEE23F4605a82b3354F8E40d1E5966';
@@ -52,7 +52,7 @@ const contractAbi: ethers.InterfaceAbi = [
     },
 ]
 
-const AmphorILHedgedWSTETH_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedWSTETH_contractAddress, contractAbi);
+const AmphorILHedgedWETH_contract: ethers.Contract = new ethers.Contract(AmphorILHedgedWETH_contractAddress, contractAbi);
 const AmphorPTezETHVault_contract: ethers.Contract = new ethers.Contract(AmphorPTezETHVault_contractAddress, contractAbi);
 const AmphorPTrsETHVault_contract: ethers.Contract = new ethers.Contract(AmphorPTrsETHVault_contractAddress, contractAbi);
 const AmphorPTweETHVault_contract: ethers.Contract = new ethers.Contract(AmphorPTweETHVault_contractAddress, contractAbi);
@@ -77,8 +77,8 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     const toBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, {});
 
 
-    const eventFilterWSTETH: EventFilter = {
-        address: AmphorILHedgedWSTETH_contractAddress,
+    const eventFilterWETH: EventFilter = {
+        address: AmphorILHedgedWETH_contractAddress,
         topics: [ethers.id('EpochEnd(uint256,uint256,uint256,uint256,uint256)')]
     };
 
@@ -97,13 +97,15 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 
-    const eventsWSTETH = (await sdk.getEventLogs({
-        target: AmphorILHedgedWSTETH_contractAddress,
-        topics: eventFilterWSTETH.topics as string[],
+    const eventsWETH = (await sdk.getEventLogs({
+        target: AmphorILHedgedWETH_contractAddress,
+        topics: eventFilterWETH.topics as string[],
         fromBlock: 18535914,
         toBlock: toBlock,
         chain: CHAIN.ETHEREUM,
     })) as ethers.Log[];
+
+
 
 
 
@@ -131,7 +133,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
         chain: CHAIN.ETHEREUM,
     })) as ethers.Log[];
 
-    let totalRevenueWSTETH = BigInt(0);
+    let totalRevenueWETH = BigInt(0);
     let totalFeesWSTETH = BigInt(0);
     let totalRevenuePTezETH = BigInt(0);
     let totalFeesPTezETH = BigInt(0);
@@ -140,7 +142,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     let totalRevenuePTweETH = BigInt(0);
     let totalFeesPTweETH = BigInt(0);
 
-    let dailyFeesWSTETH = BigInt(0);
+    let dailyFeesWETH = BigInt(0);
     let dailyFeesPTezETH = BigInt(0);
     let dailyFeesPTrsETH = BigInt(0);
     let dailyFeesPTweETH = BigInt(0);
@@ -151,12 +153,12 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 
-    eventsWSTETH.forEach(res => {
-        const event = AmphorILHedgedWSTETH_contract.interface.parseLog(res as any);
-        totalRevenueWSTETH += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
+    eventsWETH.forEach(res => {
+        const event = AmphorILHedgedWETH_contract.interface.parseLog(res as any);
+        totalRevenueWETH += BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance)
         totalFeesWSTETH += BigInt(event!.args.fees)
         if (event!.args.timestamp > fromTimestamp && event!.args.timestamp < toTimestamp) {
-            dailyFeesWSTETH += BigInt(event!.args.fees);
+            dailyFeesWETH += BigInt(event!.args.fees);
             dailyRevenueWSTETH = BigInt(event!.args.returnedAssets) - BigInt(event!.args.lastSavedBalance);
         }
     });
@@ -194,7 +196,7 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     });
 
     const TOKENS = {
-        amprETH: ADDRESSES.ethereum.amprETH,
+        WETH: ADDRESSES.ethereum.WETH,
         PTezETH: "0xeEE8aED1957ca1545a0508AfB51b53cCA7e3c0d1",
         PTrsETH: "0xB05cABCd99cf9a73b19805edefC5f67CA5d1895E",
         PTweETH: "0xc69Ad9baB1dEE23F4605a82b3354F8E40d1E5966",
@@ -204,22 +206,22 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     const dailyFees = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
     const dailyRevenue = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp: toTimestamp });
 
-    totalFees.add(TOKENS.amprETH, totalFeesWSTETH.toString());
+    totalFees.add(TOKENS.WETH, totalFeesWSTETH.toString());
     totalFees.add(TOKENS.PTezETH, totalFeesPTezETH.toString());
     totalFees.add(TOKENS.PTrsETH, totalFeesPTrsETH.toString());
     totalFees.add(TOKENS.PTweETH, totalFeesPTweETH.toString());
 
-    totalRevenue.add(TOKENS.amprETH, totalRevenueWSTETH.toString());
+    totalRevenue.add(TOKENS.WETH, totalRevenueWETH.toString());
     totalRevenue.add(TOKENS.PTezETH, totalRevenuePTezETH.toString());
     totalRevenue.add(TOKENS.PTrsETH, totalRevenuePTrsETH.toString());
     totalRevenue.add(TOKENS.PTweETH, totalRevenuePTweETH.toString());
 
-    dailyFees.add(TOKENS.amprETH, dailyFeesWSTETH.toString());
+    dailyFees.add(TOKENS.WETH, dailyFeesWETH.toString());
     dailyFees.add(TOKENS.PTezETH, dailyFeesPTezETH.toString());
     dailyFees.add(TOKENS.PTrsETH, dailyFeesPTrsETH.toString());
     dailyFees.add(TOKENS.PTweETH, dailyFeesPTweETH.toString());
 
-    dailyRevenue.add(TOKENS.amprETH, dailyRevenueWSTETH.toString());
+    dailyRevenue.add(TOKENS.WETH, dailyRevenueWSTETH.toString());
     dailyRevenue.add(TOKENS.PTezETH, dailyRevenuePTezETH.toString());
     dailyRevenue.add(TOKENS.PTrsETH, dailyRevenuePTrsETH.toString());
     dailyRevenue.add(TOKENS.PTweETH, dailyRevenuePTweETH.toString());
