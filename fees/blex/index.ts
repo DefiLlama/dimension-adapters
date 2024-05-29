@@ -111,7 +111,8 @@ const adapter: Adapter = {
       fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
       start: 1691211277,
     },
-  }
+  },
+  version: 1
 }
 
 export default adapter;

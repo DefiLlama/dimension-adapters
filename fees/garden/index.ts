@@ -1,4 +1,4 @@
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
@@ -22,13 +22,13 @@ type IApiFeeResponse = {
     };
 };
 
-const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
     const dailyFeeResponse: IApiFeeResponse = (
-        await fetchURL(feeUrl(chainMapper[chain], timestamp, "day"))
+        await fetchURL(feeUrl(chainMapper[chain], endTimestamp, "day"))
     );
 
     const totalFeeResponse: IApiFeeResponse = (
-        await fetchURL(feeUrl(chainMapper[chain], timestamp))
+        await fetchURL(feeUrl(chainMapper[chain], endTimestamp))
     );
 
     const dailyUserFees = new BigNumber(dailyFeeResponse.data.fee);
@@ -39,7 +39,6 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultF
     const totalFees = totalUserFees;
 
     return {
-        timestamp,
         dailyFees: dailyFees.toString(),
         totalFees: totalFees.toString(),
         dailyUserFees: dailyUserFees.toString(),
@@ -48,6 +47,7 @@ const fetch = (chain: string) => async (timestamp: number): Promise<FetchResultF
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: Object.keys(chainMapper).reduce((acc, chain) => {
         return {
             ...acc,

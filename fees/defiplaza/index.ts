@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 type RadixPlazaResponse = {
@@ -18,11 +17,10 @@ const thegraph_endpoints = "https://api.thegraph.com/subgraphs/name/omegasyndica
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.ETHEREUM]: {
-			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const toTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-				const fromTimestamp = timestamp - 86400;
+			fetch: async ({ startTimestamp, endTimestamp }: FetchOptions) => {
 				const graphData = (await request(thegraph_endpoints, gql`
 					{
 						factories(first: 1) {
@@ -30,7 +28,7 @@ const adapter: SimpleAdapter = {
 							totalTradeVolumeUSD
 							totalFeesEarnedUSD
 						}
-						dailies(first: 1, where:{date_lte: ${toTimestamp}, date_gte: ${fromTimestamp}}, orderBy: date, orderDirection:desc) {
+						dailies(first: 1, where:{date_lte: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
 							date
 							tradeVolumeUSD
 							swapUSD
@@ -49,7 +47,6 @@ const adapter: SimpleAdapter = {
 					dailyUserFees,
 					dailyFees,
 					dailySupplySideRevenue,
-					timestamp
 				}
 			},
 			meta: {
@@ -61,8 +58,8 @@ const adapter: SimpleAdapter = {
 			start: 1633237008
 		},
 		[CHAIN.RADIXDLT]: {
-			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
+			fetch: async ({ endTimestamp }: FetchOptions) => {
+				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${endTimestamp}`));
 
 				const dailySupplySideRevenue = daily.feesUSD;
 				const dailyProtocolRevenue = daily.royaltiesUSD;
@@ -77,7 +74,6 @@ const adapter: SimpleAdapter = {
 					dailyRevenue,
 					dailyProtocolRevenue,
 					dailySupplySideRevenue,
-					timestamp
 				}
 			},
 			meta: {
