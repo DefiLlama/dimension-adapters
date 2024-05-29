@@ -1,9 +1,6 @@
-import { Adapter } from "../../adapters/types";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON, CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
-
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -93,9 +90,9 @@ const v1Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = timestamp
-      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       const todaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -149,7 +146,6 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       }, 0);
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
         dailyHoldersRevenue: '0',
@@ -198,9 +194,9 @@ const blacklisted_v2_symbol: TMap = {
 }
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = timestamp
-      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       let poolID = poolIDs.V2
       if (chain == "avax") {
@@ -299,7 +295,6 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       }
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
       };
@@ -368,10 +363,9 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 
 const v3Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-      const todaysTimestamp = _timestamp
-      const yesterdaysTimestamp = _timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       const todaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -429,7 +423,6 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
       const dailyRev = feeBreakdown.treasuryIncomeUSD
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
       };
@@ -437,7 +430,7 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: Adapter = {
+const adapter = {
   breakdown: {
 //v1 subgraph no longer responding
 //    v1: {
@@ -510,7 +503,8 @@ const adapter: Adapter = {
         start: 1705741200
       },
     }
-  }
+  },
+  version: 2
 }
 
 export default adapter;
