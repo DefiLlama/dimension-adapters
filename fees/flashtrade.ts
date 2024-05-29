@@ -29,6 +29,7 @@ const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
   };
 
   const adapter: Adapter = {
+    version: 2,
     adapter: {
       [CHAIN.SOLANA]: {
         runAtCurrTime: true,
