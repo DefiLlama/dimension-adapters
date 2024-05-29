@@ -5,6 +5,7 @@ import * as sdk from '@defillama/sdk'
 const address = 'EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ'
 
 export default {
+    version: 2,
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
