@@ -64,7 +64,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch: fetchVolume(CHAIN.KLAYTN),
-      start: 153765758,
+      start: 1715752335,
     },
   },
 };
