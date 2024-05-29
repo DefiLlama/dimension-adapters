@@ -1,9 +1,8 @@
-import { Adapter, ChainEndpoints, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Bet, BetResult } from "./types";
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
     [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v3",
