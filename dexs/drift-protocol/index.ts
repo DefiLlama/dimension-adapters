@@ -20,7 +20,9 @@ const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 async function getPerpDimensions(): Promise<DimentionResult> {
   const resultRows = await queryDune(DUNE_QUERY_ID);
 
-  const marketRows = resultRows.filter((row) => row.market_index !== null);
+  const marketRows = resultRows.filter(
+    (row) => row.market_index !== null && row.market_index >= 0
+  );
   // const summaryRow = resultRows.find((row) => row.market_index === null);
 
   // Perp Volume
