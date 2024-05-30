@@ -6,7 +6,8 @@ import { BreakdownAdapter } from "../../adapters/types";
 const DAILY_VOL_ENDPOINT =
   "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
-const DUNE_QUERY_ID = "3756979";
+// const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
+const DUNE_QUERY_ID = "3782153"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
@@ -17,13 +18,13 @@ type DimentionResult = {
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
-async function getPerpDimensions(): Promise<DimentionResult> {
+// This is the previous method for query_id 3756979 which was too slow .. saving for posterity if we manage to speed it up.
+async function _getPerpDimensions(): Promise<DimentionResult> {
   const resultRows = await queryDune(DUNE_QUERY_ID);
 
   const marketRows = resultRows.filter(
     (row) => row.market_index !== null && row.market_index >= 0
   );
-  // const summaryRow = resultRows.find((row) => row.market_index === null);
 
   // Perp Volume
   const dailyVolume = sum(marketRows.map((row) => row.total_volume as number));
@@ -41,6 +42,19 @@ async function getPerpDimensions(): Promise<DimentionResult> {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
+  };
+}
+
+async function getPerpDimensions(): Promise<DimentionResult> {
+  const resultRows = await queryDune(DUNE_QUERY_ID);
+
+  const { perpetual_volume, total_revenue, total_taker_fee } = resultRows[0];
+
+  return {
+    dailyVolume: perpetual_volume,
+    dailyFees: total_taker_fee,
+    dailyUserFees: total_taker_fee,
+    dailyRevenue: total_revenue,
   };
 }
 
