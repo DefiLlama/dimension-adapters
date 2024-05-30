@@ -77,21 +77,24 @@ async function fetch(type: "perp" | "spot") {
     };
   }
 }
-const emtry = async (timestamp: number) => {return{timestamp}}
+
+// Used to replace "fetch" to disable a query if it starts failing
+const emtry = async (timestamp: number) => {
+  return { timestamp };
+};
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        // fetch: () => fetch("spot"),
-        fetch: emtry,
+        fetch: () => fetch("spot"),
         runAtCurrTime: true,
         start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        // // fetch: () => fetch("perp"),
-        fetch: emtry,
+        fetch: () => fetch("perp"),
         runAtCurrTime: true,
         start: 1690239600,
       },
