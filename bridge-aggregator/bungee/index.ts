@@ -33,7 +33,7 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
   });
   data.forEach((e: any) => {
     if (e.metadata === '0x00000000000000000000000000000000000000000000000000000000000000cd') {
-      dailyVolume.add(e.sendingAssetId, e.minAmount);
+      dailyVolume.add(e.token, e.amount);
     }
   });
 
