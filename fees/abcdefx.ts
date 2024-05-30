@@ -20,6 +20,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.KCC]:		{ fetch: graph(CHAIN.KCC),		start: 1670188701,	meta: { methodology }	},
 		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: 1670226950,	meta: { methodology }	},	/// ! typeof CHAIN

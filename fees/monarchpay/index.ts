@@ -1,8 +1,6 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 
 const address = '0x0296fD8b25D2f7B0B434eD4423BFA0CC47D08276';
 
@@ -11,12 +9,8 @@ interface ITx {
   transactionHash: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.KAVA, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.KAVA, {}));
+const fetch = async ({ getFromBlock, getToBlock }: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const logs: ITx[] = (await sdk.getEventLogs({
     target: address,
     fromBlock: fromBlock,
@@ -29,12 +23,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     return amount;
   }).reduce((a: number, b: number) => a+b,0);
   return {
-    timestamp: timestamp,
     dailyFees: `${dailyFees}`
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
