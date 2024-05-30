@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchResultFees } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { addTokensReceived } from '../../helpers/token';
 
 const factory = "0xC3179AC01b7D68aeD4f27a19510ffe2bfb78Ab3e";
@@ -12,7 +12,7 @@ const tokens = [
 ];
 const treasury = "0x5c84cf4d91dc0acde638363ec804792bb2108258";
 
-const fetch = async (timestamp: number, _, options): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, } = options
 
   const market_create = await getLogs({
@@ -31,7 +31,7 @@ const fetch = async (timestamp: number, _, options): Promise<FetchResultFees> =>
     await addTokensReceived({ options, tokens, fromAddressFilter: vault, target: treasury, balances: dailyFees })
 
 
-  return { dailyFees, dailyRevenue: dailyFees, timestamp, };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 export default fetch;

@@ -1,10 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter } from "../../adapters/types";
-import { getBlock } from "../../helpers/getBlock";
-import {
-  getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfPreviousDayUTC
-} from "../../utils/date";
+import { FetchOptions } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 
 const STABLE_FEES = 0.0002;
@@ -13,24 +8,17 @@ const endpoint =
   "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
 
 export const fetchV1 = () => {
-  return async (timestamp: number) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
-    const todaysBlock = await getBlock(
-      todaysTimestamp,
-      "optimism",
-      {}
-    );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "optimism", {});
+  return async ({ getToBlock, getFromBlock }: FetchOptions) => {
+    const [toBlock, fromBlock] = await Promise.all([ getToBlock(), getFromBlock()])
 
     const query = gql`
       query fees {
-        yesterday: pairs(block: {number: ${yesterdaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        yesterday: pairs(block: {number: ${fromBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
         }
-        today: pairs(block: {number: ${todaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        today: pairs(block: {number: ${toBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
@@ -57,7 +45,6 @@ export const fetchV1 = () => {
     }
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.toString(),
       dailyHoldersRevenue: dailyFee.toString(),

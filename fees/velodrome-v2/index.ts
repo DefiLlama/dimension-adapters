@@ -4,11 +4,11 @@ import { fetchV2 } from './velodrome-v2';
 import { fees_bribes } from './bribes';
 
 
-const getFees = async (timestamp: number, _, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
+const getFees = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
   const {  getFromBlock, getToBlock, } = fetchOptions
   const fromBlock = await getFromBlock()
   const toBlock = await getToBlock()
-  const  [feeV2, bribes] = await Promise.all([fetchV2(fromBlock, toBlock,timestamp, fetchOptions),  fees_bribes(fetchOptions)]);
+  const  [feeV2, bribes] = await Promise.all([fetchV2(fromBlock, toBlock, fetchOptions),  fees_bribes(fetchOptions)]);
   return {
     ...feeV2,
     dailyBribesRevenue: bribes,
@@ -16,6 +16,7 @@ const getFees = async (timestamp: number, _, fetchOptions: FetchOptions): Promis
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [OPTIMISM]: {
       fetch: getFees,

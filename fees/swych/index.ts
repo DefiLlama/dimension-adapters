@@ -105,7 +105,7 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
     return dailyFees;
 };
 
-const fetchFees = async (timestamp: number, _c: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchFees = async (options: FetchOptions) => {
     const dailyFees = await fetchTotalProtocolRevenue(options);
     const totalWithdrawalFeeData = await fetchWithdrawalFees(options.startOfDay);
     const tokenWithdrawalFees = [...new Set(totalWithdrawalFeeData.map((fee) => fee.token))];
@@ -116,13 +116,11 @@ const fetchFees = async (timestamp: number, _c: any, options: FetchOptions): Pro
         const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
-    return {
-        timestamp,
-        dailyFees: dailyFees,
-    }
+    return { dailyFees: dailyFees }
 };
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
