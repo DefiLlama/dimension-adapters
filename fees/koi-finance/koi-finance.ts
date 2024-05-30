@@ -1,24 +1,12 @@
 import request, { gql } from "graphql-request";
-import { getBlock } from "../../helpers/getBlock";
-import {
-  getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfPreviousDayUTC
-} from "../../utils/date";
 import BigNumber from "bignumber.js";
+import { FetchOptions } from "../../adapters/types";
 
 const endpoint = "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn"
 
 export const fetchV1 = () => {
-  return async (timestamp: number) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
-    const todaysBlock = await getBlock(
-      todaysTimestamp,
-      "era",
-      {}
-    );
-
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "era", {});
+  return async ({ getEndBlock, getStartBlock }: FetchOptions) => {
+    const [ todaysBlock, yesterdaysBlock] = await Promise.all([ getEndBlock(), getStartBlock()])
 
     const query = gql`
       query fees {
@@ -54,7 +42,6 @@ export const fetchV1 = () => {
     }
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.times(0.2).toString(),
     };
