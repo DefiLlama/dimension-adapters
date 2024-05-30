@@ -15,19 +15,24 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
 async function getPerpDimensions(): Promise<DimentionResult> {
   const resultRows = await queryDune(DUNE_QUERY_ID);
 
-  const summaryRow = resultRows.find((row) => row.market_index === null);
+  const marketRows = resultRows.filter((row) => row.market_index !== null);
+  // const summaryRow = resultRows.find((row) => row.market_index === null);
 
   // Perp Volume
-  const dailyVolume = summaryRow.total_volume as number;
+  const dailyVolume = sum(marketRows.map((row) => row.total_volume as number));
 
   // All taker fees paid
-  const dailyFees = summaryRow.total_taker_fee as number;
+  const dailyFees = sum(marketRows.map((row) => row.total_taker_fee as number));
 
   // All taker fees paid, minus maker rebates paid - not sure if this should be used as the "dailyFees" number instead.
-  const dailyRevenue = summaryRow.total_revenue as number;
+  const dailyRevenue = sum(
+    marketRows.map((row) => row.total_revenue as number)
+  );
 
   return {
     dailyVolume,
