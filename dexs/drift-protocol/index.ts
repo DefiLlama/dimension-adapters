@@ -6,7 +6,8 @@ import { BreakdownAdapter } from "../../adapters/types";
 const DAILY_VOL_ENDPOINT =
   "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
-const DUNE_QUERY_ID = "3756979";
+// const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
+const DUNE_QUERY_ID = "3782153"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
@@ -15,25 +16,45 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
-async function getPerpDimensions(): Promise<DimentionResult> {
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+// This is the previous method for query_id 3756979 which was too slow .. saving for posterity if we manage to speed it up.
+async function _getPerpDimensions(): Promise<DimentionResult> {
   const resultRows = await queryDune(DUNE_QUERY_ID);
 
-  const summaryRow = resultRows.find((row) => row.market_index === null);
+  const marketRows = resultRows.filter(
+    (row) => row.market_index !== null && row.market_index >= 0
+  );
 
   // Perp Volume
-  const dailyVolume = summaryRow.total_volume as number;
+  const dailyVolume = sum(marketRows.map((row) => row.total_volume as number));
 
   // All taker fees paid
-  const dailyFees = summaryRow.total_taker_fee as number;
+  const dailyFees = sum(marketRows.map((row) => row.total_taker_fee as number));
 
   // All taker fees paid, minus maker rebates paid - not sure if this should be used as the "dailyFees" number instead.
-  const dailyRevenue = summaryRow.total_revenue as number;
+  const dailyRevenue = sum(
+    marketRows.map((row) => row.total_revenue as number)
+  );
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
+  };
+}
+
+async function getPerpDimensions(): Promise<DimentionResult> {
+  const resultRows = await queryDune(DUNE_QUERY_ID);
+
+  const { perpetual_volume, total_revenue, total_taker_fee } = resultRows[0];
+
+  return {
+    dailyVolume: perpetual_volume,
+    dailyFees: total_taker_fee,
+    dailyUserFees: total_taker_fee,
+    dailyRevenue: total_revenue,
   };
 }
 
@@ -72,21 +93,24 @@ async function fetch(type: "perp" | "spot") {
     };
   }
 }
-const emtry = async (timestamp: number) => {return{timestamp}}
+
+// Used to replace "fetch" to disable a query if it starts failing
+const emtry = async (timestamp: number) => {
+  return { timestamp };
+};
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        // fetch: () => fetch("spot"),
-        fetch: emtry,
+        fetch: () => fetch("spot"),
         runAtCurrTime: true,
         start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        // // fetch: () => fetch("perp"),
-        fetch: emtry,
+        fetch: () => fetch("perp"),
         runAtCurrTime: true,
         start: 1690239600,
       },
