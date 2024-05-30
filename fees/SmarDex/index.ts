@@ -50,7 +50,7 @@ const methodology = {
 };
 
 // Define the adapter
-const adapter: Adapter = { adapter: {} };
+const adapter: Adapter = { version: 1, adapter: {} };
 for (let chain in FEES) {
   adapter.adapter[chain] = {
     fetch: (timestamp: number) =>
