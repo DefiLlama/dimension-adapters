@@ -100,7 +100,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.result?.blockNumber)));
     else
-        block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
+        block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`, { timeout: 10000 }).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.height, { retries: 1 })));
     if (block) chainBlocks[chain] = block
