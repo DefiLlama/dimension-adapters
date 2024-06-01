@@ -1,4 +1,4 @@
-import { SimpleAdapter, Fetch } from "../../adapters/types";
+import { SimpleAdapter, Fetch, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDexVolumeExportsV3 } from "../../helpers/dexVolumeLogs";
 
@@ -8,11 +8,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.SCROLL]: {
-            fetch: getDexVolumeExportsV3({
-                factory: FACTORY_V3_ADDRESS,
-                factoryFromBlock: 4627488,
-                chain: CHAIN.SCROLL
-            }) as Fetch,
+            fetch: async (options: FetchOptions) => getDexVolumeExportsV3({factory: FACTORY_V3_ADDRESS,factoryFromBlock: 4627488, chain: CHAIN.SCROLL})(options.toTimestamp, null, options),
             start: 1712174400,
         }
     }
