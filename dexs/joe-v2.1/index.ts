@@ -53,11 +53,15 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
   try {
     const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
     const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
+    const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {});
+    const toBlock = await options.getBlock(options.toTimestamp, options.chain, {});
 
     const logs: any[][] = (await options.getLogs({
       targets: lpTokens,
       eventAbi: event_swap,
       flatten: false,
+      fromBlock,
+      toBlock,
     }))
 
     logs.map((log: any, index: number) => {
