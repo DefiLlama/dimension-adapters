@@ -17,7 +17,7 @@ const contracts: TokenContracts = {
   ],
 }
 let tokenDecimals = {}
-const subgraphEndpoint = "https://gateway-arbitrum.network.thegraph.com/api/7ca317c1d6347234f75513585a71157c/deployments/id/QmQF8cZUUb3hEVfuNBdGAQPBmvRioLsqyxHZbRRgk1zpVV"
+const subgraphEndpoint = "https://gateway-arbitrum.network.thegraph.com/api/7ca317c1d6347234f75513585a71157c/subgraphs/id/HkE4i846HyUEbmBg7cTawRqbTXQZnJ8VGwMfgVjdH19F"
 const client = new GraphQLClient(subgraphEndpoint);
 
 function getDecimals(token_address: string) {
@@ -43,31 +43,64 @@ function calculateNotionalVolume(balances: Balances, orders: any[]) {
       console.error("No order details found");
       continue;
     }
-    if (order.callOrder) {
-      let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
-      if (decimals_strikeAsset == 0) {
-        console.error("No decimals data found for strikeAsset");
-        continue;
+    //v1 orders
+    if (!orderDetails.quantity) {
+      if (order.callOrder) {
+        let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
+        if (decimals_strikeAsset == 0) {
+          console.error("No decimals data found for strikeAsset");
+          continue;
+        }
+        let decimals_underlyingAsset = getDecimals(orderDetails.underlyingAsset);
+        if (decimals_underlyingAsset == 0) {
+          console.error("No decimals data found for underlyingAsset");
+          continue;
+        }
+        let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.underlyingAmount).dividedBy(new BigNumber(10).pow(decimals_underlyingAsset)))
+        notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
+        balances.add(orderDetails.strikeAsset, notionalValue);
+        //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} underlyingAmount:${orderDetails.underlyingAmount},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
-      let decimals_underlyingAsset = getDecimals(orderDetails.underlyingAsset);
-      if (decimals_underlyingAsset == 0) {
-        console.error("No decimals data found for underlyingAsset");
-        continue;
+      else if (order.putOrder) {
+        balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
       }
-      let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.underlyingAmount).dividedBy(new BigNumber(10).pow(decimals_underlyingAsset)))
-      notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
-      balances.add(orderDetails.strikeAsset, notionalValue);
-      //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} underlyingAmount:${orderDetails.underlyingAmount},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
     }
-    else if (order.putOrder) {
-      balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
+    //v2 orders
+    else {
+      if (order.callOrder) {
+        let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
+        if (decimals_strikeAsset == 0) {
+          console.error("No decimals data found for strikeAsset");
+          continue;
+        }
+        let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
+        notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
+        balances.add(orderDetails.strikeAsset, notionalValue);
+        console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
+      }
+      else if (order.putOrder) {
+        let decimals_lockAsset: number = getDecimals(orderDetails.lockAsset);
+        if (decimals_lockAsset == 0) {
+          console.error("No decimals data found for lockAsset");
+          continue;
+        }
+        let notionalValue = new BigNumber(orderDetails.lockAmount).dividedBy(new BigNumber(10).pow(decimals_lockAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
+        notionalValue = notionalValue.decimalPlaces(Number(decimals_lockAsset)).multipliedBy(new BigNumber(10).pow(decimals_lockAsset));
+        balances.add(orderDetails.lockAsset, notionalValue);
+        console.log(`notionalValue:${notionalValue} lockAsset: ${orderDetails.lockAsset}, lockAmount : ${orderDetails.lockAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
+      }
+
     }
   }
 }
 
 function calculatePremiumVolume(balances: Balances, optionPremiums: any[]) {
-  for (const premium of optionPremiums)
-    balances.add(premium.premiumAsset, premium.amount)
+  for (const premium of optionPremiums) {
+    //The premium data for these orders during this period is incorrect, so we should ignore the premium data for this batch of orders.
+    if (premium.orderID <= 4309 || premium.orderID >= 4343) {
+      balances.add(premium.premiumAsset, premium.amount)
+    }
+  }
 }
 
 async function fetchCallOrder(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
@@ -96,6 +129,31 @@ async function fetchCallOrder(client: GraphQLClient, start: number, end: number 
   }
   return allData;
 }
+async function fetchCallOrderV2(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
+  let skip = 0;
+  let allData = { callOrderEntities: [] };
+  let hasMore = true;
+  while (hasMore) {
+    const query = gql`
+      {
+        callOrderEntityV2S(where: { timestamp_gte: ${start}, timestamp_lte: ${end}}, first: ${pageSize}, skip: ${skip}) {
+          callOrder {
+            underlyingAsset
+            quantity
+            strikeAsset
+            strikeAmount
+          }
+          orderId
+          transactionHash
+        }
+      }`
+    const result = await client.request(query);
+    allData.callOrderEntities.push(...result.callOrderEntityV2S as never[]);
+    skip += pageSize;
+    hasMore = result.callOrderEntityV2S.length === pageSize;
+  }
+  return allData;
+}
 async function fetchPutOrder(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
   let skip = 0;
   let allData = { putOrderEntities: [] };
@@ -121,6 +179,33 @@ async function fetchPutOrder(client: GraphQLClient, start: number, end: number |
   }
   return allData;
 }
+async function fetchPutOrderV2(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
+  let skip = 0;
+  let allData = { putOrderEntities: [] };
+  let hasMore = true;
+  while (hasMore) {
+    const query = gql`
+      {
+        putOrderEntityV2S(where: { timestamp_gte: ${start}, timestamp_lte: ${end}}, first: ${pageSize}, skip: ${skip}) {
+          putOrder {
+            underlyingAsset
+            lockAsset
+            lockAmount
+            quantity
+            strikeAsset
+            strikeAmount
+          }
+          orderId
+          transactionHash
+        }
+      }`
+    const result = await client.request(query);
+    allData.putOrderEntities.push(...result.putOrderEntityV2S as never[]);
+    skip += pageSize;
+    hasMore = result.putOrderEntityV2S.length === pageSize;
+  }
+  return allData;
+}
 async function fetchOptionPremiums(client: GraphQLClient, start: number, end: number | null, pageSize: number = 100) {
   let skip = 0;
   let allData = { optionPremiums: [] };
@@ -132,7 +217,7 @@ async function fetchOptionPremiums(client: GraphQLClient, start: number, end: nu
           amount
           premiumAsset
           orderID
-          transactionHash
+          transactionHash 
         }
       }
     `;
@@ -154,11 +239,13 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
     return obj;
   }, {});
   const [
-    dailyCallData, dailyPutData, dailyPremiumData,
+    dailyCallData, dailyCallDataV2, dailyPutData, dailyPutDataV2, dailyPremiumData,
     // totalCallData, totalPutData, totalPremiumData
   ] = await Promise.all([
     fetchCallOrder(client, startOfDay, now),
+    fetchCallOrderV2(client, startOfDay, now),
     fetchPutOrder(client, startOfDay, now),
+    fetchPutOrderV2(client, startOfDay, now),
     fetchOptionPremiums(client, startOfDay, now),
     // fetchCallOrder(client, start, now),
     // fetchPutOrder(client, start, now),
@@ -169,7 +256,7 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   // const totalNotionalVolume = createBalances()
   // const totalPremiumVolume = createBalances()
 
-  calculateNotionalVolume(dailyNotionalVolume, [...dailyCallData.callOrderEntities, ...dailyPutData.putOrderEntities]);
+  calculateNotionalVolume(dailyNotionalVolume, [...dailyCallData.callOrderEntities, ...dailyCallDataV2.callOrderEntities, ...dailyPutData.putOrderEntities, ...dailyPutDataV2.putOrderEntities]);
   calculatePremiumVolume(dailyPremiumVolume, dailyPremiumData.optionPremiums);
   // calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
   // calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
