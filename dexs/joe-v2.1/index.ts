@@ -56,13 +56,13 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
     const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {});
     const toBlock = await options.getBlock(options.toTimestamp, options.chain, {});
 
-    const logs: any[][] = (await options.getLogs({
-      targets: lpTokens,
+    const logs: any[][] = (await Promise.all(lpTokens.map((lp: string) => options.getLogs({
+      target: lp,
       eventAbi: event_swap,
       flatten: false,
       fromBlock,
       toBlock,
-    }))
+    }))))
 
     logs.map((log: any, index: number) => {
       const token0 = tokens0[index];
