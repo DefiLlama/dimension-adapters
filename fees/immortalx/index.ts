@@ -1,8 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 interface IData {
   totalTradeFee: string;
@@ -22,12 +21,10 @@ const endpoints: IURL = {
 };
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
+  return async ({ startOfDay }: FetchOptions) => {
     const graphQuery = gql`
       {
-        protocolByDay(id: "${todayTimestamp}") {
+        protocolByDay(id: "${startOfDay}") {
           totalTradeFee
         }
         protocol(id: "1") {
@@ -41,7 +38,6 @@ const fetch = (chain: Chain) => {
     const totalFees = Number(res.protocol.totalTradeFee) / 10 ** 18;
 
     return {
-      timestamp,
       dailyFees: dailyFees.toString(),
       totalFees: totalFees.toString(),
     };
@@ -55,6 +51,7 @@ const adapter: Adapter = {
       start: 1690848000,
     },
   },
+  version: 2
 };
 
 export default adapter;

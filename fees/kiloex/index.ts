@@ -42,6 +42,7 @@ const fetch = (chainId: string) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC), start: 1686528000

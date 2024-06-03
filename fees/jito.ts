@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryDune } from "../helpers/dune"
 
-const fetchFees = async (_t: any, _a: any,  options: FetchOptions) => {
+const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const result = await queryDune("3740661");
@@ -16,12 +16,11 @@ const fetchFees = async (_t: any, _a: any,  options: FetchOptions) => {
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyRevenue,
-    timestamp: options.startOfDay
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,

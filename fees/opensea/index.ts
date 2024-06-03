@@ -24,6 +24,7 @@ const graphs = (_: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,

@@ -1,10 +1,10 @@
-import { Adapter, FetchResultFees } from '../../adapters/types';
+import { Adapter, FetchOptions, FetchResultFees } from '../../adapters/types';
 import { OPTIMISM } from '../../helpers/chains';
 import { fetchV1 } from './velodrome';
 
 
-const getFees = async (timestamp: number): Promise<FetchResultFees> => {
-  const  [feeV1] = await Promise.all([fetchV1()(timestamp)]);
+const getFees = async (options: FetchOptions) => {
+  const  [feeV1] = await Promise.all([fetchV1()(options)]);
   const dailyFees = Number(feeV1.dailyFees);
   const dailyRevenue = Number(feeV1.dailyRevenue);
   const dailyHoldersRevenue = Number(feeV1.dailyHoldersRevenue);
@@ -12,11 +12,11 @@ const getFees = async (timestamp: number): Promise<FetchResultFees> => {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
     dailyHoldersRevenue: `${dailyHoldersRevenue}`,
-    timestamp
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [OPTIMISM]: {
       fetch: getFees,

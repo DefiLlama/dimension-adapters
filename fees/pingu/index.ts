@@ -39,6 +39,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 }
 
 const adapter: SimpleAdapter = {
+	version: 1,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
 			fetch: fetch,

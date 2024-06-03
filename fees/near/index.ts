@@ -27,6 +27,7 @@ const fetchFees =  async (timestamp: number): Promise<FetchResultFees> => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.NEAR]: {
       fetch: fetchFees,

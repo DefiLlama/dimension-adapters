@@ -1,10 +1,7 @@
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
 const endpoint_0_8_0 =
   "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
@@ -135,18 +132,20 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchVolume = async (
+  { endTimestamp, startTimestamp }: FetchOptions
+) => {
   const response_0_8_0: IGraphResponse = await request(
     endpoint_0_8_0,
     query_0_8_0,
     {
-      from: String(timestamp - ONE_DAY_IN_SECONDS),
-      to: String(timestamp),
+      from: String(startTimestamp),
+      to: String(endTimestamp),
     }
   );
   const response: IGraphResponse = await request(endpoint, query, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp),
+    from: String(startTimestamp),
+    to: String(endTimestamp),
   });
 
   // Merging both responses
@@ -183,11 +182,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
   const totalProtocolRevenue = "0";
   const totalSupplySideRevenue = "0";
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
   return {
-    timestamp: dayTimestamp,
-
     dailyFees: _dailyFees ?? "0",
     totalFees: _totalFees ?? "0",
 
@@ -204,8 +199,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const fetchVolumeBlast = async (
-  timestamp: number
-): Promise<FetchResultFees> => {
+  { endTimestamp, startTimestamp }: FetchOptions
+) => {
   let dailyFees = new BigNumber(0);
   let totalFees = new BigNumber(0);
 
@@ -213,8 +208,8 @@ const fetchVolumeBlast = async (
     endpoint_blast,
     queryBlast,
     {
-      from: String(timestamp - ONE_DAY_IN_SECONDS),
-      to: String(timestamp),
+      from: String(startTimestamp),
+      to: String(endTimestamp),
     }
   );
   response_blast.dailyHistories.forEach((data) => {
@@ -240,11 +235,7 @@ const fetchVolumeBlast = async (
   const totalProtocolRevenue = "0";
   const totalSupplySideRevenue = "0";
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
   return {
-    timestamp: dayTimestamp,
-
     dailyFees: _dailyFees ?? "0",
     totalFees: _totalFees ?? "0",
 
@@ -261,8 +252,8 @@ const fetchVolumeBlast = async (
 };
 
 const fetchVolumeMantle = async (
-  timestamp: number
-): Promise<FetchResultFees> => {
+  { endTimestamp, startTimestamp }: FetchOptions
+) => {
   let dailyFees = new BigNumber(0);
   let totalFees = new BigNumber(0);
 
@@ -270,8 +261,8 @@ const fetchVolumeMantle = async (
     endpoint_mantle,
     queryMantle,
     {
-      from: String(timestamp - ONE_DAY_IN_SECONDS),
-      to: String(timestamp),
+      from: String(startTimestamp),
+      to: String(endTimestamp),
     }
   );
   response_mantle.dailyHistories.forEach((data) => {
@@ -297,11 +288,7 @@ const fetchVolumeMantle = async (
   const totalProtocolRevenue = "0";
   const totalSupplySideRevenue = "0";
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
   return {
-    timestamp: dayTimestamp,
-
     dailyFees: _dailyFees ?? "0",
     totalFees: _totalFees ?? "0",
 
@@ -318,6 +305,7 @@ const fetchVolumeMantle = async (
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,

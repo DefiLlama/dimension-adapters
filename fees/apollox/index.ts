@@ -1,4 +1,4 @@
-import { Adapter, ChainEndpoints } from "../../adapters/types";
+import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { httpGet } from "../../utils/fetchURL";
@@ -9,11 +9,10 @@ const endpoints = {
 
 const request = (urls: ChainEndpoints) => {
     return (chain: Chain) => {
-        return async (timestamp: number) => {
+        return async () => {
             const { data } = await httpGet(urls[chain]);
             const { alpFeeVOFor24Hour, allAlpFeeVO } = data
             return {
-                timestamp,
                 dailyFees: alpFeeVOFor24Hour.fee || 0,
                 dailyRevenue: alpFeeVOFor24Hour.revenue || 0,
                 totalFees: allAlpFeeVO.fee || 0,
@@ -31,7 +30,6 @@ const adapter: Adapter = {
             start: 1689609600,
         },
     },
-    version: 1
 }
 
 export default adapter;
