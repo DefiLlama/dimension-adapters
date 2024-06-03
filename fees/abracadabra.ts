@@ -1,10 +1,8 @@
-import { Adapter, ChainBlocks } from "../adapters/types";
+import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
 
 
 const endpoints = {
@@ -39,12 +37,8 @@ const getFees = (data: DataResponse): number => {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number, _: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-      const startBlock = (await getBlock(todaysTimestamp, chain, {}));
-      const endBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+      const [startBlock, endBlock] = await Promise.all([getFromBlock(), getToBlock()])
       const graphQuery = gql
       `query fees($startBlock: Int!, $endBlock: Int!) {
         startValue: cauldronFees(block: { number: $startBlock }) {
@@ -63,7 +57,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeUsd = dailyFee;
       const dailyRevenue = dailyFeeUsd * .5;
       return {
-        timestamp,
         dailyFees: dailyFeeUsd.toString(),
         dailyRevenue: dailyRevenue.toString(),
       };
@@ -73,6 +66,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graphs(endpoints)(CHAIN.ETHEREUM),

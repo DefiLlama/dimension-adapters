@@ -85,7 +85,8 @@ const baseAdapter: BaseAdapter = {
 }
 
 const adapter: Adapter = {
-  adapter: baseAdapter
+  adapter: baseAdapter,
+  version: 1,
 };
 
 

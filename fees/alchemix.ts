@@ -1,7 +1,7 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 
 interface IData {
@@ -39,7 +39,7 @@ const graph = (graphUrls: ChainEndpoints) => {
   }`;
 
   return (chain: Chain) => {
-    return async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp }: FetchOptions): Promise<FetchResultFees> => {
+    return async ({ createBalances, fromTimestamp, toTimestamp }: FetchOptions) => {
       const dailyFees = createBalances()
 
       const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
@@ -50,13 +50,14 @@ const graph = (graphUrls: ChainEndpoints) => {
       graphRes.map((a: IData) => dailyFees.add(a.yieldToken, a.totalHarvested))
       const dailyRevenue = dailyFees.clone(0.1)
 
-      return { dailyFees, dailyRevenue, timestamp }
+      return { dailyFees, dailyRevenue }
     }
   }
 };
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     // [CHAIN.ETHEREUM]: { // index error
     //   fetch: graph(endpoints)(CHAIN.ETHEREUM),

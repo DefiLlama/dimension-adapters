@@ -86,6 +86,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getFeesFunction(chain),
