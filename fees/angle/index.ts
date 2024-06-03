@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -201,20 +201,15 @@ function aggregateFee(
 
 const graph = (graphUrls: ChainEndpoint) => {
     return (chain: CHAIN) => {
-        return async (timestamp: number) => {
-
-            const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-            const yesterdayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-
-            const borrowFees = await getBorrowFees(graphUrls[chain] as string, todayTimestamp, yesterdayTimestamp);
-            const coreFees = await getCoreFees(graphUrls[chain] as string, todayTimestamp, yesterdayTimestamp);
-            const veANGLEInterest = await getVEANGLERevenues(graphUrls[chain] as string, todayTimestamp);
+        return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+            const borrowFees = await getBorrowFees(graphUrls[chain] as string, endTimestamp, startTimestamp);
+            const coreFees = await getCoreFees(graphUrls[chain] as string, endTimestamp, startTimestamp);
+            const veANGLEInterest = await getVEANGLERevenues(graphUrls[chain] as string, endTimestamp);
 
             const total = aggregateFee("totalFees", coreFees, borrowFees);
             const daily = aggregateFee("deltaFees", coreFees, borrowFees);
 
             return {
-                timestamp,
                 totalFees: (total.totalFees + veANGLEInterest.totalInterest).toString(),
                 dailyFees: (daily.totalFees + veANGLEInterest.deltaInterest).toString(),
                 totalRevenue: (total.totalRevenue + veANGLEInterest.totalInterest).toString(),
@@ -246,7 +241,8 @@ const adapter: SimpleAdapter = {
             fetch: graph(endpoints)(CHAIN.POLYGON),
             start: 1672531200,
         },
-    }
+    },
+    version: 2
 }
 
 export default adapter;

@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
@@ -25,20 +25,17 @@ interface ITx {
   transactionHash: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
   const provider = getProvider('xdai');
   const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.XDAI, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.XDAI, {}));
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
   const ticketRedeemedLogs: ITx[] = (await sdk.getEventLogs({
     target: channels_address,
     topic: topic0,
-    fromBlock: fromBlock,
-    toBlock: toBlock,
+    fromBlock,
+    toBlock,
     topics: [topic0],
     chain: CHAIN.XDAI
   }))as ITx[];
@@ -88,7 +85,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyRevenueUSD = dailyRevenue * price;
 
   return {
-    timestamp: timestamp,
     dailyFees: `${dailyRevenueUSD}`,
     dailyUserFees: `${dailyRevenueUSD}`,
     dailyRevenue: `${dailyRevenueUSD}`
@@ -96,6 +92,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,

@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types"
+import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { ethers } from "ethers"
 import { queryIndexer } from "../../helpers/indexer";
@@ -18,7 +18,7 @@ const unpackTypePriceCollection = (packedValue: any): any => {
 };
 
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const contract_interface = new ethers.Interface(abi);
 
   const dailyFees = options.createBalances();
@@ -81,7 +81,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     const _price = price.toString() * 1
     dailyFees.addGasToken(_rate * _price);
   })
-  return { dailyFees, timestamp }
+  return { dailyFees }
 }
 
 const adapter: Adapter = {
@@ -90,6 +90,7 @@ const adapter: Adapter = {
       fetch,
       start: 1688256000
     }
-  }
+  },
+  version: 2
 }
 export default adapter

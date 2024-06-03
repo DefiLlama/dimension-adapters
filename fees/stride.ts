@@ -61,6 +61,12 @@ const adapter: Adapter = {
       start: 0,
       meta,
     },
+    dymension: {
+      fetch: fetch("dymension"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
     juno: {
       fetch: fetch("juno"),
       runAtCurrTime: true,

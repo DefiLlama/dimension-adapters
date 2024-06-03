@@ -1,8 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
-import { Adapter, ChainBlocks } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
 const BORROW_CONTRACT_ADDRESS = [
@@ -38,13 +37,7 @@ const PYTH_CONFIG = {
 type PYTH_CONFIG_TYPE = typeof PYTH_CONFIG;
 type PYTH_CONFIG_KEYS = keyof PYTH_CONFIG_TYPE;
 
-const fetchGaiRevenue = async (timestamp: number, balances: sdk.Balances) => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
-
-  const fromBlock = await getBlock(fromTimestamp, CHAIN.MANTA as Chain, {});
-  const toBlock = await getBlock(toTimestamp, CHAIN.MANTA as Chain, {});
-
+const fetchGaiRevenue = async (fromBlock: number, toBlock: number, balances: sdk.Balances) => {
   const logs = await sdk.getEventLogs({
     targets: BORROW_CONTRACT_ADDRESS,
     toBlock: toBlock,
@@ -57,13 +50,7 @@ const fetchGaiRevenue = async (timestamp: number, balances: sdk.Balances) => {
   logs.forEach(log => balances.add('0xcd91716ef98798A85E79048B78287B13ae6b99b2', log._GAIFee))
 };
 
-const fetchCollateralRedemptionRevenue = async (timestamp: number, balances: sdk.Balances) => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
-
-  const fromBlock = await getBlock(fromTimestamp, CHAIN.MANTA as Chain, {});
-  const toBlock = await getBlock(toTimestamp, CHAIN.MANTA as Chain, {});
-
+const fetchCollateralRedemptionRevenue = async (fromBlock: number, toBlock: number, balances: sdk.Balances) => {
   for (const token of Object.keys(PYTH_CONFIG) as PYTH_CONFIG_KEYS[]) {
     const { contractAddress, address, } = PYTH_CONFIG[token];
     const logs = await sdk.getEventLogs({
@@ -81,16 +68,17 @@ const fetchCollateralRedemptionRevenue = async (timestamp: number, balances: sdk
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.MANTA]: {
-      fetch: async (timestamp: number, _: ChainBlocks) => {
-        const balances = new sdk.Balances({ chain: CHAIN.MANTA as Chain, timestamp });
-        await fetchGaiRevenue(timestamp, balances);
-        await fetchCollateralRedemptionRevenue(timestamp, balances);
+      fetch: async ({ getFromBlock, getToBlock }: FetchOptions) => {
+        const balances = new sdk.Balances({ chain: CHAIN.MANTA as Chain });
+        const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+        await fetchGaiRevenue(fromBlock, toBlock, balances);
+        await fetchCollateralRedemptionRevenue(fromBlock, toBlock, balances);
 
         const totalRevenue = await balances.getUSDString()
         return {
-          timestamp,
           dailyFees: totalRevenue,
           dailyRevenue: totalRevenue,
           dailyHoldersRevenue: totalRevenue,

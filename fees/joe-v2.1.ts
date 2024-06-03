@@ -10,9 +10,9 @@ type TPool = {
 }
 const pools: TPool = {
   [CHAIN.BSC]: [
-    '0xdce12347b429a32a177708646d4024449827a69a',
-    '0x3708d924f627d8109687ce10f6c324445c28347c',
-    '0x7e6857d4b2efaf9ff29f88f6d7d083a160e0849e',
+    // '0xdce12347b429a32a177708646d4024449827a69a',
+    // '0x3708d924f627d8109687ce10f6c324445c28347c',
+    // '0x7e6857d4b2efaf9ff29f88f6d7d083a160e0849e',
   ],
   [CHAIN.AVAX]: [
     '0xd9fa522f5bc6cfa40211944f2c8da785773ad99d',
@@ -50,7 +50,7 @@ const pools: TPool = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, api }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs, api }: FetchOptions) => {
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();
     const lpTokens = pools[chain]
@@ -62,15 +62,17 @@ const graph = (chain: Chain) => {
         })
       )
     );
-    const decimalsXs = await api.multiCall({  abi: 'erc20:decimals', calls: tokenXs})
-    const decimalsYs = await api.multiCall({  abi: 'erc20:decimals', calls: tokenYs})
+    const decimalsXs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenXs })
+    const decimalsYs = await api.multiCall({ abi: 'erc20:decimals', calls: tokenYs })
 
 
-    const logs: any[][] = await getLogs({
-      targets: lpTokens,
-      eventAbi: event_swap,
-      flatten: false,
-    })
+    let logs: any[][] = []
+    if (lpTokens.length)
+      logs = await getLogs({
+        targets: lpTokens,
+        eventAbi: event_swap,
+        flatten: false,
+      })
 
     lpTokens.map((_: string, index: number) => {
       logs[index]
@@ -99,13 +101,13 @@ const graph = (chain: Chain) => {
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue,
-      timestamp,
     };
   }
 }
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),

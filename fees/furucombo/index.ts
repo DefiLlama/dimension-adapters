@@ -1,29 +1,27 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 function fetch(chainId: number) {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const timestampToday = getTimestampAtStartOfDayUTC(timestamp);
+  return async ({ endTimestamp }: FetchOptions) => {
 
     const resp: {
       totalFees: string;
       dailyFees: string;
     } = await fetchURL(
-      `https://api.furucombo.app/v1/defillama/${chainId}/fees?timestamp=${timestampToday}`
+      `https://api.furucombo.app/v1/defillama/${chainId}/fees?timestamp=${endTimestamp}`
     );
 
     return {
       ...resp,
       totalRevenue: resp.totalFees,
       dailyRevenue: resp.dailyFees,
-      timestamp,
     };
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),

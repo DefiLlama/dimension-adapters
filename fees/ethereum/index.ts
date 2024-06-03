@@ -1,9 +1,9 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { ETHEREUM } from "../../helpers/chains";
 import { queryIndexer } from '../../helpers/indexer';
 
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const toBlock = await options.getToBlock()
   const fromBlock = await options.getFromBlock()
   const eth_txs: any = await queryIndexer(`
@@ -37,7 +37,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
   const dailyFee = options.createBalances()
   dailyFee.addGasToken(Number(eth_txs[0].txn_fees) * 10 ** 18)
   return {
-    timestamp,
     dailyFees: dailyFee,
     dailyRevenue: dailyRev,
     dailyHoldersRevenue: dailyRev,
@@ -45,6 +44,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [ETHEREUM]: {
       fetch,

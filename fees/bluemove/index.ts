@@ -39,6 +39,7 @@ const adapter: SimpleAdapter = {
       start: 1666224000,
     },
   },
+  version: 1
 };
 
 export default adapter;
