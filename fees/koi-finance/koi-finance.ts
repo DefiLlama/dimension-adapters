@@ -1,12 +1,17 @@
 import request, { gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
+import { getBlock } from "../../helpers/getBlock";
 
-const endpoint = "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn"
+const endpoint =
+  "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn";
 
 export const fetchV1 = () => {
-  return async ({ getEndBlock, getStartBlock }: FetchOptions) => {
-    const [ todaysBlock, yesterdaysBlock] = await Promise.all([ getEndBlock(), getStartBlock()])
+  return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+    const [todaysBlock, yesterdaysBlock] = await Promise.all([
+      getBlock(endTimestamp, "era", {}),
+      getBlock(startTimestamp, "era", {}),
+    ]);
 
     const query = gql`
       query fees {
@@ -34,11 +39,9 @@ export const fetchV1 = () => {
     for (const pool of graphRes["yesterday"]) {
       if (!todayVolume[pool.id]) continue;
 
-      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(
-        pool.volumeUSD
-      );
+      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(pool.volumeUSD);
 
-      dailyFee = dailyFee.plus(dailyVolume.times(pool.pairFee).div(10000))
+      dailyFee = dailyFee.plus(dailyVolume.times(pool.pairFee).div(10000));
     }
 
     return {

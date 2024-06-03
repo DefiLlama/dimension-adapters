@@ -18,20 +18,18 @@ const fetchFees = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
       referer: 'https://xoxno.com/'
     }
   }));
-  // const fs = require('fs');
-  // fs.writeFileSync('./xoxno.json', JSON.stringify(response));
-  // const response: IRaw[] = require('./xoxno.json');
 
   const toDayStr = toDayTimeStr.split('-')[1] +'-'+ toDayTimeStr.split('-')[2];
   const dayData = response.find((item) => item.Day === toDayStr);
   const dailyFees = (dayData?.XO_FeesPaidUSD || 0) + (dayData?.XO_RoyaltiesPaidUSD || 0);
-  const dailyRevenue = dayData?.XO_FeesPaidUSD;
+  const dailyRevenue = dayData?.XO_FeesPaidUSD || 0;
   return {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
   }
 }
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetchFees,
