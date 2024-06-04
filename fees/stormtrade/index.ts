@@ -3,6 +3,7 @@ import fetchURL from '../../utils/fetchURL'
 
 
 export default {
+    version: 1,
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,

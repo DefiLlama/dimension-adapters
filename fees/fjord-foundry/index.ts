@@ -1,5 +1,5 @@
-import { BreakdownAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -70,12 +70,13 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
+    version: 2,
     breakdown: {
         v2: Object.keys(v2ChainIDs).reduce((acc, chain) => {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
+                    fetch: async ({ startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
                     start: 1702857600,
                     meta: {
                         methodology,
@@ -87,7 +88,7 @@ const adapter: BreakdownAdapter = {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
+                    fetch: async ({ startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
                     start: 1631836800,
                     meta: {
                         methodology,

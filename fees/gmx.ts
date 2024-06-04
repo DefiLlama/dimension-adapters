@@ -4,7 +4,7 @@ import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints = {
+const endpoints: any = {
   [ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api",
   [AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api"
 }
@@ -18,39 +18,35 @@ const methodology = {
   ProtocolRevenue: "Treasury has no revenue"
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-    const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp)
-      const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
+const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
+    const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
 
-      const graphQuery = gql
-      `{
-        feeStat(id: "${searchTimestamp}") {
-          mint
-          burn
-          marginAndLiquidation
-          swap
-        }
-      }`;
+    const graphQuery = gql
+    `{
+      feeStat(id: "${searchTimestamp}") {
+        mint
+        burn
+        marginAndLiquidation
+        swap
+      }
+    }`;
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
+    const graphRes = await request(endpoints[chain], graphQuery);
+    const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+    const finalDailyFee = (dailyFee / 1e30);
+    const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+    const finalUserFee = (userFee / 1e30);
 
-      const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalDailyFee = (dailyFee / 1e30);
-      const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-      const finalUserFee = (userFee / 1e30);
-
-      return {
-        dailyFees: finalDailyFee.toString(),
-        dailyUserFees: finalUserFee.toString(),
-        dailyRevenue: (finalDailyFee * 0.3).toString(),
-        dailyProtocolRevenue: "0",
-        totalProtocolRevenue: "0",
-        dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-        dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
-      };
+    return {
+      dailyFees: finalDailyFee.toString(),
+      dailyUserFees: finalUserFee.toString(),
+      dailyRevenue: (finalDailyFee * 0.3).toString(),
+      dailyProtocolRevenue: "0",
+      totalProtocolRevenue: "0",
+      dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
+      dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
     };
-    return fetch 
 };
 
 
@@ -58,14 +54,14 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [ARBITRUM]: {
-      fetch: graphs(endpoints),
+      fetch: graphs,
       start: 1630468800,
       meta: {
         methodology
       }
     },
     [AVAX]: {
-      fetch: graphs(endpoints),
+      fetch: graphs,
       start: 1641445200,
       meta: {
         methodology

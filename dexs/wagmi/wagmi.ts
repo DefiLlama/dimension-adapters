@@ -4,6 +4,7 @@ const { request, gql } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { FetchOptions } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
@@ -81,16 +82,13 @@ const getData = async (chain: Chain, timestamp: number) => {
   };
 };
 
-export const fetchVolume = (chain: string) => {
-  return async (timestamp: number) => {
-    const data = await getData(chain, timestamp);
-
+export const fetchVolume = async (options: FetchOptions) => {
+    const data = await getData(options.chain, options.startOfDay);
     return {
       totalVolume: data.totalVolume,
       dailyVolume: data.dailyVolume,
       timestamp: data.timestamp,
     };
-  };
 };
 
 export const fetchFee = (chain: string) => {

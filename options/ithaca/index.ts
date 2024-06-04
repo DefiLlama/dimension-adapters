@@ -48,9 +48,9 @@ export async function fetchIthacaVolumeData(
     dailyFees: ithacaStats.daily_fees,
     totalFees: ithacaStats.total_fees,
     dailyPremiumVolume: ithacaStats.daily_premium,
-    // totalPremiumVolume: ithacaStats.total_premium,
+    totalPremiumVolume: ithacaStats.total_premium,
     dailyNotionalVolume,
-    // totalNotionalVolume,
+    totalNotionalVolume,
   };
 }
 

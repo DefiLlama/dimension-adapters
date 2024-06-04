@@ -15,9 +15,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: (async (timestamp: number, _: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
         const registeredLogs = await options.getLogs({
           targets: [address_v4, address_v5],
@@ -30,7 +31,7 @@ const adapter: Adapter = {
         registeredLogs.concat(renewedLogs).map((tx: any) => {
           dailyFees.addGasToken(tx.cost)
         })
-        return { timestamp, dailyFees, dailyRevenue: dailyFees, }
+        return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
       start: 1677110400,
       meta: {

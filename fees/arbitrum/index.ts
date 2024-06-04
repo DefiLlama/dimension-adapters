@@ -6,7 +6,7 @@ import { queryIndexer } from "../../helpers/indexer";
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: (async (timestamp: number, _: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const { getFromBlock, getToBlock, createBalances, } = options
         const startblock = await getFromBlock()
         const endblock = await getToBlock()
@@ -25,14 +25,14 @@ const adapter: Adapter = {
           `
         // const seqGas: number = sequencerGas[0].sum
         const seqGas: any = await queryIndexer(sequencerGas, options)
-        const feeQuery = await queryFlipside(`SELECT SUM(TX_FEE) from arbitrum.core.fact_transactions where BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}`, 360)
+        const feeQuery = await queryFlipside(`SELECT SUM(TX_FEE) from arbitrum.core.fact_transactions where BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}`, 260)
         const fees = Number(feeQuery[0][0])
 
         dailyFees.addGasToken(fees * 1e18)
         dailyRevenue.addGasToken(seqGas[0].sum * -1)
         dailyRevenue.addGasToken(fees * 1e18)
 
-        return { timestamp, dailyFees, dailyRevenue, };
+        return { dailyFees, dailyRevenue, };
 
       }) as any,
       start: 1628553600,
@@ -40,7 +40,8 @@ const adapter: Adapter = {
     },
   },
   isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  version: 2
 }
 
 export default adapter;

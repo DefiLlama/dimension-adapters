@@ -1,7 +1,5 @@
-import { FetchResultVolume, SimpleAdapter } from "../../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../../adapters/types";
 import { CHAIN } from "../../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
 interface ILog {
@@ -28,36 +26,16 @@ const contract: TChain = {
   [CHAIN.AVAX]: '0xdb17b211c34240b014ab6d61d4a31fa0c0e20c26'
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-
-    const posistion_logs: ILog[] = (await sdk.getEventLogs({
-      target: contract[chain],
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const posistion_logs = await options.getLogs({
+      target: contract[options.chain],
       topics: [topic0_ins, topic1_ins]
-    })) as ILog[];
+    });
 
-    const decress_logs: ILog[] = (await sdk.getEventLogs({
-      target: contract[chain],
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
+    const decress_logs = await options.getLogs({
+      target: contract[options.chain],
       topics: [topic0_des, topic1_des]
-    })) as ILog[];
-
-    // const fees_logs: ILog[] = (await sdk.getEventLogs({
-    //   target: contract[chain],
-    //   toBlock: toBlock,
-    //   fromBlock: fromBlock,
-    //   chain: chain,
-    //   topics: [topic0_fees, topic1_fees]
-    // }))as ILog[];
+    });
 
     let hash: string[] = [];
     const raw_des = decress_logs.map((e: ILog) => {
@@ -76,27 +54,23 @@ const fetch = (chain: Chain) => {
       return Number('0x' + volume) / 1e30;
     })
 
-
-
     const dailyVolume: number = [...raw_des, ...raw_in]
       .reduce((a: number, b: number) => a + b, 0);
 
     return {
       dailyVolume: `${dailyVolume}`,
-      timestamp
     }
-  }
 }
 
 
 const adapter_trade: any = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
+      fetch: fetch,
       start: 1688428800,
     },
     [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
+      fetch: fetch,
       start: 1688428800,
     },
   },

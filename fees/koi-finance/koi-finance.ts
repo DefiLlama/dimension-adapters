@@ -1,24 +1,17 @@
 import request, { gql } from "graphql-request";
-import { getBlock } from "../../helpers/getBlock";
-import {
-  getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfPreviousDayUTC
-} from "../../utils/date";
 import BigNumber from "bignumber.js";
+import { FetchOptions } from "../../adapters/types";
+import { getBlock } from "../../helpers/getBlock";
 
-const endpoint = "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn"
+const endpoint =
+  "https://api.goldsky.com/api/public/project_clmtie4nnezuh2nw6hhjg6mo7/subgraphs/mute_switch/v0.0.7/gn";
 
 export const fetchV1 = () => {
-  return async (timestamp: number) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
-    const todaysBlock = await getBlock(
-      todaysTimestamp,
-      "era",
-      {}
-    );
-
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, "era", {});
+  return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+    const [todaysBlock, yesterdaysBlock] = await Promise.all([
+      getBlock(endTimestamp, "era", {}),
+      getBlock(startTimestamp, "era", {}),
+    ]);
 
     const query = gql`
       query fees {
@@ -46,15 +39,12 @@ export const fetchV1 = () => {
     for (const pool of graphRes["yesterday"]) {
       if (!todayVolume[pool.id]) continue;
 
-      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(
-        pool.volumeUSD
-      );
+      const dailyVolume = BigNumber(todayVolume[pool.id]).minus(pool.volumeUSD);
 
-      dailyFee = dailyFee.plus(dailyVolume.times(pool.pairFee).div(10000))
+      dailyFee = dailyFee.plus(dailyVolume.times(pool.pairFee).div(10000));
     }
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.times(0.2).toString(),
     };

@@ -8,7 +8,8 @@ export default ([
         "name":"YFX",
         "addresses":{
             "arbitrum":[
-                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028"
+                "0xebb4871d1be1262C8bd1aa7dfc4C047483f02028", // yfx-v3
+				"0xcC619251bB94b7605A7Ea7391fEB7D18C32552D5", // yfx-v4
             ]
         }
     },
@@ -2852,6 +2853,22 @@ export default ([
         "addresses":{
             "ethereum":[
                 "0x858646372cc42e1a627fce94aa7a7033e7cf075a"
+            ]
+        }
+    },
+    {
+        "id":"1004",
+        "name":"Colony",
+        "addresses":{
+            "avax":[
+                "0xA2e7ab89A2C59818E1ecD925E718a9d63889A131", // Router
+                "0x2aC45f92EABaa8DCB2eA1807A659a1393C3947d0", // Masterchef
+                "0x3Db497a9783eBbEda6950d4f1911B3a27D79C071", // AntTiers
+                "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b", // StakingV3
+                "0x62B38293896e040e36fE5345F9D30DbFd75C04B9", // EarlyStageManager
+                "0x17CE2A490CB260b48891aDE019a86f4B4a5520d4", // Comments
+                "0xac59c21ADfdDb1E56A959dD60a08c07AaED2F3Ba", // Upvotes
+                "0xd071AA359ed1b7776A12c8329f2C337aBED157D7", // Analysis
             ]
         }
     }

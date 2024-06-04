@@ -81,6 +81,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 const adapters: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.THORCHAIN]: {
       runAtCurrTime: true,
