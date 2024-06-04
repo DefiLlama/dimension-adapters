@@ -71,7 +71,13 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: fetch,
-      start: 1706546953 // Jan-29-2024 04:49:13 PM +UTC
+      start: 1706546953, // Jan-29-2024 04:49:13 PM +UTC
+      meta: {
+        methodology: {
+          Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
+          Revenue: "depositors' revenue from borrow interests",
+        }
+      }
     },
   },
 }
