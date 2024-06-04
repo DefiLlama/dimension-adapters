@@ -1,4 +1,4 @@
-import {FetchOptions, FetchResultV2, SimpleAdapter} from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -13,6 +13,7 @@ interface IGraph {
 interface IProtocol {
   totalTradeVolumeUSD: string;
 }
+
 interface IData {
   protocolDayData: IGraph;
   protocols: IProtocol[];
@@ -25,14 +26,14 @@ type TEndpoint = {
 // Updated using studio
 const endpoints: TEndpoint = {
   [CHAIN.KLAYTN]:
-    "https://klaytn-graphnode.ecosystem-dev.klaytn.in/cypress/graph/http/subgraphs/name/capy-exchange/capy-klaytn",
+    "https://klaytn-graphnode.ecosystem-dev.klaytn.in/cypress/graph/http/subgraphs/name/capy-exchange/capy-klaytn"
 };
 
 const fetchVolume = (chain: Chain) => {
   return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const { startTimestamp} = options;
+    const { startTimestamp } = options;
     const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(startTimestamp * 1000)
+      new Date(startTimestamp * 1000)
     );
     const todaysBlock = await getBlock(dayTimestamp, chain, {});
     const dayID = dayTimestamp / 86400;
@@ -54,7 +55,7 @@ const fetchVolume = (chain: Chain) => {
     return {
       dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
       totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
-      timestamp: dayTimestamp,
+      timestamp: dayTimestamp
     };
   };
 };
@@ -64,9 +65,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch: fetchVolume(CHAIN.KLAYTN),
-      start: 1715752335,
-    },
-  },
+      start: 1715752335
+    }
+  }
 };
 
 export default adapter;
