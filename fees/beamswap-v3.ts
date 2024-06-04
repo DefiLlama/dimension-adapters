@@ -75,6 +75,7 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
