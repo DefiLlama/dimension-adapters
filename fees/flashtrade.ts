@@ -26,8 +26,8 @@ const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
     const totalStatsResponse = await fetchURL(urlTotalStats);
     const dailyStatsResponse = await fetchURL(urlDailyStats);
 
-    const totalStats: Pool[] = totalStatsResponse.data;
-    const dailyStats: Pool[] = dailyStatsResponse.data;
+    const totalStats: Pool[] = totalStatsResponse;
+    const dailyStats: Pool[] = dailyStatsResponse;
 
     const dailyAccrued = dailyStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
     const totalAccrued = totalStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
