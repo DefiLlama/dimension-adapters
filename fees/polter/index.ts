@@ -111,7 +111,7 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
   let rewardsMap = {}
   let pricesMap = {}
   let rewards: RewardsPaid[] = []
-
+// console.log(['token','amount','price','fee'].join(','))
   do {
     rewards = await rewardsPaid(endpoints, chain, endTimestamp, recordsProcessed);
     // console.log('rewards', rewards)
@@ -129,7 +129,7 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
       }
       const price = pricesMap[reward.blockTimestamp][tokens[reward.rewardsToken].gecko] // prices returned are already in usd
       const fee = BigNumber(reward.reward).multipliedBy(price.price).div(BigNumber('10').pow(tokens[reward.rewardsToken].decimals)) // token decimals
-
+// console.log([reward.rewardsToken, reward.reward, price.price, fee].join(','))
       rewardsMap[reward.rewardsToken] = rewardsMap[reward.rewardsToken].plus(fee)
     }
 
@@ -161,7 +161,13 @@ const adapter: Adapter = {
   adapter: {
     [FANTOM]: {
       fetch: graphs,
-      start: 1706546953 // Jan-29-2024 04:49:13 PM +UTC
+      start: 1706546953, // Jan-29-2024 04:49:13 PM +UTC
+      meta: {
+        methodology: {
+          Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
+          Revenue: "depositors' revenue from borrow interests",
+        }
+      }
     },
   },
 }
