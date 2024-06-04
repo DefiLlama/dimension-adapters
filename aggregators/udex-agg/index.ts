@@ -1,6 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResult, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import customBackfill from "../../helpers/customBackfill";
 
 let abi = ["event Swap(address indexed payer,address indexed payee,address fromToken,address toToken,uint fromAmount,uint receivedAmount)"];
 
@@ -31,8 +32,9 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1703376000,
-            }
+                start: 1701388800,
+                runAtCurrTime:false
+            },
         }
     }, {}),
     version: 2,
