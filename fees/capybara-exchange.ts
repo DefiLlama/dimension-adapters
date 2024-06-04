@@ -6,11 +6,12 @@ const TOTAL_FEES = 0.0004;
 
 const feeAdapter = getDexChainFees({
   totalFees: TOTAL_FEES,
-  volumeAdapter
+  volumeAdapter,
 });
 
 const adapter: Adapter = {
-  adapter: feeAdapter
+  version: 2,
+  adapter: feeAdapter,
 };
 
 
