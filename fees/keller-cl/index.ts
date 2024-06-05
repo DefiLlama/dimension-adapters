@@ -66,7 +66,7 @@ const getFees = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => 
   const feesPercentage = (await fetchOptions.api.multiCall({
     abi: 'function fee() view returns (uint24)',
     calls: pools,
-  })).map((fee: any) => fee / 10000); 
+  })).map((fee: any) => fee / 1000000); 
   for (let i = 0; i < pools.length; i++) {
     const pool = pools[i];
     // Protocol Fees
