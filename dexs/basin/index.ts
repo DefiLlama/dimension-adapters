@@ -7,8 +7,8 @@ class SubgraphVolumeResponse {
 }
 
 class SubgraphWell {
-  rollingDailyVolumeUSD: string;
-  cumulativeVolumeUSD: string;
+  rollingDailyTradeVolumeUSD: string;
+  cumulativeTradeVolumeUSD: string;
 }
 
 enum WellType {
@@ -47,11 +47,11 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
       wells(
         block: {number: ${block}}
         first: 1000
-        orderBy: cumulativeVolumeUSD
+        orderBy: cumulativeTradeVolumeUSD
         orderDirection: desc
       ) {
-        rollingDailyVolumeUSD
-        cumulativeVolumeUSD
+        rollingDailyTradeVolumeUSD
+        cumulativeTradeVolumeUSD
       }
     }`
   ) as SubgraphVolumeResponse;
@@ -59,8 +59,8 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
   // Sum and return the overall volume
   return subgraphVolume.wells.reduce((result: FetchResultV2, next: SubgraphWell) => {
     return {
-      dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyVolumeUSD),
-      totalVolume: result.totalVolume as number + parseFloat(next.cumulativeVolumeUSD)
+      dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyTradeVolumeUSD),
+      totalVolume: result.totalVolume as number + parseFloat(next.cumulativeTradeVolumeUSD)
     };
   }, { dailyVolume: 0, totalVolume: 0 });
 }
