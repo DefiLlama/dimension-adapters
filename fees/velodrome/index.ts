@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultFees } from '../../adapters/types';
-import { OPTIMISM } from '../../helpers/chains';
+import { CHAIN, OPTIMISM } from '../../helpers/chains';
 import { fetchV1 } from './velodrome';
+import { fetchFees } from "./v2"
 
 
 const getFees = async (options: FetchOptions) => {
@@ -22,6 +23,14 @@ const adapter: Adapter = {
       fetch: getFees,
       start: 1677110400, // TODO: Add accurate timestamp
     },
+    [CHAIN.MODE]: {
+      fetch: fetchFees,
+      start: 1715763701
+    },
+    [CHAIN.BOB]: {
+      fetch: fetchFees,
+      start: 1715763701
+    }
   },
 };
 export default adapter;
