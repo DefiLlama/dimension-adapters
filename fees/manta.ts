@@ -9,6 +9,7 @@ const ethereumWallets = [
 ]
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.MANTA]: {
       fetch: L2FeesFetcher({ ethereumWallets }),

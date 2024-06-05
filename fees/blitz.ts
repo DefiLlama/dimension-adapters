@@ -115,6 +115,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetch,

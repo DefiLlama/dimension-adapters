@@ -18,17 +18,18 @@ const marketplace_address: TMarketPlaceAddress = {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number , _: ChainBlocks, { createBalances, getLogs,  }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs,  }: FetchOptions) => {
     const dailyFees = createBalances();
     (await getLogs({
       target: marketplace_address[chain],
       eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
     })).forEach((e: any) =>       dailyFees.add(e.erc20, e.amount))
-    return { dailyFees, timestamp, dailyRevenue: dailyFees };
+    return { dailyFees, dailyRevenue: dailyFees };
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),

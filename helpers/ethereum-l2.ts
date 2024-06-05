@@ -37,7 +37,7 @@ export function L2FeesFetcher({
   feeVaults?: string[];
   ethereumWallets: string[];
 }): any {
-  return async (timestamp: number, _chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  return async (options: FetchOptions) => {
     const sequencerGas = queryIndexer(`
             SELECT
                 sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) AS sum
@@ -52,6 +52,6 @@ export function L2FeesFetcher({
       dailyRevenue.addTokenVannila(gasToken, (totalSpentBySequencer as any)[0].sum * -1)
     else
       dailyRevenue.addGasToken((totalSpentBySequencer as any)[0].sum * -1)
-    return { timestamp, dailyFees, dailyRevenue, }
+    return { dailyFees, dailyRevenue, }
   }
 }

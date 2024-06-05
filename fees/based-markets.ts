@@ -2,9 +2,7 @@ import request, { gql } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
-
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 
 const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/base_analytics_8"
 
@@ -46,10 +44,10 @@ const toString = (x: BigNumber) => {
   return x.toString()
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchVolume = async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
   const response: IGraphResponse = await request(endpoint, query, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp)
+    from: String(fromTimestamp),
+    to: String(toTimestamp)
   })
 
 
@@ -80,11 +78,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
   const totalProtocolRevenue = '0';
   const totalSupplySideRevenue = '0';
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-
   return {
-    timestamp: dayTimestamp,
-
     dailyFees: _dailyFees,
     totalFees: _totalFees,
 
@@ -103,6 +97,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
