@@ -4,8 +4,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import { BreakdownAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
-  [CHAIN.PLANQ]:
-    "https://subgraph.planq.finance/subgraphs/name/ianlapham/uniswap-v3",
+  [CHAIN.PLANQ]: "https://subgraph.planq.finance/subgraphs/name/ianlapham/uniswap-v3",
 };
 
 const v3Graphs = getGraphDimensions({

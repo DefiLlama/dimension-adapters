@@ -8,6 +8,7 @@ const DEFAULTS: any = {
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc-bitlayer.rockx.com",
+  PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
 }
 
 export const ENV_KEYS = new Set([
