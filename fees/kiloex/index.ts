@@ -13,7 +13,7 @@ const endpoints: ChainMap = {
   [CHAIN.BSC]: "https://api.kiloex.io/common/queryTradeSummary",
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
   [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
-  [CHAIN.TAIKO]: "https://mantaapi.kiloex.io/common/queryTradeSummary"
+  [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary"
 };
 
 interface IFee {
