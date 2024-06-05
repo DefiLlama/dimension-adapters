@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
+import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 
 const contract = '0xBa5e05cb26b78eDa3A2f8e3b3814726305dcAc83'
@@ -8,7 +8,7 @@ const protocol_fees = 10; // 10% fees
 
 const ethAddress = ADDRESSES.null;
 
-const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const logs = await getLogs({ target: contract, eventAbi })
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
@@ -18,10 +18,11 @@ const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, 
   dailyRevenue.addBalances(dailyFees)
   dailyRevenue.resizeBy(protocol_fees / 100) // 10% of the fees go to the protocol
 
-  return { dailyFees, dailyRevenue, timestamp }
+  return { dailyFees, dailyRevenue }
 }
 
 const adapterFees: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch,

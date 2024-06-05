@@ -150,7 +150,8 @@ export enum CHAIN {
   XLAYER = "xlayer",
   MERLIN = "merlin",
   CHILIZ = "chiliz",
-  PLANQ = "planq"
+  PLANQ = "planq",
+  BOB = "bob",
 }
 
 // Don´t use

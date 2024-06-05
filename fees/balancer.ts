@@ -1,12 +1,9 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN }from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getBlock } from "../helpers/getBlock";
-import { ChainBlocks } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -32,19 +29,15 @@ const v2Endpoints = {
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, chainBlocks));
-      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+      const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
       const graphQuery = gql
         `{
-        today: balancer(id: "1", block: { number: ${todaysBlock} }) {
+        today: balancer(id: "1", block: { number: ${toBlock} }) {
           totalSwapFee
         }
-        yesterday: balancer(id: "1", block: { number: ${yesterdaysBlock} }) {
+        yesterday: balancer(id: "1", block: { number: ${fromBlock} }) {
           totalSwapFee
         }
       }`;
@@ -53,7 +46,6 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = (new BigNumber(graphRes["today"]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"])))
 
       return {
-        timestamp,
         totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee.toString(),
         totalUserFees: graphRes["today"]["totalSwapFee"],
@@ -89,10 +81,7 @@ interface IPoolSnapshot {
 
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const fromTimestamp = startTimestamp - 60 * 60 * 24
-      const toTimestamp = startTimestamp
+    return async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
       const graphQuery = gql
       `query fees {
         today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
@@ -140,10 +129,10 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
       // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
       // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-      const dailyRevenue = startTimestamp < tenPcFeeTimestamp ? "0" : (
-        startTimestamp < fiftyPcFeeTimestamp ? dailyFee.multipliedBy(0.1) : dailyFee.multipliedBy(0.5))
-      const totalRevenue = startTimestamp < tenPcFeeTimestamp ? "0" : (
-        startTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
+      const dailyRevenue = toTimestamp < tenPcFeeTimestamp ? "0" : (
+        toTimestamp < fiftyPcFeeTimestamp ? dailyFee.multipliedBy(0.1) : dailyFee.multipliedBy(0.5))
+      const totalRevenue = toTimestamp < tenPcFeeTimestamp ? "0" : (
+        toTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
 
       const dailyProtocolFee = graphRes["today"].map((e: IPool) => {
         const yesterdayValue = new BigNumber(graphRes["yesterday"].find((p: IPool) => p.id.split('-')[0] === e.id.split('-')[0])?.protocolFee || 0);
@@ -153,7 +142,6 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
         .reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
 
       return {
-        timestamp,
         // totalUserFees: currentTotalSwapFees.toString(),
         dailyUserFees: dailyFee.toString(),
         // totalFees: currentTotalSwapFees.toString(),
@@ -178,6 +166,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {

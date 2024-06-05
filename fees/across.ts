@@ -33,17 +33,16 @@ const address: any = {
   [CHAIN.POLYGON]: "0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096",
 };
 const graph = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    { createBalances, getLogs }: FetchOptions,
-  ): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
     const dailyFees = createBalances();
     const logs_fund_disposit = (
       await getLogs({
         target: address[chain],
         eventAbi: abis.FundsDeposited,
         topic: topic0_fund_disposit_v2,
+        fromBlock, 
+        toBlock
       })
     ).filter((a: any) => Number(a!.destinationChainId) === 288);
 
@@ -52,6 +51,8 @@ const graph = (chain: Chain) => {
         target: address[chain],
         eventAbi: abis.V3FundsDeposited,
         topic: topic0_fund_disposit_v3,
+        fromBlock, 
+        toBlock
       })
     ).filter((a: any) => Number(a!.destinationChainId) === 288);
 
@@ -59,12 +60,16 @@ const graph = (chain: Chain) => {
       target: address[chain],
       eventAbi: abis.FilledRelay,
       topic: topic0_filled_replay_v2,
+      fromBlock,
+      toBlock
     });
 
     const logs_filled_replay_v3 = await getLogs({
       target: address[chain],
       eventAbi: abis.FilledV3Relay,
       topic: topic0_filled_replay_v3,
+      fromBlock, 
+      toBlock
     });
 
     logs_fund_disposit.map((a: any) =>
@@ -90,12 +95,12 @@ const graph = (chain: Chain) => {
     return {
       dailyFees,
       dailySupplySideRevenue: dailyFees,
-      timestamp,
     };
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
