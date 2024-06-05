@@ -134,6 +134,7 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
+  POLKADEX = "polkadex",
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
