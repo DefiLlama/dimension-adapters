@@ -53,6 +53,7 @@ const blacklistedChains: string[] = [
 ];
 
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
+    if (chain === CHAIN.DOGECHAIN) throw new Error("DOGECHAIN not supported")
     if (blacklistedChains.includes(chain)) {
         return null
     }
