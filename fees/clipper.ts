@@ -1,8 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../helpers/chains";
-import { type } from "os";
 import request, { gql } from "graphql-request";
-import { Fetch, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
 
 type TEndpoint = {
@@ -49,11 +48,9 @@ const feesQuery = gql`
 `
 
 const fetchFees = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async ({ fromTimestamp, toTimestamp, getToBlock }: FetchOptions) => {
     const endpoint = endpoints[chain];
-    const toTimestamp = timestamp;
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toBlock = await getBlock(timestamp, chain, {});
+    const toBlock = await getToBlock();
 
     const response: IResponse = (await request(endpoint, feesQuery, {
       fromTimestamp,
@@ -81,12 +78,12 @@ const fetchFees = (chain: Chain) => {
       totalFees: `${totalFees}`,
       totalRevenue: `${totalRevenue}`,
       totalProtocolRevenue: `${totalRevenue}`,
-      timestamp
     }
   }
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),

@@ -85,6 +85,7 @@ const graph = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+    version: 1,
     adapter: {
         [ETHEREUM]: {
             fetch: graph(endpoints)(ETHEREUM),

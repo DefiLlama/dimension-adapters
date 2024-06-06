@@ -1,11 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request } from "graphql-request";
-import type {
-  ChainBlocks,
-  ChainEndpoints,
-  FetchOptions,
-} from "../adapters/types";
+import type { ChainEndpoints, FetchOptions } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
@@ -15,11 +11,7 @@ const endpoints = {
 
 const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (
-      _timestamp: number,
-      _: ChainBlocks,
-      { createBalances, startOfDay }: FetchOptions
-    ) => {
+    return async ({ createBalances, startOfDay }: FetchOptions) => {
       const dailyRevenue = createBalances();
       const dateId = Math.floor(startOfDay);
 
@@ -38,12 +30,13 @@ const graph = (graphUrls: ChainEndpoints) => {
       const revenue = (usd / 1e18).toFixed(0);
       const dailyFees = ((usd * 2) / 1e18).toFixed(0);
 
-      return { timestamp: startOfDay, dailyFees, dailyRevenue: revenue };
+      return { dailyFees, dailyRevenue: revenue };
     };
   };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),

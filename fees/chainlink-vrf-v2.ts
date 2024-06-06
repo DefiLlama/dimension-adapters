@@ -1,4 +1,4 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
@@ -65,11 +65,8 @@ const gasTokenId: IGasTokenId = {
 
 
 const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
+  return async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
     const logs_1: ITx[] = (await sdk.getEventLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       fromBlock: fromBlock,
@@ -91,7 +88,7 @@ const fetch = (chain: Chain, version: number) => {
       })
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp));
+    const prices = (await getPrices([linkAddress, gasToken], toTimestamp));
     const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
@@ -103,7 +100,6 @@ const fetch = (chain: Chain, version: number) => {
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
     }
 
   }
@@ -111,6 +107,7 @@ const fetch = (chain: Chain, version: number) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 2),
