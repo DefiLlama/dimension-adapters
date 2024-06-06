@@ -3,7 +3,7 @@ import {
   getUniqStartOfTodayTimestamp,
 } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../dexs/traderjoe";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -43,10 +43,8 @@ const adapterV1 = getDexChainFees({
 });
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000),
-    );
+  return async ({ startOfDay }: FetchOptions) => {
+    const dayTimestamp = startOfDay * 1000
     const historical: IData[] = await fetchURL(endpointsV2[chain]);
     const dailyFees =
       historical.find((dayItem) => dayItem.timestamp === dayTimestamp)
@@ -63,13 +61,12 @@ const graph = (chain: Chain) => {
         ? `${(dailyFees || 0) - (dailyRevenue || 0)}`
         : undefined,
       dailyProtocolRevenue: `${dailyRevenue}`,
-      timestamp,
     };
   };
 };
 
 const adapter: Adapter = {
-  version: 2, ///// THIS IS MIXED VERSION AND NEEDS ATTENTION
+  version: 2,
   breakdown: {
     v1: adapterV1,
     v2: {
