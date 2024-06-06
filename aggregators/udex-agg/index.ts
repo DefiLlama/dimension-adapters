@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 
 let abi = ["event Swap(address indexed payer,address indexed payee,address fromToken,address toToken,uint fromAmount,uint receivedAmount)"];
-let kwnownTokens=new Set(["0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c","0x55d398326f99059fF775485246999027B3197955","0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"])
+let knownTokens=new Set(["0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c","0x55d398326f99059fF775485246999027B3197955","0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"])
 type IContract = {
     [c: string | Chain]: string;
 }
@@ -21,7 +21,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
     const dailyVolume = createBalances();
     const logs = (await getLogs({ target: contract[chain], eventAbi: abi[0] }))
     logs.map((log: any) => {
-        if ( kwnownTokens.has(log.toToken)){
+        if ( knownTokens.has(log.toToken)){
             dailyVolume.add(log.toToken, log.receivedAmount)
         }else{
             dailyVolume.add(log.fromToken, log.fromAmount)
