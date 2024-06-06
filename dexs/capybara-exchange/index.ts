@@ -4,6 +4,7 @@ import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "@defillama/sdk/build/general";
 import { getBlock } from "../../helpers/getBlock";
+import BigNumber from 'bignumber.js';
 
 interface IGraph {
   dailyTradeVolumeUSD: string;
@@ -29,9 +30,11 @@ const endpoints: TEndpoint = {
     "https://klaytn-graphnode.ecosystem-dev.klaytn.in/cypress/graph/http/subgraphs/name/capy-exchange/capy-klaytn"
 };
 
+const feesRatio = 0.0004;
+
 const fetchVolume = (chain: Chain) => {
   return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const { startTimestamp } = options;
+    const {startTimestamp} = options;
     const dayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(startTimestamp * 1000)
     );
@@ -52,9 +55,13 @@ const fetchVolume = (chain: Chain) => {
       Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
     const totalTradeVolumeUSD =
       Number(response.protocols[0].totalTradeVolumeUSD) / 2;
+    const dailyFees = new BigNumber(dailyVolume ? dailyVolume : '0').multipliedBy(feesRatio).toString()
+    const totalFees = new BigNumber(totalTradeVolumeUSD ? totalTradeVolumeUSD : '0').multipliedBy(feesRatio).toString()
     return {
       dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
       totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
+      dailyFees: dailyFees,
+      totalFees: totalFees,
       timestamp: dayTimestamp
     };
   };
