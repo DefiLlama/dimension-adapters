@@ -153,18 +153,25 @@ const getFeesFromTo = async (
       borrowBalance = borrowBalance.plus(new BigNumber(vaultOperate[3]));
     }
 
-    const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await toApi.call({
-      target: await fluidVaultResolverTarget(toApi),
-      abi: fluidVaultResolverAbi.getVaultEntireData,
-      params: [vault],
-    });
+    try {
+      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await toApi.call(
+        {
+          target: await fluidVaultResolverTarget(toApi),
+          abi: fluidVaultResolverAbi.getVaultEntireData,
+          params: [vault],
+        }
+      );
 
-    toApi.addToken(
-      borrowToken,
-      new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
-        borrowBalance
-      )
-    );
+      toApi.addToken(
+        borrowToken,
+        new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
+          borrowBalance
+        )
+      );
+    } catch (ex) {
+      // when vault is deployed but not fully configured yet, getVaultEntireData() will revert at the used version of VaultResolver.
+      // totalBorrow is still 0 at that point.
+    }
   }
 
   return await toApi.getUSDValue();
