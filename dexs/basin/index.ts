@@ -74,6 +74,7 @@ function volumeForCategory(chain: CHAIN, type: WellType) {
         return await getVolumeStats(chain, type, block);
       },
       start: async () => chains[chain].startTime,
+      runAtCurrTime: false, // Backfill is allowed
       meta: {
         methodology
       },
