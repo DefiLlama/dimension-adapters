@@ -13,6 +13,7 @@ const feeAdapter: BaseAdapter = getDexChainFees({
 });
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.MOONRIVER]: {
       fetch: feeAdapter.moonriver.fetch,

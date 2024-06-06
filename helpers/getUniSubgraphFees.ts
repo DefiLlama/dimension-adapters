@@ -138,11 +138,11 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
     const adapterObj = volumeAdapter.adapter
 
     Object.keys(adapterObj).map(chain => {
-      const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+      const fetchFees = async (options: FetchOptions) => {
         const fetchedResult: FetchResultV2 = await (adapterObj[chain].fetch as FetchV2)(options)
         const chainDailyVolume = fetchedResult.dailyVolume as number;
         const chainTotalVolume = fetchedResult.totalVolume as number;
-        const response: FetchResultGeneric = { timestamp }
+        const response: FetchResultV2 = { }
         if (chainDailyVolume !== undefined) {
           if (totalFees)
             response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString()
