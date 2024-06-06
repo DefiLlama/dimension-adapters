@@ -19,6 +19,7 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.SUI]: {
         fetch: fetch_sui,

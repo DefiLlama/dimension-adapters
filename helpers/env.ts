@@ -7,6 +7,8 @@ const DEFAULTS: any = {
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
+  BITLAYER_RPC: "https://rpc-bitlayer.rockx.com",
+  PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
 }
 
 export const ENV_KEYS = new Set([

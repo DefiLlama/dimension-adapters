@@ -5,6 +5,7 @@ import { getDexFeesExports } from "../helpers/dexVolumeLogs";
 const FACTORY_ADDRESS = '0xEaF188cdd22fEEBCb345DCb529Aa18CA9FcB4FBd';
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: getDexFeesExports({ chain: CHAIN.POLYGON, factory: FACTORY_ADDRESS,}),

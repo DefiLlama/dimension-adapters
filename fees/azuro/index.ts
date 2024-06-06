@@ -66,24 +66,15 @@ const calculateAmounts = (bets: Bet[]) => {
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
-            const [bets, totalBets] = await Promise.all([
+            const [bets] = await Promise.all([
                 fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, false),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], endTimestamp, false),
-                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, true),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], endTimestamp, true)
             ]);
-            
+
             const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(bets);
-            const { totalBetAmount, totalWonAmount } = calculateAmounts(totalBets);
-            
-            const totalFees = totalBetAmount - totalWonAmount;
             const dailyPoolProfit = dailyBetAmount - dailyWonAmount;
-            
             return {
                 dailyFees: dailyPoolProfit.toString(),
-                dailyRevenue: dailyPoolProfit.toString(),
-                totalFees: totalFees.toString(),
-                totalRevenue: totalFees.toString(),
+                dailyRevenue: dailyPoolProfit.toString()
             };
         };
     };

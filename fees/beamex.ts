@@ -89,6 +89,7 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: graphsBeamex(CHAIN.MOONBEAM),

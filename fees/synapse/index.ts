@@ -107,6 +107,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,

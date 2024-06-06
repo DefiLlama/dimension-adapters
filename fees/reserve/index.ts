@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request from "graphql-request";
 
@@ -33,7 +33,7 @@ const graphQuery = `
   }
 `;
 
-const fetch: any = async (timestamp: number, _, { getLogs, createBalances }) => {
+const fetch: any = async ({ getLogs, createBalances, toTimestamp }: FetchOptions) => {
   const RSR = '0x320623b8e4ff03373931769a31fc52a4e78b5d70'
 
   // Get list of deployed RTokens
@@ -43,7 +43,7 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances }) => 
   const rtokens = rtokenCreationLogs.map((i) => i.rToken.toLowerCase());
 
   const graphRes = (
-    await request(endpoints[CHAIN.ETHEREUM], graphQuery, { currentTime: timestamp, rtokens, })
+    await request(endpoints[CHAIN.ETHEREUM], graphQuery, { currentTime: toTimestamp, rtokens, })
   ).rtokens;
 
   const dailyFees = createBalances();
@@ -57,10 +57,11 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances }) => 
     dailyFees.add(RSR, snapshots[0].rsrStaked * (todayRate - yesterdayRate));
   });
 
-  return { timestamp, dailyFees, dailyRevenue: dailyFees, };
+  return { dailyFees, dailyRevenue: dailyFees, };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

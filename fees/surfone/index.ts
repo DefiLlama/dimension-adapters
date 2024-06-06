@@ -1,5 +1,4 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -30,6 +29,7 @@ const fetch = () => {
 
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     ['merlin']: {
       fetch: fetch(),

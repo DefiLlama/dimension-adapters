@@ -137,8 +137,8 @@ export async function getDexFees({ factory, timestamp, pools, lengthAbi = 'allPa
 }
 
 export function getDexFeesExports(options: getDexFeesExportParams): any {
-  return async (timestamp: number, _cb: any, fetchOptions: FetchOptions) => {
-    const params = { ...options, timestamp, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, fetchOptions, }
+  return async (fetchOptions: FetchOptions) => {
+    const params = { ...options, timestamp: fetchOptions.toTimestamp, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, fetchOptions, }
     return getDexFees(params)
   }
 }

@@ -91,7 +91,8 @@ const fetch = (chain: string) => async (ts:number) => {
     return graph(endpoints)(chain)(ts)
   }
   const response = (await fetchURL(`https://prices.curve.fi/v1/chains/${chain}`));
-  const fees = (response.data as any[]).reduce((all, pool)=>{
+  const fees = (response.data as any[])
+  .filter(e => e.trading_fee_24h < 1_000_000).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {

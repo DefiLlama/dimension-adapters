@@ -423,6 +423,7 @@ const v3DailyRevenue = async (
 };
 
 const adapter: BreakdownAdapter = {
+  version: 1,
   breakdown: {
     v3: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
