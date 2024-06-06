@@ -34,6 +34,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(43114),

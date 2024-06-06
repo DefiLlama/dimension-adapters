@@ -15,7 +15,7 @@ const ABIs: TABI = {
 }
 
 const graph = (_chain: Chain) => {
-	return async (timestamp: number, _: ChainBlocks, { createBalances, api, getLogs, }: FetchOptions) => {
+	return async ({ createBalances, api, getLogs, }: FetchOptions) => {
 
 		const lpTokens = await api.fetchList({ lengthAbi: ABIs.getNumberOfLBPairs, itemAbi: ABIs.getLBPairAtIndex, target: FACTORY_ADDRESS })
 		const dailyFees = createBalances();
@@ -65,7 +65,6 @@ const graph = (_chain: Chain) => {
 			dailyProtocolRevenue: dailyRevenue,
 			dailyHoldersRevenue: dailyRevenue,
 			dailySupplySideRevenue,
-			timestamp,
 		};
 	}
 }
@@ -80,6 +79,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.FANTOM]: {
 			fetch: graph(CHAIN.FANTOM),
