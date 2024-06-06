@@ -21,7 +21,7 @@ export default {
             fetch: fetch,
             runAtCurrTime: true,
             // start: 1719579600,
-            start: 1717707389,
+            start: 1717568215,
         }
     }
 }
