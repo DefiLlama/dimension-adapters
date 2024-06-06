@@ -15,6 +15,7 @@ async function fetch(timestamp: number) {
 }
 
 export default {
+    version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
