@@ -14,7 +14,7 @@ const adapters: SimpleAdapter = {
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetchFees,
-            start: 0
+            start: 1717290061
         },
     },
     version: 2
