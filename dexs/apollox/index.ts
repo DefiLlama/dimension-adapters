@@ -35,6 +35,20 @@ type V1TickerItem = {
   count: number;
 };
 
+type TotalVolumeItem = {
+    "alpFeeVOFor24Hour": {
+      "fee": number
+      "revenue": number
+    },
+    "allAlpFeeVO": {
+      "fee": number
+      "revenue": number
+    },
+    "cumVol": number
+}
+
+const TotalVolumeAPI =  "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
+
 const v2VolumeAPI =
   "https://www.apollox.finance/bapi/future/v1/public/future/apx/pair";
 
@@ -56,17 +70,26 @@ const fetchV1Volume = async () => {
   return dailyVolume
 };
 
+const fetchTotalVolume = async (chain: Chain) => {
+  const { data  } = (
+    await httpGet(TotalVolumeAPI, { params: { chain,  } })
+  ) as  { data: TotalVolumeItem }
+
+  return data.cumVol
+};
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       runAtCurrTime: true,
       fetch: async (timestamp) => {
-        const [v1, v2] = await Promise.all([
+        const [v1, v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
           fetchV1Volume(),
+          fetchTotalVolume(CHAIN.BSC),
         ]);
         return {
           dailyVolume: v1 + v2,
+          totalVolume,
           timestamp,
         };
       },
@@ -75,10 +98,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       runAtCurrTime: true,
       fetch: async (timestamp) => {
-        const dailyVolume = await fetchV2Volume(CHAIN.ARBITRUM);
+        const [v2, totalVolume] = await Promise.all([
+          fetchV2Volume(CHAIN.ARBITRUM),
+          fetchTotalVolume(CHAIN.ARBITRUM),
+        ]);
         return {
           timestamp,
-          dailyVolume: dailyVolume,
+          dailyVolume: v2,
+          totalVolume,
         };
       },
       start: 1682035200,
@@ -86,10 +113,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.OP_BNB]: {
       runAtCurrTime: true,
       fetch: async (timestamp) => {
-        const dailyVolume = await fetchV2Volume('opbnb');
+        const [v2, totalVolume] = await Promise.all([
+          fetchV2Volume('opbnb'),
+          fetchTotalVolume('opbnb'),
+        ]);
         return {
           timestamp,
-          dailyVolume: dailyVolume,
+          dailyVolume: v2,
+          totalVolume,
         };
       },
       start: 1682035200,
@@ -97,10 +128,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       runAtCurrTime: true,
       fetch: async (timestamp) => {
-        const dailyVolume = await fetchV2Volume(CHAIN.BASE);
+        const [v2, totalVolume] = await Promise.all([
+          fetchV2Volume(CHAIN.BASE),
+          fetchTotalVolume(CHAIN.BASE),
+        ]);
         return {
           timestamp,
-          dailyVolume: dailyVolume,
+          dailyVolume: v2,
+          totalVolume,
         };
       },
       start: 1682035200,
