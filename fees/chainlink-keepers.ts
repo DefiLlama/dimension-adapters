@@ -1,10 +1,8 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
 import { getTxReceipts } from "../helpers/getTxReceipts";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
+import { Chain } from "@defillama/sdk/build/general";
 import * as sdk from "@defillama/sdk";
 
 type TAddrress = {
@@ -42,11 +40,8 @@ const gasTokenId: IGasTokenId = {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
+  return async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
     const logs: ITx[] = (await sdk.getEventLogs({
       target: address_keeper[chain],
       fromBlock: fromBlock,
@@ -67,7 +62,7 @@ const fetchKeeper = (chain: Chain) => {
     });
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp))
+    const prices = (await getPrices([linkAddress, gasToken], toTimestamp))
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
@@ -78,12 +73,12 @@ const fetchKeeper = (chain: Chain) => {
     return {
       dailyFees: dailyFeesUsd.toString(),
       dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),

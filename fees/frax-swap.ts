@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import type { ChainEndpoints } from "../adapters/types"
 import fetchURL from "../utils/fetchURL";
 import { Adapter } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
@@ -68,6 +67,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),

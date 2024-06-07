@@ -82,6 +82,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),

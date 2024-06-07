@@ -49,7 +49,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
-
+    version: 1,
     adapter: {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         // [BSC]: {

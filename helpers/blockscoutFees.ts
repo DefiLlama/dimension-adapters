@@ -3,6 +3,7 @@ import { httpGet } from '../utils/fetchURL';
 
 export function blockscoutFeeAdapter(chain: string, url: string, CGToken?: string) {
   const adapter: Adapter = {
+    version: 1,
     adapter: {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { createBalances, startOfDay, }: FetchOptions) => {
