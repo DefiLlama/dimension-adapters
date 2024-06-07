@@ -42,7 +42,6 @@ const blacklistedChains: string[] = [
   "icp",
   "hydradx",
   "osmosis",
-  "sei",
   "ergo",
   "radixdlt",
   "near",
