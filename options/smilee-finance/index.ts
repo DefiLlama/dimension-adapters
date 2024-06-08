@@ -48,7 +48,11 @@ const fetch: Fetch = async (timestamp) => {
         timestampTo: timestamp,
     }) as { trades: Trade[] };
 
-    tradeResponse.trades.forEach((trade: Trade) => {
+    tradeResponse.trades
+        .filter((i) => Number(i.notionalUp)/1e6 < 100_000_000)
+        .filter((i) => Number(i.notionalDown)/1e6 < 100_000_000)
+        .filter((i) => Number(i.premium)/1e6 < 100_000_000)
+        .forEach((trade: Trade) => {
         tradedNotional.add('usd', (Number(trade.notionalUp) + Number(trade.notionalDown)) / 1e6, { skipChain: true });
         tradedPremium.add('usd', Number(trade.premium) / 1e6, { skipChain: true });
     });
