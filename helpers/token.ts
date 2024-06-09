@@ -66,19 +66,23 @@ export async function addTokensReceived(params: {
     throw new Error('target/fromAddressFilter or targets required')
   }
 
-
-  if (!tokens && target && fetchTokenList) {
-    if (!ankrChainMapping[chain]) throw new Error('Chain Not supported: ' + chain)
-    const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
-    tokens = ankrTokens[ankrChainMapping[chain]] ?? []
+  const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
+  if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)
+  
+  if (!tokens && target) {
+    if(fetchTokenList){
+      if (!ankrChainMapping[chain]) throw new Error('Chain Not supported: ' + chain)
+      const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
+      tokens = ankrTokens[ankrChainMapping[chain]] ?? []
+    } else {
+      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options)
+    }
   }
 
   if (!tokens?.length) return balances
 
   tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
-  const toAddressFilter = target ? ethers.zeroPadValue(target, 32) : null
-  if (fromAddressFilter) fromAddressFilter = ethers.zeroPadValue(fromAddressFilter, 32)
   const logs = await getLogs({
     targets: tokens,
     flatten: false,
@@ -172,6 +176,25 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
     values = values.map(v => v.toLowerCase()).filter(v => v && v !== nullAddress)
     return [...new Set(values)]
   }
+}
+
+async function getAllTransfers(fromAddressFilter: string|null, toAddressFilter: string|null, 
+  balances:sdk.Balances, tokenTransform: (token:string)=>string, options: FetchOptions) {
+  const hexlify = (n: number) => "0x" + n.toString(16)
+  const filter = {
+    fromBlock: hexlify(await options.getFromBlock()),
+    toBlock: hexlify(await options.getToBlock()),
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer(address,address,uint256)
+      fromAddressFilter,
+      toAddressFilter
+    ]
+  };
+  const transfers = await options.api.provider.getLogs(filter)
+  transfers.forEach((log) => {
+    balances.add(tokenTransform(log.address), BigInt(log.data))
+  })
+  return balances
 }
 
 export async function getTokenDiff(params: {
