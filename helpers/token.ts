@@ -180,19 +180,18 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
 
 async function getAllTransfers(fromAddressFilter: string|null, toAddressFilter: string|null, 
   balances:sdk.Balances, tokenTransform: (token:string)=>string, options: FetchOptions) {
-  const hexlify = (n: number) => "0x" + n.toString(16)
-  const filter = {
-    fromBlock: hexlify(await options.getFromBlock()),
-    toBlock: hexlify(await options.getToBlock()),
+  const logs = await options.getLogs({
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer(address,address,uint256)
-      fromAddressFilter,
-      toAddressFilter
-    ]
-  };
-  const transfers = await options.api.provider.getLogs(filter)
-  transfers.forEach((log) => {
-    balances.add(tokenTransform(log.address), BigInt(log.data))
+      fromAddressFilter as any,
+      toAddressFilter as any
+    ],
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    entireLog: true,
+  })
+
+  logs.forEach((log) => {
+    balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
 }

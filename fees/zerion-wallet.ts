@@ -19,7 +19,7 @@ const multisigs: TMulitsig = {
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = await addGasTokensReceived({ multisigs: multisigs[options.chain], options })
-  await addTokensReceived({ targets: multisigs[options.chain], options, balances: dailyFees, fetchTokenList: true, })
+  await addTokensReceived({ targets: multisigs[options.chain], options, balances: dailyFees,})
   return { timestamp, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
