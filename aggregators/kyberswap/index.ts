@@ -55,10 +55,10 @@ const adapter = {
       fetch: fetch,
       start: 1622544000,
     },
-    [CHAIN.BITTORRENT]: {
+    /*[CHAIN.BITTORRENT]: {
       fetch: fetch,
       start: 1622544000,
-    },
+    },*/
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: 1622544000,
