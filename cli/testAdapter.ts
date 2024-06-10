@@ -42,7 +42,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   const cleanDayTimestamp = process.argv[4] ? Number(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
-  console.info(`_______________________________________`)
+  console.info(`---------------------------------------------------`)
   // Import module to test
   let module: Adapter = (await import(passedFile)).default
   const adapterVersion = module.version
@@ -53,9 +53,9 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     checkIfFileExistsInMasterBranch(file)
   }
 
-  const runAt = adapterVersion === 2 ? endTimestamp : process.argv[4] ? Number(process.argv[4]) : endTimestamp - 1;
-  console.info(`${upperCaseFirst(adapterType)} for ${formatTimestampAsDate(String(getUniqStartOfTodayTimestamp(new Date((runAt * 1000)))))}`)
-  console.info(`_______________________________________\n`)
+  console.info(`Start Date:\t${new Date((endTimestamp - 3600*24)*1e3).toUTCString()}`)
+  console.info(`End Date:\t${new Date(endTimestamp*1e3).toUTCString()}`)
+  console.info(`---------------------------------------------------\n`)
 
   // Get closest block to clean day. Only for EVM compatible ones.
   const allChains = getChainsFromDexAdapter(module).filter(canGetBlock)
