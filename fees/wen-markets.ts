@@ -57,7 +57,7 @@ const fetchFees = async (options: FetchOptions) => {
     target: wenLedger[options.chain],
     abi: abis.getStats,
   })
-  bootstrapped.addGasToken(toStats.totalLiquidityBootstrapped - fromStats.totalLiquidityBootstrapped)
+  bootstrapped.addGasToken((toStats.totalLiquidityBootstrapped - fromStats.totalLiquidityBootstrapped)/0.93)
   bootstrapped.resizeBy(0.07) // 7% of liquidity bootstrapped
   amountIn.addGasToken(toStats.totalVolume - fromStats.totalVolume)
   const dailyFees = amountIn.clone()
