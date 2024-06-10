@@ -47,7 +47,7 @@ const abis: any = {
   }
 }
 const fetchFees = async (options: FetchOptions) => {
-  const amountIn = options.createBalances()
+  const tradeVolume = options.createBalances()
   const bootstrapped = options.createBalances()
   const fromStats = await options.fromApi.call({
     target: wenLedger[options.chain],
@@ -59,8 +59,8 @@ const fetchFees = async (options: FetchOptions) => {
   })
   bootstrapped.addGasToken((toStats.totalLiquidityBootstrapped - fromStats.totalLiquidityBootstrapped)/0.93)
   bootstrapped.resizeBy(0.07) // 7% of liquidity bootstrapped
-  amountIn.addGasToken(toStats.totalVolume - fromStats.totalVolume)
-  const dailyFees = amountIn.clone()
+  tradeVolume.addGasToken(toStats.totalVolume - fromStats.totalVolume)
+  const dailyFees = tradeVolume.clone()
   dailyFees.resizeBy(0.01) // 1% of trading volume
   dailyFees.addBalances(bootstrapped)
   return {
