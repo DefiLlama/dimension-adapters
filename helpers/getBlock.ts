@@ -27,6 +27,7 @@ const blacklistedChains: string[] = [
   "thorchain",
   "flow",
   "aptos",
+  "polkadex",
   "neo",
   "phantasma",
   "starknet",
