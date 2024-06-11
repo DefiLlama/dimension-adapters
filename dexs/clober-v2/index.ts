@@ -81,11 +81,17 @@ const adapter: SimpleAdapter = {
             fetch: fetch,
             runAtCurrTime: true,
             start: 1717167600,
+            meta: {
+                methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
+            }
         },
         [CHAIN.ERA]: {
             fetch: fetch,
             runAtCurrTime: true,
             start: 1717167600,
+            meta: {
+                methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
+            }
         },
     }
 };
