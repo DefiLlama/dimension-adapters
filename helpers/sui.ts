@@ -1,7 +1,8 @@
 const http = require('axios')
 const { getEnv } = require('./env')
 
-const endpoint = () => getEnv('SUI_RPC')
+// const endpoint = () => getEnv('SUI_RPC')
+const endpoint = () => 'https://fullnode.mainnet.sui.io/'
 
 async function getObject(objectId:string) {
   return (await call('sui_getObject', [objectId, {
