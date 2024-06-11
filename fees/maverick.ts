@@ -1,7 +1,8 @@
 //  Maverick v1 fee
-import { SimpleAdapter } from "../adapters/types";
+import { BreakdownAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchFee } from "../dexs/maverick/maverick";
+import { fetchFeeV1, maverickV1Factories } from "../dexs/maverick/maverick-v1";
+import { fetchFeeV2, maverickV2Factories } from "../dexs/maverick/maverick-v2";
 
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
@@ -10,34 +11,47 @@ const methodology = {
   TotalFees: "Cumulative all-time Fees",
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFee(CHAIN.ETHEREUM),
-      start: 1676851200,
-      meta: {
-        methodology,
+const adapter: BreakdownAdapter = {
+  version: 2,
+  breakdown: {
+    v1: {
+      [CHAIN.BSC]: {
+        fetch: fetchFeeV1(),
+        start: maverickV1Factories[CHAIN.BSC].startTimestamp,
+      },
+      [CHAIN.BASE]: {
+        fetch: fetchFeeV1(),
+        start: maverickV1Factories[CHAIN.BASE].startTimestamp,
+      },
+      [CHAIN.ERA]: {
+        fetch: fetchFeeV1(),
+        start: maverickV1Factories[CHAIN.ERA].startTimestamp,
+      },
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchFeeV1(),
+        start: maverickV1Factories[CHAIN.ETHEREUM].startTimestamp,
       },
     },
-    [CHAIN.ERA]: {
-      fetch: fetchFee(CHAIN.ERA),
-      start: 1681257600,
-      meta: {
-        methodology,
+    v2: {
+      [CHAIN.BSC]: {
+        fetch: fetchFeeV2(),
+        start: maverickV2Factories[CHAIN.BSC].startTimestamp,
       },
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchFee(CHAIN.BSC),
-      start: 29241049,
-      meta: {
-        methodology,
+      [CHAIN.BASE]: {
+        fetch: fetchFeeV2(),
+        start: maverickV2Factories[CHAIN.BASE].startTimestamp,
       },
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchFee(CHAIN.BASE),
-      start: 1489614,
-      meta: {
-        methodology,
+      [CHAIN.ERA]: {
+        fetch: fetchFeeV2(),
+        start: maverickV2Factories[CHAIN.ERA].startTimestamp,
+      },
+      [CHAIN.ETHEREUM]: {
+        fetch: fetchFeeV2(),
+        start: maverickV2Factories[CHAIN.ETHEREUM].startTimestamp,
+      },
+      [CHAIN.ARBITRUM]: {
+        fetch: fetchFeeV2(),
+        start: maverickV2Factories[CHAIN.ARBITRUM].startTimestamp,
       },
     },
   },
