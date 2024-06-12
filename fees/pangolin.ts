@@ -3,7 +3,7 @@ import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/pangolindex/exchange"
+    [CHAIN.AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq'
   },
   dailyVolume: {
     factory: "pangolinDayData"

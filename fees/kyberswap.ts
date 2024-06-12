@@ -29,7 +29,7 @@ const elasticEndpoints: TEndpoint = elasticChains.reduce((acc, chain) => ({
 }), {
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-one",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
+  [CHAIN.POLYGON]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8g4tJKCJ7eMAHjzZNeRWz9BkYG5U7vDNjdanSXfDXGXT',
   [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
   [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
   [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base",

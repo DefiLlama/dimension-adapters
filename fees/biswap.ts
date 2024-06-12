@@ -3,7 +3,7 @@ import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
 const adapters = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/biswapcom/exchange5"
+    [CHAIN.BSC]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/2D9rXpMTvAgofWngsyRE17jKr5ywrU4W3Eaa71579qkd'
   },
   dailyVolume: {
     factory: "pancakeDayData"

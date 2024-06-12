@@ -3,7 +3,7 @@ import { ChainEndpoints, SimpleAdapter, BaseAdapter } from "../../adapters/types
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: ChainEndpoints = {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/arnkthr/ethv1",
+    [CHAIN.ETHEREUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/CvSasxLYUvFbYyi7VXGhXL6PNgkZPoVDo2bo66ftEA2V',
     [CHAIN.SMARTBCH]: "https://analytics-dex.api.bitcoin.com/subgraphs/name/verse/exchange",
 };
 

@@ -9,17 +9,17 @@ const endpoints = {
   [ETHEREUM]:
     "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au",
   [OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ',
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w',
   [POLYGON]:
     "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU",
   [AVAX]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx',
   [FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H',
   [XDAI]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L',
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

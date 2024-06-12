@@ -14,7 +14,7 @@ const v2Endpoints: ChainEndpoints = {
   [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/harleen-m/baseswap",
 };
 const v3Endpoints = {
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/baseswapfi/v3-base",
+  [CHAIN.BASE]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/39pzQzH5r3vmovd9fTs7rVDVFCj1xJye3dTMNHcSkSfL',
 };
 
 // Fetch function to query the subgraphs

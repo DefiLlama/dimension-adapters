@@ -6,7 +6,7 @@ import { Chain } from '@defillama/sdk/build/general';
 
 const endpoints = {
   [BSC]:
-    "https://api.thegraph.com/subgraphs/name/dmihal/bsc-validator-rewards"
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3a3f5kp31kutZzjmQoE2NKBSr6Ady5rgxRxD2nygYcQo'
 }
 
 

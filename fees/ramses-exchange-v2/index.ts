@@ -28,7 +28,7 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph",
+  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea',
 };
 
 const VOLUME_USD = "volumeUSD";

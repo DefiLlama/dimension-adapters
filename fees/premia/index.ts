@@ -6,13 +6,13 @@ import getV3Data from "./v3"
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premiav2",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/CqWfkgRsJRrQ5vWq9tkEr68F5nvbAg63ati5SVJQLjK8',
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-arbitrum",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3o6rxHKuXZdy8jFifV99gMUe8FaVUL8w8bDTNdc4zyYg',
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-fantom",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/5ahtXN7DVTwnPuDhWqgJWvEeAEP3JD7h2kD1Kpe67VuW',
   [CHAIN.OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-optimism",
+    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8wMexS8BB1cXWYu2V8cPHURGXSRGDBhshnU9nTiSkXQ7',
 }
 
 const v2StartTimes: { [chain: string]: number } = {

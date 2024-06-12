@@ -4,7 +4,7 @@ import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume 
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/0xleez/xcali-arbitrum",
+  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/J9xPBr2XdBxWvLi2HSiz8hW76HUU91WQ9ztkicCRccDS',
 };
 
 const graphs = getChainVolume({

@@ -13,7 +13,7 @@ const endpoints: ChainEndpoints = {
     "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN",
   [CHAIN.ARBITRUM]:
     "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc",
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
+  [CHAIN.XDAI]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg',
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
   [CHAIN.AVAX]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest"

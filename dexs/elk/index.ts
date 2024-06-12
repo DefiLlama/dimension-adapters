@@ -2,19 +2,19 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const adapter = univ2Adapter({
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-arbitrum",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-avax",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-bsc",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-ftm",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-matic",
+  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE',
+  [CHAIN.AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/2dyce92CewvhV17C8BMFoMCgaXdPTtwBzaz8AReQR3YV',
+  [CHAIN.BSC]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/5tRz9anigEVND48Gx1mUpNNM4YSm3NpzG9XRB8dYAMhb',
+  [CHAIN.FANTOM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/pmqe2dQvH4PK7aaFh4GXrr49wpKRr3GjPCnNEgEb6U2',
+  [CHAIN.POLYGON]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8jzpT6nnKgmqcdGocys97YWkuqwDbHBxpozsKcxH1KUP',
   // [CHAIN.HECO]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-heco"
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-xdai",
+  [CHAIN.XDAI]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/kD9njskfB9xv7gDnsU2sz4X4sXfEimBv8xMJ6votFND',
   // [CHAIN.MOONRIVER]: "https://moonriver-graph.elk.finance/subgraphs/name/elkfinance/elkdex-moonriver",
   // [CHAIN.ELASTOS]: "https://elastos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-elastos",
   // [CHAIN.OKEXCHAIN]: "https://okex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-okex",
   // [CHAIN.KCC]: "https://kcc-graph.elk.finance/subgraphs/name/elkfinance/elkdex-kcc",
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-eth",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-optimism",
+  [CHAIN.ETHEREUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/59tcH5BPyXj41XZgn1ZYy4pE8iDdzaZpR9MRhmuPW4Lr',
+  [CHAIN.OPTIMISM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/H7UcKWuAqQPqWKcnNLn2Jamy9zE7wVgsLSRQpPwXo2Ag',
   // [CHAIN.CRONOS]: "https://cronos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-cronos",
   // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
   // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",

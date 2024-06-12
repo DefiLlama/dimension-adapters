@@ -8,7 +8,7 @@ import {
 } from "../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/zyberswap-arbitrum/zyber-amm",
+  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R',
 }
 const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,

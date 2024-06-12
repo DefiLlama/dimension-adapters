@@ -14,7 +14,7 @@ type RadixPlazaResponse = {
   swaps: number
 }
 
-const thegraph_endpoints = "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza";
+const thegraph_endpoints = 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4z9FBF12CrfoQJhAkWicqzY2fKYN9QRmuzSsizVXhjKa';
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
