@@ -6,7 +6,7 @@ import { FANTOM } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/chimpydev/equity-core2",
+  [FANTOM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

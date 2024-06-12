@@ -32,13 +32,13 @@ const headers: THeader = {
 const ONE_DAY = 24 * 60 * 60;
 
 const v1Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-multy-raw",
+  [ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/GJfRcmN4YAzKW3VH2ZKzTcWXjgtvkpAYSwFh1LfHsEuh",
 }
 
 const v2Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-v2",
+  [ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N",
   [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v2-avalanche',
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
+  [POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/H1Et77RZh3XEf27vkAmJyzgCME2RSFLtDS2f4PPW6CGp"
 };
 
 //V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs

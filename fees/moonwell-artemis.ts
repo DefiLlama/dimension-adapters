@@ -7,7 +7,7 @@ import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/messari/moonwell-moonbeam"
+  [CHAIN.MOONBEAN]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK"
 }
 
 

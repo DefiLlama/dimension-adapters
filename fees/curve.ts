@@ -7,13 +7,13 @@ import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au",
   [OPTIMISM]:
     "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
   [ARBITRUM]:
     "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU",
   [AVAX]:
     "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
   [FANTOM]:

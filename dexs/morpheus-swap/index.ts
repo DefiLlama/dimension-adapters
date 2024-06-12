@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/daedboi/morpheus-swap"
+  [CHAIN.FANTOM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/C5XUzYLrDHiiKL7zGjLLyiQueJkQfeUyMZCcgwnVWcNr"
 }, {
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData",

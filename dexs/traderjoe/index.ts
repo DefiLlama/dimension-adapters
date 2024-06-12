@@ -7,7 +7,7 @@ import fetchURL from "../../utils/fetchURL";
 const endpoints = {
   [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/exchange",
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-bnb",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-arbitrum",
+  [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk",
 };
 type TEndpoint = {
   [s: string | Chain]: string;

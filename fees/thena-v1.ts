@@ -11,7 +11,7 @@ import { CHAIN } from "../helpers/chains";
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.002;
 const endpoint =
-  "https://api.thegraph.com/subgraphs/name/thenaursa/thena-v1";
+  "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1";
 
 const getFees = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
