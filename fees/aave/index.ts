@@ -32,26 +32,26 @@ const headers: THeader = {
 const ONE_DAY = 24 * 60 * 60;
 
 const v1Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-multy-raw",
+  [ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/GJfRcmN4YAzKW3VH2ZKzTcWXjgtvkpAYSwFh1LfHsEuh",
 }
 
 const v2Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-v2",
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v2-avalanche',
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
+  [ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N",
+  [AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N-avalanche',
+  [POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/H1Et77RZh3XEf27vkAmJyzgCME2RSFLtDS2f4PPW6CGp"
 };
 
 //V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs
 const v3Endpoints = {
-  [POLYGON]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon',
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-avalanche',
-  [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-arbitrum',
-  [OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-optimism',
-  [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
-  [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
-  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
-  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-bnb',
-  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-gnosis',
+  [POLYGON]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-polygon',
+  [AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-avalanche',
+  [ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-arbitrum',
+  [OPTIMISM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-optimism',
+  [FANTOM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-fantom',
+  [HARMONY]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-harmony',
+  [CHAIN.ETHEREUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g',
+  [CHAIN.BSC]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-bnb',
+  [CHAIN.XDAI]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g-gnosis',
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',

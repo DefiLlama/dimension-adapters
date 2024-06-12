@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 const { request, gql } = require("graphql-request");
 
 
-const URL = 'https://api.thegraph.com/subgraphs/name/liquity/liquity'
+const URL = 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8wump5sEYBV7vG1sKaNrvbqhTAV4EPKCdPw4ygms3Dmd'
 interface IValue {
   totalBorrowingFeesPaid: string;
   totalRedemptionFeesPaid: string;

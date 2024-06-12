@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-v3"
+  [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp"
 }, {
   factoriesName: "factories",
   dayData: "algebraDayData",

@@ -11,7 +11,7 @@ const endpoints = {
 };
 
 const blockNumberGraph = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-one-blocks",
+    [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/64DCU8nq48qdDABnobpDafsg7RF75Rx5soKrHiGA8mqp",
     [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks" 
 }
 

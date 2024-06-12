@@ -6,15 +6,15 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/exchange"
+  [CHAIN.BSC]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9BtGwsWynjj21VyrAtNfeKG5kMhcZ7Z12T53wo7PBTLj"
 };
 
 const stablesSwapEndpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/exchange-stableswap"
+  [CHAIN.BSC]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9BtGwsWynjj21VyrAtNfeKG5kMhcZ7Z12T53wo7PBTLj-stableswap"
 }
 
 const v3Endpoint = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cr3k/exchange-v3-bsc"
+  [CHAIN.BSC]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9BtGwsWynjj21VyrAtNfeKG5kMhcZ7Z12T53wo7PBTLj-v3-bsc"
 }
 
 const VOLUME_USD = "volumeUSD";

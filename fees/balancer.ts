@@ -7,20 +7,20 @@ import BigNumber from "bignumber.js";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB",
 }
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2-beta",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB-v2-beta",
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB-arbitrum-v2",
   [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-polygon-v2",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB-polygon-v2",
   [CHAIN.AVAX]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB-avalanche-v2",
   [CHAIN.XDAI]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB-gnosis-chain-v2",
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.POLYGON_ZKEVM]:

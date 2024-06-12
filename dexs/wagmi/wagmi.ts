@@ -26,7 +26,7 @@ export const LINKS: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
     blocks:
-      "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+      "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC",
   },
   [CHAIN.METIS]: {
     subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",

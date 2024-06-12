@@ -22,7 +22,7 @@ interface IValume {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ethandev0/pikaperpv3_optimism"
+  [CHAIN.OPTIMISM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DUcxevdqV8kBQdHWcdUcaEctaoVyqYZTtCftojL23NbA"
 }
 
 const fetch = (chain: Chain) => {

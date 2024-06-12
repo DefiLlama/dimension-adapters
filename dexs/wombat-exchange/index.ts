@@ -25,19 +25,19 @@ type TEndpoint = {
 // Updated using studio
 const endpoints: TEndpoint = {
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DPuFUNkRpW5AG2HBWyRhzvYCodocb1H8vjVLijyEJyGE",
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/HADLg9LFYHJupr3xvWdmp7piPpwjGEwjbCknkSVrfyDQ",
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-eth",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3S2iHctknomx91fcAcyqrPvCcGfnuhKdEKBs2xThoCvJ",
   [CHAIN.SCROLL]:
     "https://api.studio.thegraph.com/query/56564/wombat-exchange-scroll/version/latest",
   [CHAIN.AVAX]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-avax",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/6PbnpSVfrWgVeRiTbbM4yFNAiYacLjGLg1ztzasxqxGf",
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/56564/wombat-exchange-base/version/latest",
   [CHAIN.OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-op",
+    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4phYPx7RdkSSKFuoFBRZFFbPMkRCnYLfi8bENyQf4NA6",
 };
 
 const fetchVolume = (chain: Chain) => {
