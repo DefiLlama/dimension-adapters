@@ -5,16 +5,16 @@ import { CHAIN } from "../../helpers/chains";
 const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-bsc",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-fantom",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/version/latest",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/version/latest",
-  [CHAIN.LINEA]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-linea",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45576/woofi-base/version/latest",
+  [CHAIN.AVAX]: "https://api.studio.thegraph.com/query/71937/woofi-avax/version/latest",
+  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/71937/woofi-bsc/version/latest",
+  [CHAIN.FANTOM]: "https://api.studio.thegraph.com/query/71937/woofi-fantom/version/latest",
+  [CHAIN.POLYGON]: "https://api.studio.thegraph.com/query/71937/woofi-polygon/version/latest",
+  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/71937/woofi-arbitrum/version/latest",
+  [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/71937/woofi-optimism/version/latest",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/71937/woofi-zksync/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/71937/woofi-polygon-zkevm/version/latest",
+  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
   [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
 };
 
