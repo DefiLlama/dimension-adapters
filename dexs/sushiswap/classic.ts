@@ -63,9 +63,9 @@ const endpointsClassic = {
   [CHAIN.HARMONY]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg",
   // [CHAIN.MOONRIVER]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT",
   [CHAIN.XDAI]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4a8hcsttqsmycmmeFcpffGMZhBDU4NhHfyHH6YNcnu7b",
-  // [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
+  // [CHAIN.MOONBEAM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3tNHz9aTBa2KUthYZiZZxayYYpxXACverKRrkafhoBru',
   [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
-  [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
+  [CHAIN.FUSE]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo',
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
 };
