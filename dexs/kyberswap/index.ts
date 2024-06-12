@@ -56,7 +56,7 @@ const elasticEndpoints = elasticChains.reduce((acc, chain)=>({
     //cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos", // missing -> almost no volume and stale
     ethereum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
     arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum",
-    polygon: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8g4tJKCJ7eMAHjzZNeRWz9BkYG5U7vDNjdanSXfDXGXT',
+    polygon: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/8g4tJKCJ7eMAHjzZNeRWz9BkYG5U7vDNjdanSXfDXGXT`,
     [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
     [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base",
     [CHAIN.SCROLL]: "https://scroll-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-scroll"

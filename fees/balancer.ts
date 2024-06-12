@@ -7,20 +7,20 @@ import BigNumber from "bignumber.js";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB`,
 }
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Fog6Z9z7DXvWy4bx36c7ETQftdtr4Ppxn7Mjpxkzka2i",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/Fog6Z9z7DXvWy4bx36c7ETQftdtr4Ppxn7Mjpxkzka2i`,
   [CHAIN.ARBITRUM]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc`,
   [CHAIN.POLYGON]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN`,
   [CHAIN.AVAX]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu`,
   [CHAIN.XDAI]:
-    'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg',
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg`,
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.POLYGON_ZKEVM]:

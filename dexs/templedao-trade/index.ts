@@ -7,7 +7,7 @@ const {
   getChainVolume,
 } = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/6No9vpT4V56r2c4y4TxHsKs7hEbAWu66u19wNGAX8nxL"
+  [CHAIN.ETHEREUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/6No9vpT4V56r2c4y4TxHsKs7hEbAWu66u19wNGAX8nxL`
 };
 
 const VOLUME_FIELD = "volumeUSD";

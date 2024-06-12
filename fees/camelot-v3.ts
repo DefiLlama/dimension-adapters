@@ -16,7 +16,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp"
+  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp`
 }
 
 const fetch = (chain: Chain) => {

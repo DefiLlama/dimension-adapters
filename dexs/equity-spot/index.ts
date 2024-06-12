@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9",
+  [CHAIN.FANTOM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9`,
 }
 
 const historicalData = gql`

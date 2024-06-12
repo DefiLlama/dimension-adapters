@@ -6,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
   [ETHEREUM]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo`,
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

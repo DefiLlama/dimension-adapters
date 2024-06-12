@@ -7,13 +7,13 @@ import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
   [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-polygon',
-  [CHAIN.OPTIMISM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/FEgRuH9zeTRMZgpVv5YavoFEcisoK6KHk3zgQRRBqt51',
+  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/FEgRuH9zeTRMZgpVv5YavoFEcisoK6KHk3zgQRRBqt51`,
   //[CHAIN.KAVA]: 'https://pvt.graph.kava.io/subgraphs/name/sushi-v2/trident-kava',
   // [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/sushi-v2/trident-metis',
   // [CHAIN.BITTORRENT]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v2/trident-bttc',
-  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4x8H6ZoGfJykyZqAe2Kx2g5afsp17S9pn8GroRkpezhx',
-  [CHAIN.BSC]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9TQaBw1sU3wi2kdevuygKhfhjP3STnwBe1jUnKxmNhmn',
-  [CHAIN.AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/NNTV3MgqSGtHMBGdMVLXzzDbKDKmsY87k3PsQ2knmC1',
+  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/4x8H6ZoGfJykyZqAe2Kx2g5afsp17S9pn8GroRkpezhx`,
+  [CHAIN.BSC]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9TQaBw1sU3wi2kdevuygKhfhjP3STnwBe1jUnKxmNhmn`,
+  [CHAIN.AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/NNTV3MgqSGtHMBGdMVLXzzDbKDKmsY87k3PsQ2knmC1`,
 }
 
 const VOLUME_FIELD = "volumeUSD";

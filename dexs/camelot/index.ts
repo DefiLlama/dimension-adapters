@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-    [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/CnzVKhPQizzxSpysSveSLt1XZqkBRSprFtFJv3RaBQPv'
+    [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/CnzVKhPQizzxSpysSveSLt1XZqkBRSprFtFJv3RaBQPv`
 }, {});
 
 adapters.adapter.arbitrum.start = 1668124800;

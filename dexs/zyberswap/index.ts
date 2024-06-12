@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R',
+  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R`,
 };
 
 const graphs = getChainVolume({

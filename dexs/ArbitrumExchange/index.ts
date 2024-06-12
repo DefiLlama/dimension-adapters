@@ -14,7 +14,7 @@ const v2Endpoints = {
 };
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu",
+  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu`,
 };
 
 const VOLUME_USD = "volumeUSD";

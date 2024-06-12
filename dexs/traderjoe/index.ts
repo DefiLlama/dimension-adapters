@@ -5,9 +5,9 @@ import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getU
 import fetchURL from "../../utils/fetchURL";
 
 const endpoints = {
-  [CHAIN.AVAX]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM',
+  [CHAIN.AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM`,
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-bnb",
-  [CHAIN.ARBITRUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk",
+  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk`,
 };
 type TEndpoint = {
   [s: string | Chain]: string;

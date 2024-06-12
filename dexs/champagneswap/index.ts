@@ -9,7 +9,7 @@ const {
 const { BSC } = require("../../helpers/chains");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
-  [BSC]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9gXThrkBPCRnK5ncBGySQJZoFUUSC5RDAYYciEZ323Pj',
+  [BSC]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9gXThrkBPCRnK5ncBGySQJZoFUUSC5RDAYYciEZ323Pj`,
 };
 
 const DAILY_VOLUME_FACTORY = "champagneDayData";

@@ -10,7 +10,7 @@ interface IBribes {
 }
 
 export const fees_bribes = async (fromBlock: number, timestamp: number, balances: Balances) => {
-  const endpoint = 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea';
+  const endpoint = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea`;
   const graphQuery = `
       query GetBribes($fromBlock: Int!) {
         bribes(

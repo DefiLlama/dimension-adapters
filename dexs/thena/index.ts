@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-    [CHAIN.BSC]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1"
+    [CHAIN.BSC]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1`
 }, {
   factoriesName: "factories",
   totalVolume: "totalVolumeUSD",

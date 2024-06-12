@@ -8,14 +8,14 @@ import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getU
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV",
+  [CHAIN.ETHEREUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV`,
   [CHAIN.POLYGON]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN`,
   [CHAIN.ARBITRUM]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc",
-  [CHAIN.XDAI]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg',
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc`,
+  [CHAIN.XDAI]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg`,
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
-  [CHAIN.AVAX]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu",
+  [CHAIN.AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu`,
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest"
 };
 
@@ -69,7 +69,7 @@ const v2Graphs = (chain: Chain) => {
 
 const v1graphs = getChainVolume({
   graphUrls: {
-    [CHAIN.ETHEREUM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB"
+    [CHAIN.ETHEREUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB`
   },
   ...graphParams
 });

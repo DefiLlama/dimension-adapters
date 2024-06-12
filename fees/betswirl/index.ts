@@ -6,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 const endpoints: any = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-bnb",
   [POLYGON]:
-    "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW",
+    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW`,
   [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
   [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-arbitrum",
 };

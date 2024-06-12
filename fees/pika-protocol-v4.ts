@@ -37,7 +37,7 @@ interface ILiquidations {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5"
+  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5`
 }
 
 const fetch = (chain: Chain) => {

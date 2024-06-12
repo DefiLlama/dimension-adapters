@@ -6,7 +6,7 @@ import { FANTOM } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [FANTOM]: "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9",
+  [FANTOM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9`,
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

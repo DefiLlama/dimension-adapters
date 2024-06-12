@@ -10,7 +10,7 @@ interface IData {
 }
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7Trkrt6hPzhLXUH2x4Xt9cSnSmAFKDmKNWuUHEwzgCYJ'
+  [CHAIN.ETHEREUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7Trkrt6hPzhLXUH2x4Xt9cSnSmAFKDmKNWuUHEwzgCYJ`
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

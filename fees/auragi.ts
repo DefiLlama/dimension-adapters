@@ -5,7 +5,7 @@ import { CHAIN } from "../helpers/chains";
 
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.0005;
-const endpoint = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DtNQcRXx82k4azEb5QvUjRbmXSNLTUsUePzPY6PtryEc";
+const endpoint = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/DtNQcRXx82k4azEb5QvUjRbmXSNLTUsUePzPY6PtryEc`;
 
 const getFees = () => {
   return async ({ getFromBlock, getToBlock}: FetchOptions) => {
