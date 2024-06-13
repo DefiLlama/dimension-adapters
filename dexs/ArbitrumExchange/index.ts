@@ -11,7 +11,7 @@ import {
 } from "../../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DsZsQrDp7VswGGm6PburYZ91AM3E9vwH45nwLCj3kXHA'),
 };
 
 const v3Endpoints = {

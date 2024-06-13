@@ -7,7 +7,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/substanceexchangedevelop/coreprod",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('HETFHppem3dz1Yjjv53D7K98dm5t5TErgYAMPBFPHVpi'),
   [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta"
 };
 

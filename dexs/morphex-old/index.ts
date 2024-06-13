@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,7 +7,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats",
+    sdk.graph.modifyEndpoint('EH6ZfhnYQd7Kv1SdnUAp96vMUWKCTfPrctwududH5cmG'),
 };
 
 const historicalDataSwap = gql`

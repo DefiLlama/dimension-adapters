@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import {Adapter} from "../adapters/types";
 import {ETHEREUM} from "../helpers/chains";
 import {request, gql} from "graphql-request";
@@ -8,7 +9,7 @@ import BigNumber from "bignumber.js";
 
 const endpoints = {
     [ETHEREUM]:
-        "https://api.thegraph.com/subgraphs/name/convex-community/convex",
+        sdk.graph.modifyEndpoint('2jMwDRmUtTRAw9w3nMuZZPQtC97Ro28nLdJFWnFQnJdz'),
 };
 
 

@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/polymmfinance/arbitrum-exchange",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7DHMSRfftzCDjRVYSGTt65PagbTF61ACg4XUCP7JQKJG'),
 };
 
 const adapter = univ2Adapter(endpoints, {

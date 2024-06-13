@@ -8,7 +8,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints = {
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/liondextrade/finance",
+    sdk.graph.modifyEndpoint('EDnnTmgZVXAywK9ujCbwhi2hNhuaLAgeSvRL7dPAsV13'),
 };
 
 const methodology = {

@@ -7,7 +7,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-bnb",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('3VgCBQh13PseR81hPNAbKua3gD8b8r33LauKjVnMbSAs'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk'),
 };
 type TEndpoint = {

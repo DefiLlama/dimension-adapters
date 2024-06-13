@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 // SynFutures v1 volume
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,16 +7,16 @@ const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
   polygon: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/polygon-v1',
+    subgraph: sdk.graph.modifyEndpoint('AoQ1npLLN7fTJc96XjnL8MgwHAvzxFDuE27kWfdrVATD'),
   },
   ethereum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/ethereum-v1',
+    subgraph: sdk.graph.modifyEndpoint('HLqiPUB5pYH8VztXAcvMW6VTq6avHkW77mYnKe8ov44r'),
   },
   bsc: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/bsc-v1',
+    subgraph: sdk.graph.modifyEndpoint('9AuL6Mga3pzjYDoLEJHncC3rQMCHibaW8syCwJv1QMNW'),
   },
   arbitrum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/arbitrum-one-v1',
+    subgraph: sdk.graph.modifyEndpoint('HktZa8SikfXFpjjGZML578RTrsieQdVENJviucpokLwH'),
   },
 }
 

@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 
 export const SUBGRAPHS = {
-    pdex: "https://api.thegraph.com/subgraphs/name/crypnosis/swych-pdex-v1",
+    pdex: sdk.graph.modifyEndpoint('6tn8tNYxKCEM5bTceMfA5jeGm3gtCrUGDwbKN7QGGat4'),
 };
 
 const contractAddresses = {

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
@@ -17,7 +18,7 @@ type IURL = {
 };
 
 const endpoints: IURL = {
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/immortalx-io/immortalx",
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('DGN3dMffNnXZRAHFyCAq3csJbe2o7g9Jdg2XHe2mzVdG'),
 };
 
 const fetch = (chain: Chain) => {

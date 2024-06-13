@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpointV3 = {
-  [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/ruvlol/univ3-test'
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('DZyDuvUHNThtJJQAEbYGr32xYc93BZAdfqatpYUNMZbe')
 }
 const VOLUME_USD = 'volumeUSD'
 const v3Graphs = getGraphDimensions({

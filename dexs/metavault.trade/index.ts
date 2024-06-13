@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sdcrypt0/metavault-mvx-subgraph",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
 }
 
 const historicalData = gql`

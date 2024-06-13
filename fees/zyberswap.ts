@@ -25,7 +25,7 @@ const v2Graph = getGraphDimensions({
 });
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
 }
 const v3Graphs = getGraphDimensions({
   graphUrls: v3Endpoints,
@@ -54,7 +54,7 @@ const v3Graphs = getGraphDimensions({
 });
 
 const endpointsStable = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/zyberswap-arbitrum/zyber-stableamm"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('H7QEsa69B3bbXZVtmqGaRZVUV8PCUqsKfqXGRb69LHa6')
 };
 
 const stableGraph = getGraphDimensions({

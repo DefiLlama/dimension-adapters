@@ -19,9 +19,9 @@ type IURL = {
 const endpoints: IURL = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
   // [CHAIN.BASE]: "https://api.studio.thegraph.com/query/64631/solidly-v3-base/version/latest",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-optimism",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-arbitrum",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-fantom"
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('HCThb3gJC45qUYmNEaYmZZTqJW3pSq7X6tb4MqNHEvZf'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ALCsbp7jWC6EQjwgicvZkG6dDEFGMV32QUZJvJGqL9Kx'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('HDNu25S2uqr13BHrQdPv2PfTpwxJgPB7QEnC8fsgKcM9')
 }
 
 const fetch = (chain: Chain) => {

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 const POOL_DATA = {
   "arbitrum-one": {
     "DAI+USDC": {
@@ -1021,9 +1022,9 @@ const TOKEN_NAMES = {
   },
 };
 
-const MAINNET_SUBGRAPH_URL = "https://api.thegraph.com/subgraphs/name/kfeng22/shell-v2-arbitrum-one";
+const MAINNET_SUBGRAPH_URL = sdk.graph.modifyEndpoint('H6vTCuujLYzXdgGDbB9UzwLjbGc4gXPttx6ULtBJBxdX');
 const MAINNET_V3_SUBGRAPH_URL = "https://api.studio.thegraph.com/query/42384/shell-v3-arbitrum-one-rl/version/latest";
-const MAINNET_BLOCKS_URL = "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-blocks";
+const MAINNET_BLOCKS_URL = sdk.graph.modifyEndpoint('3mQwWddUyzqxqMkb1HMPxoHGSLg3fKfmLawMtyUoDxmD');
 
 const COIN_GECKO_IDS = {
   DAI: "dai",

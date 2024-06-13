@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request from "graphql-request";
@@ -11,7 +12,7 @@ const rtokenCreationAbi =
   "event RTokenCreated(address indexed main, address indexed rToken, address stRSR, address indexed owner, string version)";
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/lcamargof/reserve",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('BT7YCEWL7JHbEBD9WXWmtMSzCuW6YXisWTqHPVb4u6uC'),
 };
 
 const graphQuery = `

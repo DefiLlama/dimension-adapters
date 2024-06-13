@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
@@ -5,7 +6,7 @@ import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.BOBA]:
-    "https://api.thegraph.com/subgraphs/name/koyo-finance/exchange-subgraph-boba",
+    sdk.graph.modifyEndpoint('3CdxAdbTrVDhM6WQCr5TN4y4zxAodMAmcZwFFWRnEKz3'),
 };
 
 const graphs = getChainVolume({

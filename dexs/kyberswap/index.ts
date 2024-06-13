@@ -55,7 +55,7 @@ const elasticEndpoints = elasticChains.reduce((acc, chain)=>({
     ...acc,
 }), {
     //cronos: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos", // missing -> almost no volume and stale
-    ethereum: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
+    ethereum: sdk.graph.modifyEndpoint('4U9PxDR4asVvfXyoVy18fhuj6NHnQhLzZkjZ5Bmuc5xk'),
     arbitrum: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum",
     polygon: sdk.graph.modifyEndpoint('8g4tJKCJ7eMAHjzZNeRWz9BkYG5U7vDNjdanSXfDXGXT'),
     [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
@@ -96,7 +96,7 @@ interface IPoolDayData {
 
 const optimismElastic = async (timestamp: number) => {
   const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const url = "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-optimism";
+  const url = sdk.graph.modifyEndpoint('3Kpd8i7U94pTz3Mgdb8hyvT5o26fpwT7SUHAbTa6JzfZ');
   const blacklisted = [
     '0xa00e3a3511aac35ca78530c85007afcd31753819',
     ADDRESSES.optimism.sUSD,
@@ -142,7 +142,7 @@ const optimismElastic = async (timestamp: number) => {
 
 const ethereumElasicVolume = async (timestamp: number) => {
   const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const url = "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet";
+  const url = sdk.graph.modifyEndpoint('4U9PxDR4asVvfXyoVy18fhuj6NHnQhLzZkjZ5Bmuc5xk');
 
   const blacklisted = [
     '0xdefa4e8a7bcba345f687a2f1456f5edd9ce97202',

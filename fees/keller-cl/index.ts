@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultFees, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { Chain } from "@defillama/sdk/build/general";
@@ -16,7 +17,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.SCROLL]: "https://api.thegraph.com/subgraphs/name/bitdeep/keller-cl", 
+  [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('Fc28kX4ZY93J1hx4zv6JJSg1d3auz1j2HWHEvbkAZ9Qc'), 
 }
 const fetch = (chain: Chain) => {
   return async (timestamp: any): Promise<FetchResultFees> => {

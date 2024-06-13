@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -10,7 +11,7 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/messari/compound-v2-ethereum"
+    sdk.graph.modifyEndpoint('Rh7h4KeZCnJZoBv3nZ4K8occAXEnwxRkR6pTKDsN3Fj')
 }
 
 

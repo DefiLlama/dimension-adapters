@@ -16,9 +16,9 @@ export const LINKS: { [key: string]: any } = {
   },
   [CHAIN.FANTOM]: {
     subgraph:
-      "https://api.thegraph.com/subgraphs/name/0xfantaholic/wagmi-fantom",
+      sdk.graph.modifyEndpoint('BtyzJrSwED7QFDBhC68myEJ851KJ47vRD11vkenPwgQz'),
     blocks:
-      "https://api.thegraph.com/subgraphs/name/beethovenxfi/fantom-blocks",
+      sdk.graph.modifyEndpoint('BjhETUnXsKV77w7P6GWNxWik762YDmV54nkMRG4ekk2W'),
   },
   [CHAIN.KAVA]: {
     subgraph: "https://kava.graph.wagmi.com/subgraphs/name/v3",

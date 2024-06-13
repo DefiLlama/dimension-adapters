@@ -21,7 +21,7 @@ const graphs = getChainVolume({
 });
 
 const endpointsV3 = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
 };
 const graphsV3 = getChainVolume({
   graphUrls: endpointsV3,
@@ -37,7 +37,7 @@ const graphsV3 = getChainVolume({
 });
 
 const endpointsStable = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/zyberswap-arbitrum/zyber-stableamm"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('H7QEsa69B3bbXZVtmqGaRZVUV8PCUqsKfqXGRb69LHa6')
 };
 
 const graphsStable = getChainVolume({
