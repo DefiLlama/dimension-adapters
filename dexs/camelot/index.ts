@@ -1,5 +1,4 @@
 import * as sdk from "@defillama/sdk";
-// https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
