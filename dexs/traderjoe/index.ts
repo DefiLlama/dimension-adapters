@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,9 +6,9 @@ import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getU
 import fetchURL from "../../utils/fetchURL";
 
 const endpoints = {
-  [CHAIN.AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM`,
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
   [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-bnb",
-  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk`,
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk'),
 };
 type TEndpoint = {
   [s: string | Chain]: string;

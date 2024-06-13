@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.BSC]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/GH4Zt29mCApHwMfavNFw5ZdQDH3owc2Wq8DdU4hGPXYe`,
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GH4Zt29mCApHwMfavNFw5ZdQDH3owc2Wq8DdU4hGPXYe'),
   [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/prof-sd/as-matic-graft",
   [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/apeswapfinance/ethereum-dex",
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/prof-sd/arbitrum-dex"

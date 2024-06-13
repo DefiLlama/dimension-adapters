@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -6,7 +7,7 @@ import { FANTOM } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [FANTOM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9`,
+  [FANTOM]: sdk.graph.modifyEndpoint('9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

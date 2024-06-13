@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq`
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq')
   },
   dailyVolume: {
     factory: "pangolinDayData"

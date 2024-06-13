@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,7 +7,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/DYHqLcjXMBC9c7AGvrYSBfQ6fQS723PJHF2usA9JX8NN`
+const endpoint = sdk.graph.modifyEndpoint('DYHqLcjXMBC9c7AGvrYSBfQ6fQS723PJHF2usA9JX8NN')
 
 const query = gql`
   query stats($from: String!, $to: String!) {

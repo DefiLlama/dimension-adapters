@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
@@ -6,7 +7,7 @@ import { Chain } from "@defillama/sdk/build/general";
 const endpoints: any = {
   [BSC]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-bnb",
   [POLYGON]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW`,
+    sdk.graph.modifyEndpoint('FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW'),
   [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
   [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-arbitrum",
 };

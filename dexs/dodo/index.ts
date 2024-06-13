@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, ChainBlocks, Fetch, FetchOptions, IStartTimestamp } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -10,9 +11,9 @@ import dailyVolumePayload from "./dailyVolumePayload";
   [CHAIN.BSC]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.ETHEREUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.POLYGON]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  // [MOONRIVER]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/G4HFPFJue7zf2BktJuKETh72DscimLJRybVA6iD6A7yM`,
-  // [AVAX]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/8GUXi8PNrW4ACf968KCWxH9AkeNt8YEQin7MDa7RuULW`,
-  // [BOBA]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/6PVfSucTfTimvx3aMgWsatmRDBNxW7yQKayyZ7Mxrf73`
+  // [MOONRIVER]: sdk.graph.modifyEndpoint('G4HFPFJue7zf2BktJuKETh72DscimLJRybVA6iD6A7yM'),
+  // [AVAX]: sdk.graph.modifyEndpoint('8GUXi8PNrW4ACf968KCWxH9AkeNt8YEQin7MDa7RuULW'),
+  // [BOBA]: sdk.graph.modifyEndpoint('6PVfSucTfTimvx3aMgWsatmRDBNxW7yQKayyZ7Mxrf73')
   // [HECO]: "https://n10.hg.network/subgraphs/name/dodoex-mine-v3-heco/heco",
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */

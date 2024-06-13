@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -22,7 +23,7 @@ interface IValume {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5`
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5')
 }
 
 const fetch = (chain: Chain) => {

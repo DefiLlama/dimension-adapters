@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,19 +8,19 @@ import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
   [ETHEREUM]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au`,
+    sdk.graph.modifyEndpoint('7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au'),
   [OPTIMISM]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ`,
+    sdk.graph.modifyEndpoint('7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ'),
   [ARBITRUM]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w`,
+    sdk.graph.modifyEndpoint('6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w'),
   [POLYGON]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU`,
+    sdk.graph.modifyEndpoint('EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU'),
   [AVAX]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx`,
+    sdk.graph.modifyEndpoint('4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx'),
   [FANTOM]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H`,
+    sdk.graph.modifyEndpoint('7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H'),
   [XDAI]:
-    `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L`,
+    sdk.graph.modifyEndpoint('i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L'),
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
@@ -11,7 +12,7 @@ import { CHAIN } from "../helpers/chains";
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.002;
 const endpoint =
-  `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1`;
+  sdk.graph.modifyEndpoint('FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1');
 
 const getFees = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {

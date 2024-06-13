@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -7,7 +8,7 @@ const {
   getChainVolume,
 } = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
-  [CHAIN.ETHEREUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/6No9vpT4V56r2c4y4TxHsKs7hEbAWu66u19wNGAX8nxL`
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6No9vpT4V56r2c4y4TxHsKs7hEbAWu66u19wNGAX8nxL')
 };
 
 const VOLUME_FIELD = "volumeUSD";

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -37,7 +38,7 @@ interface ILiquidations {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/DUcxevdqV8kBQdHWcdUcaEctaoVyqYZTtCftojL23NbA`
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('DUcxevdqV8kBQdHWcdUcaEctaoVyqYZTtCftojL23NbA')
 }
 
 const fetch = (chain: Chain) => {

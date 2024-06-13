@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 // https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp`
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp')
 }, {
   factoriesName: "factories",
   dayData: "algebraDayData",

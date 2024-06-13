@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 // Wagmi data
 import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
@@ -26,7 +27,7 @@ export const LINKS: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
     blocks:
-      `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC`,
+      sdk.graph.modifyEndpoint('9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC'),
   },
   [CHAIN.METIS]: {
     subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",

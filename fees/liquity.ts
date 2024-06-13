@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, ChainBlocks, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 const { request, gql } = require("graphql-request");
 
 
-const URL = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/8wump5sEYBV7vG1sKaNrvbqhTAV4EPKCdPw4ygms3Dmd`
+const URL = sdk.graph.modifyEndpoint('8wump5sEYBV7vG1sKaNrvbqhTAV4EPKCdPw4ygms3Dmd')
 interface IValue {
   totalBorrowingFeesPaid: string;
   totalRedemptionFeesPaid: string;

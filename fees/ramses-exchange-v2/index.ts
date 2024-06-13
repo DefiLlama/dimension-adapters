@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { ARBITRUM, CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
@@ -28,7 +29,7 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_PROTOCOL}/subgraphs/id/G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea`,
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea'),
 };
 
 const VOLUME_USD = "volumeUSD";
