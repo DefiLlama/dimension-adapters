@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { queryDune } from "../../helpers/dune";
-import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import type { FetchOptions } from "../../adapters/types";
+import { httpGet } from "../../utils/fetchURL";
 
 type TChain = {
     [key: string]: string;
@@ -13,15 +13,31 @@ const CHAINS: TChain = {
   [CHAIN.ARBITRUM]: "arbitrum"
 };
 
+const URL = 'https://api.azuro.org/volumes/'
+
 const fetch = async (options: FetchOptions) => {
   const unixTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000));
-  const data = await queryDune("3800632", { endTime: unixTimestamp, blockchain: options.chain });
+  const { data } = await httpGet(URL, {
+    params: {
+      blockchain: options.chain,
+      endTime: unixTimestamp
+    }
+  });
+
+  if (!data) {
+    return {
+      dailyVolume: '0',
+      totalVolume: '0',
+      timestamp: unixTimestamp,
+    };
+  }
 
   return {
-    dailyVolume: data[0].daily_volume,
+    dailyVolume: data[0].daily_volume ?? '0',
     totalVolume: data[0].total_volume,
     timestamp: unixTimestamp,
   };
+  
 };
 
 const adapter: any = {
