@@ -68,7 +68,7 @@ export const getData = async (options: FetchOptions) => {
         // element 2,1 is tokenAIn
         const tokenAIn = Boolean(i[2][1]);
         const fee = tokenAIn ? feesA[index] : feesB[index];
-        dailyFees.add(tokenAIn ? tokenA : tokenB, (amount * fee) / 1e18);
+        dailyFees.add(tokenAIn ? tokenA : tokenB, (amount) * (fee / 1e18));
         dailyVolume.add(tokenAIn ? tokenA : tokenB, amount);
       });
     });
