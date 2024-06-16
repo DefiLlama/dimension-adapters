@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -16,7 +17,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('CnzVKhPQizzxSpysSveSLt1XZqkBRSprFtFJv3RaBQPv')
 }
 
 const fetch = (chain: Chain) => {

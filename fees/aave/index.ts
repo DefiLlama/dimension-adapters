@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON, CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
@@ -32,26 +33,26 @@ const headers: THeader = {
 const ONE_DAY = 24 * 60 * 60;
 
 const v1Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-multy-raw",
+  [ETHEREUM]: sdk.graph.modifyEndpoint('GJfRcmN4YAzKW3VH2ZKzTcWXjgtvkpAYSwFh1LfHsEuh'),
 }
 
 const v2Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-v2",
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v2-avalanche',
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
+  [ETHEREUM]: sdk.graph.modifyEndpoint('8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N'),
+  [AVAX]: sdk.graph.modifyEndpoint('EZvK18pMhwiCjxwesRLTg81fP33WnR6BnZe5Cvma3H1C'),
+  [POLYGON]: sdk.graph.modifyEndpoint('H1Et77RZh3XEf27vkAmJyzgCME2RSFLtDS2f4PPW6CGp')
 };
 
 //V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs
 const v3Endpoints = {
-  [POLYGON]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon',
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-avalanche',
-  [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-arbitrum',
-  [OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-optimism',
-  [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
-  [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
-  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
-  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-bnb',
-  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-gnosis',
+  [POLYGON]: sdk.graph.modifyEndpoint('Co2URyXjnxaw8WqxKyVHdirq9Ahhm5vcTs4dMedAq211'),
+  [AVAX]: sdk.graph.modifyEndpoint('2h9woxy8RTjHu1HJsCEnmzpPHFArU33avmUh4f71JpVn'),
+  [ARBITRUM]: sdk.graph.modifyEndpoint('DLuE98kEb5pQNXAcKFQGQgfSQ57Xdou4jnVbAEqMfy3B'),
+  [OPTIMISM]: sdk.graph.modifyEndpoint('DSfLz8oQBUeU5atALgUFQKMTSYV9mZAVYp4noLSXAfvb'),
+  [FANTOM]: sdk.graph.modifyEndpoint('6L1vPqyE3xvkzkWjh6wUKc1ABWYYps5HJahoxhrv2PJn'),
+  [HARMONY]: sdk.graph.modifyEndpoint('FifJapBdCqT9vgNqJ5axmr6eNyUpUSaRAbbZTfsViNsT'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',

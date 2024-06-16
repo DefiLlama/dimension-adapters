@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../adapters/types";
 import BigNumber from "bignumber.js";
@@ -5,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.0005;
-const endpoint = "https://api.thegraph.com/subgraphs/name/oxbill/auragi";
+const endpoint = sdk.graph.modifyEndpoint('DtNQcRXx82k4azEb5QvUjRbmXSNLTUsUePzPY6PtryEc');
 
 const getFees = () => {
   return async ({ getFromBlock, getToBlock}: FetchOptions) => {

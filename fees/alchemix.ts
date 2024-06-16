@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -11,9 +12,9 @@ interface IData {
 }
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2_ftm",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2_optimisim"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('GJ9CJ66TgbJnXcXGuZiSYAdGNkJBAwqMcKHEvfVmCkdG'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('DezAiEADYFdotrBqB8BqXFMfzCczg7eXMLowvcBvwm9X'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('GYBJ8wsQFkSwcgCqhaxnz5RU2VbgedAkWUk2qx9gTnzr')
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

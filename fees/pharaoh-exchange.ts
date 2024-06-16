@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchResultFees, BaseAdapter } from "../adapters/types";
 import { AVAX, CHAIN } from "../helpers/chains";
 
@@ -16,7 +17,7 @@ const startTimeV2: TStartTime = {
 
 const v2Endpoints = {
   [CHAIN.AVAX]:
-    "https://api.thegraph.com/subgraphs/name/ramsesexchange/pharaoh-cl-subgraph",
+    sdk.graph.modifyEndpoint('oM4WnuyAbSwPpjk6niUkp88AZg1hSTi9aC1ZM4RcsqR'),
 };
 
 const VOLUME_USD = "volumeUSD";

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { gql, request } from "graphql-request";
 import { BreakdownAdapter, ChainEndpoints, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpointsBeamex: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    "https://api.thegraph.com/subgraphs/name/flisko/stats-moonbeam",
+    sdk.graph.modifyEndpoint('4qhrYgYvHTHTjWN6NFr2UfBz1HaUAAgoqx52nN2MyG3K'),
 };
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {

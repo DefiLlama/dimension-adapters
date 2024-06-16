@@ -1,14 +1,15 @@
+import * as sdk from "@defillama/sdk";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints: any = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-bnb",
+  [BSC]: sdk.graph.modifyEndpoint('DhivnGkd3FnqgEDpBi8xP2QeqdBB1LWjakwdL7W6KJoE'),
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-polygon",
-  [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
-  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-arbitrum",
+    sdk.graph.modifyEndpoint('FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW'),
+  [AVAX]: sdk.graph.modifyEndpoint('WicBtHWBzT58U45mCh9QEBRib1ieqt86yiNkXvPdkEN'),
+  [ARBITRUM]: sdk.graph.modifyEndpoint('8awdcK7DwcmmamNBHxobxpxMyRFkoQpF678rHsqB1yJq'),
 };
 
 interface IToken {

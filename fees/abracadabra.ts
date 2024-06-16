@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -6,11 +7,11 @@ import { Chain } from '@defillama/sdk/build/general';
 
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-mainnet-fees",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-fantom-fees",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-avalanche-fees",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-binancesmartchain-fees",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-arbitrum-fees"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ktva51TWWq7t1hLnTGb88toXYtpxFo6gZfUC5NRnd9m'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('CnY2wTox8Pxh5t1UskQahPhMQdmuTmTAgwU62scUA8uM'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('Ak8GFBj7XruiuMd4nV3vfNzButNsj3pF7ogSBq6qdKcq'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('2RsqpTn7JBLs2sU775C7ZcM7oUrcZmpDhTnUbFCJWLfV'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ASL3E8FZLN5AKxFoagSb7i3kFkDkMfoRovmDDLZAY8t4')
 }
 
 type DataResponse = {

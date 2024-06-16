@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -9,7 +10,7 @@ const {
 const { BSC } = require("../../helpers/chains");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/champagneswap/exchangev3",
+  [BSC]: sdk.graph.modifyEndpoint('9gXThrkBPCRnK5ncBGySQJZoFUUSC5RDAYYciEZ323Pj'),
 };
 
 const DAILY_VOLUME_FACTORY = "champagneDayData";

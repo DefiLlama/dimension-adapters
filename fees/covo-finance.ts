@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { POLYGON, AVAX } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -6,7 +7,7 @@ import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/defi-techz/graphordertst",
+  [POLYGON]: sdk.graph.modifyEndpoint('CvqFU9sqzqpdNJMyJri2J9LjUjkzdjQZDGwdvzf1naXH'),
 }
 
 let dailyFee= 0;

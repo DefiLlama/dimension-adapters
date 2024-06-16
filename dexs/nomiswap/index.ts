@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
@@ -5,7 +6,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { time } from "console";
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/chopachom/nomiswap-subgraph-exchange",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('9ggB4DiKGyXfiS4vh1xqQJMcTQEvxxt715HVm8S3r27G'),
 };
 
 const VOLUME_FIELD = "dailyVolumeUSD";

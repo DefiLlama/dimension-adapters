@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 
 import { Adapter, ChainEndpoints } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -10,12 +11,12 @@ const PROTOCOL_FEES = 0.0013;
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex-v2",
+    sdk.graph.modifyEndpoint('9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X'),
 };
 
 
 const volumeAdapter = univ2Adapter({
-  [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex-v2",
+  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X'),
 }, {});
 
 volumeAdapter.adapter.moonbeam.start = getStartTimestamp({

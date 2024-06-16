@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, ProtocolType } from "../adapters/types";
 import { BSC } from "../helpers/chains";
 import { request, } from "graphql-request";
@@ -6,7 +7,7 @@ import { Chain } from '@defillama/sdk/build/general';
 
 const endpoints = {
   [BSC]:
-    "https://api.thegraph.com/subgraphs/name/dmihal/bsc-validator-rewards"
+    sdk.graph.modifyEndpoint('3a3f5kp31kutZzjmQoE2NKBSr6Ady5rgxRxD2nygYcQo')
 }
 
 

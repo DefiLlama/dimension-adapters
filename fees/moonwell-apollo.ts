@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,7 +8,7 @@ import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/messari/moonwell-moonriver"
+  [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('9JAn68UTLzUqkyXSqifMbeQH7pkHQ6hmpeuqsnSgKxLE')
 }
 
 

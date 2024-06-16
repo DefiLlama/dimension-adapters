@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,19 +8,19 @@ import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet",
+    sdk.graph.modifyEndpoint('7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au'),
   [OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
+    sdk.graph.modifyEndpoint('7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ'),
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
+    sdk.graph.modifyEndpoint('6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w'),
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic",
+    sdk.graph.modifyEndpoint('EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU'),
   [AVAX]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
+    sdk.graph.modifyEndpoint('4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx'),
   [FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom",
+    sdk.graph.modifyEndpoint('7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H'),
   [XDAI]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai",
+    sdk.graph.modifyEndpoint('i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L'),
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 export default univ2Adapter({
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/leonicornswap/exchange"
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('ttjEWD8FZJecTZrHHhtiYnQtWhSmgtqqABU4pgAttaC')
 }, {
     factoriesName: "leonicornFactories",
     dayData: "leonicornDayData",

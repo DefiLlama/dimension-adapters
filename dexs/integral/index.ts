@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
@@ -14,9 +15,9 @@ export const chains = [
 ];
 export const endpoints = {
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/integralhq/integral-size",
+    sdk.graph.modifyEndpoint('ANd5QJuYtyfngmXvBMu9kZAv935vhcqp4xAGBkmCADN3'),
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/integralhq/integral-size-arbitrum",
+    sdk.graph.modifyEndpoint('HXeVedRK7VgogXwbK5Sc4mjyLkhBAS5akskRvbSYnkHU'),
 };
 
 const graphs = getChainVolume({

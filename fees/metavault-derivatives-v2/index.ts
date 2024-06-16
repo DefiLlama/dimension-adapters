@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -10,7 +11,7 @@ const endpoints: ChainEndpoints = {
   [CHAIN.LINEA]:
     "https://api.studio.thegraph.com/query/55804/linea-trade/version/latest",
   [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/sdcrypt0/polygon-trade",
+    sdk.graph.modifyEndpoint('GAvL1WKMAVDdnSk96qvmSCMwL6pxfhAVYkQw6AgZU3td'),
 };
 interface IFeeStat {
   cumulativeFeeUsd: string;
