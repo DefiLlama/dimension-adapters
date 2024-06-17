@@ -32,7 +32,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       return {
         dailyFees: dailyFee.toString(),
         dailyLPProvidersRevenue: (dailyFee * 0.7).toString(),
-        dailyProtocolAccumulation: (dailyFee * 0.3).toString(),
+        dailyRevenue: (dailyFee * 0.3).toString(),
       };
     };
     return fetch
