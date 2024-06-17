@@ -39,8 +39,10 @@ const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
         timestamp,
         dailyFees: dailyAccrued.toString(),
         totalFees: totalAccrued.toString(),
+        dailyRevenue: dailyProtocolRevenue.toString(),
         dailyProtocolRevenue: dailyProtocolRevenue.toString(),
         totalProtocolRevenue: totalProtocolRevenue.toString(),
+        totalRevenue: totalProtocolRevenue.toString(),
     };
 };
 

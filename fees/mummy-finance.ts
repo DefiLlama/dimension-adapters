@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -7,8 +8,8 @@ import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats-v2",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/op-stats",
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('8LdLE9Aan39FQCcHX3x1HdnNzoZzPvxskhj1utLb2SA9'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6dZD4zDx9bGZfRdgoUBsZjWBygYVXAe4G41LjTLNJWk1'),
 };
 
 const historicalDataSwap = gql`

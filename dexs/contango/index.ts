@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request from "graphql-request";
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -10,12 +11,12 @@ type IEndpoint = {
 }
 
 const endpoint: IEndpoint = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-arbitrum",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-optimism",
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-mainnet",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-polygon",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('BmHqxUxxLuMoDYgbbXU6YR8VHUTGPBf9ghD7XH6RYyTQ'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('PT2TcgYqhQmx713U3KVkdbdh7dJevgoDvmMwhDR29d5'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('FSn2gMoBKcDXEHPvshaXLPC1EJN7YsfCP78swEkXcntY'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('5t3rhrAYt79iyjm929hgwyiaPLk9uGxQRMiKEasGgeSP'),
   [CHAIN.BASE]: "https://graph.contango.xyz:18000/subgraphs/name/contango-xyz/v2-base",
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/contango-xyz/v2-gnosis",
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('9h1rHUKJK9CGqztdaBptbj4Q9e2zL9jABuu9LpRQ1XkC'),
 }
 
 interface IAssetTotals {

@@ -1,20 +1,21 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpointsV3 = {
     // [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
-    [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-arbitrum',
-    [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-avalanche',
-    [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-bsc',
-    [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-boba',
-    [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-ethereum',
-    [CHAIN.FANTOM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fantom',
-    [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-fuse',
-    [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-gnosis',
-    // [CHAIN.MOONRIVER]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-moonriver',
-    [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-optimism',
-    [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v3/v3-polygon',
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('4vRhyrcGqN63T7FXvL9W5X72iQN8H9fDNfLcUQBG91Wi'),
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('HE31GSTGpXsRnuT4sAJoFayGBZX2xBQqWq4db48YuKmD'),
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('GtUp5iLfjfYXtX76wF1yyteSSC5WqnYV8br5ixHZgFmW'),
+    [CHAIN.BOBA]: sdk.graph.modifyEndpoint('Du43Wz3rZ5ajzScgsTnuPv5NvRmQLTDPPkBxYEmFBmWM'),
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7okunX6MGm2pdFK7WJSwm9o82okpBLEzfGrqHDDMWYvq'),
+    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('6z2W9fLTVmhpCecSMTMpRNeSBTRPJLmKsSXrtdkpeJDz'),
+    [CHAIN.FUSE]: sdk.graph.modifyEndpoint('7E265DKJJiTn8bVF1nqmBr6C2tmo5MVQFNb9sm4cxng5'),
+    [CHAIN.XDAI]: sdk.graph.modifyEndpoint('hS35uHcFDVSxJQV1XWht7yMdGTRNVa9poYTpcEZ9uAQ'),
+    // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5WabfuUgF5k4CE9snB22HNcUHQVkUStvet76qjovKdm6'),
+    [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Hc3vTLxWmtyrn59t2Yv3MiXJVxjfNyZi41iKE3rXXHMf'),
+    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G1Q6dviDfMm6hVLvCqbfeB19kLmvs7qrnBvXeFndjhaU'),
     [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
     [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1",

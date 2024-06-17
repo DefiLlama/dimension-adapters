@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -10,11 +11,11 @@ import {
 } from "../../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DsZsQrDp7VswGGm6PburYZ91AM3E9vwH45nwLCj3kXHA'),
 };
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex-v3",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu'),
 };
 
 const VOLUME_USD = "volumeUSD";

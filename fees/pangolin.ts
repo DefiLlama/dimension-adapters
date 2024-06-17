@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/pangolindex/exchange"
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq')
   },
   dailyVolume: {
     factory: "pangolinDayData"

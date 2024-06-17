@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
@@ -8,14 +9,14 @@ import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getU
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV'),
   [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-polygon-v2",
+    sdk.graph.modifyEndpoint('78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN'),
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-arbitrum-v2",
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-gnosis-chain-v2",
+    sdk.graph.modifyEndpoint('itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc'),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg'),
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-avalanche-v2",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu'),
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest"
 };
 
@@ -69,7 +70,7 @@ const v2Graphs = (chain: Chain) => {
 
 const v1graphs = getChainVolume({
   graphUrls: {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer"
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB')
   },
   ...graphParams
 });

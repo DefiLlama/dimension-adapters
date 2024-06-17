@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -5,7 +6,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats",
+    sdk.graph.modifyEndpoint('EH6ZfhnYQd7Kv1SdnUAp96vMUWKCTfPrctwududH5cmG'),
 };
 
 const methodology = {

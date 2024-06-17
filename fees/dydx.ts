@@ -22,6 +22,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

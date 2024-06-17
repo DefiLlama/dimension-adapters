@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 const {
@@ -5,8 +6,8 @@ const {
 } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/knight-new-graph",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/thedarkknightanalytics",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW'),
 };
 
 const v2Graph = getChainVolume({

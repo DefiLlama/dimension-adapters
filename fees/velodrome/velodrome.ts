@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchOptions } from "../../adapters/types";
 import BigNumber from "bignumber.js";
@@ -5,7 +6,7 @@ import BigNumber from "bignumber.js";
 const STABLE_FEES = 0.0002;
 const VOLATILE_FEES = 0.0005;
 const endpoint =
-  "https://api.thegraph.com/subgraphs/name/dmihal/velodrome";
+  sdk.graph.modifyEndpoint('2bam2XEb91cFqABFPSKj3RiSjpop9HvDt1MnYq5cDX5E');
 
 export const fetchV1 = () => {
   return async ({ getToBlock, getFromBlock }: FetchOptions) => {

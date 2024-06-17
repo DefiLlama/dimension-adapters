@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { ARBITRUM, AVAX } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official",
+    sdk.graph.modifyEndpoint('6H9PEiNPZgwXfpbijjesZh96LFBzUvkHmEutMoYQ9fvp'),
 };
 
 const methodology = {

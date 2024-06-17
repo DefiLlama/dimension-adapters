@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -6,7 +7,7 @@ import { POLYGON } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/sdcrypt0/metavault-mvx-subgraph",
+  [POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

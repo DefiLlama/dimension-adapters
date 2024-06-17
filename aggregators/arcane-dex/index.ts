@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
 
 import request from "graphql-request"
@@ -38,7 +39,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       }
   }
   `
-  const result: IResponse = await request("https://api.thegraph.com/subgraphs/name/0xandee/arcanedex", query)
+  const result: IResponse = await request(sdk.graph.modifyEndpoint('BocqFij8hqUaDGmR1FpSuAYJmtqafZrFmBtHknP7kVd'), query)
   const ethAddress = "ethereum:" + ADDRESSES.null;
 
   const dailyVolumeInEth = Number(result.today.totalVolumeInEth) - Number(result.yesterday.totalVolumeInEth)

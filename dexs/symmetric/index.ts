@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultVolume } from "../../adapters/types";
@@ -8,8 +9,8 @@ import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getU
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.XDAI]:'https://api.thegraph.com/subgraphs/name/centfinance/symmetric-v2-gnosis',
-  [CHAIN.CELO]: 'https://api.thegraph.com/subgraphs/name/centfinance/symmetric-v2-celo',
+  [CHAIN.XDAI]:sdk.graph.modifyEndpoint('9kdgh1tW36E8MKthUmZ2FJbe2KCuvkibz984SxbQSdJw'),
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('2iS1nCtSKbJT7MZ2xH9hMej3CjJDRRGuv25cAt6kbEwj'),
   [CHAIN.TELOS]:'https://api.goldsky.com/api/public/project_clnbo3e3c16lj33xva5r2aqk7/subgraphs/symmetric-telos/prod/gn',
 
 };

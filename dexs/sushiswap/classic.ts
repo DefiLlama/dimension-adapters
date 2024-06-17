@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
@@ -53,19 +54,19 @@ const blacklistTokens = {
 }
 
 const endpointsClassic = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
-  //[CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
-  [CHAIN.HARMONY]: "https://api.thegraph.com/subgraphs/name/sushiswap/harmony-exchange",
-  // [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
-  // [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
-  [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
-  [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6NUtT5mGjZ1tSshKLf5Q3uEEJtjBZJo1TpL5MXsUBqrT'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GPRigpbNuPkxkwpSbDuYXbikodNJfurc1LCENLzboWer'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
+  //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
+  [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'),
+  // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('4a8hcsttqsmycmmeFcpffGMZhBDU4NhHfyHH6YNcnu7b'),
+  // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('3tNHz9aTBa2KUthYZiZZxayYYpxXACverKRrkafhoBru'),
+  [CHAIN.BOBA]: sdk.graph.modifyEndpoint('EC3ZtCpCaV5GyyhyPNHs584wdGA72nud7qcuxWNTfPr4'),
+  [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'),
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
 };
@@ -139,7 +140,7 @@ const classic = Object.keys(endpointsClassic).reduce(
 
 const fantomGraphs =  getChainVolumeWithGasToken({
   graphUrls: {
-    [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange"
+    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK')
   },
   totalVolume: {
     factory: "factories",

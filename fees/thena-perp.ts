@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
@@ -6,7 +7,7 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/navid-fkh/symmetrical_bsc"
+const endpoint = sdk.graph.modifyEndpoint('79T7bT3tnBWmFPukyDdEY4mqHWrYTaJtzgoz6ufzC9xN')
 
 const query = gql`
   query stats($from: String!, $to: String!) {

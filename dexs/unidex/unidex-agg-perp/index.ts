@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchResultVolume } from "../../../adapters/types";
 import { CHAIN } from "../../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../../utils/date";
@@ -41,7 +42,7 @@ const fetchReferralVolume = async (timestamp: number): Promise<number> => {
     }
   `;
 
-  const referralEndpoint = 'https://api.thegraph.com/subgraphs/name/gmx-io/gmx-arbitrum-referrals';
+  const referralEndpoint = sdk.graph.modifyEndpoint('Hww5kAfumpAbMm5iGWqEe83vJJCEE98kccmBBcMRy5fU');
   const referralRes = await request(referralEndpoint, referralQuery);
 
   // If there's no volume data, return 0
@@ -81,13 +82,13 @@ const fetchMuxReferralVolume = async (chain: Chain, timestamp: number): Promise<
 
   switch (chain) {
     case CHAIN.ARBITRUM:
-      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-arb';
+      referralEndpoint = sdk.graph.modifyEndpoint('GbsdbMy5X2xHoj8qrRKKTs3LhMgma3CzZ8nZCqo9T97v');
       break;
     case CHAIN.OPTIMISM:
-      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-op';
+      referralEndpoint = sdk.graph.modifyEndpoint('7CmYmJd9mghA17EP8NXqrLZPqT3vjw4B8PLAbA1K4PdJ');
       break;
     case CHAIN.FANTOM:
-      referralEndpoint = 'https://api.thegraph.com/subgraphs/name/mux-world/mux-referral-ftm';
+      referralEndpoint = sdk.graph.modifyEndpoint('2KNaZgvAu9zjn1oAomgoMgiafQHNBbsS3Eu4UwucPUC6');
       break;
     default:
       return 0; // Return 0 for unsupported chains

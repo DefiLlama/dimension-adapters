@@ -26,7 +26,8 @@ const adapter: SimpleAdapter = {
       start: 1692748800,
       runAtCurrTime: true,
     }
-  }
+  },
+  isExpensiveAdapter: true
 }
 
 export default adapter;

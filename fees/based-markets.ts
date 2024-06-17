@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/base_analytics_8"
+const endpoint = sdk.graph.modifyEndpoint('9rrUvLtMMDLkSQeFdFza8pxea64hEaV3D8hxZYie1jpZ')
 
 const query = gql`
   query stats($from: String!, $to: String!) {

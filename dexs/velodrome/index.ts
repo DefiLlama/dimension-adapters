@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
@@ -5,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { fetchV2Volume } from "./v2"
 
 const endpoints = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/dmihal/velodrome",
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('2bam2XEb91cFqABFPSKj3RiSjpop9HvDt1MnYq5cDX5E'),
 };
 
 const graphs = getChainVolume({

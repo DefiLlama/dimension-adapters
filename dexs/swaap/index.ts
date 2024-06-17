@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
@@ -12,20 +13,20 @@ interface ChainConfig{
 
 const config:Record<string, ChainConfig> = {
     [CHAIN.ETHEREUM]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-ethereum",
+        api: sdk.graph.modifyEndpoint('6ZxFsA2sR62j3Hepprkeu5co3aVupg4YZXCsHyM8SFZs'),
         start: 1688169600,
         id: '2',
         firstDayVolume: 0
     },
     [CHAIN.POLYGON]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-polygon",
+        api: sdk.graph.modifyEndpoint('AqeDaXDjW3ttvYDGtdK1LC2igJ2usukrcbYmM2rBwesT'),
         start: 1688083200,
         id: '2',
         firstDayVolume: 240.41984714755376
 
     },
     [CHAIN.ARBITRUM]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-arbitrum",
+        api: sdk.graph.modifyEndpoint('5EPpDeMUhrYgm91MJCidUgvraS41y9eCRasfjFY6gnYe'),
         start: 1696464000,
         id: '2',
         firstDayVolume: 0
@@ -91,7 +92,7 @@ const graphParams = {
 
 const v1graphs = getChainVolume({
     graphUrls: {
-        [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv1"
+        [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('A1ibaGVUkqdLeBG7VeeSB8jm9QNmS8phSz8iooXR8puv')
     },
     ...graphParams,
 });

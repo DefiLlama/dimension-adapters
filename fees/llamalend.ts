@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, } from "graphql-request";
@@ -5,7 +6,7 @@ import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/type
 import { Chain } from '@defillama/sdk/build/general';
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/0xngmi/llamalend",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7cG6NVPRm4CQmfVsh4d1bYGqaWNazRyVTn3xuvdDRNPi'),
 }
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
