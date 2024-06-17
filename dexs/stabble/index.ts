@@ -1,11 +1,11 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
-const REGISTRY_API = 'https://app.stabble.org/api/registry?cluster=mainnet-beta';
+const POOLS_API_ENDPOINT = 'https://pools-spn5wgvtfq-uc.a.run.app/';
 
 async function fetch(timestamp: number) {
-    const registry = await httpGet(REGISTRY_API);
-    const vol24h = registry.pools.reduce((sum: number, pool: any) => sum + (pool?.stats?.volume_24h || 0), 0);
+    const pools = await httpGet(POOLS_API_ENDPOINT);
+    const vol24h = pools.reduce((sum: number, pool: any) => sum + (pool?.stats?.volume_24h || 0), 0);
     return {
         dailyVolume: vol24h,
         timestamp: timestamp
