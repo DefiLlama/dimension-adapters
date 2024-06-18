@@ -29,6 +29,7 @@ const v3StartTimes = {
 }
 
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.FUSE]: {
             fetch: v3Graph(CHAIN.FUSE),
