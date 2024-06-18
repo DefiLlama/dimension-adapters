@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchOptions, FetchResultV2, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, FetchResultV2, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -10,23 +10,26 @@ interface IVolumeall {
   day: string;
 }
 
-const fetch = async ({ createBalances, startOfDay }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_,_a:any,{ createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
   const dayTimestamp = getTimestampAtStartOfDayUTC(startOfDay);
   const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).response;
   const volume = historicalVolume.find(dayItem => dayItem.day === dateStr)?.volumeLovelace as any
   if (!volume) {
-    return {}
+    return {
+      timestamp: dayTimestamp,
+    }
   }
   dailyVolume.addGasToken(volume)
   return {
+    timestamp: dayTimestamp,
     dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
