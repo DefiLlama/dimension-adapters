@@ -152,7 +152,6 @@ export enum CHAIN {
   CHILIZ = "chiliz",
   PLANQ = "planq",
   BOB = "bob",
-  MASSA = "massa"
 }
 
 // Don´t use

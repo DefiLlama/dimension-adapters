@@ -1,5 +1,4 @@
 import { Adapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 type TEndpoint = {
@@ -24,10 +23,9 @@ const fetchVolume = async (timestamp: number) => {
   };
 };
 
-
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.MASSA]: {
+    massa: {
       fetch: fetchVolume,
       runAtCurrTime: true,
       start: 1713170000
