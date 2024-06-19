@@ -142,7 +142,17 @@ export enum CHAIN {
   FRAXTAL = "fraxtal",
   IMX = "imx",
   KROMA = "kroma", 
-  MASSA = "massa",
+  ZORA = "zora",
+  SVM = "svm",
+  ASTRZK = "astrzk",
+  LYRA = "lyra",
+  BITLAYER = "bitlayer",
+  XLAYER = "xlayer",
+  MERLIN = "merlin",
+  CHILIZ = "chiliz",
+  PLANQ = "planq",
+  BOB = "bob",
+  MASSA = "massa"
 }
 
 // Don´t use
