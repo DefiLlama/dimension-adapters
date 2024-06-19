@@ -141,7 +141,7 @@ export enum CHAIN {
   FILECOIN = "filecoin",
   FRAXTAL = "fraxtal",
   IMX = "imx",
-  KROMA = "kroma", 
+  KROMA = "kroma",
   ZORA = "zora",
   SVM = "svm",
   ASTRZK = "astrzk",
