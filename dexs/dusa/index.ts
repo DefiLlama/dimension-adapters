@@ -12,7 +12,7 @@ const endpoints: TEndpoint = {
 const fetchVolume = async (timestamp: number) => {
   const historicalVolume = await fetchURL(endpoints["massa"]);
 
-  const totalVolume = historicalVolume.totalVolume.volume; 
+  const totalVolume = historicalVolume.totalVolume.volume;
   const dailyVolume = historicalVolume.dailyVolume.volume;
 
 
@@ -24,6 +24,7 @@ const fetchVolume = async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     massa: {
       fetch: fetchVolume,
