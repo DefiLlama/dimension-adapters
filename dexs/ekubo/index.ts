@@ -6,7 +6,9 @@ import * as sdk from "@defillama/sdk";
 const toki = (n: any) => "starknet:0x" + BigInt(n).toString(16).padStart("049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7".length, "0")
 
 const fetch = async (timestamp: number) => {
+  console.log('fetching ekubo timestamps', timestamp)
   const balances = new sdk.Balances({ chain: CHAIN.STARKNET, timestamp })
+  console.log('fetching ekubo balances', balances)
   const response = ((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h as any[])
     .map(t => ({ token: toki(t.token), vol: t.volume }))
   response.map((token) => {
@@ -27,5 +29,6 @@ const adapter: Adapter = {
     },
   }
 }
+console.log('adapter', adapter)
 
 export default adapter;

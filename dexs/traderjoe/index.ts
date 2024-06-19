@@ -24,6 +24,7 @@ interface IVolume {
   volumeUsd: number;
 }
 const fetchV2 = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  console.log('options', options)
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
   const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[options.chain]));
   const totalVolume = historicalVolume
