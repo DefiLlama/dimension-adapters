@@ -132,6 +132,7 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
+  TAIKO = "taiko"
 }
 
 // Don´t use
