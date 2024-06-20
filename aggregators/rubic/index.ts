@@ -35,7 +35,7 @@ const chains: Record<string, string> = {
   [CHAIN.OKEXCHAIN]: 'oke-x-chain',
   [CHAIN.CRONOS]: 'cronos',
   [CHAIN.MODE]: 'mode',
-  [CHAIN.MERLIN]: 'merlin'
+  [CHAIN.MERLIN]: 'merlin',
   [CHAIN.CORE]: 'core'
 };
 
