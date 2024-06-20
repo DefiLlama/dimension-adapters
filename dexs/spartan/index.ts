@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
@@ -14,7 +15,7 @@ const getDailyVolume = () => {
   }`
 }
 
-const graphQLClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/spartan-protocol/pool-factory");
+const graphQLClient = new GraphQLClient(sdk.graph.modifyEndpoint('9vN1kRac6B224oTjNnFe9vYnJXj5fxaa3ivDfg1hh3v5'));
 const getGQLClient = () => {
   return graphQLClient
 }

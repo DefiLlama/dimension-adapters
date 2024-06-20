@@ -47,6 +47,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+    version: 1,
     adapter: {
         [CHAIN.BASE]: {
             fetch: graphs(endpoints)(CHAIN.BASE),

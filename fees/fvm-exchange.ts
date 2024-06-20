@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 const FACTORY_ADDRESS = "0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A";
 
@@ -10,7 +10,7 @@ const ABIs: TABI = {
   "allPairs": "function allPairs(uint256) view returns (address)"
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, api }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyFees = createBalances()
   const lpTokens = await api.fetchList({ lengthAbi: ABIs.allPairsLength, itemAbi: ABIs.allPairs, target: FACTORY_ADDRESS });
 
@@ -23,11 +23,11 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
     dailyFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
-    timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,9 +6,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats-new",
+    sdk.graph.modifyEndpoint('6GjHurahqYLUUYkqfCgrWfcH2pfTEFPtPvCPvQ1BHLed'),
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
+    sdk.graph.modifyEndpoint('4Zdyx9D4oYLGSm1C26jpTU7Ho7ecswEuTPg3WANGkMTx'),
 };
 
 const historicalDataSwap = gql`

@@ -55,6 +55,7 @@ const graphs = (chain: string) => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),

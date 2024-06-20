@@ -11,7 +11,7 @@ const topic_0_mint_from_fixed_price_drop = '0x05ebbb6b0ce7d564230ba625dd7a0e5108
 const topic_0_withdraw_creator_revenue_from_dutch_auction = '0x5e16e96b4ba4fe46f3be73d54d1fa0da481494ab74c2d6e33328366d6437693c'
 
 // todo: track new events
-const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances();
   (await getLogs({
     target: market_address,
@@ -62,12 +62,13 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLo
   });
 
   return {
-    dailyFees, dailyRevenue: dailyFees, timestamp
+    dailyFees, dailyRevenue: dailyFees
   }
 }
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,

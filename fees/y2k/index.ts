@@ -9,6 +9,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {

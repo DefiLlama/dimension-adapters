@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -5,7 +6,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/somberload/throne-exchange-v3",
+    sdk.graph.modifyEndpoint('HRaFknkbRxB17ziZoMcT7EJuT42BKRYeYvKyQvJrQWJf'),
 };
 
 const VOLUME_USD = "volumeUSD";

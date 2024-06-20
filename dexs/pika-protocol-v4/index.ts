@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -22,7 +23,7 @@ interface IValume {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ethandev0/pikaperpv4_optimism"
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5')
 }
 
 const fetch = (chain: Chain) => {

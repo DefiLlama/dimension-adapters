@@ -17,7 +17,7 @@ interface ITotalDataGraph {
   timestamp: string;
 }
 
-const URL = "https://api.thegraph.com/subgraphs/name/web3dev00/optionblitz";
+const URL = sdk.graph.modifyEndpoint('5m8N5qAkDWTf2hhMFhJJJDsWWF5b9J7bzFbXwPnZHJQQ');
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayTimestamp = getTimestampAtStartOfDay(timestamp);
@@ -74,6 +74,7 @@ const methodology = {
 };
 
 const adapters: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch as any,

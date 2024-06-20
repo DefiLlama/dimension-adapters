@@ -18,6 +18,7 @@ const adapter: any = {
   adapter: {
     ethereum: { fetch, start: 1685491200, },
     xdai: { fetch, start: 1685491200, },
+    arbitrum: { fetch, start: 1714142553, },
   },
 };
 

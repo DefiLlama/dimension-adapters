@@ -10,6 +10,7 @@ const ethereumWallets = [
 ]
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: L2FeesFetcher({ ethereumWallets }),

@@ -7,6 +7,8 @@ const DEFAULTS: any = {
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
+  BITLAYER_RPC: "https://rpc-bitlayer.rockx.com",
+  PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
 }
 
 export const ENV_KEYS = new Set([
@@ -25,6 +27,7 @@ export const ENV_KEYS = new Set([
   'ZEROx_API_KEY',
   'ZEROX_API_KEY',
   'AGGREGATOR_0X_API_KEY',
+  'SUI_RPC'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

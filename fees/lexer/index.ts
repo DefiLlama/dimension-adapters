@@ -1,7 +1,6 @@
-import { Fetch, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from 'graphql-request';
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 // TODO: change these endpoints
 const apiEndPoints = [
@@ -32,14 +31,13 @@ const historicalDataSwap = gql`
 `;
 
 
-const fetch: Fetch = async(timestamp): Promise<FetchResultFees> => {
+const fetch: FetchV2 = async({ startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
     let totalFees = 0;
-    const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     for (const api of apiEndPoints){
         const response: FeeStatsQuery = await request(api, historicalDataSwap, {
-            id: String(t),
+            id: String(startOfDay),
             period: "daily",
         })
         dailyFees += response.feeStats.length ? Number(
@@ -62,13 +60,13 @@ const fetch: Fetch = async(timestamp): Promise<FetchResultFees> => {
     dailyFees /= 1e30
     totalFees /= 1e30
     return {
-        timestamp,
         dailyFees: dailyFees.toString(),
         totalFees: totalFees.toString(),
     }
 }
 
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
             start: 1704758400,

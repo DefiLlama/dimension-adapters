@@ -92,7 +92,7 @@ const getTronLogs = async (address: string, eventName: string, minBlockTimestamp
   return res.data;
 }
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   let dailyFees = await (options.chain === CHAIN.TRON ? fetchFeesTron(options) : fetchFees(options));
   const dailyRevenue = dailyFees * 0.2;
   const dailySupplySideRevenue = dailyFees * 0.8;
@@ -100,7 +100,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
-    timestamp,
   };
 };
 
@@ -113,6 +112,7 @@ const meta = {
 };
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

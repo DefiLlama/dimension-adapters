@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/wingswap/wingswap-exchange",
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('FQXGq9b1cWfrZVU4VVZyyRAgaLRQjUULE6YS26rkB1WM'),
 };
 
 const adapter = univ2Adapter(endpoints, {

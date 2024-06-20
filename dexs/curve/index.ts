@@ -9,7 +9,9 @@ const endpoints: { [chain: string]: string } = {
   [CHAIN.ARBITRUM]: "https://api.curve.fi/api/getSubgraphData/arbitrum",
   [CHAIN.AVAX]: "https://api.curve.fi/api/getSubgraphData/avalanche",
   [CHAIN.OPTIMISM]: "https://api.curve.fi/api/getSubgraphData/optimism",
-  [CHAIN.XDAI]: "https://api.curve.fi/api/getSubgraphData/xdai"
+  [CHAIN.XDAI]: "https://api.curve.fi/api/getSubgraphData/xdai",
+  [CHAIN.CELO]: "https://api.curve.fi/api/getSubgraphData/celo",
+  [CHAIN.FRAXTAL]: "https://api.curve.fi/api/getSubgraphData/fraxtal",
 };
 
 interface IAPIResponse {

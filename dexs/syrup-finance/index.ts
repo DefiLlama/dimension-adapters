@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,7 +6,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/syrupmaker/srx-stats-bsc",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FxC8dAGA6jXCN4EUoPqDeoUWM9XE1VrttiEVT7LEGyxw'),
 }
 
 const historicalDataSwap = gql`

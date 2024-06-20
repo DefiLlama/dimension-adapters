@@ -1,18 +1,32 @@
-import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types';
+import { Adapter, FetchOptions, FetchResultFees } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getBribes } from './bribes';
-import { exportDexVolumeAndFees } from '../../helpers/dexVolumeLogs';
+import { getDexFees } from '../../helpers/dexVolumeLogs';
 
 const FACTORY_ADDRESS = '0xbc83f7dF70aE8A3e4192e1916d9D0F5C2ee86367';
-const getFees = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const v1Results = await exportDexVolumeAndFees({ chain: CHAIN.SCROLL, factory: FACTORY_ADDRESS })(options.endTimestamp, {}, options)
-  const bribesResult = await getBribes(options);
-  v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
+
+const getFees = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
+  const { getFromBlock, getToBlock } = fetchOptions
+  const fromBlock = await getFromBlock()
+  const toBlock = await getToBlock()
+  const fees = await getDexFees(
+    {
+      chain: CHAIN.SCROLL,
+      factory: FACTORY_ADDRESS,
+      fromBlock: fromBlock,
+      toBlock: toBlock,
+      lengthAbi: 'allPairsLength',
+      itemAbi: 'allPairs',
+      timestamp: fetchOptions.fromTimestamp,
+      fetchOptions: fetchOptions
+    }
+  )
+  const bribesResult = await getBribes(fetchOptions);
+  
   return {
-    dailyFees: v1Results.dailyFees,
-    dailyRevenue: v1Results.dailyRevenue,
-    dailyHoldersRevenue: v1Results.dailyFees,
-    dailyBribesRevenue: v1Results.dailyBribesRevenue,
+    timestamp: fetchOptions.fromTimestamp,
+    dailyFees: fees.dailyFees,
+    dailyBribesRevenue: bribesResult.dailyBribesRevenue,
   }
 }
 
@@ -26,3 +40,5 @@ const adapter: Adapter = {
   },
 };
 export default adapter;
+
+

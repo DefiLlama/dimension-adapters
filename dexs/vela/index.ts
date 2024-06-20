@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,9 +8,9 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official",
+    sdk.graph.modifyEndpoint('6H9PEiNPZgwXfpbijjesZh96LFBzUvkHmEutMoYQ9fvp'),
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/velaexchange/vela-exchange-official-base"
+    sdk.graph.modifyEndpoint('2qsbZ4X5TJM7NupC2eRJv167kBDFCDBd37KnK7PQtdga')
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

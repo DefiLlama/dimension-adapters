@@ -33,12 +33,33 @@ async function fetch(timestamp: number, _1: any, options: FetchOptions) {
 
 const chainAdapter = { fetch: fetch as any, start: 1656633600, }
 
+import { queryDune } from "../helpers/dune";
+
+const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const value = (await queryDune("3521814", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+    receiver: 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'
+  }));
+  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
+
+  return { dailyFees, dailyRevenue: dailyFees }
+
+}
+
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: chainAdapter,
     [CHAIN.BSC]: chainAdapter,
     [CHAIN.ARBITRUM]: chainAdapter,
-  }
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: 1656633600, // wrong?
+    },
+  },
+  isExpensiveAdapter: true
 }
 
 export default adapter;

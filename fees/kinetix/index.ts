@@ -44,6 +44,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),

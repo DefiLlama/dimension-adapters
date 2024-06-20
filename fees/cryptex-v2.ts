@@ -1,10 +1,7 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
 import { ethers } from "ethers";
-import { getPrices } from "../utils/prices";
-import { type } from "os";
 
 interface ILog {
   data: string;
@@ -36,14 +33,6 @@ const contract_interface = new ethers.Interface([
   take_opened_event
 ]);
 
-type IMapCoin = {
-  [s: string]: string;
-}
-const coinsId: IMapCoin = {
-  '0x4243b34374cfb0a12f184b92f52035d03d4f7056': 'coingecko:total-crypto-market-cap-token', // TCAP
-  '0x1cd33f4e6edeee8263aa07924c2760cf2ec8aad0': 'coingecko:total-crypto-market-cap-token', // TCAP
-}
-
 const abis: any = {
   "makerFee": "uint256:makerFee",
   "takerFee": "uint256:takerFee",
@@ -53,12 +42,8 @@ type IPrice = {
   [s: string]: number;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ARBITRUM, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.ARBITRUM, {}));
+const fetch = async ({ getToBlock, getFromBlock }: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const make_closed_topic0_logs: ILog[] = (await Promise.all(products.map((address: string) => sdk.getEventLogs({
     target: address,
     toBlock: toBlock,
@@ -159,11 +144,11 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     dailyFees: `${dailyFees}`,
     dailyRevenue: `${dailyRevenue}`,
-    timestamp
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import BigNumber from 'bignumber.js'
 import { Chain } from '@defillama/sdk/build/general'
 import { gql, GraphQLClient } from 'graphql-request'
@@ -7,8 +8,8 @@ import { BSC, ARBITRUM } from '../helpers/chains'
 import { getBlock } from '../helpers/getBlock'
 
 const endpoints = {
-  [BSC]: 'https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics',
-  [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/level-fi/analytics-arb',
+  [BSC]: sdk.graph.modifyEndpoint('AFaRssJTqNReTtU2XdTGPhN38YVPNBc7faMNKA1mU54h'),
+  [ARBITRUM]: sdk.graph.modifyEndpoint('AV58XWaZUZPJ2w1x2wYmGEivVZmDojGW3fAYggUAujtD'),
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {

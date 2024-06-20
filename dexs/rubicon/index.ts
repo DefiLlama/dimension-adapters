@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/jossduff/rubiconmetricsarbitrum",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/denverbaumgartner/rubiconmetricsoptimism"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B4cTJXyWHMLkxAcpLGK7dJfArJdrbyWukCoCLPDT1f7n'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('AUcAkUd4sJutFD3hYQfvB6uvXrEdYP26qiZwZ5qyrgTw')
 }, {
   factoriesName: "rubicons",
   totalVolume: "total_volume_usd",

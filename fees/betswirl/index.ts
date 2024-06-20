@@ -1,32 +1,16 @@
+import * as sdk from "@defillama/sdk";
 import { request } from "graphql-request";
-import BigNumber from "bignumber.js";
-
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
-import { getPrices } from "../../utils/prices";
-import { getBlock } from "../../helpers/getBlock";
-
-const ten = toBN("10");
-function fromWei(wei: string | BigNumber, unit = 18) {
-  return toBN(wei).dividedBy(ten.pow(unit));
-}
-function toBN(wei: string | BigNumber) {
-  return new BigNumber(wei);
-}
 
 const endpoints: any = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-bnb",
+  [BSC]: sdk.graph.modifyEndpoint('DhivnGkd3FnqgEDpBi8xP2QeqdBB1LWjakwdL7W6KJoE'),
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-polygon",
-  [AVAX]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-avalanche",
-  [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/betswirl/betswirl-arbitrum",
+    sdk.graph.modifyEndpoint('FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW'),
+  [AVAX]: sdk.graph.modifyEndpoint('WicBtHWBzT58U45mCh9QEBRib1ieqt86yiNkXvPdkEN'),
+  [ARBITRUM]: sdk.graph.modifyEndpoint('8awdcK7DwcmmamNBHxobxpxMyRFkoQpF678rHsqB1yJq'),
 };
-
-type TBalance  = {
-  [s: string]: number;
-}
 
 interface IToken {
   id: string;
@@ -53,7 +37,7 @@ interface IGraph {
 
 function graphs() {
   return (chain: Chain): any => {
-    return async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultFees> => {
+    return async ({ createBalances, getFromBlock, getToBlock }: FetchOptions) => {
       const todaysBlock = await getToBlock();
       const yesterdaysBlock = await getFromBlock();
 
@@ -159,7 +143,6 @@ function graphs() {
         dailySupplySideRevenue.add(tokenKey, 0 - +initiatorAmount)
       }
       return {
-        timestamp,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
@@ -233,6 +216,7 @@ const meta = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [BSC]: {
       start: 1658880000,

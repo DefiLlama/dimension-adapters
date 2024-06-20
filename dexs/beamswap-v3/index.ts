@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
@@ -9,7 +10,7 @@ import {
 
 const endpointV3 = {
   [CHAIN.MOONBEAM]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-v3",
+    sdk.graph.modifyEndpoint('2YnTZfQmenjvJ3bihewLGgAKnyqjrMWrStux8ZFE7ee6'),
 };
 const VOLUME_USD = "volumeUSD";
 const v3Graphs = getGraphDimensions({

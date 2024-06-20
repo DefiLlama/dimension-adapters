@@ -1,12 +1,13 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro',
-  [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro-polygon',
-  [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro-avax',
-  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro-bnb',
-  [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/ashtegro/tegro-arbitrum',
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('Cypy2AGAgWwBUjBtQc6GeoGmibLH75v3eVhC9UPXHcHP'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('793XgZSYH8fTiZUMLYAE7mVkGgh9KGQufQhVjRvEdHn3'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('N56YWKqnNPcruU72KM2rxtdFhAAKx2BWgCjZ1gxFokj'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('ExjMBMGp5EDeBBD9Yt43PeZJtKpP29wRs45JXkeCd712'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7xPJ5PFAhXmqacuRQmftnYYixhqhfMvARZ6onXtbX3nQ'),
 }, {
   factoriesName: "totalVolumes",
   dailyVolume: "volume",

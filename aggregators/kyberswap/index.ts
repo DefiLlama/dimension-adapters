@@ -1,8 +1,6 @@
 import { httpGet } from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
-
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const chainToId: Record<string, number> = {
   [CHAIN.ETHEREUM]: 1,
@@ -20,20 +18,26 @@ const chainToId: Record<string, number> = {
   [CHAIN.MANTLE]: 5000,
   [CHAIN.BLAST]: 81457,
   [CHAIN.POLYGON_ZKEVM]: 1101,
-  [CHAIN.BITTORRENT]: 199
+  [CHAIN.BITTORRENT]: 199,
 };
 
-const fetch = async (options: FetchOptions) => {
-  const url = `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${chainToId[options.chain]}&timestamps=${options.startOfDay}`;
-  const data = (await httpGet(url, { headers: { 'origin': 'https://common-service.kyberswap.com'}})).data?.volumes?.[0];
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const url = `https://common-service.kyberswap.com/api/v1/aggregator/volume/daily?chainId=${
+    chainToId[options.chain]
+  }&timestamps=${options.startOfDay}`;
+  const data = (
+    await httpGet(url, {
+      headers: { origin: "https://common-service.kyberswap.com" },
+    })
+  ).data?.volumes?.[0];
 
   return {
     dailyVolume: data.value,
   };
 };
 
-const adapter: SimpleAdapter = {
-  version: 2,
+const adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
@@ -51,10 +55,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: 1622544000,
     },
-    // [CHAIN.BITTORRENT]: {
-    //   fetch: fetch,
-    //   start: 1622544000,
-    // },
+    /*[CHAIN.BITTORRENT]: {
+      fetch: fetch,
+      start: 1622544000,
+    },*/
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: 1622544000,

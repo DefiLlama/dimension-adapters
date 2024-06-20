@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { gql, request } from "graphql-request";
 import { Adapter, ChainEndpoints } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -5,7 +6,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpointsBeamex: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    "https://api.thegraph.com/subgraphs/name/flisko/stats-moonbeam",
+    sdk.graph.modifyEndpoint('4qhrYgYvHTHTjWN6NFr2UfBz1HaUAAgoqx52nN2MyG3K'),
 };
 
 const methodologyBeamex = {
@@ -89,6 +90,7 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: graphsBeamex(CHAIN.MOONBEAM),

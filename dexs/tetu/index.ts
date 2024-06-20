@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/tetu-io/tetu-swap"
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('D1aLXNYC1pZocgumq9yyKQMjFwZ14Gum3NUbZUA35Gty')
 }, {
 });
 

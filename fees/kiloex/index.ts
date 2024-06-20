@@ -12,7 +12,8 @@ type ChainMap = {
 const endpoints: ChainMap = {
   [CHAIN.BSC]: "https://api.kiloex.io/common/queryTradeSummary",
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
-  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary"
+  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
+  [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary"
 };
 
 interface IFee {
@@ -42,6 +43,7 @@ const fetch = (chainId: string) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC), start: 1686528000
@@ -51,6 +53,9 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.MANTA]: {
       fetch: fetch(CHAIN.MANTA), start: 1698796800
+    },
+    [CHAIN.TAIKO]: {
+      fetch: fetch(CHAIN.TAIKO), start: async () => 1717027200
     },
   },
 };

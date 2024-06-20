@@ -1,33 +1,25 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Adapter } from "../adapters/types";
-import { getBlock } from "../helpers/getBlock";
-import {getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC} from "../utils/date";
+import { Adapter, FetchOptions } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../helpers/chains";
 
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.0005;
-const endpoint = "https://api.thegraph.com/subgraphs/name/oxbill/auragi";
+const endpoint = sdk.graph.modifyEndpoint('DtNQcRXx82k4azEb5QvUjRbmXSNLTUsUePzPY6PtryEc');
 
 const getFees = () => {
-  return async (timestamp: number) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
-    const todaysBlock = await getBlock(
-      todaysTimestamp,
-      CHAIN.ARBITRUM,
-      {}
-    );
-    const yesterdaysBlock = await getBlock(yesterdaysTimestamp, CHAIN.ARBITRUM, {});
-
+  return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+    
     const query = gql`
       query fees {
-        yesterday: pairs(block: {number: ${yesterdaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        yesterday: pairs(block: {number: ${fromBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
         }
-        today: pairs(block: {number: ${todaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        today: pairs(block: {number: ${toBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
@@ -54,7 +46,6 @@ const getFees = () => {
     }
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.toString(),
       dailyHoldersRevenue: dailyFee.toString(),
@@ -63,6 +54,7 @@ const getFees = () => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFees(),

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { DISABLED_ADAPTER_KEY, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
@@ -10,7 +11,7 @@ interface IGraph {
     dayID: string;
 }
 
-const URL = 'https://api.thegraph.com/subgraphs/name/platypus-finance/platypus-dashboard';
+const URL = sdk.graph.modifyEndpoint('Bu5QPRWGnZB6NxU4S7kAKQZJpY4pHmAq3TV69V1W2Qqw');
 const fetch = async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dayID = (dayTimestamp / 86400);

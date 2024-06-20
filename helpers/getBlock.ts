@@ -27,6 +27,7 @@ const blacklistedChains: string[] = [
   "thorchain",
   "flow",
   "aptos",
+  "polkadex",
   "neo",
   "phantasma",
   "starknet",
@@ -42,7 +43,6 @@ const blacklistedChains: string[] = [
   "icp",
   "hydradx",
   "osmosis",
-  "sei",
   "ergo",
   "radixdlt",
   "near",
@@ -53,6 +53,7 @@ const blacklistedChains: string[] = [
 ];
 
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
+    if (chain === CHAIN.DOGECHAIN) throw new Error("DOGECHAIN not supported")
     if (blacklistedChains.includes(chain)) {
         return null
     }
@@ -100,7 +101,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.result?.blockNumber)));
     else
-        block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
+        block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`, { timeout: 10000 }).catch((e) => {
             throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
         }))?.height, { retries: 1 })));
     if (block) chainBlocks[chain] = block

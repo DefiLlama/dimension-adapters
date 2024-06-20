@@ -50,6 +50,7 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
