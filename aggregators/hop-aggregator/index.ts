@@ -5,7 +5,7 @@ import { FetchOptions } from "../../adapters/types";
 const fetchVolume = async (options: FetchOptions) => {
   let timestamp = options.startOfDay * 1_000;
 
-  const res = await httpPost("http://35.153.229.202/api/volume", { timestamp });
+  const res = await httpPost("https://d3axhvc6i89jmo.cloudfront.net/api/volume", { timestamp });
   const record = res.record || {};
 
   return {
