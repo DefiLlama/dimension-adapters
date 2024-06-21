@@ -22,7 +22,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: () => 1714276800
+      start: 1714276800
     },
   },
 };
