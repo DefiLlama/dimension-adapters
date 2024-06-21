@@ -15,11 +15,11 @@ const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
-    UserFees: 0.3,
+    UserFees: 0.25,
     ProtocolRevenue: 0,
-    SupplySideRevenue: 0.3,
-    HoldersRevenue: 0,
-    Revenue: 0,
+    SupplySideRevenue: 0.25,
+    HoldersRevenue: 0.04,
+    Revenue: 0.01,
     Fees: 0.3
   }
 });
@@ -27,7 +27,8 @@ const v2Graph = getGraphDimensions({
 const v3Endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7'),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7"
+  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
+  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
 }
 
 type TStartTime = {

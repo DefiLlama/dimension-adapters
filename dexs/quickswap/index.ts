@@ -26,12 +26,14 @@ const endpointsAlgebraV3 = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7'),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
   [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
-  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn"
+  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
+  [CHAIN.XLAYER]: "https://api.studio.thegraph.com/query/44554/qs-xlayer-v3/version/latest"
 };
 
 const endpointsUniV3 = {
   [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
-  [CHAIN.ASTAR_ZKEVM]:"https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest"
+  [CHAIN.ASTAR_ZKEVM]:"https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest",
+  [CHAIN.IMX]: "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",
 };
 
 const graphsAlgebraV3 = getChainVolume({
