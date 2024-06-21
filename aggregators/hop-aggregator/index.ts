@@ -1,10 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
-import { FetchOptions } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 
-const fetchVolume = async (options: FetchOptions) => {
-  let timestamp = options.startOfDay * 1_000;
-
+const fetchVolume = async (timestamp: number) => {
+  timestamp = timestamp * 1_000;
   const res = await httpPost("https://d3axhvc6i89jmo.cloudfront.net/api/volume", { timestamp });
   const record = res.record || {};
 
@@ -13,16 +12,15 @@ const fetchVolume = async (options: FetchOptions) => {
     totalVolume: res.total_volume_usd ? res.total_volume_usd.toFixed(2) : 0,
     dailyFees: 0,
     totalFees: 0,
-    timestamp: timestamp,
+    timestamp: timestamp/1_000,
   };
 };
 
-const adapter: any = {
-  version: 2,
+const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: () => 1714276800
+      start: 1713672000
     },
   },
 };
