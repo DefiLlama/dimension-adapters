@@ -16,80 +16,45 @@ const arbitrumStartTimestamp = 1696982400; // 2023-10-11 00:00:00
 
 type VolumeRow = { volume_date: string; daily_volume: number };
 type FeeRow = { transfer_date: string; usd_total: number };
+type StatRow = {
+  volume_24hr: number;
+  fees_24hr: number;
+  total_volume: number;
+  total_fees: number;
+};
 
 const chainsMap: Record<string, string> = {
   ARBITRUM: "arbitrum",
 };
 
-const fetchVolume: (chain: string) => FetchV2 =
+const fetchVolumeAndFees: (chain: string) => FetchV2 =
   (chain: string) =>
   async (options: FetchOptions): Promise<FetchResult> => {
-    let data = (await queryDune("3289719")) as VolumeRow[];
+    chain;
+    let data = (await queryDune("3855069"))[0] as StatRow
 
     const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(
       new Date(options.startOfDay * 1000)
     );
 
-    const dayTimestamp = new Date(dayStartOfDayTimestamp * 1000);
-
-    data = data.sort(
-      (a, b) =>
-        new Date(b.volume_date).getTime() - new Date(a.volume_date).getTime()
-    );
-
-    console.log("Timestamps ser", dayTimestamp);
-
-    const dailyVolume =
-      data.find(
-        row => new Date(row.volume_date).getTime() == dayTimestamp.getTime()
-      )?.daily_volume || 0;
-    const totalVolume = data.reduce((acc, val) => acc + val.daily_volume, 0);
+   
 
     return {
-      dailyVolume: dailyVolume,
-      totalVolume: totalVolume,
+      dailyVolume: data.volume_24hr,
+      totalVolume: data.total_volume,
+      dailyRevenue: data.fees_24hr,
+      totalRevenue: data.total_fees,
       timestamp: dayStartOfDayTimestamp,
     };
   };
 
-const fetchFees: (chain: string) => FetchV2 =
-  (chain: string) =>
-  async (options: FetchOptions): Promise<FetchResult> => {
-    let data = (await queryDune("3289650")) as FeeRow[];
 
-    const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(options.startOfDay * 1000)
-    );
-
-    const dayTimestamp = new Date(dayStartOfDayTimestamp * 1000);
-
-    data = data.sort(
-      (a, b) =>
-        new Date(b.transfer_date).getTime() -
-        new Date(a.transfer_date).getTime()
-    );
-
-    const dailyRevenue =
-      data.find(
-        row => new Date(row.transfer_date).getTime() == dayTimestamp.getTime()
-      )?.usd_total || 0;
-    const totalRevenue = data.reduce((acc, val) => acc + val.usd_total, 0);
-
-    console.log("Data ser", data)
-
-    return {
-      dailyRevenue,
-      totalRevenue,
-      timestamp: dayStartOfDayTimestamp,
-    };
-  };
 
 const fetchAll: (chain: string) => FetchV2 =
   (chain: string) =>
   async (options: FetchOptions): Promise<FetchResultV2> => {
-    const volume = await fetchVolume(chain)(options);
-    const fees = await fetchFees(chain)(options);
-    return { ...volume, ...fees } as FetchResultV2;
+    const volumeAndFees = await fetchVolumeAndFees(chain)(options);
+    return { ...volumeAndFees } as FetchResultV2;
   };
 const adapter: BreakdownAdapter = {
   version: 2,
