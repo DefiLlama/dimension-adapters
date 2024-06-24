@@ -44,6 +44,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`---------------------------------------------------`)
   // Import module to test
+  console.log(`File: ${passedFile}`);
+  
   let module: Adapter = (await import(passedFile)).default
   const adapterVersion = module.version
   let endTimestamp = endCleanDayTimestamp
