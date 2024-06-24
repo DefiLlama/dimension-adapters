@@ -37,7 +37,7 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
     }
   });
 
-  return { dailyVolume, timestamp, } as any;
+  return { dailyBridgeVolume: dailyVolume , timestamp, } as any;
 };
 
 const adapter: SimpleAdapter = {
