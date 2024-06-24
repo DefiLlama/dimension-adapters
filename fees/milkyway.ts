@@ -37,7 +37,7 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp }) => {
 
 const adapter: Adapter = {
   adapter: {
-    celestia: {
+    osmosis: {
       fetch,
       runAtCurrTime: false,
       // 2024-04-30T17:55:14:00Z
