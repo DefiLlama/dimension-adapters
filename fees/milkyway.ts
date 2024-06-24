@@ -1,6 +1,5 @@
 import { Adapter, FetchV2 } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
-import { getPrices } from "../utils/prices";
 
 interface FeeResponse {
   staking_rewards: number;
@@ -9,7 +8,7 @@ interface FeeResponse {
 }
 
 
-const fetch: FetchV2 = async ({ startTimestamp, endTimestamp }) => {
+const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances }) => {
   const startDate = new Date(startTimestamp * 1000);
   const endDate = new Date(endTimestamp * 1000);
   const params = {
@@ -18,15 +17,13 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp }) => {
     currency: 'tia'
   }
   const response: FeeResponse = await httpGet('https://apis.milkyway.zone/milktia/fees/range', { params });
-  const prices = await getPrices(['coingecko:celestia'], endTimestamp);
-  const price = prices['coingecko:celestia'];
-
-  const dailyUserFees = String(response.fees * price.price);
-  const dailyStakingRewards = String(response.staking_rewards * price.price);
-  const dailySupplySideRevenue = String(response.supply_side_revenue * price.price);
-
+  const dailyUserFees = createBalances()
+  const dailyStakingRewards = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  dailyUserFees.addCGToken('celestia', response.fees);
+  dailyStakingRewards.addCGToken('celestia', response.staking_rewards);
+  dailySupplySideRevenue.addCGToken('celestia', response.supply_side_revenue);
   return {
-    timestamp: startTimestamp,
     dailyUserFees,
     dailyFees: dailyStakingRewards,
     dailyRevenue: dailyUserFees,
