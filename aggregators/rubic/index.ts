@@ -36,7 +36,8 @@ const chains: Record<string, string> = {
   [CHAIN.CRONOS]: 'cronos',
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
-  [CHAIN.CORE]: 'core'
+  [CHAIN.CORE]: 'core',
+  [CHAIN.TAIKO]: 'taiko'
 };
 
 interface ApiResponce {
