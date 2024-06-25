@@ -31,13 +31,16 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
   (chain: string) =>
   async (options: FetchOptions): Promise<FetchResult> => {
     chain;
-    let data = (await queryDune("3855069"))[0] as StatRow
 
-    const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(options.startOfDay * 1000)
-    );
+    const date = new Date(options.startOfDay * 1000);
 
-   
+    const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(date);
+
+    let data = (
+      await queryDune("3855069", {
+        daytime: date.toISOString(),
+      })
+    )[0] as StatRow;
 
     return {
       dailyVolume: data.volume_24hr,
@@ -47,8 +50,6 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
       timestamp: dayStartOfDayTimestamp,
     };
   };
-
-
 
 const fetchAll: (chain: string) => FetchV2 =
   (chain: string) =>
