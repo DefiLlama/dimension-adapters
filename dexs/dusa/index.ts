@@ -14,11 +14,15 @@ const fetchVolume = async (timestamp: number) => {
 
   const totalVolume = historicalVolume.totalVolume.volume;
   const dailyVolume = historicalVolume.dailyVolume.volume;
-
+  
+  const dailyFees = historicalVolume.dailyVolume.fees;
+  const totalFee = historicalVolume.totalVolume.fees;
 
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    dailyFees: `${dailyFees}`,
+    totalFees: `${totalFee}`,
     timestamp: timestamp,
   };
 };
