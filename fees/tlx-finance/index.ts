@@ -1,3 +1,4 @@
+import BigNumber from "bignumber.js";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { OPTIMISM } from "../../helpers/chains";
 
@@ -14,14 +15,15 @@ const getFees = async (options: FetchOptions) => {
   const logs = await getLogs({
     targets: [STAKER],
     eventAbi: DONATE_EVENT,
-    fromBlock,
-    toBlock,
   });
-  const fees = logs.reduce((acc: any, log: any) => acc + Number(log.amount), 0);
+  const fees = logs
+    .reduce((acc: any, log: any) => acc.plus(log.amount), new BigNumber(0))
+    .div(1e18);
+
   return {
-    dailyFees: fees,
-    dailyRevenue: fees,
-    dailyHoldersRevenue: fees,
+    dailyFees: `${fees}`,
+    dailyRevenue: `${fees}`,
+    dailyHoldersRevenue: `${fees}`,
   };
 };
 
