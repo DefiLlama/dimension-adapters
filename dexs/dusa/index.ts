@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 type TEndpoint = {
@@ -9,12 +9,12 @@ const endpoints: TEndpoint = {
   ["massa"]: "https://api-mainnet-dusa.up.railway.app/api/volume",
 };
 
-const fetchVolume = async (timestamp: number) => {
-  const historicalVolume = await fetchURL(endpoints["massa"]);
+const fetchVolume = async (options: FetchOptions) => {
+  const historicalVolume = await fetchURL(`${endpoints["massa"]}?take=${options.endTimestamp}`);
 
   const totalVolume = historicalVolume.totalVolume.volume;
   const dailyVolume = historicalVolume.dailyVolume.volume;
-  
+
   const dailyFees = historicalVolume.dailyVolume.fees;
   const totalFee = historicalVolume.totalVolume.fees;
 
@@ -23,7 +23,6 @@ const fetchVolume = async (timestamp: number) => {
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
     dailyFees: `${dailyFees}`,
     totalFees: `${totalFee}`,
-    timestamp: timestamp,
   };
 };
 
@@ -32,7 +31,6 @@ const adapter: Adapter = {
   adapter: {
     massa: {
       fetch: fetchVolume,
-      runAtCurrTime: true,
       start: 1713170000
     },
   }
