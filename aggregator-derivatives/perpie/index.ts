@@ -59,6 +59,7 @@ const fetchAll: (chain: string) => FetchV2 =
   };
 const adapter: BreakdownAdapter = {
   version: 2,
+  isExpensiveAdapter: true,
   breakdown: {
     derivatives: {
       ...Object.values(chainsMap).reduce((acc, chain) => {
