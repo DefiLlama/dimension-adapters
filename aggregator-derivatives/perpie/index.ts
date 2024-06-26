@@ -43,10 +43,10 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
     )[0] as StatRow;
 
     return {
-      dailyVolume: data.volume_24hr,
-      totalVolume: data.total_volume,
-      dailyRevenue: data.fees_24hr,
-      totalRevenue: data.total_fees,
+      dailyVolume: data.volume_24hr || 0,
+      totalVolume: data.total_volume || 0,
+      dailyRevenue: data.fees_24hr || 0,
+      totalRevenue: data.total_fees || 0,
       timestamp: dayStartOfDayTimestamp,
     };
   };
