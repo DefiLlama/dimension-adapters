@@ -1,18 +1,13 @@
 import { Adapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type TEndpoint = {
   [s: string]: string;
 };
 
-
 const fetchVolume = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const take = `${dayTimestamp}`;
-
   const endpoints: TEndpoint = {
-    ["massa"]: `https://api-mainnet-dusa.up.railway.app/api/volume?take=${take}`,
+    ["massa"]: `https://api-mainnet-dusa.up.railway.app/api/volume?take=${timestamp}`,
   };
 
   const historicalVolume = await fetchURL(endpoints.massa);
@@ -27,7 +22,7 @@ const fetchVolume = async (timestamp: number) => {
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
     dailyFees: `${dailyFees}`,
     totalFees: `${totalFee}`,
-    timestamp: dayTimestamp,
+    timestamp: timestamp,
   };
 };
 
