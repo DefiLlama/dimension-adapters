@@ -9,82 +9,58 @@ import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
 
 const FACTORY = "0x5Dd85f51e9fD6aDE8ecc216C07919ecD443eB14d";
-
-const MINT_EVENT =
-  "event Minted(address indexed account, uint256 leveragedTokenAmount, uint256 baseAssetAmount)";
-const REDEEM_EVENT =
-  "event Redeemed(address indexed account, uint256 leveragedTokenAmount, uint256 baseAssetAmount)";
-
-const fetchSUsdPrice = async (): Promise<number> => {
-  const ID = "optimism:0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9";
-  const ENDPOINT = `https://coins.llama.fi/prices/current/${ID}`;
-  const response = await fetch(ENDPOINT);
-  const data = await response.json();
-  if (!data) throw new Error("no data");
-  if (!data.coins) throw new Error("no data.coins");
-  const priceData = data.coins[ID];
-  if (!priceData) throw new Error("no priceData");
-  const price = priceData.price;
-  if (!price) throw new Error("no price");
-  if (price === 0) throw new Error("price is 0");
-  return price;
-};
+const MINT_EVENT = "event Minted(address indexed account, uint256 leveragedTokenAmount, uint256 baseAssetAmount)";
+const REDEEM_EVENT = "event Redeemed(address indexed account, uint256 leveragedTokenAmount, uint256 baseAssetAmount)";
 
 const fetchLeveragedTokenVolume = async (
   getLogs: (params: FetchGetLogsOptions) => Promise<any[]>,
   toApi: ChainApi,
-  token: string
+  tokens: string[]
 ): Promise<number> => {
-  const targetLeverage = await toApi.call({
-    target: token,
+  const targetLeverages = await toApi.multiCall({
     abi: "function targetLeverage() view returns (uint256)",
-    params: [],
+    calls: tokens.map((token) => ({
+      target: token,
+      params: [],
+    })),
   });
-  const mints: any[] = await getLogs({
-    targets: [token],
+
+  const mints_logs: any[] = await getLogs({
+    targets: tokens,
     eventAbi: MINT_EVENT,
+    flatten: false
   });
-  const sUsdMintVolume = mints
-    .reduce(
-      (acc: any, log: any) => acc.plus(log.baseAssetAmount),
-      new BigNumber(0)
-    )
-    .times(targetLeverage)
-    .div(1e18)
-    .div(1e18)
-    .toNumber();
-  const redeems: any[] = await getLogs({
-    targets: [token],
+  const redeems_logs: any[] = await getLogs({
+    targets: tokens,
     eventAbi: REDEEM_EVENT,
+    flatten: false
   });
-  const sUsdRedeemVolume = redeems
-    .reduce(
-      (acc: any, log: any) => acc.plus(log.baseAssetAmount),
-      new BigNumber(0)
-    )
-    .times(targetLeverage)
-    .div(1e18)
-    .div(1e18)
-    .toNumber();
-  return sUsdMintVolume + sUsdRedeemVolume;
+
+  const mint_valume = mints_logs.map((logs, i) => {
+    return logs.map((log: any) => {
+      return new BigNumber(log.baseAssetAmount).times(targetLeverages[i]).div(1e18)
+    })
+  }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
+
+  const redeem_valume = redeems_logs.map((logs, i) => {
+    return logs.map((log: any) => {
+      return new BigNumber(log.baseAssetAmount).times(targetLeverages[i]).div(1e18)
+    })
+  }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
+
+  return mint_valume.plus(redeem_valume).toNumber();
 };
 
 const fetchVolume = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { getLogs, toApi } = options;
-  let sUsddailyVolume = 0;
-  const allTokens = await toApi.call({
+  const { getLogs, api } = options;
+  const allTokens = await api.call({
     target: FACTORY,
     abi: "function allTokens() view returns (address[] memory)",
     params: [],
   });
-  for (const token of allTokens) {
-    const volume = await fetchLeveragedTokenVolume(getLogs, toApi, token);
-    sUsddailyVolume += volume;
-  }
-
-  const sUsdPrice = await fetchSUsdPrice();
-  const dailyVolume = sUsddailyVolume * sUsdPrice;
-
+  const volume = await fetchLeveragedTokenVolume(getLogs, api, allTokens)
+  const dailyVolume = options.createBalances()
+  dailyVolume.add("0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9", volume);
   return { dailyVolume };
 };
 const adapter: SimpleAdapter = {
