@@ -16,7 +16,6 @@ const fetchVolume = async (timestamp: number) => {
   };
 
   const historicalVolume = await fetchURL(endpoints.massa);
-  
   const totalVolume = historicalVolume.totalVolume.volume; 
   const dailyVolume = historicalVolume.dailyVolume.volume;
   
