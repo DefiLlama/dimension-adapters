@@ -1,21 +1,15 @@
-import { postURL } from "../../utils/fetchURL";
 import {
   BreakdownAdapter,
   FetchOptions,
   FetchResult,
   FetchResultV2,
-  FetchV2,
-  SimpleAdapter,
+  FetchV2
 } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
 import { queryDune } from "../../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
 const arbitrumStartTimestamp = 1696982400; // 2023-10-11 00:00:00
 
-type VolumeRow = { volume_date: string; daily_volume: number };
-type FeeRow = { transfer_date: string; usd_total: number };
 type StatRow = {
   volume_24hr: number;
   fees_24hr: number;
