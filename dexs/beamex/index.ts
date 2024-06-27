@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { gql, request } from "graphql-request";
 import { BreakdownAdapter, ChainEndpoints, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,7 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpointsBeamex: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    sdk.graph.modifyEndpoint('4qhrYgYvHTHTjWN6NFr2UfBz1HaUAAgoqx52nN2MyG3K'),
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
@@ -37,54 +36,54 @@ interface IGraphResponse {
 
 const getFetch =
   (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const dailyData: IGraphResponse = await request(
-      endpointsBeamex[chain],
-      query,
-      {
-        id: String(dayTimestamp),
-        period: "daily",
-      }
-    );
-    const totalData: IGraphResponse = await request(
-      endpointsBeamex[chain],
-      query,
-      {
-        id: "total",
-        period: "total",
-      }
-    );
+    (chain: string): Fetch =>
+      async (timestamp: number) => {
+        const dayTimestamp = getUniqStartOfTodayTimestamp(
+          new Date(timestamp * 1000)
+        );
+        const dailyData: IGraphResponse = await request(
+          endpointsBeamex[chain],
+          query,
+          {
+            id: String(dayTimestamp),
+            period: "daily",
+          }
+        );
+        const totalData: IGraphResponse = await request(
+          endpointsBeamex[chain],
+          query,
+          {
+            id: "total",
+            period: "total",
+          }
+        );
 
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume:
-        dailyData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+        return {
+          timestamp: dayTimestamp,
+          dailyVolume:
+            dailyData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+              )
+              : undefined,
+          totalVolume:
+            totalData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-    };
-  };
+              )
+              : undefined,
+        };
+      };
 
 const methodologyBeamex = {
   Fees: "Fees from open/close position (0.2%), liquidations, swap (0.2% to 0.4%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.02%)",
