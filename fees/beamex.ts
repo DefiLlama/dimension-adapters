@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { gql, request } from "graphql-request";
 import { Adapter, ChainEndpoints } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -6,7 +5,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpointsBeamex: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    sdk.graph.modifyEndpoint('4qhrYgYvHTHTjWN6NFr2UfBz1HaUAAgoqx52nN2MyG3K'),
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 
 const methodologyBeamex = {
@@ -14,11 +13,11 @@ const methodologyBeamex = {
   UserFees:
     "Fees from open/close position (0.1%), swap (0.1% to 0.4%) and borrow fee ((assets borrowed)/(total assets in pool)*0.04%)",
   HoldersRevenue:
-    "30% of all collected fees are distributed to $stGLINT stakers",
+    "20% of all collected fees are distributed to $stGLINT stakers",
   SupplySideRevenue:
-    "70% of all collected fees will be distributed to BLP stakers. Currently they are distributed to treasury",
-  Revenue: "70% of all collected fees are distributed to the treasury",
-  ProtocolRevenue: "70% of all collected fees are distributed to the treasury",
+    "60% of all collected fees are distributed to BLP stakers. Currently they are distributed to treasury",
+  Revenue: "20% of all collected fees are distributed to the treasury and upkeep",
+  ProtocolRevenue: "20% of all collected fees are distributed to the treasury and upkeep",
 };
 
 const graphsBeamex = (chain: string) => async (timestamp: number) => {
@@ -75,15 +74,15 @@ const graphsBeamex = (chain: string) => async (timestamp: number) => {
     timestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
-    dailyRevenue: (finalDailyFee * 0.7).toString(),
-    dailyProtocolRevenue: (finalDailyFee * 0.7).toString(),
-    dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-    dailySupplySideRevenue: (finalDailyFee * 0.3).toString(),
+    dailyRevenue: (finalDailyFee * 0.2).toString(),
+    dailyProtocolRevenue: (finalDailyFee * 0.2).toString(),
+    dailyHoldersRevenue: (finalDailyFee * 0.2).toString(),
+    dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
     totalFees: finalTotalFee.toString(),
-    totalProtocolRevenue: (finalTotalFee * 0.7).toString(),
-    totalRevenue: (finalTotalFee * 0.7).toString(),
+    totalProtocolRevenue: (finalTotalFee * 0.6).toString(),
+    totalRevenue: (finalTotalFee * 0.6).toString(),
     totalUserFees: finalTotalUserFee.toString(),
-    totalSupplySideRevenue: (finalTotalFee * 0.3).toString(),
+    totalSupplySideRevenue: (finalTotalFee * 0.6).toString(),
 
 
   };

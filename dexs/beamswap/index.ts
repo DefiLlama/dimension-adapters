@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
@@ -7,7 +6,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    sdk.graph.modifyEndpoint('9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X'),
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2',
 };
 
 
@@ -36,7 +35,7 @@ const graphs = getGraphDimensions({
 const v1graphs = getGraphDimensions({
   graphUrls: {
     [CHAIN.MOONBEAN]:
-      sdk.graph.modifyEndpoint('3tyEjzmxReXkLb9CB8LCBSDWWrV8dxNCzbcMHxU9n7nJ'),
+      'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm',
   },
   totalVolume: {
     factory: "tradeVolumes",
