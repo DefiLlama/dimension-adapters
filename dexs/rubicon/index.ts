@@ -14,8 +14,8 @@ const adapterOld = univ2Adapter({
   dailyVolumeTimestampField: "dayStartUnix"
 });
 
-adapterOld.adapter.arbitrum.start = 1686345120;
-adapterOld.adapter.optimism.start = 1637020800;
+adapterOld.adapter.arbitrum.start = 0;
+adapterOld.adapter.optimism.start = 0;
 
 const adapterNew = univ2Adapter({
   [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Optimism_V2',
