@@ -4,8 +4,8 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 // Define the old and new adapters
 const adapterOld = univ2Adapter({
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B4cTJXyWHMLkxAcpLGK7dJfArJdrbyWukCoCLPDT1f7n'),
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('AUcAkUd4sJutFD3hYQfvB6uvXrEdYP26qiZwZ5qyrgTw')
+  [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Arbitrum_V2',
+  [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Optimism_V2'
 }, {
   factoriesName: "rubicons",
   totalVolume: "total_volume_usd",
@@ -37,8 +37,16 @@ adapterNew.adapter.ethereum.start = 19361393;
 
 // Define the function to fetch and combine data from both adapters
 async function combinedFetch(chain, timestamp, chainBlocks, options) {
-  const oldData = await adapterOld.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
-  const newData = await adapterNew.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
+  let oldData = null;
+  let newData = null;
+
+  if (adapterOld.adapter[chain] && adapterOld.adapter[chain].fetch) {
+    oldData = await adapterOld.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
+  }
+
+  if (adapterNew.adapter[chain] && adapterNew.adapter[chain].fetch) {
+    newData = await adapterNew.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
+  }
 
   if (!oldData) return newData;
   if (!newData) return oldData;
