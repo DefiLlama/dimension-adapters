@@ -119,6 +119,8 @@ export type FetchResultVolume = FetchResultBase & {
   dailyShortOpenInterest?: FetchResponseValue
   dailyLongOpenInterest?: FetchResponseValue
   dailyOpenInterest?: FetchResponseValue
+  dailyBridgeVolume?: FetchResponseValue
+  totalBridgeVolume?: FetchResponseValue
 };
 
 // FEES
