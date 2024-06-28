@@ -4,16 +4,19 @@ export enum CHAIN {
   AVAX = "avax",
   BLAST = "blast",
   BOBA = "boba",
+  BOBA_BNB = "boba_bnb",
   BSC = "bsc",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
   HARMONY = "harmony",
+  HAQQ = "haqq",
   HECO = "heco",
   OKEXCHAIN = "okexchain",
   OPTIMISM = "optimism",
   POLYGON = "polygon",
   RONIN = "ronin",
+  ROOTSTOCK = "rootstock",
   XDAI = "xdai",
   AURORA = "aurora",
   MOONRIVER = "moonriver",
@@ -153,7 +156,8 @@ export enum CHAIN {
   CHILIZ = "chiliz",
   PLANQ = "planq",
   BOB = "bob",
-  TAIKO = "taiko"
+  TAIKO = "taiko",
+  SKALE_EUROPA = "skale_europa"
 }
 
 // Don´t use
