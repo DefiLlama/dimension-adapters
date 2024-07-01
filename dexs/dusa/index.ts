@@ -6,8 +6,10 @@ type TEndpoint = {
 };
 
 const fetchVolume = async (timestamp: number) => {
+
+  const fromTimestamp = timestamp - 86400;
   const endpoints: TEndpoint = {
-    ["massa"]: `https://api-mainnet-dusa.up.railway.app/api/volume?take=${timestamp}`,
+    ["massa"]: `https://api-mainnet-dusa.up.railway.app/api/volume?take=${fromTimestamp}`,
   };
 
   const historicalVolume = await fetchURL(endpoints.massa);
@@ -22,7 +24,7 @@ const fetchVolume = async (timestamp: number) => {
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
     dailyFees: `${dailyFees}`,
     totalFees: `${totalFee}`,
-    timestamp: timestamp,
+    timestamp: fromTimestamp,
   };
 };
 
