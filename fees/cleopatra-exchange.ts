@@ -36,7 +36,7 @@ const v2Graphs = getGraphDimensions({
     HoldersRevenue: 72,
     ProtocolRevenue: 8,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 100, // Revenue is 50% of collected fees
+    Revenue: 80, // Revenue is 50% of collected fees
     SupplySideRevenue: 20,
   },
 });
