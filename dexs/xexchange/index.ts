@@ -1,7 +1,6 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`{
@@ -20,16 +19,15 @@ interface IGraphResponse {
   totalVolumeUSD24h: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (_: FetchOptions) => {
   const historicalVolume: IGraphResponse = (await getGQLClient().request(getDailyVolume())).factory;
   return {
     dailyVolume: historicalVolume.totalVolumeUSD24h ? `${historicalVolume.totalVolumeUSD24h}` : undefined,
-    timestamp: dayTimestamp,
   };
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
