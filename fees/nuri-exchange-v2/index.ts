@@ -45,18 +45,18 @@ const v2Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 50,
-    ProtocolRevenue: 5,
-    SupplySideRevenue: 45,
+    HoldersRevenue: 72,
+    ProtocolRevenue: 8,
+    SupplySideRevenue: 20,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 50 // Revenue is 100% of collected fees
+    Revenue: 80 // Revenue is 100% of collected fees
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
+  ProtocolRevenue: "Revenue going to the protocol. 8% of collected fees. (is probably right because the distribution is dynamic.)",
+  HoldersRevenue: "User fees are distributed among holders. 72% of collected fees. (is probably right because the distribution is dynamic.)",
   SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
 }
 
