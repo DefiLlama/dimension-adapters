@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter, FetchV2, FetchResultV2 } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 import { httpGet } from '../../utils/fetchURL'
 
 interface IFees {
@@ -21,7 +22,7 @@ const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
-        "jojo": {
+        [CHAIN.BASE]: {
             fetch: getFetch,
             start: 1712678400,
         }
