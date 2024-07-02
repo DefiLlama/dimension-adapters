@@ -6,6 +6,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.BLAST]: "https://api.synfutures.com/thegraph/v3-blast",
+  [CHAIN.BASE]: "https://api.synfutures.com/thegraph/v3-base",
 }
 
 // Fee = LiquidityFee + ProtocolFee
@@ -84,6 +85,13 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints),
       start: 1709049600,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: graphs(endpoints),
+      start: 1719383967,
       meta: {
         methodology
       }

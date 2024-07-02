@@ -8,6 +8,9 @@ const info: { [key: string]: any } = {
   [CHAIN.BLAST]: {
     subgraph: "https://api.synfutures.com/thegraph/v3-blast",
   },
+  [CHAIN.BASE]: {
+    subgraph: "https://api.synfutures.com/thegraph/v3-base",
+  }
 };
 
 const fetch = (chain: Chain) => {
@@ -57,6 +60,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BLAST]: {
       fetch: fetch(CHAIN.BLAST),
       start: 1709197491,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1719383967,
     },
   },
 };
