@@ -15,13 +15,18 @@ async function main() {
     let body;
 
     if (summaryIndex != -1) {
-        body = `The ${adapterName} adapter exports: 
+        body = `The ${adapterName} adapter exports:
         \n \n ${file.substring(summaryIndex).replaceAll('\n', '\n    ')}`;
+        console.info(`Posting comment:\n${body}`)
     } else if (errorIndex != -1) {
-        body = `Error while running adapter ${adapterName} adapter: 
+        body = `Error while running adapter ${adapterName} adapter:
         \n \n ${file.split(errorString)[1].replaceAll('\n', '\n    ')}`;
-    } else
+        console.info(`Posting comment:\n${body}`)
+    } else {
+        console.info(`No error or summary found in log file`);
         return;
+    }
+
 
     console.info(`Posting comment:\n${body}`)
 
