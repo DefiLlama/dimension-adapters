@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
 
@@ -12,7 +12,7 @@ const address: TAddress = {
 
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+  return async (options: FetchOptions) => {
     const logs = await options.getLogs({
       target: address[chain],
       eventAbi: "event Trade (address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)",
@@ -22,7 +22,7 @@ const fetch = (chain: Chain) => {
       dailyFees.add(tx.sellToken, tx.feeAmount)
     })
     const dailyRevenue = dailyFees.clone()
-    return { dailyUserFees: dailyFees, dailyFees, dailyRevenue, timestamp }
+    return { dailyUserFees: dailyFees, dailyFees, dailyRevenue }
   }
 }
 
@@ -33,6 +33,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM) as any,

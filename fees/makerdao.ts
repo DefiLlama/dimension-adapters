@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -9,7 +10,7 @@ const RAY = new BigNumber(10).pow(27);
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
+    sdk.graph.modifyEndpoint('CLddaQxuXLjpzyyA67FMmNjmyX74yQDQZEAsytoQTtCD')
 }
 
 // Source: https://makerburn.com/#/rundown

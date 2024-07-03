@@ -17,12 +17,8 @@ const abis: any = {
 };
 
 const fetch = async (
-  timestamp: number,
-  _: ChainBlocks,
   fetchOptions: FetchOptions
 ): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
   const forSwaps = await sdk.api2.abi.call({
     target: lphelper,
     params: [1000, 0],
@@ -63,10 +59,8 @@ const fetch = async (
 
   const res: any = await getDexFees({
     chain: CHAIN.ZETA,
-    fromTimestamp,
-    toTimestamp,
     pools,
-    timestamp,
+    timestamp: fetchOptions.toTimestamp,
     fetchOptions,
   });
   // const fromBlock = await getBlock(fromTimestamp, CHAIN.ZETA, {});
@@ -79,6 +73,7 @@ const fetch = async (
   return res
 };
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ZETA]: {
       fetch: fetch,

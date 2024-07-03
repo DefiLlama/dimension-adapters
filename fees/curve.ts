@@ -1,25 +1,26 @@
-import { Adapter, FetchResult } from "../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet",
+    sdk.graph.modifyEndpoint('7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au'),
   [OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
+    sdk.graph.modifyEndpoint('7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ'),
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
+    sdk.graph.modifyEndpoint('6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w'),
   [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic",
+    sdk.graph.modifyEndpoint('EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU'),
   [AVAX]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
+    sdk.graph.modifyEndpoint('4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx'),
   [FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom",
+    sdk.graph.modifyEndpoint('7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H'),
   [XDAI]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai",
+    sdk.graph.modifyEndpoint('i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L'),
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
@@ -46,10 +47,7 @@ const graph = (graphUrls: ChainEndpoints) => {
   }`;
 
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-
-      const fromTimestamp = timestamp - 60 * 60 * 24
-      const toTimestamp = timestamp
+    return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
       const graphRes = await request(graphUrls[chain], graphQuery, {
         timestampFrom: fromTimestamp,
         timestampTo: toTimestamp
@@ -66,7 +64,7 @@ const graph = (graphUrls: ChainEndpoints) => {
         return parseFloat(vol.lpFeesUSD);
       });
 
-      const res: FetchResult = { timestamp, dailyProtocolRevenue: "0", }
+      const res: FetchResultV2 = { dailyProtocolRevenue: "0", }
       if (feesPerPool.length > 0) {
         const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
         res["dailyUserFees"] = dailyFee.toString()
@@ -86,12 +84,13 @@ const graph = (graphUrls: ChainEndpoints) => {
   }
 };
 
-const fetch = (chain: string) => async (ts:number) => {
-  if(ts < Date.now()/1e3-36*3600){
-    return graph(endpoints)(chain)(ts)
+const fetch = (chain: string) => async (options: FetchOptions) => {
+  if(options.toTimestamp < Date.now()/1e3-36*3600){
+    return graph(endpoints)(chain)(options)
   }
   const response = (await fetchURL(`https://prices.curve.fi/v1/chains/${chain}`));
-  const fees = (response.data as any[]).reduce((all, pool)=>{
+  const fees = (response.data as any[])
+  .filter(e => e.trading_fee_24h < 1_000_000).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {
@@ -135,6 +134,7 @@ const starts = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: Object.keys(starts).reduce((all, chain)=>{
     all[chain] = {
       fetch: fetch(chain),

@@ -19,13 +19,15 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: 1692748800,
       runAtCurrTime: true,
     }
-  }
+  },
+  isExpensiveAdapter: true
 }
 
 export default adapter;

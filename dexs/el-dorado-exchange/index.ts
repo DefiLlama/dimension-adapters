@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import {BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,8 +6,8 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
-  // [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
+  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiegiatdkorjPCvK72UyHvmJHvWtS3oQS6zwnR94Xe7c'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G3wquxtaw68uX5GAZ7XBPWK8Fa7Buf66Y27uT8erqQZ4'),
 }
 
 const historicalDataSwap = gql`

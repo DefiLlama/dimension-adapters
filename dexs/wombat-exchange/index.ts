@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import {FetchOptions, FetchResultV2, SimpleAdapter} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
@@ -25,19 +26,19 @@ type TEndpoint = {
 // Updated using studio
 const endpoints: TEndpoint = {
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-bsc",
+    sdk.graph.modifyEndpoint('DPuFUNkRpW5AG2HBWyRhzvYCodocb1H8vjVLijyEJyGE'),
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-arbone",
+    sdk.graph.modifyEndpoint('HADLg9LFYHJupr3xvWdmp7piPpwjGEwjbCknkSVrfyDQ'),
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-eth",
+    sdk.graph.modifyEndpoint('3S2iHctknomx91fcAcyqrPvCcGfnuhKdEKBs2xThoCvJ'),
   [CHAIN.SCROLL]:
     "https://api.studio.thegraph.com/query/56564/wombat-exchange-scroll/version/latest",
   [CHAIN.AVAX]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-avax",
+    sdk.graph.modifyEndpoint('6PbnpSVfrWgVeRiTbbM4yFNAiYacLjGLg1ztzasxqxGf'),
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/56564/wombat-exchange-base/version/latest",
   [CHAIN.OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/wombat-exchange/wombat-exchange-op",
+    sdk.graph.modifyEndpoint('4phYPx7RdkSSKFuoFBRZFFbPMkRCnYLfi8bENyQf4NA6'),
 };
 
 const fetchVolume = (chain: Chain) => {

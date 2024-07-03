@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { ARBITRUM, CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
@@ -28,7 +29,7 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea'),
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -45,8 +46,8 @@ const v2Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 75,
-    ProtocolRevenue: 5,
+    HoldersRevenue: 72,
+    ProtocolRevenue: 8,
     SupplySideRevenue: 20,
     UserFees: 100, // User fees are 100% of collected fees
     Revenue: 80 // Revenue is 100% of collected fees

@@ -1,13 +1,13 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { getDexVolumeExports } from "../../helpers/dexVolumeLogs";
 
-const adapters = univ2Adapter({
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/wigoswap/exchange2"
-}, {
-  factoriesName: "wigoswapFactories",
-  dayData: "wigoDayData",
-  gasToken: "coingecko:fantom"
-});
-
-adapters.adapter.fantom.start = 1642982400;
+const adapters: SimpleAdapter = {
+  adapter: {
+    [CHAIN.FANTOM]: {
+      fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: '0xc831a5cbfb4ac2da5ed5b194385dfd9bf5bfcba7' }),
+      start: 1642982400,
+    },
+  }
+}
 export default adapters;

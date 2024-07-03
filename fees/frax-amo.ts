@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -70,7 +71,7 @@ const config: {
   [CHAIN.ETHEREUM]: {
     FRAX: "0x853d955aCEf822Db058eb8505911ED77F175b99e",
     graph:
-      "https://api.thegraph.com/subgraphs/name/frax-finance-data/amo-subgraph---mainnet",
+      sdk.graph.modifyEndpoint('5pkNZTvdKuik24p8xtHctfaHcmNghNqb4ANo2BfQVefZ'),
     amos: [
       // '0x49ee75278820f409ecd67063D8D717B38d66bd71', // curve
       // '0x629C473e0E698FD101496E5fbDA4bcB58DA78dC4', // twaamm
@@ -82,7 +83,7 @@ const config: {
   [CHAIN.ARBITRUM]: {
     FRAX: "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
     graph:
-      "https://api.thegraph.com/subgraphs/name/frax-finance-data/amo-subgraph---arbitrum",
+      sdk.graph.modifyEndpoint('4zJMfZFyGvqbKyyyeVs4qE15BaEuwr5DLLZiSLhJzBNs'),
     amos: [
       "0xCDeE1B853AD2E96921250775b7A60D6ff78fD8B4", // v3
     ],

@@ -134,6 +134,7 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
+  POLKADEX = "polkadex",
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
@@ -149,7 +150,10 @@ export enum CHAIN {
   BITLAYER = "bitlayer",
   XLAYER = "xlayer",
   MERLIN = "merlin",
-  CHILIZ = "chiliz"
+  CHILIZ = "chiliz",
+  PLANQ = "planq",
+  BOB = "bob",
+  TAIKO = "taiko"
 }
 
 // Don´t use

@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -16,21 +16,25 @@ const address: TAddress = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
     const dailyFees = createBalances();
 
     (await getLogs({
       target: address[chain],
       eventAbi: event_swap,
+      fromBlock, 
+      toBlock
     })).map((e: any) => {
       dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000)
     })
-    return { dailyFees, dailyRevenue: dailyFees, timestamp, };
+    return { dailyFees, dailyRevenue: dailyFees, };
   }
 }
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),

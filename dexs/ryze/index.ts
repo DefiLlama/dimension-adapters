@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -6,7 +7,7 @@ import request, { gql } from "graphql-request";
 import { getBlock } from "../../helpers/getBlock";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/chinu-dev/ryze-dashboard-subgraph-prod",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3MwM7j7s5EMrXE3uA5WUKU9GR4pfegirg4tSWTVMLwTK'),
 };
 
 interface IPoolSnapshot {

@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter, Fetch } from "../../adapters/types";
+import { SimpleAdapter, Fetch, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.` + chain + `-mainnet.jojo.exchange/v1/platform/tradeVolume?marketId=${symbol}`
@@ -33,12 +33,12 @@ interface IVolumeall {
     timestamp: number;
 }
 
-const getVolume = async (timestamp: number, chain: string) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const getVolume = async (options: FetchOptions) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
 
-    const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, chain)))));
+    const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, options.chain)))));
 
-    const historicalVolume = historical.map((item => item.dailyVolume))
+    const historicalVolume = historical.map((item => item?.dailyVolume || []))
     const historicalUSD = historicalVolume.map((a: any, index: number) => a.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index] } })).flat()
     const historicalUSD2 = historicalUSD.map((e: IVolumeall) => {
         return {
@@ -48,7 +48,6 @@ const getVolume = async (timestamp: number, chain: string) => {
     });
     const dailyVolume = historicalUSD2.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    console.log(dailyVolume)
 
     const totalVolume = historical.map(item => item.totalVolume).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue), 0);
     return {
@@ -58,14 +57,11 @@ const getVolume = async (timestamp: number, chain: string) => {
     };
 };
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-    return getVolume(timestamp, chain);
-}
-
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.BASE]: {
-            fetch: getFetch("base"),
+            fetch: getVolume,
             start: 1711965100,
         },
     },

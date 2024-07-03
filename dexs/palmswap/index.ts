@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { BigNumberish, ethers } from "ethers";
@@ -34,7 +35,7 @@ const formatAmount = (
 const info: { [key: string]: any } = {
   bsc: {
     subgraph:
-      "https://api.thegraph.com/subgraphs/name/palmswap/synthetic-stats-mainnet",
+      sdk.graph.modifyEndpoint('DdLtKxzUi6ExMok8dNWh9B2HN5WeTWcQsfSSZMKH1trQ'),
   },
 };
 

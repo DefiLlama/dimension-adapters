@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,16 +6,16 @@ import { CHAIN } from "../../helpers/chains";
 const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-avax",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-bsc",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-fantom",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-polygon",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-arbitrum",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/woonetwork/woofi-optimism",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('BL45YVVLVkCRGaAtyTjvuRt1yHnUt4QbZg8bWcZtLvLm'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('CxWDreK8yXVX9qxLTNoyTrcNT2uojrPiseC7mBqRENem'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('B1TxafnDavup8z9rwi5TKDwZxCBR24tw8sFeyLSShhiP'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Bn68xGN5mLu9cAVgCNrACxXWf5FR1dDQ6JxvXzimd7eZ'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9wYUKdu85CGGwiV8mawEUwMhj4go7dx6ezfSkh9DUrFa'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F7nNhkyaR53fs14vhfJmsUAotN1aJiyMbVc677ngFHWU'),
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/version/latest",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45576/woofi-polygon-zkevm/version/latest",
-  [CHAIN.LINEA]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-linea",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45576/woofi-base/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/71937/woofi-polygon-zkevm/version/latest",
+  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
   [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
 };
 

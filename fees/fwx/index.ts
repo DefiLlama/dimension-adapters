@@ -68,5 +68,6 @@ const adapter: Adapter = {
       start: 1701907200,
     },
   },
+  version: 1
 };
 export default adapter;

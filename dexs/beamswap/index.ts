@@ -6,7 +6,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex-v2",
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2',
 };
 
 
@@ -35,7 +35,7 @@ const graphs = getGraphDimensions({
 const v1graphs = getGraphDimensions({
   graphUrls: {
     [CHAIN.MOONBEAN]:
-      "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-stable-amm",
+      'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm',
   },
   totalVolume: {
     factory: "tradeVolumes",

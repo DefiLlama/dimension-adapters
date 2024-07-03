@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { ethers, EventFilter } from 'ethers';
-
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ETHEREUM } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json'
@@ -144,7 +143,6 @@ const data = async (timestamp: number): Promise<FetchResultFees> => {
     const totalFeesNumber = Number(await totalFees.getUSDValue()).toFixed(0);
     const dailyRevenueNumber = Number(await dailyRevenue.getUSDValue()).toFixed(0);
     return {
-        timestamp: timestamp,
         totalFees: totalFeesNumber,
         totalRevenue: Number(await totalRevenue.getUSDValue()).toFixed(0),
         totalProtocolRevenue: totalFeesNumber,
@@ -164,7 +162,8 @@ const adapter: Adapter = {
                 methodology
             }
         }
-    }
+    },
+    version: 2
 }
 
 export default adapter;

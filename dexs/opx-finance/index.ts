@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/opx-finance/opx-op-stats",
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('B8ZSq8gQJGk3C8hduPokgkr4PVcfe4Ydy5jDBk8siPe4'),
 }
 
 const historicalDataSwap = gql`

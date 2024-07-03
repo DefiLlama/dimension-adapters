@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -133,7 +134,7 @@ const config = {
 }
 
 const endpoints: TEndpoint = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/consenlabs/tokenlon-v5-exchange",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5JhweAV1Y3k3GbbEssfetBaoyDNWz1Y72zscRrYsAgVT'),
 };
 const rfqV2Endpoint = "https://satsuma-subgraph.token.im/subgraph/rfqv2/api"
 

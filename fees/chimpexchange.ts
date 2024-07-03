@@ -1,10 +1,9 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types";
+import type { ChainEndpoints, FetchOptions } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
   [CHAIN.LINEA]:
@@ -32,10 +31,7 @@ interface IPoolSnapshot {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const fromTimestamp = startTimestamp - 60 * 60 * 24;
-      const toTimestamp = startTimestamp;
+    return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
       const graphQuery = gql`query fees {
         today:poolSnapshots(where: {timestamp:${toTimestamp}}, orderBy:swapFees, orderDirection: desc) {
           id
@@ -85,7 +81,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
         .reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber("0"));
 
       return {
-        timestamp,
         totalUserFees: currentTotalSwapFees.toString(),
         dailyUserFees: dailyFee.toString(),
         totalFees: currentTotalSwapFees.toString(),
@@ -115,6 +110,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints)(CHAIN.LINEA),

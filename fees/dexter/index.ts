@@ -37,7 +37,8 @@ const adapter: Adapter = {
             runAtCurrTime: true,
             start: 0,
         },
-    }
+    },
+    version: 1
 };
 
 export default adapter;

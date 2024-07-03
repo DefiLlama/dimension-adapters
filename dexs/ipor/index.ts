@@ -46,7 +46,8 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
     if (log.asset.toLowerCase() === '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'.toLowerCase()) {
       balance = balance / 1e12
     }
-    if (log.asset.toLowerCase() === '0xdAC17F958D2ee523a2206206994597C13D831ec7'.toLowerCase()) {
+    if (log.asset.toLowerCase() === '0xdAC17F958D2ee523a2206206994597C13D831ec7'.toLowerCase()
+      || log.asset.toLowerCase() === '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'.toLowerCase()) { // 6
       balance = balance / 1e10
     }
     dailyNotionalVolume.add(log.asset, balance)

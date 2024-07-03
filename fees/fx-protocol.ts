@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request } from "graphql-request";
@@ -10,7 +11,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
   [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/aladdindaogroup/aladdin-fees",
+    sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
 };
 
 const graph = (graphUrls: ChainEndpoints) => {

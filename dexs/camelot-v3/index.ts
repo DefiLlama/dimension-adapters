@@ -1,9 +1,9 @@
-// https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-v3"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp')
 }, {
   factoriesName: "factories",
   dayData: "algebraDayData",

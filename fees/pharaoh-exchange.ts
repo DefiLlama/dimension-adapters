@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchResultFees, BaseAdapter } from "../adapters/types";
 import { AVAX, CHAIN } from "../helpers/chains";
 
@@ -16,7 +17,7 @@ const startTimeV2: TStartTime = {
 
 const v2Endpoints = {
   [CHAIN.AVAX]:
-    "https://api.thegraph.com/subgraphs/name/ramsesexchange/pharaoh-cl-subgraph",
+    sdk.graph.modifyEndpoint('oM4WnuyAbSwPpjk6niUkp88AZg1hSTi9aC1ZM4RcsqR'),
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -33,10 +34,11 @@ const v2Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 50,
+    HoldersRevenue: 72,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 50, // Revenue is 50% of collected fees
-    SupplySideRevenue: 50,
+    Revenue: 80, // Revenue is 50% of collected fees
+    SupplySideRevenue: 20,
+    ProtocolRevenue: 8,
   },
 });
 

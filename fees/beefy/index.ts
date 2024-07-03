@@ -58,6 +58,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch('arbitrum'),

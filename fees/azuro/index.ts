@@ -1,9 +1,8 @@
-import { Adapter, ChainEndpoints, FetchResultFees } from "../../adapters/types";
+import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Bet, BetResult } from "./types";
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
     [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v3",
@@ -66,30 +65,16 @@ const calculateAmounts = (bets: Bet[]) => {
 
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
-        return async (timestamp: number): Promise<FetchResultFees> => {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-            const fromTimestamp = todaysTimestamp - 60 * 60 * 24;
-            const toTimestamp = todaysTimestamp;
-            
-            const [bets, totalBets] = await Promise.all([
-                fetchAllBets(graphUrls[chain], fromTimestamp, toTimestamp, false),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], toTimestamp, false),
-                fetchAllBets(graphUrls[chain], fromTimestamp, toTimestamp, true),
-                fetchAllBets(graphUrls[chain], getStartTimestamp[chain], toTimestamp, true)
+        return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+            const [bets] = await Promise.all([
+                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, false),
             ]);
-            
+
             const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(bets);
-            const { totalBetAmount, totalWonAmount } = calculateAmounts(totalBets);
-            
-            const totalFees = totalBetAmount - totalWonAmount;
             const dailyPoolProfit = dailyBetAmount - dailyWonAmount;
-            
             return {
-                timestamp,
                 dailyFees: dailyPoolProfit.toString(),
-                dailyRevenue: dailyPoolProfit.toString(),
-                totalFees: totalFees.toString(),
-                totalRevenue: totalFees.toString(),
+                dailyRevenue: dailyPoolProfit.toString()
             };
         };
     };
@@ -128,6 +113,7 @@ const adapter: Adapter = {
             meta: { methodology },
         },
     },
+    version: 2
 };
 
 export default adapter;

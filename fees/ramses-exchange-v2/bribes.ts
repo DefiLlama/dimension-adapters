@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request from "graphql-request";
 import { Balances } from "@defillama/sdk";
 
@@ -10,7 +11,7 @@ interface IBribes {
 }
 
 export const fees_bribes = async (fromBlock: number, timestamp: number, balances: Balances) => {
-  const endpoint = 'https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph';
+  const endpoint = sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea');
   const graphQuery = `
       query GetBribes($fromBlock: Int!) {
         bribes(

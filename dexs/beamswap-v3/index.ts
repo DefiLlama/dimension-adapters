@@ -9,7 +9,7 @@ import {
 
 const endpointV3 = {
   [CHAIN.MOONBEAM]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-v3",
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v3',
 };
 const VOLUME_USD = "volumeUSD";
 const v3Graphs = getGraphDimensions({

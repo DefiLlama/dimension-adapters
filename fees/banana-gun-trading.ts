@@ -1,17 +1,9 @@
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { queryDune } from "../helpers/dune";
 
-interface IFees {
-  block_date: string;
-  feesSOL: number;
-}
-
-const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fethcFeesSolana = async (options: FetchOptions) => {
   try {
-    const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const value = (await queryDune("3521814", {
@@ -24,13 +16,11 @@ const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: Fetch
     return {
       dailyFees: dailyFees,
       dailyRevenue: dailyRevenue,
-      timestamp
     }
   } catch (error: any) {
     console.error('Error fetching fees for Solana', error);
     return {
       dailyFees: "0",
-      timestamp
     }
   }
 }
@@ -41,7 +31,7 @@ const contract_address: any = {
   [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
 }
 
-const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const logs = await options.getLogs({
@@ -57,11 +47,11 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyRevenue,
-    timestamp
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,

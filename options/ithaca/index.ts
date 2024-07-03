@@ -1,5 +1,5 @@
 import { SimpleAdapter } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import fetchURL, { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 import { parseUnits } from "ethers";
@@ -25,7 +25,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetchIthacaVolumeData,
       start: 1713205800,
-      runAtCurrTime: true
     },
   },
 };
@@ -33,7 +32,7 @@ const adapter: SimpleAdapter = {
 export async function fetchIthacaVolumeData(
   timestamp: number
 ) {
-  const { response: ithacaStats } = await fetchURL(`https://app.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
+  const { response: ithacaStats } = await httpGet(`https://app.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
 
   const dailyNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
   dailyNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.daily_volume_numeraire.toFixed(6), 6))
@@ -48,9 +47,9 @@ export async function fetchIthacaVolumeData(
     dailyFees: ithacaStats.daily_fees,
     totalFees: ithacaStats.total_fees,
     dailyPremiumVolume: ithacaStats.daily_premium,
-    // totalPremiumVolume: ithacaStats.total_premium,
+    totalPremiumVolume: ithacaStats.total_premium,
     dailyNotionalVolume,
-    // totalNotionalVolume,
+    totalNotionalVolume,
   };
 }
 

@@ -53,6 +53,7 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.MODE]: ['0x7E15EB462cdc67Cf92Af1f7102465a8F8c784874',],
   [CHAIN.LINEA]: ['0x2d8879046f1559E53eb052E949e9544bCB72f414',],
   [CHAIN.MANTLE]: ['0xD9F4e85489aDCD0bAF0Cd63b4231c6af58c26745',],
+  [CHAIN.SCROLL]: ['0xbFe03C9E20a9Fc0b37de01A172F207004935E0b1',],
 }
 
 const graph = (chain: Chain): any => {
@@ -90,6 +91,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: 1689292800 },
     [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: 1689292800 },
     [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: 1689292800 },
+    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: 1689292800 },
   }
 };
 
