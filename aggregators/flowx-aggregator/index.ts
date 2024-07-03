@@ -9,8 +9,7 @@ const fetchVolume = async (options: FetchOptions) => {
   const record = res[0];
   return {
     dailyVolume: record.totalUSD,
-  };
-
+  }
 
 
 };
