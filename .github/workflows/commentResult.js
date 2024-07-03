@@ -16,7 +16,7 @@ async function main() {
 
     if (summaryIndex != -1) {
         body = `The ${adapterName} adapter exports:
-        \n \n ${file.substring(summaryIndex).replaceAll('\n', '\n    ')}`;
+        \n${file}`;
         console.info(`Posting comment:\n${body}`)
     } else if (errorIndex != -1) {
         body = `Error while running adapter ${adapterName} adapter:
