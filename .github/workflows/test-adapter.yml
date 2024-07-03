@@ -15,13 +15,13 @@ jobs:
         run: |
           # Store the current commit hash in a variable
           current_commit=$(git rev-parse HEAD)
-          
+
           # Checkout to master to check if new adapters files are of v2
           git fetch origin master:master
-          
+
           # Checkout back to the original commit
           git checkout $current_commit
-          
+
           RUN_FILES=$(
             MODIFIED=${{ steps.file_changes.outputs.files_modified}} \
             ADDED=${{ steps.file_changes.outputs.files_added}} \
@@ -38,15 +38,15 @@ jobs:
           list=$(echo $RUN_FILES | tr  -d '"[]' | tr "," "\n")
 
           for i in ${list}
-          do 
-            { 
+          do
+            {
               IFS='@' read -r -a array <<< "$i"
               npm run test ${array[0]} ${array[1]} 2>&1 | tee output.txt
               node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/dimension-adapters/dimension-adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
                 exit 1;
               fi
-            } || { 
+            } || {
               echo -n $i
               echo ' doesnt run'
             }

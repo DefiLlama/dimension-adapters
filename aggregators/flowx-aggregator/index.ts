@@ -1,23 +1,22 @@
 import { CHAIN } from "../../helpers/chains";
-import { httpGet, httpPost } from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions } from "../../adapters/types";
+import { version } from "os";
 
-const fetchVolume = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
-  const res = await httpGet(
-    `https://flowx-finance-mono.vercel.app/api/defillama/aggregator-vol?startTimestamp=${dayTimestamp}&endTimestamp=${dayTimestamp}`
-  );
-
+const fetchVolume = async (options: FetchOptions) => {
+  const url = `https://flowx-finance-mono.vercel.app/api/defillama/aggregator-vol?startTimestamp=${options.startOfDay}&endTimestamp=${options.startOfDay}`;
+  const res = await httpGet(url);
   const record = res[0];
-
   return {
     dailyVolume: record.totalUSD,
-    timestamp: record.timestamp,
-  };
+  }
+
+
+
 };
 
 const adapter: any = {
+  version: 2,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
