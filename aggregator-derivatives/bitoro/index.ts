@@ -18,6 +18,8 @@ const fetch = async (options: any): Promise<FetchResultV2> => {
         dailyVolume: dailyVolume.volume || 0,
         totalVolume: totalVolume.volume || 0,
     };
+
+
 };
 
 export default {
