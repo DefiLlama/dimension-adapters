@@ -9,7 +9,7 @@ async function main() {
     const [_, adapterName] = adapterNameKey.split('@')
 
 
-    const errorString = '------ ERROR ------';
+    const errorString = 'ERROR';
     const summaryIndex = file.indexOf('---------------------------------------------------');
     const errorIndex = file.indexOf(errorString);
     let body;
