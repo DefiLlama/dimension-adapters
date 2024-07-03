@@ -42,7 +42,6 @@ jobs:
             {
               IFS='@' read -r -a array <<< "$i"
               npm run test ${array[0]} ${array[1]} 2>&1 | tee output.txt
-              cat output.txt
               node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/dimension-adapters/dimension-adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
                 exit 1;

@@ -10,7 +10,7 @@ async function main() {
 
 
     const errorString = '------ ERROR ------';
-    const summaryIndex = file.indexOf('_______________________________________');
+    const summaryIndex = file.indexOf('---------------------------------------------------');
     const errorIndex = file.indexOf(errorString);
     let body;
 
