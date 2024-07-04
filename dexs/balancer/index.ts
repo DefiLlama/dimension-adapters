@@ -17,7 +17,9 @@ const endpoints: ChainEndpoints = {
   [CHAIN.XDAI]: sdk.graph.modifyEndpoint('EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg'),
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu'),
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest"
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
+  [CHAIN.MODE]: "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
+  [CHAIN.FRAXTAL]: "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn"
 };
 
 const graphParams = {
