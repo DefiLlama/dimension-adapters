@@ -27,6 +27,10 @@ const v2Endpoints = {
     "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.POLYGON_ZKEVM]:
     "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
+  [CHAIN.MODE]:
+    "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
+  [CHAIN.FRAXTAL]:
+    "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn"
 };
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
@@ -211,7 +215,21 @@ const adapter: Adapter = {
         meta: {
           methodology
         }
-      }
+      },
+      [CHAIN.MODE]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
+        start: 1716336000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.FRAXTAL]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
+        start: 1716163200,
+        meta: {
+          methodology
+        }
+      },
     }
   }
 }
