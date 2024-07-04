@@ -8,7 +8,7 @@ import { CHAIN } from "../../helpers/chains";
 
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/blex-dex/arbitrum_42161",
+    [CHAIN.ARBITRUM]: "https://api.blex.io/arbitrum_42161/subgraph",
 }
 
 
@@ -58,7 +58,7 @@ interface IGraphResponse{
 
 const getFetch = (allFeeQuery: string,userFeeQuery: string)=> (chain: string): Fetch => async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  
+
     const searchTimestamp= "daily:"+String(dayTimestamp) ;
 
 
@@ -76,31 +76,31 @@ const getFetch = (allFeeQuery: string,userFeeQuery: string)=> (chain: string): F
       id: 'total',
       period: 'total',
   })
- 
-   
+
+
     const totalAllFeeData: IGraphResponse = await request(endpoints[chain], allFeeQuery, {
       id: 'total',
       period: 'total',
     })
 
-  
+
     return {
       timestamp: dayTimestamp,
-      dailyUserFees: 
+      dailyUserFees:
       dailyUserData.fees.length==1
-        ? String(Number(Object.values(dailyUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
+        ? String(Number(Object.values(dailyUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
       totalUserFees:
       totalUserData.fees.length == 1
-          ? String(Number(Object.values(totalUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
+          ? String(Number(Object.values(totalUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
-      dailyFees: 
+      dailyFees:
       dailyAllFeeData.fees.length==1
-        ? String(Number(Object.values(dailyAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
+        ? String(Number(Object.values(dailyAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
       totalFees:
       totalAllFeeData.fees.length == 1
-          ? String(Number(Object.values(totalAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
+          ? String(Number(Object.values(totalAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
     }
   }
@@ -109,9 +109,10 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
-      start: async () => 1691211277,
+      start: 1691211277,
     },
-  }
+  },
+  version: 1
 }
 
 export default adapter;

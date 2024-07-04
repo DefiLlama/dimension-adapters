@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,7 +8,7 @@ import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/messari/moonwell-moonbeam"
+  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
 }
 
 
@@ -43,7 +44,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAN]: {
         fetch: graphs(endpoints)(CHAIN.MOONBEAN),
-        start: async ()  => 1656115200,
+        start: 1656115200,
     },
   }
 }

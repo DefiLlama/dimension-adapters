@@ -1,8 +1,20 @@
-import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
+import {
+  SimpleAdapter,
+  FetchResultVolume,
+  ChainEndpoints,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
+
+const endpoints: ChainEndpoints = {
+  [CHAIN.LINEA]:
+    "https://api.studio.thegraph.com/query/55804/linea-trade/version/latest",
+  [CHAIN.POLYGON]:
+    sdk.graph.modifyEndpoint('GAvL1WKMAVDdnSk96qvmSCMwL6pxfhAVYkQw6AgZU3td'),
+};
 
 interface IReferralRecord {
   volume: string; // Assuming volume is a string that represents a number
@@ -15,7 +27,7 @@ interface IVolumeStat {
   id: string;
 }
 
-const fetch = () => {
+const fetch = (endpoint) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
@@ -29,8 +41,6 @@ const fetch = () => {
       }
     `;
 
-    const endpoint =
-      "https://linea-graph-node.metavault.trade/subgraphs/name/metavault/perpv1";
     const response = await request(endpoint, graphQuery);
     const volumeStats: IVolumeStat[] = response.volumeStats;
 
@@ -57,8 +67,15 @@ const methodology = {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
-      fetch: fetch(),
-      start: async () => 1701950449,
+      fetch: fetch(endpoints[CHAIN.LINEA]),
+      start: 1709251200,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetch(endpoints[CHAIN.POLYGON]),
+      start: 1709251200,
       meta: {
         methodology,
       },

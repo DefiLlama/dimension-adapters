@@ -16,9 +16,9 @@ export const lyraVolumeEndpoint = (endTime: number) => {
 
 export const v2_adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.LYRA]: {
       fetch: fetchLyraVolumeData,
-      start: async () => 1702630075
+      start: 1702630075
     },
   },
 };
@@ -46,7 +46,7 @@ export async function fetchLyraVolumeData(
 
 async function getLyraVolumeData(endpoint: string): Promise<ILyraVolumeResponse> {
   const results = await fetchURL(endpoint)
-  return results.data.result;
+  return results.result;
 }
 
 export default v2_adapter;

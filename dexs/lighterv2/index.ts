@@ -31,10 +31,10 @@ const fetchV2 = async (timestamp: number) => {
     `&timestamp=${dayTimestamp}`
   );
 
-  const result: IVolumeall = (await fetchURL(lighterV2VolumeEndpoint)).data;
-  const markets = (await fetchURL(marketurl)).data as IMarket[]
+  const result: IVolumeall = (await fetchURL(lighterV2VolumeEndpoint));
+  const markets = (await fetchURL(marketurl)) as IMarket[]
   const res = (await Promise.all(markets.map(async ({ symbol }) => fetchURL(url(symbol, dayTimestamp + 86400)))))
-    .map((res) => res.data)
+    .map((res) => res)
     .map((res) => res.candlesticks).flat() as ICandlesticks[]
   const dailyVolume = res.filter(e => e.timestamp === dayTimestamp)
     .reduce((acc, { volume0, close }) => acc + (volume0) * close, 0)
@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchV2,
-      start: async () => 1697144400,
+      start: 1697144400,
     },
   },
 };

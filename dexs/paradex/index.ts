@@ -15,8 +15,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const end = timestamp
   //need to calculate start time of timestamp - 24h
   const start = end - (60 * 60 * 24)
-  const markets: string[] = ((await fetchURL(marketsEndpoint))?.data.results).map((m: any) => m.symbol);
-  const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(historicalVolumeEndpoint(market, start*1000, end*1000))))).map((e: any) => e.data.results.slice(-1)).flat()
+  const markets: string[] = ((await fetchURL(marketsEndpoint)).results).map((m: any) => m.symbol);
+  const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(historicalVolumeEndpoint(market, start*1000, end*1000))))).map((e: any) => e.results.slice(-1)).flat()
 
   const dailyVol = historical.reduce((a: number, b: IVolumeall) => a+Number(b.volume_24h), 0)
 
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: async () => 1693526400,
+      start: 1693526400,
     },
   },
 };

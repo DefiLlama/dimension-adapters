@@ -49,7 +49,7 @@ export async function fetchArbitrumAnalyticsData(
 }
 
 async function getAnalyticsData(endpoint: string): Promise<AnalyticsData> {
-  return (await fetchURL(endpoint))?.data;
+  return (await fetchURL(endpoint));
 }
 
 function getPositionsForDaily(

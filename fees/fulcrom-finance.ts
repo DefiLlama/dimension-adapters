@@ -83,17 +83,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(endpoints)(CHAIN.CRONOS),
-      start: async () => 1677470400,
+      start: 1677470400,
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
       fetch: graphs(endpoints)(CHAIN.ERA),
-      start: async () => 1696496400,
+      start: 1696496400,
       meta: {
         methodology,
       },

@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { univ2DimensionAdapter } from "../../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter({
   graphUrls: {
-    [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/alita-finance/exchangev2"
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('FBPHPJNE1jX18Lz8rgscvsigfxAUXakUC8w9KMid4dDz')
   },
   feesPercent: {
     type: "volume",
@@ -24,5 +25,5 @@ const adapter = univ2DimensionAdapter({
   }
 });
 
-adapter.adapter.bsc.start = async () => 1629947542;
+adapter.adapter.bsc.start = 1629947542;
 export default adapter;

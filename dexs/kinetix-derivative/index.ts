@@ -76,11 +76,8 @@ const getFetch =
     };
   };
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.KAVA]: 1693267200,
-  };
-  return startTimestamps[chain];
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.KAVA]: 1693267200,
 };
 
 const adapter: SimpleAdapter = {
@@ -89,7 +86,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: getFetch(chain),
-        start: async () => getStartTimestamp(chain),
+        start: startTimestamps[chain],
       },
     };
   }, {}),

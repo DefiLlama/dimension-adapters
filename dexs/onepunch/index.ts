@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter(
   {
     [CHAIN.BSC]:
-      "https://api.thegraph.com/subgraphs/name/one-punch-team/onepunch-subgraph-bsc",
+      sdk.graph.modifyEndpoint('GQJoTmGyx4SGL1iVRBvyxA8jLNgcV8YMHcbLjf6DrUbv'),
   },
   {
     factoriesName: "onePunchDatas",
@@ -14,6 +15,6 @@ const adapters = univ2Adapter(
     hasTotalVolume: true,
   }
 );
-adapters.adapter.bsc.start = async () => 1671580800;
+adapters.adapter.bsc.start = 1671580800;
 
 export default adapters;

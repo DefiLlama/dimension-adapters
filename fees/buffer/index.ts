@@ -3,7 +3,6 @@ import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Adapter } from "../../adapters/types"
 
 const endpoints = {
@@ -52,9 +51,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1674950400 ,
+        start: 1674950400 ,
     },
-  }
+  },
+  version: 1
 }
 
 export default adapter;

@@ -14,7 +14,7 @@ interface IAPIResponse {
 
 const fetchData = async (period: '24h' | 'all'): Promise<string> => {
   const response = await postURL(`${URL}${endpoint}`, { period });
-  const data: IAPIResponse[] = response.data;
+  const data: IAPIResponse[] = response;
 
   const dexhunterData = data.find(d => d.is_dexhunter);
   if (!dexhunterData) {
@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: async () => startTimestamp,
+      start: startTimestamp,
     },
   },
 };

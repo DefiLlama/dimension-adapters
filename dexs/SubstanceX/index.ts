@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql, GraphQLClient } from "graphql-request";
@@ -6,18 +7,21 @@ import { Chain } from "@defillama/sdk/build/general";
 
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/substanceexchangedevelop/coreprod",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('HETFHppem3dz1Yjjv53D7K98dm5t5TErgYAMPBFPHVpi'),
+  [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta"
 };
 
 const blockNumberGraph = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-one-blocks",
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('64DCU8nq48qdDABnobpDafsg7RF75Rx5soKrHiGA8mqp'),
+    [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks" 
 }
+
+const headers = { 'sex-dev': 'ServerDev'}
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      if (chain === CHAIN.ARBITRUM) {
         // Get blockNumers
         const blockNumerQuery = gql`
         {
@@ -46,8 +50,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
 
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain]);
-        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
+          headers: chain === CHAIN.ZETA ? headers: null,
+        });
+        const graphQLClient = new GraphQLClient(graphUrls[chain], {
+          headers: chain === CHAIN.ZETA ? headers: null,
+        });
 
 
         const blockNumber = (
@@ -103,14 +111,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
       };
     };
   };
-};
+
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1700323200,
+      start: 1700323200,
     },
+    [CHAIN.ZETA]: {
+      fetch: graphs(endpoints)(CHAIN.ZETA),
+      start: 2631301,
+    }, 
   },
 };
 

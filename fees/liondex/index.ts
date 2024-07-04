@@ -1,15 +1,14 @@
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import * as sdk from "@defillama/sdk";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints = {
   [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/liondextrade/finance",
+    sdk.graph.modifyEndpoint('EDnnTmgZVXAywK9ujCbwhi2hNhuaLAgeSvRL7dPAsV13'),
 };
 
 const methodology = {
@@ -19,33 +18,19 @@ const methodology = {
 const VAULT = "0x8eF99304eb88Af9BDe85d58a35339Cb0e2a557B6";
 
 const abis = {
-  "getLPPrice": {
-    "inputs": [],
-    "name": "getLPPrice",
-    "outputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
+  "getLPPrice": "uint256:getLPPrice"
 }
 
 async function lpPrice() {
-  return (await sdk.api.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' })).output;
+  return (await sdk.api2.abi.call({ target: VAULT, abi: abis['getLPPrice'], chain: 'arbitrum' }));
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
+    return async ({ startOfDay }: FetchOptions) => {
       const graphQuery = gql`
         {
-          dailyGlobalInfo(id: "global-fee-${todaysTimestamp}" ) {
+          dailyGlobalInfo(id: "global-fee-${startOfDay}" ) {
             fees
           }
         }
@@ -54,7 +39,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const fees = graphRes.dailyGlobalInfo.fees * (await lpPrice()) / 1e18;
 
       return {
-        timestamp,
         dailyFees: fees.toString()
       };
     };
@@ -62,11 +46,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: async () => 1686614400,
+      start: 1686614400,
       meta: {
         methodology,
       },

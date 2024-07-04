@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -6,7 +7,7 @@ import { POLYGON } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/sdcrypt0/metavault-mvx-subgraph",
+  [POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -43,10 +44,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
-      start: async () => 1654041600,
+      start: 1654041600,
       meta: {
         methodology: 'All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.'
       }

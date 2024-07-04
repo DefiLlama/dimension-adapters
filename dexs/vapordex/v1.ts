@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const v1 = univ2Adapter(
   {
     [CHAIN.AVAX]:
-      "https://api.thegraph.com/subgraphs/name/mejiasd3v/vapordex-avalanche",
+      sdk.graph.modifyEndpoint('B6Tur5gXGCcswG8rEtmwfjBqeyDXCDUQSwM9wUXHoui5'),
   },
   {
     factoriesName: "dexAmmProtocols",
@@ -15,5 +16,5 @@ const v1 = univ2Adapter(
   }
 );
 
-v1.adapter.avax.start = async () => 1663545600;
+v1.adapter.avax.start = 1663545600;
 export default v1.adapter;

@@ -19,8 +19,8 @@ const graphs = (chain: string) => async (timestamp: number) => {
 
   return {
     timestamp,
-    dailyVolume: res.data.volume24h,
-    totalVolume: res.data.totalvolume,
+    dailyVolume: res.volume24h,
+    totalVolume: res.totalvolume,
   };
 };
 
@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
       fetch: graphs(CHAIN.SOLANA),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: async () => 0,
+      start: 0,
     },
   },
 };

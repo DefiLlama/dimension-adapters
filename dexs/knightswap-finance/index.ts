@@ -1,28 +1,16 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 const {
-  getChainVolume,getChainVolumeWithGasToken
+  getChainVolume
 } = require("../../helpers/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/id/QmPQfcovYgjF2vyGBE4LwXaSYj7Bgfvbny8MBpgLSBVKjB",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/thedarkknightanalytics",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW'),
 };
 
-const v1Graph = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "uniswapFactories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
-  },
-});
-
-const v2Graph = getChainVolumeWithGasToken({
+const v2Graph = getChainVolume({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
@@ -36,22 +24,15 @@ const v2Graph = getChainVolumeWithGasToken({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: v1Graph(CHAIN.BSC),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.BSC,
-        dailyDataField: `uniswapDayDatas`,
-      }),
+      fetch: v2Graph(CHAIN.BSC),
+      start: 1635379200,
     },
     [CHAIN.FANTOM]: {
       fetch: v2Graph(CHAIN.FANTOM),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.FANTOM,
-        dailyDataField: `pancakeDayDatas`,
-      }),
+      start: 1637798400,
     },
   },
 };

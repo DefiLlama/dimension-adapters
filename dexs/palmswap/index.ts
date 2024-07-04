@@ -1,6 +1,7 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { BigNumberish, utils } from "ethers";
+import { BigNumberish, ethers } from "ethers";
 
 const { request } = require("graphql-request");
 
@@ -11,7 +12,7 @@ const formatAmount = (
   thousandSeparated: boolean = true,
   trimMantissa: boolean = true
 ) => {
-  let formattedAmount = parseFloat(utils.formatUnits(amount, decimals));
+  let formattedAmount = parseFloat(ethers.formatUnits(amount, decimals));
 
   formattedAmount =
     Math.round(formattedAmount * Math.pow(10, mantissa)) /
@@ -34,7 +35,7 @@ const formatAmount = (
 const info: { [key: string]: any } = {
   bsc: {
     subgraph:
-      "https://api.thegraph.com/subgraphs/name/palmswap/synthetic-stats-mainnet",
+      sdk.graph.modifyEndpoint('DdLtKxzUi6ExMok8dNWh9B2HN5WeTWcQsfSSZMKH1trQ'),
   },
 };
 
@@ -114,7 +115,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(),
-      start: async () => 1689768000,
+      start: 1689768000,
     },
   },
 };

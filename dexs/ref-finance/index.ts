@@ -1,6 +1,6 @@
-import axios from "axios";
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 const dateToTs = (date: string) => new Date(date).getTime() / 1000
 
@@ -10,15 +10,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     "near":{
       start: async()=>{
-        const data = await axios.get(api)
-        return dateToTs(data.data[0].date)
+        const data = await httpGet(api)
+        return dateToTs(data[0].date)
       },
       fetch: async(ts)=>{
-        const data = await axios.get(api)
+        const data = await httpGet(api)
         const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
         return {
           timestamp: cleanTimestamp,
-          dailyVolume: data.data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+          dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
         }
       }
     }

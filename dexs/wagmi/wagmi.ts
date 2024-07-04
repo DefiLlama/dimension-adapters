@@ -1,9 +1,11 @@
+import * as sdk from "@defillama/sdk";
 // Wagmi data
 import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { FetchOptions } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
@@ -14,9 +16,9 @@ export const LINKS: { [key: string]: any } = {
   },
   [CHAIN.FANTOM]: {
     subgraph:
-      "https://api.thegraph.com/subgraphs/name/0xfantaholic/wagmi-fantom",
+      sdk.graph.modifyEndpoint('BtyzJrSwED7QFDBhC68myEJ851KJ47vRD11vkenPwgQz'),
     blocks:
-      "https://api.thegraph.com/subgraphs/name/beethovenxfi/fantom-blocks",
+      sdk.graph.modifyEndpoint('BjhETUnXsKV77w7P6GWNxWik762YDmV54nkMRG4ekk2W'),
   },
   [CHAIN.KAVA]: {
     subgraph: "https://kava.graph.wagmi.com/subgraphs/name/v3",
@@ -25,7 +27,11 @@ export const LINKS: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
     blocks:
-      "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+      sdk.graph.modifyEndpoint('9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC'),
+  },
+  [CHAIN.METIS]: {
+    subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",
+    blocks: "https://metis.graph.wagmi.com/subgraphs/name/blocks",
   },
 };
 
@@ -77,16 +83,13 @@ const getData = async (chain: Chain, timestamp: number) => {
   };
 };
 
-export const fetchVolume = (chain: string) => {
-  return async (timestamp: number) => {
-    const data = await getData(chain, timestamp);
-
+export const fetchVolume = async (options: FetchOptions) => {
+    const data = await getData(options.chain, options.startOfDay);
     return {
       totalVolume: data.totalVolume,
       dailyVolume: data.dailyVolume,
       timestamp: data.timestamp,
     };
-  };
 };
 
 export const fetchFee = (chain: string) => {

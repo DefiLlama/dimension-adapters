@@ -12,7 +12,8 @@ type ChainMap = {
 const endpoints: ChainMap = {
   [CHAIN.BSC]: "https://api.kiloex.io/common/queryTradeSummary",
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
-  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary"
+  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
+  [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary"
 };
 
 interface IFee {
@@ -24,7 +25,7 @@ interface IFee {
 const fetch = (chainId: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const fees: IFee[] = (await fetchURL(endpoints[chainId]))?.data;
+    const fees: IFee[] = (await fetchURL(endpoints[chainId]));
 
     const dailyFees = fees
       .find(item => item.time === dayTimestamp)?.dayTradeFee
@@ -42,15 +43,19 @@ const fetch = (chainId: string) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: async () => 1686528000
+      fetch: fetch(CHAIN.BSC), start: 1686528000
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: async () => 1696636800
+      fetch: fetch(CHAIN.OP_BNB), start: 1696636800
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: async () => 1698796800
+      fetch: fetch(CHAIN.MANTA), start: 1698796800
+    },
+    [CHAIN.TAIKO]: {
+      fetch: fetch(CHAIN.TAIKO), start: async () => 1717027200
     },
   },
 };

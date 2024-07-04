@@ -12,7 +12,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.dayVolume;
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).dayVolume;
   const totalVolume = historicalVolume
     .filter(volItem => (new Date(volItem.dateId).getTime() / 1000) <= dayTimestamp)
     .reduce((acc, { amount }) => acc + Number(amount), 0)
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
-      start: async () => 1675814400,
+      start: 1675814400,
     },
   },
 };

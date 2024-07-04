@@ -1,53 +1,24 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { ChainBlocks, FetchOptions } from "../../adapters/types";
 
-const chainsMap: Record<string, string> = {
-  ethereum: "ethereum",
+const abis = {
+  "Trade": "event Trade(address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)", // gnosis
+}
+
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+  const dailyVolume = createBalances()
+
+  const logs = await getLogs({ target: '0x9008d19f58aabd9ed0d60971565aa8510560ab41', eventAbi: abis.Trade, })
+  logs.forEach((log: any) => {
+    dailyVolume.add(log.buyToken, log.buyAmount)
+  })
+  return { timestamp, dailyVolume }
 };
-
-const fetch =
-  () =>
-  async (timestamp: number): Promise<FetchResult> => {
-    const unixTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-
-    try {
-      const data = (
-        await fetchURLWithRetry(
-          "https://api.dune.com/api/v1/query/3321375/results"
-        )
-      ).data;
-      const chainData = data?.result?.rows.find(
-        ({ aggregate_by }: { aggregate_by: string }) =>
-          getUniqStartOfTodayTimestamp(new Date(aggregate_by)) === unixTimestamp
-      );
-
-      return {
-        dailyVolume: chainData?.volume ?? "0",
-        timestamp: unixTimestamp,
-      };
-    } catch (e) {
-      return {
-        dailyVolume: "0",
-        timestamp: unixTimestamp,
-      };
-    }
-  };
 
 const adapter: any = {
   adapter: {
-    ...Object.values(chainsMap).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [(chainsMap as any)[chain] || chain]: {
-          fetch: fetch(),
-          start: async () => 1639526400,
-        },
-      };
-    }, {}),
+    ethereum: { fetch, start: 1685491200, },
+    xdai: { fetch, start: 1685491200, },
+    arbitrum: { fetch, start: 1714142553, },
   },
 };
 

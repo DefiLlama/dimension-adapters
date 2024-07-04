@@ -1,32 +1,15 @@
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-
 import fetchURL from "../../utils/fetchURL"
 
-const urlAmmPool = "https://api.raydium.io/v2/main/info";
-const urlAmmPoolStandard = "https://api.raydium.io/v2/ammV3/ammPools"
-
-interface IAmmPoool {
-  totalvolume: string;
-  volume24h: number;
-}
-
-interface IAmmPooolStandar {
-  volume: number;
-  tvl: number;
-}
-
 const graphs = async (timestamp: number): Promise<FetchResultVolume> => {
-  const ammPool: IAmmPoool = (await fetchURL(urlAmmPool)).data;
-  const ammPoolStandard: any[] = (await fetchURL(urlAmmPoolStandard)).data.data;;
-  const ammPoolStandardVolume: IAmmPooolStandar[] = ammPoolStandard.map((e: any) => e.day);
-  const dailyVolumeAmmPool = ammPoolStandardVolume
-    .filter((e: IAmmPooolStandar) => e.tvl > 100_000)
-    .reduce((a: number, b: IAmmPooolStandar) => a + b.volume, 0)
-  const dailyVolume = ammPool?.volume24h ? ammPool?.volume24h + dailyVolumeAmmPool: undefined;
+  const ammPoolStandard: any[] = (await fetchURL("https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=100&page=1")).data.data;
+  const dailyVolumeAmmPool = ammPoolStandard
+    .filter((e) => e.tvl > 100_000)
+    .reduce((a: number, b) => a + b.day.volume, 0)
   const fiveBill = 3_000_000_000; // set the threshold to 3B
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume < fiveBill ? dailyVolume : undefined}`: undefined,
+    dailyVolume: `${dailyVolumeAmmPool < fiveBill ? dailyVolumeAmmPool : undefined}`,
     timestamp: timestamp,
   };
 };
@@ -35,11 +18,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     solana: {
       fetch: graphs,
-      // runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 1660521600,
+      runAtCurrTime: true,
+      start: 1660521600,
     },
-    // TODO custom backfill
   },
 };
 

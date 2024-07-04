@@ -1,150 +1,119 @@
-import {Adapter, ChainEndpoints, FetchResultFees} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {Bet, BetResult} from "./types";
-import {Chain} from "@defillama/sdk/build/general";
-import {request, gql} from "graphql-request";
-import {getTimestampAtStartOfDayUTC} from "../../utils/date";
+import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { Bet, BetResult } from "./types";
+import { Chain } from "@defillama/sdk/build/general";
+import { request, gql } from "graphql-request";
 
-const endpoints = {
+const endpoints: ChainEndpoints = {
     [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v3",
     [CHAIN.XDAI]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3",
     [CHAIN.ARBITRUM]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-arbitrum-one-v3",
-    [CHAIN.LINEA]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-linea-v3"
-}
-type IStart = {
-    [s: string | Chain]: number
-}
-const getStartTimestamp: IStart = {
+    [CHAIN.LINEA]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-linea-v3",
+    [CHAIN.CHILIZ]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-chiliz-v3"
+};
+
+const getStartTimestamp: { [chain: string]: number } = {
     [CHAIN.POLYGON]: 1675209600,
     [CHAIN.XDAI]: 1654646400,
     [CHAIN.ARBITRUM]: 1686009600,
-    [CHAIN.LINEA]: 1691452800
-}
+    [CHAIN.LINEA]: 1691452800,
+    [CHAIN.CHILIZ]: 1716422400
+};
+
+const fetchBets = async (url: string, from: number, to: number, skip: number, live = false): Promise<Bet[]> => {
+    const query = gql`
+        {
+            ${live ? 'liveBets' : 'bets'}(
+                where: {
+                    status: Resolved,
+                    _isFreebet: false,
+                    resolvedBlockTimestamp_gte: ${from},
+                    resolvedBlockTimestamp_lte: ${to}
+                },
+                first: 1000,
+                skip: ${skip}
+            ) {
+                amount
+                odds
+                result
+            }
+        }
+    `;
+    const response = await request(url, query);
+    return response[live ? 'liveBets' : 'bets'];
+};
+
+const fetchAllBets = async (url: string, from: number, to: number, live = false): Promise<Bet[]> => {
+    let bets: Bet[] = [];
+    let skip = 0;
+    while (true) {
+        const newBets = await fetchBets(url, from, to, skip, live);
+        bets = [...bets, ...newBets];
+        if (newBets.length < 1000) break;
+        skip += 1000;
+    }
+    return bets;
+};
+
+const calculateAmounts = (bets: Bet[]) => {
+    const totalBetAmount = bets.reduce((sum, { amount }) => sum + Number(amount), 0);
+    const totalWonAmount = bets
+        .filter(({ result }) => result === BetResult.Won)
+        .reduce((sum, { amount, odds }) => sum + Number(amount) * Number(odds), 0);
+    return { totalBetAmount, totalWonAmount };
+};
 
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
-        return async (timestamp: number): Promise<FetchResultFees> => {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-            const fromTimestamp = todaysTimestamp - 60 * 60 * 24
-            const toTimestamp = todaysTimestamp
-            const bets: Bet[] = []
-            const total_bets: Bet[] = []
-            let skip = 0
+        return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+            const [bets] = await Promise.all([
+                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, false),
+            ]);
 
-            while (true) {
-                const graphQuery = gql`
-                    {
-                        bets(
-                            where: {
-                            status: Resolved,
-                            _isFreebet: false
-                            resolvedBlockTimestamp_gte: ${fromTimestamp},
-                            resolvedBlockTimestamp_lte: ${toTimestamp},
-                            }
-                            first: 1000,
-                            skip: ${skip}
-                        ) {
-                            amount
-                            odds
-                            result
-                        }
-                    }
-                    `;
-                const graphRes = await request(graphUrls[chain], graphQuery);
-
-                bets.push(...graphRes.bets)
-                skip += 1000
-
-                if (graphRes.bets.length < 1000) break
-            }
-
-            let skip_total = 0
-            while (true) {
-                const graphQuery = gql`
-                    {
-                        bets(
-                            where: {
-                            status: Resolved,
-                            _isFreebet: false
-                            resolvedBlockTimestamp_gte: ${getStartTimestamp[chain]},
-                            resolvedBlockTimestamp_lte: ${toTimestamp},
-                            }
-                            first: 1000,
-                            skip: ${skip_total}
-                        ) {
-                            amount
-                            odds
-                            result
-                        }
-                    }
-                    `;
-                const graphRes = await request(graphUrls[chain], graphQuery);
-
-                total_bets.push(...graphRes.bets)
-                skip_total += 1000
-                if (graphRes.bets.length < 1000) break
-            }
-            const totalBetAmount = total_bets.reduce((e: number, {amount}) => e+Number(amount), 0);
-            const totalWonAmount = total_bets.filter(({result}) => result === BetResult.Won)
-                .reduce((e: number, {amount, odds}) => e+Number(amount) * Number(odds), 0);
-            const totalFees = totalBetAmount - totalWonAmount;
-
-            const dailyBetAmount = bets.reduce((e: number, {amount}) => e+Number(amount), 0)
-            const dailyWonAmount = bets.filter(({result}) => result === BetResult.Won)
-                                 .reduce((e: number, {amount, odds}) => e+Number(amount) * Number(odds), 0)
-
-            const totalPoolProfit = dailyBetAmount - dailyWonAmount;
-            const dailyFees = totalPoolProfit;
-            const dailyRevenue = totalPoolProfit;
-
+            const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(bets);
+            const dailyPoolProfit = dailyBetAmount - dailyWonAmount;
             return {
-                timestamp,
-                dailyFees: dailyFees.toString(),
-                dailyRevenue: dailyRevenue.toString(),
-                totalFees: totalFees.toString(),
-                totalRevenue: totalFees.toString(),
+                dailyFees: dailyPoolProfit.toString(),
+                dailyRevenue: dailyPoolProfit.toString()
             };
-        }
-    }
-}
+        };
+    };
+};
 
 const methodology = {
     Fees: "Total pools profits (equals total bets amount minus total won bets amount)",
     Revenue: "Total pools profits (equals total bets amount minus total won bets amount)",
-}
+};
 
 const adapter: Adapter = {
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),
-            start: async () => 1675209600,
-            meta: {
-                methodology
-            }
+            start: getStartTimestamp[CHAIN.POLYGON],
+            meta: { methodology },
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
-            start: async () => 1654646400,
-            meta: {
-                methodology
-            }
+            start: getStartTimestamp[CHAIN.XDAI],
+            meta: { methodology },
         },
         [CHAIN.ARBITRUM]: {
             fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-            start: async () => 1686009600,
-            meta: {
-                methodology
-            }
+            start: getStartTimestamp[CHAIN.ARBITRUM],
+            meta: { methodology },
         },
         [CHAIN.LINEA]: {
             fetch: graphs(endpoints)(CHAIN.LINEA),
-            start: async () => 1691452800,
-            meta: {
-                methodology
-            }
+            start: getStartTimestamp[CHAIN.LINEA],
+            meta: { methodology },
         },
-
-    }
-}
+        [CHAIN.CHILIZ]: {
+            fetch: graphs(endpoints)(CHAIN.CHILIZ),
+            start: getStartTimestamp[CHAIN.CHILIZ],
+            meta: { methodology },
+        },
+    },
+    version: 2
+};
 
 export default adapter;

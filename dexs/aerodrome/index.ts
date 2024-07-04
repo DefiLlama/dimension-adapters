@@ -1,58 +1,20 @@
-import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { ethers } from "ethers";
-import { getPrices } from "../../utils/prices";
 
-const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
-type TPrice = {
-  [s: string]: {
-    price: number;
-    decimals: number
-  };
-}
+const sugar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
+const sugarOld = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
 const abis: any = {
-  forSwaps:{
-    "stateMutability": "view",
-    "type": "function",
-    "name": "forSwaps",
-    "inputs": [],
-    "outputs": [
-        {
-            "name": "",
-            "type": "tuple[]",
-            "components": [
-                {
-                    "name": "lp",
-                    "type": "address"
-                },
-                {
-                    "name": "stable",
-                    "type": "bool"
-                },
-                {
-                    "name": "token0",
-                    "type": "address"
-                },
-                {
-                    "name": "token1",
-                    "type": "address"
-                },
-                {
-                    "name": "factory",
-                    "type": "address"
-                }
-            ]
-        }
-    ]
-  }
+  "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])"
+}
+const abisOld: any = {
+  "forSwaps": "function forSwaps() view returns ((address lp, bool stable, address token0, address token1, address factory)[])"
 }
 
 interface IForSwap {
   lp: string;
   token0: string;
   token1: string;
+  pool_fee: string;
 }
 
 interface ILog {
@@ -61,88 +23,99 @@ interface ILog {
   transactionHash: string;
   topics: string[];
 }
-const topic0_swap = '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b'
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out)'
 
-const contract_interface = new ethers.utils.Interface([
-  event_swap
-])
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const chunkSize = 400;
+  let currentOffset = 0;
+  const allForSwaps: IForSwap[] = [];
+  let unfinished = true;
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-    const forSwaps: IForSwap[] = (await sdk.api.abi.call({
-      target: gurar,
-      abi: abis.forSwaps,
+  if (options.startOfDay > 1714743000) {
+
+    while (unfinished) {
+      const forSwaps: IForSwap[] = (await options.api.call({
+        target: sugar,
+        params: [chunkSize, currentOffset],
+        abi: abis.forSwaps,
+        chain: CHAIN.BASE,
+      })).filter(t => Number(t.type) < 1).map((e: any) => { // Regular v2 pool are types 0 and -1
+        return {
+          lp: e.lp,
+          token0: e.token0,
+          token1: e.token1,
+          pool_fee: e.pool_fee,
+        }
+      });
+
+      unfinished = forSwaps.length !== 0;
+      currentOffset += chunkSize;
+      allForSwaps.push(...forSwaps);
+    }
+
+    const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+
+    const logs: ILog[][] = await options.getLogs({
+      targets,
+      eventAbi: event_swap,
+      flatten: false,
+    })
+
+    logs.forEach((logs: ILog[], idx: number) => {
+      const { token0, token1, pool_fee } = allForSwaps[idx]
+      logs.forEach((log: any) => {
+        dailyVolume.add(token0, BigInt(Math.abs(Number(log.amount0In))))
+        dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1In))))
+        dailyFees.add(token0, BigInt( Math.round((((Math.abs(Number(log.amount0In))) * Number(pool_fee)) / 10000)))) // 1% fee represented as pool_fee=100
+        dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1In))) * Number(pool_fee)) / 10000))))
+      })
+    })
+
+    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  }
+  else {
+    const forSwapsOld: IForSwap[] = (await options.api.call({
+      target: sugarOld,
+      abi: abisOld.forSwaps,
       chain: CHAIN.BASE,
-    })).output.map((e: any) => {
+    })).map((e: any) => {
       return {
         lp: e.lp,
         token0: e.token0,
         token1: e.token1,
+        pool_fee: e.stable ? 5 : 30, // v2 0.05% stable swap fees, 0.3% volatile fees
       }
     })
 
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
+    const targets = forSwapsOld.map((forSwap: IForSwap) => forSwap.lp)
 
-    const logs: ILog[] = (await Promise.all(forSwaps.map((forSwaps: IForSwap) => sdk.api.util.getLogs({
-      target: forSwaps.lp,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: CHAIN.BASE,
-      topics: [topic0_swap]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
+    const logs: ILog[][] = await options.getLogs({
+      targets,
+      eventAbi: event_swap,
+      flatten: false,
+    })
 
-    const coins = [...new Set([
-      ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token0}`),
-      ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token1}`)
-    ])]
+    logs.forEach((logs: ILog[], idx: number) => {
+      const { token0, token1, pool_fee } = forSwapsOld[idx]
+      logs.forEach((log: any) => {
+        dailyVolume.add(token0, log.amount0Out)
+        dailyVolume.add(token1, log.amount1Out)
+        dailyFees.add(token0, BigInt( Math.round((((Math.abs(Number(log.amount0Out))) * Number(pool_fee)) / 10000))))
+        dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1Out))) * Number(pool_fee)) / 10000))))
+      })
+    })
 
-    const coins_split: string[][] = [];
-    for(let i = 0; i < coins.length; i+=100) {
-      coins_split.push(coins.slice(i, i + 100))
-    }
-    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
-    const prices: TPrice = Object.assign({}, {});
-    prices_result.map((a: any) => Object.assign(prices, a))
-    const volumeUSD: number = logs.map((log: ILog) => {
-      const value = contract_interface.parseLog(log);
-      const amount0In = Number(value.args.amount0In._hex);
-      const amount1In = Number(value.args.amount1In._hex);
-      const amount0Out = Number(value.args.amount0Out._hex);
-      const amount1Out = Number(value.args.amount1Out._hex);
-      const {token0, token1} = forSwaps.find((forSwap: IForSwap) => forSwap.lp.toLowerCase() === log.address.toLowerCase()) as IForSwap
-      const token0Decimals = prices[`${CHAIN.BASE}:${token0}`]?.decimals || 0
-      const token1Decimals = prices[`${CHAIN.BASE}:${token1}`]?.decimals || 0
-      const price0 = prices[`${CHAIN.BASE}:${token0}`]?.price || 0
-      const price1 = prices[`${CHAIN.BASE}:${token1}`]?.price || 0
-      const totalAmount0 = ((amount0In + amount0Out) / 10 ** token0Decimals) * price0
-      const totalAmount1 = ((amount1In + amount1Out) / 10 ** token1Decimals) * price1
-      const untrackAmountUSD = price0 !== 0 ? totalAmount0 : price1 !== 0 ? totalAmount1 : 0;
-      return untrackAmountUSD;
-    }).reduce((a: number, b: number) => a+b, 0)
-
-    return {
-      dailyVolume: `${volumeUSD}`,
-      timestamp
-    }
-  } catch(e) {
-    console.error(e)
-    throw e;
+    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
   }
-
 }
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetch,
-      start: async () => 1693180800,
+      fetch: fetch as any,
+      start: 1693180800,
     }
   }
 }

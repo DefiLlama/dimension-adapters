@@ -105,10 +105,11 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [ARBITRUM]: {
       fetch: graphOptions(endpoints)(ARBITRUM),
-      start: async () => OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
+      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
       meta: {
         methodology,
       },

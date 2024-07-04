@@ -24,7 +24,7 @@ const fetch = (chain: Chain) => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
         // fetch for the passed timestamp.
         const volumeUrl = url[chain] + String(timestamp);
-        const volume: IVolume = (await fetchURL(volumeUrl))?.data;
+        const volume: IVolume = (await fetchURL(volumeUrl));
         return {
             totalVolume: `${volume?.totalVolume || undefined}`,
             dailyVolume: `${volume?.dailyVolume || undefined}`,
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetch(CHAIN.SUI),
-            start: async () => 1683604174,
+            start: 1683604174,
         }
     },
 };

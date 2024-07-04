@@ -1,10 +1,7 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
-import getLogs, { notUndefined } from "../helpers/getLogs";
+import { Chain } from "@defillama/sdk/build/general";
+import getTxReceipts from "../helpers/getTxReceipts";
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
 const topic1_v1 = '0x56bd374744a66d531874338def36c906e3a6cf31176eb1e9afd9f1de69725d51';
@@ -35,60 +32,31 @@ interface ITx {
   transactionHash: string;
   topics: string[];
 }
-type IFeeV2 = {
-  [l: string | Chain]: number;
-}
-const feesV2: IFeeV2 = {
-  [CHAIN.ETHEREUM]: 0.25,
-  [CHAIN.BSC]: 0.005,
-  [CHAIN.POLYGON]: 0.0005,
-  [CHAIN.FANTOM]: 0.0005,
-  [CHAIN.AVAX]: 0.005,
-}
-
-const feesV1: IFeeV2 = {
-  [CHAIN.ETHEREUM]: 2,
-  [CHAIN.BSC]: 0.2,
-  [CHAIN.POLYGON]: 0.0001,
-}
 
 type IGasTokenId = {
   [l: string | Chain]: string;
 }
 const gasTokenId: IGasTokenId = {
-  [CHAIN.ETHEREUM]: "coingecko:ethereum",
-  [CHAIN.BSC]: "coingecko:binancecoin",
-  [CHAIN.POLYGON]: "coingecko:matic-network",
-  [CHAIN.FANTOM]: "coingecko:fantom",
-  [CHAIN.AVAX]: "coingecko:avalanche-2",
-  [CHAIN.ARBITRUM]: "coingecko:ethereum",
-  [CHAIN.OPTIMISM]: "coingecko:ethereum"
+  [CHAIN.ETHEREUM]: "ethereum",
+  [CHAIN.BSC]: "binancecoin",
+  [CHAIN.POLYGON]: "matic-network",
+  [CHAIN.FANTOM]: "fantom",
+  [CHAIN.AVAX]: "avalanche-2",
+  [CHAIN.ARBITRUM]: "ethereum",
+  [CHAIN.OPTIMISM]: "ethereum"
 }
 
-const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs_1: ITx[] = (await getLogs({
+const fetch =  async (options: FetchOptions): Promise<FetchResultV2> => {
+    const version = 1;
+    const chain = options.chain
+    const logs_1: ITx[] = (await options.getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      topic: '',
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: version === 1 ? [topic0_v1] : [topic0_v2],
-      keys: [],
-      chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
-    const logs_2: ITx[] = (await getLogs({
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+    const logs_2: ITx[] = (await options.getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      topic: '',
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: version === 1 ? [topic1_v1] : [topic1_v2],
-      keys: [],
-      chain: chain
-    })).output.map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const request_fees: any[] = logs_2.map((e: ITx) => {
       const fees = Number('0x'+e.data.slice(192, 256)) / 10 ** 18;
@@ -106,48 +74,42 @@ const fetch = (chain: Chain, version: number) => {
       return fees?.fees || 0;
     }).reduce((a: number, b: number) => a+b, 0)
 
-
-    const provider = getProvider(chain);
     const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash).filter(e => !exclude.includes(e)))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await Promise.all(tx_hash.map(async (transactionHash: string) =>
-      provider.getTransactionReceipt(transactionHash)
-    ).map(p => p.catch(() => undefined))))
+    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-vrf-v1' }))
       .map((e: any) => {
-        if (!e) return
-        const amount = (Number(e.gasUsed._hex) * Number(e.effectiveGasPrice?._hex || 0)) / 10 ** 18
+        const amount = (Number(e?.gasUsed || 0) * Number(e?.effectiveGasPrice || 0)) / 10 ** 18
         return amount
-      }).filter(notUndefined)
-    const linkAddress = "coingecko:chainlink";
+      })
+    const linkAddress = "chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = await getPrices([linkAddress, gasToken], timestamp);
+    const dailyGasUsd = options.createBalances()
+    const dailyFees = options.createBalances()
     const dailyGas =  txReceipt.reduce((a: number, b: number) => a + b, 0);
-    const linkPrice = prices[linkAddress].price
-    const gagPrice = prices[gasToken].price
-    const dailyGasUsd = dailyGas * gagPrice;
-    const dailyFees =(fees_amount * linkPrice);
-    const dailyRevenue = dailyFees - dailyGasUsd;
+    dailyGasUsd.addCGToken(gasToken, dailyGas);
+    dailyFees.addCGToken(linkAddress, fees_amount);
+    const dailyRevenue = dailyFees.clone()
+    dailyRevenue.subtract(dailyGasUsd)
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
+      dailyFees: dailyFees,
+      dailyRevenue: dailyRevenue,
     }
-  }
 }
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM, 1),
-      start: async () => 1675382400,
+      fetch: fetch,
+      start: 1675382400,
     },
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC, 1),
-      start: async () => 1675382400,
+      fetch: fetch,
+      start: 1675382400,
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON, 1),
-      start: async () => 1675382400,
+      fetch: fetch,
+      start: 1675382400,
     }
   }
 }

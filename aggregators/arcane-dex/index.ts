@@ -1,9 +1,11 @@
+import * as sdk from "@defillama/sdk";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 import request from "graphql-request"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getBlock } from "../../helpers/getBlock"
-import { getPrices } from "../../utils/prices";
+import * as sdk from "@defillama/sdk"
 
 interface IResponse {
   today: {
@@ -37,17 +39,14 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
       }
   }
   `
-  const result: IResponse = await request("https://api.thegraph.com/subgraphs/name/0xandee/arcanedex", query)
-  const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-  const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
+  const result: IResponse = await request(sdk.graph.modifyEndpoint('BocqFij8hqUaDGmR1FpSuAYJmtqafZrFmBtHknP7kVd'), query)
+  const ethAddress = "ethereum:" + ADDRESSES.null;
 
   const dailyVolumeInEth = Number(result.today.totalVolumeInEth) - Number(result.yesterday.totalVolumeInEth)
   const totalVolumeInEth = Number(result.today.totalVolumeInEth)
-  const dailyVolume = (dailyVolumeInEth / 1e18) * ethPrice;
-  const totalVolume = (totalVolumeInEth / 1e18) * ethPrice;
   return {
-    dailyVolume: dailyVolume.toString(),
-    totalVolume: totalVolume.toString(),
+    dailyVolume: await sdk.Balances.getUSDString({ [ethAddress]: dailyVolumeInEth }, timestamp),
+    totalVolume: await sdk.Balances.getUSDString({ [ethAddress]: totalVolumeInEth }, timestamp),
     timestamp,
   }
 }
@@ -55,7 +54,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: async () => 1700092800
+      start: 1700092800
       ,
     }
   }

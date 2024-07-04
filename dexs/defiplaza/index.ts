@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -14,7 +15,7 @@ type RadixPlazaResponse = {
   swaps: number
 }
 
-const thegraph_endpoints = "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza";
+const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKYN9QRmuzSsizVXhjKa');
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
@@ -56,11 +57,11 @@ const adapter: SimpleAdapter = {
           SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
         }
       },
-      start: async () => 1633237008
+      start: 1633237008
     },
     [CHAIN.RADIXDLT]: {
       fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`)).data;
+        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
 
         const dailySupplySideRevenue = daily.feesUSD;
         const dailyProtocolRevenue = daily.royaltiesUSD;
@@ -85,7 +86,7 @@ const adapter: SimpleAdapter = {
           SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
         }
       },
-      start: async () => 1700784000
+      start: 1700784000
     }
   },
 };

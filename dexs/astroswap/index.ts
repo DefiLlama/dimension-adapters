@@ -11,6 +11,6 @@ const adapters = univ2Adapter({
 });
 
 
-adapters.adapter.velas.start = async () => 1643414400;
+adapters.adapter.velas.start = 1643414400;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 export default adapters;

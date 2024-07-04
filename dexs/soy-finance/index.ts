@@ -7,6 +7,6 @@ const adapters = univ2Adapter({
   factoriesName: "soySwapFactories",
   dayData: "soySwapDayData",
 });
-adapters.adapter.callisto.start = async () => 1634699765;
+adapters.adapter.callisto.start = 1634699765;
 
 export default adapters;

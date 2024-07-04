@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
     persistence: {
       fetch,
       runAtCurrTime: false,
-      start: async () => 1679875200,
+      start: 1679875200,
     },
   },
 };

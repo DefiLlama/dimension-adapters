@@ -46,10 +46,11 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
-      start: async () => 1680480000,
+      start: 1680480000,
     },
   },
 };

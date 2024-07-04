@@ -1,64 +1,24 @@
-import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { ChainBlocks, FetchOptions } from "../../adapters/types";
 
-const chains = [CHAIN.AVAX];
+const routers: any = {
+  arbitrum: "0xb32C79a25291265eF240Eb32E9faBbc6DcEE3cE3",
+  avax: "0xC4729E56b831d74bBc18797e0e17A295fA77488c",
+}
 
-const chainMap: Record<string, string> = {
-  [CHAIN.AVAX]: "avalanche_c",
-};
-const NAME = "yield_yak";
-
-const fetch = (chain: string) => async (timestamp: number) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
-
-  try {
-    const data = await (
-      await fetchURLWithRetry(
-        "https://api.dune.com/api/v1/query/3321376/results"
-      )
-    ).data?.result?.rows;
-    const dayData = data.find(
-      ({
-        block_date,
-        blockchain,
-        project,
-      }: {
-        block_date: number;
-        blockchain: string;
-        project: string;
-      }) =>
-        getUniqStartOfTodayTimestamp(new Date(block_date)) === unixTimestamp &&
-        blockchain === (chainMap[chain] || chain) &&
-        project === NAME
-    );
-
-    return {
-      dailyVolume: dayData?.trade_amount ?? "0",
-      timestamp: unixTimestamp,
-    };
-  } catch (e) {
-    return {
-      dailyVolume: "0",
-      timestamp: unixTimestamp,
-    };
-  }
+const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, chain, }: FetchOptions) => {
+  const dailyVolume = createBalances()
+  const logs = await getLogs({
+    target: routers[chain],
+    eventAbi: 'event YakSwap (address indexed _tokenIn, address indexed _tokenOut, uint256 _amountIn, uint256 _amountOut)'
+  });
+  logs.forEach((log: any) => dailyVolume.add(log._tokenOut, log._amountOut));
+  return { timestamp, dailyVolume}
 };
 
 const adapter: any = {
   adapter: {
-    ...chains.reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: fetch(chain),
-          start: async () => 1685491200,
-        },
-      };
-    }, {}),
+    avax: { fetch, start: 1685491200, },
+    arbitrum: { fetch, start: 1685491200, },
   },
 };
 

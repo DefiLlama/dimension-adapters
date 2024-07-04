@@ -1,9 +1,7 @@
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
 
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.002;
@@ -20,21 +18,17 @@ interface IGraphResponse {
   yesterday: IPair[];
 }
 const getFees = () => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const fromTimestamp = todaysTimestamp - 60 * 60 * 24
-    const toTimestamp = todaysTimestamp
-    const todaysBlock = await getBlock(toTimestamp, CHAIN.EON, {});
-    const yesterdaysBlock = await getBlock(fromTimestamp, CHAIN.EON, {});
+  return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
     const query = gql`
       query fees {
-        yesterday: pairs(block: {number: ${yesterdaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        yesterday: pairs(block: {number: ${fromBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
         }
-        today: pairs(block: {number: ${todaysBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        today: pairs(block: {number: ${toBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
@@ -61,7 +55,6 @@ const getFees = () => {
     const dailyFee = totalFeesToday.minus(totalFeesYesterday);
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyUserFees: dailyFee.toString(),
       dailyRevenue: dailyFee.multipliedBy(0.32).toString(),
@@ -71,10 +64,11 @@ const getFees = () => {
 
 
   const adapter: SimpleAdapter = {
+    version: 2,
       adapter: {
           [CHAIN.EON]: {
               fetch: getFees(),
-              start: async () => 1698796800,
+              start: 1698796800,
 
           meta: {
             methodology: {

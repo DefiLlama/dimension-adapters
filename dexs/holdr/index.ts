@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
@@ -5,7 +6,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.AURORA]: "https://api.thegraph.com/subgraphs/name/kyzooghost/balancer_aurora_fork",
+  [CHAIN.AURORA]: sdk.graph.modifyEndpoint('5Yn3qgjM8y6KnN1jZd8TjcDLPRioVpiTC46XYgEwK56S'),
 };
 
 const graphParams = {
@@ -23,10 +24,11 @@ const v1graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),
-      start: async () => 1672531200,
+      start: 1672531200,
       customBackfill: customBackfill(CHAIN.AURORA as Chain, v1graphs)
     },
   },

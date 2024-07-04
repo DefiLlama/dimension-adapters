@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { BaseAdapter, BreakdownAdapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -27,9 +28,9 @@ const elasticEndpoints: TEndpoint = elasticChains.reduce((acc, chain) => ({
   [chain]: `https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-${normalizeChain[chain] ?? chain}`,
   ...acc,
 }), {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-mainnet",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-one",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/kybernetwork/kyberswap-elastic-matic",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('4U9PxDR4asVvfXyoVy18fhuj6NHnQhLzZkjZ5Bmuc5xk'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('C36tj8jSpEHxcNbjM3z7ayUZHVjrk4HRqnpGMFuRgXs6'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8g4tJKCJ7eMAHjzZNeRWz9BkYG5U7vDNjdanSXfDXGXT'),
   [CHAIN.LINEA]: "https://linea-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-linea",
   [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc",
   [CHAIN.BASE]: "https://base-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-base",
@@ -110,18 +111,21 @@ const graphsElasticV2 = (chain: Chain) => {
     }`;
 
     if (!elasticEndpointsV2[chain]) return { timestamp };
-    const graphRes: IPoolDay = await request(elasticEndpointsV2[chain], graphQuery);
-    const dailyFee = new BigNumber(graphRes.poolDayDatas.reduce((a: number, b: IData) => a + Number(b.feesUSD), 0))
-
-    return {
-      timestamp,
-      dailyUserFees: dailyFee.toString(),
-      dailyFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
-      dailyProtocolRevenue: "0",
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.16).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
-    };
+    try {
+      const graphRes: IPoolDay = await request(elasticEndpointsV2[chain], graphQuery);
+      const dailyFee = new BigNumber(graphRes.poolDayDatas.reduce((a: number, b: IData) => a + Number(b.feesUSD), 0))
+      return {
+        timestamp,
+        dailyUserFees: dailyFee.toString(),
+        dailyFees: dailyFee.toString(),
+        dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
+        dailyProtocolRevenue: "0",
+        dailyHoldersRevenue: dailyFee.multipliedBy(0.16).toString(),
+        dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
+      };
+    } catch (e) {
+      return { timestamp };
+    }
   };
 };
 
@@ -183,6 +187,7 @@ const graphsClassic = (chain: Chain) => {
         }
       }
     `;
+    try {
 
     const graphRes: IPoolData[] = (await request(classicEndpoints[chain], graphQuery)).poolDayDatas;
     const dailyFeeUSD = graphRes.reduce((a: number, b: IPoolData) => a + Number(b.dailyFeeUSD), 0)
@@ -198,6 +203,9 @@ const graphsClassic = (chain: Chain) => {
       dailyHoldersRevenue: dailyFee.multipliedBy(0.16).toString(),
       dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
     };
+    } catch (e) {
+      return { timestamp }
+    }
   };
 };
 

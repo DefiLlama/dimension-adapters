@@ -1,5 +1,5 @@
 import chains from "./chains"
-import routers from "./routers/uniswap-v2"
+import routers from "./routers/index"
 import protocolAddresses from "./routers/routerAddresses";
 import compoundV2, {addresses as compoundAddresses} from "./compound-v2";
 import { ExtraProtocolAddresses } from "./utils/types";

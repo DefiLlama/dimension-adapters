@@ -8,5 +8,5 @@ const adapters = univ2Adapter({
   dayData: "pandoraDayData",
 });
 
-adapters.adapter.bsc.start = async () => 1652757593;
+adapters.adapter.bsc.start = 1652757593;
 export default adapters;

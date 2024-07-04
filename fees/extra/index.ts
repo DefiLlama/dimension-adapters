@@ -1,8 +1,6 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
-import request, { gql } from "graphql-request";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import request from "graphql-request";
 import BigNumber from "bignumber.js";
 
 type TEndpoint = {
@@ -30,12 +28,10 @@ interface ILendingPool {
 }
 
 const graphs = (chain: CHAIN) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const fromTimestamp = todaysTimestamp - 60 * 60 * 24
-    const toTimestamp = todaysTimestamp
+  return async ({ fromTimestamp, toTimestamp, createBalances }: FetchOptions) => {
+    const dailyFees = createBalances()
 
-    const farmingQuery = gql`{
+    const farmingQuery = `{
       feePaids(
         where: { blockTimestamp_lte: ${toTimestamp}, blockTimestamp_gte: ${fromTimestamp} },
         first: 1000
@@ -46,7 +42,7 @@ const graphs = (chain: CHAIN) => {
     }`
     const graphRes: IFeePaid[] = (await request(endpoints[chain], farmingQuery)).feePaids;
 
-    const lendingQuery = gql`{
+    const lendingQuery = `{
       mintToTreasuries(
         where: { blockTimestamp_lte: ${toTimestamp}, blockTimestamp_gte: ${fromTimestamp} },
         first: 1000
@@ -57,7 +53,7 @@ const graphs = (chain: CHAIN) => {
     }`
     const lendingGraphRes: ILendingPaid[] = (await request(endpoints[chain], lendingQuery)).mintToTreasuries;
 
-    const lendingPoolsQuery = gql`{
+    const lendingPoolsQuery = `{
       lendingReservePools(first: 1000) {
         eTokenAddress
         exchangeRate
@@ -86,32 +82,29 @@ const graphs = (chain: CHAIN) => {
 
     const allFeesList = [...graphRes, ...lendingFeeList]
 
-    const coins = [...new Set(allFeesList.map((e: IFeePaid) => `${chain}:${e.asset.toLowerCase()}`))]
-    const prices = await getPrices(coins, todaysTimestamp);
-    const dailyFees = allFeesList.map((e: IFeePaid) => {
-      const decimals = prices[`${chain}:${e.asset.toLowerCase()}`]?.decimals;
-      const price = prices[`${chain}:${e.asset.toLowerCase()}`]?.price;
-      return new BigNumber(e.amount).dividedBy(new BigNumber(`1e+${decimals || 0}`)).toNumber() * (price || 0)
-    }).reduce((a: number, b: number) => a + b, 0)
+    allFeesList.map((e: IFeePaid) => {
+      dailyFees.add(e.asset, e.amount)
+    })
 
+    const dailyRevenue = dailyFees.clone()
+    dailyRevenue.resizeBy(0.5)
 
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyFees * 0.5}`,
-      timestamp,
+      dailyFees, dailyRevenue,
     };
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: async () => 1683450630,
+      start: 1683450630,
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: async () => 1693449471,
+      start: 1693449471,
     },
   },
 };

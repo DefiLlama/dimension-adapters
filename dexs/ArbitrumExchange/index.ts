@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -10,11 +11,11 @@ import {
 } from "../../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DsZsQrDp7VswGGm6PburYZ91AM3E9vwH45nwLCj3kXHA'),
 };
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex-v3",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu'),
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -66,6 +67,7 @@ const startTimeV3:TStartTime = {
   [CHAIN.ARBITRUM]: 1683590400,
 }
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {
@@ -82,7 +84,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology: {
             ...methodology,

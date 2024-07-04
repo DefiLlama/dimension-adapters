@@ -1,126 +1,114 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
-import BigNumber from "bignumber.js";
-import { getPrices } from "../utils/prices";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { Chain } from "@defillama/sdk/build/general";
 
-
-interface IEvent {
-  name: string;
-  topic: string;
-}
-const event: IEvent[] = [
-  {
-    name: 'DevGovFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0x4628f3d38f72d5f9e077d3965e10cd3242ff1316aa2bf81f054c0dfb25408406'
-  },
-  {
-    name: 'SssFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0xd1e388cc27c5125a80cf538c12b26dc5a784071d324a81a736e4d17f238588e4'
-  },
-  {
-    name: 'ReferralFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0x0f5273269f52308b9c40fafda3ca13cc42f715fcd795365e87f351f59e249313'
-  },
-  {
-    name: 'NftBotFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0xcada75418f444febbe725c87360b063440c54e00e82d578010de1ed009d756c5'
-  },
-  {
-    name: 'DaiVaultFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0x60c73da98faf96842eabd77a0c73964cd189dbaf2c9ae90923a3fed137f30e3e'
-  },
-  {
-    name: 'LpFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0xf3dd1b8102b506743ce65a97636e91051e861f4f8f7e3eb87f2d95d0a616cea2'
-  },
-  {
-    name: 'TriggerFeeCharged(address indexed trader, uint valueDai)',
-    topic: '0x17fa86cf4833d28c6224a940e6bd001f2db0cb3d89d69727765679b3efee6559'
-  },
-  {
-    name: 'GovFeeCharged(address indexed trader, uint valueDai, bool distributed)',
-    topic: '0xccd80d359a6fbe0bfa5cbb1ecf0854adbe8c67b4ed6bf10d3c0d78c2be0f48cb'
-  },
-  {
-    name: 'BorrowingFeeCharged(address indexed trader, uint tradeValueDai, uint feeValueDai)',
-    topic: '0xe7d34775bf6fd7b34e703a903ef79ab16166ebdffce96a66f4d2f84b6263bb29'
-  },
-];
-
-interface ITx {
-  data: string;
-}
-
-const FEE_ADDRESS_POLYGON = "0x82e59334da8C667797009BBe82473B55c7A6b311";
-const FEE_ADDRESS_ARBITRUM = "0x298a695906e16aeA0a184A2815A76eAd1a0b7522";
-const FEE_ADDRESS = {
-  [CHAIN.POLYGON]: FEE_ADDRESS_POLYGON,
-  [CHAIN.ARBITRUM]: FEE_ADDRESS_ARBITRUM
+type IAddresses = {
+  [s: string | Chain]: string[];
 };
 
-const BIG_TEN = new BigNumber('10');
+const event: string[] = [
+  "event DevGovFeeCharged(address indexed trader, uint valueDai)",
+  "event SssFeeCharged(address indexed trader, uint valueDai)",
+  "event ReferralFeeCharged(address indexed trader, uint valueDai)",
+  "event NftBotFeeCharged(address indexed trader, uint valueDai)",
+  "event DaiVaultFeeCharged(address indexed trader, uint valueDai)",
+  "event LpFeeCharged(address indexed trader, uint valueDai)",
+  "event TriggerFeeCharged(address indexed trader, uint valueDai)",
+  "event GovFeeCharged(address indexed trader, uint valueDai, bool distributed)",
+  "event BorrowingFeeCharged(address indexed trader, uint tradeValueDai, uint valueDai)",
+];
 
-const fetch = (address: string, chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+const eventV8: string[] = [
+  "event GovFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+  "event ReferralFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+  "event TriggerFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+  "event GnsStakingFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+  "event GTokenFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+  "event BorrowingFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+];
 
-    const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const [devFeeCall, ssFeeCall, referralFeeCall, nftBotFeeCall, daiVaultCall, lpFeeCall, triggerFeeCall, govFeeCall, borrowingFeeCall]: any = await Promise.all(
-      event.map((e:IEvent) => sdk.api.util.getLogs({
-        target: address,
-        topic: e.name,
-        toBlock: yesterdaysBlock,
-        fromBlock: todaysBlock,
-        keys: [],
-        chain: chain,
-        topics: [e.topic]
-    })));
+// Pre-v8
+const addressConfig: { [a: string]: string } = {
+  "0x82e59334da8c667797009bbe82473b55c7a6b311": ADDRESSES.polygon.DAI,
+  "0x0bbed2eac3237ba128643670b7cf3be475933755": ADDRESSES.polygon.WETH,
+  "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": ADDRESSES.polygon.USDC_CIRCLE,
+  "0x298a695906e16aea0a184a2815a76ead1a0b7522": ADDRESSES.arbitrum.DAI,
+  "0x62a9f50c92a57c719ff741133caa55c7a81ce019": ADDRESSES.arbitrum.WETH,
+  "0x4542256c583bcad66a19a525b57203773a6485bf": ADDRESSES.arbitrum.USDC_CIRCLE,
+};
 
-    const mapper = (p: ITx) => new BigNumber(p.data);
-    const reducer = (a:BigNumber, c:BigNumber) => a.plus(c);
-    const devFeeValume = devFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const ssFeeVol = ssFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const referralFeeVol = referralFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const nftBotFeeVol = nftBotFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const daiVaultVol = daiVaultCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const lpFeeVol = lpFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const triggerFeeVol = triggerFeeCall.output.map(mapper).reduce(reducer, new BigNumber('0'));
-    const govFeeVol = govFeeCall.output.map((p: ITx) => new BigNumber(p.data.slice(0, 66))).reduce(reducer, new BigNumber('0'));
-    const borrowingFeeVol = borrowingFeeCall.output.map((p: ITx) => new BigNumber('0x' + p.data.slice(66, 130))).reduce(reducer, new BigNumber('0'));
-    const prices = await getPrices(['coingecko:dai'], todaysTimestamp);
-    const daiPrice = prices['coingecko:dai']?.price || 1;
+// Post-v8
+const collateralIndexMap: { [s: string | Chain]: { [a: number]: string } } = {
+  [CHAIN.POLYGON]: { 1: ADDRESSES.polygon.DAI, 2: ADDRESSES.polygon.WETH, 3: ADDRESSES.polygon.USDC_CIRCLE },
+  [CHAIN.ARBITRUM]: { 1: ADDRESSES.arbitrum.DAI, 2: ADDRESSES.arbitrum.WETH, 3: ADDRESSES.arbitrum.USDC_CIRCLE },
+};
 
-    const dailyHoldersRevenue = ssFeeVol.times(daiPrice).div(BIG_TEN.pow(18)).toString();
-    const dailyRevenue = devFeeValume.plus(ssFeeVol).plus(govFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
-    const dailyFees =  devFeeValume.plus(ssFeeVol).plus(govFeeVol).plus(referralFeeVol).plus(nftBotFeeVol).plus(daiVaultVol)
-        .plus(lpFeeVol).plus(triggerFeeVol).plus(borrowingFeeVol).times(daiPrice).div(BIG_TEN.pow(18)).toString();
+const contract_addresses: IAddresses = {
+  [CHAIN.POLYGON]: [
+    "0x82e59334da8c667797009bbe82473b55c7a6b311", // DAI TradingCallbacks
+    "0x0bbed2eac3237ba128643670b7cf3be475933755", // ETH TradingCallbacks
+    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef", // USDC TradingCallbacks
+    "0x209a9a01980377916851af2ca075c2b170452018", // v8 Diamond
+  ],
+  [CHAIN.ARBITRUM]: [
+    "0x298a695906e16aea0a184a2815a76ead1a0b7522", // DAI TradingCallbacks
+    "0x62a9f50c92a57c719ff741133caa55c7a81ce019", // ETH TradingCallbacks
+    "0x4542256c583bcad66a19a525b57203773a6485bf", // USDC TradingCallbacks
+    "0xff162c694eaa571f685030649814282ea457f169", // v8 Diamond
+  ],
+};
 
-    return {
-      timestamp,
-      dailyFees,
-      dailyRevenue,
-      dailyHoldersRevenue,
-    } as FetchResultFees
-  }
-}
+const fetch = (chain: Chain) => {
+  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+    const collateralIndexToToken = collateralIndexMap[chain];
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+    const dailyHoldersRevenue = createBalances();
+
+    for (const target of contract_addresses[chain]) {
+      const token = addressConfig[target];
+
+      // pre-v8
+      if (token) {
+        const [devFee, ssFee, referralFee, nftBotFee, daiVault, lpFee, triggerFee, govFee, borrowingFee]: any = await Promise.all(
+          event.map((eventAbi) => getLogs({ target, eventAbi }))
+        );
+
+        [devFee, ssFee, referralFee, nftBotFee, daiVault, lpFee, triggerFee, govFee, borrowingFee]
+          .flat()
+          .forEach((i: any) => dailyFees.add(token, i.valueDai));
+        [devFee, ssFee, govFee].flat().forEach((i: any) => dailyRevenue.add(token, i.valueDai));
+        ssFee.forEach((i: any) => dailyHoldersRevenue.add(token, i.valueDai));
+      } else {
+        // v8
+        const [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]: any = await Promise.all(
+          eventV8.map((eventAbi) => getLogs({ target, eventAbi }))
+        );
+
+        [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]
+          .flat()
+          .forEach((i: any) => dailyFees.add(collateralIndexToToken[i.collateralIndex], i.amountCollateral));
+        [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(collateralIndexToToken[i.collateralIndex], i.amountCollateral));
+        stakingFee.forEach((i: any) => dailyHoldersRevenue.add(collateralIndexToToken[i.collateralIndex], i.amountCollateral));
+      }
+    }
+
+    return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue };
+  };
+};
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-        fetch: fetch(FEE_ADDRESS[CHAIN.POLYGON], CHAIN.POLYGON),
-        start: async ()  => 1654214400,
+      fetch: fetch(CHAIN.POLYGON),
+      start: 1654214400,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(FEE_ADDRESS[CHAIN.ARBITRUM], CHAIN.ARBITRUM),
-      start: async ()  => 1672358400,
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: 1672358400,
+    },
   },
-  }
-}
+};
 
 export default adapter;

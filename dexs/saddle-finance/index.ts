@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/saddle-finance/saddle",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/saddle-finance/saddle-arbitrum"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('79UL5SaLLsbXqC8Ks6v3fwWHR1FRs636FFRHn55o5SWq'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AB2t32R1htdcguMQVVGt4biKGFeQ2HfXkEgJNkKi1dJa')
 };
 
 const graphs = getChainVolume({
@@ -22,14 +23,15 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),
-      start: async () => 1659750817,
+      start: 1659750817,
     },
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: async () => 1628128417,
+      start: 1628128417,
     },
   },
 };

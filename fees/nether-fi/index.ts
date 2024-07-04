@@ -4,7 +4,7 @@ import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const subgraphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
-const startTimestamp = async () => 1693526400;
+const startTimestamp = 1693526400;
 
 const methodology = {
   Fees: "Open/Close position: 0.1% | Swap: 0.2% to 0.8% | Mint and Burn: 0% to 0.85% (based on tokens balance in the pool) | Borrow Fee: `(assets borrowed) / (total assets in pool) * 0.01%`",
@@ -53,6 +53,7 @@ const getFetch = (): Fetch => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),

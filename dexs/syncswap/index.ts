@@ -2,7 +2,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/30365/zksync-blocks/v0.0.9",
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/30365/syncswap-graph/1.4.0",
 };
 
 const adapter = univ2Adapter(endpoints, {
@@ -13,6 +13,6 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date",
 });
 
-adapter.adapter.era.start = async () => 1679529600
+adapter.adapter.era.start = 1679529600
 
 export default adapter

@@ -15,5 +15,5 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date",
 });
 
-adapter.adapter.scroll.start = async () => 1700697600
+adapter.adapter.scroll.start = 1700697600
 export default adapter

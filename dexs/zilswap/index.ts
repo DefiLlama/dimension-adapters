@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getPrices } from "../../utils/prices";
 
 const historicalVolumeEndpoint = "https://api.zilstream.com/volume"
 
@@ -10,28 +9,22 @@ interface IVolumeall {
   time: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay, }: FetchOptions) => {
+  const dailyVolume = createBalances()
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data;
-  const _dailyVolume =  historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === dayTimestamp);
-  const dailyVolume = Math.abs(Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length-1].value))
-  const priceId = 'coingecko:zilliqa';
-  const prices = await getPrices([priceId], dayTimestamp);
-  const dailyVolumeUSD = dailyVolume ? `${Number(dailyVolume) * prices[priceId].price}` : undefined
-  return {
-    dailyVolume: dailyVolumeUSD ? `${dailyVolumeUSD}` : undefined,
-    timestamp: dayTimestamp,
-  };
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
+  const _dailyVolume = historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === dayTimestamp);
+  const __dailyVolume = Math.abs(Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length - 1].value))
+  dailyVolume.addCGToken("zilliqa", __dailyVolume)
+  return { dailyVolume, timestamp: startOfDay, };
 };
-
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     zilliqa: {
       fetch,
       runAtCurrTime: true,
-      start: async () => 1673049600,
+      start: 1673049600,
     },
   },
 };

@@ -1,19 +1,9 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { ethers } from "ethers";
-
-const topics0_modified_positions = '0xc0d933baa356386a245ade48f9a9c59db4612af2b5b9c17de5b451c628760f43';
-const topics0_postions_liq = '0x8e83cfbf9c95216dce50909e376c0dcc3e23129a3aa1edd5013fa8b41648f883';
 
 const event_modified_positions = 'event PositionModified(uint indexed id,address indexed account,uint margin,int size,int tradeSize,uint lastPrice,uint fundingIndex,uint fee,int skew)';
 const event_postions_liq = 'event PositionLiquidated(uint id,address account,address liquidator,int size,uint price,uint flaggerFee,uint liquidatorFee,uint stakersFee)';
 
-const contract_interface = new ethers.utils.Interface([
-  event_modified_positions,
-  event_postions_liq
-]);
 const contracts: string[] = [
   '0x5374761526175B59f1E583246E20639909E189cE',
   '0xF9DD29D2Fd9B38Cd90E390C797F1B7E0523f43A9',
@@ -59,73 +49,28 @@ const contracts: string[] = [
   '0x6110DF298B411a46d6edce72f5CAca9Ad826C1De',
 ]
 
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-  address: string;
-}
+const fetchVolume: any = async (timestamp: number, _, { getLogs, }: FetchOptions): Promise<FetchResultVolume> => {
+  let dailyVolume = 0
+  const logs_modify: any[] = await getLogs({ targets: contracts, eventAbi: event_modified_positions, })
+  const logs_liq: any[] = await getLogs({ targets: contracts, eventAbi: event_postions_liq, })
+  logs_modify.forEach((log: any) => {
+    let value = Number(log.tradeSize) * Number(log.lastPrice) / 1e36
+    if (value < 0) value *= -1
+    dailyVolume += value
+  })
+  logs_liq.forEach((log: any) => {
+    let value = Number(log.size) * Number(log.price) / 1e36
+    if (value < 0) value *= -1
+    dailyVolume += value
+  })
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.OPTIMISM, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.OPTIMISM, {}));
-
-
-    const logs_modify: ILog[] = (await Promise.all(contracts.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: CHAIN.OPTIMISM,
-      topics: [topics0_modified_positions]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
-    const contract_active: string[] = [...new Set(logs_modify.map((e: ILog) => e.address))]
-    const logs_liq: ILog[] = (await Promise.all(contract_active.map((address: string) => sdk.api.util.getLogs({
-        target: address,
-        topic: '',
-        toBlock: toBlock,
-        fromBlock: fromBlock,
-        keys: [],
-        chain: CHAIN.OPTIMISM,
-        topics: [topics0_postions_liq]
-      }))))
-        .map((p: any) => p)
-        .map((a: any) => a.output).flat();
-
-    const tradeVolume = logs_modify.map((e: ILog) => {
-      const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value.args.tradeSize._hex.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value.args.lastPrice._hex.replace('-', '')) / 10 ** 18;
-      return (tradeSize * lastPrice);
-    }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
-
-    const liqVolume = logs_liq.map((e: ILog) => {
-      const value = contract_interface.parseLog(e)
-      const tradeSize = Number(value.args.size._hex.replace('-', '')) / 10 ** 18;
-      const lastPrice = Number(value.args.price._hex.replace('-', '')) / 10 ** 18;
-      return (tradeSize * lastPrice);
-    }).filter((e: number) => !isNaN(e)).reduce((a: number, b: number) => a + b, 0);
-    const dailyVolume = tradeVolume + liqVolume;
-    return {
-      dailyVolume: `${dailyVolume}`,
-      timestamp
-    }
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  return { dailyVolume, timestamp }
 }
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume,
-      start: async () => 1682121600,
+      start: 1682121600,
     },
   }
 };

@@ -24,22 +24,10 @@ interface YieldData {
 }
 
 type TABI = {
-    [k: string]: object;
+    [k: string]: string;
 }
 const ABIs: TABI = {
-    getManagementFee: {
-        "inputs": [],
-        "name": "managementFee",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    }
+    getManagementFee: "uint256:managementFee"
 };
 
 const getData = (chain: Chain) => {
@@ -48,28 +36,28 @@ const getData = (chain: Chain) => {
         const to = timestamp;
         const block = await getBlock(from, chain, {});
         const omnipoolManagementFee = Number((
-            await sdk.api.abi.call({
+            await sdk.api2.abi.call({
                 target: ZUNAMI_ADDRESS,
                 chain: chain,
                 abi: ABIs.getManagementFee,
                 block: block
             })
-        ).output) / FEE_DENOMINATOR
+        )) / FEE_DENOMINATOR
         const apsManagementFee = Number((
-            await sdk.api.abi.call({
+            await sdk.api2.abi.call({
                 target: APS_ADDRESS,
                 chain: chain,
                 abi: ABIs.getManagementFee,
                 block: block
             })
-        ).output) / FEE_DENOMINATOR
+        )) / FEE_DENOMINATOR
 
-        const dailyData: YieldData = (await fetchURL(dataEndpoint(from, to))).data;
+        const dailyData: YieldData = (await fetchURL(dataEndpoint(from, to)));
         const dailyRevenue = (dailyData.omnipoolYield * omnipoolManagementFee)
             + (dailyData.apsYield * apsManagementFee) + dailyData.rigidYield;
         const dailyHoldersRevenue = dailyData.omnipoolYield + dailyData.apsYield;
 
-        const totalData: YieldData = (await fetchURL(dataEndpoint(START_TIMESTAMP, to))).data
+        const totalData: YieldData = (await fetchURL(dataEndpoint(START_TIMESTAMP, to)))
         const totalRevenue = (totalData.omnipoolYield * omnipoolManagementFee)
             + (totalData.apsYield * apsManagementFee) + totalData.rigidYield
         const totalDailyHoldersRevenue = totalData.omnipoolYield + totalData.apsYield;
@@ -99,7 +87,7 @@ const adapter: SimpleAdapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [CHAIN.ETHEREUM]: {
             fetch: getData(CHAIN.ETHEREUM),
-            start: async () => START_TIMESTAMP,
+            start: START_TIMESTAMP,
             runAtCurrTime: true,
             meta: {methodology}
         },

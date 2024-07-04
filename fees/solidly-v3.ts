@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -16,7 +17,11 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
+  // [CHAIN.BASE]: "https://api.studio.thegraph.com/query/64631/solidly-v3-base/version/latest",
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('HCThb3gJC45qUYmNEaYmZZTqJW3pSq7X6tb4MqNHEvZf'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ALCsbp7jWC6EQjwgicvZkG6dDEFGMV32QUZJvJGqL9Kx'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('HDNu25S2uqr13BHrQdPv2PfTpwxJgPB7QEnC8fsgKcM9')
 }
 
 const fetch = (chain: Chain) => {
@@ -52,7 +57,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: async () => 1693526400,
+      start: 1693526400,
+    },
+    // [CHAIN.BASE]: {
+    //   fetch: fetch(CHAIN.BASE),
+    //   start: 0,
+    // },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: 0,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: 0,
+    },
+    [CHAIN.FANTOM]: {
+      fetch: fetch(CHAIN.FANTOM),
+      start: 0,
     },
   },
 };

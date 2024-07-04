@@ -16,7 +16,7 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const rawData: IRawData = (await fetchURL(historicalVolumeEndpoint))?.data;
+  const rawData: IRawData = (await fetchURL(historicalVolumeEndpoint));
   const historicalVolume: any[] = rawData.timestamps.map((value: number, index: number) => {
     return {
       volume: rawData.volumes[index] || 0,
@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OAS]: {
       fetch,
-      start: async () => 1671030000,
+      start: 1671030000,
     },
   },
 };

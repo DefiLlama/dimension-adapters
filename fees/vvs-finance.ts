@@ -22,5 +22,5 @@ const adapters = univ2DimensionAdapter({
   }
 }, {
 });
-adapters.adapter.cronos.start = async () => 1632035122;
+adapters.adapter.cronos.start = 1632035122;
 export default adapters;

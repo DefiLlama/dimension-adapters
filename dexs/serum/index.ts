@@ -2,6 +2,7 @@ import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { gql, GraphQLClient } from "graphql-request";
 import disabledAdapter from "../../helpers/disabledAdapter";
+import { getEnv } from "../../helpers/env";
 
 const endpoint = "https://api.vybenetwork.com/v1/graphql";
 
@@ -18,7 +19,7 @@ const query = gql`
 
 const graphQLClient = new GraphQLClient(endpoint);
 const getGQLClient = () => {
-  graphQLClient.setHeader("authorization", process.env.PROD_VYBE_API_KEY ?? '')
+  graphQLClient.setHeader("authorization", getEnv('PROD_VYBE_API_KEY'))
   return graphQLClient
 }
 

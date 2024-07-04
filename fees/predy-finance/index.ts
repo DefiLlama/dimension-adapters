@@ -1,3 +1,5 @@
+import * as sdk from "@defillama/sdk";
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
@@ -10,17 +12,17 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predyv3arbitrum",
+    sdk.graph.modifyEndpoint('4ZDgpHaNhFWKFvUZ9ND4hsWjsz3vR2osCZyrkun3GghM'),
 };
 
 const v320endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v320-arbitrum",
+    sdk.graph.modifyEndpoint('5icuXT29ipuwqJBF1qux8eA1zskVazyYNq9NzQvoB6eS'),
 };
 
 const v5endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v4-arbitrum",
+    sdk.graph.modifyEndpoint('GxfTCbMfhaBSJaXHj88Ja1iVG9CXwGWhVQsQ8YA7oLdo'),
 };
 
 const USDC_DECIMAL = 1e6;
@@ -32,9 +34,9 @@ const DIVISOR = 1e18;
 
 // Set decimals for each token
 let decimalByAddress: { [key: string]: number } = {
-  "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": USDC_DECIMAL,
-  "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": ETH_DECIMAL,
-  "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": WBTC_DECIMAL,
+  [ADDRESSES.arbitrum.USDC]: USDC_DECIMAL,
+  [ADDRESSES.arbitrum.WETH]: ETH_DECIMAL,
+  [ADDRESSES.arbitrum.WBTC]: WBTC_DECIMAL,
   "0x589d35656641d6aB57A545F08cf473eCD9B6D5F7": GYEN_DECIMAL,
 };
 
@@ -45,7 +47,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const graphUrl = graphUrls[chain];
 
       // ETH oracle price
-      const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
+      const ethAddress = "ethereum:" + ADDRESSES.null;
       const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
         .price;
 
@@ -422,6 +424,7 @@ const v3DailyRevenue = async (
 };
 
 const adapter: BreakdownAdapter = {
+  version: 1,
   breakdown: {
     v3: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -434,7 +437,7 @@ const adapter: BreakdownAdapter = {
     v5: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
-        start: async () => 1688490168,
+        start: 1688490168,
       },
     },
   },

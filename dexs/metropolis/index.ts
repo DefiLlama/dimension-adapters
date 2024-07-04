@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 
 const endpoints = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/0xhans1/metropolis-v2",
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('C9pjtfL9qqoHoCbLenWiztCBdT2YoG6rk3bHLaCMBS3H'),
 };
 
 const adapter = univ2Adapter(endpoints, {
@@ -15,7 +16,7 @@ const adapter = univ2Adapter(endpoints, {
   dailyVolumeTimestampField: "date"
 });
 
-adapter.adapter.fantom.start = async () => 1673827200;
+adapter.adapter.fantom.start = 1673827200;
 
 // Metropolis was acquired by Swapline.
 // Currently, both adapters (tvl) are the same code.

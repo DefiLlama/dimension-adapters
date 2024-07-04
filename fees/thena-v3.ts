@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -16,7 +17,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/thenaursa/thena-fusion"
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
 }
 
 const fetch = (chain: Chain) => {
@@ -52,7 +53,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: async () => 1681516800,
+      start: 1681516800,
     },
   },
 };

@@ -4,11 +4,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 
-
-type TChainIDs = {
-  [key in Chain]?: number;
-};
-
+type TChainIDs = { [key in Chain]?: number };
 const chainIDs: TChainIDs = {
   [CHAIN.FANTOM]: 250,
   [CHAIN.ARBITRUM]: 42161,
@@ -20,7 +16,7 @@ const chainIDs: TChainIDs = {
 
 interface IDayProduct {
   cumulativeFeesUsd: number;
-  _id: string;
+  chainId: number;
 }
 
 const fetch = (chain: Chain) => {
@@ -31,35 +27,38 @@ const fetch = (chain: Chain) => {
       query MyQuery {
         DayProducts(filter: {date: ${todaysTimestamp}}) {
           cumulativeFeesUsd
-          _id
+          chainId
         }
       }
     `;
 
-    const endpoint = "https://arkiverbackup.moltennetwork.com/graphql";
+    const endpoint = "https://arkiver.moltennetwork.com/graphql";
     const response = await request(endpoint, graphQuery);
     const dayProducts: IDayProduct[] = response.DayProducts;
 
-    const chainID = chainIDs[chain];
-    let dailyFeeUSD = 0;
-
+    const feesByChain: { [chainId: number]: number } = {};
     dayProducts.forEach((product) => {
-      const productChainID = parseInt(product._id.split(":")[2]);
-      if (productChainID === chainID) {
-        dailyFeeUSD += product.cumulativeFeesUsd;
+      const chainId = product.chainId;
+      if (chainId === 360) {
+        feesByChain[42161] = (feesByChain[42161] || 0) + product.cumulativeFeesUsd;
+      } else {
+        feesByChain[chainId] = (feesByChain[chainId] || 0) + product.cumulativeFeesUsd;
       }
     });
 
-    const dailyHoldersRevenue = dailyFeeUSD * 0.35;
-    const dailyProtocolRevenue = dailyFeeUSD * 0.70;
-    const dailySupplySideRevenue = dailyFeeUSD * 0.3;
+    const chainID = chainIDs[chain];
+    const dailyFeeUSD = chainID !== undefined ? feesByChain[chainID] || 0 : 0;
+
+    const dailyHoldersRevenue = dailyFeeUSD * 0.65;
+    const dailyProtocolRevenue = dailyFeeUSD;
+    const dailySupplySideRevenue = dailyFeeUSD * 0.20;
+
     return {
       dailyFees: dailyFeeUSD.toString(),
       dailyHoldersRevenue: dailyHoldersRevenue.toString(),
       dailyProtocolRevenue: dailyProtocolRevenue.toString(),
-      dailyRevenue: dailyProtocolRevenue.toString(),
       dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-      timestamp
+      timestamp,
     };
   };
 };
@@ -67,60 +66,45 @@ const fetch = (chain: Chain) => {
 const methodology = {
   Fees: "Fees collected from user trading fees",
   Revenue: "Fees going to the treasury + holders",
-  HoldersRevenue: "Fees going to token holders",
-  SupplySideRevenue: "Fees going to liquidity providers of counterparty pools"
+  SupplySideFees: "Fees going to liquidity providers of the protocol",
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: async () => 1687422746,
-      meta: {
-        methodology,
-      },
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: async () => 1687422746,
-      meta: {
-        methodology,
-      },
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: async () => 1687422746,
-      meta: {
-        methodology,
-      },
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: async () => 1687422746,
-      meta: {
-        methodology,
-      },
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: async () => 1687422746,
-      meta: {
-        methodology,
-      },
+      start: 1687422746,
+      meta: { methodology },
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
-      start: async () => 1687898060,
-      meta: {
-        methodology,
-      },
+      start: 1687898060,
+      meta: { methodology },
     },
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
-      start: async () => 1700104066,
-      meta: {
-        methodology,
-      },
+      start: 1700104066,
+      meta: { methodology },
     },
   },
 };

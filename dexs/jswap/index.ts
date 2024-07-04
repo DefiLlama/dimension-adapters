@@ -57,11 +57,12 @@ const graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: async () => 1627385129,
+      start: 1627385129,
     },
   },
 };

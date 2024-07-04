@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/oxbill/auragi",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DtNQcRXx82k4azEb5QvUjRbmXSNLTUsUePzPY6PtryEc'),
 };
 
 const graphs = getChainVolume({
@@ -20,6 +21,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),

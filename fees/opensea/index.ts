@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import type { ChainEndpoints } from "../../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
@@ -7,7 +8,7 @@ import { fetch } from "./seaport";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 const seaportEndpoints = {
-  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/messari/opensea-seaport-ethereum',
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('kGCuz7xhxMuyRSk8QdnUgijUEqgvhGwkzAVHkbYedCk'),
 }
 
 const graphs = (_: ChainEndpoints) => {
@@ -24,6 +25,7 @@ const graphs = (_: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -36,7 +38,7 @@ const adapter: Adapter = {
     seaport: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(CHAIN.ETHEREUM),
-        start: async () => 1655055510,
+        start: 1655055510,
       },
     }
   }

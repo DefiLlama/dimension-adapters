@@ -1,213 +1,37 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { getPrices } from "../utils/prices";
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-interface IAmount {
-  amount0: number;
-  amount1: number;
-}
-
-const topic0 =
-  "0xf5b850648f086f3f988a2c06dd4214f39db9fa92ee563e6246c398361d1963ad";
 const FACTORY_ADDRESS = "0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A";
 
 type TABI = {
-  [k: string]: object;
+  [k: string]: string;
 };
 const ABIs: TABI = {
-  allPairsLength: {
-    type: "function",
-    stateMutability: "view",
-    outputs: [
-      {
-        type: "uint256",
-        name: "",
-        internalType: "uint256",
-      },
-    ],
-    name: "allPairsLength",
-    inputs: [],
-  },
-  allPairs: {
-    type: "function",
-    stateMutability: "view",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    inputs: [
-      {
-        type: "uint256",
-        name: "",
-        internalType: "uint256",
-      },
-    ],
-    name: "allPairs",
-  },
-};
+  "allPairsLength": "uint256:allPairsLength",
+  "allPairs": "function allPairs(uint256) view returns (address)"
+}
 
-const PAIR_TOKEN_ABI = (token: string): object => {
+const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
+  const dailyFees = createBalances()
+  const lpTokens = await api.fetchList({ lengthAbi: ABIs.allPairsLength, itemAbi: ABIs.allPairs, target: FACTORY_ADDRESS });
+
+  (await getLogs({
+    targets: lpTokens,
+    eventAbi: "event GaugeFees (address indexed token, uint256 amount, address externalBribe)",
+  })).map((e: any) => dailyFees.add(e.token, e.amount))
+
   return {
-    constant: true,
-    inputs: [],
-    name: token,
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 };
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
-  try {
-    const poolLength = (
-      await sdk.api.abi.call({
-        target: FACTORY_ADDRESS,
-        chain: CHAIN.FANTOM,
-        abi: ABIs.allPairsLength,
-      })
-    ).output;
-
-    const poolsRes = await sdk.api.abi.multiCall({
-      abi: ABIs.allPairs,
-      calls: Array.from(Array(Number(poolLength)).keys()).map((i) => ({
-        target: FACTORY_ADDRESS,
-        params: i,
-      })),
-      chain: CHAIN.FANTOM,
-    });
-
-    const lpTokens = poolsRes.output.map(({ output }: any) => output);
-
-    const [underlyingToken0, underlyingToken1] = await Promise.all(
-      ["token0", "token1"].map((method) =>
-        sdk.api.abi.multiCall({
-          abi: PAIR_TOKEN_ABI(method),
-          calls: lpTokens.map((address: string) => ({
-            target: address,
-          })),
-          chain: CHAIN.FANTOM,
-        })
-      )
-    );
-
-    const tokens0 = underlyingToken0.output.map((res: any) => res.output);
-    const tokens1 = underlyingToken1.output.map((res: any) => res.output);
-    const fromBlock = await getBlock(fromTimestamp, CHAIN.FANTOM, {});
-    const toBlock = await getBlock(toTimestamp, CHAIN.FANTOM, {});
-    const logs: ILog[][] = (
-      await Promise.all(
-        lpTokens.map((address: string) =>
-          sdk.api.util.getLogs({
-            target: address,
-            topic: "",
-            toBlock: toBlock,
-            fromBlock: fromBlock,
-            keys: [],
-            chain: CHAIN.FANTOM,
-            topics: [topic0],
-          })
-        )
-      )
-    )
-      .map((p: any) => p)
-      .map((a: any) => a.output);
-
-    const rawCoins = [...tokens0, ...tokens1].map(
-      (e: string) => `${CHAIN.FANTOM}:${e}`
-    );
-    const coins = [...new Set(rawCoins)];
-    const prices = await getPrices(coins, timestamp);
-    const fees: number[] = lpTokens.map((_: string, index: number) => {
-      const token0Decimals =
-        prices[`${CHAIN.FANTOM}:${tokens0[index]}`]?.decimals || 0;
-      const token1Decimals =
-        prices[`${CHAIN.FANTOM}:${tokens1[index]}`]?.decimals || 0;
-      const log: IAmount[] = logs[index]
-        .map((e: ILog) => {
-          return { ...e, data: e.data.replace("0x", "") };
-        })
-        .map((p: ILog) => {
-          // event GaugeFees(address indexed token, uint amount, address externalBribe);
-          const [, token] = p.topics;
-          const isToken0 =
-            "0x" + token.substring(26).toLowerCase() ===
-            tokens0[index].toLowerCase();
-          const isToken1 =
-            "0x" + token.substring(26).toLowerCase() ===
-            tokens1[index].toLowerCase();
-          if (isToken0) {
-            return {
-              amount0:
-                Number("0x" + p.data.slice(0, 64)) / 10 ** token0Decimals,
-              amount1: 0,
-            };
-          }
-          if (isToken1) {
-            return {
-              amount0: 0,
-              amount1:
-                Number("0x" + p.data.slice(0, 64)) / 10 ** token1Decimals,
-            };
-          }
-          return {
-            amount0: 0,
-            amount1: 0,
-          } as IAmount;
-        }) as IAmount[];
-
-      const token0Price =
-        prices[`${CHAIN.FANTOM}:${tokens0[index]}`]?.price || 0;
-      const token1Price =
-        prices[`${CHAIN.FANTOM}:${tokens1[index]}`]?.price || 0;
-
-      const feesAmount0 =
-        log.reduce((a: number, b: IAmount) => Number(b.amount0) + a, 0) *
-        token0Price;
-      const feesAmount1 =
-        log.reduce((a: number, b: IAmount) => Number(b.amount1) + a, 0) *
-        token1Price;
-
-      const feesUSD = feesAmount0 + feesAmount1;
-      return feesUSD;
-    });
-
-    const dailyFees = fees.reduce((a: number, b: number) => a + b, 0);
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
-      dailyHoldersRevenue: `${dailyFees}`,
-      timestamp,
-    };
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-};
-
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,
-      start: async () => 1688172646,
+      start: 1688172646,
     },
   },
 };

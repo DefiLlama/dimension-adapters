@@ -1,35 +1,36 @@
-import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { CHAIN } from "../../helpers/chains"
+import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types"
 
-import getV2Data from "./v2";
-import getV3Data from "./v3";
+import getV2Data from "./v2"
+import getV3Data from "./v3"
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premiav2",
+    sdk.graph.modifyEndpoint('CqWfkgRsJRrQ5vWq9tkEr68F5nvbAg63ati5SVJQLjK8'),
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-arbitrum",
+    sdk.graph.modifyEndpoint('3o6rxHKuXZdy8jFifV99gMUe8FaVUL8w8bDTNdc4zyYg'),
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-fantom",
+    sdk.graph.modifyEndpoint('5ahtXN7DVTwnPuDhWqgJWvEeAEP3JD7h2kD1Kpe67VuW'),
   [CHAIN.OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/premiafinance/premia-optimism",
-};
+    sdk.graph.modifyEndpoint('8wMexS8BB1cXWYu2V8cPHURGXSRGDBhshnU9nTiSkXQ7'),
+}
 
 const v2StartTimes: { [chain: string]: number } = {
   [CHAIN.ETHEREUM]: 1656201600,
   [CHAIN.ARBITRUM]: 1656201600,
   [CHAIN.FANTOM]: 1656201600,
   [CHAIN.OPTIMISM]: 1659744000,
-};
+}
 
 const v3Endpoints: ChainEndpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/premian-labs/premia-blue",
-};
+    "https://subgraph.satsuma-prod.com/5d8f840fce6d/premia/premia-v3-arbitrum/api",
+}
 
 const v3StartTimes: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1692576000,
-};
+}
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -38,7 +39,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV2Data(v2Endpoints[chain], ts),
-          start: async () => v2StartTimes[chain],
+          start: v2StartTimes[chain],
           meta: {
             methodology: {
               UserFees:
@@ -50,7 +51,7 @@ const adapter: BreakdownAdapter = {
             },
           },
         },
-      };
+      }
     }, {}),
 
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
@@ -58,7 +59,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
-          start: async () => v3StartTimes[chain],
+          start: v3StartTimes[chain],
           meta: {
             methodology: {
               UserFees:
@@ -70,9 +71,9 @@ const adapter: BreakdownAdapter = {
             },
           },
         },
-      };
+      }
     }, {}),
   },
-};
+}
 
-export default adapter;
+export default adapter

@@ -9,11 +9,12 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {
-        fetch: v1Fetch(CHAIN.ARBITRUM),
-        start: async () => 1667088000,
+        fetch: v1Fetch as any,
+        start: 1667088000,
         meta: {
           methodology,
         },
@@ -21,8 +22,8 @@ const adapter: Adapter = {
     },
     v2: {
       [CHAIN.ARBITRUM]: {
-        fetch: v2Fetch,
-        start: async () => 1685404800,
+        fetch: v2Fetch as any,
+        start: 1685404800,
       },
     },
   },

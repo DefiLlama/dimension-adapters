@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/spcdex-io/arbitrum-stats",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/spcdex-io/bsc-stats",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9ob9R8ufkfEXnqp1s3izXjwQgXEnkSi9KXazYC9LdBC4'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('EMyH7BU8sp2sBCAtfDCqfnXyiKDUf3NbPpU6bg6vdAaH'),
 }
 
 const historicalDataSwap = gql`
@@ -60,12 +61,9 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1680480000,
-    [CHAIN.BSC]: 1678406400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1680480000,
+  [CHAIN.BSC]: 1678406400,
 }
 
 const adapter: BreakdownAdapter = {
@@ -75,7 +73,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {}),
@@ -84,7 +82,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          start: startTimestamps[chain]
         }
       }
     }, {})

@@ -1,10 +1,7 @@
-import { time } from "console";
-import { getBlock } from "../helpers/getBlock";
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
-import * as sdk from '@defillama/sdk';
-import { SimpleAdapter } from "../adapters/types";
-import { getPrices } from "../utils/prices";
-import postgres from "postgres";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { queryIndexer } from "../helpers/indexer";
 
 const eth_base = '0x373bdcf21f6a939713d5de94096ffdb24a406391';
 
@@ -31,31 +28,11 @@ const contract_open_term_loan: string[] = [
   '0xfab269cb4ab4d33a61e1648114f6147742f5eecc'
 ]
 
-const funds_distribution_topic = '0x080babe757d4e5c7db3b7bd10606a7bf07a9857f660977ada6ca7a4d329376c8';
-const claim_funds_topic = '0x5a3aaae9941b918d74569012f48c308c4044705e7ece73e7834f0f7ffd938b85';
-
-
-interface ILogs {
-  blockNumber: string;
-  blockHash: string;
-  transactionHash: string;
-  transactionIndex: string;
-  address: string;
-  data: string;
-  topics: string[];
-  logIndex: string;
-  removed: boolean;
-}
-
-const fetchFees = async (timestamp: number) => {
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - 86400;
-
-  const sql = postgres(process.env.INDEXA_DB!);
-  try {
-      const now = new Date(timestamp * 1e3);
-      const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
-      const logsTranferERC20: any[] = (await sql`
+const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
+  const { getLogs } = options
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const logsTranferERC20: any[] = await queryIndexer(`
         SELECT
           '0x' || encode(data, 'hex') AS value,
           '0x' || encode(contract_address, 'hex') AS contract_address
@@ -65,78 +42,38 @@ const fetchFees = async (timestamp: number) => {
           block_number > 12428594
           AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
           AND topic_2 in ('\\x000000000000000000000000a9466eabd096449d650d5aeb0dd3da6f52fd0b19', '\\x000000000000000000000000d15b90ff80aa7e13fc69cd7ccd9fef654495e36c')
-          AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-      `)
-      const toBlock = await getBlock(toTimestamp, CHAIN.ETHEREUM, {});
-      const fromBlock = await getBlock(fromTimestamp, CHAIN.ETHEREUM, {});
-      const logs_funds_distribution: ILogs[] = (await Promise.all(contract_loan_mangaer.map(async (contract) => sdk.api.util.getLogs({
-          keys: [],
-          toBlock,
-          fromBlock,
-          target: contract,
-          topic: '',
-          topics: [funds_distribution_topic],
-          chain: CHAIN.ETHEREUM,
-        })))).map((p: any) => p)
-        .map((a: any) => a.output).flat();
+          AND block_time BETWEEN llama_replace_date_range;
+          `, options);
+  const logs_funds_distribution = await getLogs({
+    targets: contract_loan_mangaer,
+    flatten: false,
+    eventAbi: 'event FundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_)'
+  })
+  const logs_claim_funds = await getLogs({
+    targets: contract_open_term_loan,
+    eventAbi: 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)'
+  })
+  console.log(logs_claim_funds.length, logs_funds_distribution.length, logsTranferERC20.length)
 
-      const logs_claim_funds: ILogs[] = (await Promise.all(contract_open_term_loan.map(async (contract) => sdk.api.util.getLogs({
-          keys: [],
-          toBlock,
-          fromBlock,
-          target: contract,
-          topic: '',
-          topics: [claim_funds_topic],
-          chain: CHAIN.ETHEREUM,
-        })))).map((p: any) => p)
-        .map((a: any) => a.output).flat();
+  logs_funds_distribution.map((e: any, index: number) => {
+    const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
+    const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
+    e.forEach((i: any) => dailyFees.add(token, i.netInterest_))
+  })
 
-        const ethAddress = "ethereum:0x0000000000000000000000000000000000000000";
-        const ethPrice = (await getPrices([ethAddress], timestamp))[ethAddress].price;
-
-      const funds_fees = logs_funds_distribution.map((e: ILogs) => {
-        const data = e.data.replace('0x', '');
-        const fees = Number('0x' + data.slice(64, 64 + 64))
-        const amount = e.address.toLowerCase() === eth_base.toLowerCase() ? (fees / 10 ** 18) * ethPrice : fees / 10 ** 6;
-        return amount;
-      }).reduce((a: number, b: number) => a + b, 0);
-
-      const claim_fees = logs_claim_funds.map((e: ILogs) => {
-        const data = e.data.replace('0x', '');
-        const fees = Number('0x' + data.slice(64, 64 + 64))
-        const amount = fees / 10 ** 6;
-        return amount;
-      }).reduce((a: number, b: number) => a + b, 0);
-      const coins = [...new Set(logsTranferERC20.map((p: any) => `${CHAIN.ETHEREUM}:${p.contract_address}`))];
-      const prices = await getPrices(coins, timestamp);
-      const inflow = logsTranferERC20.reduce((a: number, b: any) => {
-        const price = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`]?.price || 0;
-        const decimals = prices[`${CHAIN.ETHEREUM}:${b.contract_address}`]?.decimals || 0;
-        if (price === 0 || decimals === 0) a;
-        const value = Number(b.value) / 10 ** decimals;
-        return a + (value * price);
-      },0);
-
-      await sql.end({ timeout: 3 })
-      const dailyFees = funds_fees + claim_fees + inflow;
-      const dailyRevenue = inflow;
-      return {
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-        timestamp
-      }
-  } catch (error) {
-    await sql.end({ timeout: 3 })
-    console.error(error);
-    throw error;
-}
+  logs_claim_funds.map((e: any) => dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_))
+  logsTranferERC20.forEach((b: any) => {
+    dailyFees.add(b.contract_address, b.value)
+    dailyRevenue.add(b.contract_address, b.value)
+  });
+  return { dailyFees, dailyRevenue, timestamp }
 }
 
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: async () => 1672531200
+      fetch: fetchFees as any,
+      start: 1672531200
     }
   }
 }

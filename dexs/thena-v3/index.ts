@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/thenaursa/thena-fusion"
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
 }, {
   factoriesName: "factories",
   dayData: "fusionDayData",
@@ -10,5 +11,6 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.bsc.start = async () => 1681516800;
+adapters.version = 2;
+adapters.adapter.bsc.start = 1681516800;
 export default adapters;

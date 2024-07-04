@@ -1,9 +1,9 @@
-import { utils } from 'ethers';
+import * as sdk from "@defillama/sdk";
 import { request, gql } from "graphql-request";
 
 export const MIN_TIMESTAMP = 1640217600;
 const SPORT_MIN_TIMESTAMP = 1659312000;
-const SPORT_ENDPOINT = "https://api.thegraph.com/subgraphs/name/thales-markets/sport-markets-optimism";
+const SPORT_ENDPOINT = sdk.graph.modifyEndpoint('GNVg7vqPeoaqDARvssvwCUaLfizACsrmeFFCpZd4VBDq');
 
 type Volume = {
   timestamp: number

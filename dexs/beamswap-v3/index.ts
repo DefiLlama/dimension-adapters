@@ -9,7 +9,7 @@ import {
 
 const endpointV3 = {
   [CHAIN.MOONBEAM]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-v3",
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v3',
 };
 const VOLUME_USD = "volumeUSD";
 const v3Graphs = getGraphDimensions({
@@ -40,11 +40,12 @@ const methodologyv3 = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v3: {
       [CHAIN.MOONBEAN]: {
         fetch: v3Graphs(CHAIN.MOONBEAN),
-        start: async () => 1684397388,
+        start: 1684397388,
         customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
         meta: {
           methodology: {

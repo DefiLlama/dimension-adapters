@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
-import type { ChainEndpoints } from "../adapters/types"
 import fetchURL from "../utils/fetchURL";
 import { Adapter } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
@@ -34,7 +33,7 @@ const graphs = () => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
       const historicalVolume = historical
         .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
 
@@ -57,7 +56,7 @@ const graphs = () => {
 };
 
 const getStartTimestamp = async (chain: Chain) => {
-  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint))?.data.items;
+  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
   const historicalVolume = historical.filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
   return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
 }
@@ -68,6 +67,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),

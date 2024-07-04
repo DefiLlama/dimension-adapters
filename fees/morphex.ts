@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -5,9 +6,9 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats-new",
+    sdk.graph.modifyEndpoint('6GjHurahqYLUUYkqfCgrWfcH2pfTEFPtPvCPvQ1BHLed'),
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
+    sdk.graph.modifyEndpoint('4Zdyx9D4oYLGSm1C26jpTU7Ho7ecswEuTPg3WANGkMTx'),
 };
 
 const methodology = {
@@ -62,14 +63,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: async () => 1690020000,
+      start: 1690020000,
       meta: {
         methodology,
       },
     },
     [CHAIN.BSC]: {
       fetch: graphs(CHAIN.BSC),
-      start: async () => 1686783600,
+      start: 1686783600,
       meta: {
         methodology,
       },

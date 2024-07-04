@@ -1,42 +1,48 @@
-// https://api.heraswap.finance/report/volume-day?start_time=1677628800&end_time=1686246441
-
-import fetchURL from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
 
-const historicalVolumeEndpoint = (end_time: number) => `https://api.miaswap.io/report/volume-day?start_time=1685577600&end_time=${end_time}`
-
-interface IVolumeall {
-  value: string;
-  record_date: string;
+const v3Endpoints = {
+  [CHAIN.ONUS]: "https://subgraph.onuschain.io/subgraphs/name/onus/miaswap-v3-subgraph"
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(dayTimestamp)))?.data.data;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.record_date).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + Number(value), 0)
+const VOLUME_USD = "volumeUSD";
 
-  const dateString = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
-  const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.record_date.split('T')[0] === dateString)?.value
-
-  return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  };
-};
+const v3Graphs = getGraphDimensions({
+  graphUrls: v3Endpoints,
+  totalVolume: {
+    factory: "factories",
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  },
+  dailyVolume: {
+    factory: "uniswapDayData",
+    field: VOLUME_USD,
+  },
+  dailyFees: {
+    factory: "uniswapDayData",
+    field: "feesUSD",
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    Fees: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 0, // 100% of fees are going to LPs
+    Revenue: 0 // Revenue is 100% of collected fees
+  }
+});
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ONUS]: {
-      fetch,
-      start: async () => 1685577600,
+      fetch: async (timestamp: number) => { return { timestamp } },
+      start: 1685577600,
     },
   },
 };
-// onus
+
 export default adapter;

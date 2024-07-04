@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -5,7 +6,7 @@ import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 
 
-const URL = "https://api.thegraph.com/subgraphs/name/0xc30/solidly";
+const URL = sdk.graph.modifyEndpoint('4GX8RE9TzEWormbkayeGj4NQmmhYE46izVVUvXv8WPDh');
 interface IPair {
   id: string;
   fee: string;
@@ -69,7 +70,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: async () => 1672444800
+      start: 1672444800
     },
   }
 }

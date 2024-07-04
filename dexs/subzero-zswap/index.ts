@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/mkrman/exchange",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('7L3pXgL3sBVDkCjZjautaRjPr5u4dcUsG1KK6vj4XCec'),
 };
 
 const adapter = univ2Adapter(endpoints, {
@@ -12,6 +13,6 @@ const adapter = univ2Adapter(endpoints, {
   totalVolume: "totalVolumeUSD"
 });
 
-adapter.adapter.avax.start = async()=> 1675814400;
+adapter.adapter.avax.start = 1675814400;
 
 export default adapter

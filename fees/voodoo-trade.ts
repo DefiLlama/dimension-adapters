@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 /// Project URL: https://voodoo.trade
 /// Contact: chickenjuju@proton.me
 ///
@@ -17,7 +18,7 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 // Smart contract pads values with 10^30. I.e. 10 USD is stored as 10 * 10^30
 const DECIMAL_PLACES = BigInt(10)**BigInt(30);
 
-const graphQLClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/chicken-juju/voodoo-base-stats");
+const graphQLClient = new GraphQLClient(sdk.graph.modifyEndpoint('6eeKiwCJQECCwhE7doeoKCAqSK7VatCsv3piHomYzi6o'));
 
 const GET_FEE_BY_ID = gql`query getFeeById($id: ID!) {
   feeStat(id: $id) {
@@ -110,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),
-      start: async () => 1693997105,
+      start: 1693997105,
       meta: {
         methodology
       }

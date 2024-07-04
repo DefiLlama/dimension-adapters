@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 export const endpoints: ChainEndpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/valorem-labs-inc/valorem-v1-arbitrum",
+    sdk.graph.modifyEndpoint('2cwenw6DXZBaSAQWvDVGqxrjbpnGR3JShhgySEvMJtBJ'),
 };
 
 export const methodology = {

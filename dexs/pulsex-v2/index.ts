@@ -8,6 +8,6 @@ const adapters = univ2Adapter({
   dayData: "pulsexDayData",
 });
 
-adapters.adapter.pulse.start = async () => 1685577600;
+adapters.adapter.pulse.start = 1685577600;
 
 export default adapters;

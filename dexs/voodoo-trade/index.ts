@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 /// Project URL: https://voodoo.trade
 /// Contact: chickenjuju@proton.me
 ///
@@ -14,7 +15,7 @@ import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/chicken-juju/voodoo-base-stats"
+const endpoint = sdk.graph.modifyEndpoint('6eeKiwCJQECCwhE7doeoKCAqSK7VatCsv3piHomYzi6o')
 
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
@@ -67,7 +68,7 @@ const getFetch = (query: string): Fetch => async (timestamp: number) => {
   }
 }
 
-const startTimestamp = async () => 1693997105;
+const startTimestamp = 1693997105;
 
 const adapter: BreakdownAdapter = {
   breakdown: {

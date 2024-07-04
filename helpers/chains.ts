@@ -2,6 +2,7 @@
 export enum CHAIN {
   ARBITRUM = "arbitrum",
   AVAX = "avax",
+  BLAST = "blast",
   BOBA = "boba",
   BSC = "bsc",
   CELO = "celo",
@@ -25,6 +26,7 @@ export enum CHAIN {
   CARDANO = "cardano",
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
+  BITCOIN_CASH = "bitcoincash",
   DOGECHAIN = "dogechain",
   ENERGI = "energi",
   VELAS = "velas",
@@ -132,7 +134,26 @@ export enum CHAIN {
   ROLLUX = "rollux",
   MODE = "mode",
   PERSISTENCE = "persistence",
-  JBC = "jbc"
+  POLKADEX = "polkadex",
+  JBC = "jbc",
+  ZKFAIR = "zkfair",
+  ZETA = "zeta",
+  ASTAR_ZKEVM = "astrzk",
+  FILECOIN = "filecoin",
+  FRAXTAL = "fraxtal",
+  IMX = "imx",
+  KROMA = "kroma",
+  ZORA = "zora",
+  SVM = "svm",
+  ASTRZK = "astrzk",
+  LYRA = "lyra",
+  BITLAYER = "bitlayer",
+  XLAYER = "xlayer",
+  MERLIN = "merlin",
+  CHILIZ = "chiliz",
+  PLANQ = "planq",
+  BOB = "bob",
+  TAIKO = "taiko"
 }
 
 // Don´t use
@@ -179,5 +200,5 @@ export {
   BITCOIN,
   LITECOIN,
   DOGE,
-  MANTLE,
+  MANTLE
 };

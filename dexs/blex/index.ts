@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/blex-dex/arbitrum_42161",
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('FZz1rRe9kEd3FG6ZiX2tdoryxYiSFH4RnzKjMwny3mFH'),
 }
 
 const allData=gql`
@@ -58,11 +59,8 @@ interface IGraphResponse {
     }
   }
 
-  const getStartTimestamp = async (chain: string) => {
-    const startTimestamps: { [chain: string]: number } = {
-      [CHAIN.ARBITRUM]: 1691211277,
-    }
-    return startTimestamps[chain]
+  const startTimestamps: { [chain: string]: number } = {
+    [CHAIN.ARBITRUM]: 1691211277,
   }
 
   const adapter: BreakdownAdapter = {
@@ -72,7 +70,7 @@ interface IGraphResponse {
           ...acc,
           [chain]: {
             fetch: getFetch(allData)(chain),
-            start: async () => getStartTimestamp(chain)
+            start: startTimestamps[chain]
           }
         }
       }, {}),
@@ -81,7 +79,7 @@ interface IGraphResponse {
           ...acc,
           [chain]: {
             fetch: getFetch(derivativesData)(chain),
-            start: async () => getStartTimestamp(chain)
+            start: startTimestamps[chain]
           }
         }
       }, {})

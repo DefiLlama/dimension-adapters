@@ -26,6 +26,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,

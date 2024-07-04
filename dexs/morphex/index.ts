@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,9 +6,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-fantom-stats-new",
+    sdk.graph.modifyEndpoint('6GjHurahqYLUUYkqfCgrWfcH2pfTEFPtPvCPvQ1BHLed'),
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/morphex-bsc-stats",
+    sdk.graph.modifyEndpoint('4Zdyx9D4oYLGSm1C26jpTU7Ho7ecswEuTPg3WANGkMTx'),
 };
 
 const historicalDataSwap = gql`
@@ -39,53 +40,50 @@ interface IGraphResponse {
 
 const getFetch =
   (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-      id: String(dayTimestamp) + ":daily",
-      period: "daily",
-    });
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "total",
-      period: "total",
-    });
+    (chain: string): Fetch =>
+      async (timestamp: number) => {
+        const dayTimestamp = getUniqStartOfTodayTimestamp(
+          new Date(timestamp * 1000)
+        );
+        const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+          id: String(dayTimestamp) + ":daily",
+          period: "daily",
+        });
+        const totalData: IGraphResponse = await request(endpoints[chain], query, {
+          id: "total",
+          period: "total",
+        });
 
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume:
-        dailyData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+        return {
+          timestamp: dayTimestamp,
+          dailyVolume:
+            dailyData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+              )
+              : undefined,
+          totalVolume:
+            totalData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-    };
-  };
+              )
+              : undefined,
+        };
+      };
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1690020000,
-    [CHAIN.BSC]: 1686783600,
-  };
-  return startTimestamps[chain];
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1690020000,
+  [CHAIN.BSC]: 1686783600,
 };
 
 const adapter: BreakdownAdapter = {
@@ -93,21 +91,21 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
-        start: async () => getStartTimestamp(CHAIN.FANTOM),
+        start: startTimestamps[CHAIN.FANTOM],
       },
       [CHAIN.BSC]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
-        start: async () => getStartTimestamp(CHAIN.BSC),
+        start: startTimestamps[CHAIN.BSC],
       },
     },
     derivatives: {
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.FANTOM),
-        start: async () => getStartTimestamp(CHAIN.FANTOM),
+        start: startTimestamps[CHAIN.FANTOM],
       },
       [CHAIN.BSC]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.BSC),
-        start: async () => getStartTimestamp(CHAIN.BSC),
+        start: startTimestamps[CHAIN.BSC],
       },
     },
   },

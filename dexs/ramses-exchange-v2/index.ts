@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ramsesexchange/concentrated-liquidity-graph"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea')
 }, {
   factoriesName: "factories",
   dayData: "uniswapDayData",
@@ -10,5 +11,5 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.adapter.arbitrum.start = async () => 1685574000;
+adapters.adapter.arbitrum.start = 1685574000;
 export default adapters;

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { getDexChainFees } from "../helpers/getUniSubgraphFees";
 import volumeAdapter from "../dexs/spookyswap";
 import {
@@ -12,7 +13,7 @@ import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
   [CHAIN.BSC]:
-    "https://api.thegraph.com/subgraphs/name/miguelangelrm/kyotoswap-exchange",
+    sdk.graph.modifyEndpoint('B1VWKexyptT1ixDdHsxj3EJnAxvuje7ANT39rnfq9rRG'),
 };
 
 const graphs = getGraphDimensions({
@@ -46,10 +47,11 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     acc[chain] = {
       fetch: graphs(chain as Chain),
-      start: async () => startTimes[chain],
+      start: startTimes[chain],
       meta: {
         methodology,
       },

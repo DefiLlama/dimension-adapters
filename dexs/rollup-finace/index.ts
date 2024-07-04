@@ -1,7 +1,9 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
+import { httpGet } from "../../utils/fetchURL";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ERA]: "https://subgraph.rollup.finance/subgraphs/name/rollUp/stats",
@@ -25,52 +27,31 @@ const historicalDataDerivatives = gql`
 `
 
 interface IGraphResponse {
-  volumeStats: Array<{
+  list: Array<{
     burn: string,
     liquidation: string,
     margin: string,
     mint: string,
     swap: string,
+    period: string
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const fromTimestamp = dayTimestamp - 60 * 60 * 24
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: String(dayTimestamp),
-    period: 'daily',
-  })
-  const yesterDay: IGraphResponse = await request(endpoints[chain], query, {
-    id: String(fromTimestamp),
-    period: 'daily',
-  })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
 
-  const  todayVolume = Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
-  const  yesterdayVolume = Number(Object.values(yesterDay.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
-  const dailyVolume = (todayVolume - yesterdayVolume);
+const fetchDerivatives = async (timestamp: number) => {
+  const data: IGraphResponse = (await httpGet("https://terminal.rollup.finance/analy-v1/analytics/volume?pageNum=1&pageSize=32")).data
+  const dataItem = data.list.find((e) => e.period === getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)).toString())
+  const dailyVolume = Number(dataItem?.liquidation || 0) + Number(dataItem?.margin || 0)
   return {
-    timestamp: dayTimestamp,
-    dailyVolume: `${dailyVolume}`,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
+    dailyFees: dailyVolume.toString(),
+    timestamp
 
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ERA]: 1682035200,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ERA]: 1682035200,
 }
-
 const adapter: BreakdownAdapter = {
   breakdown: {
     // "swap": Object.keys(endpoints).reduce((acc, chain) => {
@@ -78,7 +59,7 @@ const adapter: BreakdownAdapter = {
     //     ...acc,
     //     [chain]: {
     //       fetch: getFetch(historicalDataSwap)(chain),
-    //       start: async () => getStartTimestamp(chain)
+    //       start: startTimestamps[chain]
     //     }
     //   }
     // }, {}),
@@ -86,8 +67,8 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: getFetch(historicalDataDerivatives)(chain),
-          start: async () => getStartTimestamp(chain)
+          fetch:  fetchDerivatives,
+          start: startTimestamps[chain]
         }
       }
     }, {})

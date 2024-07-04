@@ -1,10 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/metavault-trade/grizzly-bnb-subgraph",
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('3CUU9roJ9PsMdijcBdaCBRHhTUBobLeDLyMW4QF2XNmn'),
 }
 
 const historicalDataSwap = gql`
@@ -60,11 +62,8 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
     }
 }
 
-const getStartTimestamp = async (chain: string) => {
-    const startTimestamps: { [chain: string]: number } = {
-        [CHAIN.BSC]: 1689897600,
-    }
-    return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+    [CHAIN.BSC]: 1689897600,
 }
 
 const adapter: BreakdownAdapter = {
@@ -72,18 +71,20 @@ const adapter: BreakdownAdapter = {
         "swap": Object.keys(endpoints).reduce((acc, chain) => {
             return {
                 ...acc,
+                [DISABLED_ADAPTER_KEY]: disabledAdapter,
                 [chain]: {
                     fetch: getFetch(historicalDataSwap)(chain),
-                    start: async () => getStartTimestamp(chain)
+                    start: startTimestamps[chain]
                 }
             }
         }, {}),
         "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
             return {
                 ...acc,
+                [DISABLED_ADAPTER_KEY]: disabledAdapter,
                 [chain]: {
                     fetch: getFetch(historicalDataDerivatives)(chain),
-                    start: async () => getStartTimestamp(chain)
+                    start: startTimestamps[chain]
                 }
             }
         }, {})

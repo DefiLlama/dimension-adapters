@@ -1,7 +1,5 @@
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import type { ChainEndpoints } from "../../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types"
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
@@ -13,6 +11,7 @@ const endpoints = {
   [CHAIN.POLYGON]: "https://api-external.ghostmarket.io/defillama/fees?chain=polygon&timestamp=",
   [CHAIN.ETHEREUM]: "https://api-external.ghostmarket.io/defillama/fees?chain=eth&timestamp=",
   [CHAIN.PHANTASMA]: "https://api-external.ghostmarket.io/defillama/fees?chain=pha&timestamp=",
+  [CHAIN.BASE]: "https://api-external.ghostmarket.io/defillama/fees?chain=base&timestamp=",
 }
 
 const buildUrl = async (apiUrl: string, timestamp: number) => {
@@ -30,13 +29,11 @@ const methodology = {
 
 const apis = (apiUrls: ChainEndpoints) => {
   return (chain: CHAIN) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const url = await buildUrl(apiUrls[chain], todaysTimestamp);
-      const data = (await fetchURL(url)).data;
+    return async ({ endTimestamp }: FetchOptions) => {
+      const url = await buildUrl(apiUrls[chain], endTimestamp);
+      const data = (await fetchURL(url));
 
       return {
-        timestamp,
         dailyFees: String(data.dailyFees),
         totalFees: String(data.userFees),
         dailyUserFees: String(data.dailyFees),
@@ -55,46 +52,54 @@ const apis = (apiUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch: apis(endpoints)(CHAIN.NEO),
-      start: async () => 1629813600,
+      start: 1629813600,
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: apis(endpoints)(CHAIN.BSC),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
       fetch: apis(endpoints)(CHAIN.AVAX),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: apis(endpoints)(CHAIN.POLYGON),
-      start: async () => 1653868800,
+      start: 1653868800,
       meta: {
         methodology
       }
     },
     [CHAIN.ETHEREUM]: {
       fetch: apis(endpoints)(CHAIN.ETHEREUM),
-      start: async () => 1652400000,
+      start: 1652400000,
       meta: {
         methodology
       }
     },
     [CHAIN.PHANTASMA]: {
       fetch: apis(endpoints)(CHAIN.PHANTASMA),
-      start: async () => 1577664000,
+      start: 1577664000,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: apis(endpoints)(CHAIN.BASE),
+      start: 1691660245,
       meta: {
         methodology
       }

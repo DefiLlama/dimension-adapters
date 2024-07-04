@@ -23,8 +23,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = dayTimestamp - 60 * 60 * 24
   const fromISO = new Date(fromTimestamp * 1000).toISOString();
   const dateString = new Date(dayTimestamp * 1000).toISOString();
-  const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint))?.data.markets);
-  const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(candles(market, fromISO))))).map((e: any) => e.data.candles).flat()
+  const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint)).markets);
+  const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(candles(market, fromISO))))).map((e: any) => e.candles).flat()
   const dailyolume = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.usdVolume), 0)
   const dailyOpenInterest = historical.filter((e: IVolumeall) => e.startedAt === dateString)
@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: async () => 1614211200,
+      start: 1614211200,
     },
   },
 };

@@ -40,10 +40,9 @@ const chains = [
 
 const fetch =
   (chain: string) =>
-  async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = timestamp;
+    async (timestamp: number): Promise<FetchResult> => {
+      const dayTimestamp = timestamp;
 
-    try {
       const dailyVolume = await fetchURL(
         `${URL}getSwapDailyVolume/?timestamp=${dayTimestamp}&chain=${chain}`
       );
@@ -52,18 +51,11 @@ const fetch =
       );
 
       return {
-        dailyVolume: dailyVolume.data.volume || "0",
-        totalVolume: totalVolume.data.volume || "0",
+        dailyVolume: dailyVolume.volume,
+        totalVolume: totalVolume.volume,
         timestamp: dayTimestamp,
       };
-    } catch (e) {
-      return {
-        dailyVolume: "0",
-        totalVolume: "0",
-        timestamp: dayTimestamp,
-      };
-    }
-  };
+    };
 
 const adapter: SimpleAdapter = {
   adapter: {},
@@ -72,7 +64,7 @@ const adapter: SimpleAdapter = {
 chains.map((chain) => {
   adapter.adapter[chain] = {
     fetch: fetch(chain),
-    start: async () => startTimestamp,
+    start: startTimestamp,
   };
 });
 

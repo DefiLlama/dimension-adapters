@@ -1,15 +1,10 @@
-import { Adapter, ProtocolType } from "../../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
-import { secondsInDay } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
-import { getPrices } from "../../utils/prices";
 
 const ADAPTER = "3PHTxmSNQsrZocZRAWidNbdcxqRpzHiK5Mt";
 const WAVES_NODE = "https://nodes.wavesnodes.com";
-const MILLISECONDS_IN_SECOND = 1_000;
 const LIMIT_PER_REQUEST = 99;
-const WAVES_DIVIDER = 1e8;
 const FEE_DIVIDER = 1e4;
 
 interface IData {
@@ -26,11 +21,11 @@ interface IBlockHeader {
 type RewardShares = { [address: string]: number };
 
 const getData = async (address: string, key: string): Promise<IData> => {
-    return (await fetchURL(`${WAVES_NODE}/addresses/data/${address}/${key}`)).data
+    return fetchURL(`${WAVES_NODE}/addresses/data/${address}/${key}`)
 }
 
 const getHeaders = async (start: number, end: number): Promise<IBlockHeader[]> => {
-    return (await fetchURL(`${WAVES_NODE}/blocks/headers/seq/${start}/${end}`)).data
+    return fetchURL(`${WAVES_NODE}/blocks/headers/seq/${start}/${end}`)
 }
 
 const extractShareReward = (rewardShares: RewardShares, miner: string): number => {
@@ -40,17 +35,14 @@ const extractShareReward = (rewardShares: RewardShares, miner: string): number =
     }, 0)
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async ({ createBalances, getFromBlock, getToBlock, }: FetchOptions) => {
     let miner = (await getData(ADAPTER, "ADAPTEE")).value;
     let feeRate = +(await getData(ADAPTER, "FEE_RATE")).value / FEE_DIVIDER;
 
-    const fromTimestamp = (timestamp - secondsInDay) * MILLISECONDS_IN_SECOND;
-    const toTimestamp = timestamp * MILLISECONDS_IN_SECOND;
-
-    let startBlock = (await getBlock(fromTimestamp, CHAIN.WAVES, {}));
-    const endBlock = (await getBlock(toTimestamp, CHAIN.WAVES, {}));
-    const wavesToken = "waves:WAVES";
-    const price = (await getPrices([wavesToken], timestamp))[wavesToken]?.price;
+    const dailyFees = createBalances()
+    let startBlock = await getFromBlock();
+    const endBlock = await getToBlock()
+    const wavesToken = "WAVES";
 
     let blockHeaders: IBlockHeader[] = [];
     while (startBlock < endBlock) {
@@ -63,25 +55,22 @@ const fetch = async (timestamp: number) => {
         }
     }
     let mainerBlocHeaders = blockHeaders.filter(header => header.generator === miner);
-    let stakingRewardsInUSD = mainerBlocHeaders.reduce((acc, header) => {
+    dailyFees.add(wavesToken, mainerBlocHeaders.reduce((acc, header) => {
         let txReward = header.totalFee;
         return acc + txReward + extractShareReward(header.rewardShares, miner.toString());
-    }, 0) / WAVES_DIVIDER * price;
-    let protocolRevenue = stakingRewardsInUSD * feeRate;
+    }, 0))
+    const dailyRevenue = dailyFees.clone()
+    dailyRevenue.resizeBy(feeRate)
 
-    return {
-        timestamp,
-        dailyFees: stakingRewardsInUSD.toString(),
-        dailyRevenue: protocolRevenue.toString(),
-        dailyHoldersRevenue: '0'
-    };
+    return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.WAVES]: {
             fetch,
-            start: async () => 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
+            start: 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
 }

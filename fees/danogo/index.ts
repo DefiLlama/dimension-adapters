@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getPrices } from "../../utils/prices";
 import fetchURL from "../../utils/fetchURL";
 import { DanogoDimensions, DanogoFees } from "./types";
@@ -11,7 +11,7 @@ const ADA_DECIMAL = 6;
 const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => { 
     const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
 
-    return response.data.data;
+    return response.data;
 }
 
 const fetchADAprice = async (timestamp: number) => {
@@ -35,13 +35,12 @@ const convertDataToUSD = (data: DanogoDimensions, price: number) => {
     return convertedData;
 }
 
-const fetchData = async (timestamp: number) => {
-    const dataPromise = fetchDanogoGatewayData(timestamp);
-    const adaPricePromise = fetchADAprice(timestamp);
+const fetchData = async ({ endTimestamp }: FetchOptions) => {
+    const dataPromise = fetchDanogoGatewayData(endTimestamp);
+    const adaPricePromise = fetchADAprice(endTimestamp);
     const [data, adaPrice] = await Promise.all([dataPromise, adaPricePromise]);
 
     return {
-        timestamp: timestamp,
         ...convertDataToUSD(data, adaPrice)
     };
 }
@@ -50,10 +49,11 @@ const adapter: SimpleAdapter = {
     adapter: {
         cardano: {
             fetch: fetchData,
-            start: async () => DANOGO_START_TIMESTAMP,
+            start: DANOGO_START_TIMESTAMP,
             runAtCurrTime: false,
         }
-    }
+    },
+    version: 2
 };
 
 export default adapter;

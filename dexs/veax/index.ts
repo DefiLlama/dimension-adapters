@@ -1,36 +1,22 @@
-import axios from 'axios'
 import type { SimpleAdapter } from '../../adapters/types'
+import { httpPost } from '../../utils/fetchURL';
 
 const POOLS_SERVICE_URL = 'https://veax-liquidity-pool.veax.com/v1/rpc'
 
 const rpc = (url: string, method: string, params: any) =>
-  axios.post(
-    url,
-    {
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: '0',
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    }
-  )
-    .then(res => {
-      if (res.data.error) {
-        throw new Error(res.data.error.message)
-      }
-      return res.data.result
-    });
+  httpPost(url, { jsonrpc: '2.0', method, params, id: '0', },
+    { headers: { 'Content-Type': 'application/json', } }
+  ).then(res => {
+    if (res.error)
+      throw new Error(res.error.message)
 
-
+    return res.result
+  });
 
 const adapter: SimpleAdapter = {
   adapter: {
     near: {
-      start: async () => 1682607600,
+      start: 1682607600,
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
           timestamp: ts,

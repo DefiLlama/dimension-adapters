@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -8,7 +9,7 @@ import {
 } from "../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd'),
 }
 const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,
@@ -24,7 +25,7 @@ const v2Graph = getGraphDimensions({
 });
 
 const v3Endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7'),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
   [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7"
 }
@@ -75,11 +76,12 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: v2Graph(CHAIN.POLYGON),
-        start: async () => 1602118043,
+        start: 1602118043,
         meta: {
           methodology
         },
@@ -88,7 +90,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => startTimeV3[chain],
+        start: startTimeV3[chain],
         meta: {
           methodology
         }

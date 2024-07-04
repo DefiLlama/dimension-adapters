@@ -1,16 +1,16 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 const {
   getChainVolume,
 } = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-mainnet",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-optimism",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-polygon",
-  [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-moonbeam",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-arbitrum",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
+  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
 };
 
 
@@ -26,13 +26,13 @@ const graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => 1657437036,
-        customBackfill: customBackfill(chain, graphs),
+        start: 1657437036,
       }
     }
   }, {})

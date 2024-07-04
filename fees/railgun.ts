@@ -1,10 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { getBlock } from "../helpers/getBlock";
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { get } from "http";
-import { getPrices } from "../utils/prices";
 
 
 type IContract = {
@@ -23,111 +19,38 @@ const topic0_shield = '0x3a5b9dc26075a3801a6ddccf95fec485bb7500a91b44cec1add984c
 const topic0_unshield = '0xd93cf895c7d5b2cd7dc7a098b678b3089f37d91f48d9b83a0800a91cbdf05284';
 // token index 2
 // amount index 5
-
-
-interface ILog {
-  blockNumber: number,
-  blockHash: string,
-  transactionHash: string,
-  transactionIndex: number,
-  address: string,
-  data: string,
-  topics: string[],
-  logIndex: number,
-  removed: boolean,
-}
-interface IFees {
-  token: string;
-  amount: number;
+const eventAbis = {
+  "Shield": "event Shield(uint256 treeNumber, uint256 startPosition, (bytes32 npk, (uint8 tokenType, address tokenAddress, uint256 tokenSubID) token, uint120 value)[] commitments, (bytes32[3] encryptedBundle, bytes32 shieldKey)[] shieldCiphertext, uint256[] fees)",
+  "Unshield": "event Unshield(address to, (uint8 tokenType, address tokenAddress, uint256 tokenSubID) token, uint256 amount, uint256 fee)",
 }
 
-const fetchFees = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const toTimestamp = timestamp;
-    const fromTimestamp = timestamp - 24 * 60 * 60;
-    const toBlock = await getBlock(toTimestamp, chain, {});
-    const fromBlock = await getBlock(fromTimestamp, chain, {});
-    const logs_shield: ILog[] = (await sdk.api.util.getLogs({
-      target: contract[chain],
-      topic: '',
-      topics: [topic0_shield],
-      keys: [],
-      fromBlock,
-      toBlock,
-      chain,
-    })).output as ILog[];
+const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
+  const dailyFees = createBalances()
+  const logs_shield = await getLogs({ target: contract[chain], topics: [topic0_shield], eventAbi: eventAbis.Shield })
+  const logs_unshield = await getLogs({ target: contract[chain], topics: [topic0_unshield], eventAbi: eventAbis.Unshield })
 
-    const logs_unshield: ILog[] = (await sdk.api.util.getLogs({
-      target: contract[chain],
-      topic: '',
-      topics: [topic0_unshield],
-      keys: [],
-      fromBlock,
-      toBlock,
-      chain,
-    })).output as ILog[];
+  logs_shield.forEach((log) => {
+    dailyFees.addTokens(log.commitments.map((i: any) => i.token.tokenAddress), log.fees)
+  })
+  logs_unshield.forEach((log) => {
+    dailyFees.add(log.token.tokenAddress, log.fee)
+  })
 
-    const shield_fees: IFees[] = logs_shield.map((log) => {
-      const data = log.data.replace('0x', '');
-      const token = data.slice(64 * 8, (64 * 8) + 64);
-      const contract_address = '0x' + token.slice(24, token.length);
-      const amount = Number('0x'+data.slice((64 * 17), (64 * 17) + 64));
-      return {
-        token: contract_address,
-        amount,
-      }
-    });
-    const unshield_fees: IFees[] = logs_unshield.map((log) => {
-      const data = log.data.replace('0x', '');
-      const token = data.slice(64 * 2, (64 * 2) + 64);
-      const contract_address = '0x' + token.slice(24, token.length);
-      const amount = Number('0x'+data.slice((64 * 5), (64 * 5) + 64));
-      return {
-        token: contract_address,
-        amount,
-      }
-    });
-    const tokens = [...shield_fees, ...unshield_fees].map((e) => e.token);
-    const coins = [...new Set(tokens)].map((e: string) => `${chain}:${e}`);
-    const prices = await getPrices([...coins], timestamp);
-
-    const dailyFees = [...shield_fees, ...unshield_fees].reduce((a: number, b: IFees) => {
-      const price = prices[`${chain}:${b.token}`]?.price || 0;
-      const decimals = prices[`${chain}:${b.token}`]?.decimals || 0;
-      if (price === 0 || decimals === 0) return a;
-      const amount = (b.amount / 10 ** decimals) * price
-      const oneMillion = 1000000;
-      if (amount > oneMillion) return a;
-      return a + (b.amount / 10 ** decimals) * price;
-    },0)
-
-    return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString(),
-      dailyBribesRevenue: dailyFees.toString(),
-      timestamp,
-    }
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees
   }
 }
+
+const options: any = { fetch: fetchFees, start: 1651363200 }
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
-      start: async () => 1651363200,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
-      start: async () => 1674864000,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
-      start: async () => 1682899200,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchFees(CHAIN.BSC),
-      start: async () => 1682899200,
-    },
-  }
+    [CHAIN.ETHEREUM]: options,
+    [CHAIN.ARBITRUM]: options,
+    [CHAIN.POLYGON]: options,
+    [CHAIN.BSC]: options,
+  },
+  version: 2,
 }
 
 export default adapters;

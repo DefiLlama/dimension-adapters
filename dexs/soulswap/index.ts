@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { getChainVolumeWithGasToken } from "../../helpers/getUniSubgraphVolume";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { /*AVAX,*/ FANTOM } from "../../helpers/chains";
@@ -5,8 +6,8 @@ import { SimpleAdapter } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
-  //[AVAX]: "https://api.thegraph.com/subgraphs/name/soulswapfinance/avalanche-exchange",
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/soulswapfinance/fantom-exchange",
+  //[AVAX]: sdk.graph.modifyEndpoint('Ao7hF1zBTZ6pkotKPguC536KkU9Gi4DQLBZFkLR5NafN'),
+  [FANTOM]: sdk.graph.modifyEndpoint('DftDSxq9ud7icPSKcEThpFLCgXd7Kx94ns8dK4Js63Fy'),
 };
 
 const VOLUME_FIELD = "volumeUSD";
@@ -45,6 +46,7 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: volume,
 };
 

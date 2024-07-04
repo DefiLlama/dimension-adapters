@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -8,7 +9,7 @@ import {
 } from "../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/zyberswap-arbitrum/zyber-amm",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R'),
 }
 const v2Graph = getGraphDimensions({
   graphUrls: v2Endpoints,
@@ -24,7 +25,7 @@ const v2Graph = getGraphDimensions({
 });
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
 }
 const v3Graphs = getGraphDimensions({
   graphUrls: v3Endpoints,
@@ -53,7 +54,7 @@ const v3Graphs = getGraphDimensions({
 });
 
 const endpointsStable = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/zyberswap-arbitrum/zyber-stableamm"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('H7QEsa69B3bbXZVtmqGaRZVUV8PCUqsKfqXGRb69LHa6')
 };
 
 const stableGraph = getGraphDimensions({
@@ -107,11 +108,12 @@ const methodologyStable = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {
         fetch: v2Graph(CHAIN.ARBITRUM),
-        start: async () => 1674432000,
+        start: 1674432000,
         meta: {
           methodology
         },
@@ -120,7 +122,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: async () => 1676887200,
+        start: 1676887200,
         meta: {
           methodology: methodologyV3
         }
@@ -130,7 +132,7 @@ const adapter: BreakdownAdapter = {
     stable: {
       [CHAIN.ARBITRUM]: {
         fetch: stableGraph(CHAIN.ARBITRUM),
-        start: async () => 1676113200,
+        start: 1676113200,
         meta: {
           methodology: methodologyStable
         },

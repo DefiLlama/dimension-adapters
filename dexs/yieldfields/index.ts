@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -9,7 +10,7 @@ const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 import { SimpleAdapter } from "../../adapters/types";
 
 const endpoints = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/sotblad/yieldfieldsexchange",
+  [BSC]: sdk.graph.modifyEndpoint('6PGfw9826xTB8JNN9HuMyY5eaFZLq6uqUcBwH7YEytsZ'),
 };
 
 const DAILY_VOLUME_FACTORY = "yieldFieldsDayData";
@@ -29,6 +30,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [BSC]: {
       fetch: graphs(BSC),

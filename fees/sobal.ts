@@ -69,14 +69,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEON]: {
       fetch: v2Graphs(v2Endpoints)(CHAIN.NEON),
-      start: async () => 1689613200, // 17TH JULY 5PM GMT
+      start: 1689613200, // 17TH JULY 5PM GMT
       meta: {
         methodology
       }
     },
     // [CHAIN.BASE]: {
     //   fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-    //   start: async () => 1690850000, // 1ST AUG 12:33 AM GMT
+    //   start: 1690850000, // 1ST AUG 12:33 AM GMT
     //   meta: {
     //     methodology
     //   }

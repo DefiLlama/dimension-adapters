@@ -1,18 +1,17 @@
-import { Adapter, ChainBlocks } from "../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
 
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-mainnet-fees",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-fantom-fees",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-avalanche-fees",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-binancesmartchain-fees",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-arbitrum-fees"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ktva51TWWq7t1hLnTGb88toXYtpxFo6gZfUC5NRnd9m'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('CnY2wTox8Pxh5t1UskQahPhMQdmuTmTAgwU62scUA8uM'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('Ak8GFBj7XruiuMd4nV3vfNzButNsj3pF7ogSBq6qdKcq'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('2RsqpTn7JBLs2sU775C7ZcM7oUrcZmpDhTnUbFCJWLfV'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ASL3E8FZLN5AKxFoagSb7i3kFkDkMfoRovmDDLZAY8t4')
 }
 
 type DataResponse = {
@@ -39,12 +38,8 @@ const getFees = (data: DataResponse): number => {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number, _: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-      const startBlock = (await getBlock(todaysTimestamp, chain, {}));
-      const endBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
+    return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+      const [startBlock, endBlock] = await Promise.all([getFromBlock(), getToBlock()])
       const graphQuery = gql
       `query fees($startBlock: Int!, $endBlock: Int!) {
         startValue: cauldronFees(block: { number: $startBlock }) {
@@ -63,7 +58,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeUsd = dailyFee;
       const dailyRevenue = dailyFeeUsd * .5;
       return {
-        timestamp,
         dailyFees: dailyFeeUsd.toString(),
         dailyRevenue: dailyRevenue.toString(),
       };
@@ -73,26 +67,27 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.FANTOM]: {
         fetch: graphs(endpoints)(CHAIN.FANTOM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.AVAX]: {
         fetch: graphs(endpoints)(CHAIN.AVAX),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.BSC]: {
         fetch: graphs(endpoints)(CHAIN.BSC),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: async ()  => 1630468800,
+        start: 1630468800,
     },
   }
 }

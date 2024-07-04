@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 const {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -9,7 +10,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/cryptolover705/cryptoswap",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('46UXg1gyUFk7q8WrmNEMp7qoc2paiDqy5HpMvF4UQBze'),
 };
 
 const DAILY_VOLUME_FACTORY = "cstdayData";
@@ -27,6 +28,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: graphs(CHAIN.BSC),

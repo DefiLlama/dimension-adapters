@@ -6,7 +6,7 @@ import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex-v2",
+    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2',
 };
 
 
@@ -35,7 +35,7 @@ const graphs = getGraphDimensions({
 const v1graphs = getGraphDimensions({
   graphUrls: {
     [CHAIN.MOONBEAN]:
-      "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-stable-amm",
+      'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm',
   },
   totalVolume: {
     factory: "tradeVolumes",
@@ -77,6 +77,7 @@ const methodologyStable = {
 };
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     classic: {
       [CHAIN.MOONBEAN]: {
@@ -98,7 +99,7 @@ const adapter: BreakdownAdapter = {
     "stable-amm": {
       [CHAIN.MOONBEAN]: {
         fetch: v1graphs(CHAIN.MOONBEAN),
-        start: async () => 1656914570,
+        start: 1656914570,
         customBackfill: customBackfill(CHAIN.MOONBEAN, v1graphs),
         meta: {
           methodology: {

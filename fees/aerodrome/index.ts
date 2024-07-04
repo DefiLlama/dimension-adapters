@@ -1,150 +1,38 @@
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { ethers } from "ethers";
-import { getPrices } from "../../utils/prices";
 import { fees_bribes } from "./bribes";
+import { getDexFees } from "../../helpers/dexVolumeLogs";
 
-const gurar = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
-type TPrice = {
-  [s: string]: {
-    price: number;
-    decimals: number
-  };
-}
+const sugar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
 const abis: any = {
-  forSwaps:{
-    "stateMutability": "view",
-    "type": "function",
-    "name": "forSwaps",
-    "inputs": [],
-    "outputs": [
-        {
-            "name": "",
-            "type": "tuple[]",
-            "components": [
-                {
-                    "name": "lp",
-                    "type": "address"
-                },
-                {
-                    "name": "stable",
-                    "type": "bool"
-                },
-                {
-                    "name": "token0",
-                    "type": "address"
-                },
-                {
-                    "name": "token1",
-                    "type": "address"
-                },
-                {
-                    "name": "factory",
-                    "type": "address"
-                }
-            ]
-        }
-    ]
-  }
+  "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])"
 }
 
-interface IForSwap {
-  lp: string;
-  token0: string;
-  token1: string;
-}
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
+  const chunkSize = 500;
+  let currentOffset = 0;
+  let unfinished = true;
+  const allPools: any[] = [];
 
-interface ILog {
-  address: string;
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-const topic0_swap = '0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602'
-const event_swap = 'event Fees(address indexed sender,uint256 amount0,uint256 amount1)'
-
-const contract_interface = new ethers.utils.Interface([
-  event_swap
-])
-
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  try {
-    const forSwaps: IForSwap[] = (await sdk.api.abi.call({
-      target: gurar,
-      abi: abis.forSwaps,
-      chain: CHAIN.BASE,
-    })).output.map((e: any) => {
-      return {
-        lp: e.lp,
-        token0: e.token0,
-        token1: e.token1,
-      }
-    })
-
-    const fromBlock = (await getBlock(fromTimestamp, CHAIN.BASE, {}));
-    const toBlock = (await getBlock(toTimestamp, CHAIN.BASE, {}));
-
-    const logs: ILog[] = (await Promise.all(forSwaps.map((forSwaps: IForSwap) => sdk.api.util.getLogs({
-      target: forSwaps.lp,
-      topic: '',
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      keys: [],
-      chain: CHAIN.BASE,
-      topics: [topic0_swap]
-    }))))
-      .map((p: any) => p)
-      .map((a: any) => a.output).flat();
-
-    const coins = [...new Set([
-      ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token0}`),
-      ...forSwaps.map((log: IForSwap) => `${CHAIN.BASE}:${log.token1}`)
-    ])]
-
-    const coins_split: string[][] = [];
-    for(let i = 0; i < coins.length; i+=100) {
-      coins_split.push(coins.slice(i, i + 100))
-    }
-    const prices_result: any =  (await Promise.all(coins_split.map((a: string[]) =>  getPrices(a, timestamp)))).flat().flat().flat();
-    const prices: TPrice = Object.assign({}, {});
-    prices_result.map((a: any) => Object.assign(prices, a))
-    const fees: number = logs.map((log: ILog) => {
-      const value = contract_interface.parseLog(log);
-      const amount0In = Number(value.args.amount0._hex);
-      const amount1In = Number(value.args.amount1._hex);
-      const {token0, token1} = forSwaps.find((forSwap: IForSwap) => forSwap.lp.toLowerCase() === log.address.toLowerCase()) as IForSwap
-      const token0Decimals = prices[`${CHAIN.BASE}:${token0}`]?.decimals || 0
-      const token1Decimals = prices[`${CHAIN.BASE}:${token1}`]?.decimals || 0
-      const price0 = prices[`${CHAIN.BASE}:${token0}`]?.price || 0
-      const price1 = prices[`${CHAIN.BASE}:${token1}`]?.price || 0
-      const totalAmount0 = ((amount0In) / 10 ** token0Decimals) * price0
-      const totalAmount1 = ((amount1In) / 10 ** token1Decimals) * price1
-      return (totalAmount0 + totalAmount1);
-    }).reduce((a: number, b: number) => a+b, 0)
-    const dailyBribesRevenue = await fees_bribes(fromBlock, toBlock, timestamp);
-
-    return {
-      dailyFees: `${fees}`,
-      dailyRevenue: `${fees}`,
-      dailyHoldersRevenue: `${fees}`,
-      dailyBribesRevenue: `${dailyBribesRevenue}`,
-      timestamp
-    }
-  } catch(e) {
-    console.error(e)
-    throw e;
+  while (unfinished) {
+    const allPoolsChunk = await fetchOptions.api.call({ target: sugar, abi: abis.forSwaps, params: [chunkSize, currentOffset], chain: CHAIN.BASE })
+    unfinished = allPoolsChunk.length !== 0;
+    currentOffset += chunkSize;
+    allPools.push(...allPoolsChunk);
   }
 
+  const pools = [...new Set(allPools.map((e: any) => e.lp))]
+  const timestamp = fetchOptions.startOfDay;
+  const res: any = await getDexFees({ chain: CHAIN.BASE, fromTimestamp: fetchOptions.fromTimestamp, toTimestamp: fetchOptions.toTimestamp, pools, timestamp, fetchOptions })
+  res.dailyBribesRevenue = await fees_bribes(fetchOptions);
+  return res;
 }
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: async () => 1693180800,
+      start: 1693180800,
     }
   }
 }

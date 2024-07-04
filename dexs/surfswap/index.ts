@@ -67,17 +67,18 @@ const v1graphs = getGraphDimensions({
 });
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     classic: {
       [CHAIN.KAVA]: {
         fetch: graphs(CHAIN.KAVA as Chain),
-        start: async () => 1659715200,
+        start: 1659715200,
       },
     },
     "stable-amm": {
       [CHAIN.KAVA]: {
         fetch: v1graphs(CHAIN.KAVA as Chain),
-        start: async () => 1656547200,
+        start: 1656547200,
       },
     },
   }

@@ -23,7 +23,7 @@ const fetch = async (timestamp: number) => {
   async function getDailyVolume(startDayTimestamp: number) : Promise<string> {
     const endDayTimeStamp = startDayTimestamp + oneDay
     const dailyVolumeQuery = '?from='+startDayTimestamp.toString()+'&to='+endDayTimeStamp.toString()
-    return (await fetchURL(volumeEndpoint+dailyVolumeQuery))?.data;
+    return (await fetchURL(volumeEndpoint+dailyVolumeQuery));
   }
 
   async function getTotalVolume(endtimestamp: number) : Promise<string> {
