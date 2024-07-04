@@ -24,14 +24,12 @@ const fetch = async (timestamp: number) => {
   );
 
   const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
-  console.log(totalFeesQuery);
   const totalFees = totalFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
   );
 
   const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL))?.data;
-  console.log(protocolFeeRatio);
   const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
   const totalProtocolRevenue = totalFees * protocolFeeRatio;
 
