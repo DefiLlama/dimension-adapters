@@ -113,8 +113,13 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       }`;
 
       const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
-      const dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
-      const dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+
+      let dailySwapFee = new BigNumber(0);
+      let dailyProtocolFee = new BigNumber(0);
+      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+      }
 
       let tenPcFeeTimestamp = 0;
       let fiftyPcFeeTimestamp = 0;
