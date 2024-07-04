@@ -19,7 +19,6 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     else ammFee += item.day.volumeFee
   }
 
-  console.log(123123)
   const dailyVolumeAmmPoolFee = ammFee + clmmFee + cpmmFee
 
   const dailyRevenueFund = ammFee * 0.03 + clmmFee * 0.04 + cpmmFee * 0.04
