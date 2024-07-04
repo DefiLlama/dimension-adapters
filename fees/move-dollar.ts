@@ -16,14 +16,13 @@ interface IVolumeall {
 }
 
 const fetch = async (timestamp: number) => {
-  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data
-    .data;
+  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
   );
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data.data;
+  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
   const totalFees = totalFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
@@ -40,7 +39,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: 1680652406 
+      start: 1680652406,
     },
   },
 };
