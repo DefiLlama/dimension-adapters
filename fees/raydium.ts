@@ -23,10 +23,10 @@ const feeAdapter: BaseAdapter = getDexChainFees({
       // Revenue: "A 0.03% of the trade goes to buying RAY and distributing it to stakers",
 
       UserFees: "User paid fees for swaps",
-      Fees: "Fees collected from swaps and pool creation fees",
+      Fees: "Fees collected from swaps",
       SupplySideRevenue: "Total fees to liquidity providers",
       HoldersRevenue: "RAY Buybacks",
-      ProtocolRevenue: "Revenue earned from buybacks, pool creation fees, and the DAO treasury",
+      ProtocolRevenue: "Revenue earned from buybacks and DAO treasury",
       Revenue: "A portion of all trading fees goes to buying back RAY",
     }
   }
