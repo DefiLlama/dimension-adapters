@@ -4,7 +4,6 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const thalaDappURL = "https://app.thala.fi";
-const volumeQueryURL = `${thalaDappURL}/defillama/api/trading-volume-chart?timeframe=`;
 const feesQueryURL = `${thalaDappURL}/api/defillama/trading-fee-chart?timeframe=`;
 const protocolRatioQueryURL = `${thalaDappURL}/api/defillama/protocol-revenue-ratio`;
 
