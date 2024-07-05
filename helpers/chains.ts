@@ -16,7 +16,7 @@ export enum CHAIN {
   OPTIMISM = "optimism",
   POLYGON = "polygon",
   RONIN = "ronin",
-  ROOTSTOCK = "rootstock",
+  ROOTSTOCK = "rsk",
   XDAI = "xdai",
   AURORA = "aurora",
   MOONRIVER = "moonriver",
