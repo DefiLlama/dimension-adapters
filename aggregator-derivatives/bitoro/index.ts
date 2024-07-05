@@ -2,17 +2,34 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const BASE_URL = "https://min-api.bitoro.network/btr/stats/global";
-const startTimestamp = 1711324800; // 2024-03-25 00:00:00
+const BitoroX_BASE_URL = "https://min-api.bitoro.network/btr/stats/global";
+const BitoroPro_BASE_URL = "https://min-api.inj.bitoro.network/stats/global";
+const startTimestamp_bitoro_x = 1711324800; // 2024-03-25 00:00:00
+const startTimestamp_bitoro_pro = 1718323200; // 2024-06-14 00:00:00
 
-const constructUrl = (startTime: number, endTime: number): string => {
-    return `${BASE_URL}?start=${startTime}&end=${endTime}`;
+const getBitoroXUrl = (startTime: number, endTime: number): string => {
+    return `${BitoroX_BASE_URL}?start=${startTime}&end=${endTime}`;
 }
 
-const fetch = async (options: any): Promise<FetchResultV2> => {
+const getBitoroProUrl = (startTime: number, endTime: number): string => {
+    return `${BitoroPro_BASE_URL}?start=${startTime}&end=${endTime}`;
+}
+
+const fetchBitoroX = async (options: any): Promise<FetchResultV2> => {
     const { fromTimestamp, toTimestamp } = options;
-    const dailyVolume = await fetchURL(constructUrl(fromTimestamp, toTimestamp));
-    const totalVolume = await fetchURL(constructUrl(startTimestamp, toTimestamp));
+    const dailyVolume = await fetchURL(getBitoroXUrl(fromTimestamp, toTimestamp));
+    const totalVolume = await fetchURL(getBitoroXUrl(startTimestamp_bitoro_x, toTimestamp));
+
+    return {
+        dailyVolume: dailyVolume.volume || 0,
+        totalVolume: totalVolume.volume || 0,
+    };
+};
+
+const fetchBitoroPro = async (options: any): Promise<FetchResultV2> => {
+    const { fromTimestamp, toTimestamp } = options;
+    const dailyVolume = await fetchURL(getBitoroProUrl(fromTimestamp, toTimestamp));
+    const totalVolume = await fetchURL(getBitoroProUrl(startTimestamp_bitoro_pro, toTimestamp));
 
     return {
         dailyVolume: dailyVolume.volume || 0,
@@ -23,9 +40,13 @@ const fetch = async (options: any): Promise<FetchResultV2> => {
 export default {
     adapter: {
         [CHAIN.ARBITRUM]: {
-            fetch: fetch,
-            start: startTimestamp
+            fetch: fetchBitoroX,
+            start: startTimestamp_bitoro_x
         },
+        [CHAIN.INJECTIVE]: {
+            fetch: fetchBitoroPro,
+            start: startTimestamp_bitoro_pro
+        }
     },
     version: 2
 }
