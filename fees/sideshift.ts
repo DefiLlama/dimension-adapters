@@ -15,7 +15,10 @@ const fetchFees = async (options: FetchOptions) => {
   logs.forEach(log => {
     dailyFees.add(token, Number(log.data))
   })
-  return { dailyFees, dailyRevenue: dailyFees }
+  const holderRevenue = dailyFees.clone()
+  holderRevenue.resizeBy(4)
+
+  return { dailyFees, dailyRevenue: holderRevenue, holdersRevenue: holderRevenue }
 }
 const adapters: SimpleAdapter = {
   version: 2,

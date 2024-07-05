@@ -20,6 +20,8 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
         totalVolume,
         timestamp: dayTimestamp,
     };
+
+
 }
 
 const adapter: SimpleAdapter = {

@@ -27,6 +27,10 @@ const v2Endpoints = {
     "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.POLYGON_ZKEVM]:
     "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
+  [CHAIN.MODE]:
+    "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
+  [CHAIN.FRAXTAL]:
+    "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn"
 };
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
@@ -109,8 +113,13 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       }`;
 
       const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
-      const dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
-      const dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+
+      let dailySwapFee = new BigNumber(0);
+      let dailyProtocolFee = new BigNumber(0);
+      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+      }
 
       let tenPcFeeTimestamp = 0;
       let fiftyPcFeeTimestamp = 0;
@@ -211,7 +220,21 @@ const adapter: Adapter = {
         meta: {
           methodology
         }
-      }
+      },
+      [CHAIN.MODE]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
+        start: 1716336000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.FRAXTAL]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
+        start: 1716163200,
+        meta: {
+          methodology
+        }
+      },
     }
   }
 }
