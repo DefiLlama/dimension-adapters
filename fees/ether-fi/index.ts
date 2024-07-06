@@ -16,7 +16,7 @@ const getDailyFees = async (api: sdk.ChainApi): Promise<number> => {
     }),
     await api.call({
       target: LIQUID_VAULT,
-      abi: "erc20:totalSupply",
+      abi: "function totalAssets() external view returns (uint256 assets)",
     }),
   ]);
 
