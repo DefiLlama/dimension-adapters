@@ -1,5 +1,5 @@
 import axios from "axios";
-import { FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const ROUTE_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
@@ -169,134 +169,131 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
   }
 }
 
-const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: 1708849166,
-    },
-    [CHAIN.ARBITRUM_NOVA]: {
-      fetch,
-      start: 1708859455
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: 1708861373
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: 1708860457
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: 1709257139
-    },
-    [CHAIN.BOBA]: {
-      fetch,
-      start: 1711114904
-    },
-    [CHAIN.BOBA_BNB]: {
-      fetch,
-      start: 1708869909
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: 1708861767
-    },
-    [CHAIN.BITTORRENT]: {
-      fetch,
-      start: 1708849432
-    },
-    [CHAIN.CELO]: {
-      fetch,
-      start: 1708862981
-    },
-    [CHAIN.CORE]: {
-      fetch,
-      start: 1708868629
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: 1708848791
-    },
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: 1708862854
-    },
-    // [CHAIN.FILECOIN]: {
-    //   fetch,
-    //   start: 1708863300
-    // },
-    [CHAIN.FUSE]: {
-      fetch,
-      start: 1708842355
-    },
-    [CHAIN.XDAI]: {
-      fetch,
-      start: 1708862650
-    },
-    // [CHAIN.HAQQ]: {
-    //   fetch,
-    //   start: 1708838485
-    // },
-    // [CHAIN.HARMONY]: {
-    //   fetch,
-    //   start: 1708867604
-    // },
-    [CHAIN.KAVA]: {
-      fetch,
-      start: 1708864014
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: 1708861967
-    },
-    [CHAIN.METIS]: {
-      fetch,
-      start: 1708864370
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      start: 1708866396
-    },
-    [CHAIN.MOONRIVER]: {
-      fetch,
-      start: 1708867026
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: 1708860181
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: 1708860721
-    },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch,
-      start: 1708867809
-    },
-    // [CHAIN.ROOTSTOCK]: {
-    //   fetch,
-    //   start: 1716315751
-    // },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: 1708865967
-    },
-    // [CHAIN.SKALE_EUROPA]: {
-    //   fetch,
-    //   start: 1713803839
-    // },
-    [CHAIN.THUNDERCORE]: {
-      fetch,
-      start: 1708889900
-    },
-    [CHAIN.ZETA]: {
-      fetch,
-      start: 1708865999
-    },
+const adapters = {
+  [CHAIN.ARBITRUM]: {
+    fetch,
+    start: 1708849166,
   },
-  version: 2
+  [CHAIN.ARBITRUM_NOVA]: {
+    fetch,
+    start: 1708859455
+  },
+  [CHAIN.AVAX]: {
+    fetch,
+    start: 1708861373
+  },
+  [CHAIN.BASE]: {
+    fetch,
+    start: 1708860457
+  },
+  [CHAIN.BLAST]: {
+    fetch,
+    start: 1709257139
+  },
+  [CHAIN.BOBA]: {
+    fetch,
+    start: 1711114904
+  },
+  [CHAIN.BOBA_BNB]: {
+    fetch,
+    start: 1708869909
+  },
+  [CHAIN.BSC]: {
+    fetch,
+    start: 1708861767
+  },
+  [CHAIN.BITTORRENT]: {
+    fetch,
+    start: 1708849432
+  },
+  [CHAIN.CELO]: {
+    fetch,
+    start: 1708862981
+  },
+  [CHAIN.CORE]: {
+    fetch,
+    start: 1708868629
+  },
+  [CHAIN.ETHEREUM]: {
+    fetch,
+    start: 1708848791
+  },
+  [CHAIN.FANTOM]: {
+    fetch,
+    start: 1708862854
+  },
+  // [CHAIN.FILECOIN]: {
+  //   fetch,
+  //   start: 1708863300
+  // },
+  [CHAIN.FUSE]: {
+    fetch,
+    start: 1708842355
+  },
+  [CHAIN.XDAI]: {
+    fetch,
+    start: 1708862650
+  },
+  // [CHAIN.HAQQ]: {
+  //   fetch,
+  //   start: 1708838485
+  // },
+  // [CHAIN.HARMONY]: {
+  //   fetch,
+  //   start: 1708867604
+  // },
+  [CHAIN.KAVA]: {
+    fetch,
+    start: 1708864014
+  },
+  [CHAIN.LINEA]: {
+    fetch,
+    start: 1708861967
+  },
+  [CHAIN.METIS]: {
+    fetch,
+    start: 1708864370
+  },
+  [CHAIN.MOONBEAM]: {
+    fetch,
+    start: 1708866396
+  },
+  [CHAIN.MOONRIVER]: {
+    fetch,
+    start: 1708867026
+  },
+  [CHAIN.OPTIMISM]: {
+    fetch,
+    start: 1708860181
+  },
+  [CHAIN.POLYGON]: {
+    fetch,
+    start: 1708860721
+  },
+  [CHAIN.POLYGON_ZKEVM]: {
+    fetch,
+    start: 1708867809
+  },
+  // [CHAIN.ROOTSTOCK]: {
+  //   fetch,
+  //   start: 1716315751
+  // },
+  [CHAIN.SCROLL]: {
+    fetch,
+    start: 1708865967
+  },
+  // [CHAIN.SKALE_EUROPA]: {
+  //   fetch,
+  //   start: 1713803839
+  // },
+  [CHAIN.THUNDERCORE]: {
+    fetch,
+    start: 1708889900
+  },
+  [CHAIN.ZETA]: {
+    fetch,
+    start: 1708865999
+  },
 }
 
 export default adapters
