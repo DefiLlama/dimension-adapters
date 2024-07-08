@@ -16,6 +16,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.SUI]: {
 			fetch,
