@@ -28,33 +28,32 @@ const chainInfo: { [key: string]: any } = {
     endpoint: "https://api.carbondefi.xyz/v1/analytics/volume",
     startBlock: 17087375,
     startTimestamp: 1681986059,
-    getVolumeByToken: false,
+    getDimensionsByToken: false,
   },
   [CHAIN.SEI]: {
     endpoint: "https://sei-api.carbondefi.xyz/v1/analytics/volume",
     startBlock: 79146720,
     startTimestamp: 1716825673,
-    getVolumeByToken: true,
+    getDimensionsByToken: true,
   },
 };
 
 const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
-  const getVolumeByToken = chainInfo[options.chain].getVolumeByToken;
+  const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
   const startTimestamp = options.startOfDay;
   const endTimestamp = options.toTimestamp;
 
   try {
     const swapData: CarbonAnalyticsResponse = await fetchURL(analyticsEndpoint);
 
-    if (getVolumeByToken) {
-      const volumeSumByToken = getDimensionsSumByToken(
+    if (getDimensionsByToken) {
+      return getDimensionsSumByToken(
         swapData,
         startTimestamp,
         endTimestamp,
         getEmptyData(options)
       );
-      return volumeSumByToken;
     }
     return getDimensionsSum(swapData, startTimestamp, endTimestamp);
   } catch (e) {
