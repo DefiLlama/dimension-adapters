@@ -7,7 +7,7 @@ import swap from './swap'
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    SushiSwap: swap,
+    "agg-dex": swap,
     classic: classic,
     trident: trident,
     v3: v3
