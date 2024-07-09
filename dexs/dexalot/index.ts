@@ -1,49 +1,41 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
-
-const historicalVolumeEndpoint = "https://api.dexalot.com/api/stats/dailyvolumes"
 
 interface IVolumeall {
   volumeusd: string;
   date: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {
-    'origin': 'https://app.dexalot.com'
-  }}))
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { volumeusd }) => acc + Number(volumeusd), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volumeusd
-
-  return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  };
-};
-
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {
-    'origin': 'https://app.dexalot.com'
-  }}))
-  return (new Date(historicalVolume[0].date).getTime()) / 1000
+const address: any = {
+  [CHAIN.ARBITRUM]: "0x010224949cCa211Fb5dDfEDD28Dc8Bf9D2990368",
+  [CHAIN.AVAX]: "0xEed3c159F3A96aB8d41c8B9cA49EE1e5071A7cdD"
 }
 
+const event = "event SwapExecuted(uint256 indexed nonceAndMeta,address taker,address destTrader,uint256 destChainId,address srcAsset,address destAsset,uint256 srcAmount,uint256 destAmount)"
+
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const logs = await options.getLogs({
+    target: address[options.chain],
+    eventAbi: event
+  })
+  logs.forEach(log => {
+    dailyVolume.add(log.destAsset, log.destAmount)
+  })
+  return { dailyVolume }
+};
+
+
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
-      fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.AVAX as Chain, (_chian: string) => fetch)
+      fetch: fetch,
+      start: 0,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch,
+      start: 0,
     },
   },
 };
