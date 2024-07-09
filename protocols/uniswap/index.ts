@@ -321,10 +321,6 @@ const fetchSei = async (options: FetchOptions) => {
     return {
       dailyVolume,
       dailyFees,
-      totalVolume: dailyVolume,
-      totalFees: dailyFees,
-      totalUserFees: dailyFees,
-      totalSupplySideRevenue: dailyFees,
     }
   } catch (e) {
     console.error(e)
