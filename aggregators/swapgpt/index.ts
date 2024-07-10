@@ -1,60 +1,36 @@
-import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 interface IVolumeall {
-  startDateTime: string;
-  dailyVolumeUSD: string;
+  totalVolumeUSD: string;
+  dailyVolumeUSD: Array<{
+    startDateTime: string;
+    dailyVolumeUSD: string;
+  }>
 }
 
 const baseUrl = "https://stats-api.panora.exchange";
 const endpoint = "getDefiLlamaStats";
 
-const getStartOfDay = (timestamp: number) => {
-  const now = new Date(timestamp);
-
-  const startOfDayUTC = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
-
-  const startOfDayISO = startOfDayUTC.toISOString();
-
-  return startOfDayISO;
-};
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getStartOfDay(timestamp);
-
-  const historicalVolume: IVolumeall[] = (
-    await fetchURL(`${baseUrl}/${endpoint}`)
-  )?.dailyVolumeUSD;
-
-  const totalVolume = historicalVolume
-    .filter(
-      (volItem) =>
-        new Date(volItem.startDateTime)?.getTime() <=
-        new Date(dayTimestamp)?.getTime()
-    )
-    .reduce((acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD), 0);
-
-  const dailyVolume = historicalVolume.find(
-    (dayItem) =>
-      new Date(dayItem.startDateTime)?.getTime() ===
-      new Date(dayTimestamp)?.getTime()
-  )?.dailyVolumeUSD;
-
+const fetch = async (options: FetchOptions) => {
+  const timestamp = options.startOfDay
+  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const response: IVolumeall = (await httpGet(`${baseUrl}/${endpoint}`));
+  const totalVolume = response.totalVolumeUSD;
+  const dailyVolume = response.dailyVolumeUSD.find((d) => d.startDateTime.split('T')[0] === dateStr);
   return {
-    totalVolume: String(totalVolume),
-    dailyVolume,
-    timestamp: new Date(dayTimestamp)?.getTime() / 1000,
-  };
+    dailyVolume: dailyVolume?.dailyVolumeUSD,
+    totalVolume
+  }
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: new Date("2023-11-28T00:00:00.000Z").getTime() / 1000,
+      start: 1701129600,
     },
   },
 };
