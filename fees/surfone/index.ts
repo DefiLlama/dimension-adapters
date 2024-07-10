@@ -21,7 +21,7 @@ const fetch = () => {
 
     const volume: IVolume = response.data;
     return {
-      dailyFees: `${volume?.total_fee || undefined}`,
+      totalFees: `${volume?.total_fee || undefined}`,
       timestamp: dayTimestamp,
     };
   };
