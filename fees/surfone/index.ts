@@ -11,6 +11,7 @@ const headers = {
 };
 
 interface IVolume {
+  '24h_vol': number,
   total_fee: number,
 }
 
@@ -20,7 +21,9 @@ const fetch = () => {
     const response = (await httpGet(volumeEndpointV2, { headers }));
 
     const volume: IVolume = response.data;
+    const dailyFees = Number(volume['24h_vol'] || 0) * (0.1/100); // 0.1% of trade volume
     return {
+      dailyFees: `${dailyFees}`,
       totalFees: `${volume?.total_fee || undefined}`,
       timestamp: dayTimestamp,
     };
