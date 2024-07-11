@@ -174,12 +174,7 @@ const vaultResolver = async (api: sdk.ChainApi) => {
       address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
       break;
     case CHAIN.ARBITRUM:
-      if (block < 228361633) {
-        // vault resolver related revenue only exists after this block. no revenue / fees before
-        break;
-      }
       address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
-
       break;
   }
 
@@ -220,12 +215,12 @@ const config = {
     vaultResolverExistAfterBlock: 19313700,
   },
   arbitrum: {
-    dataStartTimestamp: 1718020611, // ~ when liquidity resolver was deployed (block 220375236)
+    dataStartTimestamp: 1720018638, // ~ before any activity started (block 228361633)
 
-    revenueResolverExistAfterBlock: 0,
+    revenueResolverExistAfterBlock: 228361632,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
-    vaultResolverExistAfterTimestamp: 0,
-    vaultResolverExistAfterBlock: 0,
+    vaultResolverExistAfterTimestamp: 1720018637,
+    vaultResolverExistAfterBlock: 228361632,
   },
 };
 
