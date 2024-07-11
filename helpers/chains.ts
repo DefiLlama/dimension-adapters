@@ -158,6 +158,7 @@ export enum CHAIN {
   BOB = "bob",
   TAIKO = "taiko",
   SKALE_EUROPA = "skale_europa",
+  IOTAEVM = "iotaevm",
 }
 
 // Don´t use

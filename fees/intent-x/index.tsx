@@ -4,9 +4,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint_0_8_0 =
-  "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
+  "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
 const endpoint =
-  "https://api.studio.thegraph.com/query/62472/intentx-analytics_082/version/latest";
+  "https://api.0xgraph.xyz/subgraphs/name/intentx-base-analytcs-082";
 const endpoint_blast =
   "https://api.studio.thegraph.com/query/62472/intentx-analytics_082_blast/version/latest";
 const endpoint_mantle =
