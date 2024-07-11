@@ -157,7 +157,7 @@ export enum CHAIN {
   PLANQ = "planq",
   BOB = "bob",
   TAIKO = "taiko",
-  SKALE_EUROPA = "skale_europa"
+  SKALE_EUROPA = "skale_europa",
 }
 
 // Don´t use
