@@ -161,7 +161,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("taiko"),
       start: 1682121600,
     },
-    [CHAIN.RSK]: {
+    [CHAIN.ROOTSTOCK]: {
       fetch: fetchFees("rootstock"),
       start: 1682121600,
     },
