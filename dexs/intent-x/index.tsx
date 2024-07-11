@@ -7,9 +7,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
 const endpoint_0_8_0 =
-  "https://api.thegraph.com/subgraphs/name/intent-x/perpetuals-analytics_base";
+  "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
 const endpoint =
-  "https://api.studio.thegraph.com/query/62472/intentx-analytics_082/version/latest";
+  "https://api.0xgraph.xyz/subgraphs/name/intentx-base-analytcs-082";
 const endpoint_blast =
   "https://api.studio.thegraph.com/query/62472/intentx-analytics_082_blast/version/latest";
 const endpoint_mantle =
@@ -201,8 +201,8 @@ const fetchVolumeBlast = async (
     totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
