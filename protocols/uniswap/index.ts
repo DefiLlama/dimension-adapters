@@ -67,14 +67,14 @@ const KEY = 'a265c39f5a123ab2d40b25dc352adc22'
 
 const v3Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
-  // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
-  // [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
-  // // [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
-  // // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
-  // // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4gTHdWa9PbqUugt9vsMmpzUowmjb6eRiFRnUSrYLeSJF'),
-  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('43Hwfi3dJSoGpyas9VwNoDAv55yjgGrPpNSmbQZArzMG'),
-  // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
+  // [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
+  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
+  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4gTHdWa9PbqUugt9vsMmpzUowmjb6eRiFRnUSrYLeSJF'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('43Hwfi3dJSoGpyas9VwNoDAv55yjgGrPpNSmbQZArzMG'),
+  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -231,60 +231,60 @@ const fetchV2 = async (options: FetchOptions) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    // v1: {
-    //   [CHAIN.ETHEREUM]: {
-    //     fetch: async (options) => {
-    //       const response = await v1Graph(options.chain)(options);
-    //       const keys = {
-    //         "dailyUserFees": options.createBalances(),
-    //         "dailyProtocolRevenue": options.createBalances(),
-    //         "dailySupplySideRevenue": options.createBalances(),
-    //         "dailyHoldersRevenue":  options.createBalances(),
-    //         "dailyRevenue":  options.createBalances(),
-    //         "dailyFees":  options.createBalances(),
-    //       };
-    //       for (const key of Object.keys(keys)) {
-    //         if (typeof response[key] === 'string') {
-    //           keys[key].add(ETH_ADDRESS, Number(response[key]) * 1e18);
-    //         }
-    //       }
-    //       return response as FetchResultGeneric
-    //     },
-    //     start: 1541203200,
-    //     meta: {
-    //       methodology
-    //     },
-    //   },
-    // },
-    // v2: {
-    //   [CHAIN.ETHEREUM]: {
-    //     fetch: async (options) => {
-    //       const response = await v2Graph(options.chain)(options);
-    //       response.totalVolume =
-    //         Number(response.dailyVolume) + 1079453198606.2229;
-    //       response.totalFees = Number(response.totalVolume) * 0.003;
-    //       response.totalUserFees = Number(response.totalVolume) * 0.003;
-    //       response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
-    //       return {
-    //         ...response,
-    //       }
-    //     },
-    //     start: getStartTimestamp({
-    //       endpoints: v2Endpoints,
-    //       chain: CHAIN.ETHEREUM,
-    //     }),
-    //     meta: {
-    //       methodology
-    //     },
-    //   },
-    //   ...Object.keys(chainv2mapping).reduce((acc, chain) => {
-    //     acc[chain] = {
-    //       fetch: fetchV2,
-    //       start: 0,
-    //     }
-    //     return acc
-    //   }, {})
-    // },
+    v1: {
+      [CHAIN.ETHEREUM]: {
+        fetch: async (options) => {
+          const response = await v1Graph(options.chain)(options);
+          const keys = {
+            "dailyUserFees": options.createBalances(),
+            "dailyProtocolRevenue": options.createBalances(),
+            "dailySupplySideRevenue": options.createBalances(),
+            "dailyHoldersRevenue":  options.createBalances(),
+            "dailyRevenue":  options.createBalances(),
+            "dailyFees":  options.createBalances(),
+          };
+          for (const key of Object.keys(keys)) {
+            if (typeof response[key] === 'string') {
+              keys[key].add(ETH_ADDRESS, Number(response[key]) * 1e18);
+            }
+          }
+          return response as FetchResultGeneric
+        },
+        start: 1541203200,
+        meta: {
+          methodology
+        },
+      },
+    },
+    v2: {
+      [CHAIN.ETHEREUM]: {
+        fetch: async (options) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
+        start: getStartTimestamp({
+          endpoints: v2Endpoints,
+          chain: CHAIN.ETHEREUM,
+        }),
+        meta: {
+          methodology
+        },
+      },
+      ...Object.keys(chainv2mapping).reduce((acc, chain) => {
+        acc[chain] = {
+          fetch: fetchV2,
+          start: 0,
+        }
+        return acc
+      }, {})
+    },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
@@ -329,6 +329,7 @@ const fetchSei = async (options: FetchOptions) => {
 }
 const mappingChain = (chain: string) => {
   if (chain === CHAIN.ERA) return "zksync"
+  if (chain === CHAIN.ROOTSTOCK) return "rootstock"
   return chain
 }
 
@@ -363,5 +364,60 @@ adapter.breakdown.v3[CHAIN.SCROLL] = {
   }
 }
 
+adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.FILECOIN] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.BOBA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MOONBEAM] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MANTA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MANTLE] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.LINEA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
 
 export default adapter;
