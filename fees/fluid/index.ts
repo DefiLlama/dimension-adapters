@@ -323,6 +323,7 @@ const getFeesFromTo = async (
       const { borrowToken: vaultBorrowToken } = await toApi.call({
         target: vault,
         abi: abis.vault.constantsView,
+        chain: toApi.chain,
       });
       borrowToken = vaultBorrowToken;
     }
@@ -460,12 +461,14 @@ const getLiquidityUncollectedRevenueAt = async (
     liquidityTokenBalance = (
       await sdk.api.eth.getBalance({
         target: config.liquidity,
+        chain: timestampedApi.chain,
         block: await timestampedApi.getBlock(),
       })
     ).output;
   } else {
     liquidityTokenBalance = await timestampedApi.call({
       target: token,
+      chain: timestampedApi.chain,
       abi: "erc20:balanceOf",
       params: [config.liquidity],
     });
@@ -579,6 +582,7 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
   const { supplyToken, borrowToken } = await api.call({
     target: vault,
     abi: abis.vault.constantsView,
+    chain: api.chain,
   });
 
   for await (const log of rebalanceEventLogs) {
@@ -648,3 +652,4 @@ const getVaultMagnifierUncollectedRevenueAt = async (
 
   return balancesApi;
 };
+// yarn test fees fluid
