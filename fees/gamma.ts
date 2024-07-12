@@ -58,23 +58,23 @@ const fetchFees = (chain: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1682121600,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
+      fetch: fetchFees("ethereum"),
       start: 1682121600,
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
+      fetch: fetchFees("polygon"),
       start: 1682121600,
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetchFees(CHAIN.POLYGON_ZKEVM),
+      fetch: fetchFees("polygon_zkevm"),
       start: 1682121600,
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
+      fetch: fetchFees("optimism"),
+      start: 1682121600,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchFees("arbitrum"),
       start: 1682121600,
     },
     [CHAIN.BSC]: {
@@ -85,48 +85,92 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("moonbeam"),
       start: 1682121600,
     },
-    [CHAIN.ROLLUX]: {
-      fetch: fetchFees(CHAIN.ROLLUX),
-      start: 1682121600,
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetchFees(CHAIN.LINEA),
-      start: 1682121600,
-    },
-     [CHAIN.MANTA]: {
-      fetch: fetchFees("manta"),
-      start: 1682121600,
-    },
-     [CHAIN.AVAX]: {
-      fetch: fetchFees("avalanche"),
-      start: 1682121600,
-    },
-     [CHAIN.XDAI]: {
-      fetch: fetchFees("gnosis"),
-      start: 1682121600,
-    },
-     [CHAIN.MANTLE]: {
-      fetch: fetchFees("mantle"),
-      start: 1682121600,
-    },
-     [CHAIN.CELO]: {
+    [CHAIN.CELO]: {
       fetch: fetchFees("celo"),
       start: 1682121600,
     },
-     [CHAIN.METIS]: {
+    [CHAIN.AVAX]: {
+      fetch: fetchFees("avalanche"),
+      start: 1682121600,
+    },
+    [CHAIN.FANTOM]: {
+      fetch: fetchFees("fantom"),
+      start: 1682121600,
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetchFees("mantle"),
+      start: 1682121600,
+    },
+    [CHAIN.ROLLUX]: {
+      fetch: fetchFees("rollux"),
+      start: 1682121600,
+    },
+    [CHAIN.LINEA]: {
+      fetch: fetchFees("linea"),
+      start: 1682121600,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchFees("base"),
+      start: 1682121600,
+    },
+    [CHAIN.KAVA]: {
+      fetch: fetchFees("kava"),
+      start: 1682121600,
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: fetchFees("op_bnb"),
+      start: 1682121600,
+    },
+    [CHAIN.MANTA]: {
+      fetch: fetchFees("manta"),
+      start: 1682121600,
+    },
+    [CHAIN.METIS]: {
       fetch: fetchFees("metis"),
+      start: 1682121600,
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetchFees("gnosis"),
+      start: 1682121600,
+    },
+    [CHAIN.ASTRZK]: {
+      fetch: fetchFees("astar_zkevm"),
       start: 1682121600,
     },
     [CHAIN.IMX]: {
       fetch: fetchFees("immutable_zkevm"),
       start: 1682121600,
     },
-     [CHAIN.ASTRZK]: {
-      fetch: fetchFees("astar_zkevm"),
+    [CHAIN.SCROLL]: {
+      fetch: fetchFees("scroll"),
       start: 1682121600,
     },
-     [CHAIN.BLAST]: {
+    [CHAIN.BLAST]: {
       fetch: fetchFees("blast"),
+      start: 1682121600,
+    },
+    [CHAIN.XLAYER]: {
+      fetch: fetchFees("xlayer"),
+      start: 1682121600,
+    },
+    [CHAIN.MODE]: {
+      fetch: fetchFees("mode"),
+      start: 1682121600,
+    },
+    [CHAIN.TAIKO]: {
+      fetch: fetchFees("taiko"),
+      start: 1682121600,
+    },
+    [CHAIN.ROOTSTOCK]: {
+      fetch: fetchFees("rootstock"),
+      start: 1682121600,
+    },
+    [CHAIN.SEI]: {
+      fetch: fetchFees("sei"),
+      start: 1682121600,
+    },
+    [CHAIN.IOTAEVM]: {
+      fetch: fetchFees("iota_evm"),
       start: 1682121600,
     },
   }

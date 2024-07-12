@@ -307,7 +307,7 @@ interface ISeiResponse {
 }
 const fetchSei = async (options: FetchOptions) => {
   try {
-    const url = `https://omni.icarus.tools/${options.chain}/cush/analyticsProtocolHistoric`;
+    const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
       "params": [
         options.startTimestamp * 1000, //start
@@ -327,8 +327,92 @@ const fetchSei = async (options: FetchOptions) => {
     return {}
   }
 }
+const mappingChain = (chain: string) => {
+  if (chain === CHAIN.ERA) return "zksync"
+  if (chain === CHAIN.ROOTSTOCK) return "rootstock"
+  return chain
+}
 
 adapter.breakdown.v3[CHAIN.SEI] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+adapter.breakdown.v3[CHAIN.ERA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.TAIKO] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.SCROLL] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.FILECOIN] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.BOBA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MOONBEAM] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MANTA] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.MANTLE] = {
+  fetch: fetchSei,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.LINEA] = {
   fetch: fetchSei,
   start: 0,
   meta: {
