@@ -10,8 +10,9 @@ interface IRaw  {
 
 const fetchFees = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
   const startTimeStr = new Date(fromTimestamp * 1000).toISOString().split("T")[0];
-  const toDayTimeStr = new Date(toTimestamp * 1000).toISOString().split("T")[0];
-  const url = `https://proxy-api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStr}&bin=1d`;
+  const toDayTimeStrNext = new Date((toTimestamp + 84000) * 1000).toISOString().split("T")[0];
+  const toDayTimeStr = new Date((toTimestamp) * 1000).toISOString().split("T")[0];
+  const url = `https://proxy-api.xoxno.com/getMarketplaceVolume?after=${startTimeStr}&before=${toDayTimeStrNext}&bin=1d`;
   const response: IRaw[] = (await httpGet(url, {
     headers: {
       origin: 'https://xoxno.com',

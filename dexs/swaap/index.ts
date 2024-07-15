@@ -13,21 +13,45 @@ interface ChainConfig{
 
 const config:Record<string, ChainConfig> = {
     [CHAIN.ETHEREUM]: {
-        api: sdk.graph.modifyEndpoint('6ZxFsA2sR62j3Hepprkeu5co3aVupg4YZXCsHyM8SFZs'),
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-ethereum/1.0.0/gn",
         start: 1688169600,
         id: '2',
         firstDayVolume: 0
     },
     [CHAIN.POLYGON]: {
-        api: sdk.graph.modifyEndpoint('AqeDaXDjW3ttvYDGtdK1LC2igJ2usukrcbYmM2rBwesT'),
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-polygon/1.0.0/gn",
         start: 1688083200,
         id: '2',
         firstDayVolume: 240.41984714755376
 
     },
     [CHAIN.ARBITRUM]: {
-        api: sdk.graph.modifyEndpoint('5EPpDeMUhrYgm91MJCidUgvraS41y9eCRasfjFY6gnYe'),
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-arbitrum/1.0.0/gn",
         start: 1696464000,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.OPTIMISM]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-optimism/1.0.0/gn",
+        start: 1716986361,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.BSC]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-bsc/1.0.0/gn",
+        start: 1716994360,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.BASE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
+        start: 1715692069,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.MODE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mode/1.0.1/gn",
+        start: 1714652681,
         id: '2',
         firstDayVolume: 0
     },
@@ -121,6 +145,23 @@ const adapter: BreakdownAdapter = {
                 fetch: v2graphs,
                 start: 1696464000,
             },
+            [CHAIN.OPTIMISM]: {
+                fetch: v2graphs,
+                start: 1716986361,
+            },
+            [CHAIN.BSC]: {
+                fetch: v2graphs,
+                start: 1716994360,
+            },
+            [CHAIN.BASE]: {
+                fetch: v2graphs,
+                start: 1715692069,
+            },
+            [CHAIN.MODE]: {
+                fetch: v2graphs,
+                start: 1714652681,
+            },
+
         }
     }
 }

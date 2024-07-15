@@ -15,7 +15,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('CnzVKhPQizzxSpysSveSLt1XZqkBRSprFtFJv3RaBQPv')
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8zagLSufxk5cVhzkzai3tyABwJh53zxn9tmUYJcJxijG')
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {

@@ -27,7 +27,7 @@ const chains: TChains = {
   [CHAIN.AURORA]:"aurora",
   [CHAIN.HARMONY]:"harmony",
   [CHAIN.CANTO]:"canto",
-  [CHAIN.DOGECHAIN]:"dogechain",
+  // [CHAIN.DOGECHAIN]:"dogechain",
   [CHAIN.BASE]: "base",
 };
 

@@ -1,11 +1,12 @@
-import { Adapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchV2 } from "../../adapters/types"
+import type { ChainEndpoints, FetchV2, Adapter } from "../../adapters/types"
+import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.BLAST]: "https://api.synfutures.com/thegraph/v3-blast",
+  [CHAIN.BASE]: "https://api.synfutures.com/thegraph/v3-base",
 }
 
 // Fee = LiquidityFee + ProtocolFee
@@ -15,6 +16,16 @@ const methodology = {
   MakerRebates: "fees rebated received by limit order makers on the protocol, these fees are paid by takers",
   FeesToLp: "fees received by AMM LPs on the protocol, these fees are paid by takers",
   ProcotolFees: "fees received by the protocol from takers, these fees are paid by takers"
+}
+
+function convertDecimals(value: string | number, decimals: number) {
+  if (decimals > 18) {
+    return new BigNumber(value).multipliedBy(10 ** (decimals - 18)).toString();
+  } else if (decimals < 18) {
+    return new BigNumber(value).dividedToIntegerBy(10 ** (18 - decimals)).toString();
+  } else {
+    return value;
+  }
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -27,6 +38,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
           quote{
             id
             symbol
+            decimals
           }
           liquidityFee
           poolFee
@@ -51,15 +63,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const graphRes = await request(graphUrls[chain], graphQuery);
 
       for (const record of graphRes.dailyQuoteDatas) {
-        dailyFee.addToken(record.quote.id, Number(record.liquidityFee) + Number(record.protocolFee))
-        dailyMakerRebates.addToken(record.quote.id, Number(record.liquidityFee) - Number(record.poolFee))
-        dailyFeesToLP.addToken(record.quote.id, Number(record.poolFee))
-        dailyProcotolFees.addToken(record.quote.id, Number(record.protocolFee))
+        dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee), record.quote.decimals))
+        dailyMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) - Number(record.poolFee), record.quote.decimals))
+        dailyFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.poolFee), record.quote.decimals))
+        dailyProcotolFees.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
 
-        totalFee.addToken(record.quote.id, Number(record.totalLiquidityFee) + Number(record.totalProtocolFee))
-        totalMakerRebates.addToken(record.quote.id, Number(record.totalLiquidityFee) - Number(record.totalPoolFee))
-        totalFeesToLP.addToken(record.quote.id, Number(record.totalPoolFee))
-        totalProcotolFees.addToken(record.quote.id, Number(record.totalProtocolFee))
+        totalFee.addToken(record.quote.id, convertDecimals(Number(record.totalLiquidityFee) + Number(record.totalProtocolFee), record.quote.decimals))
+        totalMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.totalLiquidityFee) - Number(record.totalPoolFee), record.quote.decimals))
+        totalFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.totalPoolFee), record.quote.decimals))
+        totalProcotolFees.addToken(record.quote.id, convertDecimals(Number(record.totalProtocolFee), record.quote.decimals))
       }
 
       return {
@@ -84,6 +96,13 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints),
       start: 1709049600,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: graphs(endpoints),
+      start: 1719383967,
       meta: {
         methodology
       }

@@ -8,9 +8,9 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.ARBITRUM]:
-    sdk.graph.modifyEndpoint('6H9PEiNPZgwXfpbijjesZh96LFBzUvkHmEutMoYQ9fvp'),
+    sdk.graph.modifyEndpoint('https://api.goldsky.com/api/public/project_clu01p4nr68r301pze2tj4sh7/subgraphs/vela-arbitrum/mainnet/gn'),
   [CHAIN.BASE]:
-    sdk.graph.modifyEndpoint('2qsbZ4X5TJM7NupC2eRJv167kBDFCDBd37KnK7PQtdga')
+    sdk.graph.modifyEndpoint('https://api.goldsky.com/api/public/project_clu01p4nr68r301pze2tj4sh7/subgraphs/vela-base/mainnet/gn')
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {

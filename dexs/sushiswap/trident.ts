@@ -7,7 +7,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
-  [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-polygon',
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('BSdbRfU6PjWSdKjhpfUQ6EgUpzMxgpf5c1ugaVwBJFsQ'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('FEgRuH9zeTRMZgpVv5YavoFEcisoK6KHk3zgQRRBqt51'),
   //[CHAIN.KAVA]: 'https://pvt.graph.kava.io/subgraphs/name/sushi-v2/trident-kava',
   // [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/sushi-v2/trident-metis',

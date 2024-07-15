@@ -1,13 +1,11 @@
-import request, { gql } from "graphql-request";
 import { ChainEndpoints, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL";
 
-
-// Subgraphs endpoints
 const endpoints: ChainEndpoints = {
-  [CHAIN.ARBITRUM]: "https://subgraph-arb.myx.finance/subgraphs/name/myx-subgraph",
-  [CHAIN.LINEA]: "https://subgraph-linea.myx.finance/subgraphs/name/myx-subgraph",
+  [CHAIN.ARBITRUM]: "https://api-arb.myx.finance/coingecko/contracts",
+  [CHAIN.LINEA]: "https://api-linea.myx.finance/coingecko/contracts",
 }
 
 const methodology = {
@@ -15,37 +13,24 @@ const methodology = {
   DailyVolume: "Daily Volume from the sum of the open/close/liquidation of positions.",
 }
 
-interface IGraphResponse {
-  tradeVolume: {
-    volume: string,
-    id: 'string'
-  }
-}
-
 const getFetch = async (optios: FetchOptions) => {
+  const result = await fetchURL(endpoints[optios.chain])
+
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
 
-  const dailyData: IGraphResponse = await request(endpoints[optios.chain], gql`
-      query MyQuery {
-      tradeVolume(id: "${dayTimestamp}") {
-        volume
-        id
-      }
-    }
-  `)
 
-  const totalData: IGraphResponse = await request(endpoints[optios.chain], gql`
-    query MyQuery {
-      tradeVolume(id: "global") {
-        volume
-        id
-      }
-    }`
-  )
+  const volume = result.data.reduce((acc, item) => {
+    return acc + (item?.target_volume || 0)
+  }, 0)
+
+  console.log({
+    timestamp: dayTimestamp,
+    dailyVolume: volume || "0",
+  })
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyData.tradeVolume?.volume || "0",
+    dailyVolume: volume || "0",
   }
 }
 

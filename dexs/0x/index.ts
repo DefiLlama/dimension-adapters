@@ -12,7 +12,7 @@ const config = {
   [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
   arbitrum: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
   base: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
-}
+} as {[chain:string]:{exchange:string}}
 
 // https://github.com/0xProject/protocol/blob/development/packages/contract-artifacts/artifacts/IZeroEx.json
 const abi = {

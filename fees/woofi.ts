@@ -12,23 +12,35 @@ type TFeeDetail = {
 }
 const fee_detail: TFeeDetail = {
   [CHAIN.AVAX]: {
-    from: '0x6cb1bc6c8aabdae822a2bf8d83b36291cb70f169',
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   },
   [CHAIN.BSC]: {
-    from: '0xda5e1d3aaa93e8716f87b5ee39e5f514cc934d5e',
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   },
   [CHAIN.FANTOM]: {
     from: '0x0b5025d8d409a51615cb624b8ede132bb11a2550',
   },
   [CHAIN.POLYGON]: {
-    from: '0x938021351425dbfa606ed2b81fc66952283e0dd5',
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   },
   [CHAIN.ARBITRUM]: {
-    from: '0x0ba6c34af9713d15141dcc91d2788c3f370ecb9e',
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   },
   [CHAIN.OPTIMISM]: {
-    from: '0xa058798cd293f5acb4e7757b08c960a79f527699',
-  }
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  },
+  [CHAIN.ERA]: {
+    from: '0x01b50b57a3d3c1a54433813585e60713e75f3de9',
+  },
+  [CHAIN.LINEA]: {
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  },
+  [CHAIN.BASE]: {
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  },
+  [CHAIN.MANTLE]: {
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  },
 }
 
 const fetch = (chain: Chain) => {
@@ -77,6 +89,22 @@ const adapter: Adapter = {
       fetch: fetch(CHAIN.OPTIMISM),
       start: 1673222400,
     },
+    [CHAIN.ERA]: {
+      fetch: fetch(CHAIN.ERA),
+      start: 1673222400,
+    },
+    [CHAIN.LINEA]: {
+      fetch: fetch(CHAIN.LINEA),
+      start: 1673222400,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1673222400,
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetch(CHAIN.MANTLE),
+      start: 1673222400,
+    }
   }
 }
 

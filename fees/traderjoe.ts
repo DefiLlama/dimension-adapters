@@ -6,7 +6,7 @@ import volumeAdapter from "../dexs/traderjoe";
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import {httpGet} from "../utils/fetchURL";
 
 const TOTAL_FEES = 0.003;
 const LP_FEE = 0.0025;
@@ -42,10 +42,12 @@ const adapterV1 = getDexChainFees({
   volumeAdapter: { adapter: volumeAdapter.breakdown.v1 },
 });
 
-const graph = (chain: Chain) => {
-  return async ({ startOfDay }: FetchOptions) => {
-    const dayTimestamp = startOfDay * 1000
-    const historical: IData[] = await fetchURL(endpointsV2[chain]);
+const graph = async (options: FetchOptions) => {
+    const dayTimestamp = options.startOfDay * 1000
+      const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
+    const historical: IData[] = (await httpGet(url, { headers: {
+      'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
+    }}));
     const dailyFees =
       historical.find((dayItem) => dayItem.timestamp === dayTimestamp)
         ?.feesUsd || 0;
@@ -62,7 +64,12 @@ const graph = (chain: Chain) => {
         : undefined,
       dailyProtocolRevenue: `${dailyRevenue}`,
     };
-  };
+};
+
+const mapChain = (chain: Chain): string => {
+  if (chain === CHAIN.BSC) return "binance";
+  if (chain === CHAIN.AVAX) return "avalanche";
+  return chain;
 };
 
 const adapter: Adapter = {
@@ -71,19 +78,19 @@ const adapter: Adapter = {
     v1: adapterV1,
     v2: {
       [CHAIN.AVAX]: {
-        fetch: graph(CHAIN.AVAX),
+        fetch: graph,
         start: 1669420800,
       },
       [CHAIN.ARBITRUM]: {
-        fetch: graph(CHAIN.ARBITRUM),
+        fetch: graph,
         start: 1672012800,
       },
       [CHAIN.BSC]: {
-        fetch: graph(CHAIN.BSC),
+        fetch: graph,
         start: 1678147200,
       },
       [CHAIN.ETHEREUM]: {
-        fetch: graph(CHAIN.ETHEREUM),
+        fetch: graph,
         start: 1695513600,
       },
     },

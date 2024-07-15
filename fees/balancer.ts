@@ -5,6 +5,7 @@ import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import BigNumber from "bignumber.js";
+import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -26,6 +27,10 @@ const v2Endpoints = {
     "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.POLYGON_ZKEVM]:
     "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
+  [CHAIN.MODE]:
+    "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
+  [CHAIN.FRAXTAL]:
+    "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn"
 };
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
@@ -61,21 +66,23 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
     };
   };
 };
-interface IPool {
+interface IBalancer {
   id: string;
-  swapFees: string;
-  protocolFee: string;
+  totalSwapFee: string;
+  totalProtocolFee: string;
 }
 
-interface IPoolSnapshot {
-  today: IPool[];
-  yesterday: IPool[];
+interface IBalancerSnapshot {
+  today: IBalancer[];
+  yesterday: IBalancer[];
   tenPcFeeChange: {
     totalSwapFee: string;
+    totalProtocolFee: string;
     timestamp: number;
   }
   fiftyPcFeeChange: {
     totalSwapFee: string;
+    totalProtocolFee: string;
     timestamp: number;
   }
 }
@@ -83,76 +90,56 @@ interface IPoolSnapshot {
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
+      const todayTimestamp = getTimestampAtStartOfDayUTC(toTimestamp);
+      const yesterdayTimestamp = getTimestampAtStartOfDayUTC(fromTimestamp);
       const graphQuery = gql
       `query fees {
-        today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+        today: balancerSnapshots(where: {timestamp:${todayTimestamp}, totalProtocolFee_gt:0}, orderBy: totalProtocolFee, orderDirection: desc) {
           id
-          swapFees
-          protocolFee
+          totalSwapFee
+          totalProtocolFee
         }
-        yesterday:poolSnapshots(where: {timestamp:${fromTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+        yesterday: balancerSnapshots(where: {timestamp:${yesterdayTimestamp}, totalProtocolFee_gt:0}, orderBy: totalProtocolFee, orderDirection: desc) {
           id
-          swapFees
-          protocolFee
+          totalSwapFee
+          totalProtocolFee
         }
         tenPcFeeChange: balancerSnapshot(id: "2-18972") {
-          totalSwapFee
           timestamp
         }
         fiftyPcFeeChange: balancerSnapshot(id: "2-19039") {
-          totalSwapFee
           timestamp
         }
       }`;
 
-      const graphRes: IPoolSnapshot = await request(graphUrls[chain], graphQuery);
-      const dailyFee = graphRes["today"].map((e: IPool) => {
-          const yesterdayValue = new BigNumber(graphRes["yesterday"].find((p: IPool) => p.id.split('-')[0] === e.id.split('-')[0])?.swapFees || 0);
-          if(yesterdayValue.toNumber()) return new BigNumber('0')
-          return new BigNumber(e.swapFees).minus(yesterdayValue);
-      }).filter(e => new BigNumber(e).toNumber() < 10000).reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
+      const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
 
+      let dailySwapFee = new BigNumber(0);
+      let dailyProtocolFee = new BigNumber(0);
+      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+      }
 
-      const currentTotalSwapFees = graphRes["today"].map((e: IPool) => new BigNumber(e.swapFees)).reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
-
-
-      let tenPcFeeTimestamp = 0
-      let fiftyPcFeeTimestamp = 0
-      let tenPcTotalSwapFees = new BigNumber(0)
-      let fiftyPcTotalSwapFees = new BigNumber(0)
+      let tenPcFeeTimestamp = 0;
+      let fiftyPcFeeTimestamp = 0;
 
       if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
         tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
         fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
-        tenPcTotalSwapFees = new BigNumber(graphRes["tenPcFeeChange"]["totalSwapFee"])
-        fiftyPcTotalSwapFees = new BigNumber(graphRes["fiftyPcFeeChange"]["totalSwapFee"])
       }
 
       // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
       // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-      const dailyRevenue = toTimestamp < tenPcFeeTimestamp ? "0" : (
-        toTimestamp < fiftyPcFeeTimestamp ? dailyFee.multipliedBy(0.1) : dailyFee.multipliedBy(0.5))
-      const totalRevenue = toTimestamp < tenPcFeeTimestamp ? "0" : (
-        toTimestamp < fiftyPcFeeTimestamp ? currentTotalSwapFees.minus(tenPcTotalSwapFees).multipliedBy(0.1) : currentTotalSwapFees.minus(fiftyPcTotalSwapFees).multipliedBy(0.5))
-
-      const dailyProtocolFee = graphRes["today"].map((e: IPool) => {
-        const yesterdayValue = new BigNumber(graphRes["yesterday"].find((p: IPool) => p.id.split('-')[0] === e.id.split('-')[0])?.protocolFee || 0);
-        if (yesterdayValue.toNumber() === 0) return new BigNumber('0')
-        return new BigNumber(e.protocolFee).minus(yesterdayValue);
-      }).filter(e => new BigNumber(e).toNumber() < 10000)
-        .reduce((a: BigNumber, b: BigNumber) => a.plus(b), new BigNumber('0'))
+      const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
+        toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
 
       return {
-        // totalUserFees: currentTotalSwapFees.toString(),
-        dailyUserFees: dailyFee.toString(),
-        // totalFees: currentTotalSwapFees.toString(),
-        dailyFees: dailyFee.toString(),
-        // totalRevenue: dailyProtocolFee.toString(), // balancer v2 subgraph does not flash loan fees yet
-        dailyRevenue: dailyProtocolFee.toString(), // balancer v2 subgraph does not flash loan fees yet
-        // totalProtocolRevenue: totalRevenue.toString(),
-        dailyProtocolRevenue: dailyRevenue.toString(),
-        // totalSupplySideRevenue: currentTotalSwapFees.minus(totalRevenue.toString()).toString(),
-        dailySupplySideRevenue: new BigNumber(dailyFee.toString()).minus(dailyRevenue.toString()).toString(),
+        dailyUserFees: dailySwapFee.toString(),
+        dailyFees: dailyFees.toString(),
+        dailyRevenue: dailyProtocolFee.toString(),
+        dailyProtocolRevenue: dailyProtocolFee.toString(),
+        dailySupplySideRevenue: dailySwapFee.toString(),
       };
     };
   };
@@ -160,10 +147,10 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
 
 const methodology = {
   UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
-  Fees: "All trading fees collected (doesn't include withdrawal and flash loan fees)",
+  Fees: "All trading fees collected (includes swap and  yield fee)",
   Revenue: "Protocol revenue from all fees collected",
-  ProtocolRevenue: "Set to 10% of collected fees by a governance vote",
-  SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs, set by the pool creator or dynamically optimized by Gauntlet",
+  ProtocolRevenue: "Balancer V2 protocol fees are set to 50%",
+  SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
 }
 
 const adapter: Adapter = {
@@ -176,7 +163,7 @@ const adapter: Adapter = {
         meta: {
           methodology: {
             UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
-            Fees: "All trading fees collected",
+            Fees: "All trading fees collected (includes swap and yield fee)",
             Revenue: "Balancer V1 protocol fees are set to 0%",
             ProtocolRevenue: "Balancer V1 protocol fees are set to 0%",
             SupplySideRevenue: "Trading fees are distributed among LPs",
@@ -233,7 +220,21 @@ const adapter: Adapter = {
         meta: {
           methodology
         }
-      }
+      },
+      [CHAIN.MODE]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
+        start: 1716336000,
+        meta: {
+          methodology
+        }
+      },
+      [CHAIN.FRAXTAL]: {
+        fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
+        start: 1716163200,
+        meta: {
+          methodology
+        }
+      },
     }
   }
 }

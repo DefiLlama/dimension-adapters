@@ -7,12 +7,15 @@ type IContract = {
 }
 
 const contract: IContract = {
+  [CHAIN.AURORA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.ARBITRUM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.OPTIMISM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.BASE]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.ETHEREUM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.AVAX]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.BSC]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  [CHAIN.LINEA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  [CHAIN.MANTA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.POLYGON]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.POLYGON_ZKEVM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.FANTOM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -20,6 +23,7 @@ const contract: IContract = {
   [CHAIN.SCROLL]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.ZKSYNC]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.METIS]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  [CHAIN.XDAI]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
 }
 
 const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
@@ -34,7 +38,7 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
     }
   });
 
-  return { dailyVolume, timestamp, } as any;
+  return { dailyBridgeVolume: dailyVolume, timestamp, } as any;
 };
 
 const adapter: SimpleAdapter = {
