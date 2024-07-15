@@ -41,7 +41,7 @@ const graph = (chain: Chain) => {
         target: address[chain],
         eventAbi: abis.FundsDeposited,
         topic: topic0_fund_disposit_v2,
-        fromBlock, 
+        fromBlock,
         toBlock
       })
     ).filter((a: any) => Number(a!.destinationChainId) === 288);
@@ -51,7 +51,7 @@ const graph = (chain: Chain) => {
         target: address[chain],
         eventAbi: abis.V3FundsDeposited,
         topic: topic0_fund_disposit_v3,
-        fromBlock, 
+        fromBlock,
         toBlock
       })
     ).filter((a: any) => Number(a!.destinationChainId) === 288);
@@ -68,7 +68,7 @@ const graph = (chain: Chain) => {
       target: address[chain],
       eventAbi: abis.FilledV3Relay,
       topic: topic0_filled_replay_v3,
-      fromBlock, 
+      fromBlock,
       toBlock
     });
 
@@ -110,10 +110,10 @@ const adapter: SimpleAdapter = {
       fetch: graph(CHAIN.ARBITRUM),
       start: 1682840443,
     },
-    [CHAIN.OPTIMISM]: {
-      fetch: graph(CHAIN.OPTIMISM),
-      start: 1682840443,
-    },
+    // [CHAIN.OPTIMISM]: {
+    //   fetch: graph(CHAIN.OPTIMISM),
+    //   start: 1682840443,
+    // },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
       start: 1682840443,

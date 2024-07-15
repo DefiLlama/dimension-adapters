@@ -1,42 +1,37 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-
 
 interface IVolumeall {
-  grouptimestamp: string;
-  amount: string;
+  totalVolumeUSD: string;
+  dailyVolumeUSD: Array<{
+    startDateTime: string;
+    dailyVolumeUSD: string;
+  }>
 }
 
-const baseUrl = "https://stats.panora.exchange";
-const endpoint = "stats/getDefiLamaStats";
+const baseUrl = "https://stats-api.panora.exchange";
+const endpoint = "getDefiLlamaStats";
 
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(`${baseUrl}/${endpoint}`))?.volumeInUsd
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.grouptimestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { amount }) => acc + Number(amount), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.grouptimestamp).getTime() / 1000) === dayTimestamp)?.amount
-
+const fetch = async (options: FetchOptions) => {
+  const timestamp = options.startOfDay
+  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const response: IVolumeall = (await httpGet(`${baseUrl}/${endpoint}`));
+  const totalVolume = response.totalVolumeUSD;
+  const dailyVolume = response.dailyVolumeUSD.find((d) => d.startDateTime.split('T')[0] === dateStr);
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  };
+    dailyVolume: dailyVolume?.dailyVolumeUSD,
+    totalVolume
+  }
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetch,
-      start: (new Date('2023-11-28T00:00:00.000Z').getTime() / 1000),
-    }
+      fetch,
+      start: 1701129600,
+    },
   },
 };
 
