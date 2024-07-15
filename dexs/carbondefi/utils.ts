@@ -55,6 +55,9 @@ export const getDimensionsSum = (
   };
 };
 
+const isNativeToken = (address: string) =>
+  address === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
 export const getDimensionsSumByToken = (
   swapData: CarbonAnalyticsResponse,
   startTimestamp: number,
@@ -70,13 +73,29 @@ export const getDimensionsSumByToken = (
   const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
 
   swapData.forEach((swap) => {
-    totalVolume.add(swap.targetaddress, swap.targetamount_real);
-    totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+    if (isNativeToken(swap.targetaddress)) {
+      totalVolume.addGasToken(swap.targetamount_real);
+    } else {
+      totalVolume.add(swap.targetaddress, swap.targetamount_real);
+    }
+    if (isNativeToken(swap.feeaddress)) {
+      totalFees.addGasToken(swap.tradingfeeamount_real);
+    } else {
+      totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+    }
   });
 
   dailyData.forEach((swap) => {
-    dailyVolume.add(swap.targetaddress, swap.targetamount_real);
-    dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+    if (isNativeToken(swap.targetaddress)) {
+      dailyVolume.addGasToken(swap.targetamount_real);
+    } else {
+      dailyVolume.add(swap.targetaddress, swap.targetamount_real);
+    }
+    if (isNativeToken(swap.feeaddress)) {
+      dailyFees.addGasToken(swap.tradingfeeamount_real);
+    } else {
+      dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+    }
   });
 
   return {
