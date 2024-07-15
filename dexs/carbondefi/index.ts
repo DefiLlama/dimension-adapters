@@ -41,7 +41,7 @@ const chainInfo: { [key: string]: any } = {
 const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
   const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
-  const startTimestamp = options.startOfDay;
+  const startTimestamp = options.fromTimestamp;
   const endTimestamp = options.toTimestamp;
 
   try {
