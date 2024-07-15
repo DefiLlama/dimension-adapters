@@ -1,8 +1,12 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
-async function fetch() {
-    return httpGet('https://api.stabble.org/stats/volume?type=daily');
+async function fetch(timestamp: number) {
+    const dailyVolume = await httpGet('https://api.stabble.org/stats/volume?type=daily');
+    return {
+        dailyVolume: dailyVolume,
+        timestamp: timestamp
+    }
 }
 
 export default {
