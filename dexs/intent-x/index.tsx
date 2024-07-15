@@ -165,8 +165,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);;
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);;
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -237,8 +237,8 @@ const fetchVolumeMantle = async (
     totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);;
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);;
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
