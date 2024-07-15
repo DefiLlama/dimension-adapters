@@ -16,7 +16,7 @@ const getBitoroProUrl = (startTime: number, endTime: number): string => {
 }
 
 const fetchBitoroX = async (options: any): Promise<FetchResultV2> => {
-    const { startTimestamp, endTimestamp } = options;
+    const { endTimestamp, startTimestamp } = options;
     const dailyVolume = await fetchURL(getBitoroXUrl(startTimestamp, endTimestamp));
     const totalVolume = await fetchURL(getBitoroXUrl(startTimestamp_bitoro_x, endTimestamp));
 
