@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   let chunkSize = 400;
-  let currentOffset = 630; // Slipstream launched after ~650 v2 pools were already created
+  let currentOffset = 0;
   const allForSwaps: IForSwap[] = [];
   let unfinished = true;
   let sugarContract = sugar;
@@ -34,37 +34,54 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // before the new Sugar is deployed, we must use the old Sugar contract, and make one large Sugar call
   if (options.startOfDay < 1715160600) {
     chunkSize = 1800;
-    currentOffset = 0;
     sugarContract = sugarOld;
   }
 
   while (unfinished) {
-    const forSwaps: IForSwap[] = (await options.api.call({
+    const forSwapsUnfiltered: IForSwap[] = (await options.api.call({
       target: sugarContract,
-      params: [chunkSize, currentOffset], // Slipstream launched after ~650 v2 pools were already created
+      params: [chunkSize, currentOffset],
       abi: abis.forSwaps,
       chain: CHAIN.OPTIMISM,
-    })).filter(t => Number(t.type) > 0).map((e: any) => {
+    }));
+    
+    const forSwaps: IForSwap[] = forSwapsUnfiltered.filter(t => Number(t.type) > 0).map((e: any) => {
       return {
         lp: e.lp,
         token0: e.token0,
         token1: e.token1,
         pool_fee: e.pool_fee,
       }
-    })
+    });
 
-    unfinished = forSwaps.length !== 0;
+    unfinished = forSwapsUnfiltered.length !== 0;
     currentOffset += chunkSize;
     allForSwaps.push(...forSwaps);
   }
 
-  const targets: string[] = [...new Set(allForSwaps.map((forSwap: IForSwap) => forSwap.lp))]
+  const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-  const logs: ILog[][] = await options.getLogs({
-    targets,
-    eventAbi: event_swap,
-    flatten: false,
-  })
+  let logs: ILog[][] = [];
+  const targetChunkSize = 5;
+  let currentTargetOffset = 0;
+  unfinished = true;
+
+  while (unfinished) {
+    let endOffset = currentTargetOffset + targetChunkSize;
+    if (endOffset >= targets.length) {
+      unfinished = false;
+      endOffset = targets.length;
+    }
+
+    let currentLogs: ILog[][] = await options.getLogs({
+      targets: targets.slice(currentTargetOffset, endOffset),
+      eventAbi: event_swap,
+      flatten: false,
+    })
+
+    logs.push(...currentLogs);
+    currentTargetOffset += targetChunkSize;
+  }
 
   logs.forEach((logs: ILog[], idx: number) => {
     const { token1, pool_fee } = allForSwaps[idx]
