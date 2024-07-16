@@ -1,6 +1,7 @@
 import {
   Adapter,
   FetchResultFees,
+  FetchResultV2,
   FetchV2,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -24,8 +25,8 @@ const methodology = {
   SupplySideRevenue: '80% of all collected borrowing interest fees go to liquidity providers.'
 }
 
-const fetchScallopStats: FetchV2 = async ({ fromTimestamp, toTimestamp }): Promise<FetchResultFees> => {
-  const url = `${scallopApiURL}?fromTimestamp=${fromTimestamp}&toTimestamp=${toTimestamp}`
+const fetchScallopStats: FetchV2 = async ({ startTimestamp, endTimestamp }): Promise<FetchResultV2> => {
+  const url = `${scallopApiURL}?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`
   const stats: DailyStats = await fetchURL(url);
 
   const dailyFees = stats.borrowingInterestFee +
@@ -40,7 +41,6 @@ const fetchScallopStats: FetchV2 = async ({ fromTimestamp, toTimestamp }): Promi
     stats.borrowingInterestFee;
 
   return {
-    timestamp: toTimestamp,
     dailyFees: dailyFees.toString(),
     dailyUserFees: dailyFees.toString(),
     dailyRevenue: dailyRevenue.toString(),
