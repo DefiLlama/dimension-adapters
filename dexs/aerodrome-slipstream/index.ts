@@ -30,32 +30,50 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
   let unfinished = true;
 
   while (unfinished) {
-    const forSwaps: IForSwap[] = (await api.call({
+    const forSwapsUnfiltered: IForSwap[] = (await api.call({
       target: gurar,
       params: [chunkSize, currentOffset],
       abi: abis.forSwaps,
       chain: CHAIN.BASE,
-    })).filter(t => Number(t.type) > 0).map((e: any) => {
+    }));
+
+    const forSwaps: IForSwap[] = forSwapsUnfiltered.filter(t => Number(t.type) > 0).map((e: any) => {
       return {
         lp: e.lp,
         token0: e.token0,
         token1: e.token1,
         pool_fee: e.pool_fee,
       }
-    })
+    });
 
-    unfinished = forSwaps.length !== 0;
+    unfinished = forSwapsUnfiltered.length !== 0;
     currentOffset += chunkSize;
     allForSwaps.push(...forSwaps);
   }
   
   const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-  const logs: ILog[][] = await getLogs({
-    targets,
-    eventAbi: event_swap,
-    flatten: false,
-  })
+  let logs: ILog[][] = [];
+  const targetChunkSize = 5;
+  let currentTargetOffset = 0;
+  unfinished = true;
+
+  while (unfinished) {
+    let endOffset = currentTargetOffset + targetChunkSize;
+    if (endOffset >= targets.length) {
+      unfinished = false;
+      endOffset = targets.length;
+    }
+
+    let currentLogs: ILog[][] = await getLogs({
+      targets: targets.slice(currentTargetOffset, endOffset),
+      eventAbi: event_swap,
+      flatten: false,
+    })
+
+    logs.push(...currentLogs);
+    currentTargetOffset += targetChunkSize;
+  }
 
   logs.forEach((logs: ILog[], idx: number) => {
     const { token1, pool_fee } = allForSwaps[idx]
