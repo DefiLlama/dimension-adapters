@@ -56,7 +56,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     totalRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    dailyHoldersRevenue: `${buyRayAll * rayPrice}`,
+    // dailyHoldersRevenue: `${buyRayAll * rayPrice}`, // seem it total value not daily
     dailySupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
     totalProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     totalSupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
