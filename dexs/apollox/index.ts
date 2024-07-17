@@ -54,7 +54,7 @@ type TotalVolumeItem = {
       },
       "cumVol": number
       }
-      
+
 const TotalVolumeV1AndV2ForBscAPI = "https://fapi.apollox.finance/fapi/v1/openInterestAndTrader"
 const TotalVolumeAPI =  "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
 
@@ -64,9 +64,13 @@ const v2VolumeAPI =
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
 const fetchV2Volume = async (chain: Chain) => {
+  const url = `${v2VolumeAPI}?chain=${chain}&excludeCake=true`;
   const { data = [] } = (
-    await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
+    await httpGet(url)
   ) as  { data: ResponseItem[] }
+  if (!data) {
+    return 0;
+  }
   const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
 
   return dailyVolume
@@ -82,7 +86,7 @@ const fetchV1Volume = async () => {
 const fetchTotalVolumeV1AndV2ForBSC = async () => {
   const data = (
     await httpGet(TotalVolumeV1AndV2ForBscAPI)
-  ) as  TotalVolumeV1AndV2ForBscItem 
+  ) as  TotalVolumeV1AndV2ForBscItem
   return { v1: Number(data.v1TotalVolume), v2: Number(data.v2TotalVolume) }
 };
 
