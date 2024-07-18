@@ -4,49 +4,224 @@ import BigNumber from "bignumber.js";
 import { Adapter, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fluidLiquidity = "0x52aa899454998be5b000ad077a46bbe360f4e497";
-
-const fluidRevenueResolverExistAfterBlock = 19784319;
-const fluidRevenueResolver = "0x0F683159f14857D61544650607549Cdc21abE774";
-const fluidRevenueResolverAbi = {
-  calcRevenueSimulatedTime:
-    "function calcRevenueSimulatedTime(uint256 totalAmounts_,uint256 exchangePricesAndConfig_,uint256 liquidityTokenBalance_,uint256 simulatedTimestamp_) public view returns (uint256 revenueAmount_)",
-  getRevenue:
-    "function getRevenue(address token_) public view returns (uint256 revenueAmount_)",
+const abis = {
+  revenueResolver: {
+    calcRevenueSimulatedTime:
+      "function calcRevenueSimulatedTime(uint256 totalAmounts_,uint256 exchangePricesAndConfig_,uint256 liquidityTokenBalance_,uint256 simulatedTimestamp_) public view returns (uint256 revenueAmount_)",
+    getRevenue:
+      "function getRevenue(address token_) public view returns (uint256 revenueAmount_)",
+  },
+  liquidityResolver: {
+    listedTokens:
+      "function listedTokens() public view returns (address[] listedTokens_)",
+    getExchangePricesAndConfig:
+      "function getExchangePricesAndConfig(address token_) public view returns (uint256)",
+    getTotalAmounts:
+      "function getTotalAmounts(address token_) public view returns (uint256)",
+  },
+  vaultResolver_before_19992222: {
+    getAllVaultsAddresses:
+      "function getAllVaultsAddresses() external view returns (address[] vaults_)",
+    getVaultEntireData:
+      "function getVaultEntireData(address vault_) view returns ((address vault, (address liquidity, address factory, address adminImplementation, address secondaryImplementation, address supplyToken, address borrowToken, uint8 supplyDecimals, uint8 borrowDecimals, uint256 vaultId, bytes32 liquiditySupplyExchangePriceSlot, bytes32 liquidityBorrowExchangePriceSlot, bytes32 liquidityUserSupplySlot, bytes32 liquidityUserBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePrice, address rebalancer) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateVault, uint256 borrowRateVault, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, uint256 rewardsRate) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidity, uint256 totalBorrowLiquidity, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable) liquidityUserBorrowData) vaultData_)",
+  },
+  vaultResolver_after_19992222: {
+    getAllVaultsAddresses:
+      "function getAllVaultsAddresses() external view returns (address[] vaults_)",
+    getVaultEntireData:
+      "function getVaultEntireData(address vault_) view returns ((address vault, (address liquidity, address factory, address adminImplementation, address secondaryImplementation, address supplyToken, address borrowToken, uint8 supplyDecimals, uint8 borrowDecimals, uint256 vaultId, bytes32 liquiditySupplyExchangePriceSlot, bytes32 liquidityBorrowExchangePriceSlot, bytes32 liquidityUserSupplySlot, bytes32 liquidityUserBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePriceOperate, uint256 oraclePriceLiquidate, address rebalancer) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateVault, uint256 borrowRateVault, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, uint256 rewardsRate) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidity, uint256 totalBorrowLiquidity, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization) liquidityUserBorrowData) vaultData_)",
+  },
+  vault: {
+    constantsView:
+      "function constantsView() public view returns((address liquidity,address factory,address adminImplementation,address secondaryImplementation,address supplyToken,address borrowToken,uint8 supplyDecimals,uint8 borrowDecimals,uint vaultId,bytes32 liquiditySupplyExchangePriceSlot,bytes32 liquidityBorrowExchangePriceSlot,bytes32 liquidityUserSupplySlot,bytes32 liquidityUserBorrowSlot))",
+  },
 };
 
-const fluidLiquidityResolver = "0x741c2Cd25f053a55fd94afF1afAEf146523E1249";
-const fluidLiquidityResolverAbi = {
-  listedTokens:
-    "function listedTokens() public view returns (address[] listedTokens_)",
-  getExchangePricesAndConfig:
-    "function getExchangePricesAndConfig(address token_) public view returns (uint256)",
-  getTotalAmounts:
-    "function getTotalAmounts(address token_) public view returns (uint256)",
+const revenueResolver = async (api: sdk.ChainApi) => {
+  const block = await api.getBlock();
+
+  let address;
+  let abi = abis.revenueResolver;
+  switch (api.chain) {
+    case CHAIN.ETHEREUM:
+      if (block < 19784319) {
+        break; // fluid RevenueResolver Exist After Block 19784319
+      }
+      if (block < 20138676) {
+        address = "0x0F683159f14857D61544650607549Cdc21abE774";
+        break;
+      }
+      address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
+      break;
+    case CHAIN.ARBITRUM:
+      address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
+      break;
+  }
+
+  return {
+    calcRevenueSimulatedTime: async (
+      totalAmounts: string,
+      exchangePricesAndConfig: string,
+      liquidityTokenBalance: string | BigNumber,
+      timestamp: string | number
+    ) => {
+      if (!address) {
+        return 0;
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.calcRevenueSimulatedTime,
+        params: [
+          totalAmounts,
+          exchangePricesAndConfig,
+          liquidityTokenBalance as string,
+          timestamp,
+        ],
+      });
+    },
+    getRevenue: async (token: string) => {
+      if (!address) {
+        return 0;
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.getRevenue,
+        params: [token],
+      });
+    },
+  };
 };
 
-// up until block 19662786, must use historical resolver as new one had not been deployed yet
-const vaultResolverExistAfterTimestamp = 1708931052; // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
-const vaultResolverExistAfterBlock = 19313700; // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
-const vaultResolverHistoricalBlock = 19662786;
-const fluidVaultResolverHistorical =
-  "0x8DD65DaDb217f73A94Efb903EB2dc7B49D97ECca";
-const fluidVaultResolver = "0x93CAB6529aD849b2583EBAe32D13817A2F38cEb4";
-const fluidVaultResolverAbi = {
-  getAllVaultsAddresses:
-    "function getAllVaultsAddresses() external view returns (address[] vaults_)",
-  getVaultEntireData:
-    "function getVaultEntireData(address vault_) view returns ((address vault, (address liquidity, address factory, address adminImplementation, address secondaryImplementation, address supplyToken, address borrowToken, uint8 supplyDecimals, uint8 borrowDecimals, uint256 vaultId, bytes32 liquiditySupplyExchangePriceSlot, bytes32 liquidityBorrowExchangePriceSlot, bytes32 liquidityUserSupplySlot, bytes32 liquidityUserBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePrice, address rebalancer) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateVault, uint256 borrowRateVault, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, uint256 rewardsRate) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidity, uint256 totalBorrowLiquidity, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable) liquidityUserBorrowData) vaultData_)",
-};
-const fluidVaultResolverTarget = async (api: sdk.ChainApi) => {
-  return (await api.getBlock()) > vaultResolverHistoricalBlock
-    ? fluidVaultResolver
-    : fluidVaultResolverHistorical;
+const liquidityResolver = async (api: sdk.ChainApi) => {
+  const block = await api.getBlock();
+
+  let address;
+  let abi = abis.liquidityResolver;
+  switch (api.chain) {
+    case CHAIN.ETHEREUM:
+      if (block < 19992056) {
+        address = "0x741c2Cd25f053a55fd94afF1afAEf146523E1249";
+        break;
+      }
+      address = "0xD7588F6c99605Ab274C211a0AFeC60947668A8Cb";
+      break;
+    case CHAIN.ARBITRUM:
+      address = "0x46859d33E662d4bF18eEED88f74C36256E606e44";
+      break;
+  }
+
+  return {
+    listedTokens: async () => {
+      if (!address) {
+        return [];
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.listedTokens,
+        params: undefined,
+      });
+    },
+    getExchangePricesAndConfig: async (token: string) => {
+      if (!address) {
+        return 0;
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.getExchangePricesAndConfig,
+        params: [token],
+      });
+    },
+    getTotalAmounts: async (token: string) => {
+      if (!address) {
+        return 0;
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.getTotalAmounts,
+        params: [token],
+      });
+    },
+  };
 };
 
-const fluidVaultAbi = {
-  constantsView:
-    "function constantsView() public view returns((address liquidity,address factory,address adminImplementation,address secondaryImplementation,address supplyToken,address borrowToken,uint8 supplyDecimals,uint8 borrowDecimals,uint vaultId,bytes32 liquiditySupplyExchangePriceSlot,bytes32 liquidityBorrowExchangePriceSlot,bytes32 liquidityUserSupplySlot,bytes32 liquidityUserBorrowSlot))",
+const vaultResolver = async (api: sdk.ChainApi) => {
+  const block = await api.getBlock();
+
+  let address;
+  let abi = abis.vaultResolver_after_19992222;
+  switch (api.chain) {
+    case CHAIN.ETHEREUM:
+      if (block < 19313700) {
+        // vault resolver related revenue only exists after this block. revenue / fees before are negligible
+        break;
+      }
+
+      if (block < 19662786) {
+        address = "0x8DD65DaDb217f73A94Efb903EB2dc7B49D97ECca";
+        abi = abis.vaultResolver_before_19992222;
+        break;
+      }
+      if (block < 19992222) {
+        address = "0x93CAB6529aD849b2583EBAe32D13817A2F38cEb4";
+        abi = abis.vaultResolver_before_19992222;
+        break;
+      }
+      address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
+      break;
+    case CHAIN.ARBITRUM:
+      address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
+      break;
+  }
+
+  return {
+    getAllVaultsAddresses: async () => {
+      if (!address) {
+        return [];
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.getAllVaultsAddresses,
+        params: undefined,
+      });
+    },
+    getVaultEntireData: async (vault: string) => {
+      if (!address) {
+        return null;
+      }
+
+      return await api.call({
+        target: address,
+        abi: abi.getVaultEntireData,
+        params: [vault],
+      });
+    },
+  };
+};
+
+const config = {
+  liquidity: "0x52aa899454998be5b000ad077a46bbe360f4e497",
+  ethereum: {
+    dataStartTimestamp: 1708246655, // ~ when liquidity resolver was deployed
+
+    revenueResolverExistAfterBlock: 19959852,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1708931052,
+    vaultResolverExistAfterBlock: 19313700,
+  },
+  arbitrum: {
+    dataStartTimestamp: 1720018638, // ~ before any activity started (block 228361633)
+
+    revenueResolverExistAfterBlock: 228361632,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1720018637,
+    vaultResolverExistAfterBlock: 228361632,
+  },
 };
 
 const methodologyFluid = {
@@ -54,13 +229,19 @@ const methodologyFluid = {
   Revenue: "Percentage of interest going to treasury",
 };
 
-const dataStartTimestamp = 1708246655; // ~ when liquidity resolver was deployed
-
 const fetch: FetchV2 = async ({ api, fromTimestamp, toTimestamp }) => {
   return {
-    // totalFees: await getFeesFromTo(api, dataStartTimestamp, toTimestamp),
+    // totalFees: await getFeesFromTo(
+    //   api,
+    //   config[api.chain].dataStartTimestamp,
+    //   toTimestamp
+    // ),
     dailyFees: await getFeesFromTo(api, fromTimestamp, toTimestamp),
-    // totalRevenue: await getRevenueFromTo(api, dataStartTimestamp, toTimestamp),
+    // totalRevenue: await getRevenueFromTo(
+    //   api,
+    //   config[api.chain].dataStartTimestamp,
+    //   toTimestamp
+    // ),
     dailyRevenue: await getRevenueFromTo(api, fromTimestamp, toTimestamp),
   };
 };
@@ -69,7 +250,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: dataStartTimestamp,
+      start: config.ethereum.dataStartTimestamp,
+      meta: {
+        methodology: methodologyFluid,
+      },
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: config.arbitrum.dataStartTimestamp,
       meta: {
         methodology: methodologyFluid,
       },
@@ -87,16 +275,16 @@ const getFeesFromTo = async (
   let fromBlock = (await getBlock(api.chain, fromTimestamp)).number;
   const toBlock = (await getBlock(api.chain, toTimestamp)).number;
 
-  if (fromTimestamp < vaultResolverExistAfterTimestamp) {
-    fromTimestamp = vaultResolverExistAfterTimestamp;
-    fromBlock = vaultResolverExistAfterBlock;
+  if (fromTimestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
+    fromTimestamp = config[api.chain].vaultResolverExistAfterTimestamp;
+    fromBlock = config[api.chain].vaultResolverExistAfterBlock;
   }
   if (fromTimestamp >= toTimestamp) {
     return 0;
   }
 
   const liquidityOperateLogs = (await sdk.getEventLogs({
-    target: fluidLiquidity,
+    target: config.liquidity,
     fromBlock,
     toBlock,
     chain: api.chain,
@@ -113,20 +301,17 @@ const getFeesFromTo = async (
     chain: api.chain,
     block: toBlock,
   });
-  const vaults: string[] = await toApi.call({
-    target: await fluidVaultResolverTarget(toApi),
-    abi: fluidVaultResolverAbi.getAllVaultsAddresses,
-  });
+  const vaults: string[] = await (
+    await vaultResolver(toApi)
+  ).getAllVaultsAddresses();
 
   for await (const vault of vaults) {
     let borrowBalance = new BigNumber(0);
     let borrowToken = "";
     try {
-      const { constantVariables, totalSupplyAndBorrow } = await fromApi.call({
-        target: await fluidVaultResolverTarget(fromApi),
-        abi: fluidVaultResolverAbi.getVaultEntireData,
-        params: [vault],
-      });
+      const { constantVariables, totalSupplyAndBorrow } = await (
+        await vaultResolver(fromApi)
+      ).getVaultEntireData(vault);
 
       borrowToken = constantVariables.borrowToken;
       borrowBalance = new BigNumber(totalSupplyAndBorrow.totalBorrowVault);
@@ -137,7 +322,8 @@ const getFeesFromTo = async (
     if (!borrowToken) {
       const { borrowToken: vaultBorrowToken } = await toApi.call({
         target: vault,
-        abi: fluidVaultAbi.constantsView,
+        abi: abis.vault.constantsView,
+        chain: toApi.chain,
       });
       borrowToken = vaultBorrowToken;
     }
@@ -154,13 +340,9 @@ const getFeesFromTo = async (
     }
 
     try {
-      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await toApi.call(
-        {
-          target: await fluidVaultResolverTarget(toApi),
-          abi: fluidVaultResolverAbi.getVaultEntireData,
-          params: [vault],
-        }
-      );
+      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await (
+        await vaultResolver(toApi)
+      ).getVaultEntireData(vault);
 
       toApi.addToken(
         borrowToken,
@@ -193,13 +375,10 @@ const getLiquidityRevenueFromTo = async (
   fromTimestamp: number,
   toTimestamp: number
 ) => {
-  const tokens: string[] = await api.call({
-    target: fluidLiquidityResolver,
-    abi: fluidLiquidityResolverAbi.listedTokens,
-  });
+  const tokens: string[] = await (await liquidityResolver(api)).listedTokens();
 
   const collectRevenueLogs: [string, BigNumber][] = (await sdk.getEventLogs({
-    target: fluidLiquidity,
+    target: config.liquidity,
     fromBlock: (await getBlock(api.chain, fromTimestamp)).number,
     toBlock: (await getBlock(api.chain, toTimestamp)).number,
     chain: api.chain,
@@ -260,58 +439,56 @@ const getLiquidityUncollectedRevenueAt = async (
   // check if token was listed at that timestamp at Liquidity, if not, revenue is 0
   if (
     !(
-      (await timestampedApi.call({
-        target: fluidLiquidityResolver,
-        abi: fluidLiquidityResolverAbi.listedTokens,
-      })) as string[]
+      (await (
+        await liquidityResolver(timestampedApi)
+      ).listedTokens()) as string[]
     ).includes(token)
   ) {
     return new BigNumber(0);
   }
 
   // get liquidity packed storage slots data at timestamped Api block number
-  const totalAmounts = await timestampedApi.call({
-    target: fluidLiquidityResolver,
-    abi: fluidLiquidityResolverAbi.getTotalAmounts,
-    params: [token],
-  });
-  const exchangePricesAndConfig = await timestampedApi.call({
-    target: fluidLiquidityResolver,
-    abi: fluidLiquidityResolverAbi.getExchangePricesAndConfig,
-    params: [token],
-  });
+  const totalAmounts = await (
+    await liquidityResolver(timestampedApi)
+  ).getTotalAmounts(token);
+
+  const exchangePricesAndConfig = await (
+    await liquidityResolver(timestampedApi)
+  ).getExchangePricesAndConfig(token);
+
   let liquidityTokenBalance: BigNumber | string;
   if (token.toLowerCase() == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee") {
     liquidityTokenBalance = (
       await sdk.api.eth.getBalance({
-        target: fluidLiquidity,
+        target: config.liquidity,
+        chain: timestampedApi.chain,
         block: await timestampedApi.getBlock(),
       })
     ).output;
   } else {
     liquidityTokenBalance = await timestampedApi.call({
       target: token,
+      chain: timestampedApi.chain,
       abi: "erc20:balanceOf",
-      params: [fluidLiquidity],
+      params: [config.liquidity],
     });
   }
 
   // pass data into revenue resolver, available at current api block, which calculates revenue at the
   // simulated timestamp based on storage slots data
-
-  const uncollectedRevenue = await new sdk.ChainApi({
-    chain: api.chain,
-    block: fluidRevenueResolverExistAfterBlock,
-  }).call({
-    target: fluidRevenueResolver,
-    abi: fluidRevenueResolverAbi.calcRevenueSimulatedTime,
-    params: [
-      totalAmounts,
-      exchangePricesAndConfig,
-      liquidityTokenBalance,
-      timestamp,
-    ],
-  });
+  const uncollectedRevenue = await (
+    await revenueResolver(
+      new sdk.ChainApi({
+        chain: api.chain,
+        block: config[api.chain].revenueResolverExistAfterBlock,
+      })
+    )
+  )?.calcRevenueSimulatedTime(
+    totalAmounts,
+    exchangePricesAndConfig,
+    liquidityTokenBalance,
+    timestamp
+  );
 
   return new BigNumber(uncollectedRevenue);
 };
@@ -321,7 +498,7 @@ const getVaultsMagnifierRevenueFromTo = async (
   fromTimestamp: number,
   toTimestamp: number
 ) => {
-  if (toTimestamp < vaultResolverExistAfterTimestamp) {
+  if (toTimestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
     return 0;
   }
 
@@ -335,10 +512,9 @@ const getVaultsMagnifierRevenueFromTo = async (
     chain: api.chain,
   });
 
-  const vaults: string[] = await toBalancesApi.call({
-    target: await fluidVaultResolverTarget(toBalancesApi),
-    abi: fluidVaultResolverAbi.getAllVaultsAddresses,
-  });
+  const vaults: string[] = await (
+    await vaultResolver(toBalancesApi)
+  ).getAllVaultsAddresses();
 
   for await (const vault of vaults) {
     fromBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
@@ -405,7 +581,8 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
   // get collateral and borrow token of the vault
   const { supplyToken, borrowToken } = await api.call({
     target: vault,
-    abi: fluidVaultAbi.constantsView,
+    abi: abis.vault.constantsView,
+    chain: api.chain,
   });
 
   for await (const log of rebalanceEventLogs) {
@@ -428,7 +605,7 @@ const getVaultMagnifierUncollectedRevenueAt = async (
   vault: string,
   balancesApi: sdk.ChainApi
 ) => {
-  if (timestamp < vaultResolverExistAfterTimestamp) {
+  if (timestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
     // vault resolver related revenue only exists after this timestamp. before this there has been no such revenue.
     return balancesApi;
   }
@@ -441,12 +618,9 @@ const getVaultMagnifierUncollectedRevenueAt = async (
   });
 
   try {
-    const { totalSupplyAndBorrow, constantVariables } =
-      await timestampedApi.call({
-        target: await fluidVaultResolverTarget(timestampedApi),
-        abi: fluidVaultResolverAbi.getVaultEntireData,
-        params: [vault],
-      });
+    const { totalSupplyAndBorrow, constantVariables } = await (
+      await vaultResolver(timestampedApi)
+    ).getVaultEntireData(vault);
 
     const totalSupplyVault = new BigNumber(
       totalSupplyAndBorrow.totalSupplyVault
@@ -478,3 +652,4 @@ const getVaultMagnifierUncollectedRevenueAt = async (
 
   return balancesApi;
 };
+// yarn test fees fluid

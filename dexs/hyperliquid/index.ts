@@ -26,7 +26,6 @@ const adapter: SimpleAdapter = {
     "hyperliquid": {
       fetch,
       start: 1677283200,
-      runAtCurrTime: true,
     },
   }
 };
