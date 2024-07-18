@@ -269,4 +269,5 @@ const adapter: SimpleAdapter = {
   },
 };
 
+
 export default adapter;
