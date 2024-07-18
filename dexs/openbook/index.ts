@@ -1,18 +1,22 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import fetchURL from "../../utils/fetchURL";
+import fetchURL, { httpGet } from "../../utils/fetchURL";
 
 
 interface IVolume {
-  volume_24h: number;
+  notionalVolume24hour: number;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const url = `https://dry-ravine-67635.herokuapp.com/pairs`;
-  const historicalVolume: IVolume[] = (await fetchURL(url));
-  const dailyVolume = historicalVolume.reduce((a: number, b: IVolume) => a + b.volume_24h, 0);
+  const url = `https://prod.arcana.markets/api/openbookv2/markets`;
+  const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
+    "origin": "https://www.openbook.ag",
+    "Referer": "https://www.openbook.ag",
+    "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" }
+  }));
+  const dailyVolume = historicalVolume.reduce((a: number, b: IVolume) => a + b.notionalVolume24hour, 0);
 
   return {
     timestamp: dayTimestamp,
