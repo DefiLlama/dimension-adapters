@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResultV2 } from "../../adapters/types";
+import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const BitoroX_BASE_URL = "https://min-api.bitoro.network/btr/stats/global";
@@ -15,29 +15,31 @@ const getBitoroProUrl = (startTime: number, endTime: number): string => {
     return `${BitoroPro_BASE_URL}?start=${startTime}&end=${endTime}`;
 }
 
-const fetchBitoroX = async (options: any): Promise<FetchResultV2> => {
+const fetchBitoroX = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
     const { endTimestamp, startTimestamp } = options;
     const dailyVolume = await fetchURL(getBitoroXUrl(startTimestamp, endTimestamp));
     const totalVolume = await fetchURL(getBitoroXUrl(startTimestamp_bitoro_x, endTimestamp));
 
     return {
+        timestamp: startTimestamp,
         dailyVolume: dailyVolume.volume || 0,
         totalVolume: totalVolume.volume || 0,
     };
 };
 
-const fetchBitoroPro = async (options: any): Promise<FetchResultV2> => {
+const fetchBitoroPro = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
     const { fromTimestamp, toTimestamp } = options;
     const dailyVolume = await fetchURL(getBitoroProUrl(fromTimestamp, toTimestamp));
     const totalVolume = await fetchURL(getBitoroProUrl(startTimestamp_bitoro_pro, toTimestamp));
 
     return {
+        timestamp: fromTimestamp,
         dailyVolume: dailyVolume.volume || 0,
         totalVolume: totalVolume.volume || 0,
     };
 };
 
-export default {
+const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: fetchBitoroX,
@@ -47,6 +49,7 @@ export default {
             fetch: fetchBitoroPro,
             start: startTimestamp_bitoro_pro
         }
-    },
-    version: 2
+    }
 }
+
+export default adapter;
