@@ -10,14 +10,15 @@ export enum KanaChainID {
   "solana" = 1,
   "aptos" = 2,
   "polygon" = 3,
-  "ethereum" = 4,
-  "bsc" = 5,
-  "klaytn" = 6,
-  "sui" = 8,
-  "Arbitrum" = 9,
+  "bsc" = 4,
+  "sui" = 5,
+  "ethereum" = 6,
+  "base" = 7,
+  "klaytn" = 8,
+  "zkSync" = 9,
   "Avalanche" = 10,
-  "zkSync" = 11,
-  "base" = 12,
+  "Arbitrum" = 11,
+  "optimistic" = 12,
 }
 
 const fetch = (chain: KanaChainID) => async (timestamp: number) => {
