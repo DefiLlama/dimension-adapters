@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/cryptoalgebra/analytics"
+  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/59052/lynex-cl/v1.0.1"
 }, {
   factoriesName: "factories",
   dayData: "algebraDayData",
