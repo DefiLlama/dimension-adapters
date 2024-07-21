@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import {FetchOptions, SimpleAdapter} from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -10,26 +10,24 @@ const headers = {
   "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 };
 
-interface IVolume {
-  '24h_vol': number,
+interface IFee {
+  daily_fee: number,
   total_fee: number,
 }
 
 const fetch = () => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const response = (await httpGet(volumeEndpointV2, { headers }));
+    const response = (await httpGet(volumeEndpointV2, {headers}));
 
-    const volume: IVolume = response.data;
-    const dailyFees = Number(volume['24h_vol'] || 0) * (0.1/100); // 0.1% of trade volume
+    const fee: IFee = response.data;
     return {
-      dailyFees: `${dailyFees}`,
-      totalFees: `${volume?.total_fee || undefined}`,
+      dailyFees: `${fee?.daily_fee || undefined}`,
+      totalFees: `${fee?.total_fee || undefined}`,
       timestamp: dayTimestamp,
     };
   };
 }
-
 
 const adapter: SimpleAdapter = {
   version: 1,
