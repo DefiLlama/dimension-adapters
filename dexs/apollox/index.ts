@@ -63,15 +63,21 @@ const v2VolumeAPI =
 
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
+async function sleep (time: number) {
+  return new Promise<void>((resolve) => setTimeout(() => resolve(), time))
+}
+let sleepCount = 0
 const fetchV2Volume = async (chain: Chain) => {
-  const url = `${v2VolumeAPI}?chain=${chain}&excludeCake=true`;
-  const { data = [] } = (
-    await httpGet(url)
+  console.log('fetch ', chain, sleepCount * 2 * 1e3)
+  // This is very important!!! because our API will throw error when send >=2 requests at the same time.
+  await sleep(sleepCount++ * 2 * 1e3)
+  const res = (
+    await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
   ) as  { data: ResponseItem[] }
-  if (!data) {
-    return 0;
+  if (res.data === null) {
+    console.log(res, v2VolumeAPI, { chain, excludeCake: true })
   }
-  const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
+  const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
 
   return dailyVolume
 };
