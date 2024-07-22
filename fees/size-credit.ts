@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 const SZWETH_CONTRACT = '0x974583f05de1fd18c59c77c4a8803cf0c7db5333';
 const SZAUSDC_CONTRACT = '0x38978038a06a21602a4202dfa66968e7f525bf3e';
-const AUSDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const AUSDC_CONTRACT = '0x4e65fe4dba92790696d040ac24aa414708f5c0ab';
 const SIZE_PROXY_CONTRACT = '0xC2a429681CAd7C1ce36442fbf7A4a68B11eFF940';
 
 const fetch: any = async ({ createBalances, getLogs, api, getFromBlock, getToBlock }: FetchOptions) => {
@@ -41,6 +41,7 @@ const fetch: any = async ({ createBalances, getLogs, api, getFromBlock, getToBlo
       }
     })
   })
+  console.log(await fees.getUSDJSONs())
 
   return {
     dailyFees: fees,
