@@ -1,6 +1,6 @@
 import { postURL } from "../../utils/fetchURL"
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const GRAPHQL_ENDPOINT = 'https://api.dedust.io/v3/graphql';
 
@@ -33,7 +33,6 @@ query GetAssets {
 
 
 const fetch = async (options: FetchOptions) => {
-  console.log("Requesting assets list")
   const assetsList = (await postURL(GRAPHQL_ENDPOINT, {
     query: ASSETS_QUERY,
     operationName: 'GetAssets'
@@ -48,9 +47,7 @@ const fetch = async (options: FetchOptions) => {
       symbol: asset.symbol
     }
   }
-  console.log(`Inited ${Object.keys(assetInfo).length} assets`);
 
-  console.log("Requesting pools list")
   const poolsList = (await postURL(GRAPHQL_ENDPOINT, {
     query: POOLS_QUERY,
     operationName: 'GetPools'
@@ -62,7 +59,6 @@ const fetch = async (options: FetchOptions) => {
     const leftAddr = pool.assets[0];
     const rightAddr = pool.assets[1];
     if (!(leftAddr in assetInfo && rightAddr in assetInfo)) {
-      console.warn("No assets info for pool", pool);
       continue;
     }
     const left = assetInfo[leftAddr];
@@ -78,8 +74,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 
-const adapter: any = {
-  version: 2,
+const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
