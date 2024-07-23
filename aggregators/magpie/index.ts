@@ -58,6 +58,41 @@ const fetch = async (timestamp: number, _: ChainBlocks, {chain}: FetchOptions): 
           runAtCurrTime: true,
           start: 1662595200,
         },
+        [CHAIN.SCROLL]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.MANTA]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.TAIKO]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.POLYGON_ZKEVM]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.BLAST]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.METIS]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
+        [CHAIN.FANTOM]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
       },
       isExpensiveAdapter: true,
     };
