@@ -6,7 +6,8 @@ import { Chain } from '@defillama/sdk/build/general';
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://graph-v4.yfx.com/yfx_v4"
+  [CHAIN.ARBITRUM]: "https://graph-v4.yfx.com/yfx_v4",
+  [CHAIN.BASE]: "https://graph-v4.yfx.com/yfx_v4_base",
 }
 
 const methodology = {
@@ -31,7 +32,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const poolData = gql`
         {
           poolDailyDatas(where: {dayTime: "${todaysTimestamp}"}) {
-            removeLiquidityFeeUSD
+            removeLiquidityFee
           }
         }
       `
@@ -47,7 +48,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }
 
       for (let i in poolFees.poolDataDailyDatas) {
-        liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFeeUSD) 
+        liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFee) 
       }
       
       return {
@@ -66,6 +67,13 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
       start: async () => 1713916800,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: graphs(endpoints)(CHAIN.BASE),
+      start: async () => 1721001600,
       meta: {
         methodology
       }
