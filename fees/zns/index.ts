@@ -96,7 +96,7 @@ const adapter: Adapter = {
     },
     [CHAIN.SCROLL]: {
       fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
+        fetchLogsAndCalculateFees(options, CHAIN.SCROLL),
       start: 1714773760,
       meta: {
         methodology,
@@ -104,7 +104,7 @@ const adapter: Adapter = {
     },
     [CHAIN.BLAST]: {
       fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BOBA),
+        fetchLogsAndCalculateFees(options, CHAIN.BLAST),
       start: 1717180581,
       meta: {
         methodology,
@@ -120,7 +120,7 @@ const adapter: Adapter = {
     },
     [CHAIN.TAIKO]: {
       fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BOBA),
+        fetchLogsAndCalculateFees(options, CHAIN.TAIKO),
       start: 1717048139,
       meta: {
         methodology,
@@ -128,7 +128,7 @@ const adapter: Adapter = {
     },
     [CHAIN.XLAYER]: {
       fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BSC),
+        fetchLogsAndCalculateFees(options, CHAIN.XLAYER),
       start: 1713379405,
       meta: {
         methodology,
@@ -136,7 +136,7 @@ const adapter: Adapter = {
     },
     [CHAIN.ZORA]: {
       fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
+        fetchLogsAndCalculateFees(options, CHAIN.ZORA),
       start: 1719239283,
       meta: {
         methodology,
