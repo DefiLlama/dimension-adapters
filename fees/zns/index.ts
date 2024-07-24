@@ -1,6 +1,4 @@
-import { ethers } from "ethers";
 import type { Balances } from "@defillama/sdk";
-
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -11,7 +9,10 @@ const abi_event = {
     "event RenewedDomain(uint256 indexed tokenId, uint256 expiry, string domainName)",
 };
 
-const addresses = {
+type TAddress = {
+  [s: string]: string;
+};
+const addresses: TAddress = {
   [CHAIN.BSC]: "0x7e2cf06f092c9f5cf5972ef021635b6c8e1c5bb2",
   [CHAIN.SCROLL]: "0xB00910Bac7DA44c0D440798809dbF8d51FDBb635",
   [CHAIN.BLAST]: "0x59B9Ac688e39A14b938AC8C3269db66D8aDB9aF6",
@@ -22,42 +23,33 @@ const addresses = {
   [CHAIN.BOBA]: "0xf1D09DA87c50820eD3b924aFf3C37058eD6eA40e",
 };
 
-const rpcUrls = {
-  [CHAIN.BSC]: "https://binance.llamarpc.com",
-  [CHAIN.SCROLL]: "https://1rpc.io/scroll",
-  [CHAIN.BLAST]: "https://blast-rpc.publicnode.com",
-  [CHAIN.POLYGON]: "https://polygon.llamarpc.com",
-  [CHAIN.TAIKO]: "https://rpc.ankr.com/taiko",
-  [CHAIN.XLAYER]: "https://endpoints.omniatech.io/v1/xlayer/mainnet/public",
-  [CHAIN.ZORA]: "https://rpc.zora.energy",
-  [CHAIN.BOBA]: "https://mainnet.boba.network/",
-};
-
 const methodology = {
   Fees: "registration and renew cost",
   Revenue: "registration and renew cost",
 };
 
-const ABI = [
-  {
+const ABI = {
+  priceToRegister: {
     inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
     name: "priceToRegister",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
-];
+  priceToRenew: {
+    inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
+    name: "priceToRenew",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+}
 
 const fetchLogsAndCalculateFees = async (
   options: FetchOptions,
-  chain: string
 ): Promise<{ dailyFees: Balances; dailyRevenue: Balances }> => {
-  const address = addresses[chain];
+  const address = addresses[options.chain];
   const dailyFees = options.createBalances();
-
-  const rpcUrl = rpcUrls[chain];
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const contract = new ethers.Contract(address, ABI, provider);
 
   const mintedLogs = await options.getLogs({
     target: address,
@@ -68,17 +60,45 @@ const fetchLogsAndCalculateFees = async (
     target: address,
     eventAbi: abi_event.renewedDomain,
   });
+  const lens = [1,2,3,4,5]
 
-  const logs = mintedLogs.concat(renewedLogs);
+  const znsPriceRegistor = await options.api.multiCall({
+    abi: ABI.priceToRegister,
+    calls: lens.map(len=>({
+      params: [len],
+      target: address
+    }))
+  });
 
-  for (const log of logs) {
-    try {
-      const domainPrice = await contract.priceToRegister(log.domainName.length);
-      dailyFees.addGasToken(domainPrice);
-    } catch {
-      dailyFees.addGasToken(0);
-    }
-  }
+  const znsPriceRenew = await options.api.multiCall({
+    abi: ABI.priceToRenew,
+    calls: lens.map(len=>({
+      params: [len],
+      target: address
+    })),
+  });
+
+  mintedLogs.forEach((log) => {
+    const domainName = log.domainName;
+    let domainPrice = 0;
+    if (domainName.length === 1) domainPrice = znsPriceRegistor[0];
+    else if (domainName.length === 2) domainPrice = znsPriceRegistor[1];
+    else if (domainName.length === 3) domainPrice = znsPriceRegistor[2];
+    else if (domainName.length === 4) domainPrice = znsPriceRegistor[3];
+    else domainPrice = znsPriceRegistor[4];
+    dailyFees.addGasToken(domainPrice);
+  });
+
+  renewedLogs.forEach((log) => {
+    const domainName = log.domainName;
+    let domainPrice = 0;
+    if (domainName.length === 1) domainPrice = znsPriceRenew[0];
+    else if (domainName.length === 2) domainPrice = znsPriceRenew[1];
+    else if (domainName.length === 3) domainPrice = znsPriceRenew[2];
+    else if (domainName.length === 4) domainPrice = znsPriceRenew[3];
+    else domainPrice = znsPriceRenew[4];
+    dailyFees.addGasToken(domainPrice);
+  });
 
   return { dailyFees, dailyRevenue: dailyFees };
 };
@@ -87,64 +107,56 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BSC),
+      fetch: fetchLogsAndCalculateFees,
       start: 1714506194,
       meta: {
         methodology,
       },
     },
     [CHAIN.SCROLL]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.SCROLL),
+      fetch: fetchLogsAndCalculateFees,
       start: 1714773760,
       meta: {
         methodology,
       },
     },
     [CHAIN.BLAST]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BLAST),
+      fetch: fetchLogsAndCalculateFees,
       start: 1717180581,
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
+      fetch: fetchLogsAndCalculateFees,
       start: 1717195742,
       meta: {
         methodology,
       },
     },
     [CHAIN.TAIKO]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.TAIKO),
+      fetch: fetchLogsAndCalculateFees,
       start: 1717048139,
       meta: {
         methodology,
       },
     },
     [CHAIN.XLAYER]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.XLAYER),
+      fetch: fetchLogsAndCalculateFees,
       start: 1713379405,
       meta: {
         methodology,
       },
     },
     [CHAIN.ZORA]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.ZORA),
+      fetch: fetchLogsAndCalculateFees,
       start: 1719239283,
       meta: {
         methodology,
       },
     },
     [CHAIN.BOBA]: {
-      fetch: (options: FetchOptions) =>
-        fetchLogsAndCalculateFees(options, CHAIN.BOBA),
+      fetch: fetchLogsAndCalculateFees,
       start: 1719631449,
       meta: {
         methodology,
