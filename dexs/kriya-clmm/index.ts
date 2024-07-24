@@ -34,6 +34,7 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetch(CHAIN.SUI),
