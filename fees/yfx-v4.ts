@@ -32,7 +32,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const poolData = gql`
         {
           poolDailyDatas(where: {dayTime: "${todaysTimestamp}"}) {
-            removeLiquidityFee
+            removeLiquidityFeeUSD
           }
         }
       `
@@ -48,7 +48,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }
 
       for (let i in poolFees.poolDataDailyDatas) {
-        liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFee) 
+        liquidityFee += parseFloat(poolFees.poolDataDailyDatas[i].removeLiquidityFeeUSD) 
       }
       
       return {
