@@ -7,8 +7,8 @@ type TEndpoint = {
   [s: CHAIN | string]: string;
 }
 const endpoints: TEndpoint = {
-  [CHAIN.OPTIMISM]: `https://api.thegraph.com/subgraphs/name/extrafi/extrasubgraph`,
-  [CHAIN.BASE]: `https://api.thegraph.com/subgraphs/name/extrafi/extrafionbase`
+  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/a4998f968b8ad324eb3e47ed20c00220/subgraphs/id/3Htp5TKs6BHCcwAYRCoBD6R4X62ThLRv2JiBBikyYze`,
+  [CHAIN.BASE]: `https://api.studio.thegraph.com/query/46015/extrafionbase/version/latest`
 }
 
 interface IFeePaid {
