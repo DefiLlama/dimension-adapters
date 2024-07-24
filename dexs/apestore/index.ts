@@ -16,7 +16,7 @@ const adapter: Adapter = {
 			fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
 				const volumeData: VolumeInfo = await httpPost(URL, { date: options.startOfDay }, {
 					headers: {
-						"Authorization": "8690be69-3c53-4bc1-8e99-e4fe0472b757"
+						"Authorization": "92ff54fa-80b7-4f2c-bae1-f862ea7525ae"
 					},
 				});
 
