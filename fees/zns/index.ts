@@ -78,12 +78,12 @@ const fetchLogsAndCalculateFees = async (
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BSC),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -91,7 +91,7 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -99,7 +99,7 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -107,7 +107,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -115,7 +115,7 @@ const adapter: Adapter = {
     [CHAIN.TAIKO]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -123,7 +123,7 @@ const adapter: Adapter = {
     [CHAIN.XLAYER]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BSC),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -131,7 +131,7 @@ const adapter: Adapter = {
     [CHAIN.ZORA]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
@@ -139,7 +139,7 @@ const adapter: Adapter = {
     [CHAIN.BOBA]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1677110400,
+      start: 1714506194,
       meta: {
         methodology,
       },
