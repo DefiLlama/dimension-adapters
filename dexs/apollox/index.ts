@@ -73,9 +73,10 @@ const fetchV2Volume = async (chain: Chain) => {
   await sleep(sleepCount++ * 2 * 1e3)
   const res = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
-  ) as  { data: ResponseItem[] }
-  if (res.data === null) {
+  ) as  { data: ResponseItem[], success: boolean }
+  if (res.data === null && res.success === false) {
     console.log(res, v2VolumeAPI, { chain, excludeCake: true })
+    return fetchV2Volume(chain)
   }
   const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
 
