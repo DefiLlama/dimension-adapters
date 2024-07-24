@@ -3,10 +3,11 @@ import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const chains = [CHAIN.ARBITRUM]
+const chains = [CHAIN.ARBITRUM, CHAIN.BASE]
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://graph-v4.yfx.com/yfx_v4"
+  [CHAIN.ARBITRUM]: "https://graph-v4.yfx.com/yfx_v4",
+  [CHAIN.BASE]: "https://graph-v4.yfx.com/yfx_v4_base",
 }
 
 const historicalDailyData = gql`
@@ -68,6 +69,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: any) => {
 const getStartTimestamp = async (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.ARBITRUM]: 1713916800,
+    [CHAIN.BASE]: 1721001600,
   }
   return startTimestamps[chain]
 }
