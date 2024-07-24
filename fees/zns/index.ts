@@ -60,18 +60,24 @@ const fetchLogsAndCalculateFees = async (
   const contract = new ethers.Contract(address, ABI, provider);
 
   const mintedLogs = await options.getLogs({
-    targets: [address],
+    target: address,
     eventAbi: abi_event.mintedDomain,
   });
 
   const renewedLogs = await options.getLogs({
-    targets: [address],
+    target: address,
     eventAbi: abi_event.renewedDomain,
   });
 
-  for (const log of mintedLogs.concat(renewedLogs)) {
-    const domainPrice = await contract.priceToRegister(log.domainName.length);
-    dailyFees.addGasToken(domainPrice);
+  const logs = mintedLogs.concat(renewedLogs);
+
+  for (const log of logs) {
+    try {
+      const domainPrice = await contract.priceToRegister(log.domainName.length);
+      dailyFees.addGasToken(domainPrice);
+    } catch {
+      dailyFees.addGasToken(0);
+    }
   }
 
   return { dailyFees, dailyRevenue: dailyFees };
@@ -91,7 +97,7 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1714506194,
+      start: 1714773760,
       meta: {
         methodology,
       },
@@ -99,7 +105,7 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1714506194,
+      start: 1717180581,
       meta: {
         methodology,
       },
@@ -107,7 +113,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1714506194,
+      start: 1717195742,
       meta: {
         methodology,
       },
@@ -115,7 +121,7 @@ const adapter: Adapter = {
     [CHAIN.TAIKO]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1714506194,
+      start: 1717048139,
       meta: {
         methodology,
       },
@@ -123,7 +129,7 @@ const adapter: Adapter = {
     [CHAIN.XLAYER]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BSC),
-      start: 1714506194,
+      start: 1713379405,
       meta: {
         methodology,
       },
@@ -131,7 +137,7 @@ const adapter: Adapter = {
     [CHAIN.ZORA]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.POLYGON),
-      start: 1714506194,
+      start: 1719239283,
       meta: {
         methodology,
       },
@@ -139,7 +145,7 @@ const adapter: Adapter = {
     [CHAIN.BOBA]: {
       fetch: (options: FetchOptions) =>
         fetchLogsAndCalculateFees(options, CHAIN.BOBA),
-      start: 1714506194,
+      start: 1719631449,
       meta: {
         methodology,
       },
