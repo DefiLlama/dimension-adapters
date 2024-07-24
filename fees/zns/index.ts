@@ -3,10 +3,8 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const abi_event = {
-  mintedDomain:
-    "event MintedDomain(string domainName, uint256 indexed tokenId, address indexed owner, uint256 expiry)",
-  renewedDomain:
-    "event RenewedDomain(uint256 indexed tokenId, uint256 expiry, string domainName)",
+  mintedDomain: "event MintedDomain(string domainName,uint256 indexed tokenId,address indexed owner,uint256 indexed expiry)",
+  renewedDomain: "event RenewedDomain(uint256 indexed tokenId,uint256 indexed expiry,string domainName)",
 };
 
 type TAddress = {
