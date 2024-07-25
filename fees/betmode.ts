@@ -7,8 +7,8 @@ const fetch = async (options: FetchOptions) => {
   const feesStart = await options.fromApi.call({target: address, abi: "uint:totalWagered"})
   const feesEnd = await options.toApi.call({target: address, abi: "uint:totalWagered"})
   dailyFees.add("0xDfc7C877a950e49D2610114102175A06C2e3167a", feesEnd-feesStart)
-  dailyFees.resizeBy(1/100)
-  return {dailyFees}
+  dailyFees.resizeBy(0.01)
+  return {dailyFees, dailyRevenue: dailyFees}
 }
 
 const adapter: SimpleAdapter = {
