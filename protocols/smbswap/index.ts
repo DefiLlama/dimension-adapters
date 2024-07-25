@@ -110,6 +110,7 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -117,12 +118,11 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.BSC]: {
-        fetch: async (timestamp, chainBlocks) => {
-          const volume = await graphs(CHAIN.BSC)(timestamp, chainBlocks)
+        fetch: async (options: FetchOptions) => {
+          const volume = await graphs(CHAIN.BSC)(options)
           return {
             dailyFees: volume.dailyFees,
             dailyVolume: volume.dailyVolume,
-            timestamp
           }
         },
         start: startTimes[CHAIN.BSC],

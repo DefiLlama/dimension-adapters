@@ -49,6 +49,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: v2Graphs(AVAX),

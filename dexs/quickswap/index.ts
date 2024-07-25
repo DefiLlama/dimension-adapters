@@ -86,6 +86,7 @@ const fetchLiquidityHub = async (timestamp: number) => {
 
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {

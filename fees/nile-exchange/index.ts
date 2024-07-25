@@ -1,14 +1,11 @@
-import { Adapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { Adapter, FetchOptions } from "../../adapters/types";
+import { ARBITRUM, CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
   getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
-import { getBlock } from "@defillama/sdk/build/util/blocks";
-import { Chain } from "@defillama/sdk/build/types";
-import { Balances } from "@defillama/sdk";
 
 type TStartTime = {
   [key: string]: number;
@@ -17,16 +14,15 @@ const startTimeV2: TStartTime = {
   [CHAIN.LINEA]: 1705968000,
 }
 
-const getBribes = async (chain: Chain, timestamp: number): Promise<any> => {
-  const fromTimestamp = timestamp - 24 * 60 * 60 
-  const fromBlock = await getBlock(chain, fromTimestamp)
-  const bribes_delta: Balances = new Balances({})
-  const bribes: Balances = new Balances({})
-  await fees_bribes(fromBlock.block, timestamp, bribes_delta);
-  await fees_bribes(fromBlock.block, fromTimestamp, bribes);
+const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
+  const fromBlock = await getFromBlock()
+  const bribes = createBalances();
+  const bribes_delta = createBalances();
+  await fees_bribes(fromBlock, toTimestamp, bribes_delta);
+  await fees_bribes(fromBlock, fromTimestamp, bribes);
   bribes.subtract(bribes_delta);
   return {
-    timestamp,
+    timestamp: toTimestamp,
     dailyBribesRevenue: bribes,
   };
 };
@@ -65,11 +61,12 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.LINEA]: {
-      fetch: async (timestamp, chainBlocks) => {
-        const v2Result = await v2Graphs(CHAIN.LINEA)(timestamp, chainBlocks)
-        const bribesResult = await getBribes(CHAIN.LINEA, timestamp);
+      fetch: async (options: FetchOptions) => {
+        const v2Result = await v2Graphs(CHAIN.LINEA)(options)
+        const bribesResult = await getBribes(options);
         v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
         return v2Result;

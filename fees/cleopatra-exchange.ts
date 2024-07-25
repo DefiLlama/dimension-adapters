@@ -48,6 +48,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v2Graphs(MANTLE),

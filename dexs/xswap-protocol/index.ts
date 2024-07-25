@@ -17,6 +17,7 @@ const graphs = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.XDC]: {
       fetch: graphs(CHAIN.XDC),

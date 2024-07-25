@@ -45,6 +45,7 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.EON]: {
       fetch: v3Graphs(CHAIN.EON),

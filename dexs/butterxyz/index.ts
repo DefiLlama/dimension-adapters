@@ -30,6 +30,7 @@ const dimensions = getGraphDimensions({
 });
 
 export default {
+  version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: dimensions(CHAIN.MANTLE),

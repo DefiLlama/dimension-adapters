@@ -42,6 +42,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.METIS]: {
       fetch: v3Graphs(CHAIN.METIS),

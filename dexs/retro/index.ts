@@ -28,6 +28,7 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: v3Graphs(CHAIN.POLYGON),
