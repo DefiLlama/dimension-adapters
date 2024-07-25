@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const address = '0xdfc7c877a950e49d2610114102175a06c2e3167a'
+const address = '0x79b4be7eD13Eef58Bd15ABd6ed79569f21D6c3AF'
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const feesStart = await options.fromApi.call({target: address, abi: "uint:totalWagered"})
