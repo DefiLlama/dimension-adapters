@@ -19,6 +19,7 @@ const addresses: TAddress = {
   [CHAIN.XLAYER]: "0x71709a5f1831ba48c414375fb6a58662a40c01b5",
   [CHAIN.ZORA]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
   [CHAIN.BOBA]: "0xf1D09DA87c50820eD3b924aFf3C37058eD6eA40e",
+  [CHAIN.ZKLINK]: "0xe0971a2B6E34bd060866081aE879630e83C4A0BD",
 };
 
 const methodology = {
@@ -154,6 +155,13 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.BOBA]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: 1719631449,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.ZKLINK]: {
       fetch: fetchLogsAndCalculateFees,
       start: 1719631449,
       meta: {
