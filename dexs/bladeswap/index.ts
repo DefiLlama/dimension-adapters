@@ -4,7 +4,7 @@ import { FetchOptions, BreakdownAdapter } from "../../adapters/types";
 const adapters = univ2Adapter(
   {
     [CHAIN.BLAST]:
-      "https://graph-node.bladeswap.xyz/subgraphs/name/bladeswap/algebra-mainnet-info",
+      "https://api.studio.thegraph.com/query/75205/blade-algebra/mainnet-info-1.0.3",
   },
   {
     factoriesName: "factories",
