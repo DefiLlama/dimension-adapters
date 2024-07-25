@@ -28,7 +28,6 @@ const v2Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.MODE]: {
       fetch: v2Graphs(CHAIN.MODE),

@@ -74,7 +74,6 @@ const adapter: SimpleAdapter = {
       start: async () => v3StartTimes[CHAIN.XLAYER]
     },
   },
-  version: 2
 };
 
 export default adapter;

@@ -247,16 +247,15 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BSC]: {
-        fetch: async ({ startTimestamp }) => {
+        fetch: async (timestamp) => {
           const totalVolume = 103394400000;
           return {
             totalVolume: `${totalVolume}`,
-            timestamp: startTimestamp
+            timestamp
           }
         },
         start: 1680307200,
@@ -274,8 +273,8 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async (options: FetchOptions) => {
-          const v3stats = await v3Graph(chain)(options)
+        fetch: async (timestamp, chainBlocks) => {
+          const v3stats = await v3Graph(chain)(timestamp, chainBlocks)
           if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
           return v3stats
         },

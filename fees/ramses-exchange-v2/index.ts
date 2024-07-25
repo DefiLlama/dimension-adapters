@@ -7,6 +7,8 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
+import { Chain } from "@defillama/sdk/build/types";
+import { getBlock } from "@defillama/sdk/build/util/blocks";
 
 type TStartTime = {
   [key: string]: number;
@@ -15,15 +17,16 @@ const startTimeV2: TStartTime = {
   [CHAIN.ARBITRUM]: 1685574000,
 }
 
-const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
-  const fromBlock = await getFromBlock()
-  const bribes = createBalances();
-  const bribes_delta = createBalances();
-  await fees_bribes(fromBlock, toTimestamp, bribes_delta);
-  await fees_bribes(fromBlock, fromTimestamp, bribes);
+const getBribes = async (chain: Chain, timestamp: number): Promise<any> => {
+  const fromTimestamp = timestamp - 24 * 60 * 60 
+  const fromBlock = await getBlock(chain, fromTimestamp)
+  const bribes_delta: sdk.Balances = new sdk.Balances({})
+  const bribes: sdk.Balances = new sdk.Balances({})
+  await fees_bribes(fromBlock.block, timestamp, bribes_delta);
+  await fees_bribes(fromBlock.block, fromTimestamp, bribes);
   bribes.subtract(bribes_delta);
   return {
-    timestamp: toTimestamp,
+    timestamp,
     dailyBribesRevenue: bribes,
   };
 };
@@ -62,12 +65,11 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: async (options: FetchOptions) => {
-        const v2Result = await v2Graphs(ARBITRUM)(options)
-        const bribesResult = await getBribes(options);
+      fetch: async (timestamp, chainBlocks) => {
+        const v2Result = await v2Graphs(ARBITRUM)(timestamp, chainBlocks)
+        const bribesResult = await getBribes(CHAIN.ARBITRUM, timestamp);
         v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
         return v2Result;

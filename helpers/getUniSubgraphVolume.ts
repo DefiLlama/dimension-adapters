@@ -93,13 +93,11 @@ function getChainVolume({
   const graphQueryDailyVolume = gql`${hasDailyVolume ? `query get_daily_volume($id: Int) { ${dailyVolumeQuery} }` : ""}`;
 
   return (chain: Chain) => {
-    return async (options: FetchOptions) => {
-      const { endTimestamp, getEndBlock, getFromBlock, getToBlock } = options;
-      const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
-      const block = (await customBlockFunc(endTimestamp).catch((e: any) =>
-        console.log(wrapGraphError(e).message),
-      )) ?? undefined;
-      const id = getUniswapDateId(new Date(endTimestamp * 1000));
+    return async (timestamp: number, chainBlocks: ChainBlocks) => {
+      const id = String(getUniswapDateId(new Date(timestamp * 1000)));
+      const customBlockFunc = getCustomBlock ? getCustomBlock : chainBlocks?.[chain] ? async (_: number) => chainBlocks[chain] : getBlock
+      const block = await customBlockFunc(timestamp, chain, chainBlocks).catch((e: any) => console.log(wrapGraphError(e).message)) ?? undefined
+
       const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block }).catch(e => {
         try {
           return JSON.parse(e.response.error).data
@@ -116,7 +114,7 @@ function getChainVolume({
       }) : undefined;
       let dailyVolumeValue = graphResDaily ? graphResDaily[dailyVolume.factory]?.[dailyVolume.field] : undefined
       if (hasDailyVolume && !dailyVolumeValue) {
-        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000)))).catch(e => {
+        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))).catch(e => {
           try {
             return JSON.parse(e.response.error).data
           } catch (error) {
@@ -127,21 +125,19 @@ function getChainVolume({
         dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
       }
       if (!hasDailyVolume) {
-        const fromBlock = await getFromBlock()
-        const toBlock = await getToBlock();
-        try {
-          const [yesterdayResult, todayResult] = await Promise.all([request(graphUrls[chain], graphQueryTotalVolume, { block: fromBlock }), request(graphUrls[chain], graphQueryTotalVolume, { block: toBlock })])
-          const todayVolume = todayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
-          const yesterdayVolume = yesterdayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
-          const volume24H = todayVolume - yesterdayVolume;
-          dailyVolumeValue = volume24H;
-        } catch (e: any) {
-          console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
-        }
+        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))).catch(e => {
+          try {
+            return JSON.parse(e.response.error).data
+          } catch (error) {
+            console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
+          }
+        });
+        const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
+        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
       }
 
       return {
-        timestamp: endTimestamp,
+        timestamp,
         block,
         totalVolume: graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined,
         dailyVolume: dailyVolumeValue,
@@ -169,14 +165,13 @@ function getChainVolumeWithGasToken({
 }: IGetChainVolumeParams & {priceToken:string}) {
   const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
   return (chain: Chain) => {
-    return async (options: FetchOptions) => {
+    return async (timestamp: number, chainBlocks: ChainBlocks) => {
       const {
         block,
         totalVolume,
         dailyVolume,
-      } = await basic(chain)(options);
+      } = await basic(chain)(timestamp, chainBlocks);
 
-      const timestamp = options.endTimestamp
       const balances = new Balances({ chain, timestamp })
       balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
 

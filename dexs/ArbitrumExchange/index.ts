@@ -67,7 +67,6 @@ const startTimeV3:TStartTime = {
   [CHAIN.ARBITRUM]: 1683590400,
 }
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {

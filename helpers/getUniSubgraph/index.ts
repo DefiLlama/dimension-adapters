@@ -1,10 +1,11 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
-import { BaseAdapter, FetchOptions, FetchResultGeneric, IJSON, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, ChainBlocks, FetchOptions, FetchResultGeneric, IJSON, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphFees";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp, getUniswapDateId, handle200Errors } from "./utils";
 import { getStartTimestamp } from "../getStartTimestamp";
+import { getBlock } from "../getBlock";
 
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
@@ -182,16 +183,12 @@ function getGraphDimensions({
     }
     `
       : undefined;
-    return async (options: FetchOptions) => {
-      const { endTimestamp, getEndBlock } = options;
-      // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
-      const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
-      const block =
-        (await customBlockFunc(endTimestamp).catch((e: any) =>
-          console.log(wrapGraphError(e).message),
-        )) ?? undefined;
+    return async (timestamp: number, chainBlocks: ChainBlocks) => {
       // Get params
-      const id = String(getUniswapDateId(new Date(endTimestamp * 1000)));
+      const id = String(getUniswapDateId(new Date(timestamp * 1000)));
+      const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+      const customBlockFunc = getCustomBlock ? getCustomBlock : chainBlocks?.[chain] ? async (_: number) => chainBlocks[chain] : getBlock
+      const block = await customBlockFunc(timestamp, chain, chainBlocks).catch((e: any) => console.log(wrapGraphError(e).message)) ?? undefined
       // Execute queries
       // DAILY VOLUME
       let graphResDailyVolume;
@@ -202,8 +199,8 @@ function getGraphDimensions({
           graphUrls[chain],
           dailyVolumePairsQuery,
           {
-            timestamp_gt: endTimestamp - 3600 * 24,
-            timestamp_lte: endTimestamp,
+            timestamp_gt: cleanTimestamp - 3600 * 24,
+            timestamp_lte: cleanTimestamp,
           },
           graphRequestHeaders?.[chain],
         )
@@ -234,7 +231,7 @@ function getGraphDimensions({
         dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
         if (!graphResDailyVolume || !dailyVolume) {
           console.info("Attempting with alternative query...")
-          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000)) }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
+          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
           const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
           dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[graphFieldsDailyVolume.field]), 0);
         }
@@ -259,7 +256,7 @@ function getGraphDimensions({
       const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
       const response: FetchResultGeneric = {
-        timestamp: endTimestamp,
+        timestamp,
         block,
         totalVolume,
         dailyVolume,

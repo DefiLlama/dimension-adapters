@@ -66,7 +66,7 @@ const graphs = getGraphDimensions({
   },
 });
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2 }
+const adapter: SimpleAdapter = { adapter: {} }
 
 Object.keys(graphUrls).map((chain: string) => {
   adapter.adapter[chain] = {

@@ -73,7 +73,6 @@ const v3Graph = getGraphDimensions({
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {

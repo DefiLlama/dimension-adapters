@@ -44,7 +44,6 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,

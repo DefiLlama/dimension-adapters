@@ -24,7 +24,6 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     return {
       ...acc,

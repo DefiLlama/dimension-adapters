@@ -154,8 +154,8 @@ const fantomGraphs =  getChainVolumeWithGasToken({
   priceToken: "coingecko:fantom"
 } as any);
 classic[CHAIN.FANTOM] = {
-  fetch: async (options: FetchOptions) =>   {
-    const values = await fantomGraphs(CHAIN.FANTOM)(options);
+  fetch: async (timestamp, chainBlocks) =>   {
+    const values = await fantomGraphs(CHAIN.FANTOM)(timestamp, chainBlocks);
     const vol = Number(values.dailyVolume)
     return {
       ...values,
