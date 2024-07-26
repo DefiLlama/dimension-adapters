@@ -2,6 +2,11 @@ import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+type FeeResult = {
+  asset: string;
+  fee: bigint;
+};
+
 type IFactory = {
   address: string;
   block: number;
@@ -135,8 +140,11 @@ async function getSilosAssets(
 
 async function getSilosFeesStorage(
   rawSilos: ISilo[],
-  { api }: FetchOptions
-): Promise<{ asset: string; fee: bigint }[]> {
+  { fromApi, toApi }: FetchOptions
+): Promise<{ totalFeesResults: FeeResult[]; dailyFeesResults: FeeResult[] }> {
+  const totalFeesResults: FeeResult[] = [];
+  const dailyFeesResults: FeeResult[] = [];
+
   const calls = rawSilos.flatMap((silo) =>
     (silo.silos || []).flatMap(({ silo: siloAddress, assets }) =>
       assets.map((asset) => ({
@@ -146,31 +154,30 @@ async function getSilosFeesStorage(
     )
   );
 
-  const assetsInSilosRes = await api.multiCall({
-    calls: calls,
-    abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
-  });
+  const [prevFeesInSilosRes, currFeesInSilosRes] = await Promise.all([
+    fromApi.multiCall({
+      calls: calls,
+      abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      calls: calls,
+      abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
+      permitFailure: true,
+    }),
+  ]);
 
-  const feesMap: { [key: string]: { [key: string]: bigint } } = {};
   calls.forEach((call, index) => {
-    const [siloAddress, asset] = call.params;
-    if (!feesMap[siloAddress]) {
-      feesMap[siloAddress] = {};
-    }
-    feesMap[siloAddress][asset] = assetsInSilosRes[index];
+    const [_siloAddress, asset] = call.params;
+    const prevFee = prevFeesInSilosRes[index];
+    const currFee = currFeesInSilosRes[index];
+
+    if (!prevFee || !currFee) return;
+    totalFeesResults.push({ asset, fee: currFee });
+    dailyFeesResults.push({ asset, fee: BigInt(currFee - prevFee) });
   });
 
-  const results: { asset: string; fee: bigint }[] = [];
-  rawSilos.forEach((silo) => {
-    (silo.silos || []).forEach((s) => {
-      s.assets.forEach((asset) => {
-        const fee = feesMap[s.silo]?.[asset] || 0n;
-        results.push({ asset, fee });
-      });
-    });
-  });
-
-  return results;
+  return { totalFeesResults, dailyFeesResults };
 }
 
 async function fetch(
@@ -178,15 +185,24 @@ async function fetch(
   rawSilos: ISilo[]
 ): Promise<FetchResultV2> {
   const totalFees = options.createBalances();
+  const dailyFees = options.createBalances();
+
   const rawSiloWithAddresses = await getSilos(rawSilos, options);
   const siloWithAssets = await getSilosAssets(rawSiloWithAddresses, options);
-  const feesInSilos = await getSilosFeesStorage(siloWithAssets, options);
+  const { totalFeesResults, dailyFeesResults } = await getSilosFeesStorage(
+    siloWithAssets,
+    options
+  );
 
-  feesInSilos.forEach(({ asset, fee }) => {
+  totalFeesResults.forEach(({ asset, fee }) => {
     totalFees.add(asset, fee);
   });
 
-  return { totalFees };
+  dailyFeesResults.forEach(({ asset, fee }) => {
+    dailyFees.add(asset, fee);
+  });
+
+  return { totalFees, dailyFees };
 }
 
 const adapter: Adapter = {
