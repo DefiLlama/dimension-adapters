@@ -67,7 +67,6 @@ const v1graphs = getGraphDimensions({
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     classic: {
       [CHAIN.KAVA]: {

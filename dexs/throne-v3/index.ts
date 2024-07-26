@@ -34,7 +34,6 @@ const v3StartTimes = {
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: v3Graph(CHAIN.BASE),

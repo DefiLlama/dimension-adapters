@@ -54,7 +54,6 @@ const v3 = Object.keys(endpointsV3).reduce(
 );
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v3: v3,
   },

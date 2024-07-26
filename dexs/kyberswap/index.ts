@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import request from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
@@ -211,12 +211,13 @@ const customeElasicVolumeFunctions: {[s: Chain]: any} = {
 function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof classicGraphs, volumeField:string, dailyDataField:string, isElastic: boolean){
     return Object.keys(endpoints).reduce((acc, chain) => {
         acc[chain] = {
-        fetch: async (options: FetchOptions) =>  {
-            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await graphs(chain as any)(options))
-            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
+        fetch: async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) =>  {
+            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](timestamp) : (await graphs(chain as any)(timestamp, chainBlocks))
+            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(timestamp as any, chainBlocks, options)) : {} as FetchResultVolume;
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
+              timestamp,
               dailyVolume: `${dailyVolume}`,
               totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
             };

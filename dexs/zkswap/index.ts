@@ -1,5 +1,4 @@
-import { time } from "console";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
@@ -27,11 +26,10 @@ const graph = getGraphDimensions({
 });
 
 const adapters: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.ERA]: {
-      fetch: async (options: FetchOptions) => {
-        const data = await graph(CHAIN.ERA)(options);
+      fetch: async (timestamp, chainBlocks) => {
+        const data = await graph(CHAIN.ERA)(timestamp, chainBlocks);
         data.totalVolume = undefined;
         return {
           ...data

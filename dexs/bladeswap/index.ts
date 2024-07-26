@@ -14,10 +14,10 @@ const adapters = univ2Adapter(
   }
 );
 
-const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances()
+const fetch: any = async (timestamp: number, chainBlocks: number, options: FetchOptions) => {
+  const dailyVolume = options.createBalances()
   let eventAbi = "event Swap(address indexed pool, address indexed user, bytes32[] tokenRef, int128[] delta)"
-  const logs = await getLogs({ target: "0x10F6b147D51f7578F760065DF7f174c3bc95382c", eventAbi, })
+  const logs = await options.getLogs({ target: "0x10F6b147D51f7578F760065DF7f174c3bc95382c", eventAbi, })
   logs.forEach((log: any) => {
     const pool = log.pool.toLowerCase()
     const hasPool = log.tokenRef.some((val: string) => '0x' + val.slice(2 + 24).toLowerCase() === pool)
@@ -45,7 +45,6 @@ const adapter: BreakdownAdapter = {
         },
         CL: adapters.adapter
     },
-    version: 2
 }
 
 export default adapter;

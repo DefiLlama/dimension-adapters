@@ -1,14 +1,16 @@
 import { getGraphDimensions } from "../../helpers/getUniSubgraph"
-import { FetchOptions, FetchResultGeneric } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultGeneric } from "../../adapters/types";
 
 export async function dexRevenue(
-  options: FetchOptions,
+  timestamp: number,
+  chainBlocks: ChainBlocks,
+  chain: string,
   dexSubgraphEndpoint: string,
   DexFactoryContract: string,
 ): Promise<FetchResultGeneric> {
 
   const endpoints = {
-    [options.chain]: dexSubgraphEndpoint,
+    [chain]: dexSubgraphEndpoint,
   };
 
   const VOLUME_USD = "volumeUSD";
@@ -38,5 +40,5 @@ export async function dexRevenue(
     }
   });
 
-  return v2Graph(options.chain)(options)
+  return v2Graph(chain)(timestamp, chainBlocks)
 }

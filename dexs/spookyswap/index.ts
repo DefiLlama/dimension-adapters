@@ -35,7 +35,6 @@ const graphsV3 = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [FANTOM]: {
       fetch: graphs(FANTOM),

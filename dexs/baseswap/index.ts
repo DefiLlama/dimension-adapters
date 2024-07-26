@@ -79,7 +79,6 @@ const startTimeV3 = {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v2: Object.keys(v2Endpoints).reduce((acc, chain) => {
       return {

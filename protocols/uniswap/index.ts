@@ -229,21 +229,21 @@ const fetchV2 = async (options: FetchOptions) => {
 
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (options) => {
-          const response = await v1Graph(options.chain)(options);
-          const keys = {
-            "dailyUserFees": options.createBalances(),
-            "dailyProtocolRevenue": options.createBalances(),
-            "dailySupplySideRevenue": options.createBalances(),
-            "dailyHoldersRevenue":  options.createBalances(),
-            "dailyRevenue":  options.createBalances(),
-            "dailyFees":  options.createBalances(),
-          };
-          for (const key of Object.keys(keys)) {
+        fetch: async (timestamp, chainBlocks) => {
+          const response = await v1Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks);
+          const keys = [
+            "dailyUserFees",
+            "dailyProtocolRevenue",
+            "dailySupplySideRevenue",
+            "dailyHoldersRevenue",
+            "dailyRevenue",
+            "dailyFees",
+          ];
+          for (const key of keys) {
             if (typeof response[key] === 'string') {
               keys[key].add(ETH_ADDRESS, Number(response[key]) * 1e18);
             }
@@ -258,8 +258,8 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (options) => {
-          const response = await v2Graph(options.chain)(options);
+        fetch: async (timestamp, chainBlocks) => {
+          const response = await v2Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks);
           response.totalVolume =
             Number(response.dailyVolume) + 1079453198606.2229;
           response.totalFees = Number(response.totalVolume) * 0.003;

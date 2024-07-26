@@ -57,7 +57,6 @@ const graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OKEXCHAIN]: {

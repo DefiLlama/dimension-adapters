@@ -34,7 +34,6 @@ const v3Graphs = getGraphDimensions({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v3Graphs(CHAIN.MANTLE),

@@ -11,6 +11,5 @@ const adapters = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 
-adapters.version = 2;
 adapters.adapter.bsc.start = 1681516800;
 export default adapters;

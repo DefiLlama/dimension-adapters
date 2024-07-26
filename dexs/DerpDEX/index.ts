@@ -42,7 +42,7 @@ const v3Graphs = getGraphDimensions({
   },
 });
 
-const adapter: Adapter = { adapter: {}, version: 2 };
+const adapter: Adapter = { adapter: {} };
 
 Object.keys(endpoints).map((chain: string) => {
   adapter.adapter[chain] = {

@@ -60,7 +60,6 @@ const classic = Object.keys(endpointsClassic).reduce(
 ) as any;
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     classic: classic,
   }

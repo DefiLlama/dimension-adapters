@@ -79,7 +79,6 @@ const combinedAdapter = {
       start: adapterNew.adapter.ethereum.start,
     },
   },
-  version: 2,
 };
 
 export default combinedAdapter;

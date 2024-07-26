@@ -1,5 +1,5 @@
 import { Balances } from "@defillama/sdk";
-import { Adapter, FetchOptions, FetchResultV2, FetchResponseValue } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResponseValue, ChainBlocks, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 import { stakingRevenue } from "./staking";
@@ -32,8 +32,8 @@ const convertToNumber = async (value: FetchResponseValue): Promise<number> => {
   return 0;
 };
 
-async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const { createBalances, startTimestamp } = options;
+async function fetch(timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResult> {
+  const { createBalances } = options;
 
   let totalHoldersRevenue = createBalances();
   let dailyHoldersRevenue = createBalances();
@@ -46,7 +46,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   );
 
   const dexResult = await dexRevenue(
-    options,
+    timestamp,
+    chainBlocks,
+    options.chain,
     dexSubgraphEndpoint,
     DexFactoryContract
   );
@@ -69,7 +71,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: Adapter = {
-  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
