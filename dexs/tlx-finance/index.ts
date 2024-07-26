@@ -38,13 +38,13 @@ const fetchLeveragedTokenVolume = async (
 
   const mint_valume = mints_logs.map((logs, i) => {
     return logs.map((log: any) => {
-      return new BigNumber(log.baseAssetAmount).times(targetLeverages[i]).div(1e18)
+      return new BigNumber(log.leveragedTokenAmount).times(targetLeverages[i]).div(1e18)
     })
   }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
 
   const redeem_valume = redeems_logs.map((logs, i) => {
     return logs.map((log: any) => {
-      return new BigNumber(log.baseAssetAmount).times(targetLeverages[i]).div(1e18)
+      return new BigNumber(log.leveragedTokenAmount).times(targetLeverages[i]).div(1e18)
     })
   }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
 

@@ -8,12 +8,13 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   ];
 
   const dailyVolumeAmmPool = ammPoolStandard
+    .filter((i: any) => Number(i.tvl) >  100_000)
     .reduce((a: number, b) => a + b.day.volume, 0)
 
   let ammFee = 0
   let clmmFee = 0
   let cpmmFee = 0
-  for (const item of ammPoolStandard) {
+  for (const item of ammPoolStandard.filter((i: any) => Number(i.tvl) >  100_000)){
     if (item.programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') clmmFee += item.day.volumeFee
     else if (item.programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') cpmmFee += item.day.volumeFee
     else ammFee += item.day.volumeFee
@@ -56,7 +57,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     totalRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    dailyHoldersRevenue: `${buyRayAll * rayPrice}`,
+    // dailyHoldersRevenue: `${buyRayAll * rayPrice}`, // seem it total value not daily
     dailySupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
     totalProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     totalSupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,

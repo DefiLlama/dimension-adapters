@@ -157,7 +157,9 @@ export enum CHAIN {
   PLANQ = "planq",
   BOB = "bob",
   TAIKO = "taiko",
-  SKALE_EUROPA = "skale_europa"
+  SKALE_EUROPA = "skale_europa",
+  IOTAEVM = "iotaevm",
+  ZKLINK = "zklink",
 }
 
 // Don´t use
@@ -184,25 +186,25 @@ const ZKSYNC = "zksync";
 const MANTLE = "mantle";
 // Don't use
 export {
-  ZKSYNC,
   ARBITRUM,
+  AURORA,
   AVAX,
+  BITCOIN,
   BOBA,
   BSC,
   CELO,
+  DOGE,
   ETHEREUM,
   FANTOM,
   HARMONY,
   HECO,
+  LITECOIN,
+  MANTLE,
+  MOONRIVER,
   OKEXCHAIN,
   OPTIMISM,
   POLYGON,
   RONIN,
   XDAI,
-  AURORA,
-  MOONRIVER,
-  BITCOIN,
-  LITECOIN,
-  DOGE,
-  MANTLE
+  ZKSYNC,
 };

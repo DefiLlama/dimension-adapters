@@ -8,7 +8,8 @@ const FeesAndRevenueURL =  "https://www.apollox.finance/bapi/futures/v1/public/f
 const request = () => {
     return (chain: Chain) => {
         return async () => {
-            const { data } = await httpGet(FeesAndRevenueURL, { params: { chain } })
+            const url = `${FeesAndRevenueURL}?chain=${chain}`
+            const { data } = await httpGet(url)
             const { alpFeeVOFor24Hour, allAlpFeeVO } = data
             return {
                 dailyFees: alpFeeVOFor24Hour.fee || 0,
@@ -26,7 +27,7 @@ const adapter: Adapter = {
             runAtCurrTime: true,
             fetch: request()(CHAIN.BSC),
             start: 1689609600,
-        }, 
+        },
         [CHAIN.ARBITRUM]: {
             runAtCurrTime: true,
             fetch: request()(CHAIN.ARBITRUM),
