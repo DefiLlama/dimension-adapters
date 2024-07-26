@@ -8,9 +8,11 @@ import fetchURL from "../../utils/fetchURL";
 const fetch = async () => {
 
   const data:any = await fetchURL('https://base-api.sharpe.ai/api/dexVolume')
+  const dailyData:any = await fetchURL('https://base-api.sharpe.ai/api/dailySharpeDexVolume')
   
   return {
-      totalVolume: data?.totalVolume
+      totalVolume: data?.totalVolume,
+      dailyVolume: dailyData?.dailyVolume
   };
 };
 
