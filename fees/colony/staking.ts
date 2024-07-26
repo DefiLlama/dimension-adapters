@@ -47,18 +47,16 @@ export async function stakingFees(
   const day = Math.floor(startTimestamp / 86400)
   const date = day * 86400
 
-  // add staking airdrops to be considered as holders revenue
-
   try {
     const res: IGraphStakeResponse = await request(stakingSubgraphEndpoint, queryStakingFeesMetrics, { date });
 
     if (res.dailyMetrics && res.dailyMetrics.length) {
       dailyHoldersRevenue.add(ColonyGovernanceToken, res.dailyMetrics[0].stakeFees);
-      totalHoldersRevenue.add(ColonyGovernanceToken, res.dailyMetrics[0].unstakeFees);
+      dailyHoldersRevenue.add(ColonyGovernanceToken, res.dailyMetrics[0].unstakeFees);
     }
 
     if (res.metrics && res.metrics.length) {
-      dailyHoldersRevenue.add(ColonyGovernanceToken, res.metrics[0].totalStakeFees);
+      totalHoldersRevenue.add(ColonyGovernanceToken, res.metrics[0].totalStakeFees);
       totalHoldersRevenue.add(ColonyGovernanceToken, res.metrics[0].totalUnstakeFees);
     }
 
