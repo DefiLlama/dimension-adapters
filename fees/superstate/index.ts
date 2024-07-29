@@ -2,7 +2,7 @@
 // https://docs.superstate.co/uscc/income-fees-and-yield
 
 import axios from "axios";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const _fundsAddresses: string[] = [
@@ -21,7 +21,7 @@ function findDailyData(data: any[], targetDate: string) {
   return data.find((item: any) => item.net_asset_value_date === targetDate);
 }
 
-async function getFundsFees(timestamp: number): Promise<any> {
+async function getFundsFees(timestamp: number): Promise<FetchResultFees> {
   let ustbTotalFees: number = 0;
   let usccTotalFees: number = 0;
 

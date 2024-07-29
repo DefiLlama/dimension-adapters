@@ -8,7 +8,7 @@ import { canGetBlock, getBlock } from '../helpers/getBlock';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, printVolumes } from './utils';
 
-function checkIfFileExistsInMasterBranch(filePath: any) {
+function checkIfFileExistsInMasterBranch(_filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
   // const resString = res.toString()
