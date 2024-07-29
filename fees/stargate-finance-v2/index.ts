@@ -87,17 +87,17 @@ async function getPoolFees(
   return { totalFees, dailyFees };
 }
 
-function adapterByChain(contracts: string[], startBlock: number) {
+function adapterByChain(contracts: string[], timestamp: number) {
   return {
     fetch: (options: FetchOptions) => getPoolFees(options, contracts),
-    start: startBlock,
+    start: timestamp,
   };
 }
 
-const startBlock = 19963227;
+const timestamp = 1716892946;
 const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
-    acc[chain] = adapterByChain(contracts[chain], startBlock);
+    acc[chain] = adapterByChain(contracts[chain], timestamp);
     return acc;
   }, {}),
   version: 2,
