@@ -31,7 +31,7 @@ const fetch = (chain: Chain) => {
     { createBalances, startOfDay }: FetchOptions
   ) => {
     const dailyVolume = createBalances();
-    const totalVolume = createBalances();
+    const cumulativeVolume = createBalances();
     const to = getTimestampAtStartOfNextDayUTC(timestamp)
     const from = getTimestampAtStartOfDayUTC(timestamp)
     const graphQL = `{
@@ -81,13 +81,13 @@ const fetch = (chain: Chain) => {
       quote: { decimals },
       totalVolume,
     } of totalVolumeData.quoteDatas) {
-      totalVolume.addToken(id, convertDecimals(totalVolume, decimals));
+      cumulativeVolume.addToken(id, convertDecimals(totalVolume, decimals));
     }
 
 
     return {
       dailyVolume,
-      totalVolume,
+      totalVolume: cumulativeVolume,
       timestamp: startOfDay,
     };
   };
