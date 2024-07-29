@@ -15,7 +15,7 @@ const endpoints = {
 const startDate = 1684702800;
 
 const fetch = async (options: FetchOptions) => {
-	const dataFactory = await request(endpoints['arbitrum'], gql
+	const dataFactory = await request(endpoints[options.chain], gql
 		`{
 			dexSwapFactories {
 				totalVolumeETH
@@ -25,22 +25,24 @@ const fetch = async (options: FetchOptions) => {
 	const totalVolume = dataFactory.dexSwapFactories[0].totalVolumeETH;
 	let totalFees = new BigNumber(0);
 	let date = startDate;
+	let skip = 0;
 	while (true) {
-		const dataFees = await request(endpoints['arbitrum'], gql
+		const dataFees = await request(endpoints[options.chain], gql
 			`query DexSwapFees {
-				dexSwapFees(first: 900, orderBy: timestamp, where: { timestamp_gt: ${date} }) {
+				dexSwapFees(first: 1000,skip: ${skip}, orderBy: timestamp, where: { timestamp_gt: ${date}, timestamp_lte: ${options.endTimestamp} }) {
 					volume,
 					timestamp
 				}
 			}`
 		)
 		if (!dataFees.dexSwapFees.length) break;
+		if (dataFees.dexSwapFees.length === 1000) {
+			skip += 1000;
+		}
 		dataFees.dexSwapFees.forEach((data) => {
 			totalFees = totalFees.plus(data.volume);
 		})
-		const last = dataFees.dexSwapFees[dataFees.dexSwapFees.length - 1].timestamp;
-		if (last === date) break;
-		date = last;
+		if (dataFees.dexSwapFees.length < 1000) break;
 	}
 	const dailyData = await exportDexVolumeAndFees({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS })(options.endTimestamp, {}, options);
 	return {
@@ -48,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 		totalVolume,
 		totalFees: totalFees.div(10 ** 18).toString(),
 	}
-} 
+}
 
 const adapter: SimpleAdapter = {
 	version: 2,
