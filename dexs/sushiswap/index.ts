@@ -5,7 +5,6 @@ import v3 from './v3'
 import swap from './swap'
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     "agg-dex": swap,
     classic: classic,

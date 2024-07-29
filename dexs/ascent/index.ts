@@ -41,7 +41,6 @@ const graphsV3 = getChainVolume({
 
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v2: {
       [CHAIN.EON]: {

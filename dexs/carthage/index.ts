@@ -33,7 +33,6 @@ const v3Graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v3: {
       [CANDLE]: {

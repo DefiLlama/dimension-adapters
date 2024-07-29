@@ -32,7 +32,6 @@ const volumeAdapter: BaseAdapter = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
     adapter: volumeAdapter,
 }
 

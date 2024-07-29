@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
@@ -98,11 +98,12 @@ const  getVolume = async (options: FetchOptions) => {
     }
 }
 
-const v2graphs = async (options: FetchOptions): Promise<FetchResultV2> => {
+const v2graphs = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResult> => {
     const { dailyVolume, totalVolume }  = await getVolume(options)
     return {
         dailyVolume,
-        totalVolume
+        totalVolume,
+        timestamp
     }
 }
 
@@ -122,7 +123,6 @@ const v1graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
-    version: 2,
     breakdown: {
         v1: {
             [CHAIN.POLYGON]: {

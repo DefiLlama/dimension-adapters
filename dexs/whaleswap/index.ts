@@ -31,7 +31,6 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [BSC]: {
       fetch: graphs(BSC),

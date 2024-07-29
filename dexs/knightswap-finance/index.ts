@@ -24,7 +24,6 @@ const v2Graph = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),

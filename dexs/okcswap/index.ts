@@ -55,7 +55,6 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),

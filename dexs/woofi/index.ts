@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
@@ -55,18 +55,19 @@ const graphs = getChainVolume({
   },
 });
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
   try {
-    const result = await graphs(options.chain)(options);
+    const result = await graphs(options.chain)(timestamp, chainBlocks);
     if (!result) return {};
     return {
       ...result,
       totalVolume: `${(result?.totalVolume || 0) / 10 ** 18}`,
-      dailyVolume:  `${(result?.dailyVolume || 0)  / 10 ** 18}`
+      dailyVolume:  `${(result?.dailyVolume || 0)  / 10 ** 18}`,
+      timestamp
     };
   } catch (error) {
     console.error(error);
-    return {};
+    return { timestamp };
   }
 }
 
@@ -82,7 +83,6 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: volume,
 };
 export default adapter;

@@ -23,7 +23,6 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.CELO]: {
       fetch: graphs(CHAIN.CELO),

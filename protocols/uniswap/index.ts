@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions } from "../../adapters/types";
+import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions, ChainBlocks, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
@@ -181,7 +181,7 @@ const chainv2mapping: any = {
   [CHAIN.BSC]: "BNB",
 }
 
-const fetchV2 = async (options: FetchOptions) => {
+const fetchV2 = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResult> => {
   interface IGraphResponse {
     v2HistoricalProtocolVolume: Array<{
       id: string
@@ -218,11 +218,11 @@ const fetchV2 = async (options: FetchOptions) => {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     });
     const dailyVolume = response.v2HistoricalProtocolVolume.find((item) => item.timestamp === options.startOfDay)?.value;
-    return {dailyVolume: dailyVolume}
+    return {dailyVolume: dailyVolume, timestamp }
   } catch (e) {
     console.error(e)
     return {
-      dailyVolume: "0"
+      dailyVolume: "0", timestamp
     }
   }
 }
@@ -258,7 +258,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (timestamp, chainBlocks) => {
+        fetch: async (timestamp, chainBlocks): Promise<FetchResult> => {
           const response = await v2Graph(CHAIN.ETHEREUM)(timestamp, chainBlocks);
           response.totalVolume =
             Number(response.dailyVolume) + 1079453198606.2229;
@@ -305,7 +305,7 @@ interface ISeiResponse {
   volume: number;
   fees: number;
 }
-const fetchSei = async (options: FetchOptions) => {
+const fetchSei = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResult> => {
   try {
     const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
@@ -319,12 +319,13 @@ const fetchSei = async (options: FetchOptions) => {
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
     return {
+      timestamp,
       dailyVolume,
       dailyFees,
     }
   } catch (e) {
     console.error(e)
-    return {}
+    return { timestamp }
   }
 }
 const mappingChain = (chain: string) => {

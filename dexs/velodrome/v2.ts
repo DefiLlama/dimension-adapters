@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
+import { ChainBlocks, FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 const sugars = {
@@ -26,7 +26,7 @@ interface ILog {
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out)'
 const event_swap_slipstream = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetchV2Volume = async ({ api, getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultV2> => {
+const fetchV2Volume = async (timestamp: number, chainBlocks: ChainBlocks, { api, getLogs, createBalances, chain }: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const chunkSize = 400;
@@ -87,7 +87,7 @@ slipstreamLogs.forEach((logs: ILog[], idx: number) => {
     })
 })
 
-return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, timestamp }
 }
 
 export {

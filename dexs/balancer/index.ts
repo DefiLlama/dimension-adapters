@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResult, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
@@ -40,8 +40,8 @@ interface IPoolSnapshot {
 
 
 const v2Graphs = (chain: Chain) => {
-    return async ({ endTimestamp }): Promise<FetchResultV2> => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
+    return async (timestamp: number): Promise<FetchResult> => {
+      const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
       const fromTimestamp = startTimestamp - 60 * 60 * 24
       const toTimestamp = startTimestamp
       const graphQuery = gql
@@ -64,7 +64,7 @@ const v2Graphs = (chain: Chain) => {
       }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
       return {
-        dailyVolume: `${dailyVolume}`,
+        dailyVolume: `${dailyVolume}`, timestamp
       };
     };
   };

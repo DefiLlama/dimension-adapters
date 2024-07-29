@@ -18,7 +18,7 @@ import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "../helpers/getUniSubgraphVolume";
-import type { ChainEndpoints, Fetch, FetchOptions, FetchResultV2, FetchV2 } from "../adapters/types";
+import type { ChainEndpoints, Fetch, FetchOptions, FetchResult, FetchResultV2, FetchV2 } from "../adapters/types";
 
 // To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities
 const getUniswapDateId = (date?: Date) => getUniqStartOfTodayTimestamp(date) / 86400;
@@ -138,11 +138,11 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
     const adapterObj = volumeAdapter.adapter
 
     Object.keys(adapterObj).map(chain => {
-      const fetchFees = async (options: FetchOptions) => {
-        const fetchedResult: FetchResultV2 = await (adapterObj[chain].fetch as FetchV2)(options)
+      const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
+        const fetchedResult: FetchResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options)
         const chainDailyVolume = fetchedResult.dailyVolume as number;
         const chainTotalVolume = fetchedResult.totalVolume as number;
-        const response: FetchResultV2 = { }
+        const response: FetchResult = { timestamp }
         if (chainDailyVolume !== undefined) {
           if (totalFees)
             response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString()
@@ -164,8 +164,8 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
             response["totalUserFees"] = new BigNumber(chainTotalVolume).multipliedBy(params.userFees).toString()
           if (params.revenue !== undefined)
             response["totalRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.revenue).toString()
-          if (params.holdersRevenue !== undefined)
-            response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
+          // if (params.holdersRevenue !== undefined)
+          //   response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
           if (params.supplySideRevenue !== undefined)
             response["totalSupplySideRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.supplySideRevenue).toString()
           if (protocolFees !== undefined)

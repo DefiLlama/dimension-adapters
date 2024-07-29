@@ -1,5 +1,5 @@
 import axios from "axios";
-import { FetchResultV2, FetchV2 } from "../../adapters/types";
+import { ChainBlocks, Fetch, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const ROUTE_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
@@ -117,7 +117,7 @@ const useSushiAPIPrice = (chain) => [
   CHAIN.MOONRIVER
 ].includes(chain)
 
-const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<FetchResultV2> => {
+const fetch: Fetch = async (timestamp: number, chainBlocks: ChainBlocks, { getLogs, createBalances, chain, }): Promise<FetchResult> => {
   if (useSushiAPIPrice(chain)) {
     const [tokensQuery, pricesQuery, logs] = await Promise.all([
       axios.get(`https://tokens.sushi.com/v0/${CHAIN_ID[chain]}`)
@@ -153,7 +153,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
       if (token) dailyVolume += Number(log.amountIn) * token.price / 10 ** token.decimals
     })
 
-    return { dailyVolume }
+    return { dailyVolume, timestamp }
   } else {
     const dailyVolume = createBalances()
     const logs = await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_EVENT })
@@ -165,7 +165,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
         dailyVolume.add(log.tokenIn, log.amountIn)
     })
 
-    return { dailyVolume }
+    return { dailyVolume, timestamp }
   }
 }
 

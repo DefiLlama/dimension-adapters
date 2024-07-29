@@ -19,7 +19,6 @@ const graphs = getChainVolume({
 });
 // rollux
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.ROLLUX]: {
       fetch: graphs(CHAIN.ROLLUX),

@@ -24,7 +24,6 @@ const v1graphs = getChainVolume({
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.GODWOKEN_V1]: {
       fetch: v1graphs(CHAIN.GODWOKEN_V1 as Chain),

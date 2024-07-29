@@ -47,7 +47,7 @@ const trident = Object.keys(endpointsTrident).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: async (options: FetchOptions) => {
+      fetch: async (timestamp, chainBlocks, options: FetchOptions) => {
         const res = await request(endpointsTrident[chain], tridentQuery, {
           timestampHigh: options.endTimestamp,
           timestampLow: options.startTimestamp,
@@ -61,7 +61,8 @@ const trident = Object.keys(endpointsTrident).reduce(
           totalUserFees: res.factories[0]?.feesUSD,
           dailyVolume: daily?.volumeUSD || 0,
           dailyFees: daily?.feesUSD || 0,
-          dailyUserFees: daily?.feesUSD || 0
+          dailyUserFees: daily?.feesUSD || 0,
+          timestamp
         }
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
