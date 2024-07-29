@@ -24,7 +24,7 @@ interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetchV2 = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${timestamp}`
   const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
