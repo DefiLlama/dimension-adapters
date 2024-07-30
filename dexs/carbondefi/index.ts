@@ -15,6 +15,7 @@ const CARBON_METADATA: {
   hallmarks: [
     [1681986059, "CarbonDeFi Ethereum Launch"],
     [1716825673, "CarbonDeFi Sei Launch"],
+    [1721813184, "CarbonDeFi Celo Launch"],
   ],
   methodology: {
     Volume:
@@ -34,6 +35,12 @@ const chainInfo: { [key: string]: any } = {
     endpoint: "https://sei-api.carbondefi.xyz/v1/analytics/volume",
     startBlock: 79146720,
     startTimestamp: 1716825673,
+    getDimensionsByToken: true,
+  },
+  [CHAIN.CELO]: {
+    endpoint: "https://celo-api.carbondefi.xyz/v1/analytics/volume",
+    startBlock: 26828280,
+    startTimestamp: 1721813184,
     getDimensionsByToken: true,
   },
 };
@@ -74,6 +81,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SEI]: {
       fetch: getData,
       start: chainInfo[CHAIN.SEI].startTimestamp,
+      meta: CARBON_METADATA,
+    },
+    [CHAIN.CELO]: {
+      fetch: getData,
+      start: chainInfo[CHAIN.CELO].startTimestamp,
       meta: CARBON_METADATA,
     },
   },
