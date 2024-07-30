@@ -1,9 +1,9 @@
 // https://docs.superstate.co/ustb/income-fees-and-yield
 // https://docs.superstate.co/uscc/income-fees-and-yield
 
-import axios from "axios";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 const _fundsAddresses: string[] = [
   "0x43415eb6ff9db7e26a15b704e7a3edce97d31c4e",
@@ -21,19 +21,19 @@ function findDailyData(data: any[], targetDate: string) {
   return data.find((item: any) => item.net_asset_value_date === targetDate);
 }
 
-async function getFundsFees(timestamp: number): Promise<FetchResultFees> {
+async function getFundsFees(timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> {
   let ustbTotalFees: number = 0;
   let usccTotalFees: number = 0;
 
-  const targetDate = formatDate(new Date(timestamp * 1000));
+  const targetDate = formatDate(new Date(options.startOfDay * 1000));
 
   const [ustbRes, usccRes] = await Promise.all([
-    axios.get("https://api.superstate.co/v1/funds/1/nav-daily"),
-    axios.get("https://api.superstate.co/v1/funds/2/nav-daily"),
-  ]);
+    httpGet("https://api.superstate.co/v1/funds/1/nav-daily"),
+    httpGet("https://api.superstate.co/v1/funds/2/nav-daily"),
+  ])
 
-  const ustbDailyData = findDailyData(ustbRes.data, targetDate);
-  const usccDailyData = findDailyData(usccRes.data, targetDate);
+  const ustbDailyData = findDailyData(ustbRes, targetDate);
+  const usccDailyData = findDailyData(usccRes, targetDate);
 
   if (ustbDailyData) {
     const { assets_under_management } = ustbDailyData;
