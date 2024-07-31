@@ -11,7 +11,7 @@ interface IGraph {
 	id: string;
 }
 
-const URL = 'https://api.studio.thegraph.com/query/84618/spacewhale1/0.0.4';
+const URL = 'https://api.studio.thegraph.com/query/84618/spacewhale1/0.0.5';
 const fetch = async (timestamp: number): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 	const chain = CHAIN.ARBITRUM;
