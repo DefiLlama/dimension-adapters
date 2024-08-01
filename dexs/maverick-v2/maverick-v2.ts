@@ -27,6 +27,11 @@ export const maverickV2Factories: { [key: string]: any } = {
     startBlock: 15321281,
     startTimestamp: 1717372801,
   },
+  [CHAIN.SCROLL]: {
+    factory: "0x0A7e848Aca42d879EF06507Fca0E7b33A0a63c1e",
+    startBlock: 7332349,
+    startTimestamp: 1720621814,
+  },
 };
 
 const mavV2PoolCreated = `event PoolCreated(address poolAddress,uint8 protocolFeeRatio,uint256 feeAIn,uint256 feeBIn,uint256 tickSpacing,uint256 lookback,int32 activeTick,address tokenA,address tokenB,uint8 kinds,address accessor)`;

@@ -5,6 +5,19 @@ import { ProtocolAddresses } from "../utils/types";
 export default (
   [
     {
+            "id":"4674",
+            "name":"YFX V4",
+            "addresses":{
+                "arbitrum":[
+                    "0x5aCf0eBC782c9845b7E74367B14D3B867360efD2",  // router
+                    "0xA1dBE14b978541b24C4E88489b8e463094F88dEB"   // rewardRouter
+                ],
+                "base": [
+                    "0xbb1ACaA188337Fb662aE0631B2C537f29D4F9C85",   // router
+                ]
+            }
+    },
+    {
       id: "3429",
       name: "YFX",
       addresses: {

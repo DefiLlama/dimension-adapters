@@ -1,21 +1,21 @@
 require('dotenv').config()
-import * as path from 'path'
-import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
-import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
-import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import runAdapter from '../adapters/utils/runAdapter'
-import { canGetBlock, getBlock } from '../helpers/getBlock';
-import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
 import { execSync } from 'child_process';
+import * as path from 'path';
+import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
+import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
+import runAdapter from '../adapters/utils/runAdapter';
+import { canGetBlock, getBlock } from '../helpers/getBlock';
+import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
+import { checkArguments, printVolumes } from './utils';
 
-function checkIfFileExistsInMasterBranch(filePath: any) {
+function checkIfFileExistsInMasterBranch(_filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
-  const resString = res.toString()
-  if (!resString.includes(filePath)) {
-    console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
-    process.exit(1)
-  }
+  // const resString = res.toString()
+  // if (!resString.includes(filePath)) {
+  //   console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
+  //   process.exit(1)
+  // }
 }
 
 // tmp

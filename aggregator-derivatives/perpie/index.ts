@@ -1,5 +1,6 @@
 import {
   BreakdownAdapter,
+  Fetch,
   FetchOptions,
   FetchResult,
   FetchResultV2,
@@ -45,14 +46,13 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
     };
   };
 
-const fetchAll: (chain: string) => FetchV2 =
+const fetchAll: (chain: string) => Fetch =
   (chain: string) =>
-  async (options: FetchOptions): Promise<FetchResultV2> => {
+  async (_a: any, _t: any ,options: FetchOptions): Promise<FetchResult> => {
     const volumeAndFees = await fetchVolumeAndFees(chain)(options);
-    return { ...volumeAndFees } as FetchResultV2;
+    return { ...volumeAndFees } as FetchResult;
   };
 const adapter: BreakdownAdapter = {
-  version: 2,
   isExpensiveAdapter: true,
   breakdown: {
     derivatives: {

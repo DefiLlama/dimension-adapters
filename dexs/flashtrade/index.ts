@@ -20,8 +20,6 @@ const adapter: BreakdownAdapter = {
         perp: {
             [CHAIN.SOLANA]: {
                 fetch: fetchPerpVolume,
-                runAtCurrTime: true,
-                customBackfill: undefined,
                 start: 1710028800 // start time llama collect
             }
         }

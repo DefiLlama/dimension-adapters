@@ -1,9 +1,9 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
-const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('BL45YVVLVkCRGaAtyTjvuRt1yHnUt4QbZg8bWcZtLvLm'),
@@ -55,15 +55,18 @@ const graphs = getChainVolume({
   },
 });
 
-const fetch = (chain: string) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks) => {
-    const result = await graphs(chain)(timestamp, chainBlocks);
+const fetch = async (options: FetchOptions) => {
+  try {
+    const result = await graphs(options.chain)(options);
     if (!result) return {};
     return {
       ...result,
-      totalVolume: `${result.totalVolume / 10 ** 18}`,
-      dailyVolume:  `${result.dailyVolume  / 10 ** 18}`
+      totalVolume: `${(result?.totalVolume || 0) / 10 ** 18}`,
+      dailyVolume:  `${(result?.dailyVolume || 0)  / 10 ** 18}`
     };
+  } catch (error) {
+    console.error(error);
+    return {};
   }
 }
 
@@ -71,7 +74,7 @@ const volume = Object.keys(endpoints).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: fetch(chain),
+      fetch: fetch,
       start: startTime[chain],
     },
   }),

@@ -1,10 +1,8 @@
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchOptions, FetchResultFees, FetchResultV2 } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 interface IPairDayData {
   id: string;
