@@ -249,7 +249,7 @@ const fetchVolumeMantle = async (
   });
 
   const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume);
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume
+  const totalVolume = totalMakerVolume.plus(totalTakerVolume);
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
