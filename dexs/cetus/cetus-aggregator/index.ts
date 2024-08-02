@@ -1,6 +1,6 @@
-import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
-import { FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
+import { httpGet } from "../../../utils/fetchURL";
+import { FetchOptions } from "../../../adapters/types";
 
 const fetchVolume = async (options: FetchOptions) => {
   const url = `https://api-sui.cetus.zone/v2/sui/aggregator_vol?startTimestamp=${options.startOfDay}&endTimestamp=${options.startOfDay}`;
@@ -10,7 +10,7 @@ const fetchVolume = async (options: FetchOptions) => {
   }
 };
 
-const adapter: any = {
+const adapter_agge: any = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
@@ -20,4 +20,6 @@ const adapter: any = {
   },
 };
 
-export default adapter;
+export {
+  adapter_agge,
+}

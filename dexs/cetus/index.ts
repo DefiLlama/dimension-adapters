@@ -1,8 +1,9 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import {  adapter_agge } from './cetus-aggregator/index'
 
 type IUrl = {
   [s: string]: string;
@@ -19,8 +20,8 @@ interface IVolumeall {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  return async (options: FetchOptions) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
     const historicalVolume: IVolumeall[] = (await fetchURL(url[chain])).data.list;
     const totalVolume = historicalVolume
       .filter(volItem => (new Date(volItem.date.split('T')[0]).getTime() / 1000) <= dayTimestamp)
@@ -39,17 +40,22 @@ const fetch = (chain: Chain) => {
 
 
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetch(CHAIN.APTOS),
-      start: 1666224000,
+const adapter: BreakdownAdapter = {
+  version: 2,
+  breakdown: {
+    cetus: {
+      [CHAIN.APTOS]: {
+        fetch: fetch(CHAIN.APTOS),
+        start: 1666224000,
+      },
+      [CHAIN.SUI]: {
+        fetch: fetch(CHAIN.SUI),
+        start: 1682985600,
+      }
     },
-    [CHAIN.SUI]: {
-      fetch: fetch(CHAIN.SUI),
-      start: 1682985600,
-    }
-  },
+    "cetus-aggregator": adapter_agge.adapter
+  }
+
 };
 
 export default adapter;
