@@ -12,7 +12,7 @@ const barsEndpoint = "https://api.c3.io/v1/markets/{id}/bars";
 const ONE_DAY_IN_MILISECONDS = 60 * 60 * 24 * 1000;
 const HALF_DAY_IN_MILISECONDS = ONE_DAY_IN_MILISECONDS / 2;
 
-const chainMap = {
+const marketsOfChains = {
   [CHAIN.ALGORAND]: ["ALGO-USDC"],
   [CHAIN.AVAX]: ["AVAX-USDC"],
   [CHAIN.BITCOIN]: ["WBTC-USDC"],
@@ -22,9 +22,8 @@ const chainMap = {
   [CHAIN.SOLANA]: ["SOL-USDC", "PYTH-USDC", "W-USDC"],
 };
 
-type FetchParams = FetchOptions & { chain: string };
-async function fetchVolume({ chain, startOfDay }: FetchParams): Promise<FetchResultV2> {
-  const markets = chainMap[chain];
+async function fetchVolume({ chain, startOfDay }: FetchOptions): Promise<FetchResultV2> {
+  const markets = marketsOfChains[chain];
 
   const from = Math.floor(startOfDay) * 1000 - HALF_DAY_IN_MILISECONDS;
   const to = Math.floor(startOfDay) * 1000 + HALF_DAY_IN_MILISECONDS;
@@ -34,7 +33,7 @@ async function fetchVolume({ chain, startOfDay }: FetchParams): Promise<FetchRes
     return fetchURL(url);
   });
 
-  const volume24h = (await Promise.all(barsPromises)).reduce((acc, bars, i) => {
+  const volume24h = (await Promise.all(barsPromises)).reduce((acc, bars) => {
     const last = bars[bars.length - 1];
     const quoteVolume = last?.quoteVolume ?? 0;
     return acc + +quoteVolume;
@@ -51,7 +50,7 @@ function adapterConstructor(fetchVolumeFunc: FetchV2, chains: string[]): Adapter
     (obj, chain) => ({
       ...obj,
       [chain]: {
-        fetch: (options) => fetchVolumeFunc({ ...options, chain }),
+        fetch: fetchVolumeFunc,
         start: 1688169600, // 2023-7-1 00:00:00 GMT
         // runAtCurrTime: false,
       },
@@ -65,6 +64,6 @@ function adapterConstructor(fetchVolumeFunc: FetchV2, chains: string[]): Adapter
   };
 }
 
-const adapter: Adapter = adapterConstructor(fetchVolume, Object.keys(chainMap));
+const adapter: Adapter = adapterConstructor(fetchVolume, Object.keys(marketsOfChains));
 
 export default adapter;
