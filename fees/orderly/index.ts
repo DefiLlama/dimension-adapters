@@ -24,10 +24,10 @@ const adapter: Adapter = {
         const totalFee = data.reduce((acc, { netFee }) => acc + netFee, 0);
         return {
           timestamp: t,
-          dailyFee: data.find(
+          dailyFees: data.find(
             ({ createdAt }) => new Date(createdAt).valueOf() / 1_000 === t
           )?.netFee,
-          totalFee,
+          totalFees: totalFee,
         };
       },
     },
