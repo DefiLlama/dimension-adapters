@@ -171,8 +171,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume);
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume);
+  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume).dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume.plus(totalTakerVolume).dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -211,8 +211,8 @@ const fetchVolumeBlast = async (
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const _dailyVolume = toString(dailyMakerVolume.plus(dailyTakerVolume));
-  const _totalVolume = toString(totalMakerVolume.plus(totalTakerVolume));
+  const _dailyVolume = toString(dailyMakerVolume.plus(dailyTakerVolume)).dividedBy(new BigNumber(1e18));
+  const _totalVolume = toString(totalMakerVolume.plus(totalTakerVolume)).dividedBy(new BigNumber(1e18));
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
@@ -248,8 +248,8 @@ const fetchVolumeMantle = async (
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume);
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume);
+  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume).dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume.plus(totalTakerVolume).dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
