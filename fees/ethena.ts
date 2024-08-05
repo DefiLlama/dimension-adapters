@@ -1,12 +1,12 @@
 import { ethers } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 
 const mint_event =
   "event Mint( address indexed minter,address indexed benefactor,address indexed beneficiary,address collateral_asset,uint256 collateral_amount,uint256 usde_amount)";
-const fetch = async (options: FetchOptions) => {
+const fetch = async (toTimestamp:number, chainBlocks:any, options: FetchOptions) => {
   const logs = await options.getLogs({
     eventAbi: mint_event,
     target: "0x2cc440b721d2cafd6d64908d6d8c4acc57f8afc3",
@@ -57,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const adapters: SimpleAdapter = {
+const adapters = {
   // version v1 because if we track expenses but not income it leads to wrong data, need to include both
   adapter: {
     [CHAIN.ETHEREUM]: {
