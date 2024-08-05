@@ -1,5 +1,6 @@
 import {
   Adapter,
+  BaseAdapter,
   FetchOptions,
   FetchResultV2,
   FetchV2,
@@ -22,7 +23,10 @@ const marketsOfChains = {
   [CHAIN.SOLANA]: ["SOL-USDC", "PYTH-USDC", "W-USDC"],
 };
 
-async function fetchVolume({ chain, startOfDay }: FetchOptions): Promise<FetchResultV2> {
+async function fetchVolume({
+  chain,
+  startOfDay,
+}: FetchOptions): Promise<FetchResultV2> {
   const markets = marketsOfChains[chain];
 
   const from = Math.floor(startOfDay) * 1000 - HALF_DAY_IN_MILISECONDS;
@@ -45,14 +49,22 @@ async function fetchVolume({ chain, startOfDay }: FetchOptions): Promise<FetchRe
   };
 }
 
-function adapterConstructor(fetchVolumeFunc: FetchV2, chains: string[]): Adapter {
-  const chainVolumes = chains.reduce(
+function adapterConstructor(
+  fetchVolumeFunc: FetchV2,
+  chains: string[]
+): Adapter {
+  const chainVolumes: BaseAdapter = chains.reduce(
     (obj, chain) => ({
       ...obj,
       [chain]: {
         fetch: fetchVolumeFunc,
         start: 1688169600, // 2023-7-1 00:00:00 GMT
         // runAtCurrTime: false,
+        meta: {
+          methodology: {
+            dailyVolume: "Volume is calculated by summing the quote token volume of all trades settled on the protocol that day.",
+          }
+        },
       },
     }),
     {}
@@ -64,6 +76,9 @@ function adapterConstructor(fetchVolumeFunc: FetchV2, chains: string[]): Adapter
   };
 }
 
-const adapter: Adapter = adapterConstructor(fetchVolume, Object.keys(marketsOfChains));
+const adapter: Adapter = adapterConstructor(
+  fetchVolume,
+  Object.keys(marketsOfChains)
+);
 
 export default adapter;
