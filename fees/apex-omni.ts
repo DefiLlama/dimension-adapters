@@ -1,21 +1,21 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types"
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date"
-import fetchURL from "../utils/fetchURL"
+import fetchURL, { httpGet } from "../utils/fetchURL"
 
 
 interface IFees {
   feeOfDate: string;
 }
-const fees = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp) * 1000;
+const fees = async (_:any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay) * 1000;
   const url = `https://omni.apex.exchange/api/v3/data/fee-by-date?time=${todaysTimestamp}`;
-  const feesData: IFees = (await fetchURL(url)).data;
+  const feesData: IFees = (await httpGet(url, { timeout: 10000 })).data;
   const dailyFees = feesData?.feeOfDate || '0';
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    timestamp
+    timestamp: todaysTimestamp
   }
 }
 const adapter: SimpleAdapter = {
