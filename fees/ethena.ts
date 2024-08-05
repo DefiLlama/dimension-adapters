@@ -58,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  // version v1 because if we track expenses but not income it leads to wrong data, need to include both
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
