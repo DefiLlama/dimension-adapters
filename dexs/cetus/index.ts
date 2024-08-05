@@ -9,8 +9,8 @@ type IUrl = {
 }
 
 const url: IUrl = {
-  [CHAIN.APTOS]: "https://api.cetus.zone/v1/histogram?date_type=day&typ=vol",
-  [CHAIN.SUI]: "https://api-sui.cetus.zone/v2/sui/histogram?date_type=day&typ=vol"
+  [CHAIN.APTOS]: "https://api.cetus.zone/v1/histogram?date_type=day&typ=vol&limit=99999",
+  [CHAIN.SUI]: "https://api-sui.cetus.zone/v2/sui/histogram?date_type=day&typ=vol&limit=99999"
 }
 
 interface IVolumeall {
