@@ -14,7 +14,7 @@ interface IRes {
   data: IDailyData[];
 }
 
-const baseUrl = "https://app.fwx.finance/api/v2";
+const baseUrl = "https://analytics.fwx.finance";
 
 interface IEndpoint {
   tradingVolume: string;
