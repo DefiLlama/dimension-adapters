@@ -1,77 +1,89 @@
-import { BreakdownAdapter, FetchOptions, FetchResultV2, FetchResultVolume } from "../../adapters/types";
+import request, { gql } from "graphql-request";
+import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import { adapter_trade } from './gmx-v2-trade/index'
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
+const endpoints: { [key: string]: string } = {
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
+  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
 }
 
-const topic0_ins = '0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160';
-const topic1_ins = '0xf35c99b746450c623be607459294d15f458678f99d535718db6cfcbccb117c09';
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeInfos(where: {period: $period, id: $id}) {
+        swapVolumeUsd
+      }
+  }
+`
 
-interface IToken {
-  amount: number;
-  token: string;
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: {period: $period, id: $id}) {
+        marginVolumeUsd
+      }
+  }
+`
+
+interface IGraphResponse {
+  volumeStats: Array<{
+    marginVolumeUsd: string,
+    swapVolumeUsd: string,
+  }>
 }
 
-type TChain = {
-  [s: Chain | string]: string;
+const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+    id: '1d:' + chain === CHAIN.ARBITRUM
+      ? String(dayTimestamp)
+      : String(dayTimestamp),
+    period: '1d',
+  })
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+    id: 'total',
+    period: 'total',
+  })
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+    totalVolume:
+      totalData.volumeStats.length == 1
+        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+  }
 }
 
-const contract: TChain = {
-  [CHAIN.ARBITRUM]: '0xc8ee91a54287db53897056e12d9819156d3822fb',
-  [CHAIN.AVAX]: '0xdb17b211c34240b014ab6d61d4a31fa0c0e20c26'
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1630368000,
+  [CHAIN.AVAX]: 1640131200,
 }
-
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const dailyVolume = options.createBalances();
-    const swap_logs: ILog[] = await options.getLogs({
-      target: contract[options.chain],
-      topics: [topic0_ins, topic1_ins],
-    });
-    const raw_in = swap_logs.map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const volume = Number('0x' + data.slice(53 * 64, (53 * 64) + 64));
-      const address = data.slice(27 * 64, (27 * 64) + 64);
-      const contract_address = '0x' + address.slice(24, address.length);
-      return {
-        amount: volume,
-        token: contract_address,
-      } as IToken
-    })
-
-    raw_in.map((e: IToken) => {
-      dailyVolume.add(e.token, e.amount)
-    })
-
-    return {
-      dailyVolume: dailyVolume,
-    }
-}
-
-
-const adapter: any = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: 1688428800,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch,
-      start: 1688428800,
-    },
-  },
-};
 
 const adapters: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    "gmx-v2-swap": adapter["adapter"],
-    "gmx-v2-trade": adapter_trade["adapter"],
+    "swap": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataSwap)(chain),
+          start: startTimestamps[chain]
+        }
+      }
+    }, {}),
+    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataDerivatives)(chain),
+          start: startTimestamps[chain]
+        }
+      }
+    }, {})
   }
 }
+
 export default adapters;
