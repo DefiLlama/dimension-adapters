@@ -47,11 +47,11 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
   return {
     timestamp: dayTimestamp,
     dailyVolume:
-      dailyData.volumeStats.length == 1
+      dailyData.volumeInfos.length == 1
         ? String(Number(Object.values(dailyData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
     totalVolume:
-      totalData.volumeStats.length == 1
+      totalData.volumeInfos.length == 1
         ? String(Number(Object.values(totalData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
   }
