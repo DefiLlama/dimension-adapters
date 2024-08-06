@@ -62,6 +62,13 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.AVAX]: 1640131200,
 }
 
+const methodology = {
+  dailyVolume:
+    "Sum of daily total volume for all markets on a given day.",
+  totalVolume:
+    "Sum of overall total volume for all markets since inception."
+}
+
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -70,7 +77,8 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
-          start: startTimestamps[chain]
+          start: startTimestamps[chain],
+          meta: {methodology}
         }
       }
     }, {}),
@@ -79,7 +87,8 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
-          start: startTimestamps[chain]
+          start: startTimestamps[chain],
+          meta: {methodology}
         }
       }
     }, {})
