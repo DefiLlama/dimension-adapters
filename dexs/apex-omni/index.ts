@@ -1,5 +1,5 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter, Fetch } from "../../adapters/types";
+import fetchURL, { httpGet } from "../../utils/fetchURL";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -25,14 +25,28 @@ interface IOpenInterest {
 }
 
 const getVolume = async (timestamp: number) => {
-    const _symbol: string[] = await getSumbols()
-    const symbol = [...new Set(_symbol)]
+    const symbol = [
+        'BTCUSDT',      'ETHUSDT',      'SOLUSDT',
+        'TONUSDT',      'NEARUSDT',     'XRPUSDT',
+        'ADAUSDT',      'SUIUSDT',      'AVAXUSDT',
+        'BCHUSDT',      'LTCUSDT',      'MATICUSDT',
+        'ARBUSDT',      'OPUSDT',       'STXUSDT',
+        'DOGEUSDT',     '1000SHIBUSDT', '1000PEPEUSDT',
+        '1000BONKUSDT', 'WIFUSDT',      'ORDIUSDT',
+        'PEOPLEUSDT',   'WLDUSDT',      'RNDRUSDT',
+        'ONDOUSDT',     'LINKUSDT',     'ENSUSDT',
+        'UNIUSDT',      'ENAUSDT',      'PENDLEUSDT',
+        'LDOUSDT',      'JUPUSDT',      'RONUSDT',
+        'FILUSDT',      'ARUSDT',       'ZKUSDT',
+        'IOUSDT',       'NOTUSDT',      'ZROUSDT',
+        'BLASTUSDT'
+    ]
 
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: any[] = (await Promise.all(symbol.map((coins: string) => fetchURL(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24)))))
+    const historical: any[] = (await Promise.all(symbol.map((coins: string) => httpGet(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24), { timeout: 10000 }))))
         .map((e: any) => Object.values(e.data)).flat().flat()
         .map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, price: e.c } });
-    const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => fetchURL(allTiker(coins)))))
+    const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => httpGet(allTiker(coins), { timeout: 10000 }))))
         .map((e: any) => e.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
     const dailyOpenInterest = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
     const historicalUSD = historical.map((e: IVolumeall) => {
@@ -45,7 +59,7 @@ const getVolume = async (timestamp: number) => {
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
     const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-        
+
     return {
         totalVolume: `${totalVolume}`,
         dailyOpenInterest: `${dailyOpenInterest}`,
