@@ -15,7 +15,7 @@ const v2Endpoints: ChainEndpoints = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('BWHCfpXMHFDx3u4E14hEwv4ST7SUyN89FKJ2RjzWKgA9'),
 };
 const v3Endpoints = {
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('39pzQzH5r3vmovd9fTs7rVDVFCj1xJye3dTMNHcSkSfL'),
+  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/v3-base/prod/gn'
 };
 
 // Fetch function to query the subgraphs

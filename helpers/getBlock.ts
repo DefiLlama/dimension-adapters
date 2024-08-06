@@ -49,7 +49,7 @@ const blacklistedChains: string[] = [
   "persistence",
   "sui",
   "neutron",
-  "terra2",
+  "terra2"
 ];
 
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
@@ -67,7 +67,12 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
         if (chain === CHAIN.WAVES)
             timestamp = Math.floor(timestamp * 1000)
         block = await sdk.blocks.getBlockNumber(chain, timestamp)
-    } catch (e) { console.log('error fetching block', e) }
+    } catch (e) {
+        console.log('error fetching block', e)
+        if (chain === CHAIN.SEI) {
+            return null
+        }
+    }
 
     if (block) {
         chainBlocks[chain] = block

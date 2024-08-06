@@ -26,6 +26,10 @@ const adapter: SimpleAdapter = {
       fetch: getData,
       start: maverickV2Factories[CHAIN.ARBITRUM].startTimestamp,
     },
+    [CHAIN.SCROLL]: {
+      fetch: getData,
+      start: maverickV2Factories[CHAIN.SCROLL].startTimestamp,
+    },
   },
 };
 

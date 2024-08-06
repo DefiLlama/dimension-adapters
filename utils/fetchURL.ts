@@ -10,12 +10,12 @@ export default async function fetchURL(url: string, retries = 3) {
   }
 }
 
-export async function postURL(url: string, data: any, retries = 3) {
+export async function postURL(url: string, data: any, retries = 3, options?: AxiosRequestConfig) {
   try {
-    const res = await httpPost(url, data)
+    const res = await httpPost(url, data, options)
     return res
   } catch (error) {
-    if (retries > 0) return postURL(url, data, retries - 1)
+    if (retries > 0) return postURL(url, data, retries - 1, options)
     throw error
   }
 }

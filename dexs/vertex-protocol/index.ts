@@ -1,4 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
@@ -11,14 +11,34 @@ interface IProducts {
 const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
 const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 
-const fetchValidSymbols = async (): Promise<number[]> => {
-  const symbols = (await httpGet(`${gatewayBaseUrl}/symbols`));
+const gatewayMatleBaseUrl = "https://gateway.mantle-prod.vertexprotocol.com/v1";
+const archiveMatleBaseUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
+
+type TURL = {
+  [s: string]: {
+    gateway: string;
+    archive: string;
+  }
+}
+const url: TURL = {
+  [CHAIN.ARBITRUM]: {
+    gateway: gatewayBaseUrl,
+    archive: archiveBaseUrl,
+  },
+  [CHAIN.MANTLE]: {
+    gateway: gatewayMatleBaseUrl,
+    archive: archiveMatleBaseUrl,
+  }
+}
+
+const fetchValidSymbols = async (fetchOptions: FetchOptions): Promise<number[]> => {
+  const symbols = (await httpGet(`${url[fetchOptions.chain].gateway}/symbols`));
   return symbols.map((product: { product_id: number }) => product.product_id);
 };
 
-const fetchProducts = async (): Promise<IProducts> => {
-  const validSymbols = await fetchValidSymbols();
-  const allProducts = (await httpGet(`${gatewayBaseUrl}/query?type=all_products`)).data;
+const fetchProducts = async (fetchOptions: FetchOptions): Promise<IProducts> => {
+  const validSymbols = await fetchValidSymbols(fetchOptions);
+  const allProducts = (await httpGet(`${url[fetchOptions.chain].gateway}/query?type=all_products`)).data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
@@ -32,9 +52,9 @@ const fetchProducts = async (): Promise<IProducts> => {
   };
 };
 
-const computeVolume = async (timestamp: number, productIds: number[]) => {
+const computeVolume = async (timestamp: number, productIds: number[], fetchOptions: FetchOptions) => {
   const snapshots = (
-    await httpPost(archiveBaseUrl, {
+    await httpPost(url[fetchOptions.chain].archive, {
       market_snapshots: {
         interval: {
           count: 2,
@@ -69,17 +89,18 @@ const computeVolume = async (timestamp: number, productIds: number[]) => {
   };
 };
 
-const fetchSpots = async (timeStamp: number) => {
-  const spotProductIds = (await fetchProducts()).spot_products;
-  return await computeVolume(timeStamp, spotProductIds);
+const fetchSpots = async (timeStamp: number, _: any, fetchOptions: FetchOptions) => {
+  const spotProductIds = (await fetchProducts(fetchOptions)).spot_products;
+  return await computeVolume(timeStamp, spotProductIds, fetchOptions);
 };
 
-const fetchPerps = async (timeStamp: number) => {
-  const perpProductIds = (await fetchProducts()).perp_products;
-  const marginedProductIds = (await fetchProducts()).margined_products;
+const fetchPerps = async (timeStamp: number, _: any, fetchOptions: FetchOptions) => {
+  const perpProductIds = (await fetchProducts(fetchOptions)).perp_products;
+  const marginedProductIds = (await fetchProducts(fetchOptions)).margined_products;
   return await computeVolume(
     timeStamp,
-    perpProductIds.concat(marginedProductIds)
+    perpProductIds.concat(marginedProductIds),
+    fetchOptions
   );
 };
 
@@ -92,12 +113,20 @@ const adapter: BreakdownAdapter = {
         fetch: fetchSpots,
         start: startTime,
       },
+      [CHAIN.MANTLE]: {
+        fetch: fetchSpots,
+        start: startTime,
+      }
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        start: startTime,
+        start: 1718841600,
       },
+      [CHAIN.MANTLE]: {
+        fetch: fetchPerps,
+        start: 1718841600,
+      }
     },
   },
 };

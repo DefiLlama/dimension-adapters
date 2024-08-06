@@ -9,19 +9,24 @@ async function main() {
     const [_, adapterName] = adapterNameKey.split('@')
 
 
-    const errorString = '------ ERROR ------';
-    const summaryIndex = file.indexOf('_______________________________________');
+    const errorString = 'ERROR';
+    const summaryIndex = file.indexOf('---------------------------------------------------');
     const errorIndex = file.indexOf(errorString);
     let body;
 
     if (summaryIndex != -1) {
-        body = `The ${adapterName} adapter exports: 
-        \n \n ${file.substring(summaryIndex).replaceAll('\n', '\n    ')}`;
+        body = `The ${adapterName} adapter exports:
+        \n \n ${file.replaceAll('\n', '\n    ')}`;
+        console.info(`Posting comment:\n${body}`)
     } else if (errorIndex != -1) {
-        body = `Error while running adapter ${adapterName} adapter: 
+        body = `Error while running adapter ${adapterName} adapter:
         \n \n ${file.split(errorString)[1].replaceAll('\n', '\n    ')}`;
-    } else
+        console.info(`Posting comment:\n${body}`)
+    } else {
+        console.info(`No error or summary found in log file`);
         return;
+    }
+
 
     console.info(`Posting comment:\n${body}`)
 

@@ -34,7 +34,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: async (options: FetchOptions) => {
         const data = await graphsClassic(CHAIN.BSC)(options);
-        const removeSpike = Number(data.totalVolume) - 2035654137.527446631277942307129497;
+        const removeSpike = Number(data.totalVolume) - 7035654137.527446631277942307129497;
         data.totalVolume = removeSpike > 0 ? removeSpike : data.totalVolume;
         return {
           ...data

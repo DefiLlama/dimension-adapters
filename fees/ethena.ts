@@ -1,58 +1,46 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { ethers } from "ethers";
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
+
+const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 
 const mint_event =
   "event Mint( address indexed minter,address indexed benefactor,address indexed beneficiary,address collateral_asset,uint256 collateral_amount,uint256 usde_amount)";
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_t:number, _c:any, options: FetchOptions) => {
   const logs = await options.getLogs({
     eventAbi: mint_event,
     target: "0x2cc440b721d2cafd6d64908d6d8c4acc57f8afc3",
   });
-  const in_flow = await queryIndexer(
-    `
-  SELECT
-    '0x' || encode(data, 'hex') AS data,
-    '0x' || encode(contract_address, 'hex') AS token
-  FROM
-    ethereum.event_logs
-  WHERE
-    block_number > 18637861
-    AND contract_address NOT IN ('\\x4c9edd5852cd905f086c759e8383e09bff1e68b3')
-    AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-    AND topic_1 NOT IN ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x0000000000000000000000002b5ab59163a6e93b4486f6055d33ca4a115dd4d5')
-    AND topic_2 in ('\\x00000000000000000000000071e4f98e8f20c88112489de3dded4489802a3a87', '\\x0000000000000000000000002b5ab59163a6e93b4486f6055d33ca4a115dd4d5')
-    AND block_time BETWEEN llama_replace_date_range;
-`,
-    options
-  );
+  const in_flow = (await options.getLogs({
+    targets: [usdt],
+    flatten: false,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
+      ethers.zeroPadValue("0x71e4f98e8f20c88112489de3dded4489802a3a87", 32),
+      ethers.zeroPadValue("0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5", 32),
+    ]] as any,
+  }))[0].filter((log:any[])=>!["0x71e4f98e8f20c88112489de3dded4489802a3a87", "0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5"]
+    .some(a=>a.toLowerCase() === log[0].toLowerCase()))
 
-  const out_flow = await queryIndexer(
-    `
-  SELECT
-    '0x' || encode(data, 'hex') AS data,
-    '0x' || encode(contract_address, 'hex') AS token
-  FROM
-    ethereum.event_logs
-  WHERE
-    block_number > 18637861
-    AND contract_address NOT IN ('\\x4c9edd5852cd905f086c759e8383e09bff1e68b3')
-    AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-    AND topic_2 in ('\\x000000000000000000000000f2fa332bd83149c66b09b45670bce64746c6b439')
-    AND block_time BETWEEN llama_replace_date_range;
-`,
-    options
-  );
+  const out_flow = (await options.getLogs({
+    targets: [usdt],
+    flatten: false,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
+      ethers.zeroPadValue("0xf2fa332bd83149c66b09b45670bce64746c6b439", 32),
+    ]] as any,
+  }))[0]
+
   const dailyFeesInflow = options.createBalances();
   const supplyRewards = options.createBalances();
 
   in_flow.map((log: any) => {
-    const amount = Number(log.data);
-    dailyFeesInflow.add(log.token, amount);
+    const amount = Number(log.value);
+    dailyFeesInflow.add(usdt, amount);
   });
   out_flow.map((log: any) => {
-    const amount = Number(log.data);
-    supplyRewards.add(log.token, amount);
+    const amount = Number(log.value);
+    supplyRewards.add(usdt, amount);
   });
   const dailyFeesMint = options.createBalances();
   logs.map((log) => {
@@ -69,8 +57,8 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const adapters: SimpleAdapter = {
-  version: 2,
+const adapters = {
+  // version v1 because if we track expenses but not income it leads to wrong data, need to include both
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,

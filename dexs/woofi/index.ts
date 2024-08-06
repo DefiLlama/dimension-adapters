@@ -1,9 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import request, { gql } from "graphql-request";
 
-const { getChainVolume } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('BL45YVVLVkCRGaAtyTjvuRt1yHnUt4QbZg8bWcZtLvLm'),
@@ -55,15 +56,37 @@ const graphs = getChainVolume({
   },
 });
 
-const fetch = (chain: string) => {
-  return async (timestamp: number, chainBlocks: ChainBlocks) => {
-    const result = await graphs(chain)(timestamp, chainBlocks);
-    if (!result) return {};
+const dailyQuery = gql`
+  query getDailyVolume($Id: Int!) {
+    dayData(id: $Id) {
+      volumeUSD
+    },
+    globalVariables {
+      totalVolumeUSD
+    }
+  }
+`
+
+interface FetchResult {
+  dayData: {
+    volumeUSD: string;
+  }
+  globalVariables: Array<{
+    totalVolumeUSD: string;
+  }>
+}
+const fetch = async (options: FetchOptions) => {
+  try {
+    const dateId = Math.floor(options.endTimestamp / 86400);
+    const response: FetchResult = await request(endpoints[options.chain], dailyQuery, { Id: dateId });
+    if (!response) return {};
     return {
-      ...result,
-      totalVolume: `${result.totalVolume / 10 ** 18}`,
-      dailyVolume:  `${result.dailyVolume  / 10 ** 18}`
+      dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
+      totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
     };
+  } catch (error) {
+    console.error(error);
+    return {};
   }
 }
 
@@ -71,7 +94,7 @@ const volume = Object.keys(endpoints).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: fetch(chain),
+      fetch: fetch,
       start: startTime[chain],
     },
   }),

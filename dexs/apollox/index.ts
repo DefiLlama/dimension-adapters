@@ -35,18 +35,27 @@ type V1TickerItem = {
   count: number;
 };
 
+type TotalVolumeV1AndV2ForBscItem = {
+  "openInterestTotal": string
+  "totalUser": string
+  "v1TotalVolume": string
+  "v2TotalVolume": string
+}
+
+
 type TotalVolumeItem = {
-    "alpFeeVOFor24Hour": {
-      "fee": number
-      "revenue": number
+  "alpFeeVOFor24Hour": {
+    "fee": number
+    "revenue": number
     },
     "allAlpFeeVO": {
       "fee": number
       "revenue": number
-    },
-    "cumVol": number
-}
+      },
+      "cumVol": number
+      }
 
+const TotalVolumeV1AndV2ForBscAPI = "https://fapi.apollox.finance/fapi/v1/openInterestAndTrader"
 const TotalVolumeAPI =  "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
 
 const v2VolumeAPI =
@@ -54,11 +63,22 @@ const v2VolumeAPI =
 
 const v1VolumeAPI = "https://www.apollox.finance/fapi/v1/ticker/24hr";
 
+async function sleep (time: number) {
+  return new Promise<void>((resolve) => setTimeout(() => resolve(), time))
+}
+let sleepCount = 0
 const fetchV2Volume = async (chain: Chain) => {
-  const { data = [] } = (
+  console.log('fetch ', chain, sleepCount * 2 * 1e3)
+  // This is very important!!! because our API will throw error when send >=2 requests at the same time.
+  await sleep(sleepCount++ * 2 * 1e3)
+  const res = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
-  ) as  { data: ResponseItem[] }
-  const dailyVolume = data.reduce((p, c) => p + +c.qutoVol, 0);
+  ) as  { data: ResponseItem[], success: boolean }
+  if (res.data === null && res.success === false) {
+    console.log(res, v2VolumeAPI, { chain, excludeCake: true })
+    return fetchV2Volume(chain)
+  }
+  const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
 
   return dailyVolume
 };
@@ -70,37 +90,46 @@ const fetchV1Volume = async () => {
   return dailyVolume
 };
 
-const fetchTotalVolume = async (chain: Chain) => {
+const fetchTotalVolumeV1AndV2ForBSC = async () => {
+  const data = (
+    await httpGet(TotalVolumeV1AndV2ForBscAPI)
+  ) as  TotalVolumeV1AndV2ForBscItem
+  return { v1: Number(data.v1TotalVolume), v2: Number(data.v2TotalVolume) }
+};
+
+const fetchTotalV2Volume = async (chain: Chain) => {
   const { data  } = (
     await httpGet(TotalVolumeAPI, { params: { chain,  } })
   ) as  { data: TotalVolumeItem }
 
-  return data.cumVol
+  return Number(data.cumVol)
 };
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       fetch: async (timestamp) => {
-        const [v1, v2, totalVolume] = await Promise.all([
+        const [v1, v2, totalV2Volume, { v1 : totalV1Volume }] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
           fetchV1Volume(),
-          fetchTotalVolume(CHAIN.BSC),
+          fetchTotalV2Volume(CHAIN.BSC),
+          fetchTotalVolumeV1AndV2ForBSC()
         ]);
         return {
           dailyVolume: v1 + v2,
-          totalVolume,
+          totalVolume: totalV1Volume + totalV2Volume,
           timestamp,
         };
       },
       start: 1682035200,
     },
     [CHAIN.ARBITRUM]: {
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.ARBITRUM),
-          fetchTotalVolume(CHAIN.ARBITRUM),
+          fetchTotalV2Volume(CHAIN.ARBITRUM),
         ]);
         return {
           timestamp,
@@ -111,11 +140,11 @@ const adapter: SimpleAdapter = {
       start: 1682035200,
     },
     [CHAIN.OP_BNB]: {
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume('opbnb'),
-          fetchTotalVolume('opbnb'),
+          fetchTotalV2Volume('opbnb'),
         ]);
         return {
           timestamp,
@@ -126,11 +155,11 @@ const adapter: SimpleAdapter = {
       start: 1682035200,
     },
     [CHAIN.BASE]: {
-      runAtCurrTime: true,
+      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.BASE),
-          fetchTotalVolume(CHAIN.BASE),
+          fetchTotalV2Volume(CHAIN.BASE),
         ]);
         return {
           timestamp,

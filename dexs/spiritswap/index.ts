@@ -1,12 +1,12 @@
 import { SimpleAdapter } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
 
 const {
   getChainVolumeWithGasToken,
 } = require("../../helpers/getUniSubgraphVolume");
 
 const endpoints = {
-  fantom:
-    "https://api.thegraph.com/subgraphs/name/layer3org/spiritswap-analytics",
+  fantom: sdk.graph.modifyEndpoint('E6viiLSqVvjLy9re7aBPkaXAB2itNDho2LR3CP2q1uqP'),
 };
 
 const graphs = getChainVolumeWithGasToken({
