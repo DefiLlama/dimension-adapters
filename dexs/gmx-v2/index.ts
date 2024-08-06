@@ -18,14 +18,14 @@ const historicalDataSwap = gql`
 
 const historicalDataDerivatives = gql`
   query get_volume($period: String!, $id: String!) {
-    volumeStats(where: {period: $period, id: $id}) {
+    volumeInfos(where: {period: $period, id: $id}) {
         marginVolumeUsd
       }
   }
 `
 
 interface IGraphResponse {
-  volumeStats: Array<{
+  volumeInfos: Array<{
     marginVolumeUsd: string,
     swapVolumeUsd: string,
   }>
@@ -62,7 +62,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.AVAX]: 1640131200,
 }
 
-const adapters: BreakdownAdapter = {
+const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
@@ -86,4 +86,4 @@ const adapters: BreakdownAdapter = {
   }
 }
 
-export default adapters;
+export default adapter;
