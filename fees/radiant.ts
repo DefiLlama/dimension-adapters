@@ -14,7 +14,8 @@ type TAddress = {
 const address: TAddress  = {
   [CHAIN.ARBITRUM]: '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f',
   [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8',
-  [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797'
+  [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797',
+  [CHAIN.BASE]: '0xC49b4D1e6CbbF4cAEf542f297449696d8B47E411'
 }
 
 interface ITx {
@@ -85,6 +86,10 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: 1698796800,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1719592253,
     },
   }
 }
