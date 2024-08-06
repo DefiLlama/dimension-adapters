@@ -72,7 +72,7 @@ const methodology = {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    "swap": Object.keys(endpoints).reduce((acc, chain) => {
+    "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
@@ -82,7 +82,7 @@ const adapter: BreakdownAdapter = {
         }
       }
     }, {}),
-    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
+    "gmx-v2-trade": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
