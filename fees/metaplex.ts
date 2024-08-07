@@ -12,7 +12,7 @@ interface IFees {
 }
 const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
   const res:  IFees[] = (await httpGet(url)).query_result.data.rows;
-  const dateStr = new Date(options.endTimestamp * 1000).toISOString().split('T')[0]
+  const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const dailyItem = res.find(item => item.block_date === dateStr)
   return {
     dailyFees: dailyItem?.revenue_in_usd || 0,
