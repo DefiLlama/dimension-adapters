@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -9,7 +9,7 @@ interface IVolumeall {
   date: number;
 }
 
-const swapChains = [CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
+const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
 
 const chainToEnv = (chain: CHAIN) => {
   switch (chain) {
@@ -52,25 +52,17 @@ const getStartTimestamp = (chain: CHAIN) => {
   }
 }
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    swap: swapChains.reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: fetchFromChain(chain),
-          start: getStartTimestamp(chain),
-        }
-      }
-    }, {} as BaseAdapter),
-    spot: {
-      [CHAIN.DEXALOT]: {
-        fetch: fetchFromChain(CHAIN.DEXALOT),
-        start: getStartTimestamp(CHAIN.DEXALOT),
+  adapter: supportedChains.reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: fetchFromChain(chain),
+        start: getStartTimestamp(chain),
       }
     }
-  }
+  }, {} as BaseAdapter),
 };
 
 export default adapter;
