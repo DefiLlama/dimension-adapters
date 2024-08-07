@@ -1,7 +1,7 @@
 import { httpPost } from "../../utils/fetchURL"
 import { FetchOptions, FetchResultV2, Adapter } from "../../adapters/types";
 
-const URL = 'https://ape.store/api/public/base/volume'
+const URL = 'https://test.ape.store/api/public/base/volume'
 
 interface VolumeInfo {
 	dailyVolume: string;
