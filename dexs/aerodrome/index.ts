@@ -57,11 +57,27 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-    const logs: ILog[][] = await options.getLogs({
-      targets,
-      eventAbi: event_swap,
-      flatten: false,
-    })
+    let logs: ILog[][] = [];
+    const targetChunkSize = 5;
+    let currentTargetOffset = 0;
+    unfinished = true;
+
+    while (unfinished) {
+      let endOffset = currentTargetOffset + targetChunkSize;
+      if (endOffset >= targets.length) {
+        unfinished = false;
+        endOffset = targets.length;
+      }
+
+      let currentLogs: ILog[][] = await options.getLogs({
+        targets: targets.slice(currentTargetOffset, endOffset),
+        eventAbi: event_swap,
+        flatten: false,
+      })
+
+      logs.push(...currentLogs);
+      currentTargetOffset += targetChunkSize;
+    }
 
     logs.forEach((logs: ILog[], idx: number) => {
       const { token0, token1, pool_fee } = allForSwaps[idx]
@@ -91,11 +107,27 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const targets = forSwapsOld.map((forSwap: IForSwap) => forSwap.lp)
 
-    const logs: ILog[][] = await options.getLogs({
-      targets,
-      eventAbi: event_swap,
-      flatten: false,
-    })
+    let logs: ILog[][] = [];
+    const targetChunkSize = 5;
+    let currentTargetOffset = 0;
+    unfinished = true;
+
+    while (unfinished) {
+      let endOffset = currentTargetOffset + targetChunkSize;
+      if (endOffset >= targets.length) {
+        unfinished = false;
+        endOffset = targets.length;
+      }
+
+      let currentLogs: ILog[][] = await options.getLogs({
+        targets: targets.slice(currentTargetOffset, endOffset),
+        eventAbi: event_swap,
+        flatten: false,
+      })
+
+      logs.push(...currentLogs);
+      currentTargetOffset += targetChunkSize;
+    }
 
     logs.forEach((logs: ILog[], idx: number) => {
       const { token0, token1, pool_fee } = forSwapsOld[idx]
