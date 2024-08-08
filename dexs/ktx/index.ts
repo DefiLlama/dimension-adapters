@@ -4,9 +4,9 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
-  [CHAIN.MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
-  [CHAIN.ARBITRUM]: "https://arbisubgraph.ktx.systems/subgraphs/name/ktx",
+  [CHAIN.BSC]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/bsc_trade/api",
+  [CHAIN.MANTLE]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/mantle_trade/api",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/ktx_trade/api",
 };
 
 const historicalDataSwap = gql`
