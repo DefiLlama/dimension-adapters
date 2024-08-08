@@ -1,9 +1,8 @@
-import fetchURL from "../../utils/fetchURL"
+import fetchURL from "../../utils/fetchURL";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import {  adapter_agge } from './cetus-aggregator/index'
 
 type IUrl = {
   [s: string]: {
@@ -48,10 +47,9 @@ const fetch = (chain: Chain) => {
 
 
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    cetus: {
+  adapter: {
       [CHAIN.APTOS]: {
         fetch: fetch(CHAIN.APTOS),
         start: 1666224000,
@@ -60,10 +58,7 @@ const adapter: BreakdownAdapter = {
         fetch: fetch(CHAIN.SUI),
         start: 1682985600,
       }
-    },
-    "cetus-aggregator": adapter_agge.adapter
   }
-
 };
 
 export default adapter;
