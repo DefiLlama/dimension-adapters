@@ -75,9 +75,10 @@ interface FetchResult {
     totalVolumeUSD: string;
   }>
 }
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_t: any, _c: any,options: FetchOptions) => {
   try {
-    const dateId = Math.floor(options.endTimestamp / 86400);
+    console.log('fetching volume for', options.startOfDay);
+    const dateId = Math.floor(options.startOfDay / 86400);
     const response: FetchResult = await request(endpoints[options.chain], dailyQuery, { Id: dateId });
     if (!response) return {};
     return {
@@ -102,7 +103,7 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: volume,
 };
 export default adapter;
