@@ -3,9 +3,8 @@ import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../ada
 import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (timestamp: number, _: ChainBlocks, {chain}: FetchOptions): Promise<FetchResult> => {
-      const unixTimestamp= getTimestampAtStartOfDayUTC(timestamp)
-      console.log(chain, unixTimestamp)
+const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptions): Promise<FetchResult> => {
+      const unixTimestamp= getTimestampAtStartOfDayUTC(startOfDay)
       const data = await postURL(`https://prewimvk04.execute-api.us-west-1.amazonaws.com/prod/llama`, {timestamp: unixTimestamp, chain:chain}, 10);
       const chainData = data.result
       if (chainData === undefined ) {
@@ -94,7 +93,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, {chain}: FetchOptions): 
           start: 1662595200,
         },
       },
-      isExpensiveAdapter: true,
+      // isExpensiveAdapter: true,
     };
 
 export default adapter;
