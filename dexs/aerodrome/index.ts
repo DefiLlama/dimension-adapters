@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   if (options.startOfDay > 1714743000) {
 
-    while (unfinished) {
+    while (unfinished && currentOffset < 970) {
       const forSwaps: IForSwap[] = (await options.api.call({
         target: sugar,
         params: [chunkSize, currentOffset],
@@ -52,10 +52,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
       unfinished = forSwaps.length !== 0;
       currentOffset += chunkSize;
+      if (currentOffset > 970) { // slipstream launched after ~970 v2 then we need to start from the beginning
+        currentOffset = 970;
+      }
       allForSwaps.push(...forSwaps);
     }
 
-    const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+    const targets = [...new Set(allForSwaps.map((forSwap: IForSwap) => forSwap.lp))]
 
     let logs: ILog[][] = [];
     const targetChunkSize = 5;
