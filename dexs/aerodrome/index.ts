@@ -59,7 +59,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 
     const targets = [...new Set(allForSwaps.map((forSwap: IForSwap) => forSwap.lp))]
-    console.log(targets[0])
 
     let logs: ILog[][] = [];
     const targetChunkSize = 10;
