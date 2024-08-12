@@ -9,6 +9,7 @@ const SCROLL_URL = 'https://scroll.satori.finance/api/data-center/pub/overview/i
 const LINEA_URL = 'https://linea.satori.finance/api/data-center/pub/overview/integration'
 const BASE_URL = 'https://base.satori.finance/api/data-center/pub/overview/integration'
 const ARBITRUM_URL = 'https://arbitrum.satori.finance/api/data-center/pub/overview/integration'
+const XLARY_URL = 'https://xlayer.satori.finance/api/data-center/pub/overview/integration'
 interface VolumeInfo {
     fee24h: string;
     tradVol24h: string;
@@ -34,6 +35,9 @@ const  base = {
 }
 const arbitrum = {
     "exchange":"arbitrum-one"
+}
+const xlayer = {
+    "exchange":"xlayer"
 }
 const evm_fetch  =  async (_timestamp: number) => {
     const volumeData: VolumeInfo = (await postURL(ZKEVM_URL,zk_evm)).data;
@@ -106,6 +110,18 @@ const arbitrum_fetch  =  async (_timestamp: number) => {
             timestamp: parseInt(volumeData.time),
         };
 };
+
+const xlayer_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(XLARY_URL,xlayer)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.POLYGON_ZKEVM]: {
@@ -135,6 +151,11 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.ARBITRUM]: {
             fetch:arbitrum_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.XLAYER]: {
+            fetch:xlayer_fetch,
             runAtCurrTime: true,
             start: 1684003134,
         }
