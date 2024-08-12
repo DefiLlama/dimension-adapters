@@ -1,5 +1,7 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
+import { filterPools } from "../../helpers/uniswap";
 
 const sugar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
 const sugarOld = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
@@ -58,38 +60,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       allForSwaps.push(...forSwaps.sort(() => Math.random() - 0.5)); // shuffle the array to avoid getting stuck on a single pool
     }
 
-    const targets = [...new Set(allForSwaps.map((forSwap: IForSwap) => forSwap.lp))]
-
-    let logs: ILog[][] = [];
-    const targetChunkSize = 10;
-    let currentTargetOffset = 0;
-    unfinished = true;
-
-    while (unfinished) {
-      const randomNumber = Math.floor(Math.random() * 5);
-      let endOffset = currentTargetOffset + targetChunkSize + randomNumber;
-      if (endOffset >= targets.length) {
-        unfinished = false;
-        endOffset = targets.length;
-      }
-
-      const currentLogs: ILog[][] = await options.getLogs({
-        targets: targets.slice(currentTargetOffset, endOffset),
-        eventAbi: event_swap,
-        flatten: false,
-      })
-      logs.push(...currentLogs);
-      currentTargetOffset += targetChunkSize + randomNumber;
-    }
-
-    logs.forEach((logs: ILog[], idx: number) => {
-      const { token0, token1 } = allForSwaps[idx]
-      logs.forEach((log: any) => {
-        dailyVolume.add(token0, log.amount0Out)
-        dailyVolume.add(token1, log.amount1Out)
-      })
+    const pairObject: IJSON<string[]> = {}
+    const pairs = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+    pairs.forEach((pair: string, i: number) => {
+      pairObject[pair] = [allForSwaps[i].token0, allForSwaps[i].token1]
     })
-
+    // filter out the pairs with less than 1000 USD pooled value
+    const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
+    const dailyVolume = options.createBalances()
+    await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
+      const [token0, token1] = pairObject[pair]
+      const logs = await options.getLogs({ target: pair, eventAbi: event_swap })
+      logs.forEach(log => {
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
+      })
+    }))
     return { dailyVolume }
   }
   else {
