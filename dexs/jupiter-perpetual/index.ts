@@ -1,4 +1,3 @@
-import { version } from "os";
 import { FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
