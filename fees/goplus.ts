@@ -38,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
   totalFees.add(USDT_MINT, BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0));
   dailyProtocolRevenue.add(USDT_MINT, dailyFoundationReceived.toFixed(0));
   totalProtocolRevenue.add(USDT_MINT, foundationBalanceEnd);
-  return { dailyFees, totalFees, dailyProtocolRevenue, totalProtocolRevenue };
+  return { dailyFees, totalFees, dailyProtocolRevenue, dailyRevenue: dailyProtocolRevenue, totalProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -46,7 +46,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 36724659,
+      start: 1717200000,
       meta: {
         methodology: {
             ProtocolRevenue: "Treasury receives 30% of each security service purchase.",
