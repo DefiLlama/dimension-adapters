@@ -7,6 +7,16 @@ const GOPLUS_FOUNDATION = "0x34ebddd30ccbd3f1e385b41bdadb30412323e34f";
 const GOPLUS_REVENUE_POOL = "0x648d7f4ad39186949e37e9223a152435ab97706c";
 
 const BALANCE_ABI = 'erc20:balanceOf';
+const CALLS = [
+      {
+          target: USDT_MINT,
+          params: [GOPLUS_FOUNDATION]
+      },
+      {
+          target: USDT_MINT,
+          params: [GOPLUS_REVENUE_POOL]
+      },
+  ];
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -15,29 +25,11 @@ const fetch = async (options: FetchOptions) => {
   const totalProtocolRevenue = options.createBalances();
   const [foundationBalanceStart, revenueBalanceStart] = await options.fromApi.multiCall({
     abi: BALANCE_ABI,
-    calls: [
-        {
-            target: USDT_MINT,
-            params: [GOPLUS_FOUNDATION]
-        },
-        {
-            target: USDT_MINT,
-            params: [GOPLUS_REVENUE_POOL]
-        },
-    ]
+    calls: CALLS
   });
   const [foundationBalanceEnd, revenueBalanceEnd] = await options.toApi.multiCall({
     abi: BALANCE_ABI,
-    calls: [
-        {
-            target: USDT_MINT,
-            params: [GOPLUS_FOUNDATION]
-        },
-        {
-            target: USDT_MINT,
-            params: [GOPLUS_REVENUE_POOL]
-        },
-    ]
+    calls: CALLS
   });
   const dailyFoundationReceived = BigNumber(foundationBalanceEnd).minus(BigNumber(foundationBalanceStart));
   const dailyRevenueReceived = BigNumber(revenueBalanceEnd).minus(BigNumber(revenueBalanceStart));
@@ -50,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
