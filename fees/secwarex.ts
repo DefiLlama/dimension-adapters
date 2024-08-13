@@ -3,8 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 
 const USDT_MINT = "0x55d398326f99059ff775485246999027b3197955";
-const SECWAREX_FOUNDATION = "0x34ebddd30ccbd3f1e385b41bdadb30412323e34f";
-const SECWAREX_REVENUE_POOL = "0x648d7f4ad39186949e37e9223a152435ab97706c";
+const GOPLUS_FOUNDATION = "0x34ebddd30ccbd3f1e385b41bdadb30412323e34f";
+const GOPLUS_REVENUE_POOL = "0x648d7f4ad39186949e37e9223a152435ab97706c";
 
 const BALANCE_ABI = 'erc20:balanceOf';
 
@@ -18,11 +18,11 @@ const fetch = async (options: FetchOptions) => {
     calls: [
         {
             target: USDT_MINT,
-            params: [SECWAREX_FOUNDATION]
+            params: [GOPLUS_FOUNDATION]
         },
         {
             target: USDT_MINT,
-            params: [SECWAREX_REVENUE_POOL]
+            params: [GOPLUS_REVENUE_POOL]
         },
     ]
   });
@@ -31,11 +31,11 @@ const fetch = async (options: FetchOptions) => {
     calls: [
         {
             target: USDT_MINT,
-            params: [SECWAREX_FOUNDATION]
+            params: [GOPLUS_FOUNDATION]
         },
         {
             target: USDT_MINT,
-            params: [SECWAREX_REVENUE_POOL]
+            params: [GOPLUS_REVENUE_POOL]
         },
     ]
   });
@@ -57,8 +57,8 @@ const adapter: SimpleAdapter = {
       start: 36724659,
       meta: {
         methodology: {
-            ProtocolRevenue: "Treasury receives 30% of each purchase.",
-            Fees: "All fees comes from users for transaction security."
+            ProtocolRevenue: "Treasury receives 30% of each security service purchase.",
+            Fees: "All fees comes from users for security service provided by GoPlus Network."
         }
       }
     },
