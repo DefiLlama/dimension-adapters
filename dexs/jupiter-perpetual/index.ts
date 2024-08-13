@@ -22,6 +22,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     "referrer": "https://www.jup.ag/",
     "referrerPolicy": "strict-origin-when-cross-origin",
     "mode": "cors",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
   }
   const url = (token: string) => `https://perp-api.jup.ag/trpc/tradeVolume?batch=1&input={"0":{"json":{"mint":"${token}"}}}`
   const fetches = (await Promise.all(list_of_mints.map(token => httpGet(url(token), { headers: header_user })))).flat();
