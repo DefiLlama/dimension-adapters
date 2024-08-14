@@ -14,6 +14,9 @@ const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 const gatewayMatleBaseUrl = "https://gateway.mantle-prod.vertexprotocol.com/v1";
 const archiveMatleBaseUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
 
+const gatewaySeiBaseUrl = "https://gateway.sei-prod.vertexprotocol.com/v1";
+const archiveSeiBaseUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
+
 type TURL = {
   [s: string]: {
     gateway: string;
@@ -28,7 +31,11 @@ const url: TURL = {
   [CHAIN.MANTLE]: {
     gateway: gatewayMatleBaseUrl,
     archive: archiveMatleBaseUrl,
-  }
+  },
+  [CHAIN.SEI]: {
+    gateway: gatewaySeiBaseUrl,
+    archive: archiveSeiBaseUrl,
+  },
 }
 
 const fetchValidSymbols = async (fetchOptions: FetchOptions): Promise<number[]> => {
@@ -105,6 +112,7 @@ const fetchPerps = async (timeStamp: number, _: any, fetchOptions: FetchOptions)
 };
 
 const startTime = 1682514000;
+const seiStartTime = 1723649209
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -116,6 +124,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTLE]: {
         fetch: fetchSpots,
         start: startTime,
+      },
+      [CHAIN.SEI]: {
+        fetch: fetchSpots,
+        start: seiStartTime,
       }
     },
     derivatives: {
@@ -126,6 +138,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTLE]: {
         fetch: fetchPerps,
         start: 1718841600,
+      },
+      [CHAIN.SEI]: {
+        fetch: fetchSpots,
+        start: seiStartTime,
       }
     },
   },
