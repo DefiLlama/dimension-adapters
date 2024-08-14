@@ -43,6 +43,8 @@ const fetchFees = async (options: FetchOptions) => {
 
     let total_lp_fees = 0
     let total_protocol_fees = 0
+    let referral_fees = 0
+    
 
     // go through all operations and calculate fees based on the current prices
     for (const item of res['operations']) {
@@ -52,16 +54,17 @@ const fetchFees = async (options: FetchOptions) => {
                 const price = asset_prices[operation.fee_asset_address]
                 total_lp_fees += operation.lp_fee_amount * price
                 total_protocol_fees += operation.protocol_fee_amount * price
+                referral_fees += (operation.referral_fee_amount || 0) * price
             } else {
-                console.log("Fee asset not found", operation.fee_asset_address)
+                // console.log("Fee asset not found", operation.fee_asset_address)
                 continue
             }      
         }
     }
 
     return {
-        dailyUserFees: total_lp_fees + total_protocol_fees,
-        dailyFees: total_lp_fees + total_protocol_fees,
+        dailyUserFees: total_lp_fees + total_protocol_fees + referral_fees,
+        dailyFees: total_lp_fees + total_protocol_fees + referral_fees,
         dailySupplySideRevenue: total_lp_fees,
         dailyRevenue: total_protocol_fees
     }
@@ -76,9 +79,9 @@ export default {
             start: 1700000000,
             meta: {
                 methodology: {
-                    UserFees: "User pays fee on each swap.",
-                    Revenue: "Protocol receives 1/3 of fees paid by users.",
-                    SupplySideRevenue: "2/3 of user fees are distributed among LPs.",
+                    UserFees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
+                    Revenue: "Protocol receives 1/3 of fees paid by users (not including referral fees).",
+                    SupplySideRevenue: "2/3 of user fees are distributed among LPs (not including referral fees).",
                 },
             },
             fetch: fetchFees,
