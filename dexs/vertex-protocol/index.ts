@@ -112,7 +112,7 @@ const fetchPerps = async (timeStamp: number, _: any, fetchOptions: FetchOptions)
 };
 
 const startTime = 1682514000;
-const seiStartTime = 1723649209
+const seiStartTime = 1723547681
 
 const adapter: BreakdownAdapter = {
   breakdown: {

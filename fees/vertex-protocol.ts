@@ -147,7 +147,7 @@ const adapter: Adapter = {
     [CHAIN.SEI]: { 
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1723649209 
+      start: 1723547681 
     },
   },
 };
