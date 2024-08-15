@@ -10,7 +10,8 @@ function getUnixTimeNow() {
 }
 
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
-  adapterVersion = 1
+  adapterVersion = 1,
+  isTest = false,
 }: any = {}) {
 
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
@@ -23,7 +24,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
   await Promise.all(chains.map(setChainValidStart))
 
-  const response = await Promise.all(chains.filter(chain => validStart[chain]?.canRun).map(getChainResult))
+  const response = await Promise.all(chains.filter(chain => {
+    const res = validStart[chain]?.canRun
+    if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
+    return validStart[chain]?.canRun
+  }).map(getChainResult))
   return response
 
   async function getChainResult(chain: string) {
