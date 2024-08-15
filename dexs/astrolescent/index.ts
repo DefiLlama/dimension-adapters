@@ -1,6 +1,7 @@
 import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
+import customBackfill from "../../helpers/customBackfill";
 
 interface AstrolescentStats {
   volumeUSD:	number;
@@ -20,6 +21,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch: fetchVolume,
       start: 1698624000,
+      customBackfill: customBackfill(CHAIN.RADIXDLT, () => fetchVolume),
       runAtCurrTime: false
     }
   }
