@@ -96,7 +96,7 @@ function getGraphDimensions({
   feesPercent,
   blacklistTokens = {}
 }: IGetChainVolumeParams) {
-  dailyFees; getCustomBlock;
+  dailyFees; 
   // DAILY VOLUME
   // Graph fields
   const graphFieldsDailyVolume = {
@@ -157,10 +157,10 @@ function getGraphDimensions({
     return async (options: FetchOptions) => {
       const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
 
-      const endBlock = (await getEndBlock().catch((e: any) =>
+      const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock()).catch((e: any) =>
           console.log(wrapGraphError(e).message),
         )) ?? undefined;
-      const startBlock = (await getStartBlock().catch((e: any) =>
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock()).catch((e: any) =>
           console.log(wrapGraphError(e).message),
         )) ?? undefined;
 
