@@ -3,14 +3,14 @@ import { request, gql } from "graphql-request";
 import { BaseAdapter, FetchOptions, FetchResultGeneric, IJSON, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphFees";
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp, getUniswapDateId, handle200Errors } from "./utils";
+import { handle200Errors } from "./utils";
 import { getStartTimestamp } from "../getStartTimestamp";
 
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
 
-const DEFAULT_DAILY_VOLUME_FACTORY = "uniswapDayData";
-const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolumeUSD";
+const DEFAULT_DAILY_VOLUME_FACTORY = "uniswapFactories";
+const DEFAULT_DAILY_VOLUME_FIELD = "totalVolumeUSD";
 const DEFAULT_DAILY_DATE_FIELD = "date";
 const DEFAULT_DAILY_PAIR_FACTORY = "pairDayDatas";
 
@@ -96,6 +96,7 @@ function getGraphDimensions({
   feesPercent,
   blacklistTokens = {}
 }: IGetChainVolumeParams) {
+  dailyFees; getCustomBlock;
   // DAILY VOLUME
   // Graph fields
   const graphFieldsDailyVolume = {
@@ -105,21 +106,6 @@ function getGraphDimensions({
     pairs: dailyVolume.pairs ?? DEFAULT_DAILY_PAIR_FACTORY,
     idGraphType: dailyVolume.idGraphType ?? DEFAULT_ID_TYPE
   }
-  // Queries
-  const dailyVolumeQuery = gql`
-  query daily_volume ($id: ${graphFieldsDailyVolume.idGraphType}) {
-      ${graphFieldsDailyVolume.factory} (id: $id) {
-        ${graphFieldsDailyVolume.field}
-      }
-  }`;
-  const alternativeDailyQuery = gql`
-  query daily_volume_alternative ($timestamp: Int) {
-    ${graphFieldsDailyVolume.factory}s (where: {${graphFieldsDailyVolume.dateField}: $timestamp}) {
-      ${graphFieldsDailyVolume.dateField}
-      ${graphFieldsDailyVolume.field}
-    }
-  }`;
-
   // TOTAL VOLUME
   // Graph fields
   const graphFieldsTotalVolume = {
@@ -135,20 +121,6 @@ function getGraphDimensions({
     }
   }`;
 
-  // DAILY FEES
-  // Graph fields
-  const graphFieldsDailyFees = {
-    factory: dailyFees.factory ?? DEFAULT_DAILY_FEES_FACTORY,
-    field: dailyFees.field ?? DEFAULT_DAILY_FEES_FIELD
-  }
-  // Query
-  const dailyFeesQuery = gql`
-  query daily_fees ($id: ID!) {
-    ${graphFieldsDailyFees.factory}(id: $id) {
-      ${graphFieldsDailyFees.field}
-    }
-  }`;
-
   // TOTAL FEES
   // Graph fields
   const graphFieldsTotalFees = {
@@ -157,8 +129,8 @@ function getGraphDimensions({
   }
   // Query
   const totalFeesQuery = gql`
-  query total_fees {
-    ${graphFieldsTotalFees.factory} {
+  query total_fees ($block: ${graphFieldsTotalVolume.blockGraphType}) {
+    ${graphFieldsTotalFees.factory}(block: { number: $block }) {
       ${graphFieldsTotalFees.field}
     }
   }`;
@@ -183,17 +155,15 @@ function getGraphDimensions({
     `
       : undefined;
     return async (options: FetchOptions) => {
-      const { endTimestamp, getEndBlock } = options;
-      // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
-      const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
-      const block =
-        (await customBlockFunc(endTimestamp).catch((e: any) =>
+      const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
+
+      const endBlock = (await getEndBlock().catch((e: any) =>
           console.log(wrapGraphError(e).message),
         )) ?? undefined;
-      // Get params
-      const id = String(getUniswapDateId(new Date(endTimestamp * 1000)));
-      // Execute queries
-      // DAILY VOLUME
+      const startBlock = (await getStartBlock().catch((e: any) =>
+          console.log(wrapGraphError(e).message),
+        )) ?? undefined;
+
       let graphResDailyVolume;
       let dailyVolume: any;
       if (dailyVolumePairsQuery) {
@@ -202,7 +172,7 @@ function getGraphDimensions({
           graphUrls[chain],
           dailyVolumePairsQuery,
           {
-            timestamp_gt: endTimestamp - 3600 * 24,
+            timestamp_gt: startTimestamp,
             timestamp_lte: endTimestamp,
           },
           graphRequestHeaders?.[chain],
@@ -229,38 +199,36 @@ function getGraphDimensions({
           }
           return acc
         }, undefined as number | undefined)
-      } else {
-        graphResDailyVolume = await request(graphUrls[chain], dailyVolumeQuery, { id }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
-        dailyVolume = graphResDailyVolume?.[graphFieldsDailyVolume.factory]?.[graphFieldsDailyVolume.field]
-        if (!graphResDailyVolume || !dailyVolume) {
-          console.info("Attempting with alternative query...")
-          graphResDailyVolume = await request(graphUrls[chain], alternativeDailyQuery, { timestamp: getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000)) }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`Failed to get alternative daily volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`))
-          const factory = graphFieldsDailyVolume.factory.toLowerCase().charAt(graphFieldsDailyVolume.factory.length - 1) === 's' ? graphFieldsDailyVolume.factory : `${graphFieldsDailyVolume.factory}s`
-          dailyVolume = graphResDailyVolume?.[factory].reduce((p: any, c: any) => p + Number(c[graphFieldsDailyVolume.field]), 0);
-        }
       }
-
       // TOTAL VOLUME
-      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
+      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
       const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
-      // DAILY FEES
-      const graphResDailyFees = await request(graphUrls[chain], dailyFeesQuery, { id }, graphRequestHeaders?.[chain]).catch(_e => {
-        if (dailyVolume === undefined || feesPercent?.Fees === undefined)
-          console.error(`Unable to get daily fees on ${chain} from graph.`)
-      });
-      const dailyFees = graphResDailyFees?.[graphFieldsDailyFees.factory]?.[graphFieldsDailyFees.field]
+      // PREV TOTAL VOLUME
+      const graphResPrevTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
+      const prevTotalVolume = graphResPrevTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
+      dailyVolume = totalVolume - prevTotalVolume
 
       // TOTAL FEES
-      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { id }, graphRequestHeaders?.[chain]).catch(_e => {
+      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(_e => {
         if (totalVolume === undefined || feesPercent?.Fees === undefined)
           console.error(`Unable to get total fees on ${chain} from graph.`)
       });
       const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
+      // PREV TOTAL FEES
+      const graphResPrevTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
+        if (totalVolume === undefined || feesPercent?.Fees === undefined)
+          console.error(`Unable to get total fees on ${chain} from graph.`)
+      });
+      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
+
+      const dailyFees = totalFees - prevTotalFees
+      
+      // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
       const response: FetchResultGeneric = {
         timestamp: endTimestamp,
-        block,
+        block: endBlock,
         totalVolume,
         dailyVolume,
         dailyFees,
