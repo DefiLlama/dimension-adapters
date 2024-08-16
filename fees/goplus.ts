@@ -21,8 +21,6 @@ const CALLS = [
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const totalFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const totalProtocolRevenue = options.createBalances();
   const [foundationBalanceStart, revenueBalanceStart] = await options.fromApi.multiCall({
     abi: BALANCE_ABI,
     calls: CALLS
@@ -36,9 +34,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyTotal = dailyFoundationReceived.plus(dailyRevenueReceived).toFixed(0);
   dailyFees.add(USDT_MINT, dailyTotal);
   totalFees.add(USDT_MINT, BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0));
-  dailyProtocolRevenue.add(USDT_MINT, dailyFoundationReceived.toFixed(0));
-  totalProtocolRevenue.add(USDT_MINT, foundationBalanceEnd);
-  return { dailyFees, totalFees, dailyProtocolRevenue, totalProtocolRevenue };
+  return { dailyFees, totalFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -49,7 +45,6 @@ const adapter: SimpleAdapter = {
       start: 36724659,
       meta: {
         methodology: {
-            ProtocolRevenue: "Treasury receives 30% of each security service purchase.",
             Fees: "All fees comes from users for security service provided by GoPlus Network."
         }
       }
