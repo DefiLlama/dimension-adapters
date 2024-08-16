@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchOptions,
-      start: 1713205800,
+      start: 1699660800,
     },
   }
 }
