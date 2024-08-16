@@ -1,6 +1,7 @@
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
 const chains = [
     CHAIN.ETHEREUM,
@@ -68,19 +69,19 @@ const chainToId: Record<string, number> = {
     [CHAIN.ZKSYNC]: 324,
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
+const fetch = async (_at: number, _t: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
+        new Date(options.startOfDay * 1000)
     );
 
     const volume = (
-        await fetchURL(
-            `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[chain]}&timestamp=${unixTimestamp}`
+        await httpGet(
+            `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${unixTimestamp}`
         )
     )?.volume;
 
     return {
-        dailyVolume: volume,
+        dailyVolume: volume  || 0,
         timestamp: unixTimestamp,
     };
 };
@@ -91,7 +92,7 @@ const adapter: any = {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: fetch(chain),
+                    fetch: fetch,
                     start: 1704067200,
                 },
             };
