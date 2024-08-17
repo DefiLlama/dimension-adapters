@@ -46,7 +46,8 @@ const adapter: Adapter = {
             fetch: sol,
             start: 0
         }
-    })
+    }),
+    isExpensiveAdapter: true
 }
 
 export default adapter;
