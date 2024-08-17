@@ -43,7 +43,6 @@ const evm = async ({ fromApi, toApi, chain, createBalances }: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 2,
-    isExpensiveAdapter: true,
     adapter: Object.keys(contracts).reduce((all, chain) => ({
         ...all,
         [chain]: {
