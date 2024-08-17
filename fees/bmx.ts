@@ -5,7 +5,9 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/morphex-labs/bmx-base-stats",
+    "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
+  [CHAIN.MODE]:
+    "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
 };
 
 const methodology = {
@@ -64,6 +66,13 @@ const adapter: Adapter = {
         methodology,
       },
     },
+    [CHAIN.MODE]: {
+      fetch: graphs(CHAIN.MODE),
+      start: 1720627435,
+      meta: {
+        methodology,
+      },
+    }
   },
 };
 
