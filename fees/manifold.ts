@@ -1,5 +1,4 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
 import { nullAddress } from "../helpers/token";
 
 // Found by looking at contracts deployed by 0xa8863bf1c8933f649e7b03eb72109e5e187505ea
@@ -10,7 +9,6 @@ const contracts = {
     ethereum: ["0x3b8c2feb0f4953870f825df64322ec967aa26b8c", "0xDb8d79C775452a3929b86ac5DEaB3e9d38e1c006", "0x26bbea7803dcac346d5f5f135b57cf2c752a02be", "0x23aa05a271debffaa3d75739af5581f744b326e4"],
     optimism: CREATE2_CONTRACTS,
     base: CREATE2_CONTRACTS,
-    
 } as any
 
 
