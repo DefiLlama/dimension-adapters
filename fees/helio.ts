@@ -22,7 +22,7 @@ const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   receivedTokens.forEach(row=>{
     if(!solanaDecimals[row.token_mint_address]){
-        throw new Error("unsupported token")
+        return; // skip unknown tokens
     }
     dailyFees.add(row.token_mint_address, (row.received * 10**solanaDecimals[row.token_mint_address]).toFixed(0))
   })
