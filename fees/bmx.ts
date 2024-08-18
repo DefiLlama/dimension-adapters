@@ -1,6 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
+import type { FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
@@ -20,8 +21,8 @@ const methodology = {
     "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
 };
 
-const graphs = (chain: string) => async (timestamp: number) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
   const graphQuery = gql`{
@@ -47,27 +48,27 @@ const graphs = (chain: string) => async (timestamp: number) => {
   const finalUserFee = userFee / 1e30;
 
   return {
-    timestamp,
+    endTimestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.4).toString(),
-    dailyHoldersRevenue: (finalDailyFee * 0.1).toString(),
+    dailyHoldersRevenue: (finalDailyFee * 0.4).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
   };
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: graphs(CHAIN.BASE),
+      fetch: graphs,
       start: 1694304000,
       meta: {
         methodology,
       },
     },
     [CHAIN.MODE]: {
-      fetch: graphs(CHAIN.MODE),
+      fetch: graphs,
       start: 1720627435,
       meta: {
         methodology,
