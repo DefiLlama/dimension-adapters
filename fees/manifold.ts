@@ -24,7 +24,7 @@ const evm = async ({ fromApi, toApi, chain, createBalances }: FetchOptions) => {
     const dailyFees = createBalances();
     dailyFees.addBalances(post)
     dailyFees.subtract(pre)
-    if(Object.values(dailyFees)[0]<0){
+    if(Number(Object.values(dailyFees.getBalances())[0])<0){
         /*
         When a new NFT is minted, a fee gets paid, the fee changes based on whether the NFT was minted with no whitelist or with a merkle whitelist
         However there's no event emitted that can be used to differentiate those two cases, so its impossible to track exact fees via events, only upper and lower bounds
