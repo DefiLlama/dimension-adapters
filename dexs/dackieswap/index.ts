@@ -13,9 +13,9 @@ const v3Endpoint = {
   [CHAIN.BLAST]:
       "https://api.studio.thegraph.com/query/50473/v3-blast/version/latest",
   [CHAIN.MODE]:
-      "https://graph.dackieswap.xyz/mode/subgraphs/name/v3-mode",
+      "https://api.studio.thegraph.com/query/50473/v3-mode/version/latest",
   [CHAIN.XLAYER]:
-      "https://graph.dackieswap.xyz/xlayer/subgraphs/name/v3-xlayer",
+      "https://api.studio.thegraph.com/query/50473/v3-xlayer/version/latest",
 };
 
 const VOLUME_USD = "volumeUSD";
