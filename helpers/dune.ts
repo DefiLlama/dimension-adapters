@@ -90,3 +90,16 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
       }
     }
 }
+
+const tableName = {
+  bsc: "bnb",
+  ethereum: "ethereum",
+  base: "base"
+} as any
+
+export const queryDuneSql = (options:any, query:string) => {
+  return queryDune("3996608", {
+    fullQuery: query.replace("CHAIN", tableName[options.chain]).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
+  AND block_time <= from_unixtime(${options.endTimestamp})`)
+  })
+}
