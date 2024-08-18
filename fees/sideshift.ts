@@ -18,7 +18,7 @@ const fetchFees = async (options: FetchOptions) => {
   const holderRevenue = dailyFees.clone()
   dailyFees.resizeBy(4)
 
-  return { dailyFees, dailyRevenue: dailyFees, holdersRevenue: holderRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: holderRevenue }
 }
 const adapters: SimpleAdapter = {
   version: 2,
