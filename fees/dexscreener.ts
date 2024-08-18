@@ -18,6 +18,7 @@ const eth = async (options: FetchOptions) => {
     }
 }
 
+// TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const value = (await queryDune("3986808", {
