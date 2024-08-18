@@ -35,7 +35,7 @@ For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDune } from "../helpers/dune";
-import { addTokensReceived } from '../helpers/token';
+import { addTokensReceived, nullAddress } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -47,9 +47,23 @@ const tokens = {
     base: []
 } as any
 
+const tableName = {
+    bsc: "bnb",
+    ethereum: "ethereum",
+    base: "base"
+} as any
+
 const evm = async (options: FetchOptions) => {
-    const dailyFees = await addTokensReceived({ options, tokens: tokens[options.chain], target: '0x997Cc123cF292F46E55E6E63e806CD77714DB70f' })
-    // add eth/bnb received
+    const receiverWallet = '0x997Cc123cF292F46E55E6E63e806CD77714DB70f'
+    const dailyFees = await addTokensReceived({ options, tokens: tokens[options.chain], target: receiverWallet })
+    const query = `select sum(value) as received from ${tableName[options.chain]}.transactions
+    where to = ${receiverWallet}
+    AND block_time >= from_unixtime(${options.startTimestamp})
+    AND block_time <= from_unixtime(${options.endTimestamp})`
+    const nativeTransfers = await queryDune('3996608', {
+        fullQuery: query,
+    })
+    dailyFees.add(nullAddress, nativeTransfers[0].received)
 
     return {
         dailyFees,
