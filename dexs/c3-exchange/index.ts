@@ -58,7 +58,7 @@ function adapterConstructor(
       ...obj,
       [chain]: {
         fetch: fetchVolumeFunc,
-        start: 1688169600, // 2023-7-1 00:00:00 GMT
+        start: 1688169600, // 1st July 2023, 00:00:00 GMT
         // runAtCurrTime: false,
         meta: {
           methodology: {
