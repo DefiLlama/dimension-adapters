@@ -7,7 +7,7 @@ import {
 
 const SEIYAN_FUN_BASE_URL = "https://seiyan.fun/api/public/v1";
 const SEI_PACIFIC_CAIP_CHAIN_ID = "cosmos:sei-pacific-1";
-const SEIYAN_FUN_INITIAL_TIMESTAMP = 1722510000; // 2024-08-01 11:00:00 UTC
+const SEIYAN_FUN_INITIAL_TIMESTAMP = 1722470400; // 2024-08-01 00:00:00 UTC
 
 const buildTradingVolumeUrl = (startAt: number, endAt: number) =>
   `${SEIYAN_FUN_BASE_URL}/trading-volume?caipChainID=${SEI_PACIFIC_CAIP_CHAIN_ID}&startAt=${startAt}&endAt=${endAt}`;
