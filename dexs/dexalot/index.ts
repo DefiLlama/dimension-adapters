@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -27,7 +27,7 @@ const chainToEnv = (chain: CHAIN) => {
 const fetchFromChain = (chain: CHAIN) => {
   const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
 
-  return async (options: FetchOptions): Promise<FetchResultV2> => {
+  return async (_a:any, _t: any, options: FetchOptions): Promise<FetchResult> => {
     const dayTimestamp = new Date(options.startOfDay * 1000)
     const dateStr = dayTimestamp.toISOString().split('T')[0]
     const historicalVolume: IVolumeall[] = await httpGet(endpoint)
@@ -39,6 +39,7 @@ const fetchFromChain = (chain: CHAIN) => {
       .find(dayItem => dayItem.date.split('T')[0] === dateStr)?.volumeusd
 
     return {
+      timestamp: options.startOfDay,
       totalVolume: `${totalVolume}`,
       dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     };
