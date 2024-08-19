@@ -1,7 +1,7 @@
 import {
-  ChainBlocks,
+  FetchGetLogsOptions,
   FetchOptions,
-  FetchResultFees,
+  FetchResultV2,
   SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -9,12 +9,14 @@ import { Chain } from "@defillama/sdk/build/general";
 import { addTokensReceived } from "../helpers/token";
 import BigNumber from "bignumber.js";
 import { getConfig } from "../helpers/cache";
-import { ChainApi } from "@defillama/sdk";
+import { Balances, ChainApi } from "@defillama/sdk";
 
 const ABI = {
   assetInfo: "function assetInfo() view returns (uint8,address,uint8)",
   getRewardTokens: "function getRewardTokens() view returns (address[])",
   exchangeRate: "function exchangeRate() view returns (uint256)",
+  orderFilledV2:
+    "event OrderFilledV2(bytes32 indexed orderHash, uint8 indexed orderType, address indexed YT, address token, uint256 netInputFromMaker, uint256 netOutputToMaker, uint256 feeAmount, uint256 notionalVolume, address maker, address taker)",
   marketSwapEvent:
     "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
 };
@@ -23,6 +25,24 @@ type IConfig = {
   [s: string | Chain]: {
     treasury: string;
   };
+};
+
+type MarketData = {
+  address: string;
+  sy: {
+    address: string;
+  };
+  yt: {
+    address: string;
+  };
+};
+
+const chains: { [chain: string]: { id: number; start: number } } = {
+  [CHAIN.ETHEREUM]: { id: 1, start: 1686268800 },
+  [CHAIN.ARBITRUM]: { id: 42161, start: 1686268800 },
+  [CHAIN.MANTLE]: { id: 5000, start: 1711506087 },
+  [CHAIN.BSC]: { id: 56, start: 1686268800 },
+  [CHAIN.OPTIMISM]: { id: 10, start: 1691733600 },
 };
 
 const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -62,20 +82,64 @@ const chainConfig: IConfig = {
     treasury: "0xe972d450ec5b11b99d97760422e0e054afbc8042",
   },
   [CHAIN.MANTLE]: {
-    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
-  }
+    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55",
+  },
 };
 
-const fetch = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    options: FetchOptions
-  ): Promise<FetchResultFees> => {
-    await getWhitelistedAssets(options.api);
-    const { api, getLogs, createBalances } = options;
+async function amm(
+  marketToSy: Map<string, string>,
+  getLogs: (params: FetchGetLogsOptions) => Promise<any[]>,
+  balances: Balances,
+): Promise<void> {
+  const swapEvents: { [address: string]: any[] } = {};
+  await Promise.all(
+    Object.keys(marketToSy).map(
+      async (target: string) =>
+        await getLogs({
+          eventAbi: ABI.marketSwapEvent,
+          target,
+        }).then((e) => {
+          swapEvents[target] = e;
+        }),
+    ),
+  );
 
-    const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
+  Object.keys(swapEvents).map((market) => {
+    swapEvents[market].map((swap) => {
+      balances.add(marketToSy.get(market)!, Math.abs(Number(swap.netSyOut)));
+    });
+  });
+}
+
+async function limitOrder(
+  ytToSy: Map<string, string>,
+  getLogs: (params: FetchGetLogsOptions) => Promise<any[]>,
+  balances: Balances,
+): Promise<void> {
+  const fills = await getLogs({
+    target: "0x000000000000c9b3e2c3ec88b1b4c0cd853f4321",
+    eventAbi: ABI.orderFilledV2,
+  });
+
+  fills.map((fill) => {
+    const sy = ytToSy.get(fill.YT.toLowerCase());
+    if (!sy) return;
+    balances.add(sy, fill.notionalVolume);
+  });
+}
+
+const fetch = (chain: Chain) => {
+  return async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { markets, sys, marketToSy, ytToSy } = await getWhitelistedAssets(
+      options.api,
+    );
+    const dailyVolume: Balances = options.createBalances();
+
+    const volumePromises = [
+      await amm(marketToSy, options.getLogs, dailyVolume),
+      await limitOrder(ytToSy, options.getLogs, dailyVolume),
+    ];
+    const { api, getLogs, createBalances } = options;
 
     const rewardTokens: string[] = (
       await api.multiCall({
@@ -115,10 +179,10 @@ const fetch = (chain: Chain) => {
           const netSyToReserve = swapEvent.netSyToReserve;
           dailySupplySideFees.add(
             marketToSy.get(market)!,
-            netSyFee - netSyToReserve
+            netSyFee - netSyToReserve,
           ); // excluding revenue fee
         }
-      })
+      }),
     );
 
     const dailyRevenue = await addTokensReceived({
@@ -174,7 +238,7 @@ const fetch = (chain: Chain) => {
           ? {
               skipChain: true,
             }
-          : undefined
+          : undefined,
       );
 
       if (rawAmountSupplySide !== undefined) {
@@ -185,7 +249,7 @@ const fetch = (chain: Chain) => {
             ? {
                 skipChain: true,
               }
-            : undefined
+            : undefined,
         );
       }
     }
@@ -193,49 +257,27 @@ const fetch = (chain: Chain) => {
     const dailyFees = dailyRevenue.clone();
     dailyFees.addBalances(dailySupplySideFees);
 
+    await Promise.all(volumePromises);
+
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyVolume,
+      dailyFees,
+      dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailySupplySideFees,
-      timestamp,
     };
   };
-};
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: 1686268800,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1686268800,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: 1686268800,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691733600,
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch(CHAIN.MANTLE),
-      start: 1711506087,
-    },
-  },
 };
 
 async function getWhitelistedAssets(api: ChainApi): Promise<{
   markets: string[];
   sys: string[];
   marketToSy: Map<string, string>;
+  ytToSy: Map<string, string>;
 }> {
   const { results } = await getConfig(
     "pendle/v2/revenue-" + api.chain,
-    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
+    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`,
   );
   const markets = results.map((d: any) => d.lp.address);
   const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
@@ -246,7 +288,24 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
     marketToSy.set(result.lp.address, result.sy.address);
   }
 
-  return { markets, sys, marketToSy };
+  const ytToSy = new Map<string, string>();
+  results.map((market: MarketData) => {
+    ytToSy.set(market.yt.address.toLowerCase(), market.sy.address);
+  });
+
+  return { markets, sys, marketToSy, ytToSy };
 }
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {},
+};
+
+Object.keys(chains).map((chain) => {
+  adapter.adapter[chain] = {
+    fetch: fetch(chain),
+    start: chains[chain].start,
+  };
+});
 
 export default adapter;
