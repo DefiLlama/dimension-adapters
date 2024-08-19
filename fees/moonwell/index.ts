@@ -66,7 +66,7 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     reservesAddedLogs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
-        dailyRevenue!.add(underlying, log.addAmount / 1e18);
+        dailyRevenue!.add(underlying, log.addAmount);
     })
 
     return { dailyFees, dailyRevenue }
