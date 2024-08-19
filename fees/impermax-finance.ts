@@ -108,6 +108,22 @@ const adapter: Adapter = {
         methodology
       }
     },
+    [CHAIN.BASE]: {
+      fetch: graphs()(CHAIN.BASE),
+      runAtCurrTime: true,
+      start: 1698019200,
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.SCROLL]: {
+      fetch: graphs()(CHAIN.SCROLL),
+      runAtCurrTime: true,
+      start: 1698019200,
+      meta: {
+        methodology
+      }
+    },
   },
 }
 
