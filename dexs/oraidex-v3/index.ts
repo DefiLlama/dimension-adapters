@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://staging-ammv3-indexer.oraidex.io/";
-const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000));
   const dayIndex = Math.floor(dayTimestamp / 86400);
   const query = gql`
