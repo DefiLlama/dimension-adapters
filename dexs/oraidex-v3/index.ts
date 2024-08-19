@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const historicalVolumeEndpoint = "https://staging-ammv3-indexer.oraidex.io/";
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const dayIndex = Math.floor(dayTimestamp / 86400000) - 1;
+  const dayIndex = Math.floor(dayTimestamp / 86400);
   const query = gql`
       query PoolDayData {
         poolDayData(
