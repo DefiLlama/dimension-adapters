@@ -35,7 +35,7 @@ const evm = async (options: FetchOptions) => {
         */
         const nativeTransfers = await queryDuneSql(options, `select sum(value) as withdrawn from CHAIN.traces
         where "from" IN (${contracts[options.chain].join(', ')})
-        AND to IN (0x93fd235c56964e0ffb49229e8d642c3fd81310a5, 0xfa0f022aac5a1fd99094df8aadb947ce08f79d5b, 0x3a0079197027d80c260f8cd482210fdc48ec51e5)
+        AND to IN (0x93fd235c56964e0ffb49229e8d642c3fd81310a5, 0xfa0f022aac5a1fd99094df8aadb947ce08f79d5b, 0x3a0079197027d80c260f8cd482210fdc48ec51e5, 0x267bfe2905dccec10cb22115ca1d0b1da11ddad5)
         AND success = TRUE
         AND TIME_RANGE`)
         dailyFees.add(nullAddress, nativeTransfers[0].withdrawn)
