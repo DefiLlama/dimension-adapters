@@ -8,7 +8,7 @@ const adapter: Adapter = {
       fetch: (async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
         const logs = await options.getLogs({
-          targets: ['0x43d0a427d390301e84e46896ae980d35ecdaa2ae'],
+          targets: ['TG9nDZMUtC4LBmrWSdNXNi8xrKzXTMMSKT'],
           eventAbi: "event TRXReceived(address indexed from,uint256 amount)",
         })
         logs.map((tx: any) => {
