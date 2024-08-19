@@ -7,32 +7,34 @@ import { commonAbi } from './abi';
 const ROULETTE_ADDRESS = '0x94ba26ee118ef6c407c75dbb23385b1ad71a4547';
 const PUMP_OR_REKT_ADDRESS = '0xcbc003cb76c5d218cba2dfb3a2b2f101950ed7e7';
 
-const startDate = new Date('2024-07-26T00:00:00.000Z').getTime();
-const currentDate = new Date().getTime();
-const differenceInTime = currentDate - startDate;
-const totalDays = Math.floor(differenceInTime / (1000 * 60 * 60 * 24));
-
-async function fetch({ createBalances, api }: FetchOptions) {
+async function fetch({ createBalances, api, fromApi,  toApi }: FetchOptions) {
   const totalFees = createBalances();
   const dailyFees = createBalances();
+  const pumpOrRektFeesFrom =  await fromApi.call({
+    abi: commonAbi[0],
+    target: PUMP_OR_REKT_ADDRESS,
+  });
+  const pumpOrRektFeesTo = await toApi.call({
+    abi: commonAbi[0],
+    target: PUMP_OR_REKT_ADDRESS,
+  });
 
-  const pumpOrRektFees = BigNumber(
-    await api.call({
-      abi: commonAbi[0],
-      target: ROULETTE_ADDRESS,
-    })
-  );
-  const roulletteFees = BigNumber(
-    await api.call({
-      abi: commonAbi[0],
-      target: PUMP_OR_REKT_ADDRESS,
-    })
-  );
+  const roulletteFeesFrom = await fromApi.call({
+    abi: commonAbi[0],
+    target: ROULETTE_ADDRESS,
+  });
 
-  const total = pumpOrRektFees.plus(roulletteFees);
+  const roulletteFeesTo = await toApi.call({
+    abi: commonAbi[0],
+    target: ROULETTE_ADDRESS,
+  });
 
-  totalFees.add(ETHER_ADDRESS, total);
-  dailyFees.add(ETHER_ADDRESS, total.dividedToIntegerBy(totalDays));
+  const dailypumpOrRektFees = Number(pumpOrRektFeesTo) - Number(pumpOrRektFeesFrom);
+  const dailyroulletteFees = Number(roulletteFeesTo) - Number(roulletteFeesFrom);
+  const tottal = Number(pumpOrRektFeesTo) + Number(roulletteFeesTo);
+  const dailyTotal = dailypumpOrRektFees + dailyroulletteFees;
+  totalFees.add(ETHER_ADDRESS, tottal);
+  dailyFees.add(ETHER_ADDRESS, dailyTotal);
 
   return {
     totalFees,
