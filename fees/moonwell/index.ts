@@ -7,6 +7,7 @@ const comptrollerABI = {
     getAllMarkets: "address[]:getAllMarkets",
     accrueInterest: "event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
     reservesAdded: "event ReservesAdded(address benefactor,uint256 addAmount,uint256 newTotalReserves)",
+    liquidateBorrow: "event LiquidateBorrow (address liquidator, address borrower, uint256 repayAmount, address mTokenCollateral, uint256 seizeTokens)",
     reserveFactor: "uint256:reserveFactorMantissa",
 };
 
@@ -56,6 +57,18 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
         }));
     }).flat()
 
+    const liquidateBorrowLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.liquidateBorrow,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            seizeTokens: Number(i.seizeTokens),
+            marketIndex: index,
+        }));
+    }).flat()
+
     logs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
@@ -67,6 +80,12 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
         dailyRevenue!.add(underlying, log.addAmount);
+    })
+
+    liquidateBorrowLogs.forEach((log: any) => {
+        const marketIndex = log.marketIndex;
+        const underlying = underlyings[marketIndex]
+        dailyFees!.add(underlying, log.seizeTokens);
     })
 
     return { dailyFees, dailyRevenue }
