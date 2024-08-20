@@ -25,7 +25,7 @@ const fetch: FetchV2 = async ({ endTimestamp }) =>  {
     };
 };
 const methodology = {
-    Fees: "Fees are aggregated by Allez Labs using the Kamino API"
+    Revenue: "Revenues are aggregated by Allez Labs using the following flipside crypto: https://flipsidecrypto.xyz/kakagri/kamino-vault-fees-4cDBfs"
 }
 
 const adapter: Adapter = {
