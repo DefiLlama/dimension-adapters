@@ -178,8 +178,8 @@ export enum AdapterType {
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
 
 export const whitelistedDimensionKeys = new Set([
-  'startTimestamp', 'chain', 'timestamp',
-  
+  'startTimestamp', 'chain', 'timestamp','block',
+
   'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes',
   'tokenIncentives',
