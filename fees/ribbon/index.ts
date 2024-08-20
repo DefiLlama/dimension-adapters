@@ -88,7 +88,6 @@ const adapter: Adapter = {
     [CHAIN.AVAX]: {
       fetch: (options: FetchOptions) => fetch(avax_endpointId, options),
       start: 1617228000,
-      runAtCurrTime: false,
     },
   },
 };
