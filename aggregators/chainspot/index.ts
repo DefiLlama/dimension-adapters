@@ -73,11 +73,9 @@ const fetch = async (_at: number, _t: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );
-
+    const url = `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${unixTimestamp * 1e3}`;
     const volume = (
-        await httpGet(
-            `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${unixTimestamp}`
-        )
+        await httpGet(url)
     )?.volume;
 
     return {
