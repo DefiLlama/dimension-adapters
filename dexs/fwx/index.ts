@@ -26,7 +26,7 @@ const CHAIN_ID = {
 const endpoints: Record<Chain, IEndpoint> = {
   [CHAIN.AVAX]: {
     tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
-    openInterest: `https://analytics.fwx.finance/trade/daily-open-interest`,
+    openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
   },
 };
 
@@ -61,7 +61,6 @@ const fetch = (chain: Chain) => {
       (x: IDailyData) =>
         new Date(x.date).getTime() == new Date(formattedDate).getTime()
     );
-    console.log(dailyVolumeData?.total, dailyOpenInterestData?.total);
 
     return {
       dailyVolume: convertStringNumber(dailyVolumeData?.total || "0"),
