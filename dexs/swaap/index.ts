@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
@@ -70,8 +70,8 @@ interface Data {
 
 
 const  getVolume = async (options: FetchOptions) => {
-    const endtimestamp =  options.startOfDay
-    const starttimestamp = endtimestamp - 86400
+    const starttimestamp = options.startOfDay;
+    const endtimestamp =  starttimestamp + 86400
     const startId = config[options.chain].id + '-' + starttimestamp
     const endId = config[options.chain].id + '-' + endtimestamp
 
@@ -93,14 +93,16 @@ const  getVolume = async (options: FetchOptions) => {
     const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
     const totalVolume = Number(result.end?.totalSwapVolume || 0)
     return {
-        dailyVolume,
+        // If the daily volume is negative, set it to 0
+        dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
         totalVolume,
     }
 }
 
-const v2graphs = async (options: FetchOptions): Promise<FetchResultV2> => {
+const v2graphs = async (_t: any, _tt: any ,options: FetchOptions): Promise<FetchResult> => {
     const { dailyVolume, totalVolume }  = await getVolume(options)
     return {
+        timestamp: options.startOfDay,
         dailyVolume,
         totalVolume
     }
@@ -122,11 +124,18 @@ const v1graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
-    version: 2,
+    version: 1,
     breakdown: {
         v1: {
             [CHAIN.POLYGON]: {
-                fetch: v1graphs(CHAIN.POLYGON),
+                fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
+                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(options)
+                    return  {
+                        timestamp: options.startOfDay,
+                        dailyVolume,
+                        totalVolume
+                    }
+                },
                 start: 1655195452
             },
         },

@@ -1,5 +1,7 @@
-import { FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
+import { FetchOptions, FetchResultV2, IJSON, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
+import { filterPools } from "../../helpers/uniswap";
 
 const sugar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
 const sugarOld = '0x2073D8035bB2b0F2e85aAF5a8732C6f397F9ff9b';
@@ -28,14 +30,14 @@ const event_swap = 'event Swap(address indexed sender,address indexed to,uint256
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
-  const chunkSize = 400;
+  const chunkSize = 500;
   let currentOffset = 0;
   const allForSwaps: IForSwap[] = [];
   let unfinished = true;
 
   if (options.startOfDay > 1714743000) {
 
-    while (unfinished) {
+    while (unfinished && currentOffset < 970) {
       const forSwaps: IForSwap[] = (await options.api.call({
         target: sugar,
         params: [chunkSize, currentOffset],
@@ -52,28 +54,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
       unfinished = forSwaps.length !== 0;
       currentOffset += chunkSize;
-      allForSwaps.push(...forSwaps);
+      if (currentOffset > 970) { // slipstream launched after ~970 v2 then we need to start from the beginning
+        currentOffset = 970;
+      }
+      allForSwaps.push(...forSwaps.sort(() => Math.random() - 0.5)); // shuffle the array to avoid getting stuck on a single pool
     }
 
-    const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
-
-    const logs: ILog[][] = await options.getLogs({
-      targets,
-      eventAbi: event_swap,
-      flatten: false,
+    const pairObject: IJSON<string[]> = {}
+    const pairs = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+    pairs.forEach((pair: string, i: number) => {
+      pairObject[pair] = [allForSwaps[i].token0, allForSwaps[i].token1]
     })
-
-    logs.forEach((logs: ILog[], idx: number) => {
-      const { token0, token1, pool_fee } = allForSwaps[idx]
-      logs.forEach((log: any) => {
-        dailyVolume.add(token0, BigInt(Math.abs(Number(log.amount0In))))
-        dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1In))))
-        dailyFees.add(token0, BigInt( Math.round((((Math.abs(Number(log.amount0In))) * Number(pool_fee)) / 10000)))) // 1% fee represented as pool_fee=100
-        dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1In))) * Number(pool_fee)) / 10000))))
+    // filter out the pairs with less than 1000 USD pooled value
+    const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
+    const dailyVolume = options.createBalances()
+    await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
+      const [token0, token1] = pairObject[pair]
+      const logs = await options.getLogs({ target: pair, eventAbi: event_swap })
+      logs.forEach(log => {
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
       })
-    })
-
-    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+    }))
+    return { dailyVolume }
   }
   else {
     const forSwapsOld: IForSwap[] = (await options.api.call({
@@ -91,11 +93,27 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const targets = forSwapsOld.map((forSwap: IForSwap) => forSwap.lp)
 
-    const logs: ILog[][] = await options.getLogs({
-      targets,
-      eventAbi: event_swap,
-      flatten: false,
-    })
+    let logs: ILog[][] = [];
+    const targetChunkSize = 5;
+    let currentTargetOffset = 0;
+    unfinished = true;
+
+    while (unfinished) {
+      let endOffset = currentTargetOffset + targetChunkSize;
+      if (endOffset >= targets.length) {
+        unfinished = false;
+        endOffset = targets.length;
+      }
+
+      let currentLogs: ILog[][] = await options.getLogs({
+        targets: targets.slice(currentTargetOffset, endOffset),
+        eventAbi: event_swap,
+        flatten: false,
+      })
+
+      logs.push(...currentLogs);
+      currentTargetOffset += targetChunkSize;
+    }
 
     logs.forEach((logs: ILog[], idx: number) => {
       const { token0, token1, pool_fee } = forSwapsOld[idx]

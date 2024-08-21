@@ -7,7 +7,6 @@ import { httpGet } from "../utils/fetchURL";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
-  "tron",
   "juno",
   "cardano",
   "litecoin",

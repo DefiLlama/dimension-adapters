@@ -2396,5 +2396,17 @@ export default (
         ],
       },
     },
+    {
+      "id":"382",
+      "name": "Pendle",
+      "addresses":{
+          // routers
+          ethereum: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
+          arbitrum: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
+          optimism: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
+          mantle: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
+          bsc: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
+      }
+  },
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
