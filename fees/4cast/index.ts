@@ -11,7 +11,7 @@ const endpoint = "https://www.4cast.win/api/api/platformFees";
 function createSolBalances(options: FetchOptions, value: string) {
   const balances = options.createBalances();
 
-  balances.addGasToken(Number(value));
+  balances.add('So11111111111111111111111111111111111111112', Number(value) * 1e9);
 
   return balances;
 }
