@@ -27,7 +27,7 @@ const getData = async (timestamp: number) => {
     const data = response.volumeStats[0];
     dailyVolume = dailyVolume
       .plus(new BigNumber(data.mint))
-      .plus(new BigNumber(data.swap))
+      // .plus(new BigNumber(data.swap)) // is not list spot
       .plus(new BigNumber(data.burn))
       .plus(new BigNumber(data.margin))
       .dividedBy(new BigNumber(1e30));
