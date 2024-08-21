@@ -19,14 +19,14 @@ const fetch = async (): Promise<FetchResultV2> => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
       start: 1717452000,
+      runAtCurrTime: true,
     },
   },
-  timetravel: false,
 };
 
 export default adapter;
