@@ -28,9 +28,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IMX]: {
       fetch: fetchFees,
-      start: 0
-    }
-  }
+      start: 0,
+      meta: {
+        methodology: {
+          Fees: "ETH paid to purchase fuel",
+        }
+      }
+    },
+  },
 }
 
 export default adapter;
