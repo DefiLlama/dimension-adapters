@@ -13,6 +13,7 @@ interface MarketSnapshots {
 interface QueryBody {
   market_snapshots: MarketSnapshots;
 }
+
 interface IData {
   [s: string]: string;
 }
@@ -27,6 +28,7 @@ interface Response {
 
 const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
 const archiveMatleBaseUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
+const archiveSeiBaseUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
 
 type TURL = {
   [s: string]: string;
@@ -35,6 +37,7 @@ type TURL = {
 const url: TURL = {
   [CHAIN.ARBITRUM]: archiveBaseUrl,
   [CHAIN.MANTLE]: archiveMatleBaseUrl,
+  [CHAIN.SEI]: archiveSeiBaseUrl, // Added Sei chain URL
 };
 
 const query = async (max_time: number, fetchOptions: FetchOptions): Promise<Response> => {
@@ -47,7 +50,6 @@ const query = async (max_time: number, fetchOptions: FetchOptions): Promise<Resp
       },
     },
   };
-
 
   const response = await httpPost(url[fetchOptions.chain], body);
   return response;
@@ -141,6 +143,11 @@ const adapter: Adapter = {
       fetch: fetch,
       runAtCurrTime: true,
       start: 1682514000,
+    },
+    [CHAIN.SEI]: { 
+      fetch: fetch,
+      runAtCurrTime: true,
+      start: 1723547681 
     },
   },
 };

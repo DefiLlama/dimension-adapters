@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter, FetchResultVolume } from "../../../adapters/types";
-import { CHAIN } from "../../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../../utils/date";
+import { FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 
@@ -218,6 +218,4 @@ const adapteraggderivative: any = {
   }
 };
 
-export {
-  adapteraggderivative
-}
+export default adapteraggderivative;
