@@ -31,7 +31,7 @@ const fetchFees = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    "immutablex": {
+    [CHAIN.IMMUTABLEX]: {
       fetch: fetchFees,
       start: 0,
       meta: {

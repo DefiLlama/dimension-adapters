@@ -161,6 +161,7 @@ export enum CHAIN {
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
+  IMMUTABLEX = "immutablex"
 }
 
 // Don´t use
