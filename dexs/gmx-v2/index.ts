@@ -70,7 +70,6 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
