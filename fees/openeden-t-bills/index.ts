@@ -1,7 +1,7 @@
 // https://docs.openeden.com/treasury-bills-vault/fees
 
 import { Chain } from "@defillama/sdk/build/general";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
@@ -28,7 +28,7 @@ const DAILY_MANAGEMENT_FEES: number = MANAGEMENT_FEES / 365;
 const fetch = async (
   vault: string,
   { api, getLogs, createBalances }: FetchOptions
-) => {
+): Promise<FetchResultV2> => {
   const dailyFees = createBalances();
 
   const [logs, totalUSDC] = await Promise.all([
