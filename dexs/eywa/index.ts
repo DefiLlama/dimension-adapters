@@ -1,6 +1,7 @@
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getLatestData } from "../../helpers/dune";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type DuneChain =
   | CHAIN.ETHEREUM
@@ -23,18 +24,19 @@ interface Data {
 }
 
 const fetch =
-  (chain: DuneChain, endTimestamp?: number) =>
-  async (options: FetchOptions) => {
+  (chain: DuneChain, endTimestamp?: number) => async (time: number) => {
+    const timestamp = getUniqStartOfTodayTimestamp(new Date(time * 1000));
     try {
       const response = await getLatestData<Data[]>("4009605");
 
       if (!response) {
         return {
           dailyVolume: 0,
+          timestamp,
         };
       }
 
-      if (endTimestamp && endTimestamp < options.endTimestamp) {
+      if (endTimestamp && endTimestamp < timestamp) {
         const total = response.find(
           (e) =>
             e.time === endTimestamp &&
@@ -44,11 +46,12 @@ const fetch =
         return {
           dailyVolume: 0,
           totalVolume: total?.amount || 0,
+          timestamp,
         };
       }
 
       const volumes = response.filter(
-        (e) => e.time === options.startTimestamp && e.blockchain === chain
+        (e) => e.time === timestamp && e.blockchain === chain
       );
       const daily = volumes.find((e) => e.type === "daily");
       const total = volumes.find((e) => e.type === "total");
@@ -56,15 +59,15 @@ const fetch =
       return {
         dailyVolume: daily?.amount || 0,
         totalVolume: total?.amount || 0,
+        timestamp,
       };
     } catch (e) {
       console.error(e);
-      return { dailyVolume: 0 };
+      return { dailyVolume: 0, timestamp };
     }
   };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
