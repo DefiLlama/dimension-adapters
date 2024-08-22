@@ -8,7 +8,7 @@ let API_KEY_INDEX = 0;
 
 const NOW_TIMESTAMP = Math.trunc((Date.now()) / 1000)
 
-const getLatestData = async (queryId: string) => {
+export const getLatestData = async <T = any>(queryId: string) => {
   const url = `https://api.dune.com/api/v1/query/${queryId}/results`
   try {
     const latest_result = (await limit(() => httpGet(url, {
@@ -20,7 +20,7 @@ const getLatestData = async (queryId: string) => {
     const submitted_at_timestamp = Math.trunc(new Date(submitted_at).getTime() / 1000)
     const diff = NOW_TIMESTAMP - submitted_at_timestamp
     if (diff < 60 * 60 * 3) {
-      return latest_result.result.rows
+      return latest_result.result.rows as T
     }
     return undefined
   } catch (e: any) {

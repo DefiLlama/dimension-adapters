@@ -1,22 +1,61 @@
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getLatestData } from "../../helpers/dune";
+
+type DuneChain =
+  | CHAIN.ETHEREUM
+  | CHAIN.FANTOM
+  | CHAIN.ETHEREUM
+  | CHAIN.POLYGON
+  | CHAIN.ARBITRUM
+  | CHAIN.OPTIMISM
+  | CHAIN.BASE
+  | "avalanche"
+  | "binance"
+  | "gnosis";
+
+interface Data {
+  time: number;
+  day: string;
+  type: "daily" | "total";
+  blockchain: DuneChain;
+  amount: number;
+}
 
 const fetch =
-  (chain: CHAIN | "avalanche" | "binance" | "gnosis", endTimestamp?: number) =>
+  (chain: DuneChain, endTimestamp?: number) =>
   async (options: FetchOptions) => {
     try {
-      const response = await queryDune("4003938", {
-        chain,
-        start: options.startTimestamp,
-        end: endTimestamp
-          ? Math.min(endTimestamp, options.endTimestamp)
-          : options.endTimestamp,
-      });
+      const response = await getLatestData<Data[]>("4009605");
+
+      if (!response) {
+        return {
+          dailyVolume: 0,
+        };
+      }
+
+      if (endTimestamp && endTimestamp < options.endTimestamp) {
+        const total = response.find(
+          (e) =>
+            e.time === endTimestamp &&
+            e.blockchain === chain &&
+            e.type === "total"
+        );
+        return {
+          dailyVolume: 0,
+          totalVolume: total?.amount || 0,
+        };
+      }
+
+      const volumes = response.filter(
+        (e) => e.time === options.startTimestamp && e.blockchain === chain
+      );
+      const daily = volumes.find((e) => e.type === "daily");
+      const total = volumes.find((e) => e.type === "total");
 
       return {
-        dailyVolume: response[0].daily,
-        totalVolume: response[0].total,
+        dailyVolume: daily?.amount || 0,
+        totalVolume: total?.amount || 0,
       };
     } catch (e) {
       console.error(e);
