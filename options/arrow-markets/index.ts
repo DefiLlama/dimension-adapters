@@ -3,6 +3,8 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 interface ArrowMarketsVolumeResponse {
+  daily_notional_volume: string;
+  daily_premium_volume: string;
   total_notional_volume: string;
 }
 
@@ -25,10 +27,14 @@ export async function fetchArrowMarketsVolumeData(
   let timestamp_in_ms = timestamp * 1000
   const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint);
 
+  const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume).toFixed(2);
+  const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume).toFixed(2);
   const totalNotionalVolume = Number(ArrowMarketsVolumeData.total_notional_volume).toFixed(2);
 
   return {
     timestamp,
+    dailyNotionalVolume,
+    dailyPremiumVolume,
     totalNotionalVolume,
   };
 }
