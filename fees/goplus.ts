@@ -21,6 +21,8 @@ const CALLS = [
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const totalFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const totalProtocolRevenue = options.createBalances();
   const [foundationBalanceStart, revenueBalanceStart] = await options.fromApi.multiCall({
     abi: BALANCE_ABI,
     calls: CALLS
@@ -32,9 +34,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyFoundationReceived = BigNumber(foundationBalanceEnd).minus(BigNumber(foundationBalanceStart));
   const dailyRevenueReceived = BigNumber(revenueBalanceEnd).minus(BigNumber(revenueBalanceStart));
   const dailyTotal = dailyFoundationReceived.plus(dailyRevenueReceived).toFixed(0);
+  const totalFee = BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0);
   dailyFees.add(USDT_MINT, dailyTotal);
-  totalFees.add(USDT_MINT, BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0));
-  return { dailyFees, totalFees };
+  totalFees.add(USDT_MINT, totalFee);
+  dailyProtocolRevenue.add(USDT_MINT, dailyTotal);
+  totalProtocolRevenue.add(USDT_MINT, totalFee);
+  return { dailyFees, totalFees, dailyProtocolRevenue, totalProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -42,9 +47,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 36724659,
+      start: 1709740800,
       meta: {
         methodology: {
+            ProtocolRevenue: "The revenue of the agreement comes from users purchasing security services, and the total cost equals the revenue.",
             Fees: "All fees comes from users for security service provided by GoPlus Network."
         }
       }
