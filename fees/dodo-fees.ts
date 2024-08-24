@@ -37,7 +37,7 @@ const adapter: Adapter = {
 };
 
 const breakdownAdapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     "dodo": adapter.adapter
   }
