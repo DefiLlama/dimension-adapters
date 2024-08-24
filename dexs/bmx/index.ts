@@ -235,7 +235,7 @@ const adapter: BreakdownAdapter = {
         },
       };
     }, {}),
-    "derivatives-classic": Object.keys(endpoints).reduce((acc, chain) => {
+    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
