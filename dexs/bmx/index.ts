@@ -108,13 +108,13 @@ const getFetch =
         }
       );
       dailyOpenInterest =
-        Number(tradingStats.tradingStats[0].longOpenInterest) +
-        Number(tradingStats.tradingStats[0].shortOpenInterest);
+        Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
+        Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
       dailyLongOpenInterest = Number(
-        tradingStats.tradingStats[0].longOpenInterest
+        tradingStats.tradingStats[0]?.longOpenInterest || 0
       );
       dailyShortOpenInterest = Number(
-        tradingStats.tradingStats[0].shortOpenInterest
+        tradingStats.tradingStats[0]?.shortOpenInterest || 0
       );
     }
 
