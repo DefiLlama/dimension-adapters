@@ -74,7 +74,7 @@ const submitQuery = async (queryId: string, query_parameters = {}) => {
 }
 
 
-export const queryDune = async (queryId: string, query_parameters = {}) => {
+export const queryDune = async (queryId: string, query_parameters:any = {}) => {
     if (Object.keys(query_parameters).length === 0) {
       const latest_result = await getLatestData(queryId)
       if (latest_result !== undefined) return latest_result
@@ -99,12 +99,12 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
 const tableName = {
   bsc: "bnb",
   ethereum: "ethereum",
-  base: "base"
+  base: "base",
 } as any
 
 export const queryDuneSql = (options:any, query:string) => {
   return queryDune("3996608", {
-    fullQuery: query.replace("CHAIN", tableName[options.chain]).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
+    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   })
 }
