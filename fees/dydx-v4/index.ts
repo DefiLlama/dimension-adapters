@@ -1,11 +1,11 @@
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { ChainBlocks, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL'
 
 interface IFees {
   day: string
   sum_tradingfeecollection: string
 }
-const fetchFees  = async (options: FetchOptions) => {
+const fetchFees  = async (timestamp: number, _t: ChainBlocks ,options: FetchOptions) => {
   const url = 'https://api.lacertalabs.xyz/data/tradingfeecollection'
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const res = await httpGet(url)
@@ -14,6 +14,7 @@ const fetchFees  = async (options: FetchOptions) => {
   const dailyFees = item.find((i) => i.day.split('T')[0] === dateStr)?.sum_tradingfeecollection
   return {
     dailyFees: dailyFees ? dailyFees : undefined,
+    timestamp: timestamp,
   }
 }
 
