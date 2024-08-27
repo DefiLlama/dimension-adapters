@@ -33,11 +33,11 @@ const fetch = async (
   const rawResult: IResponse[] = await queryDune(DUNE_QUERY_ID);
   const results = rawResult.map((r) => ({ ...r, day: formatDay(r.day) }));
 
-  const fees = results.find(({ day }) => day === isoTimestamp)?.daily_revenue;
-  const cumulativeFees = results[0]?.cumulative_daily_revenue;
+  const revenues = results.find(({ day }) => day === isoTimestamp)?.daily_revenue;
+  const cumulativeRevenue = results[0]?.cumulative_daily_revenue;
 
-  if (fees) dailyRevenue.add(ADDRESSES.ethereum.USDC, Math.round(fees) * 1e6);
-  totalRevenue.add(ADDRESSES.ethereum.USDC, Math.round(cumulativeFees) * 1e6);
+  if (revenues) dailyRevenue.add(ADDRESSES.ethereum.USDC, Math.round(revenues) * 1e6);
+  totalRevenue.add(ADDRESSES.ethereum.USDC, Math.round(cumulativeRevenue) * 1e6);
 
   return { timestamp, dailyRevenue, totalRevenue };
 };
