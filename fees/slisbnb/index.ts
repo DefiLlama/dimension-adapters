@@ -44,7 +44,7 @@ const fetch =  async (options: FetchOptions) => {
       '0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6'
     ]
   });
-  const urs = '0x8d388136d578dCD791D081c6042284CED6d9B0c6';
+
   const logs_exit = await options.getLogs({
     target: HayJoin,
     topics: [
