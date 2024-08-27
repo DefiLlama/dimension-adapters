@@ -66,7 +66,6 @@ const fetchOnAltChains = async (
 ): Promise<FetchResultFees> => {
   const isoTimestamp = formatTimestampToISO(timestamp);
   const rawResult: IAltResponse[] = await queryDune(query);
-
   const results = rawResult.map((r) => ({ ...r, month: formatDay(r.month) }));
 
   const relevantResults: IAltResponse | undefined = results.find(
