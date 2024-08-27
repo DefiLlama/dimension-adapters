@@ -18,7 +18,6 @@ const fetchFees  = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     "dydx": {
       fetch: fetchFees,
