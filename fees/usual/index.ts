@@ -26,8 +26,6 @@ const fetch = async (
   _: any,
   { createBalances }: FetchOptions
 ): Promise<FetchResultFees> => {
-  const dailyFees = createBalances();
-  const totalFees = createBalances();
   const dailyRevenue = createBalances();
   const totalRevenue = createBalances();
 
@@ -38,15 +36,10 @@ const fetch = async (
   const fees = results.find(({ day }) => day === isoTimestamp)?.daily_revenue;
   const cumulativeFees = results[0]?.cumulative_daily_revenue;
 
-  if (fees) {
-    dailyRevenue.add(ADDRESSES.ethereum.USDC, Math.round(fees) * 1e6);
-    dailyFees.add(ADDRESSES.ethereum.USDC, Math.round(fees) * 1e6);
-  }
-
-  totalFees.add(ADDRESSES.ethereum.USDC, Math.round(cumulativeFees) * 1e6);
+  if (fees) dailyRevenue.add(ADDRESSES.ethereum.USDC, Math.round(fees) * 1e6);
   totalRevenue.add(ADDRESSES.ethereum.USDC, Math.round(cumulativeFees) * 1e6);
 
-  return { timestamp, dailyFees, dailyRevenue, totalFees, totalRevenue };
+  return { timestamp, dailyRevenue, totalRevenue };
 };
 
 const adapter: Adapter = {
