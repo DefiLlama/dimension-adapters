@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -31,8 +31,8 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const getFetch = (query: string)=> (chain: string): Fetch => async (_tt: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
     id: '1d:' + String(dayTimestamp),
     period: '1d',
