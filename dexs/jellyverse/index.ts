@@ -58,6 +58,10 @@ const v2Graphs = (chain: Chain) => {
       return acc;
     }, { dailyVolume: 0, dailyFees: 0 });
 
+    if (dailyVolume > 1_000_000_000) {
+      return {}
+    }
+
     return {
       dailyVolume: dailyVolume.toString(),
       dailyFees: dailyFees.toString(),

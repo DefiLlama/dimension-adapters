@@ -162,7 +162,8 @@ export enum CHAIN {
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
   IMMUTABLEX = "immutablex",
-  CHAINFLIP = "chainflip"
+  CHAINFLIP = "chainflip",
+  CRONOS_ZKEVM = "cronos_zkevm",
 }
 
 // Don´t use
