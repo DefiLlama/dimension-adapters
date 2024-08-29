@@ -12,10 +12,24 @@ const startTimestampBase = 1722470400; // 01.08.2024
 const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
     const timestamp = options.toTimestamp
     const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
-    const orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
-    if (!orderlyItem) return {dailyVolume: 0, totalVolume: 0, timestamp}
-    const dailyVolume = orderlyItem.dailyVolume
-    const totalVolume = orderlyItem.totalVolume
+    let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
+    if (!orderlyItem) {
+        orderlyItem = {dailyVolume: 0, totalVolume: 0}
+    }
+    let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
+    if (!synfuturesItem) {
+        synfuturesItem = {dailyVolume: 0, totalVolume: 0}
+    }
+    let kiloexItem = fetchData.find(((item) => item.protocol == "kiloex"))
+    if (!kiloexItem) {
+        kiloexItem = {dailyVolume: 0, totalVolume: 0}
+    }
+    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(kiloexItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) + Number(kiloexItem.totalVolume)
+    for (let i in synfuturesItem){
+        dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
+        totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
+    }
     return {
         dailyVolume,
         totalVolume,
@@ -23,44 +37,30 @@ const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
     };
 };
 
-const fetchBlast = async (options: FetchOptions): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
-    const synfuturesItem = fetchData.find(((item) => item.protocol == "synfutures" && item.network == "blast"))
-    if (!synfuturesItem) return {dailyVolume: 0, totalVolume: 0, timestamp}
-    const dailyVolume = synfuturesItem.dailyVolume
-    const totalVolume = synfuturesItem.totalVolume
-    return {
-        dailyVolume,
-        totalVolume,
-        timestamp
-    };
-};
-
-const fetchBase = async (options: FetchOptions): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
-    const synfuturesItem = fetchData.find(((item) => item.protocol == "synfutures" && item.network == "base"))
-    if (!synfuturesItem) return {dailyVolume: 0, totalVolume: 0, timestamp}
-    const dailyVolume = synfuturesItem.dailyVolume
-    const totalVolume = synfuturesItem.totalVolume
-    return {
-        dailyVolume,
-        totalVolume,
-        timestamp
-    };
-};
 
 const fetchOpBNB = async (options: any): Promise<FetchResult> => {
     const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
-    const kiloexItem = fetchData.find(((item) => item.protocol == "kiloex"))
-    if (!kiloexItem) return {dailyVolume: 0, totalVolume: 0, timestamp}
-    const dailyVolume = kiloexItem.dailyVolume
-    const totalVolume = kiloexItem.totalVolume
     return {
-        dailyVolume,
-        totalVolume,
+        dailyVolume: 0,
+        totalVolume: 0,
+        timestamp
+    };
+};
+
+const fetchBlast = async (options: any): Promise<FetchResult> => {
+    const timestamp = options.toTimestamp
+    return {
+        dailyVolume: 0,
+        totalVolume: 0,
+        timestamp
+    };
+};
+
+const fetchBase = async (options: any): Promise<FetchResult> => {
+    const timestamp = options.toTimestamp
+    return {
+        dailyVolume: 0,
+        totalVolume: 0,
         timestamp
     };
 };
@@ -71,13 +71,13 @@ const adapter: SimpleAdapter = {
             fetch: fetchArbitrum,
             start: startTimestampArbitrum
         },
-        [CHAIN.BLAST]: {
-            fetch: fetchBlast,
-            start: startTimestampBlast
-        },
         [CHAIN.OP_BNB]: {
             fetch: fetchOpBNB,
             start: startTimestampOpBNB
+        },
+        [CHAIN.BLAST]: {
+            fetch: fetchBlast,
+            start: startTimestampBlast
         },
         [CHAIN.BASE]: {
             fetch: fetchBase,
