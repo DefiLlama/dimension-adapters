@@ -34,7 +34,7 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
 }
 
 adapters.adapter.blast.start = 1717740000;
-// ts-node --transpile-only cli/testAdapter.ts dexs bladeswap 
+
 const adapter: BreakdownAdapter = {
     breakdown: {
         v2: {
