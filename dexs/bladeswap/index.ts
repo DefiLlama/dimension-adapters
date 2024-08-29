@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, BreakdownAdapter } from "../../adapters/types";
-const adapters = univ2Adapter(
+const adapters = univ2Adapter2(
   {
     [CHAIN.BLAST]:
       "https://api.studio.thegraph.com/query/75205/blade-algebra/mainnet-info-1.0.3",
@@ -34,7 +34,7 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
 }
 
 adapters.adapter.blast.start = 1717740000;
-
+// ts-node --transpile-only cli/testAdapter.ts dexs bladeswap 
 const adapter: BreakdownAdapter = {
     breakdown: {
         v2: {
