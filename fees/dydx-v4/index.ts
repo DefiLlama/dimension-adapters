@@ -12,8 +12,11 @@ const fetchFees  = async (timestamp: number, _t: ChainBlocks ,options: FetchOpti
   delete res['latestTen']
   const item: IFees[] = Object.values(res)
   const dailyFees = item.find((i) => i.day.split('T')[0] === dateStr)?.sum_tradingfeecollection
+  const dailyFeesNum = dailyFees ? parseFloat(dailyFees) : undefined
   return {
-    dailyFees: dailyFees ? dailyFees : undefined,
+    dailyFees: dailyFeesNum,
+    dailyRevenue: dailyFeesNum,
+    dailyHoldersRevenue: dailyFeesNum,
     timestamp: timestamp,
   }
 }
