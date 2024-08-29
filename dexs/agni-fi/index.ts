@@ -6,8 +6,6 @@ const v3Endpoints = {
   [CHAIN.MANTLE]: "https://agni.finance/graph/subgraphs/name/agni/exchange-v3"
 }
 
-const VOLUME_USD = "volumeUSD";
-
 const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
