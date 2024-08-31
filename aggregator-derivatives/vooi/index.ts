@@ -11,7 +11,7 @@ const startTimestampBase = 1722470400; // 01.08.2024
 
 const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
     const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
+    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`) // returns data for the day before
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
         orderlyItem = {dailyVolume: 0, totalVolume: 0}
@@ -84,6 +84,5 @@ const adapter: SimpleAdapter = {
             start: startTimestampBase
         },
     },
-    version: 2
 }
 export default adapter
