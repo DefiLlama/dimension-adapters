@@ -16,6 +16,8 @@ const v3Endpoint = {
       "https://api.studio.thegraph.com/query/50473/v3-mode/version/latest",
   [CHAIN.XLAYER]:
       "https://api.studio.thegraph.com/query/50473/v3-xlayer/version/latest",
+  [CHAIN.LINEA]:
+      "https://api.studio.thegraph.com/query/50473/v3-linea/version/latest",
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -45,6 +47,7 @@ const v3StartTimes = {
   [CHAIN.BLAST]: 1709722800,
   [CHAIN.MODE]: 1712371653,
   [CHAIN.XLAYER]: 1712369493,
+  [CHAIN.LINEA]: 1725062400,
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {
@@ -72,6 +75,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.XLAYER]: {
       fetch: v3Graph(CHAIN.XLAYER),
       start: async () => v3StartTimes[CHAIN.XLAYER]
+    },
+    [CHAIN.LINEA]: {
+      fetch: v3Graph(CHAIN.LINEA),
+      start: async () => v3StartTimes[CHAIN.LINEA]
     },
   },
   version: 2
