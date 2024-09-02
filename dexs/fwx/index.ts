@@ -14,16 +14,19 @@ interface IRes {
   data: IDailyData[];
 }
 
-const baseUrl = "https://app.fwx.finance/api/v2";
-
 interface IEndpoint {
   tradingVolume: string;
   openInterest: string;
 }
+
+const CHAIN_ID = {
+  [CHAIN.AVAX]: 43114,
+};
+
 const endpoints: Record<Chain, IEndpoint> = {
   [CHAIN.AVAX]: {
-    tradingVolume: `${baseUrl}/trade/volume`,
-    openInterest: `${baseUrl}/trade/daily-open-interest`,
+    tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
+    openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
   },
 };
 
@@ -39,7 +42,7 @@ const fetch = (chain: Chain) => {
     const tradingVolumeRes = await httpPost(endpoints[chain].tradingVolume, {
       from_date: formattedDate,
       to_date: formattedDate,
-      chain_id: 43114,
+      chain_id: CHAIN_ID[chain],
     });
     const tradingVolume = tradingVolumeRes as IRes;
     const dailyVolumeData = tradingVolume?.data.find(
@@ -58,7 +61,6 @@ const fetch = (chain: Chain) => {
       (x: IDailyData) =>
         new Date(x.date).getTime() == new Date(formattedDate).getTime()
     );
-    console.log(dailyVolumeData?.total, dailyOpenInterestData?.total);
 
     return {
       dailyVolume: convertStringNumber(dailyVolumeData?.total || "0"),

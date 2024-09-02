@@ -20,7 +20,7 @@ const adapter: Adapter = {
         const dailyFees = createBalances() // ✅
 
         // Revenue
-        const dailyRevenue = createBalances() // ✅ 
+        const dailyRevenue = createBalances() // ✅
         const dailyProtocolRevenue = createBalances() // 70% + Food
         const dailyHoldersRevenue = createBalances() //  5%
         const dailySupplySideRevenue = createBalances() // 25%
@@ -50,12 +50,15 @@ const adapter: Adapter = {
           "604800": "11900000000000000",
         }
         buyFoodLogs.map(e => {
+          if (!workTimePrice[e.workTime]) {
+            return
+          }
           dailyFees.addGasToken(workTimePrice[e.workTime])
           dailyRevenue.addGasToken(workTimePrice[e.workTime])
           dailyProtocolRevenue.addGasToken(workTimePrice[e.workTime])
         })
         return {
-          dailyFees, 
+          dailyFees,
           dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue
         }
       }) as FetchV2,

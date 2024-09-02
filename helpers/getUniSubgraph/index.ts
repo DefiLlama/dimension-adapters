@@ -69,6 +69,7 @@ type pair = {
   }
 } & IJSON<string>
 
+
 function getGraphDimensions({
   graphUrls,
   graphRequestHeaders,
@@ -284,6 +285,114 @@ function getGraphDimensions({
   };
 }
 
+function getGraphDimensions2({
+  graphUrls,
+  graphRequestHeaders,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+    blockGraphType: DEFAULT_BLOCK_TYPE
+  },
+  totalFees = {
+    factory: DEFAULT_TOTAL_FEES_FACTORY,
+    field: DEFAULT_TOTAL_FEES_FIELD,
+  },
+  getCustomBlock,
+  feesPercent,
+}: IGetChainVolumeParams) {
+  // TOTAL VOLUME
+  // Graph fields
+  const graphFieldsTotalVolume = {
+    factory: totalVolume.factory ?? DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: totalVolume.field ?? DEFAULT_TOTAL_VOLUME_FIELD,
+    blockGraphType: totalVolume.blockGraphType ?? DEFAULT_BLOCK_TYPE
+  }
+  // Queries
+  const totalVolumeQuery = gql`
+  query total_volume ($block: ${graphFieldsTotalVolume.blockGraphType}) {
+    ${graphFieldsTotalVolume.factory}(block: { number: $block }) {
+      ${graphFieldsTotalVolume.field}
+    }
+  }`;
+
+  // TOTAL FEES
+  // Graph fields
+  const graphFieldsTotalFees = {
+    factory: totalFees.factory ?? DEFAULT_TOTAL_FEES_FACTORY,
+    field: totalFees.field ?? DEFAULT_TOTAL_FEES_FIELD
+  }
+  // Query
+  const totalFeesQuery = gql`
+  query total_fees ($block: ${graphFieldsTotalVolume.blockGraphType}) {
+    ${graphFieldsTotalFees.factory}(block: { number: $block }) {
+      ${graphFieldsTotalFees.field}
+    }
+  }`;
+
+  return (chain: Chain) => {
+    return async (options: FetchOptions) => {
+      const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
+
+      const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock()).catch((e: any) =>
+          console.log(wrapGraphError(e).message),
+        )) ?? undefined;
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock()).catch((e: any) =>
+          console.log(wrapGraphError(e).message),
+        )) ?? undefined;
+
+      let dailyVolume: any;
+      // TOTAL VOLUME
+      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
+      const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
+
+      // PREV TOTAL VOLUME
+      const graphResPrevTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
+      const prevTotalVolume = graphResPrevTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
+      dailyVolume = totalVolume - prevTotalVolume
+
+      // TOTAL FEES
+      const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(_e => {
+        if (totalVolume === undefined || feesPercent?.Fees === undefined)
+          console.error(`Unable to get total fees on ${chain} from graph.`)
+      });
+      const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0) 
+
+      // PREV TOTAL FEES
+      const graphResPrevTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
+        if (totalVolume === undefined || feesPercent?.Fees === undefined)
+          console.error(`Unable to get total fees on ${chain} from graph.`)
+      });
+      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0) 
+
+      const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees
+      
+      // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
+      let response: FetchResultGeneric = {
+        timestamp: endTimestamp,
+        block: endBlock,
+        totalVolume,
+        dailyVolume,
+        dailyFees,
+        totalFees
+      };
+
+      if (feesPercent) {
+        const feeBase = feesPercent.type
+        const dailyBase = feeBase === 'volume' ? dailyVolume : dailyFees
+        const totalBase = feeBase === 'volume' ? totalVolume : totalFees
+        Object.entries(feesPercent).forEach(([feeType, feePercentType]) => {
+          if (typeof feePercentType !== "number") return
+          if (dailyBase !== undefined && response[`daily${feeType}`] === undefined)
+            response[`daily${feeType}`] = new BigNumber(dailyBase).multipliedBy(feePercentType / 100).toString()
+          if (totalBase && response[`total${feeType}`] === undefined)
+            response[`total${feeType}`] = new BigNumber(totalBase).multipliedBy(feePercentType / 100).toString()
+        })
+      }
+      return response
+    };
+  };
+}
+
 function univ2DimensionAdapter(params: IGetChainVolumeParams, meta: BaseAdapter[string]['meta']) {
   const graphs = getGraphDimensions(params);
 
@@ -322,6 +431,7 @@ function wrapGraphError(e: Error) {
 export {
   wrapGraphError,
   getGraphDimensions,
+  getGraphDimensions2,
   univ2DimensionAdapter,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,

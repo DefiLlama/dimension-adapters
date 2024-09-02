@@ -3,6 +3,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import request, { gql } from "graphql-request";
 
 
 const endpoints = {
@@ -16,7 +17,7 @@ const endpoints = {
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/71937/woofi-polygon-zkevm/version/latest",
   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
-  [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
+  [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/api/public/9e9d6e8a-be9d-42d1-9747-3a8f001214c5/subgraphs/woonetwork/woofi-mantle/v0.0.1/gn",
 };
 
 type TStartTime = {
@@ -55,14 +56,34 @@ const graphs = getChainVolume({
   },
 });
 
-const fetch = async (options: FetchOptions) => {
+const dailyQuery = gql`
+  query getDailyVolume($Id: Int!) {
+    dayData(id: $Id) {
+      volumeUSD
+    },
+    globalVariables {
+      totalVolumeUSD
+    }
+  }
+`
+
+interface FetchResult {
+  dayData: {
+    volumeUSD: string;
+  }
+  globalVariables: Array<{
+    totalVolumeUSD: string;
+  }>
+}
+const fetch = async (_t: any, _c: any,options: FetchOptions) => {
   try {
-    const result = await graphs(options.chain)(options);
-    if (!result) return {};
+    console.log('fetching volume for', options.startOfDay);
+    const dateId = Math.floor(options.startOfDay / 86400);
+    const response: FetchResult = await request(endpoints[options.chain], dailyQuery, { Id: dateId });
+    if (!response) return {};
     return {
-      ...result,
-      totalVolume: `${(result?.totalVolume || 0) / 10 ** 18}`,
-      dailyVolume:  `${(result?.dailyVolume || 0)  / 10 ** 18}`
+      dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
+      totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
     };
   } catch (error) {
     console.error(error);
@@ -82,7 +103,7 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: volume,
 };
 export default adapter;

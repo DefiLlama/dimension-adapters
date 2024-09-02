@@ -10,13 +10,15 @@ interface DailyFeeResponse {
 }
 
 const chainOverrides: { [key: string]: string } = {
-  "terra": "terra2",
+  terra: "terra2",
 };
 
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
-    const response: DailyFeeResponse = await httpGet(`https://edge.stride.zone/api/${overriddenChain}/stats/fees`);
+    const response: DailyFeeResponse = await httpGet(
+      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
+    );
 
     return {
       timestamp: timestamp,
@@ -25,7 +27,6 @@ const fetch = (chain: string) => {
     };
   };
 };
-
 
 const meta = {
   methodology: {
@@ -105,6 +106,18 @@ const adapter: Adapter = {
     },
     comdex: {
       fetch: fetch("comdex"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    haqq: {
+      fetch: fetch("haqq"),
+      runAtCurrTime: true,
+      start: 0,
+      meta,
+    },
+    band: {
+      fetch: fetch("band"),
       runAtCurrTime: true,
       start: 0,
       meta,

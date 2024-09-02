@@ -56,6 +56,9 @@ const revenueResolver = async (api: sdk.ChainApi) => {
     case CHAIN.ARBITRUM:
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
       break;
+    case CHAIN.BASE:
+      address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
+      break;
   }
 
   return {
@@ -109,6 +112,9 @@ const liquidityResolver = async (api: sdk.ChainApi) => {
       break;
     case CHAIN.ARBITRUM:
       address = "0x46859d33E662d4bF18eEED88f74C36256E606e44";
+      break;
+    case CHAIN.BASE:
+      address = "0x35A915336e2b3349FA94c133491b915eD3D3b0cd";
       break;
   }
 
@@ -176,6 +182,9 @@ const vaultResolver = async (api: sdk.ChainApi) => {
     case CHAIN.ARBITRUM:
       address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
       break;
+    case CHAIN.BASE:
+      address = "0x94695A9d0429aD5eFec0106a467aDEaDf71762F9";
+      break;
   }
 
   return {
@@ -222,6 +231,14 @@ const config = {
     vaultResolverExistAfterTimestamp: 1720018637,
     vaultResolverExistAfterBlock: 228361632,
   },
+  base: {
+    dataStartTimestamp: 1723484700, // ~ before any activity started (block 18347681)
+
+    revenueResolverExistAfterBlock: 18347681,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1723484700,
+    vaultResolverExistAfterBlock: 18347681,
+  },
 };
 
 const methodologyFluid = {
@@ -258,6 +275,13 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: config.arbitrum.dataStartTimestamp,
+      meta: {
+        methodology: methodologyFluid,
+      },
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: config.base.dataStartTimestamp,
       meta: {
         methodology: methodologyFluid,
       },
