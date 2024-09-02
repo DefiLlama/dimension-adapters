@@ -9,8 +9,8 @@ const startTimestampBlast = 1719792000; // 01.07.2024
 const startTimestampOpBNB = 1717200000; // 01.06.2024
 const startTimestampBase = 1722470400; // 01.08.2024
 
-const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchArbitrum = async (timestamp: number): Promise<FetchResult> => {
+    // const timestamp = options.toTimestamp
     const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`) // returns data for the day before
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
@@ -38,8 +38,7 @@ const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 
-const fetchOpBNB = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchOpBNB = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
@@ -47,8 +46,7 @@ const fetchOpBNB = async (options: any): Promise<FetchResult> => {
     };
 };
 
-const fetchBlast = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchBlast = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
@@ -56,8 +54,7 @@ const fetchBlast = async (options: any): Promise<FetchResult> => {
     };
 };
 
-const fetchBase = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchBase = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
