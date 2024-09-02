@@ -104,14 +104,12 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("spot"),
-        runAtCurrTime: true,
         start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
         fetch: () => fetch("perp"),
-        runAtCurrTime: true,
         start: 1690239600,
       },
     },

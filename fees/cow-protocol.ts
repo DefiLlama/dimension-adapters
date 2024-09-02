@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
+import { queryDune } from "../helpers/dune";
 
 type TAddress = {
   [l: string | Chain]: string;
@@ -11,18 +12,24 @@ const address: TAddress = {
 }
 
 
-const fetch = (chain: Chain) => {
+const fetch = (_: Chain) => {
   return async (options: FetchOptions) => {
-    const logs = await options.getLogs({
-      target: address[chain],
-      eventAbi: "event Trade (address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)",
-    })
     const dailyFees = options.createBalances();
-    logs.forEach((tx: any) => {
-      dailyFees.add(tx.sellToken, tx.feeAmount)
-    })
-    const dailyRevenue = dailyFees.clone()
-    return { dailyUserFees: dailyFees, dailyFees, dailyRevenue }
+    try {
+      const value = (await queryDune("3968762"));
+      const dateStr = new Date(options.endTimestamp * 1000).toISOString().split("T")[0];
+      const dayItem = value.find((item: any) => item.time.split(' ')[0] === dateStr);
+      dailyFees.addGasToken((dayItem?.total_revenue) * 1e18 || 0)
+      return {
+        dailyFees: dailyFees,
+        dailyRevenue: dailyFees,
+      }
+    } catch (e) {
+      return {
+        dailyFees: dailyFees,
+        dailyRevenue: dailyFees,
+      }
+    }
   }
 }
 
@@ -49,7 +56,8 @@ const adapter: Adapter = {
     //     methodology
     //   }
     // }
-  }
+  },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;

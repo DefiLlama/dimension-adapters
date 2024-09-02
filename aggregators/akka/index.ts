@@ -23,10 +23,11 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.CORE]: {
             fetch,
+            runAtCurrTime: true,
             start: startTimestamp,
         },
     },

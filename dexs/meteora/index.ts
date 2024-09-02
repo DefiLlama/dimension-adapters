@@ -19,18 +19,18 @@ async function fetch(timestamp: number): Promise<Stats24H> {
   let dailyVolume = 0;
   let page = 0;
   try {
-    while (true) {
-      const url = `${meteoraStatsEndpoint}?page=${page}&size=500`;
+    // while (true) {
+      const url = `${meteoraStatsEndpoint}?page=${page}&size=100000`;
       const response:Pool = (await httpGet(url));
       response.data.forEach(pool => {
         dailyVolume += pool.trading_volume;
       })
-      if (response.data.length < 500) {
-        break;
-      }
-      if (page > 50) break;
+      // if (response.data.length < 500) {
+      //   break;
+      // }
+      // if (page > 50) break;
       page++;
-    }
+    // }
     return {
       dailyVolume: dailyVolume,
       timestamp: timestamp

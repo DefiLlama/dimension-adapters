@@ -9,6 +9,7 @@ const endpoints = {
     "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
   [CHAIN.ERA]:
     "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 
 const methodology = {
@@ -95,6 +96,13 @@ const adapter: Adapter = {
     [CHAIN.ERA]: {
       fetch: graphs(endpoints)(CHAIN.ERA),
       start: 1696496400,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.CRONOS_ZKEVM]: {
+      fetch: graphs(endpoints)(CHAIN.CRONOS_ZKEVM),
+      start: 1723698700,
       meta: {
         methodology,
       },

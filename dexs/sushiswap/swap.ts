@@ -76,6 +76,42 @@ const RP4_ADDRESS = {
   [CHAIN.ROOTSTOCK]: '0xb46e319390De313B8cc95EA5aa30C7bBFD79Da94',
 }
 
+const RP5_ADDRESS = {
+  [CHAIN.ETHEREUM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ARBITRUM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.OPTIMISM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BASE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.POLYGON]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.AVAX]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BSC]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.LINEA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ARBITRUM_NOVA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.XDAI]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.FANTOM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BITTORRENT]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.CELO]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.FILECOIN]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.HAQQ]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.KAVA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.METIS]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.THUNDERCORE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.SCROLL]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ZETA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.MOONBEAM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.MOONRIVER]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.POLYGON_ZKEVM]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.FUSE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.HARMONY]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.TELOS]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BOBA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BOBA_BNB]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.CORE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.CRONOS]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.BLAST]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.SKALE_EUROPA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ROOTSTOCK]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+}
+
 const WNATIVE_ADDRESS = {
   [CHAIN.ETHEREUM]: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
   [CHAIN.ARBITRUM]: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
@@ -118,8 +154,13 @@ const useSushiAPIPrice = (chain) => [
 ].includes(chain)
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<FetchResultV2> => {
+  const logs = await Promise.all([
+    getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_EVENT }),
+    getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_EVENT })
+  ]).then(([rp4Logs, rp5Logs]) => [...rp4Logs, ...rp5Logs])
+
   if (useSushiAPIPrice(chain)) {
-    const [tokensQuery, pricesQuery, logs] = await Promise.all([
+    const [tokensQuery, pricesQuery] = await Promise.all([
       axios.get(`https://tokens.sushi.com/v0/${CHAIN_ID[chain]}`)
         .then(response => response.data),
       axios.get(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)
@@ -130,7 +171,6 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
           },
           {},
         )),
-      getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_EVENT })
     ])
 
     const tokens = tokensQuery.reduce((tokens, token) => {
@@ -156,7 +196,6 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
     return { dailyVolume }
   } else {
     const dailyVolume = createBalances()
-    const logs = await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_EVENT })
 
     logs.forEach((log) => {
       if (log.tokenIn === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')

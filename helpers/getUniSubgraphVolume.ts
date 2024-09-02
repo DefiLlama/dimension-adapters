@@ -149,7 +149,64 @@ function getChainVolume({
     };
   };
 }
+function getChainVolume2({
+  graphUrls,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  },
+  hasTotalVolume = true,
+  getCustomBlock = undefined,
+}: IGetChainVolumeParams) {
+  const totalVolumeQuery = gql`
+  ${totalVolume.factory}(
+    block: { number: $block }
+    ) {
+      ${totalVolume.field}
+    }
+    `;
 
+  const graphQueryTotalVolume = gql`${hasTotalVolume ? `query get_total_volume($block: Int) { ${totalVolumeQuery} }` : ""}`
+
+  return (chain: Chain) => {
+    return async (options: FetchOptions) => {
+      const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
+
+      const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock()).catch((e: any) =>
+        console.log(wrapGraphError(e).message),
+      )) ?? undefined;
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock()).catch((e: any) =>
+        console.log(wrapGraphError(e).message),
+      )) ?? undefined;
+
+      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }).catch(e => {
+        try {
+          return JSON.parse(e.response.error).data
+        } catch (error) {
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
+        }
+      }) : undefined;
+      const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+
+      const graphResPrevTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }).catch(e => {
+        try {
+          return JSON.parse(e.response.error).data
+        } catch (error) {
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
+        }
+      }) : undefined;
+      const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+
+      let dailyVolumeValue = total - prevTotal
+      
+      return {
+        block: endBlock,
+        totalVolume: total,
+        dailyVolume: dailyVolumeValue,
+      };
+    };
+  };
+}
 function getChainVolumeWithGasToken({
   graphUrls,
   totalVolume = {
@@ -240,6 +297,7 @@ function univ2Adapter(endpoints: {
 export {
   getUniqStartOfTodayTimestamp,
   getChainVolume,
+  getChainVolume2,
   getChainVolumeWithGasToken,
   univ2Adapter,
   DEFAULT_TOTAL_VOLUME_FACTORY,

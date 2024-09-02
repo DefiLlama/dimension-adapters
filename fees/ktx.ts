@@ -6,9 +6,9 @@ import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [BSC]: "https://subgraph.ktx.finance/subgraphs/name/ktx",
-  [MANTLE]: "https://mantlesubgraph.ktx.finance/subgraphs/name/ktx",
-  [ARBITRUM]: "https://arbisubgraph.ktx.systems/subgraphs/name/ktx",
+  [BSC]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/bsc_stats/api",
+  [MANTLE]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/mantle_stats/api",
+  [ARBITRUM]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/ktx_stats/api",
 };
 
 const methodology = {

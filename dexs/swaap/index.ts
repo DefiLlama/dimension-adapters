@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
@@ -55,6 +55,25 @@ const config:Record<string, ChainConfig> = {
         id: '2',
         firstDayVolume: 0
     },
+    [CHAIN.SCROLL]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-scroll/prod/gn",
+        start: 1719508309,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.LINEA]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: 1719507890,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.MANTLE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: 1719508654,
+        id: '2',
+        firstDayVolume: 0
+    },
+
 }
 
 interface Data {
@@ -70,8 +89,8 @@ interface Data {
 
 
 const  getVolume = async (options: FetchOptions) => {
-    const endtimestamp =  options.startOfDay
-    const starttimestamp = endtimestamp - 86400
+    const starttimestamp = options.startOfDay;
+    const endtimestamp =  starttimestamp + 86400
     const startId = config[options.chain].id + '-' + starttimestamp
     const endId = config[options.chain].id + '-' + endtimestamp
 
@@ -93,14 +112,16 @@ const  getVolume = async (options: FetchOptions) => {
     const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
     const totalVolume = Number(result.end?.totalSwapVolume || 0)
     return {
-        dailyVolume,
+        // If the daily volume is negative, set it to 0
+        dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
         totalVolume,
     }
 }
 
-const v2graphs = async (options: FetchOptions): Promise<FetchResultV2> => {
+const v2graphs = async (_t: any, _tt: any ,options: FetchOptions): Promise<FetchResult> => {
     const { dailyVolume, totalVolume }  = await getVolume(options)
     return {
+        timestamp: options.startOfDay,
         dailyVolume,
         totalVolume
     }
@@ -122,11 +143,18 @@ const v1graphs = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
-    version: 2,
+    version: 1,
     breakdown: {
         v1: {
             [CHAIN.POLYGON]: {
-                fetch: v1graphs(CHAIN.POLYGON),
+                fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
+                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(options)
+                    return  {
+                        timestamp: options.startOfDay,
+                        dailyVolume,
+                        totalVolume
+                    }
+                },
                 start: 1655195452
             },
         },
@@ -160,6 +188,18 @@ const adapter: BreakdownAdapter = {
             [CHAIN.MODE]: {
                 fetch: v2graphs,
                 start: 1714652681,
+            },
+            [CHAIN.SCROLL]: {
+                fetch: v2graphs,
+                start: 1719508309,
+            },
+            [CHAIN.LINEA]: {
+                fetch: v2graphs,
+                start: 1719507890,
+            },
+            [CHAIN.MANTLE]: {
+                fetch: v2graphs,
+                start: 1719508654,
             },
 
         }
