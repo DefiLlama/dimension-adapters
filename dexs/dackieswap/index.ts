@@ -1,7 +1,6 @@
 import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
@@ -20,23 +19,13 @@ const v3Endpoint = {
       "https://api.studio.thegraph.com/query/50473/v3-linea/version/latest",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
   },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD,
-  },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD",
   },
 });
 
