@@ -140,7 +140,7 @@ const adapter: BreakdownAdapter = {
         start: 1718841600,
       },
       [CHAIN.SEI]: {
-        fetch: fetchSpots,
+        fetch: fetchPerps,
         start: seiStartTime,
       }
     },

@@ -161,6 +161,9 @@ export enum CHAIN {
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
+  IMMUTABLEX = "immutablex",
+  CHAINFLIP = "chainflip",
+  CRONOS_ZKEVM = "cronos_zkevm",
 }
 
 // Don´t use

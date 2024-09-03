@@ -40,6 +40,19 @@ const adapter: SimpleAdapter = {
                 return { timestamp, dailyVolume, totalVolume, }
             },
             start: 1695738685
+        },
+        neutron: {
+            fetch: async (timestamp: number): Promise<FetchResultVolume> => {
+                const marketInfos = await fetchMarketInfos("neutron");
+
+                const [dailyVolume, totalVolume] = await Promise.all([
+                    fetchVolume("daily", marketInfos, timestamp),
+                    fetchVolume("total", marketInfos, timestamp)
+                ]);
+
+                return { timestamp, dailyVolume, totalVolume, }
+            },
+            start: 1715168042
         }
     }
 }

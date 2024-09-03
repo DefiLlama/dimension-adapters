@@ -16,6 +16,10 @@ const adapter: SimpleAdapter = {
       fetch: async(ts)=>{
         const data = await httpGet(api)
         const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
+        const dailyVolume = data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+        if (!dailyVolume || Number(dailyVolume) < 0 || Number((dailyVolume)) > 1_000_000_000) {
+          throw new Error(`Invalid daily volume: ${dailyVolume}`)
+        }
         return {
           timestamp: cleanTimestamp,
           dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume

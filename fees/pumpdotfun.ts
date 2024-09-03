@@ -4,10 +4,9 @@ import { queryDune } from "../helpers/dune";
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const value = (await queryDune("3521814", {
+  const value = (await queryDune("4006384", {
     start: options.startTimestamp,
     end: options.endTimestamp,
-    receiver: 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'
   }));
   dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
 

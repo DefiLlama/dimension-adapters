@@ -1,9 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter, FetchResultVolume } from "../../../adapters/types";
-import { CHAIN } from "../../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../../utils/date";
+import { FetchResultVolume } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
+import customBackfill from "../../helpers/customBackfill";
 
 interface IReferralRecord {
   volume: string; // Assuming volume is a string that represents a number
@@ -34,84 +35,23 @@ const fetchReferralVolume = async (timestamp: number): Promise<number> => {
 
   const referralQuery = gql`
     {
-      referrerStats(
-        where: {referrer: "0x8c128f336b479b142429a5f351af225457a987fa", timestamp_gt: "${todaysTimestamp}"}
+      affiliateStats(
+        where: {affiliate: "0x8c128f336b479b142429a5f351af225457a987fa", timestamp_gt: "${todaysTimestamp}"}
       ) {
         volume
       }
     }
   `;
 
-  const referralEndpoint = sdk.graph.modifyEndpoint('Hww5kAfumpAbMm5iGWqEe83vJJCEE98kccmBBcMRy5fU');
+  const referralEndpoint = "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-referrals/api";
   const referralRes = await request(referralEndpoint, referralQuery);
-
   // If there's no volume data, return 0
-  if (!referralRes.referrerStats || referralRes.referrerStats.length === 0) {
+  if (!referralRes.affiliateStats || referralRes.affiliateStats.length === 0) {
     return 0;
   }
 
-  return Number(referralRes.referrerStats[0].volume) / 10 ** 30;
+  return Number(referralRes.affiliateStats[0].volume) / 10 ** 30;
 };
-
-
-const fetchMuxReferralVolume = async (chain: Chain, timestamp: number): Promise<number> => {
-  const startOfDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const endOfDayTimestamp = startOfDayTimestamp + 86400; // Add one day's worth of seconds for the end of the day
-
-  const referralQuery = gql`
-    query MyQuery($timestamp_gte: BigInt = "", $timestamp_lte: BigInt = "") {
-      referralRecords(
-        where: {
-          referralCode: "0x556e694465780000000000000000000000000000000000000000000000000000",
-          timestamp_gte: $timestamp_gte,
-          timestamp_lte: $timestamp_lte
-        }
-      ) {
-        volume
-        timestamp
-      }
-    }
-  `;
-
-  const variables = {
-    timestamp_gte: startOfDayTimestamp.toString(),
-    timestamp_lte: endOfDayTimestamp.toString()
-  };
-
-  let referralEndpoint = '';
-
-  switch (chain) {
-    case CHAIN.ARBITRUM:
-      referralEndpoint = sdk.graph.modifyEndpoint('GbsdbMy5X2xHoj8qrRKKTs3LhMgma3CzZ8nZCqo9T97v');
-      break;
-    case CHAIN.OPTIMISM:
-      referralEndpoint = sdk.graph.modifyEndpoint('7CmYmJd9mghA17EP8NXqrLZPqT3vjw4B8PLAbA1K4PdJ');
-      break;
-    case CHAIN.FANTOM:
-      referralEndpoint = sdk.graph.modifyEndpoint('2KNaZgvAu9zjn1oAomgoMgiafQHNBbsS3Eu4UwucPUC6');
-      break;
-    default:
-      return 0; // Return 0 for unsupported chains
-  }
-
-  const referralRes = await request(referralEndpoint, referralQuery, variables);
-
-  // Sum up the volumes
-  let totalVolume = 0;
-
-  if (referralRes.referralRecords && Array.isArray(referralRes.referralRecords)) {
-    referralRes.referralRecords.forEach((record: IReferralRecord) => {
-      const volume = parseFloat(record.volume);
-      if (!isNaN(volume)) {
-        totalVolume += volume / 10 ** 18; // Adjust the unit conversion as needed
-      }
-    });
-  }
-
-  return totalVolume;
-};
-
-
 
 
 const fetch = (chain: Chain) => {
@@ -145,10 +85,9 @@ const fetch = (chain: Chain) => {
     const chainID = chainIDs[chain];
     let dailyVolumeUSD = chainID !== undefined ? volumeByChain[chainID] || 0 : 0;
 
-    if (chain === CHAIN.ARBITRUM || chain === CHAIN.OPTIMISM || chain === CHAIN.FANTOM) {
+    if (chain === CHAIN.ARBITRUM) {
       const referralVolumeUSD = await fetchReferralVolume(timestamp);
-      const muxReferralVolumeUSD = await fetchMuxReferralVolume(chain, timestamp);
-      dailyVolumeUSD += referralVolumeUSD + muxReferralVolumeUSD;
+      dailyVolumeUSD += referralVolumeUSD;
     }
 
     return {
@@ -183,6 +122,7 @@ const adapteraggderivative: any = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: 1687422746,
+      customBackfill: customBackfill(CHAIN.ARBITRUM, fetch),
       meta: {
         methodology,
       },
@@ -218,6 +158,4 @@ const adapteraggderivative: any = {
   }
 };
 
-export {
-  adapteraggderivative
-}
+export default adapteraggderivative;
