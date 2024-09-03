@@ -2,7 +2,7 @@ import customBackfill from "../../helpers/customBackfill";
 import {CHAIN} from "../../helpers/chains";
 import type {ChainEndpoints, SimpleAdapter} from "../../adapters/types";
 import type {Chain} from "@defillama/sdk/build/general";
-import {getGraphDimensions} from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
@@ -16,15 +16,11 @@ const endpoints: ChainEndpoints = {
 };
 
 // Fetch function to query the subgraphs
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "dailyVolumeUSD",
   },
   feesPercent: {
     type: "volume",
