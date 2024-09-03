@@ -1,12 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV'),
@@ -40,10 +38,7 @@ interface IPoolSnapshot {
 
 
 const v2Graphs = (chain: Chain) => {
-    return async ({ endTimestamp }): Promise<FetchResultV2> => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-      const fromTimestamp = startTimestamp - 60 * 60 * 24
-      const toTimestamp = startTimestamp
+    return async ({ toTimestamp, fromTimestamp }: FetchOptions): Promise<FetchResultV2> => {
       const graphQuery = gql
       `query fees {
         today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
@@ -70,7 +65,7 @@ const v2Graphs = (chain: Chain) => {
   };
 
 
-const v1graphs = getChainVolume({
+const v1graphs = getChainVolume2({
   graphUrls: {
     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB')
   },

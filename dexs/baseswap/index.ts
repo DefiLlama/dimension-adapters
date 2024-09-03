@@ -3,13 +3,11 @@ import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('BWHCfpXMHFDx3u4E14hEwv4ST7SUyN89FKJ2RjzWKgA9'),
@@ -19,15 +17,11 @@ const v3Endpoints = {
 };
 
 // Fetch function to query the subgraphs
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
   feesPercent: {
     type: "volume",
@@ -39,15 +33,11 @@ const v2Graph = getGraphDimensions({
   },
 });
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",

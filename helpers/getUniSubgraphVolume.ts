@@ -1,7 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { BaseAdapter, ChainBlocks, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
@@ -246,6 +246,37 @@ function getChainVolumeWithGasToken({
   };
 }
 
+function getChainVolumeWithGasToken2({
+  graphUrls,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: 'totalVolumeETH',
+  },
+  getCustomBlock = undefined,
+  priceToken,
+}: IGetChainVolumeParams & {priceToken:string}) {
+  const basic = getChainVolume2({graphUrls, totalVolume, getCustomBlock})
+  return (chain: Chain) => {
+    return async (options: FetchOptions): Promise<FetchResultV2> => {
+      const {
+        block,
+        dailyVolume,
+        totalVolume
+      } = await basic(chain)(options);
+
+      const timestamp = options.endTimestamp
+      const balances = new Balances({ chain, timestamp })
+      balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
+
+      return {
+        block,
+        dailyVolume: await balances.getUSDString(),
+        totalVolume
+      }
+    };
+  };
+}
+
 function univ2Adapter(endpoints: {
   [chain: string]: string
 }, {
@@ -288,6 +319,48 @@ function univ2Adapter(endpoints: {
         }
       }
     }, {} as BaseAdapter),
+    version: 1
+  };
+
+  return adapter;
+}
+
+
+function univ2Adapter2(endpoints: {
+  [chain: string]: string
+}, {
+  factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
+  dayData = DEFAULT_DAILY_VOLUME_FACTORY,
+  totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
+  dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
+  dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
+  gasToken = null as string|null
+}) {
+  const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume)({
+    graphUrls: endpoints,
+    totalVolume: {
+      factory: factoriesName,
+      field: totalVolume
+    },
+    priceToken: gasToken
+  } as any);
+
+  const adapter: SimpleAdapter = {
+    adapter: Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: graphs(chain as Chain),
+          start: getStartTimestamp({
+            endpoints: endpoints,
+            chain,
+            volumeField: dailyVolume,
+            dailyDataField: dayData + "s",
+            dateField: dailyVolumeTimestampField
+          }),
+        }
+      }
+    }, {} as BaseAdapter),
     version: 2
   };
 
@@ -299,7 +372,9 @@ export {
   getChainVolume,
   getChainVolume2,
   getChainVolumeWithGasToken,
+  getChainVolumeWithGasToken2,
   univ2Adapter,
+  univ2Adapter2,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
