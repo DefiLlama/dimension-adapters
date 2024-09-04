@@ -7,7 +7,7 @@ import fetchURL from "../utils/fetchURL";
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
-      fetch: async (timestamp) => {
+      fetch: async (timestamp: number) => {
         const result = await fetchURL(
           `https://tonhedge.com/api/metrics?timestamp=${timestamp * 1000}`
         )
