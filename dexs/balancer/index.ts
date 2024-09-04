@@ -38,14 +38,16 @@ interface IPoolSnapshot {
 
 
 const v2Graphs = (chain: Chain) => {
-    return async ({ toTimestamp, fromTimestamp }: FetchOptions): Promise<FetchResultV2> => {
+    return async ({  startOfDay }: FetchOptions): Promise<FetchResultV2> => {
+      const start = startOfDay - 86400; // 1 day before the start of the day to get the volume of the day before
+      const end = startOfDay;
       const graphQuery = gql
       `query fees {
-        today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+        today:poolSnapshots(where: {timestamp:${end}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
           id
           swapVolume
         }
-        yesterday:poolSnapshots(where: {timestamp:${fromTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
+        yesterday:poolSnapshots(where: {timestamp:${start}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
           id
           swapVolume
         }
