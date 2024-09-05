@@ -17,7 +17,7 @@ const endpoints = {
   [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/71937/woofi-polygon-zkevm/version/latest",
   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
-  [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
+  [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/api/public/9e9d6e8a-be9d-42d1-9747-3a8f001214c5/subgraphs/woonetwork/woofi-mantle/v0.0.1/gn",
 };
 
 type TStartTime = {

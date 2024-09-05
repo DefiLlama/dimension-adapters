@@ -1,25 +1,22 @@
-import { SimpleAdapter } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
-import { getGraphDimensions } from '../../helpers/getUniSubgraph';
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
-const dimensions = getGraphDimensions({
+const dimensions = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.MANTLE]: 'https://graph.butter.xyz/subgraphs/name/butterxyz/v3-subgraph',
+    [CHAIN.MANTLE]:
+      "https://graph.butter.xyz/subgraphs/name/butterxyz/v3-subgraph",
   },
   totalVolume: {
-    factory: 'factories',
-    field: 'totalVolumeUSD',
+    factory: "factories",
+    field: "totalVolumeUSD",
   },
-  dailyVolume: {
-    factory: 'butterDayData',
-    field: 'volumeUSD',
-  },
-  dailyFees: {
-    factory: 'butterDayData',
-    field: 'feesUSD',
+  totalFees: {
+    factory: "factories",
+    field: "totalFeesUSD",
   },
   feesPercent: {
-    type: 'fees',
+    type: "fees",
     ProtocolRevenue: 0,
     HoldersRevenue: 0,
     Fees: 0,
@@ -35,6 +32,6 @@ export default {
     [CHAIN.MANTLE]: {
       fetch: dimensions(CHAIN.MANTLE),
       start: 1702339200,
-    }
-  }
+    },
+  },
 } as SimpleAdapter;

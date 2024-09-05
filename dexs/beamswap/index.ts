@@ -2,24 +2,18 @@ import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAN]:
-    'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2',
+    "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2",
 };
 
-
-
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
   },
   feesPercent: {
     type: "volume",
@@ -32,19 +26,14 @@ const graphs = getGraphDimensions({
   },
 });
 
-const v1graphs = getGraphDimensions({
+const v1graphs = getGraphDimensions2({
   graphUrls: {
     [CHAIN.MOONBEAN]:
-      'https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm',
+      "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm",
   },
   totalVolume: {
     factory: "tradeVolumes",
     field: "volume",
-  },
-  dailyVolume: {
-    factory: "dailyVolume",
-    field: "volume",
-    dateField: "timestamp",
   },
   feesPercent: {
     type: "volume",
@@ -56,7 +45,6 @@ const v1graphs = getGraphDimensions({
     Fees: 0.04,
   },
 });
-
 
 const methodology = {
   UserFees: "User pays 0.30% fees on each swap.",

@@ -27,7 +27,12 @@ const getLatestData = async (queryId: string) => {
     throw e;
   }
 }
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+
+async function randomDelay() {
+  const delay = Math.floor(Math.random() * 5) + 2
+  return new Promise((resolve) => setTimeout(resolve, delay * 1000))
+}
 
 const inquiryStatus = async (execution_id: string, queryId:string) => {
   let _status = undefined;
@@ -40,7 +45,7 @@ const inquiryStatus = async (execution_id: string, queryId:string) => {
       }))).state
       if (['QUERY_STATE_PENDING', 'QUERY_STATE_EXECUTING'].includes(_status)) {
         console.info(`waiting for query id ${queryId} to complete...`)
-        await delay(5000) // 5s
+        await randomDelay() // 1 - 4s
       }
     } catch (e: any) {
       throw e;
@@ -69,7 +74,7 @@ const submitQuery = async (queryId: string, query_parameters = {}) => {
 }
 
 
-export const queryDune = async (queryId: string, query_parameters = {}) => {
+export const queryDune = async (queryId: string, query_parameters:any = {}) => {
     if (Object.keys(query_parameters).length === 0) {
       const latest_result = await getLatestData(queryId)
       if (latest_result !== undefined) return latest_result
@@ -94,12 +99,12 @@ export const queryDune = async (queryId: string, query_parameters = {}) => {
 const tableName = {
   bsc: "bnb",
   ethereum: "ethereum",
-  base: "base"
+  base: "base",
 } as any
 
 export const queryDuneSql = (options:any, query:string) => {
   return queryDune("3996608", {
-    fullQuery: query.replace("CHAIN", tableName[options.chain]).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
+    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   })
 }
