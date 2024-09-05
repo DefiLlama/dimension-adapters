@@ -1,27 +1,24 @@
 import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-const {
-  getChainVolume
-} = require("../../helpers/getUniSubgraphVolume");
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1'),
-  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint(
+    "GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1",
+  ),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint(
+    "GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW",
+  ),
 };
 
-const v2Graph = getChainVolume({
+const v2Graph = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
     field: "totalVolumeUSD",
   },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "dailyVolumeUSD",
-  },
 });
-
 
 const adapter: SimpleAdapter = {
   version: 2,

@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { BreakdownAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
@@ -10,15 +10,11 @@ const endpointsV3 = {
     "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpointsV3,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",
