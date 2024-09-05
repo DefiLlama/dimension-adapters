@@ -22,7 +22,7 @@ const adapter: Adapter = {
         const res: IResponse[] = (await httpGet(url)).data;
         const dayItem = res.find((item) => item.date === start);
         const dailyFees = dayItem?.fee || 0;
-        return { dailyFees, dailyRevenue: dailyFees, timestamp: options.startOfDay };
+        return { dailyFees, timestamp: options.startOfDay };
       }) as any,
       start: 1704560436
     },
