@@ -17,6 +17,11 @@ const DEFAULT_DAILY_PAIR_FACTORY = "pairDayDatas";
 const DEFAULT_ID_TYPE = 'ID!'
 const DEFAULT_BLOCK_TYPE = 'Int'
 
+interface IGetChainVolumeFilterParams {
+  name: string,
+  type: string
+}
+
 interface IGetChainVolumeParams {
   graphUrls: {
     [chains: string]: string
@@ -28,6 +33,7 @@ interface IGetChainVolumeParams {
     factory?: string,
     field?: string,
     blockGraphType?: string
+    filterParams?: IGetChainVolumeFilterParams[], 
   },
   dailyVolume?: {
     factory?: string,
@@ -126,10 +132,19 @@ function getGraphDimensions({
   const graphFieldsTotalVolume = {
     factory: totalVolume.factory ?? DEFAULT_TOTAL_VOLUME_FACTORY,
     field: totalVolume.field ?? DEFAULT_TOTAL_VOLUME_FIELD,
-    blockGraphType: totalVolume.blockGraphType ?? DEFAULT_BLOCK_TYPE
+    blockGraphType: totalVolume.blockGraphType ?? DEFAULT_BLOCK_TYPE,
+    filterParams: totalVolume.filterParams ?? undefined
   }
   // Queries
-  const totalVolumeQuery = gql`
+  const totalVolumeQuery = graphFieldsTotalVolume.filterParams
+  ? gql`query get_total_volume(${graphFieldsTotalVolume.filterParams.map(item => `$${item.name}: ${item.type}`).join(', ')}) { 
+  ${graphFieldsTotalVolume.factory}(
+    where: {${graphFieldsTotalVolume.filterParams.map(item => `${item.name}: $${item.name}`).join(', ')}}
+    ) {
+      ${graphFieldsTotalVolume.field}
+    }
+   }
+  ` : gql`
   query total_volume ($block: ${graphFieldsTotalVolume.blockGraphType}) {
     ${graphFieldsTotalVolume.factory}(block: { number: $block }) {
       ${graphFieldsTotalVolume.field}
@@ -242,7 +257,22 @@ function getGraphDimensions({
       }
 
       // TOTAL VOLUME
-      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block }, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
+      let graphQueryTodayTotalVolumeVariables: { [key: string]: any } = {}
+      let graphQueryYesterdayTotalVolumeVariables: { [key: string]: any } = {}
+      if (graphFieldsTotalVolume.filterParams) {
+        graphFieldsTotalVolume.filterParams.forEach((item) => {
+          switch (item.name) {
+            case "id":
+              graphQueryTodayTotalVolumeVariables["id"] = parseInt(id);
+              graphQueryYesterdayTotalVolumeVariables["id"] = parseInt(id)-1
+            default:
+          }
+        });
+      } else {
+        graphQueryTodayTotalVolumeVariables = { block }
+      }
+
+      const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, graphQueryTodayTotalVolumeVariables, graphRequestHeaders?.[chain]).catch(handle200Errors).catch(e => console.error(`GraphFetchError: Failed to get total volume on ${chain} with graph ${graphUrls[chain]}: ${wrapGraphError(e).message}`));
       const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
       // DAILY FEES
