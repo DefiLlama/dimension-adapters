@@ -1,5 +1,5 @@
 // import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -7,9 +7,9 @@ import fetchURL from "../utils/fetchURL";
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
-      fetch: async (timestamp: number) => {
+      fetch: async (timestamp: number, _t: any, options: FetchOptions) => {
         const result = await fetchURL(
-          `https://tonhedge.com/api/metrics?timestamp=${timestamp * 1000}`
+          `https://tonhedge.com/api/metrics?timestamp=${options.startOfDay * 1000}`
         )
         return {
           ...result,
