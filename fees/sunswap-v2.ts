@@ -20,10 +20,9 @@ const adapter: Adapter = {
         const endStr = new Date(end).toISOString().split("T")[0];
         const url = `${api}?fromDate=${startStr}&toDate=${endStr}&version=v2`;
         const res: IResponse[] = (await httpGet(url)).data;
-        const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
-        dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
-        return { dailyFees, timestamp: options.startOfDay };
+        const dailyFees = dayItem?.fee || 0;
+        return { dailyFees, dailyRevenue: dailyFees, timestamp: options.startOfDay };
       }) as any,
       start: 1704560436
     },
