@@ -1,6 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
-import { BaseAdapter, FetchOptions } from "../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
