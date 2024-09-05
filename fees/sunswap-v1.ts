@@ -25,7 +25,7 @@ const adapter: Adapter = {
         dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
         return { dailyFees, timestamp: options.startOfDay };
       }) as any,
-      start: 1723334400
+      start: 1704560436
     },
   },
 
