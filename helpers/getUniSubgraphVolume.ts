@@ -1,7 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
-import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { BaseAdapter, FetchOptions } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
@@ -32,13 +31,19 @@ const DEFAULT_DAILY_VOLUME_FACTORY = "uniswapDayData";
 const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolumeUSD";
 const DEFAULT_DAILY_DATE_FIELD = "date";
 
+interface IGetChainVolumeFilterParams {
+  name: string,
+  type: string
+}
+
 interface IGetChainVolumeParams {
   graphUrls: {
     [chains: string]: string
   },
   totalVolume: {
     factory: string,
-    field: string
+    field: string,
+    filterParams?: IGetChainVolumeFilterParams[], 
   },
   dailyVolume?: {
     factory: string,
@@ -67,12 +72,21 @@ function getChainVolume({
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {
-  const totalVolumeQuery = gql`
-  ${totalVolume.factory}(
-    block: { number: $block }
-    ) {
-      ${totalVolume.field}
-    }
+  const totalVolumeQuery = totalVolume.filterParams
+    ? gql`query get_total_volume(${totalVolume.filterParams.map(item => `$${item.name}: ${item.type}`).join(', ')}) { 
+    ${totalVolume.factory}(
+      where: {${totalVolume.filterParams.map(item => `${item.name}: $${item.name}`).join(', ')}}
+      ) {
+        ${totalVolume.field}
+      }
+     }
+    ` : gql`query get_total_volume($block: Int) { 
+    ${totalVolume.factory}(
+      block: { number: $block }
+      ) {
+        ${totalVolume.field}
+      }
+     }
     `;
 
   const dailyVolumeQuery =
@@ -89,7 +103,7 @@ function getChainVolume({
       }
   }`;
 
-  const graphQueryTotalVolume = gql`${hasTotalVolume ? `query get_total_volume($block: Int) { ${totalVolumeQuery} }` : ""}`
+  const graphQueryTotalVolume = gql`${hasTotalVolume ? totalVolumeQuery : ""}`
   const graphQueryDailyVolume = gql`${hasDailyVolume ? `query get_daily_volume($id: Int) { ${dailyVolumeQuery} }` : ""}`;
 
   return (chain: Chain) => {
@@ -100,7 +114,22 @@ function getChainVolume({
         console.log(wrapGraphError(e).message),
       )) ?? undefined;
       const id = getUniswapDateId(new Date(endTimestamp * 1000));
-      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block }).catch(e => {
+      let graphQueryTodayTotalVolumeVariables: { [key: string]: any } = {}
+      let graphQueryYesterdayTotalVolumeVariables: { [key: string]: any } = {}
+      if (totalVolume.filterParams) {
+        totalVolume.filterParams.forEach((item) => {
+          switch (item.name) {
+            case "id":
+              graphQueryTodayTotalVolumeVariables["id"] = id;
+              graphQueryYesterdayTotalVolumeVariables["id"] = id-1
+            default:
+          }
+        });
+      } else {
+        graphQueryTodayTotalVolumeVariables = { block }
+      }
+
+      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, graphQueryTodayTotalVolumeVariables).catch(e => {
         try {
           return JSON.parse(e.response.error).data
         } catch (error) {
@@ -129,8 +158,12 @@ function getChainVolume({
       if (!hasDailyVolume) {
         const fromBlock = await getFromBlock()
         const toBlock = await getToBlock();
+        if (!totalVolume.filterParams) {
+          graphQueryTodayTotalVolumeVariables["block"] = toBlock;
+          graphQueryYesterdayTotalVolumeVariables["block"] = fromBlock
+        }
         try {
-          const [yesterdayResult, todayResult] = await Promise.all([request(graphUrls[chain], graphQueryTotalVolume, { block: fromBlock }), request(graphUrls[chain], graphQueryTotalVolume, { block: toBlock })])
+          const [yesterdayResult, todayResult] = await Promise.all([request(graphUrls[chain], graphQueryTotalVolume, graphQueryYesterdayTotalVolumeVariables), request(graphUrls[chain], graphQueryTotalVolume, graphQueryTodayTotalVolumeVariables)])
           const todayVolume = todayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
           const yesterdayVolume = yesterdayResult[totalVolume.factory].reduce((p: any, c: any) => p + Number(c[`${totalVolume.field}`]), 0)
           const volume24H = todayVolume - yesterdayVolume;
@@ -252,9 +285,11 @@ function univ2Adapter(endpoints: {
   factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
   dayData = DEFAULT_DAILY_VOLUME_FACTORY,
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
+  totalVolumeFilterParams = undefined as IGetChainVolumeFilterParams[] | undefined,
   dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
   dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
   hasTotalVolume = true,
+  hasDailyVolume = undefined as boolean|undefined,
   gasToken = null as string|null
 }) {
   const graphs = (gasToken === null ? getChainVolume : getChainVolumeWithGasToken as typeof getChainVolume)({
@@ -262,13 +297,15 @@ function univ2Adapter(endpoints: {
     hasTotalVolume,
     totalVolume: {
       factory: factoriesName,
-      field: totalVolume
+      field: totalVolume,
+      filterParams: totalVolumeFilterParams
     },
     dailyVolume: {
       factory: dayData,
       field: dailyVolume,
       dateField: dailyVolumeTimestampField
     },
+    hasDailyVolume,
     priceToken: gasToken
   } as any);
 
