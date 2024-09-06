@@ -5,10 +5,10 @@ import { CHAIN } from "../../helpers/chains";
 
 const endpoint_0_8_0 =
   "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
-const endpoint =
-  "https://api.0xgraph.xyz/subgraphs/name/intentx-base-analytcs-082";
+  const endpoint =
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-082/latest/gn";
 const endpoint_blast =
-  "https://api.studio.thegraph.com/query/62472/intentx-analytics_082_blast/version/latest";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-blast-analytics-083/latest/gn";
 const endpoint_mantle =
   "https://subgraph-api.mantle.xyz/subgraphs/name/mantle_intentx-analytics_082";
 

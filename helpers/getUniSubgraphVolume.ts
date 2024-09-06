@@ -1,7 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { request, gql } from "graphql-request";
 import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { BaseAdapter, ChainBlocks, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
@@ -149,7 +149,64 @@ function getChainVolume({
     };
   };
 }
+function getChainVolume2({
+  graphUrls,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  },
+  hasTotalVolume = true,
+  getCustomBlock = undefined,
+}: IGetChainVolumeParams) {
+  const totalVolumeQuery = gql`
+  ${totalVolume.factory}(
+    block: { number: $block }
+    ) {
+      ${totalVolume.field}
+    }
+    `;
 
+  const graphQueryTotalVolume = gql`${hasTotalVolume ? `query get_total_volume($block: Int) { ${totalVolumeQuery} }` : ""}`
+
+  return (chain: Chain) => {
+    return async (options: FetchOptions) => {
+      const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
+
+      const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock()).catch((e: any) =>
+        console.log(wrapGraphError(e).message),
+      )) ?? undefined;
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock()).catch((e: any) =>
+        console.log(wrapGraphError(e).message),
+      )) ?? undefined;
+
+      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }).catch(e => {
+        try {
+          return JSON.parse(e.response.error).data
+        } catch (error) {
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
+        }
+      }) : undefined;
+      const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+
+      const graphResPrevTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }).catch(e => {
+        try {
+          return JSON.parse(e.response.error).data
+        } catch (error) {
+          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
+        }
+      }) : undefined;
+      const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+
+      let dailyVolumeValue = total - prevTotal
+      
+      return {
+        block: endBlock,
+        totalVolume: total,
+        dailyVolume: dailyVolumeValue,
+      };
+    };
+  };
+}
 function getChainVolumeWithGasToken({
   graphUrls,
   totalVolume = {
@@ -184,6 +241,37 @@ function getChainVolumeWithGasToken({
         timestamp,
         block,
         dailyVolume: await balances.getUSDString()
+      }
+    };
+  };
+}
+
+function getChainVolumeWithGasToken2({
+  graphUrls,
+  totalVolume = {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: 'totalVolumeETH',
+  },
+  getCustomBlock = undefined,
+  priceToken,
+}: IGetChainVolumeParams & {priceToken:string}) {
+  const basic = getChainVolume2({graphUrls, totalVolume, getCustomBlock})
+  return (chain: Chain) => {
+    return async (options: FetchOptions): Promise<FetchResultV2> => {
+      const {
+        block,
+        dailyVolume,
+        totalVolume
+      } = await basic(chain)(options);
+
+      const timestamp = options.endTimestamp
+      const balances = new Balances({ chain, timestamp })
+      balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
+
+      return {
+        block,
+        dailyVolume: await balances.getUSDString(),
+        totalVolume
       }
     };
   };
@@ -231,6 +319,48 @@ function univ2Adapter(endpoints: {
         }
       }
     }, {} as BaseAdapter),
+    version: 1
+  };
+
+  return adapter;
+}
+
+
+function univ2Adapter2(endpoints: {
+  [chain: string]: string
+}, {
+  factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
+  dayData = DEFAULT_DAILY_VOLUME_FACTORY,
+  totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
+  dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
+  dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
+  gasToken = null as string|null
+}) {
+  const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume)({
+    graphUrls: endpoints,
+    totalVolume: {
+      factory: factoriesName,
+      field: totalVolume
+    },
+    priceToken: gasToken
+  } as any);
+
+  const adapter: SimpleAdapter = {
+    adapter: Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: graphs(chain as Chain),
+          start: getStartTimestamp({
+            endpoints: endpoints,
+            chain,
+            volumeField: dailyVolume,
+            dailyDataField: dayData + "s",
+            dateField: dailyVolumeTimestampField
+          }),
+        }
+      }
+    }, {} as BaseAdapter),
     version: 2
   };
 
@@ -240,8 +370,11 @@ function univ2Adapter(endpoints: {
 export {
   getUniqStartOfTodayTimestamp,
   getChainVolume,
+  getChainVolume2,
   getChainVolumeWithGasToken,
+  getChainVolumeWithGasToken2,
   univ2Adapter,
+  univ2Adapter2,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,

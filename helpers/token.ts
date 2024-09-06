@@ -6,6 +6,7 @@ import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import { getEnv } from './env';
+import { queryDuneSql } from './dune';
 
 export const nullAddress = ADDRESSES.null
 
@@ -243,4 +244,22 @@ export async function getTokenDiff(params: {
 
 
   return balances
+}
+
+
+export const evmReceivedGasAndTokens = (receiverWallet:string, tokens:string[]) =>
+ async (options: FetchOptions) => {
+  let dailyFees = options.createBalances()
+  if(tokens.length > 0){
+    dailyFees = await addTokensReceived({ options, tokens: tokens, target: receiverWallet })
+  }
+  const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.traces
+  where to = ${receiverWallet} AND tx_success = TRUE
+  AND TIME_RANGE`)
+  dailyFees.add(nullAddress, nativeTransfers[0].received)
+
+  return {
+      dailyFees,
+      dailyRevenue: dailyFees,
+  }
 }

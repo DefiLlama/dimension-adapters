@@ -2,7 +2,7 @@ import customBackfill from "../../helpers/customBackfill";
 import {CHAIN} from "../../helpers/chains";
 import type {ChainEndpoints, SimpleAdapter} from "../../adapters/types";
 import type {Chain} from "@defillama/sdk/build/general";
-import {getGraphDimensions} from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
@@ -10,20 +10,17 @@ const endpoints: ChainEndpoints = {
   [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/50473/v2-optimism/version/latest",
   [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/50473/v2-arbitrum/version/latest",
   [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/50473/v2-blast/version/latest",
-  [CHAIN.MODE]: "https://graph.dackieswap.xyz/mode/subgraphs/name/v2-mode",
-  [CHAIN.XLAYER]: "https://graph.dackieswap.xyz/xlayer/subgraphs/name/v2-xlayer",
+  [CHAIN.MODE]: "https://api.studio.thegraph.com/query/50473/v2-mode/version/latest",
+  [CHAIN.XLAYER]: "https://api.studio.thegraph.com/query/50473/v2-xlayer/version/latest",
+  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/50473/v2-linea/version/latest",
 };
 
 // Fetch function to query the subgraphs
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "dailyVolumeUSD",
   },
   feesPercent: {
     type: "volume",
@@ -57,7 +54,8 @@ const adapter: SimpleAdapter = {
                         : chain === CHAIN.BLAST ? 1709722800
                             : chain === CHAIN.MODE ? 1712371653
                               : chain === CHAIN.XLAYER ? 1712369493
-                                  : 0,
+                                  : chain === CHAIN.LINEA ? 1725062400
+                                        : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},
       }

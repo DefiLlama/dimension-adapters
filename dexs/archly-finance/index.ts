@@ -1,17 +1,14 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
     [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
 };
 
-const graphFetch = getGraphDimensions({
+const graphFetch = getGraphDimensions2({
     graphUrls: endpoints,
-    totalVolume: {
-        factory: "factories"
-    },
     dailyVolume: {
         factory: "dayData"
     },

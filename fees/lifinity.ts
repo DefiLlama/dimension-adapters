@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://lifinity.io/api/dashboard/volume"
+const historicalVolumeEndpoint = "https://api.lifinity.io/api/dashboard/volume"
 
 interface IVolumeall {
   fees: number;

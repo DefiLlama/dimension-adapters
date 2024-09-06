@@ -1,7 +1,6 @@
 import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
@@ -13,28 +12,20 @@ const v3Endpoint = {
   [CHAIN.BLAST]:
       "https://api.studio.thegraph.com/query/50473/v3-blast/version/latest",
   [CHAIN.MODE]:
-      "https://graph.dackieswap.xyz/mode/subgraphs/name/v3-mode",
+      "https://api.studio.thegraph.com/query/50473/v3-mode/version/latest",
   [CHAIN.XLAYER]:
-      "https://graph.dackieswap.xyz/xlayer/subgraphs/name/v3-xlayer",
+      "https://api.studio.thegraph.com/query/50473/v3-xlayer/version/latest",
+  [CHAIN.LINEA]:
+      "https://api.studio.thegraph.com/query/50473/v3-linea/version/latest",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
   },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD,
-  },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD",
   },
 });
 
@@ -42,9 +33,10 @@ const v3StartTimes = {
   [CHAIN.BASE]: 1691712000,
   [CHAIN.OPTIMISM]: 1705993200,
   [CHAIN.ARBITRUM]: 1707885300,
-  [CHAIN.BLAST]: 1709722800,
+  [CHAIN.BLAST]: 1722556800,
   [CHAIN.MODE]: 1712371653,
   [CHAIN.XLAYER]: 1712369493,
+  [CHAIN.LINEA]: 1725062400,
 } as IJSON<number>;
 
 const adapter: SimpleAdapter = {
@@ -72,6 +64,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.XLAYER]: {
       fetch: v3Graph(CHAIN.XLAYER),
       start: async () => v3StartTimes[CHAIN.XLAYER]
+    },
+    [CHAIN.LINEA]: {
+      fetch: v3Graph(CHAIN.LINEA),
+      start: async () => v3StartTimes[CHAIN.LINEA]
     },
   },
   version: 2
