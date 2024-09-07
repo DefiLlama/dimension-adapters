@@ -11,6 +11,8 @@ const abi = {
     "event SpotSwap(address indexed trader, address indexed receiver, address tokenA, address tokenB, uint256 amountSold, uint256 amountBought)",
   OpenPosition:
     "event OpenPosition(uint256 indexed positionId, address indexed trader, address indexed openedBy, (uint256 id, uint256 scaledDebtAmount, address bucket, address soldAsset, uint256 depositAmountInSoldAsset, address positionAsset, uint256 positionAmount, address trader, uint256 openBorrowIndex, uint256 createdAt, uint256 updatedConditionsAt, bytes extraParams) position, address feeToken, uint256 protocolFee, uint256 entryPrice, uint256 leverage, (uint256 managerType, bytes params)[] closeConditions)",
+  OpenPositionV2:
+    "event OpenPosition( uint256 indexed positionId, address indexed trader, address indexed openedBy, PositionLibrary.Position position, uint256 entryPrice, uint256 leverage, LimitOrderLibrary.Condition[] closeConditions )",
   ClosePosition:
     "event ClosePosition(uint256 indexed positionId, address indexed trader, address indexed closedBy, address bucketAddress, address soldAsset, address positionAsset, uint256 decreasePositionAmount, int256 profit, uint256 positionDebt, uint256 amountOut, uint8 reason)",
   PartialClosePosition:
@@ -34,6 +36,11 @@ const fetch =
         eventAbi: abi.OpenPosition,
         topic: topics.openPosition,
       },
+      {
+        targets: positionManager,
+        eventAbi: abi.OpenPositionV2,
+        topic: topics.openPositionV2,
+      },
       { targets: positionManager, eventAbi: abi.ClosePosition },
       { targets: positionManager, eventAbi: abi.PartialClosePosition },
       { targets: batchManager, eventAbi: abi.ClosePosition },
@@ -42,6 +49,7 @@ const fetch =
     const [
       swapLogs,
       openPositionLogs,
+      openPositionV2Logs,
       closePositionLogs,
       partiallyClosePositionLogs,
       closePositionBatchLogs,
@@ -49,6 +57,9 @@ const fetch =
 
     swapLogs.forEach((e: any) => dailyVolume.add(e.tokenA, e.amountSold));
     openPositionLogs.forEach((e: any) =>
+      dailyVolume.add(e.position.positionAsset, e.position.positionAmount)
+    );
+    openPositionV2Logs.forEach((e: any) =>
       dailyVolume.add(e.position.positionAsset, e.position.positionAmount)
     );
     closePositionLogs.forEach((e: any) =>
