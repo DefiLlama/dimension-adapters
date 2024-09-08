@@ -36,29 +36,29 @@ const fetch = async (timestamp: number) => {
     0
   );
 
-  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
-  const dailyFees = dayFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+  // const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
+  // const dailyFees = dayFeesQuery.reduce(
+  //   (partialSum: number, a: IVolumeall) => partialSum + a.value,
+  //   0
+  // );
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
-  const totalFees = totalFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+  // const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
+  // const totalFees = totalFeesQuery.reduce(
+  //   (partialSum: number, a: IVolumeall) => partialSum + a.value,
+  //   0
+  // );
 
-  const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL))?.data;
-  const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
-  const totalProtocolRevenue = totalFees * protocolFeeRatio;
+  // const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL))?.data;
+  // const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
+  // const totalProtocolRevenue = totalFees * protocolFeeRatio;
 
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: `${dailyVolume}`,
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    totalProtocolRevenue: `${totalProtocolRevenue}`,
-    dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+    // totalFees: `${totalFees}`,
+    // dailyFees: `${dailyFees}`,
+    // totalProtocolRevenue: `${totalProtocolRevenue}`,
+    // dailyProtocolRevenue: `${dailyProtocolRevenue}`,
     timestamp,
   };
 };
