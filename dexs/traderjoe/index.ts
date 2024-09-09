@@ -75,7 +75,7 @@ const graphsV2 = getChainVolume({
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {

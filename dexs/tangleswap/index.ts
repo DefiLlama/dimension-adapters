@@ -1,19 +1,15 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
 const v3Endpoints = {
   [CHAIN.SHIMMER_EVM]: "https://shimmer.subgraph.tangleswap.space/subgraphs/name/tangleswap/shimmer-v3",
 }
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",
