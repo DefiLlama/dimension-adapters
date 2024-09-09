@@ -1,13 +1,9 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import {
-  CHAIN,
-} from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import {
-  getChainVolumeWithGasToken,
-}  from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getChainVolumeWithGasToken2 }  from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../../adapters/types";
 
 const blacklistTokens = {
@@ -83,30 +79,21 @@ const feesPercent = {
   SupplySideRevenue: 0.25
 }
 
-const graphsClassic = getGraphDimensions({
+const graphsClassic = getGraphDimensions2({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
-    field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
     field: VOLUME_FIELD,
   },
   feesPercent,
   blacklistTokens
 });
 
-const graphsClassicBoba = getGraphDimensions({
+const graphsClassicBoba = getGraphDimensions2({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
     field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "factoryDaySnapshot",
-    field: VOLUME_FIELD,
-    dateField: "date"
   },
   feesPercent
 });
@@ -138,7 +125,7 @@ const classic = Object.keys(endpointsClassic).reduce(
   {}
 ) as any;
 
-const fantomGraphs =  getChainVolumeWithGasToken({
+const fantomGraphs =  getChainVolumeWithGasToken2({
   graphUrls: {
     [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK')
   },
@@ -146,13 +133,9 @@ const fantomGraphs =  getChainVolumeWithGasToken({
     factory: "factories",
     field: 'volumeETH',
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: 'volumeETH',
-    dateField: "date"
-  },
   priceToken: "coingecko:fantom"
 } as any);
+
 classic[CHAIN.FANTOM] = {
   fetch: async (options: FetchOptions) =>   {
     const values = await fantomGraphs(CHAIN.FANTOM)(options);
