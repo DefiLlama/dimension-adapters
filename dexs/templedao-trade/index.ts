@@ -3,22 +3,19 @@ import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
-const {
-  getChainVolume,
-} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6No9vpT4V56r2c4y4TxHsKs7hEbAWu66u19wNGAX8nxL')
 };
 
 const VOLUME_FIELD = "volumeUSD";
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "metrics",
     field: VOLUME_FIELD,
   },
-  hasDailyVolume: false,
 });
 
 
