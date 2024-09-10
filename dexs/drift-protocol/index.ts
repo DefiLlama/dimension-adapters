@@ -19,12 +19,13 @@ const requests: IRequest = {}
 
 export async function fetchURLWithRetry(url: string, options: FetchOptions) {
   const start = options.startOfDay;
-  if (!requests[url])
-    requests[url] = queryDune("4059377", {
+  const key = `${url}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune("4059377", {
       start: start,
       end: start + 24 * 60 * 60,
     })
-  return requests[url]
+  return requests[key]
 }
 
 async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
