@@ -34,6 +34,12 @@ const protocol: FetchV2 = async (options) => {
         }
     } = await httpGet(feesConfig);
 
+    if (!contracts[options.chain]) {
+        return {
+            timestamp: new Date().getTime(),
+        };
+    }
+
     const dailyFees = await addTokensReceived({
         options,
         targets: contracts[options.chain]["protocolFees"].address,
@@ -51,6 +57,12 @@ const pool: FetchV2 = async (options) => {
             [poolFees: string]: string[];
         }
     } = await httpGet(feesConfig);
+
+    if (!contracts[options.chain]) {
+        return {
+            timestamp: new Date().getTime(),
+        };
+    }
 
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
