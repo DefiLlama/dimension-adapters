@@ -1,10 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 import { queryDune } from "../../helpers/dune";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
-
-const DAILY_VOL_ENDPOINT =
-  "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
 const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
@@ -16,53 +12,42 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
 
-async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const dayInSec = 24 * 60 * 60;
-  const resultRows = await queryDune(DUNE_QUERY_ID, {
-    start: options.startOfDay,
-    end: options.startOfDay + dayInSec,
-  });
-
-  const { perpetual_volume, total_revenue, total_taker_fee } = resultRows[0];
-
-  return {
-    dailyVolume: perpetual_volume,
-    dailyFees: total_taker_fee,
-    dailyUserFees: total_taker_fee,
-    dailyRevenue: total_revenue,
-  };
+export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  if (!requests[url])
+    requests[url] = queryDune("4059377", {
+      start: options.startOfDay,
+      end: options.startOfDay + 24 * 60 * 60,
+    })
+  return requests[url]
 }
 
-async function getSpotDimensions(): Promise<DimentionResult> {
-  const volumeResponse = await httpGet(
-    `${DAILY_VOL_ENDPOINT}?spotMarkets=true`
-  );
+async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
+  const volumeResponse = await fetchURLWithRetry("4059377", options)
+  const dailyVolume = volumeResponse[0].perpetual_volume;
+  return { dailyVolume };
+}
 
-  const rawVolumeQuotePrecision = volumeResponse.data.volume;
-
-  // Volume will be returned in 10^6 precision
-  const dailyVolume =
-    rawVolumeQuotePrecision.length >= 6
-      ? Number(rawVolumeQuotePrecision.slice(0, -6))
-      : 0;
-
+async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
+  const volumeResponse = await fetchURLWithRetry("4059377", options)
+  const dailyVolume = volumeResponse[0].spot_volume;
   return { dailyVolume };
 }
 
 async function fetch(type: "perp" | "spot", options: FetchOptions) {
   const timestamp = Date.now() / 1e3;
-
   if (type === "perp") {
     const results = await getPerpDimensions(options);
-
     return {
       ...results,
       timestamp,
     };
   } else {
-    const results = await getSpotDimensions();
-
+    const results = await getSpotDimensions(options);
     return {
       ...results,
       timestamp: Date.now() / 1e3,
