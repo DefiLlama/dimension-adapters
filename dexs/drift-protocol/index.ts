@@ -18,10 +18,11 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  const start = options.startOfDay;
   if (!requests[url])
     requests[url] = queryDune("4059377", {
-      start: options.startOfDay,
-      end: options.startOfDay + 24 * 60 * 60,
+      start: start,
+      end: start + 24 * 60 * 60,
     })
   return requests[url]
 }
