@@ -1,13 +1,13 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { queryDune } from "../../helpers/dune";
-import { BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 
 const DAILY_VOL_ENDPOINT =
   "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
-const DUNE_QUERY_ID = "3782153"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
+const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
@@ -17,8 +17,12 @@ type DimentionResult = {
 };
 
 
-async function getPerpDimensions(): Promise<DimentionResult> {
-  const resultRows = await queryDune(DUNE_QUERY_ID);
+async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
+  const dayInSec = 24 * 60 * 60;
+  const resultRows = await queryDune(DUNE_QUERY_ID, {
+    start: options.startOfDay,
+    end: options.startOfDay + dayInSec,
+  });
 
   const { perpetual_volume, total_revenue, total_taker_fee } = resultRows[0];
 
@@ -46,11 +50,11 @@ async function getSpotDimensions(): Promise<DimentionResult> {
   return { dailyVolume };
 }
 
-async function fetch(type: "perp" | "spot") {
+async function fetch(type: "perp" | "spot", options: FetchOptions) {
   const timestamp = Date.now() / 1e3;
 
   if (type === "perp") {
-    const results = await getPerpDimensions();
+    const results = await getPerpDimensions(options);
 
     return {
       ...results,
@@ -70,13 +74,13 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("spot"),
+        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("spot", options),
         start: 1690239600,
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("perp"),
+        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("perp", options),
         start: 1690239600,
       },
     },
