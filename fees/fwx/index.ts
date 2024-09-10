@@ -93,7 +93,8 @@ const fetch = (chain: Chain) => {
       dailyTradingFee +
       dailyLiquidationFee +
       dailyBountyFeeToLiquidator +
-      dailyBountyFeeToProtocol;
+      dailyBountyFeeToProtocol +
+      dailyOtfFee;
     const dailySupplySideRevenue =
       0.1 * dailyInterestPaid +
       0.8 * dailyTradingFee +
