@@ -16,34 +16,6 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
-const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-
-// This is the previous method for query_id 3756979 which was too slow .. saving for posterity if we manage to speed it up.
-async function _getPerpDimensions(): Promise<DimentionResult> {
-  const resultRows = await queryDune(DUNE_QUERY_ID);
-
-  const marketRows = resultRows.filter(
-    (row) => row.market_index !== null && row.market_index >= 0
-  );
-
-  // Perp Volume
-  const dailyVolume = sum(marketRows.map((row) => row.total_volume as number));
-
-  // All taker fees paid
-  const dailyFees = sum(marketRows.map((row) => row.total_taker_fee as number));
-
-  // All taker fees paid, minus maker rebates paid - not sure if this should be used as the "dailyFees" number instead.
-  const dailyRevenue = sum(
-    marketRows.map((row) => row.total_revenue as number)
-  );
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-  };
-}
 
 async function getPerpDimensions(): Promise<DimentionResult> {
   const resultRows = await queryDune(DUNE_QUERY_ID);
@@ -93,11 +65,6 @@ async function fetch(type: "perp" | "spot") {
     };
   }
 }
-
-// Used to replace "fetch" to disable a query if it starts failing
-const emtry = async (timestamp: number) => {
-  return { timestamp };
-};
 
 const adapter: BreakdownAdapter = {
   breakdown: {
