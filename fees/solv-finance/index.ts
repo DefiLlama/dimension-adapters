@@ -46,16 +46,14 @@ const protocol: FetchV2 = async (options) => {
 };
 
 const pool: FetchV2 = async (options) => {
-    let dailyFees = options.createBalances();
-
     const contracts: {
         [chain: Chain]: {
             [poolFees: string]: string[];
         }
     } = await httpGet(feesConfig);
 
-    const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain)
-    const concretes = await concrete(pools, options)
+    const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
+    const concretes = await concrete(pools, options);
 
     const timestamp = getUniqStartOfTodayTimestamp(new Date());
     const yesterday = timestamp - 86400;
@@ -70,13 +68,13 @@ const pool: FetchV2 = async (options) => {
                 params: [pool.poolId, timestamp],
             }],
             abi: 'function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)',
-        })
+        });
 
         let nav = todayNav.nav_ - yesterdayNav.nav_;
         if (nav < 0) {
             nav = 0;
         }
-        poolNavs.push(nav)
+        poolNavs.push(nav);
     }
 
     const poolBaseInfos = await options.api.multiCall({
@@ -85,7 +83,7 @@ const pool: FetchV2 = async (options) => {
             target: concretes[index.contractAddress],
             params: [index.openFundShareSlot]
         })),
-    })
+    });
 
     const totalValues = await options.api.multiCall({
         abi: 'function slotTotalValue(uint256) view returns (uint256)',
@@ -93,7 +91,7 @@ const pool: FetchV2 = async (options) => {
             target: concretes[index.contractAddress],
             params: [index.openFundShareSlot]
         })),
-    })
+    });
 
     const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), timestamp));
     let dailyFeeUsd = 0;
