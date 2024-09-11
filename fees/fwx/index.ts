@@ -88,6 +88,7 @@ const fetch = (chain: Chain) => {
       parseFloat(marginTradeResData.total_liquidation_fee) +
       parseFloat(perpResData.total_liquidation_fee);
 
+    // daily
     const dailyFees =
       dailyInterestPaid +
       dailyTradingFee +
@@ -102,12 +103,15 @@ const fetch = (chain: Chain) => {
       dailyOtfFee;
     const dailyProtocolRevenue =
       0.9 * dailyInterestPaid + 0.2 * dailyTradingFee;
+
+    // total
     const totalFees =
       totalInterestPaid +
       totalTradingFee +
       totalLiquidationFee +
       totalBountyFeeToLiquidator +
-      totalBountyFeeToProtocol;
+      totalBountyFeeToProtocol +
+      totalOtfFee;
     const totalSupplySideRevenue =
       0.1 * totalInterestPaid +
       0.8 * totalTradingFee +
