@@ -1,21 +1,17 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { ChainEndpoints, SimpleAdapter, BaseAdapter } from "../../adapters/types";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: ChainEndpoints = {
     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CvSasxLYUvFbYyi7VXGhXL6PNgkZPoVDo2bo66ftEA2V'),
     [CHAIN.SMARTBCH]: "https://analytics-dex.api.bitcoin.com/subgraphs/name/verse/exchange",
 };
 
-const fetch = getChainVolume({
+const fetch = getChainVolume2({
     graphUrls: endpoints,
     totalVolume: {
         factory: "factories",
-        field: "volumeUSD",
-    },
-    dailyVolume: {
-        factory: "dayData",
         field: "volumeUSD",
     },
 });
