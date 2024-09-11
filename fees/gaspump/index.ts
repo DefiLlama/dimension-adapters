@@ -4,7 +4,7 @@ import { FetchOptions } from "../../adapters/types";
 import { getPrices } from "../../utils/prices";
 
 
-const endpoint = "https://api-dev.gas111.com/api/v1/internal/tokens/volume-stats?"
+const endpoint = "https://api.gas111.com/api/v1/internal/tokens/volume-stats?"
 
 
 const fetch = async (options: FetchOptions) => {
