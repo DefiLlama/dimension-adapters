@@ -33,18 +33,15 @@ export async function airdrops(
   options: FetchOptions,
   stakingV3SubgraphEndpoint: string,
 ): Promise<Airdrops> {
-  const { createBalances, startTimestamp } = options;
+  const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyHoldersRevenue = createBalances()
   let totalHoldersRevenue = createBalances()
 
-  const day = Math.floor(startTimestamp / 86400)
-  const date = day * 86400
-
   try {
     const res: IGraphAirdropsResponse = await request(stakingV3SubgraphEndpoint, queryAirdrops, {
-      timestampFrom: date,
-      timestampTo: date + 86400
+      timestampFrom: startTimestamp,
+      timestampTo: endTimestamp
     });
 
     if (res.rewards.length > 0) {

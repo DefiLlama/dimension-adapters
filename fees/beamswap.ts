@@ -34,7 +34,7 @@ const feeAdapter = getDexChainFees({
 });
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: feeAdapter
 };
 
