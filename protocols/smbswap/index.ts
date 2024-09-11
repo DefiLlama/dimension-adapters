@@ -3,8 +3,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 
 const endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('9BtGwsWynjj21VyrAtNfeKG5kMhcZ7Z12T53wo7PBTLj')
@@ -18,14 +17,13 @@ const v3Endpoint = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('8XiGZs3G3dDL3YQJx7CsMGXdn3CUBBC9CVpCe1xrsSA7')
 }
 
-const VOLUME_USD = "volumeUSD";
 const blackListedPairs = {
   [CHAIN.BSC]: [
     "0x609f59c97ddf58475c7d3f3fc829c3ff9fc4f76f"
   ]
 }
 
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.BSC]: {
@@ -34,9 +32,6 @@ const graphs = getGraphDimensions({
   },
   totalVolume: {
     factory: "smbfactories"
-  },
-  dailyVolume: {
-    factory: "smbdayData"
   },
   feesPercent: {
     type: "volume",
@@ -50,13 +45,10 @@ const graphs = getGraphDimensions({
   blacklistTokens: blackListedPairs
 });
 
-const graphsStableSwap = getGraphDimensions({
+const graphsStableSwap = getGraphDimensions2({
   graphUrls: stablesSwapEndpoints,
   totalVolume: {
     factory: "factories"
-  },
-  dailyVolume: {
-    factory: "smbdayData"
   },
   feesPercent: {
     type: "volume",
@@ -69,22 +61,13 @@ const graphsStableSwap = getGraphDimensions({
   }
 });
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
-
-  },
-  dailyVolume: {
-    factory: "smbdayData",
-    field: VOLUME_USD
   },
   totalFees:{
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "smbdayData",
-    field: "feesUSD"
   },
 });
 

@@ -1,8 +1,7 @@
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
@@ -34,9 +33,7 @@ const v3Endpoint = {
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.BSC]: {
@@ -45,9 +42,6 @@ const graphs = getGraphDimensions({
   },
   totalVolume: {
     factory: "pancakeFactories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -60,13 +54,10 @@ const graphs = getGraphDimensions({
   }
 });
 
-const graphsStableSwap = getGraphDimensions({
+const graphsStableSwap = getGraphDimensions2({
   graphUrls: stablesSwapEndpoints,
   totalVolume: {
     factory: "factories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -79,22 +70,13 @@ const graphsStableSwap = getGraphDimensions({
   }
 });
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
-
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD
   },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD"
   },
 });
 
@@ -162,9 +144,7 @@ const getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume: FetchV2 = async ({ endTimestamp: timestamp, createBalances }) => {
-  const fromTimestamp = timestamp - 86400;
-  const toTimestamp = timestamp;
+const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances }) => {
   const account_resource: any[] = (await getResources(account))
   const pools = account_resource.filter(e => e.type?.includes('swap::PairEventHolder'))
     .map((e: any) => {
