@@ -1,10 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { addTokensReceived } from "../../helpers/token";
 import { httpGet } from "../../utils/fetchURL";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getPrices } from "../../utils/prices";
 import { BigNumber } from "bignumber.js"
 
@@ -67,17 +67,18 @@ const pool: FetchV2 = async (options) => {
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
 
-    const timestamp = getUniqStartOfTodayTimestamp(new Date());
-    const yesterday = timestamp - 86400;
+    const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp);
+    const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+
     let poolNavs: any[] = [];
     for (const pool of pools) {
         const [yesterdayNav, todayNav] = await options.api.multiCall({
             calls: [{
                 target: pool.navOracle,
-                params: [pool.poolId, yesterday],
+                params: [pool.poolId, toTimestamp],
             }, {
                 target: pool.navOracle,
-                params: [pool.poolId, timestamp],
+                params: [pool.poolId, fromTimestamp],
             }],
             abi: 'function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)',
         });
@@ -105,7 +106,7 @@ const pool: FetchV2 = async (options) => {
         })),
     });
 
-    const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), timestamp));
+    const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), toTimestamp));
     let dailyFeeUsd = 0;
     for (let i = 0; i < pools.length; i++) {
         const poolNav = poolNavs[i];
