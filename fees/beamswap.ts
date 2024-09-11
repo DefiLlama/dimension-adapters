@@ -1,42 +1,46 @@
 import * as sdk from "@defillama/sdk";
-
 import { Adapter, ChainEndpoints } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
-import { univ2Adapter } from "../helpers/getUniSubgraphVolume";
-
-const TOTAL_FEES = 0.0030;
-const PROTOCOL_FEES = 0.0013;
+import {
+  DEFAULT_TOTAL_VOLUME_FACTORY,
+  DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
+} from "../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
-    sdk.graph.modifyEndpoint('9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X'),
+  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint(
+    "9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X",
+  ),
 };
 
-
-const volumeAdapter = univ2Adapter({
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X'),
-}, {});
-
-volumeAdapter.adapter.moonbeam.start = getStartTimestamp({
-  endpoints,
-  chain: CHAIN.MOONBEAN,
-  dailyDataField: "uniswapDayDatas",
-  dateField: "date",
-  volumeField: "dailyVolumeUSD",
-})
-
-const feeAdapter = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  volumeAdapter
+const graphs = getGraphDimensions2({
+  graphUrls: endpoints,
+  totalVolume: {
+    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
+    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0.0013,
+    UserFees: 0.0017,
+  },
 });
 
 const adapter: Adapter = {
-  version: 1,
-  adapter: feeAdapter
+  version: 2,
+  adapter: {
+    [CHAIN.MOONBEAM]: {
+      fetch: graphs(CHAIN.MOONBEAM),
+      start: getStartTimestamp({
+        endpoints,
+        chain: CHAIN.MOONBEAN,
+        dailyDataField: "uniswapDayDatas",
+        dateField: "date",
+        volumeField: "dailyVolumeUSD",
+      }),
+    },
+  },
 };
-
 
 export default adapter;
