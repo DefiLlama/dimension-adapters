@@ -1,33 +1,38 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { addTokensReceived } from "../../helpers/token";
 import { httpGet } from "../../utils/fetchURL";
 import { gql, request } from "graphql-request";
 import { getPrices } from "../../utils/prices";
 import { BigNumber } from "bignumber.js"
+import { Balances } from "@defillama/sdk";
 
 const feesConfig = "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/main/solv-fees.json";
-
-// The Graph
-const graphUrlList = {
-    ethereum: 'https://api.studio.thegraph.com/query/40045/solv-payable-factory-prod/version/latest',
-    bsc: 'https://api.studio.thegraph.com/query/40045/solv-payable-factory-bsc/version/latest',
-    arbitrum: 'https://api.studio.thegraph.com/query/40045/solv-payable-factory-arbitrum/version/latest',
-    mantle: 'https://api.0xgraph.xyz/api/public/65c5cf65-bd77-4da0-b41c-cb6d237e7e2f/subgraphs/solv-payable-factory-mantle/-/gn',
-    merlin: 'http://solv-subgraph-server-alb-694489734.us-west-1.elb.amazonaws.com:8000/subgraphs/name/solv-payable-factory-merlin',
-}
+const graphUrl = "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/refs/heads/main/solv-graph.json";
 
 const chains: {
     [chain: Chain]: { deployedAt: number };
 } = {
     [CHAIN.ETHEREUM]: {
-        deployedAt: 1718236800,
-    }
+        deployedAt: 1681084800,
+    },
+    [CHAIN.BSC]: {
+        deployedAt: 1679097600,
+    },
+    [CHAIN.ARBITRUM]: {
+        deployedAt: 1682380800,
+    },
+    [CHAIN.MANTLE]: {
+        deployedAt: 1692835200,
+    },
+    [CHAIN.MERLIN]: {
+        deployedAt: 1710892800,
+    },
 };
 
-const protocol: FetchV2 = async (options) => {
+const fetch: FetchV2 = async (options) => {
     const contracts: {
         [chain: Chain]: {
             [protocolFees: string]: { address: string[]; token: string[]; deployedAt: number };
@@ -40,30 +45,28 @@ const protocol: FetchV2 = async (options) => {
         };
     }
 
+    const dailyFees = options.createBalances();
+    const protocolFees = await protocol(options, contracts);
+    dailyFees.addBalances(protocolFees);
+
+    const poolFees = await pool(options, contracts);
+    dailyFees.addBalances(poolFees);
+    return {
+        dailyFees
+    }
+};
+
+async function protocol(options: FetchOptions, contracts: any): Promise<Balances> {
     const dailyFees = await addTokensReceived({
         options,
         targets: contracts[options.chain]["protocolFees"].address,
         tokens: contracts[options.chain]["protocolFees"].token,
     });
 
-    return {
-        dailyFees,
-    };
-};
+    return dailyFees;
+}
 
-const pool: FetchV2 = async (options) => {
-    const contracts: {
-        [chain: Chain]: {
-            [poolFees: string]: string[];
-        }
-    } = await httpGet(feesConfig);
-
-    if (!contracts[options.chain]) {
-        return {
-            timestamp: new Date().getTime(),
-        };
-    }
-
+async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
 
@@ -87,6 +90,7 @@ const pool: FetchV2 = async (options) => {
         if (nav < 0) {
             nav = 0;
         }
+
         poolNavs.push(nav);
     }
 
@@ -107,28 +111,32 @@ const pool: FetchV2 = async (options) => {
     });
 
     const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), toTimestamp));
+
     let dailyFeeUsd = 0;
+    const dailyFees = options.createBalances();
     for (let i = 0; i < pools.length; i++) {
         const poolNav = poolNavs[i];
         const poolBaseInfo = poolBaseInfos[i];
         const totalValue = totalValues[i];
         const priceData = prices[`${options.chain}:${poolBaseInfo.currency.toLowerCase()}`];
 
+        const token = `${options.chain}:${poolBaseInfo.currency}`;
         const total = BigNumber(totalValue)
             .div(BigNumber(10e18))
             .times(
                 BigNumber(poolNav).dividedBy(BigNumber(10).pow(priceData.decimals))
-            ).times(priceData.price);
+            );
 
-        dailyFeeUsd = BigNumber(dailyFeeUsd).plus(total).toNumber();
+        dailyFees.addBalances({ [token]: total.toNumber() });
     }
 
-    return {
-        dailyFees: dailyFeeUsd,
-    };
+    return dailyFees;
 }
 
 async function getGraphData(poolId: string[], chain: Chain) {
+    const graphUrlList: {
+        [chain: Chain]: string;
+    } = (await httpGet(graphUrl))
     const query = gql`{
               poolOrderInfos(first: 1000  where:{poolId_in: ${JSON.stringify(poolId)}}) {
                 marketContractAddress
@@ -171,23 +179,13 @@ async function concrete(slots: any[], options: FetchOptions): Promise<any> {
     return concretes;
 }
 
-const adapter: BreakdownAdapter = { breakdown: {}, version: 2 };
+const adapter: SimpleAdapter = { adapter: {}, version: 2 };
 
 Object.keys(chains).forEach((chain: Chain) => {
-    adapter.breakdown = {
-        protocolFees: {
-            [chain]: {
-                fetch: protocol,
-                start: chains[chain].deployedAt,
-            }
-        },
-        poolFees: {
-            [chain]: {
-                fetch: pool,
-                start: chains[chain].deployedAt,
-            }
-        }
-    }
+    adapter.adapter[chain] = {
+        fetch,
+        start: chains[chain].deployedAt,
+    };
 });
 
 export default adapter;
