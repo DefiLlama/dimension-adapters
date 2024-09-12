@@ -14,20 +14,14 @@ interface IRes {
   data: IDailyData[];
 }
 
-interface IEndpoint {
-  tradingVolume: string;
-  openInterest: string;
-}
-
 const CHAIN_ID = {
   [CHAIN.AVAX]: 43114,
+  [CHAIN.BASE]: 8453,
 };
 
-const endpoints: Record<Chain, IEndpoint> = {
-  [CHAIN.AVAX]: {
-    tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
-    openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
-  },
+const endpoints = {
+  tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
+  openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
 const fetch = (chain: Chain) => {
@@ -39,7 +33,7 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily volume
-    const tradingVolumeRes = await httpPost(endpoints[chain].tradingVolume, {
+    const tradingVolumeRes = await httpPost(endpoints.tradingVolume, {
       from_date: formattedDate,
       to_date: formattedDate,
       chain_id: CHAIN_ID[chain],
@@ -51,10 +45,10 @@ const fetch = (chain: Chain) => {
     );
 
     // * call api for daily open interest
-    const openInterestRes = await httpPost(endpoints[chain].openInterest, {
+    const openInterestRes = await httpPost(endpoints.openInterest, {
       from_date: formattedDate,
       to_date: formattedDate,
-      chain_id: 43114,
+      chain_id: CHAIN_ID[chain],
     });
     const openInterestData = openInterestRes as IRes;
     const dailyOpenInterestData = openInterestData?.data.find(
@@ -77,6 +71,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
       start: 1701907200,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1725408000,
     },
   },
 };

@@ -39,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
   totalFees.add(USDT_MINT, totalFee);
   dailyProtocolRevenue.add(USDT_MINT, dailyTotal);
   totalProtocolRevenue.add(USDT_MINT, totalFee);
-  return { dailyFees, totalFees, dailyProtocolRevenue, totalProtocolRevenue };
+  return { dailyFees, totalFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, totalProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
