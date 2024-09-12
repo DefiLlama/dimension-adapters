@@ -20,6 +20,7 @@ const endpoints = {
 
 const stablesSwapEndpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
 }
 
@@ -110,6 +111,7 @@ const startTimes = {
 } as IJSON<number>
 
 const stableTimes = {
+  [CHAIN.ETHEREUM]: 1705363200,
   [CHAIN.BSC]: 1663718400,
   [CHAIN.ARBITRUM]: 1705363200
 } as IJSON<number>
