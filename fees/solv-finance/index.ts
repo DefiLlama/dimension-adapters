@@ -30,6 +30,9 @@ const chains: {
     [CHAIN.MERLIN]: {
         deployedAt: 1710892800,
     },
+    [CHAIN.CORE]: {
+        deployedAt: 1726012800,
+    },
 };
 
 const fetch: FetchV2 = async (options) => {
