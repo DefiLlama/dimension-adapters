@@ -15,7 +15,7 @@ export const v2_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchArrowMarketsVolumeData,
-      start: 1702630075
+      start: 1707350400
     },
   },
 };
@@ -24,8 +24,7 @@ export async function fetchArrowMarketsVolumeData(
   /** Timestamp representing the end of the 24 hour period */
   timestamp: number
 ) {
-  let timestamp_in_ms = timestamp * 1000
-  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint);
+  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, timestamp);
 
   const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume).toFixed(2);
   const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume).toFixed(2);
@@ -39,7 +38,10 @@ export async function fetchArrowMarketsVolumeData(
   };
 }
 
-async function getArrowMarketsVolumeData(endpoint: string): Promise<ArrowMarketsVolumeResponse> {
+async function getArrowMarketsVolumeData(endpoint: string, timestamp: number): Promise<ArrowMarketsVolumeResponse> {
+  const url = new URL(endpoint);
+  url.searchParams.append('timestamp', timestamp.toString());
+  
   return fetchURL(endpoint)
 }
 
