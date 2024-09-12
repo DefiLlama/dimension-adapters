@@ -5,12 +5,12 @@ import { CHAIN } from "../../helpers/chains";
 
 const endpoint_0_8_0 =
   "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
-  const endpoint =
-  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-082/latest/gn";
+const endpoint =
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
 const endpoint_blast =
   "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-blast-analytics-083/latest/gn";
 const endpoint_mantle =
-  "https://subgraph-api.mantle.xyz/subgraphs/name/mantle_intentx-analytics_082";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-mantle-analytics-083/latest/gn";
 
 const query_0_8_0 = gql`
   query stats($from: String!, $to: String!) {
@@ -132,9 +132,7 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetchVolume = async (
-  { endTimestamp, startTimestamp }: FetchOptions
-) => {
+const fetchVolume = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
   const response_0_8_0: IGraphResponse = await request(
     endpoint_0_8_0,
     query_0_8_0,
@@ -198,9 +196,10 @@ const fetchVolume = async (
   };
 };
 
-const fetchVolumeBlast = async (
-  { endTimestamp, startTimestamp }: FetchOptions
-) => {
+const fetchVolumeBlast = async ({
+  endTimestamp,
+  startTimestamp,
+}: FetchOptions) => {
   let dailyFees = new BigNumber(0);
   let totalFees = new BigNumber(0);
 
@@ -251,9 +250,10 @@ const fetchVolumeBlast = async (
   };
 };
 
-const fetchVolumeMantle = async (
-  { endTimestamp, startTimestamp }: FetchOptions
-) => {
+const fetchVolumeMantle = async ({
+  endTimestamp,
+  startTimestamp,
+}: FetchOptions) => {
   let dailyFees = new BigNumber(0);
   let totalFees = new BigNumber(0);
 
