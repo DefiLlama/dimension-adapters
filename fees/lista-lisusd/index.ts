@@ -9,6 +9,10 @@ const treasury = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
  * Fetches data from Lista DAO
  * @doc https://listaorg.notion.site/Profit-cfd754931df449eaa9a207e38d3e0a54
  * @test npx ts-node --transpile-only cli/testAdapter.ts fees lista-lisusd
+ *
+ * @treasury
+ * https://bscscan.com/address/0x8d388136d578dcd791d081c6042284ced6d9b0c6#tokentxns
+ * https://bscscan.com/address/0x34b504a5cf0ff41f8a480580533b6dda687fa3da#tokentxns
  */
 
 const HelioETHProvider = "0x0326c157bfF399e25dd684613aEF26DBb40D3BA4";
@@ -34,6 +38,7 @@ const fetch = async (options: FetchOptions) => {
     entireLog: true,
   });
 
+  //  enable later
   //   const logs_fees_claim = await options.getLogs({
   //     target: MasterVault,
   //     eventAbi: "event FeeClaimed(address receiver, uint256 amount)",
@@ -44,7 +49,8 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: "event Harvested(address to, uint256 amount)",
   });
 
-  const logs_transfer = await options.getLogs({
+  // CeETHVault
+  const eth_transfer1 = await options.getLogs({
     target: eth,
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
@@ -53,7 +59,36 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  const logs_exit = await options.getLogs({
+  const eth_transfer2 = await options.getLogs({
+    target: eth,
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
+      "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da",
+    ],
+  });
+
+  // flash loan
+  const lisusd_transfer1 = await options.getLogs({
+    target: lisUSD,
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
+      "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6",
+    ],
+  });
+
+  const lisusd_transfer2 = await options.getLogs({
+    target: lisUSD,
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
+      "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da",
+    ],
+  });
+
+  // early exit
+  const logs_exit1 = await options.getLogs({
     target: HayJoin,
     topics: [
       "0x22d324652c93739755cf4581508b60875ebdd78c20c0cff5cf8e23452b299631",
@@ -61,7 +96,16 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  const early_claim_penalty = await options.getLogs({
+  const logs_exit2 = await options.getLogs({
+    target: HayJoin,
+    topics: [
+      "0x22d324652c93739755cf4581508b60875ebdd78c20c0cff5cf8e23452b299631",
+      "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da",
+    ],
+  });
+
+  // claim penalty
+  const early_claim_penalty1 = await options.getLogs({
     target: lista,
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
@@ -70,7 +114,16 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  early_claim_penalty.forEach((log) => {
+  const early_claim_penalty2 = await options.getLogs({
+    target: lista,
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x000000000000000000000000d0c380d31db43cd291e2bbe2da2fd6dc877b87b3",
+      "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da",
+    ],
+  });
+
+  [...early_claim_penalty1, ...early_claim_penalty2].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(lista, amount);
   });
@@ -80,6 +133,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(eth, amount);
   });
 
+  //  enable later
   //   logs_fees_claim.forEach((log) => {
   //     const amount = log.amount;
   //     dailyFees.add(bnb, amount);
@@ -90,12 +144,17 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(slisBNB, amount);
   });
 
-  logs_transfer.forEach((log) => {
+  [...eth_transfer1, ...eth_transfer2].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(eth, amount);
   });
 
-  logs_exit.forEach((log) => {
+  [...lisusd_transfer1, ...lisusd_transfer2].forEach((log) => {
+    const amount = Number(log.data);
+    dailyFees.add(lisUSD, amount);
+  });
+
+  [...logs_exit1, ...logs_exit2].forEach((log) => {
     dailyFees.add(lisUSD, Number(log.data));
   });
 
