@@ -198,7 +198,7 @@ function getGraphDimensions({
     }
     `
       : undefined;
-    return async (options: FetchOptions) => {
+    return async (_a: any, _b: any, options: FetchOptions) => {
       const { endTimestamp, getEndBlock } = options;
       // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
       const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;

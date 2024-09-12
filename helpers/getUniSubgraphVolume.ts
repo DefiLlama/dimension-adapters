@@ -107,7 +107,7 @@ function getChainVolume({
   const graphQueryDailyVolume = gql`${hasDailyVolume ? `query get_daily_volume($id: Int) { ${dailyVolumeQuery} }` : ""}`;
 
   return (chain: Chain) => {
-    return async (options: FetchOptions) => {
+    return async (_a: any, _b: any, options: FetchOptions) => {
       const { endTimestamp, getEndBlock, getFromBlock, getToBlock } = options;
       const customBlockFunc = getCustomBlock ? getCustomBlock : getEndBlock;
       const block = (await customBlockFunc(endTimestamp).catch((e: any) =>
@@ -259,12 +259,12 @@ function getChainVolumeWithGasToken({
 }: IGetChainVolumeParams & {priceToken:string}) {
   const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
   return (chain: Chain) => {
-    return async (options: FetchOptions) => {
+    return async (_a: any, _b: any, options: FetchOptions) => {
       const {
         block,
         totalVolume,
         dailyVolume,
-      } = await basic(chain)(options);
+      } = await basic(chain)(_a, _b, options);
 
       const timestamp = options.endTimestamp
       const balances = new Balances({ chain, timestamp })
@@ -373,7 +373,7 @@ function univ2Adapter2(endpoints: {
   dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
   gasToken = null as string|null
 }) {
-  const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume)({
+  const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume2)({
     graphUrls: endpoints,
     totalVolume: {
       factory: factoriesName,
