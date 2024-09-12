@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -22,9 +22,11 @@ export const v2_adapter: SimpleAdapter = {
 
 export async function fetchArrowMarketsVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  timestamp: number,
+  _t: any,
+  options: FetchOptions
 ) {
-  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, timestamp);
+  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, options.startOfDay);
 
   const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume).toFixed(2);
   const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume).toFixed(2);
@@ -39,10 +41,8 @@ export async function fetchArrowMarketsVolumeData(
 }
 
 async function getArrowMarketsVolumeData(endpoint: string, timestamp: number): Promise<ArrowMarketsVolumeResponse> {
-  const url = new URL(endpoint);
-  url.searchParams.append('timestamp', timestamp.toString());
-  
-  return fetchURL(endpoint)
+  const url = `${endpoint}?timestamp=${timestamp}`;
+  return fetchURL(url)
 }
 
 export default v2_adapter;
