@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpointsV3 = {
     // [CHAIN.ARBITRUM_NOVA]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v3/v3-arbitrum-nova',
@@ -23,15 +23,11 @@ const endpointsV3 = {
     [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
 }
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpointsV3,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",
