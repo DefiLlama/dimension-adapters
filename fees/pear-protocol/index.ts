@@ -1,31 +1,20 @@
-import { Adapter, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const fetch = async (
-  timestamp: number,
-  chainBlocks: any,
-  options: FetchOptions
-) => {
-  const queryParams = new URLSearchParams({ limit: "1", offset: "0" }); // Define limit and offset parameters
-  const url = `https://api.dune.com/api/v1/query/3779651/results?${queryParams}`;
-
-  const opts = {
-    method: "GET",
-    headers: {
-      "X-DUNE-API-KEY": "aBGbHEVNlpqDCkh02NAfUXucBA7e8ROZ",
-    },
-  };
-
-  const response = await httpGet(url, opts);
-
-  const res = response.result.rows[0];
-  const totalfees = res.total_fees;
-  const dailyfees = res.daily_fees;
+const fetch = async (timestamp: number) => {
+  const url = "https://www.api.pearprotocol.io/v1/isolated/metric";
+  const response = await httpGet(url);
+  const totalFees = response.totalFees;
+  const dailyFees = response.dailyFees;
+  const dailyRevenue = dailyFees;
+  const totalRevenue = totalFees;
 
   return {
     dailyFees,
     totalFees,
+    dailyRevenue,
+    totalRevenue,
     timestamp,
   };
 };
@@ -34,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1718841600,
+      start: 1715199684,
     },
   },
 };

@@ -8,21 +8,11 @@ const fetch = async (
   chainBlocks: any,
   options: FetchOptions
 ) => {
-  const queryParams = new URLSearchParams({ limit: "1", offset: "0" }); // Define limit and offset parameters
-  const url = `https://api.dune.com/api/v1/query/3779651/results?${queryParams}`;
+  const url = "https://www.api.pearprotocol.io/v1/isolated/metric";
+  const response = await httpGet(url);
 
-  const opts = {
-    method: "GET",
-    headers: {
-      "X-DUNE-API-KEY": "aBGbHEVNlpqDCkh02NAfUXucBA7e8ROZ",
-    },
-  };
-
-  const response = await httpGet(url, opts);
-
-  const res = response.result.rows[0];
-  const totalVolume = res.total_volume;
-  const dailyVolume = 3000000;
+  const totalVolume = response.totalVolume;
+  const dailyVolume = response.dailyVolume;
 
   return {
     totalVolume,
