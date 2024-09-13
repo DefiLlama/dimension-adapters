@@ -22,7 +22,7 @@ const fetch =
       const chainData = data.result.rows.find(
         (row: any) => chainsMap[row.blockchain] === chain
       );
-
+      if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`)
       return {
         dailyVolume: chainData.volume_24h,
         timestamp: unixTimestamp,

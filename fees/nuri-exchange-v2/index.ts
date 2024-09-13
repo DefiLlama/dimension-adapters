@@ -1,10 +1,9 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { ARBITRUM, CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph"
 
 type TStartTime = {
@@ -31,17 +30,11 @@ const v2Endpoints = {
   [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/66247/nuri-cl/version/latest",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v2Graphs = getGraphDimensions({
+const v2Graphs = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",
