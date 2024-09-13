@@ -20,15 +20,19 @@ const fetchArbitrum = async (timestamp: number): Promise<FetchResult> => {
     if (!synfuturesItem) {
         synfuturesItem = {dailyVolume: 0, totalVolume: 0}
     }
-    let kiloexItem = fetchData.find(((item) => item.protocol == "kiloex"))
+    let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
         kiloexItem = {dailyVolume: 0, totalVolume: 0}
     }
-    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(kiloexItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(kiloexItem.totalVolume)
+    let dailyVolume = Number(orderlyItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume)
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
         totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
+    }
+    for (let i in kiloexItem){
+        dailyVolume = Number(dailyVolume) + Number(kiloexItem[i].dailyVolume)
+        totalVolume = Number(totalVolume) + Number(kiloexItem[i].totalVolume)
     }
     return {
         dailyVolume,
