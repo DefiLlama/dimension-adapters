@@ -15,8 +15,8 @@ const startTimestamps: { [chain: string]: number } = {
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
-  [CHAIN.MODE]:
-    "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
+  // [CHAIN.MODE]:
+  //   "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
 };
 const freestyleEndpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
