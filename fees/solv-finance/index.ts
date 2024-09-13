@@ -11,6 +11,7 @@ import { Balances } from "@defillama/sdk";
 
 const feesConfig = "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/main/solv-fees.json";
 const graphUrl = "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/refs/heads/main/solv-graph.json";
+const yields = 0.2;
 
 const chains: {
     [chain: Chain]: { deployedAt: number };
@@ -55,7 +56,8 @@ const fetch: FetchV2 = async (options) => {
     const poolFees = await pool(options, contracts);
     dailyFees.addBalances(poolFees);
     return {
-        dailyFees
+        dailyFees,
+        dailyRevenue: dailyFees.clone(yields)
     }
 };
 
@@ -125,7 +127,6 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
 
         const token = `${options.chain}:${poolBaseInfo.currency}`;
         const total = BigNumber(totalValue)
-            .div(BigNumber(10e18))
             .times(
                 BigNumber(poolNav).dividedBy(BigNumber(10).pow(priceData.decimals))
             );
