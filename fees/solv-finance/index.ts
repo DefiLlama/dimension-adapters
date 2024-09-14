@@ -62,6 +62,9 @@ const fetch: FetchV2 = async (options) => {
 };
 
 async function protocol(options: FetchOptions, contracts: any): Promise<Balances> {
+    if (!contracts[options.chain]["protocolFees"]) {
+        return options.createBalances();
+    }
     const dailyFees = await addTokensReceived({
         options,
         targets: contracts[options.chain]["protocolFees"].address,
@@ -72,6 +75,9 @@ async function protocol(options: FetchOptions, contracts: any): Promise<Balances
 }
 
 async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
+    if (!contracts[options.chain]["poolFees"]) {
+        return options.createBalances();
+    }
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
 
@@ -117,7 +123,6 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
 
     const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), toTimestamp));
 
-    let dailyFeeUsd = 0;
     const dailyFees = options.createBalances();
     for (let i = 0; i < pools.length; i++) {
         const poolNav = poolNavs[i];
@@ -127,6 +132,8 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
 
         const token = `${options.chain}:${poolBaseInfo.currency}`;
         const total = BigNumber(totalValue)
+            .dividedBy(BigNumber(10).pow(18))
+            .times(BigNumber(10).pow(priceData.decimals))
             .times(
                 BigNumber(poolNav).dividedBy(BigNumber(10).pow(priceData.decimals))
             );
