@@ -1,14 +1,11 @@
 import * as sdk from "@defillama/sdk";
-import { getDexChainFees } from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../dexs/spookyswap";
 import {
   Adapter,
   BaseAdapter,
-  BreakdownAdapter,
   IJSON,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getGraphDimensions } from "../helpers/getUniSubgraph";
+import { getGraphDimensions, getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
@@ -16,13 +13,10 @@ const endpoints = {
     sdk.graph.modifyEndpoint('B1VWKexyptT1ixDdHsxj3EJnAxvuje7ANT39rnfq9rRG'),
 };
 
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
   },
   feesPercent: {
     type: "volume",
