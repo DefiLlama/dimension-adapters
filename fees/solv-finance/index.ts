@@ -81,12 +81,12 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
 
-    const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp) * 1000;
-    const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp) * 1000;
+    const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp);
+    const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
     let poolNavs: any[] = [];
     for (const pool of pools) {
-        const [yesterdayNav, todayNav] = await options.api.multiCall({
+        const [todayNav, yesterdayNav] = await options.api.multiCall({
             calls: [{
                 target: pool.navOracle,
                 params: [pool.poolId, toTimestamp],
