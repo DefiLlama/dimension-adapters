@@ -81,8 +81,8 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
     const concretes = await concrete(pools, options);
 
-    const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp);
-    const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+    const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp) * 1000;
+    const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp) * 1000;
 
     let poolNavs: any[] = [];
     for (const pool of pools) {
@@ -121,21 +121,24 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
         })),
     });
 
-    const prices = (await getPrices(poolBaseInfos.map((index: { currency: string; }) => `${options.chain}:${index.currency.toLowerCase()}`), toTimestamp));
+    const poolDecimalList = await options.api.multiCall({
+        abi: "uint8:decimals",
+        calls: poolBaseInfos.map(i => i[1]),
+    })
 
     const dailyFees = options.createBalances();
     for (let i = 0; i < pools.length; i++) {
         const poolNav = poolNavs[i];
         const poolBaseInfo = poolBaseInfos[i];
         const totalValue = totalValues[i];
-        const priceData = prices[`${options.chain}:${poolBaseInfo.currency.toLowerCase()}`];
+        const decimals = poolDecimalList[i];
 
         const token = `${options.chain}:${poolBaseInfo.currency}`;
         const total = BigNumber(totalValue)
             .dividedBy(BigNumber(10).pow(18))
-            .times(BigNumber(10).pow(priceData.decimals))
+            .times(BigNumber(10).pow(decimals))
             .times(
-                BigNumber(poolNav).dividedBy(BigNumber(10).pow(priceData.decimals))
+                BigNumber(poolNav).dividedBy(BigNumber(10).pow(decimals))
             );
 
         dailyFees.addBalances({ [token]: total.toNumber() });
