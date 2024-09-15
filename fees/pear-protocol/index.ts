@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const fetch = async (timestamp: number) => {
-  const url = "https://www.api.pearprotocol.io/v1/isolated/metric";
+  const url = "https://www.api.pearprotocol.io/v1/metric";
   const response = await httpGet(url);
   const totalFees = response.totalFees;
   const dailyFees = response.dailyFees;
