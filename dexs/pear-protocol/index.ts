@@ -8,7 +8,7 @@ const fetch = async (
   chainBlocks: any,
   options: FetchOptions
 ) => {
-  const url = "https://www.api.pearprotocol.io/v1/isolated/metric";
+  const url = "https://www.api.pearprotocol.io/v1/metric";
   const response = await httpGet(url);
 
   const totalVolume = response.totalVolume;
