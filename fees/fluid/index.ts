@@ -4,7 +4,7 @@ import BigNumber from "bignumber.js";
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const abis = {
+const abis: any = {
   revenueResolver: {
     calcRevenueSimulatedTime:
       "function calcRevenueSimulatedTime(uint256 totalAmounts_,uint256 exchangePricesAndConfig_,uint256 liquidityTokenBalance_,uint256 simulatedTimestamp_) public view returns (uint256 revenueAmount_)",
@@ -205,12 +205,13 @@ const vaultResolver = async (api: sdk.ChainApi) => {
       return await api.multiCall({
         abi: abi.getVaultEntireData,
         calls: vaults.map((vault) => ({ target: address, params: [vault] })),
+        permitFailure: true,
       });
     },
   };
 };
 
-const config = {
+const config: any = {
   liquidity: "0x52aa899454998be5b000ad077a46bbe360f4e497",
   ethereum: {
     dataStartTimestamp: 1708246655, // ~ when liquidity resolver was deployed
@@ -337,15 +338,17 @@ const getFeesFromTo = async (
     for (const vaultOperate of vaultOperates) {
       borrowBalance = borrowBalance.plus(new BigNumber(vaultOperate[3]));
     }
+    try {
+      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultEntiresDataTo[index];
 
-    const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultEntiresDataTo[index];
+      dailyFees.add(
+        borrowToken,
+        new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
+          borrowBalance
+        )
+      );
+    } catch (ex) {}
 
-    dailyFees.add(
-      borrowToken,
-      new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
-        borrowBalance
-      )
-    );
   }
 
   return dailyFees;
@@ -581,33 +584,36 @@ const getVaultMagnifierUncollectedRevenueAt = async (
   ).getVaultEntireData(vaults) as any[];
 
   for (const [index, _vault] of vaults.entries()) {
-    const { totalSupplyAndBorrow , constantVariables} = vaultEntiresDataFrom[index];
-    const totalSupplyVault = new BigNumber(
-      totalSupplyAndBorrow.totalSupplyVault
-    );
-    const totalBorrowVault = new BigNumber(
-      totalSupplyAndBorrow.totalBorrowVault
-    );
-    const totalSupplyLiquidity = new BigNumber(
-      totalSupplyAndBorrow.totalSupplyLiquidity
-    );
-    const totalBorrowLiquidity = new BigNumber(
-      totalSupplyAndBorrow.totalBorrowLiquidity
-    );
+    try {
+      const { totalSupplyAndBorrow , constantVariables} = vaultEntiresDataFrom[index];
+      const totalSupplyVault = new BigNumber(
+        totalSupplyAndBorrow.totalSupplyVault
+      );
+      const totalBorrowVault = new BigNumber(
+        totalSupplyAndBorrow.totalBorrowVault
+      );
+      const totalSupplyLiquidity = new BigNumber(
+        totalSupplyAndBorrow.totalSupplyLiquidity
+      );
+      const totalBorrowLiquidity = new BigNumber(
+        totalSupplyAndBorrow.totalBorrowLiquidity
+      );
 
-    // if more supply at liquidity than at vault -> uncollected profit
-    const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
-      ? totalSupplyLiquidity.minus(totalSupplyVault)
-      : new BigNumber(0);
-    // if less borrow at liquidity than at vault -> profit
-    const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
-      ? totalBorrowVault.minus(totalBorrowLiquidity)
-      : new BigNumber(0);
+      // if more supply at liquidity than at vault -> uncollected profit
+      const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
+        ? totalSupplyLiquidity.minus(totalSupplyVault)
+        : new BigNumber(0);
+      // if less borrow at liquidity than at vault -> profit
+      const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
+        ? totalBorrowVault.minus(totalBorrowLiquidity)
+        : new BigNumber(0);
 
-    values.add(constantVariables.supplyToken, supplyTokenProfit);
-    values.add(constantVariables.borrowToken, borrowTokenProfit);
+      values.add(constantVariables.supplyToken, supplyTokenProfit);
+      values.add(constantVariables.borrowToken, borrowTokenProfit);
+    } catch (ex) {
+      // when vault did not exist yet, getVaultEntireData() will revert. at from block then we start from 0 balance.
+    }
   }
-
   return values;
 };
 // yarn test fees fluid

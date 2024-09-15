@@ -1,12 +1,8 @@
 import request, { gql } from "graphql-request";
-import {
-  BreakdownAdapter,
-  Fetch
-} from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import BigNumber from "bignumber.js";
-
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.BASE]: 1694304000,
@@ -14,13 +10,9 @@ const startTimestamps: { [chain: string]: number } = {
 };
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
-  // [CHAIN.MODE]:
-  //   "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
-};
-const freestyleEndpoints: { [key: string]: string } = {
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/62454/analytics_base_8_2/version/latest",
+    "https://api-v2.morphex.trade/subgraph/2vZHkWfx8g27Tri5LkTbhvCExCQcXJ3f28X2BwzFhjf6",
+  [CHAIN.MODE]:
+    "https://api-v2.morphex.trade/subgraph/8tp7xrDSCuutJ5omjfQKHvkGJpLszqPVWg3pby9XMLEz",
 };
 
 const historicalDataSwap = gql`
@@ -154,7 +146,6 @@ const getFetch =
     };
   };
 
-
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: Object.keys(endpoints).reduce((acc, chain) => {
@@ -166,7 +157,7 @@ const adapter: BreakdownAdapter = {
         },
       };
     }, {}),
-    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
+    derivatives: Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {

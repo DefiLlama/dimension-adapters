@@ -164,6 +164,7 @@ export enum CHAIN {
   IMMUTABLEX = "immutablex",
   CHAINFLIP = "chainflip",
   CRONOS_ZKEVM = "cronos_zkevm",
+  LOGX = "logx_network",
 }
 
 // Don´t use
