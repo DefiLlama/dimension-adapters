@@ -11,8 +11,8 @@ const fetch = async (
   const url = "https://www.api.pearprotocol.io/v1/metric";
   const response = await httpGet(url);
 
-  const totalVolume = response.totalVolume;
-  const dailyVolume = response.dailyVolume;
+  const totalVolume = response.payload.totalVolume;
+  const dailyVolume = response.payload.dailyVolume;
 
   return {
     totalVolume,

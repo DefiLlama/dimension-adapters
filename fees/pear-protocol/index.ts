@@ -5,8 +5,8 @@ import { httpGet } from "../../utils/fetchURL";
 const fetch = async (timestamp: number) => {
   const url = "https://www.api.pearprotocol.io/v1/metric";
   const response = await httpGet(url);
-  const totalFees = response.totalFees;
-  const dailyFees = response.dailyFees;
+  const totalFees = response.payload.totalFees;
+  const dailyFees = response.payload.dailyFees;
   const dailyRevenue = dailyFees;
   const totalRevenue = totalFees;
 
