@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
@@ -47,35 +47,25 @@ const mapChain = (chain: Chain): string => {
   return chain
 }
 
-const graphsV1 = getChainVolume({
+const graphsV1 = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: "volumeUSD",
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
 });
 
 
-const graphsV2 = getChainVolume({
+const graphsV2 = getChainVolume2({
   graphUrls: endpointsV2,
   totalVolume: {
     factory: "lbfactories",
     field: "volumeUSD",
   },
-  dailyVolume: {
-    factory: "traderJoeDayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
 });
 
 const adapter: BreakdownAdapter = {
-  version: 1,
+  version: 2,
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {
