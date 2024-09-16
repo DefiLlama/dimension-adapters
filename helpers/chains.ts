@@ -165,6 +165,7 @@ export enum CHAIN {
   CHAINFLIP = "chainflip",
   CRONOS_ZKEVM = "cronos_zkevm",
   LOGX = "logx_network",
+  FLARE = "flare",
 }
 
 // Don´t use
