@@ -199,7 +199,7 @@ function getChainVolume2({
     }
     `;
 
-  const graphQueryTotalVolume = gql`${hasTotalVolume ? `query get_total_volume($block: Int) { ${totalVolumeQuery} }` : ""}`
+  const graphQueryTotalVolume = gql`query get_total_volume($block: Int) { ${totalVolumeQuery} }`
 
   return (chain: Chain) => {
     return async (options: FetchOptions) => {
