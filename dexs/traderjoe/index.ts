@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
@@ -24,7 +24,7 @@ interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = async (options: FetchOptions): Promise<FetchResultVolume> => {
+const fetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
   const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
   const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
@@ -39,7 +39,6 @@ const fetchV2 = async (options: FetchOptions): Promise<FetchResultVolume> => {
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
   }
 }
 const mapChain = (chain: Chain): string => {
