@@ -16,7 +16,7 @@ const endpointsV3 = {
     // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5WabfuUgF5k4CE9snB22HNcUHQVkUStvet76qjovKdm6'),
     [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Hc3vTLxWmtyrn59t2Yv3MiXJVxjfNyZi41iKE3rXXHMf'),
     [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G1Q6dviDfMm6hVLvCqbfeB19kLmvs7qrnBvXeFndjhaU'),
-    [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
+    // [CHAIN.POLYGON_ZKEVM]: 'https://api.studio.thegraph.com/query/32073/v3-polygon-zkevm/v0.0.2',
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
     [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1",
     [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",

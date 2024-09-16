@@ -356,7 +356,7 @@ function univ2Adapter(endpoints: {
         }
       }
     }, {} as BaseAdapter),
-    version: 2
+    version: 1
   };
 
   return adapter;
