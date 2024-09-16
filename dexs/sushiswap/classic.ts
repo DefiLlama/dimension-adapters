@@ -55,7 +55,7 @@ const endpointsClassic = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
-  [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
+  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
   [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'),
   // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
