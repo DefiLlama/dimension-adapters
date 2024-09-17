@@ -34,4 +34,5 @@ const adapters = univ2DimensionAdapter({
 adapters.adapter.polygon.start = 1622173831;
 adapters.adapter.xdai.start = 1599191431;
 
+
 export default adapters;

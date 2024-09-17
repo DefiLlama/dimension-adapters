@@ -35,4 +35,6 @@ const adapter = univ2DimensionAdapter({
 });
 
 
+
+
 export default adapter;
