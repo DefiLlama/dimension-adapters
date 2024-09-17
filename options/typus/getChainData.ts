@@ -1,10 +1,10 @@
 import { queryEvents } from "../../helpers/sui";
-import { FetchOptions, FetchResult } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 
 
 async function getChainData(
   options: FetchOptions,
-): Promise<FetchResult> {
+): Promise<FetchResultV2> {
   const events = await queryEvents({eventType:"0x321848bf1ae327a9e022ccb3701940191e02fa193ab160d9c0e49cd3c003de3a::typus_dov_single::DeliveryEvent", options})
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
@@ -39,7 +39,6 @@ async function getChainData(
   }
 
   return {
-    timestamp: options.endTimestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
   };
