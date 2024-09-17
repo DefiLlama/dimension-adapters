@@ -449,6 +449,32 @@ function univ2DimensionAdapter(params: IGetChainVolumeParams, meta: BaseAdapter[
   return adapter;
 }
 
+function univ2DimensionAdapter2(params: IGetChainVolumeParams, meta: BaseAdapter[string]['meta']) {
+  const graphs = getGraphDimensions2(params);
+
+  const adapter: SimpleAdapter = {
+    adapter: Object.keys(params.graphUrls).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: graphs(chain as Chain),
+          start: getStartTimestamp({
+            endpoints: params.graphUrls,
+            chain,
+            volumeField: params.dailyVolume?.field,
+            dailyDataField: params.dailyVolume?.factory + "s",
+            dateField: params.dailyVolume?.dateField,
+          }),
+          meta,
+        },
+      };
+    }, {} as BaseAdapter),
+    version: 2
+  };
+
+  return adapter;
+}
+
 function wrapGraphError(e: Error) {
   const message = (e as any).response?.errors?.[0]?.message ?? e.message;
   return new Error(shortenString(message));
@@ -463,6 +489,7 @@ export {
   getGraphDimensions,
   getGraphDimensions2,
   univ2DimensionAdapter,
+  univ2DimensionAdapter2,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
