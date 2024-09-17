@@ -1,8 +1,9 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchV2 } from "../adapters/types"
+import type { ChainEndpoints, FetchOptions, FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { time } from "console";
 
 const endpoints = {
   [CHAIN.SEI]: "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-prod/1.0.0/gn"
@@ -14,28 +15,29 @@ const methodology = {
   ProtocolAccumulation: "Fees sent to the protocol wallet (30% of total accumulated fees), is used to provide benefits to users in custom ways."
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-    const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp)
+const graphs = async (_t: any, _b: any, options: FetchOptions) => {
 
-      const graphQuery = gql
-      `{
-        uniswapDayDatas(where: {date: ${todaysTimestamp}}) {
-          dailyFeesUSD
-        }
+
+      const dayID = Math.floor(options.startOfDay / 86400);
+      const query =gql`
+      {
+          uniswapDayData(id:${dayID}) {
+              id
+              dailyVolumeUSD
+              dailyFeesUSD
+          }
+
       }`;
-
-      const graphRes = await request(graphUrls[chain], graphQuery);
-
-      const dailyFee = graphRes.uniswapDayDatas[0].dailyFeesUSD;
-
+      const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-prod/1.0.0/gn";
+      const req = await request(url, query);
+      const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
       return {
+        timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
-        dailyLPProvidersRevenue: (dailyFee * 0.7).toString(),
+        // dailyLPProvidersRevenue: (dailyFee * 0.7).toString(),
         dailyRevenue: (dailyFee * 0.3).toString(),
       };
-    };
-    return fetch
+
 };
 
 
@@ -43,7 +45,7 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.SEI]: {
-      fetch: graphs(endpoints),
+      fetch: graphs,
       start: 79157663,
       meta: {
         methodology
