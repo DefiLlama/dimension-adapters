@@ -40,7 +40,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SEI]: {
       fetch: graphs(endpoints),
