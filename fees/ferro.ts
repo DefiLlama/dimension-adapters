@@ -25,5 +25,6 @@ const adapters = univ2DimensionAdapter({
   }
 }, {
 });
+
 adapters.adapter.cronos.start = 1661731973;
 export default adapters;

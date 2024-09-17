@@ -25,5 +25,6 @@ const adapter = univ2DimensionAdapter({
   }
 });
 
+
 adapter.adapter.bsc.start = 1629947542;
 export default adapter;
