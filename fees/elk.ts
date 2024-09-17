@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls: {
     [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE'),
     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('2dyce92CewvhV17C8BMFoMCgaXdPTtwBzaz8AReQR3YV'),
@@ -21,9 +21,6 @@ const adapter = univ2DimensionAdapter({
     // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
     // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",
     // [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
-  },
-  dailyVolume: {
-    factory: "elkDayData"
   },
   totalVolume: {
     factory: "elkFactories"

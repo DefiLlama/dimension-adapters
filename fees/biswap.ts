@@ -1,13 +1,10 @@
-import * as sdk from "@defillama/sdk";
+import { graph } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapters = univ2DimensionAdapter({
+const adapters = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.BSC]: sdk.graph.modifyEndpoint('2D9rXpMTvAgofWngsyRE17jKr5ywrU4W3Eaa71579qkd')
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
+    [CHAIN.BSC]: graph.modifyEndpoint('2D9rXpMTvAgofWngsyRE17jKr5ywrU4W3Eaa71579qkd')
   },
   totalVolume: {
     factory: "pancakeFactories"

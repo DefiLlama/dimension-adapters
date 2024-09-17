@@ -1,11 +1,11 @@
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
 const graphUrls = {
   [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
 };
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls,
   feesPercent: {
     type: "volume",
