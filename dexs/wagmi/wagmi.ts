@@ -69,8 +69,8 @@ const getData = async (chain: Chain, timestamp: number) => {
   const totalVolume = Number(data.factories[0].totalVolumeUSD);
   const totalFee = Number(data.factories[0].totalFeesUSD);
 
-  const dailyVolume = Number(data.uniswapDayData.volumeUSD);
-  const dailyFees = Number(data.uniswapDayData.feesUSD);
+  const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? '0');
+  const dailyFees = Number(data.uniswapDayData?.feesUSD ?? '0');
 
   return {
     dailyFees: `${dailyFees}`,

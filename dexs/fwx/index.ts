@@ -33,13 +33,26 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily volume
-    const tradingVolumeRes = await httpPost(endpoints.tradingVolume, {
+    const tradingVolumePerpRes = await httpPost(endpoints.tradingVolume, {
       from_date: formattedDate,
       to_date: formattedDate,
       chain_id: CHAIN_ID[chain],
+      is_perp: true,
     });
-    const tradingVolume = tradingVolumeRes as IRes;
-    const dailyVolumeData = tradingVolume?.data.find(
+    const tradingVolumePerp = tradingVolumePerpRes as IRes;
+    const dailyPerpVolumeData = tradingVolumePerp?.data.find(
+      (x: IDailyData) =>
+        new Date(x.date).getTime() == new Date(formattedDate).getTime()
+    );
+
+    const tradingVolumeAphRes = await httpPost(endpoints.tradingVolume, {
+      from_date: formattedDate,
+      to_date: formattedDate,
+      chain_id: CHAIN_ID[chain],
+      is_perp: false,
+    });
+    const tradingVolumeAph = tradingVolumeAphRes as IRes;
+    const dailyAphVolumeData = tradingVolumeAph?.data.find(
       (x: IDailyData) =>
         new Date(x.date).getTime() == new Date(formattedDate).getTime()
     );
@@ -57,9 +70,12 @@ const fetch = (chain: Chain) => {
     );
 
     return {
-      dailyVolume: convertStringNumber(dailyVolumeData?.total || "0"),
+      dailyVolume: convertStringNumber(
+        BigInt(dailyPerpVolumeData?.total || "0") +
+          BigInt(dailyAphVolumeData?.total || "0")
+      ),
       dailyOpenInterest: convertStringNumber(
-        dailyOpenInterestData?.total || "0"
+        BigInt(dailyOpenInterestData?.total || "0")
       ),
       timestamp: timestamp,
     };
@@ -82,8 +98,7 @@ const adapter: SimpleAdapter = {
 export default adapter;
 
 // devide by 1e18
-function convertStringNumber(inputString: string) {
-  let number = BigInt(inputString);
+function convertStringNumber(number: bigint) {
   const divisor = BigInt(1e18);
   let integerPart = number / divisor;
   let fractionalPart = number % divisor;

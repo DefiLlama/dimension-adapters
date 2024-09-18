@@ -1,11 +1,10 @@
-import * as sdk from "@defillama/sdk";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { graph } from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2DimensionAdapter } from "../../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../../helpers/getUniSubgraph";
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.BSC]: sdk.graph.modifyEndpoint('FBPHPJNE1jX18Lz8rgscvsigfxAUXakUC8w9KMid4dDz')
+    [CHAIN.BSC]: graph.modifyEndpoint('FBPHPJNE1jX18Lz8rgscvsigfxAUXakUC8w9KMid4dDz')
   },
   feesPercent: {
     type: "volume",
@@ -24,6 +23,7 @@ const adapter = univ2DimensionAdapter({
     Revenue: "Revenue generated is 0.2% of total volume"
   }
 });
+
 
 adapter.adapter.bsc.start = 1629947542;
 export default adapter;

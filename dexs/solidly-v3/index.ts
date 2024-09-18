@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
+const adapters = univ2Adapter2({
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
   // [CHAIN.BASE]: "https://api.studio.thegraph.com/query/64631/solidly-v3-base/version/latest",
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('HCThb3gJC45qUYmNEaYmZZTqJW3pSq7X6tb4MqNHEvZf'),
@@ -10,8 +10,6 @@ const adapters = univ2Adapter({
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('HDNu25S2uqr13BHrQdPv2PfTpwxJgPB7QEnC8fsgKcM9')
 }, {
   factoriesName: "factories",
-  dayData: "solidlyDayData",
-  dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
 

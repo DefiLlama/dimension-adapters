@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { Adapter, ChainBlocks, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
 import {queryDuneSql} from "../../helpers/dune"
