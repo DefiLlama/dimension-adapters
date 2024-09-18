@@ -79,69 +79,65 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
         return options.createBalances();
     }
     const pools = await getGraphData(contracts[options.chain]["poolFees"], options.chain);
-    const concretes = await concrete(pools, options);
+    const shareConcretes = await concrete(pools, options);
 
     const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp);
     const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    let poolNavs: any[] = [];
-    for (const pool of pools) {
-        const [todayNav, yesterdayNav] = await options.api.multiCall({
-            calls: [{
-                target: pool.navOracle,
-                params: [pool.poolId, toTimestamp],
-            }, {
-                target: pool.navOracle,
-                params: [pool.poolId, fromTimestamp],
-            }],
-            abi: 'function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)',
-        });
+    const yesterdayNavs = await options.fromApi.multiCall({
+        abi: 'function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)',
+        calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
+            target: pool.navOracle,
+            params: [pool.poolId, fromTimestamp],
+        })),
+    });
 
-        let nav = todayNav.nav_ - yesterdayNav.nav_;
-        if (nav < 0) {
-            nav = 0;
-        }
-
-        poolNavs.push(nav);
-    }
+    const todayNavs = await options.toApi.multiCall({
+        abi: 'function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)',
+        calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
+            target: pool.navOracle,
+            params: [pool.poolId, toTimestamp],
+        })),
+    });
 
     const poolBaseInfos = await options.api.multiCall({
         abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
         calls: pools.map((index: { contractAddress: string | number; openFundShareSlot: any; }) => ({
-            target: concretes[index.contractAddress],
+            target: shareConcretes[index.contractAddress],
             params: [index.openFundShareSlot]
         })),
     });
 
-    const totalValues = await options.api.multiCall({
+    const shareTotalValues = await options.api.multiCall({
         abi: 'function slotTotalValue(uint256) view returns (uint256)',
         calls: pools.map((index: { contractAddress: string | number; openFundShareSlot: any; }) => ({
-            target: concretes[index.contractAddress],
+            target: shareConcretes[index.contractAddress],
             params: [index.openFundShareSlot]
         })),
     });
-
-    const poolDecimalList = await options.api.multiCall({
-        abi: "uint8:decimals",
-        calls: poolBaseInfos.map(i => i[1]),
-    })
 
     const dailyFees = options.createBalances();
     for (let i = 0; i < pools.length; i++) {
-        const poolNav = poolNavs[i];
+        const poolNavIncrease = todayNavs[i].nav_ - yesterdayNavs[i].nav_;
         const poolBaseInfo = poolBaseInfos[i];
-        const totalValue = totalValues[i];
-        const decimals = poolDecimalList[i];
+        const shareTotalValue = shareTotalValues[i];
+
+        if (poolNavIncrease <= 0) {
+            console.log(`chain: ${options.chain} poolId: ${pools[i].poolId} poolNavIncrease: ${poolNavIncrease}, skip`);
+            continue;
+        }
+        if (shareTotalValue == 0) {
+            console.log(`chain: ${options.chain} poolId: ${pools[i].poolId} shareTotalValue is 0, skip`);
+            continue;
+        }
 
         const token = `${options.chain}:${poolBaseInfo.currency}`;
-        const total = BigNumber(totalValue)
+        // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolFeeDecimals)
+        const poolFee = BigNumber(shareTotalValue)
             .dividedBy(BigNumber(10).pow(18))
-            .times(BigNumber(10).pow(decimals))
-            .times(
-                BigNumber(poolNav).dividedBy(BigNumber(10).pow(decimals))
-            );
-
-        dailyFees.addBalances({ [token]: total.toNumber() });
+            .times(BigNumber(poolNavIncrease));
+        dailyFees.addBalances({ [token]: poolFee.toNumber() });
+        console.log('chain', options.chain, 'poolId', pools[i].poolId, 'poolNavIncrease', poolNavIncrease, 'shareTotalValue', shareTotalValue, 'poolFee', poolFee.toNumber());
     }
 
     return dailyFees;
