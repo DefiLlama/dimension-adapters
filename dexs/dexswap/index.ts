@@ -16,8 +16,8 @@ const startDate = 1684702800;
 
 
 const feeAdapter =  uniV2Exports({
-  [CHAIN.CORE]: { factory: FACTORY_ADDRESS, },
-}).adapter[CHAIN.CORE].fetch
+  [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
+}).adapter[CHAIN.ARBITRUM].fetch
 
 
 const fetch = async (options: FetchOptions) => {
