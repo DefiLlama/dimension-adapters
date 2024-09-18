@@ -132,7 +132,7 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
         }
 
         const token = `${options.chain}:${poolBaseInfo.currency}`;
-        // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolFeeDecimals)
+        // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolTokenFeeDecimals)
         const poolFee = BigNumber(shareTotalValue)
             .dividedBy(BigNumber(10).pow(18))
             .times(BigNumber(poolNavIncrease));
