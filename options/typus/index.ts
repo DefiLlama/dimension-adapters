@@ -8,7 +8,8 @@ const adapter: SimpleAdapter = {
       fetch: getChainData,
       start: 1697700660,
     }
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

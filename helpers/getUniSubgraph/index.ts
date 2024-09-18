@@ -33,7 +33,7 @@ interface IGetChainVolumeParams {
     factory?: string,
     field?: string,
     blockGraphType?: string
-    filterParams?: IGetChainVolumeFilterParams[], 
+    filterParams?: IGetChainVolumeFilterParams[],
   },
   dailyVolume?: {
     factory?: string,
@@ -137,7 +137,7 @@ function getGraphDimensions({
   }
   // Queries
   const totalVolumeQuery = graphFieldsTotalVolume.filterParams
-  ? gql`query get_total_volume(${graphFieldsTotalVolume.filterParams.map(item => `$${item.name}: ${item.type}`).join(', ')}) { 
+  ? gql`query get_total_volume(${graphFieldsTotalVolume.filterParams.map(item => `$${item.name}: ${item.type}`).join(', ')}) {
   ${graphFieldsTotalVolume.factory}(
     where: {${graphFieldsTotalVolume.filterParams.map(item => `${item.name}: $${item.name}`).join(', ')}}
     ) {
@@ -385,17 +385,17 @@ function getGraphDimensions2({
         if (totalVolume === undefined || feesPercent?.Fees === undefined)
           console.error(`Unable to get total fees on ${chain} from graph.`)
       });
-      const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0) 
+      const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
       // PREV TOTAL FEES
       const graphResPrevTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
         if (totalVolume === undefined || feesPercent?.Fees === undefined)
           console.error(`Unable to get total fees on ${chain} from graph.`)
       });
-      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0) 
+      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
       const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees
-      
+
       // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
       let response: FetchResultGeneric = {
         timestamp: endTimestamp,
@@ -443,6 +443,32 @@ function univ2DimensionAdapter(params: IGetChainVolumeParams, meta: BaseAdapter[
         },
       };
     }, {} as BaseAdapter),
+    version: 1
+  };
+
+  return adapter;
+}
+
+function univ2DimensionAdapter2(params: IGetChainVolumeParams, meta: BaseAdapter[string]['meta']) {
+  const graphs = getGraphDimensions2(params);
+
+  const adapter: SimpleAdapter = {
+    adapter: Object.keys(params.graphUrls).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: graphs(chain as Chain),
+          start: getStartTimestamp({
+            endpoints: params.graphUrls,
+            chain,
+            volumeField: params.dailyVolume?.field,
+            dailyDataField: params.dailyVolume?.factory + "s",
+            dateField: params.dailyVolume?.dateField,
+          }),
+          meta,
+        },
+      };
+    }, {} as BaseAdapter),
     version: 2
   };
 
@@ -463,6 +489,7 @@ export {
   getGraphDimensions,
   getGraphDimensions2,
   univ2DimensionAdapter,
+  univ2DimensionAdapter2,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
