@@ -1,10 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types"
-import { exportDexVolumeAndFees } from "../../helpers/dexVolumeLogs";
 import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
+import { uniV2Exports } from "../../helpers/uniswap";
 
 const FACTORY_ADDRESS = '0x3e40739d8478c58f9b973266974c58998d4f9e8b';
 
@@ -13,6 +13,12 @@ const endpoints = {
   };
 
 const startDate = 1684702800;
+
+
+const feeAdapter =  uniV2Exports({
+  [CHAIN.CORE]: { factory: FACTORY_ADDRESS, },
+}).adapter[CHAIN.CORE].fetch
+
 
 const fetch = async (options: FetchOptions) => {
 	const dataFactory = await request(endpoints[options.chain], gql
@@ -44,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 		})
 		if (dataFees.dexSwapFees.length < 1000) break;
 	}
-	const dailyData = await exportDexVolumeAndFees({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS })(options.endTimestamp, {}, options);
+	const dailyData = await feeAdapter(options as any, {}, options);
 	return {
 		...dailyData,
 		totalVolume,
