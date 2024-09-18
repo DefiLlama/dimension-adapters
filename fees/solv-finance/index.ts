@@ -17,22 +17,22 @@ const chains: {
     [chain: Chain]: { deployedAt: number };
 } = {
     [CHAIN.ETHEREUM]: {
-        deployedAt: 1681084800,
+        deployedAt: 1726531200,
     },
     [CHAIN.BSC]: {
-        deployedAt: 1679097600,
+        deployedAt: 1726531200,
     },
     [CHAIN.ARBITRUM]: {
-        deployedAt: 1682380800,
+        deployedAt: 1726531200,
     },
     [CHAIN.MANTLE]: {
-        deployedAt: 1692835200,
+        deployedAt: 1726531200,
     },
     [CHAIN.MERLIN]: {
-        deployedAt: 1710892800,
+        deployedAt: 1726531200,
     },
     [CHAIN.CORE]: {
-        deployedAt: 1726012800,
+        deployedAt: 1726531200,
     },
 };
 
@@ -123,11 +123,9 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
         const shareTotalValue = shareTotalValues[i];
 
         if (poolNavIncrease <= 0) {
-            console.log(`chain: ${options.chain} poolId: ${pools[i].poolId} poolNavIncrease: ${poolNavIncrease}, skip`);
             continue;
         }
         if (shareTotalValue == 0) {
-            console.log(`chain: ${options.chain} poolId: ${pools[i].poolId} shareTotalValue is 0, skip`);
             continue;
         }
 
@@ -137,7 +135,6 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
             .dividedBy(BigNumber(10).pow(18))
             .times(BigNumber(poolNavIncrease));
         dailyFees.addBalances({ [token]: poolFee.toNumber() });
-        console.log('chain', options.chain, 'poolId', pools[i].poolId, 'poolNavIncrease', poolNavIncrease, 'shareTotalValue', shareTotalValue, 'poolFee', poolFee.toNumber());
     }
 
     return dailyFees;
