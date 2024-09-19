@@ -8,12 +8,10 @@ const config = {
   [CHAIN.MODE]: {
     stakingRewards: '0xD2F998a46e4d9Dd57aF1a28EBa8C34E7dD3851D7',
     rewardToken: '0xDfc7C877a950e49D2610114102175A06C2e3167a',
-    // fromBlock: 7797181
   },
   [CHAIN.BOB]: {
     stakingRewards: "0x8Eb6838B4e998DA08aab851F3d42076f21530389",
-    rewardTokens: "0x4200000000000000000000000000000000000006",
-    // fromBlock: 1723513
+    rewardToken: "0x4200000000000000000000000000000000000006",
   }
 }
 
