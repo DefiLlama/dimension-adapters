@@ -36,7 +36,7 @@ const methodology = {
 
 const feeAdapter =  uniV2Exports({
   [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
-}).adapter[CHAIN.CORE].fetch
+}).adapter[CHAIN.ARBITRUM].fetch
 
 
 const adapter: Adapter = {
