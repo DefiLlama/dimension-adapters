@@ -30,11 +30,13 @@ const fetchApi = async (type: FetchType, startTime: number, endTime: number) => 
   return data
 }
 
-const fetchFees = async (optios: FetchOptions) => {
-  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, optios.startTimestamp, optios.endTimestamp)
+const fetchFees = async (_t: any, _b: any, optios: FetchOptions) => {
+  const start = optios.startOfDay;
+  const end = start + 86400;
+  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, start, end)
   const dailyFees = dailyAlls.find((daily: Data)=> daily.chainId === optios.toApi.chainId)
 
-  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, optios.startTimestamp, optios.endTimestamp)
+  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, start, end)
   const totalFees = totalAlls.find((daily: Data)=> daily.chainId === optios.toApi.chainId)
 
   return {
@@ -50,7 +52,7 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
