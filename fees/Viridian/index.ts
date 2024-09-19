@@ -1,12 +1,16 @@
 import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getBribes } from './bribes';
-import { exportDexVolumeAndFees } from '../../helpers/dexVolumeLogs';
+import { uniV2Exports } from '../../helpers/uniswap';
 
-const FACTORY_ADDRESS = '0xb54a83cfEc6052E05BB2925097FAff0EC22893F3';
+
+const feeAdapter =  uniV2Exports({
+  [CHAIN.CORE]: { factory: '0xb54a83cfEc6052E05BB2925097FAff0EC22893F3', },
+}).adapter[CHAIN.CORE].fetch
+
 
 const getFees = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const v1Results = await exportDexVolumeAndFees({ chain: CHAIN.CORE, factory: FACTORY_ADDRESS })(options.endTimestamp, {}, options)
+  const v1Results = await feeAdapter(options as any, undefined as any, options);
   const bribesResult = await getBribes(options);
   v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
   return {

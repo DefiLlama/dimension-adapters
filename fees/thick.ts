@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getDexFeesExportsV3 } from "../helpers/dexVolumeLogs";
+import { uniV3Exports } from "../helpers/uniswap";
 
 const poolFactoryAddress = '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24';
 
@@ -13,24 +13,14 @@ const methodology = {
   SupplySideRevenue: "The portion of trading fees paid to liquidity providers."
 }
 
-const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FANTOM]: {
-      fetch: getDexFeesExportsV3({ chain: CHAIN.FANTOM, factory: poolFactoryAddress, factoryFromBlock: 70309749}),
-      start: 1699300000,
-      meta: { methodology: { ...methodology, } },
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: getDexFeesExportsV3({ chain: CHAIN.ARBITRUM, factory: poolFactoryAddress, factoryFromBlock: 148243463}),
-      start: 1699300000,
-      meta: { methodology: { ...methodology, } },
-    },
-    [CHAIN.BASE]: {
-      fetch: getDexFeesExportsV3({ chain: CHAIN.BASE, factory: poolFactoryAddress, factoryFromBlock: 6314325}),
-      start: 1699300000,
-      meta: { methodology: { ...methodology, } },
-    }
-  }
-}
+const adapters: SimpleAdapter = uniV3Exports({
+  [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
+  [CHAIN.ARBITRUM]: { factory: poolFactoryAddress, },
+  [CHAIN.BASE]: { factory: poolFactoryAddress, },
+})
 
+
+Object.keys(adapters.adapter).forEach((chain: any) => {
+  adapters.adapter[chain].meta = { methodology }
+})
 export default adapters;

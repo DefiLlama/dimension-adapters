@@ -22,22 +22,22 @@ export async function filterPools({ api, pairs, createBalances }: { api: ChainAp
   const filteredPairs: IJSON<number> = {}
   for (const pair of Object.keys(pairs)) {
     const pooledValue = await pairBalances[pair].getUSDValue()
-    if (pooledValue < 1000)
+    if (pooledValue < 100)
       continue;
     filteredPairs[pair] = pooledValue
   }
 
-  if (Object.keys(filteredPairs).length < 42)
+  if (Object.keys(filteredPairs).length < 21)
     return filteredPairs
 
-  // if there are more than 42 pools, we need to filter out the ones with the lowest value
-  const sortedPairs = Object.entries(filteredPairs).sort((a, b) => b[1] - a[1]).slice(0, 42)
+  // if there are more than 21 pools, we need to filter out the ones with the lowest value
+  const sortedPairs = Object.entries(filteredPairs).sort((a, b) => b[1] - a[1]).slice(0, 21)
   return Object.fromEntries(sortedPairs)
 }
 
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 
-export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, }: UniV2Config): FetchV2 => {
+export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000 }: UniV2Config): FetchV2 => {
   const fetch: FetchV2 = async ({ createBalances, getLogs, chain, api }) => {
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory}-${chain}.json`
@@ -49,24 +49,30 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
       pairObject[pair] = [token0s[i], token1s[i]]
     })
     const dailyVolume = createBalances()
+    const dailyFees = createBalances()
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
-    await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
+    const pairIds = Object.keys(filteredPairs)
+    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
+    await Promise.all(pairIds.map(async (pair, index) => {
+      let _fees = isStablePair[index] ? stableFees : fees
       const [token0, token1] = pairObject[pair]
       const logs = await getLogs({ target: pair, eventAbi: swapEvent })
       logs.forEach(log => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
+        addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * _fees, amount1: Number(log.amount1In) * _fees })
+        addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
       })
     }))
 
-    return { dailyVolume, dailyFees: dailyVolume.clone(fees) }
+    return { dailyVolume, dailyFees, }
   }
   return fetch
 }
 
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async ({ createBalances, getLogs, chain, api }) => {
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
@@ -93,6 +99,10 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
       })
     }))
+
+    if (customLogic) {
+      return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, createBalances, getLogs, chain, api })
+    }
     return { dailyVolume, dailyFees }
   }
   return fetch
@@ -102,12 +112,14 @@ type UniV2Config = {
   factory: string,
   fees?: number,
   swapEvent?: string,
+  stableFees?: number,
 }
 
 type UniV3Config = {
   factory: string,
   poolCreatedEvent?: string,
   swapEvent?: string,
+  customLogic?: any,
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>) {
@@ -130,4 +142,24 @@ export function uniV3Exports(config: IJSON<UniV3Config>) {
     }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter
+}
+
+
+
+export async function filterPools2({ fetchOptions, pairs, token0s, token1s }: any) {
+  const pairObject: IJSON<string[]> = {}
+  pairs.forEach((pair: string, i: number) => {
+    pairObject[pair] = [token0s[i], token1s[i]]
+  })
+  const res = await filterPools({ ...fetchOptions, pairs: pairObject })
+  pairs = []
+  token0s = []
+  token1s = []
+  Object.keys(res).forEach((pair: any) => {
+    pairs.push(pair)
+    const [token0, token1] = pairObject[pair]
+    token0s.push(token0)
+    token1s.push(token1)
+  })
+  return { pairs, token0s, token1s, pairObject, }
 }

@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getDexFeesExports, exportDexVolumeAndFees } from "../../helpers/dexVolumeLogs";
+import { uniV2Exports } from "../../helpers/uniswap";
 import { fees_bribes } from './bribes';
 
 
@@ -33,12 +33,18 @@ const methodology = {
   SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
 }
 
+
+const feeAdapter =  uniV2Exports({
+  [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
+}).adapter[CHAIN.CORE].fetch
+
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
-        const v1Results = await exportDexVolumeAndFees({ chain: CHAIN.ARBITRUM, factory: FACTORY_ADDRESS,})(options.endTimestamp, {}, options)
+        const v1Results = await feeAdapter(options as any, {}, options)
         const bribesResult = await getBribes(options);
         v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
