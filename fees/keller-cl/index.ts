@@ -1,7 +1,8 @@
 import { uniV3Exports } from "../../helpers/uniswap";
 
-const customLogic = async ({ pairObject, dailyFees, createBalances, filteredPairs, getLogs, }: any) => {
+const customLogic = async ({ pairObject, dailyFees, fetchOptions, filteredPairs, }: any) => {
   const collectProtocolEvent = 'event CollectProtocol(address indexed sender,address indexed recipient,uint128 amount0,uint128 amount1)';
+  const { createBalances, getLogs } = fetchOptions
   const dailyProtocolRevenue = createBalances();
 
   await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
