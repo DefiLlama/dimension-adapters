@@ -2408,5 +2408,16 @@ export default (
           bsc: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
       }
   },
+  {
+    id: "parent#yellow",
+    name: "Yellow",
+    addresses: {
+      ethereum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      bsc: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      polygon: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      base: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      arbitrum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+    },
+  },
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
