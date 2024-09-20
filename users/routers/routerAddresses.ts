@@ -2409,7 +2409,7 @@ export default (
       }
   },
   {
-    id: "parent#yellow",
+    id: "5157",
     name: "Yellow",
     addresses: {
       ethereum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
