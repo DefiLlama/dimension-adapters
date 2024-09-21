@@ -4,8 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 
 const fetchEthereum = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=1`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=1`;
+  const urlTotal = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/1`;
+  const urlDaily = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/1`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -23,8 +23,8 @@ const fetchEthereum = async (options: FetchOptions) => {
 
 const fetchBase = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=8453`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=8453`;
+  const urlTotal = `https://base.server.hinkal.pro/totalVolume/${timestamp}/false/8453`;
+  const urlDaily = `https://base.server.hinkal.pro/totalVolume/${timestamp}/true/8453`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -42,8 +42,8 @@ const fetchBase = async (options: FetchOptions) => {
 
 const fetchArbitrum = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=42161`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=42161`;
+  const urlTotal = `https://arbMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/42161`;
+  const urlDaily = `https://arbMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/42161`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -61,8 +61,8 @@ const fetchArbitrum = async (options: FetchOptions) => {
 
 const fetchPolygon = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=137`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=137`;
+  const urlTotal = `https://polygon.server.hinkal.pro/totalVolume/${timestamp}/false/137`;
+  const urlDaily = `https://polygon.server.hinkal.pro/totalVolume/${timestamp}/true/137`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -80,8 +80,8 @@ const fetchPolygon = async (options: FetchOptions) => {
 
 const fetchBNB = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=56`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=56`;
+  const urlTotal = `https://bnbMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/56`;
+  const urlDaily = `https://bnbMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/56`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -99,8 +99,8 @@ const fetchBNB = async (options: FetchOptions) => {
 
 const fetchAVALANCHE = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=43114`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=43114`;
+  const urlTotal = `https://avalanche.server.hinkal.pro/totalVolume/${timestamp}/false/43114`;
+  const urlDaily = `https://avalanche.server.hinkal.pro/totalVolume/${timestamp}/true/43114`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -118,8 +118,8 @@ const fetchAVALANCHE = async (options: FetchOptions) => {
 
 const fetchOPTIMISM = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=10`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=10`;
+  const urlTotal = `https://optimism.server.hinkal.pro/totalVolume/${timestamp}/false/10`;
+  const urlDaily = `https://optimism.server.hinkal.pro/totalVolume/${timestamp}/true/10`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
@@ -137,8 +137,8 @@ const fetchOPTIMISM = async (options: FetchOptions) => {
 
 const fetchBLAST = async (options: FetchOptions) => {
   const timestamp = options.endTimestamp;
-  const urlTotal = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=false&chainId=81457`;
-  const urlDaily = `http://localhost:3000/volume?endDate=${timestamp}&dailyVolume=true&chainId=81457`;
+  const urlTotal = `https://blast.server.hinkal.pro/totalVolume/${timestamp}/false/81457`;
+  const urlDaily = `https://blast.server.hinkal.pro/totalVolume/${timestamp}/true/81457`;
   try {
     const responseTotal = await axios.get(urlTotal);
     const dataTotal = responseTotal.data;
