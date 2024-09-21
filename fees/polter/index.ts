@@ -62,15 +62,19 @@ const tokens: any = {
     }
   },
   base: {
-    '0xCa0d0CDAf75681be68Cb581301F282cbb82e7df1': {
+    '0xa0820613976b441e2c6a90e4877e2fb5f7d72552': {
+      gecko: 'polter-finance',
+      decimals: 18
+    },
+    '0xca4e076c6d8a84a990986a3c405093087991a8fe': {
       gecko: 'ethereum',
       decimals: 18
     },
-    '0x2E8775d68dE5D7b5D296d2640469c322aDe06C18': {
+    '0x2a96e27e204ef366671232df28f147fa30e735ce': {
       gecko: 'coinbase-wrapped-btc',
       decimals: 8
     },
-    '0x7D5c272E6ef7c21bF3D684A8F6C30eE4A8572bb3': {
+    '0x1ddaeebbd69dccc92f5cf76593104976b9c62434': {
       gecko: 'usd-coin',
       decimals: 6
     }
