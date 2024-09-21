@@ -15,49 +15,66 @@ const headers: THeader = {
 const RECORDS_PER_PAGE = 1000
 const endpoints: any = {
   [CHAIN.FANTOM]: "https://api.studio.thegraph.com/query/71811/polter/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71811/polter-base/version/latest",
 };
 
 const tokens: any = {
-  '0x5c725631fd299703d0a74c23f89a55c6b9a0c52f': {
-    gecko: 'polter-finance',
-    decimals: 18
+  fantom: {
+    '0x5c725631fd299703d0a74c23f89a55c6b9a0c52f': {
+      gecko: 'polter-finance',
+      decimals: 18
+    },
+    '0xbbce4b1513d4285bd7a59c2c63835535151c8e7c': {
+      gecko: 'fantom',
+      decimals: 18
+    },
+    '0x5a75a5f3a637cc9394816efc553d102302d4cfcd': {
+      gecko: 'usd-coin',
+      decimals: 6
+    },
+    '0xa826b29d81caef8c9aa212f172ab3ef00566e91e': {
+      gecko: 'magic-internet-money',
+      decimals: 18
+    },
+    '0x4bf6f3210488091a0111daf7ab7cf840a3af8022': {
+      gecko: 'stader-sftmx',
+      decimals: 18
+    },
+    '0x0299553df0fa396c0f6f3456d293608e189c3cf3': {
+      gecko: 'solana',
+      decimals: 18
+    },
+    '0xb49da25f726451ba0e7c7e1c0b273322d2656514': {
+      gecko: 'layerzero-usdc',
+      decimals: 6
+    },
+    '0xc60f08059586849810d9c19c67919d2d99174ecf': {
+      gecko: 'axlusdc',
+      decimals: 6
+    },
+    '0xa37e0d5590436bd9abd2803c18c328a650b236ee': {
+      gecko: 'bitcoin',
+      decimals: 8
+    },
+    '0x328c7a684f160c089ebff07ff1b5a417f024979e': {
+      gecko: 'bridged-wrapped-ether-stargate',
+      decimals: 18
+    }
   },
-  '0xbbce4b1513d4285bd7a59c2c63835535151c8e7c': {
-    gecko: 'fantom',
-    decimals: 18
-  },
-  '0x5a75a5f3a637cc9394816efc553d102302d4cfcd': {
-    gecko: 'usd-coin',
-    decimals: 6
-  },
-  '0xa826b29d81caef8c9aa212f172ab3ef00566e91e': {
-    gecko: 'magic-internet-money',
-    decimals: 18
-  },
-  '0x4bf6f3210488091a0111daf7ab7cf840a3af8022': {
-    gecko: 'stader-sftmx',
-    decimals: 18
-  },
-  '0x0299553df0fa396c0f6f3456d293608e189c3cf3': {
-    gecko: 'solana',
-    decimals: 18
-  },
-  '0xb49da25f726451ba0e7c7e1c0b273322d2656514': {
-    gecko: 'layerzero-usdc',
-    decimals: 6
-  },
-  '0xc60f08059586849810d9c19c67919d2d99174ecf': {
-    gecko: 'axlusdc',
-    decimals: 6
-  },
-  '0xa37e0d5590436bd9abd2803c18c328a650b236ee': {
-    gecko: 'bitcoin',
-    decimals: 8
-  },
-  '0x328c7a684f160c089ebff07ff1b5a417f024979e': {
-    gecko: 'bridged-wrapped-ether-stargate',
-    decimals: 18
-  }
+  base: {
+    '0x4200000000000000000000000000000000000006': {
+      gecko: 'ethereum',
+      decimals: 18
+    },
+    '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf': {
+      gecko: 'coinbase-wrapped-btc',
+      decimals: 8
+    },
+    '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': {
+      gecko: 'usd-coin',
+      decimals: 6
+    }
+  } 
 }
 
 
@@ -99,7 +116,7 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, endTimestamp, createBalan
     rewardsPaids.push(...rewardsPaid)
   }
   rewardsPaids.forEach((reward: RewardsPaid) => {
-    const {gecko, decimals} = tokens[reward.rewardsToken]
+    const {gecko, decimals} = tokens[chain][reward.rewardsToken]
     if (!gecko) {
       return
     }
@@ -119,6 +136,16 @@ const adapter: Adapter = {
     [CHAIN.FANTOM]: {
       fetch: fetch,
       start: 1706546953, // Jan-29-2024 04:49:13 PM +UTC
+      meta: {
+        methodology: {
+          Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
+          Revenue: "depositors' revenue from borrow interests",
+        }
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch,
+      start: 19746482, // Sep-14-2024 02:51:51 AM +UTC
       meta: {
         methodology: {
           Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
