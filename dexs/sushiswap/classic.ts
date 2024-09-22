@@ -109,7 +109,7 @@ const classic = Object.keys(endpointsClassic).reduce(
     ...acc,
     [chain]: {
       fetch: chain == "boba" ? graphsClassicBoba(chain as Chain) : graphsClassic(chain as Chain),
-      start: chain == "boba" ? getStartTimestamp({ ...startTimeQueryClassic, dailyDataField: "factoryDaySnapshots", chain }) : getStartTimestamp({ ...startTimeQueryClassic, chain }),
+      start: 1711982400,
       meta: {
         methodology: {
           Fees: "SushiSwap charges a flat 0.3% fee",

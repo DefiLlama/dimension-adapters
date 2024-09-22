@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { FetchOptions } from "../../adapters/types";
 
 const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
@@ -83,7 +84,28 @@ const v3 = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: v3Graphs(chain as Chain),
+      fetch: async (options: FetchOptions) => {
+        try {
+          const res = (await v3Graphs(chain as Chain)(options))
+          return {
+            totalVolume: res?.totalVolume || 0,
+            dailyVolume: res?.dailyVolume || 0,
+            totalFees: res?.totalFees || 0,
+            totalUserFees: res?.totalUserFees || 0,
+            dailyFees: res?.dailyFees,
+            dailyUserFees: res?.dailyUserFees || 0
+          }
+        } catch {
+          return {
+            totalVolume: 0,
+            dailyVolume: 0,
+            totalFees: 0,
+            totalUserFees: 0,
+            dailyFees: 0,
+            dailyUserFees: 0
+          }
+        }
+      },
       start: startTimeV3[chain],
       meta: {
         methodology: {
