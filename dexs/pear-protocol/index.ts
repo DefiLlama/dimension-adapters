@@ -1,5 +1,4 @@
-import { IExchangeTotalVolume } from "./../flowx-finance/index";
-import { Adapter, BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -17,14 +16,12 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    derivatives: {
+const adapter: SimpleAdapter = {
+  adapter: {
       [CHAIN.ARBITRUM]: {
         fetch: fetch,
         start: 1715199684,
       },
-    },
   },
 };
 
