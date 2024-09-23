@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, ChainBlocks, Fetch, FetchOptions, IStartTimestamp } from "../../adapters/types";
+import { BreakdownAdapter, ChainBlocks, Fetch, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
@@ -137,15 +137,15 @@ const adapter_agg: any = {
 Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: 1690848000, });
 
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   adapter: volume
 };
 
-const adapterBreakdown: BreakdownAdapter = {
-  breakdown: {
-    "dodo": adapter.adapter,
-    "dodo-agg": adapter_agg["adapter"],
-  }
-}
+// const adapterBreakdown: BreakdownAdapter = {
+//   breakdown: {
+//     "dodo": adapter.adapter,
+//     "dodo-agg": adapter_agg["adapter"],
+//   }
+// }
 
-export default adapterBreakdown
+export default adapter
