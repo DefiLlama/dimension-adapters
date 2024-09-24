@@ -108,7 +108,31 @@ const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: chain == "boba" ? graphsClassicBoba(chain as Chain) : graphsClassic(chain as Chain),
+      fetch: async (options: FetchOptions) => {
+        try {
+          const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
+          const values = (await call(chain)(options));
+          return {
+            dailyVolume: values?.dailyVolume || 0,
+            dailyFees: values?.dailyFees || 0,
+            dailyUserFees: values?.dailyUserFees || 0,
+            dailyProtocolRevenue: values?.dailyProtocolRevenue || 0,
+            dailySupplySideRevenue: values?.dailySupplySideRevenue || 0,
+            dailyHoldersRevenue: values?.dailyHoldersRevenue || 0,
+            dailyRevenue: values?.dailyRevenue || 0,
+          }
+        } catch {
+          return {
+            dailyVolume: 0,
+            dailyFees: 0,
+            dailyUserFees: 0,
+            dailyProtocolRevenue: 0,
+            dailySupplySideRevenue: 0,
+            dailyHoldersRevenue: 0,
+            dailyRevenue: 0,
+          }
+        }
+      },
       start: 1711982400,
       meta: {
         methodology: {
