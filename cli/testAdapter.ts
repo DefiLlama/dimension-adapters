@@ -29,7 +29,7 @@ process.on('uncaughtException', handleError)
 checkArguments(process.argv)
 
 function getTimestamp30MinutesAgo() {
-  return Math.trunc(Date.now() / 1000) - 60 * 30
+  return Math.trunc(Date.now() / 1000) - 60 * 60 * 2.5
 }
 
 // Get path of module import
