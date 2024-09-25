@@ -54,11 +54,7 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
   const filteredPoolsRes = await filterPools2({ fetchOptions: options, pairs: pools, token0s: tokenAs, token1s: tokenBs })
   pools = filteredPoolsRes.pairs
 
-  const swapLogs = [] as any
-  for (const pool of pools) {
-    const logs = await options.getLogs({ target: pool, eventAbi: mavV2SwapEvent, });
-    swapLogs.push(logs)
-  }
+  const swapLogs = await options.getLogs({ targets: pools, eventAbi: mavV2SwapEvent, flatten: false, });
   
   swapLogs.forEach((log: any[], index: number) => {
     const { tokenA, tokenB, fee } = poolInfos[pools[index]]
