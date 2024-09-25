@@ -7,12 +7,10 @@ const endpoint =
   "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v1/gn";
 
 const queryDaily = gql`
-  query stats($from: String!, $to: String!) {
+  query stats() {
     totalTradingFees(
-      where: {
-        timestamp_gte: $from
-        timestamp_lte: $to
-      }
+    orderBy: block_number
+    orderDirection: asc
     ) {
       timestamp_
       block_number
@@ -22,12 +20,10 @@ const queryDaily = gql`
   }
 `;
 const queryTotal = gql`
-  query stats($from: String!, $to: String!) {
+  query stats() {
     totalTradingFees(
-      where: {
-        timestamp_gte: $from
-        timestamp_lte: $to
-      }
+    orderBy: block_number
+    orderDirection: asc
     ) {
       timestamp_
       block_number
@@ -56,22 +52,16 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetchProtocolFees = async ({
-  endTimestamp,
-  startTimestamp,
-}: FetchOptions) => {
+const fetchProtocolFees = async () => {
   // Ensure startTimestamp and endTimestamp are defined
-  console.log(startTimestamp)
-  console.log(endTimestamp)
-  if (!startTimestamp || !endTimestamp) {
-    throw new Error("startTimestamp and endTimestamp must be provided");
-  }
+//   console.log(startTimestamp)
+//   console.log(endTimestamp)
+//   if (!startTimestamp || !endTimestamp) {
+//     throw new Error("startTimestamp and endTimestamp must be provided");
+//   }
 
   // Fetch daily fees
-  const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
-    from: String(startTimestamp),
-    to: String(endTimestamp),
-  });
+  const responseDaily: IGraphResponse = await request(endpoint, queryDaily);
 
   let dailyFees = new BigNumber(0);
   responseDaily.totalTradingFees.forEach((data) => {
@@ -79,10 +69,7 @@ const fetchProtocolFees = async ({
   });
 
   // Fetch total fees
-  const responseTotal: IGraphResponse = await request(endpoint, queryTotal, {
-    from: String(startTimestamp),
-    to: String(endTimestamp),
-  });
+  const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
 
   let totalFees = new BigNumber(0);
   responseTotal.totalTradingFees.forEach((data) => {
