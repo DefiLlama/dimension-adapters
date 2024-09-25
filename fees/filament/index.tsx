@@ -7,10 +7,10 @@ const endpoint =
   "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v1/gn";
 
 const queryDaily = gql`
-  query stats() {
+  query stats {
     totalTradingFees(
-    orderBy: block_number
-    orderDirection: asc
+      orderBy: block_number
+      orderDirection: asc
     ) {
       timestamp_
       block_number
@@ -20,10 +20,10 @@ const queryDaily = gql`
   }
 `;
 const queryTotal = gql`
-  query stats() {
+  query stats {
     totalTradingFees(
-    orderBy: block_number
-    orderDirection: asc
+      orderBy: block_number
+      orderDirection: asc
     ) {
       timestamp_
       block_number
@@ -53,13 +53,6 @@ const toString = (x: BigNumber) => {
 };
 
 const fetchProtocolFees = async () => {
-  // Ensure startTimestamp and endTimestamp are defined
-//   console.log(startTimestamp)
-//   console.log(endTimestamp)
-//   if (!startTimestamp || !endTimestamp) {
-//     throw new Error("startTimestamp and endTimestamp must be provided");
-//   }
-
   // Fetch daily fees
   const responseDaily: IGraphResponse = await request(endpoint, queryDaily);
 
