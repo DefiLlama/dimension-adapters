@@ -8,9 +8,7 @@ const endpoint =
 
 // Get timestamps for yesterday and today
 const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
-console.log(now);
 const yesterday = now - 86400; // 24 hours ago
-console.log(yesterday);
 
 const queryDaily = gql`
   query stats($yesterday: Int!, $now: Int!) {

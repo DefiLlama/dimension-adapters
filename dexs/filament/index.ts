@@ -7,7 +7,7 @@ const api = "https://orderbook.filament.finance/sei/api/v1/orderbook/tradeVolume
 const fetch = async () => {
   const timestamp = getUniqStartOfTodayTimestamp();
   const res = await httpGet(api);
-  const { allTimeVolume, volumeIn24Hours } = res.data;
+  const { allTimeVolume, volumeIn24Hours } = res;
 
   return {
     timestamp,
