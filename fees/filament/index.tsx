@@ -27,10 +27,6 @@ const queryTotal = gql`
       where: {
         timestamp_gte: $from
         timestamp_lte: $to
-        # orderBy: block_number
-        # orderDirection: asc
-        # first: 500
-        # skip: 1000
       }
     ) {
       timestamp_
@@ -43,7 +39,7 @@ const queryTotal = gql`
 
 interface IGraphResponse {
   totalTradingFees: Array<{
-    tiemstamp: string;
+    timestamp: string;
     blocknumber: string;
     account: string;
     totalFees: string;
@@ -64,24 +60,28 @@ const fetchProtocolFees = async ({
   endTimestamp,
   startTimestamp,
 }: FetchOptions) => {
+  // Ensure startTimestamp and endTimestamp are defined
+  if (!startTimestamp || !endTimestamp) {
+    throw new Error("startTimestamp and endTimestamp must be provided");
+  }
+
+  // Fetch daily fees
   const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
     from: String(startTimestamp),
     to: String(endTimestamp),
   });
 
-  // Merging both responses
   let dailyFees = new BigNumber(0);
   responseDaily.totalTradingFees.forEach((data) => {
-    totalFees = totalFees.plus(new BigNumber(data.totalFees));
+    dailyFees = dailyFees.plus(new BigNumber(data.totalFees));
   });
 
-  // Total
+  // Fetch total fees
   const responseTotal: IGraphResponse = await request(endpoint, queryTotal, {
     from: String(startTimestamp),
     to: String(endTimestamp),
   });
 
-  // Merging both responses
   let totalFees = new BigNumber(0);
   responseTotal.totalTradingFees.forEach((data) => {
     totalFees = totalFees.plus(new BigNumber(data.totalFees));
@@ -100,11 +100,10 @@ const fetchProtocolFees = async ({
 };
 
 const adapter: SimpleAdapter = {
-  //   version: 2,
   adapter: {
     [CHAIN.SEI]: {
       fetch: fetchProtocolFees,
-      start: 100601154,
+      start: 1725741586,
       meta: {
         methodology,
       },
