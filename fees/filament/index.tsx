@@ -8,7 +8,9 @@ const endpoint =
 
 // Get timestamps for yesterday and today
 const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
+console.log(now);
 const yesterday = now - 86400; // 24 hours ago
+console.log(yesterday);
 
 const queryDaily = gql`
   query stats($yesterday: Int!, $now: Int!) {
@@ -27,11 +29,7 @@ const queryDaily = gql`
 
 const queryTotal = gql`
   query stats {
-    totalTradingFees(
-      orderBy: block_number
-      orderDirection: asc
-      where: { timestamp__gte: $yesterday, timestamp__lte: $now }
-    ) {
+    totalTradingFees(orderBy: block_number, orderDirection: asc) {
       timestamp_
       block_number
       account
@@ -63,6 +61,9 @@ const toString = (x: BigNumber) => {
 
 const fetchProtocolFees = async () => {
   // Fetch daily fees
+  console.log(now);
+  const yesterday = now - 86400; // 24 hours ago
+  console.log(yesterday);
   const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
     yesterday,
     now,
