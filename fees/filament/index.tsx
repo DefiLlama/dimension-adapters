@@ -61,6 +61,8 @@ const fetchProtocolFees = async ({
   startTimestamp,
 }: FetchOptions) => {
   // Ensure startTimestamp and endTimestamp are defined
+  console.log(startTimestamp)
+  console.log(endTimestamp)
   if (!startTimestamp || !endTimestamp) {
     throw new Error("startTimestamp and endTimestamp must be provided");
   }
