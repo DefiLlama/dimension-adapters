@@ -8,8 +8,8 @@ const fetch = async () => {
     let dailyVolumeResult = 0;
     let totalVolumeResult = 0;
     volumeResult.forEach(pairs => {
-        dailyVolumeResult += Number(pairs.volume.dailyVolume / (10 ^ Number(pairs.token1.decimals)) * pairs.token1.usdPrice);
-        totalVolumeResult += Number(pairs.volume.totalVolume / (10 ^ Number(pairs.token1.decimals)) * pairs.token1.usdPrice);
+        dailyVolumeResult += Number(pairs.volume.dailyVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
+        totalVolumeResult += Number(pairs.volume.totalVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
     });
 
     return {
