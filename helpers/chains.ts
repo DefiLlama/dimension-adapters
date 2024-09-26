@@ -3,6 +3,7 @@ export enum CHAIN {
   ARBITRUM = "arbitrum",
   AVAX = "avax",
   BLAST = "blast",
+  BAHAMUT = "ftn",
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
