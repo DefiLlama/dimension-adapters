@@ -25,7 +25,7 @@ interface ITx {
   transactionHash: string;
 }
 
-const fetch = async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
+const fetch = async ({ getFromBlock, getToBlock, toTimestamp, }: FetchOptions) => {
   const provider = getProvider('xdai');
   const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
