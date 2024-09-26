@@ -2,7 +2,7 @@ import fetchURL from '../../utils/fetchURL'
 
 const fetch = async () => {
     const volumeApiResult = await fetchURL(
-        'https://api.pixelswap.ip-dynamic.org/apis/pairs',
+        'https://api.pixelswap.io/apis/pairs',
     );
     const volumeResult = volumeApiResult.data.pairs;
     let dailyVolumeResult = 0;
