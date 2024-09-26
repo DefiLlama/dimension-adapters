@@ -12,6 +12,17 @@ const query = `
 
 // if graph goes down, can be pulled via event logs, example:
 // https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
+/* const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const logs = await getLogs({
+    eventAbi: 'event ManagerFeeMinted (address pool, address manager, uint256 available, uint256 daoFee, uint256 managerFee, uint256 tokenPriceAtLastFeeMint)',
+  });
+  logs.forEach(i => {
+    dailyFees.addUSDValue(i.daoFee.toString() * i.tokenPriceAtLastFeeMint.toString() / 1e36)
+  });
+
+  return { dailyFees, dailyRevenue: dailyFees };
+} */
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
