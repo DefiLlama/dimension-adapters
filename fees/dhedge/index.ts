@@ -9,6 +9,9 @@ const query = `
         ) { daoFee, tokenPriceAtLastFeeMint }
       }`
 
+
+// if graph goes down, can be pulled via event logs, example:
+// https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
@@ -56,54 +59,34 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 };
 
 const calculateFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-      const daoFee = Number(item.daoFee);
-      const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
-      const daoFeeInEth = daoFee / 1e18;
-      const tokenPriceInEth = tokenPrice / 1e18;
-      const result = daoFeeInEth * tokenPriceInEth;
-      return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const daoFee = Number(item.daoFee);
+    const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
+    const daoFeeInEth = daoFee / 1e18;
+    const tokenPriceInEth = tokenPrice / 1e18;
+    const result = daoFeeInEth * tokenPriceInEth;
+    return acc + result;
+  }, 0);
 
-const fetch = (chain) => {
-  return () => {
-    return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
-      const config = PROVIDER_CONFIG[chain];
-      if (!config) throw new Error(`Unsupported chain: ${chain}`);
+const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
+  const config = PROVIDER_CONFIG[chain];
+  if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-      const [
-        dailyFees
-      ] = await Promise.all([
-        fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
-      ]);
+  const dailyFees = await fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
 
-      return {
-        dailyFees: calculateFees(dailyFees),
-        dailyRevenue: calculateFees(dailyFees),
-        timestamp: endTimestamp,
-      };
-    }
-  }
-};
+  return {
+    dailyFees: calculateFees(dailyFees),
+    dailyRevenue: calculateFees(dailyFees),
+    timestamp: endTimestamp,
+  };
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM)(),
-      start: 1638446653,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON)(),
-      start: 1627560253,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM)(),
-      start: 1679918653,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE)(),
-      start: 1703073853,
-    },
+    [CHAIN.OPTIMISM]: { fetch, start: 1638446653, },
+    [CHAIN.POLYGON]: { fetch, start: 1627560253, },
+    [CHAIN.ARBITRUM]: { fetch, start: 1679918653, },
+    [CHAIN.BASE]: { fetch, start: 1703073853, },
   },
   version: 2
 }
