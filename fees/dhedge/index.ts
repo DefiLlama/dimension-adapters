@@ -1,52 +1,27 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, GraphQLClient } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
+const query = `
+      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        managerFeeMinteds(
+          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
+        ) { daoFee, tokenPriceAtLastFeeMint }
+      }`
 
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.POLYGON]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.ARBITRUM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.BASE]: {
     startTimestamp: 1712227101,
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
 };
 
@@ -73,7 +48,6 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 
       if (entries.length < batchSize) break;
 
-      await sleep(500);
     } catch (e) {
       throw new Error(`Error fetching data for chain ${chainId}: ${e.message}`);
     }
@@ -100,21 +74,17 @@ const fetch = (chain) => {
       const [
         dailyFees
       ] = await Promise.all([
-        fetchHistoricalFees(chain as CHAIN, config.feeMintedEventsQuery, config.managerFeeMintedEventsField, startTimestamp, endTimestamp)
+        fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
       ]);
 
       return {
-        dailyFees: String(calculateFees(dailyFees)),
+        dailyFees: calculateFees(dailyFees),
         dailyRevenue: calculateFees(dailyFees),
         timestamp: endTimestamp,
       };
     }
   }
 };
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
