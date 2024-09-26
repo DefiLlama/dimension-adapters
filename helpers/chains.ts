@@ -6,6 +6,7 @@ export enum CHAIN {
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
+  BIFROST = "bifrost",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
