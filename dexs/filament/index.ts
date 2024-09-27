@@ -18,7 +18,7 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    near: {
+    sei: {
       fetch,
       start: 100601154,
       runAtCurrTime: true,
