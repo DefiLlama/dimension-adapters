@@ -1,6 +1,6 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from '../helpers/token';
 
@@ -13,7 +13,7 @@ const address_buyback: TAddress = {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
     const dividends = await addTokensReceived({ tokens: [ADDRESSES.arbitrum.WETH], options, fromAddressFilter: '0xd70811f1e4992aa051d54e29a04c8925b32fba7d', target: '0x535ec56479892d9c02fe2bb86cebf7ed62e81131' })
 
     const logs_fund_disposit = (await options.getLogs({
@@ -31,7 +31,6 @@ const fetch = (chain: Chain) => {
       dailyRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dividends,
-      timestamp
     }
   }
 }
@@ -44,6 +43,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
