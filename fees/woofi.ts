@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import { addTokensReceived } from '../helpers/token';
@@ -44,7 +44,7 @@ const fee_detail: TFeeDetail = {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  return async (options: FetchOptions) => {
     const { api } = options;
     const { from, } = fee_detail[chain];
     const token = await api.call({ abi: 'address:quoteToken', target: from })
@@ -58,12 +58,12 @@ const fetch = (chain: Chain) => {
       dailyFees,
       dailyRevenue,
       dailyHoldersRevenue,
-      timestamp
     }
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),

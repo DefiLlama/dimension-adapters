@@ -35,7 +35,7 @@ const contract_interface = new ethers.Interface([
   event_increase_value,
 ]);
 
-const fetch = async ({ getLogs }: FetchOptions) => {
+const fetch = async ({ getLogs, startOfDay }: FetchOptions) => {
   throw new Error("I think neither of these should be counted as fees? or we just count 0.5% of redeemed USDO as fees?")
 
   const logs_increase_value = (await getLogs({
@@ -69,7 +69,7 @@ const fetch = async ({ getLogs }: FetchOptions) => {
   const tokens1 = underlyingToken1;
   const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.ONUS}:${e}`);
   const coins = [...new Set(rawCoins)]
-  const prices = await getPrices(coins);
+  const prices = await getPrices(coins, startOfDay);
 
   const untrackVolumes: number[] = pools.map((_: string, index: number) => {
     const token0Decimals = (prices[`${CHAIN.ONUS}:${tokens0[index]}`]?.decimals || 0)
@@ -110,7 +110,6 @@ const fetch = async ({ getLogs }: FetchOptions) => {
   return {
     dailyFees: `${dailyFee}`,
     dailyRevenue: `${dailyFee}`,
-    timestamp
   }
 }
 

@@ -69,7 +69,7 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp | number
+    start?: IStartTimestamp | number
     fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch | FetchV2;

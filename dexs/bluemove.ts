@@ -1,7 +1,7 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../utils/fetchURL"
+import { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://aptos-mainnet-api.bluemove.net/api/histogram";
 
@@ -19,12 +19,9 @@ const fetch = async (timestamp: number) => {
 
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
-  const rateFees = 0.02;
-  const dailyFees = Number(dailyVolume) * rateFees;
-  const totalFees = Number(totalVolume) * rateFees;
   return {
-    totalFees: `${totalFees}`,
-    dailyFees:  dailyFees ? `${dailyFees}` : undefined,
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
   };
 };
