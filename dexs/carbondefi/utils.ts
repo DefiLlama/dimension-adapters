@@ -1,31 +1,60 @@
+import { Balances } from "@defillama/sdk";
+import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
-export type CarbonAnalyticsItem = {
-  timestamp: string;
-  feesUsd: number;
-  volumeUsd: number;
-}
+const isNativeToken = (address: string) =>
+  address.toLowerCase() ===
+  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
 
-const filterDataByDate = (
-  swapData: CarbonAnalyticsItem[],
-  startTimestampS: number,
-  endTimestampS: number
-) => {
-  const startTimestampMs = startTimestampS * 1000;
-  const endTimestampMs = endTimestampS * 1000;
+const fetchWithPagination = async (endpoint: string, limit: number = 10000) => {
+  let offset = 0;
+  let data = [];
+  let unfinished = true;
+  while (unfinished) {
+    const url = new URL(endpoint);
+    url.searchParams.append("limit", limit.toString());
+    url.searchParams.append("offset", offset.toString());
 
-  return swapData.filter((swap) => {
-    const swapTsMs = Date.parse(swap.timestamp);
-    return swapTsMs >= startTimestampMs && swapTsMs <= endTimestampMs;
-  });
+    const newData = await fetchURL(url.href);
+    data = data.concat(newData);
+
+    unfinished = newData?.length === limit;
+    offset += limit;
+  }
+  return data;
 };
 
-export const getDimensionsSum = (
-  swapData: CarbonAnalyticsItem[],
+export const fetchDataFromApi = async (
+  endpoint: string,
+  startTimestampS?: number,
+  endTimestampS?: number,
+  tokens?: string[]
+): Promise<CarbonAnalyticsResponse> => {
+  const url = new URL(endpoint);
+
+  // Filter by tokens
+  if (tokens?.length) url.searchParams.append("addresses", tokens.toString());
+
+  // Filter by date
+  if (startTimestampS && endTimestampS) {
+    url.searchParams.append("start", startTimestampS.toString());
+    url.searchParams.append("end", endTimestampS.toString());
+  }
+  return fetchWithPagination(url.href);
+};
+
+export const getDimensionsSum = async (
+  endpoint: string,
   startTimestamp: number,
   endTimestamp: number
 ) => {
-  const dailyData = filterDataByDate(swapData, startTimestamp, endTimestamp);
+  const dailyData: CarbonAnalyticsResponse = await fetchDataFromApi(
+    endpoint,
+    startTimestamp,
+    endTimestamp
+  );
+  const swapData: CarbonAnalyticsResponse = await fetchDataFromApi(endpoint);
 
   const { dailyVolume, dailyFees } = dailyData.reduce(
     (prev, curr) => {
@@ -59,55 +88,62 @@ export const getDimensionsSum = (
   };
 };
 
-// const isNativeToken = (address: string) => address.toLowerCase() === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
+export const getDimensionsSumByToken = async (
+  endpoint: string,
+  tokens: string[],
+  startTimestamp: number,
+  endTimestamp: number,
+  emptyData: {
+    dailyVolume: Balances;
+    dailyFees: Balances;
+    totalVolume: Balances;
+    totalFees: Balances;
+  }
+) => {
+  const tokensEndpoint = endpoint + "/tokens";
+  const dailyData: CarbonAnalyticsResponse = await fetchDataFromApi(
+    tokensEndpoint,
+    startTimestamp,
+    endTimestamp,
+    tokens
+  );
+  const swapData: CarbonAnalyticsResponse = await fetchDataFromApi(
+    tokensEndpoint,
+    undefined,
+    undefined,
+    tokens
+  );
 
-// export const getDimensionsSumByToken = (
-//   swapData: CarbonAnalyticsItem[],
-//   startTimestamp: number,
-//   endTimestamp: number,
-//   emptyData: {
-//     dailyVolume: Balances;
-//     dailyFees: Balances;
-//     totalVolume: Balances;
-//     totalFees: Balances;
-//   },
-// ) => {
-//   const dailyData: CarbonAnalyticsItem[] = filterDataByDate(swapData, startTimestamp, endTimestamp);
-//   const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
+  const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
 
-//   swapData.forEach((swap) => {
-//     if (isNativeToken(swap.targetaddress)) {
-//       totalVolume.addGasToken(swap.targetamount_real * 1e18);
-//     } else {
-//       totalVolume.add(swap.targetaddress, swap.targetamount_real);
-//     }
-//     if (isNativeToken(swap.feeaddress)) {
-//       totalFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-//     } else {
-//       totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
-//     }
-//   });
+  swapData.forEach((swap) => {
+    if (!swap.address) return;
+    if (isNativeToken(swap.address)) {
+      totalVolume.addGasToken(swap.volume * 1e18);
+      totalFees.addGasToken(swap.fees * 1e18);
+    } else {
+      totalVolume.add(swap.address, swap.volume);
+      totalFees.add(swap.address, swap.fees);
+    }
+  });
+  dailyData.forEach((swap) => {
+    if (!swap.address) return;
+    if (isNativeToken(swap.address)) {
+      dailyVolume.addGasToken(swap.volume * 1e18);
+      dailyFees.addGasToken(swap.fees * 1e18);
+    } else {
+      dailyVolume.add(swap.address, swap.volume);
+      dailyFees.add(swap.address, swap.fees);
+    }
+  });
 
-//   dailyData.forEach((swap) => {
-//     if (isNativeToken(swap.targetaddress)) {
-//       dailyVolume.addGasToken(swap.targetamount_real * 1e18);
-//     } else {
-//       dailyVolume.add(swap.targetaddress, swap.targetamount_real);
-//     }
-//     if (isNativeToken(swap.feeaddress)) {
-//       dailyFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-//     } else {
-//       dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
-//     }
-//   });
-
-//   return {
-//     dailyVolume,
-//     dailyFees,
-//     totalVolume,
-//     totalFees,
-//   };
-// };
+  return {
+    dailyVolume,
+    dailyFees,
+    totalVolume,
+    totalFees,
+  };
+};
 
 export const getEmptyData = (options: FetchOptions) => {
   return {
