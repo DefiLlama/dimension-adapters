@@ -65,7 +65,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
-      fetch: graphs(endpoints)(CHAIN.ERA),
+      // sunset 24 Sept 2024
+      fetch: async () => ({
+        dailyFees: 0,
+        dailyUserFees: 0
+      }),
       start: 1682035200,
     },
   }
