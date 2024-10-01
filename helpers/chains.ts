@@ -143,6 +143,7 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
+  ASTAR = 'astar',
   ASTAR_ZKEVM = "astrzk",
   FILECOIN = "filecoin",
   FRAXTAL = "fraxtal",
@@ -168,6 +169,7 @@ export enum CHAIN {
   CRONOS_ZKEVM = "cronos_zkevm",
   LOGX = "logx_network",
   FLARE = "flare",
+  NUMBERS = "numbers",
 }
 
 // Don´t use
