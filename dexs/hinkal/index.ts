@@ -1,9 +1,9 @@
 import axios from "axios";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetchEthereum = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchEthereum = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/1`;
   const urlDaily = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/1`;
   try {
@@ -14,15 +14,15 @@ const fetchEthereum = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchBase = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchBase = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://base.server.hinkal.pro/totalVolume/${timestamp}/false/8453`;
   const urlDaily = `https://base.server.hinkal.pro/totalVolume/${timestamp}/true/8453`;
   try {
@@ -33,15 +33,15 @@ const fetchBase = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchArbitrum = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchArbitrum = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://arbMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/42161`;
   const urlDaily = `https://arbMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/42161`;
   try {
@@ -52,15 +52,15 @@ const fetchArbitrum = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchPolygon = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchPolygon = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://polygon.server.hinkal.pro/totalVolume/${timestamp}/false/137`;
   const urlDaily = `https://polygon.server.hinkal.pro/totalVolume/${timestamp}/true/137`;
   try {
@@ -71,15 +71,15 @@ const fetchPolygon = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchBNB = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchBNB = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://bnbMainnet.server.hinkal.pro/totalVolume/${timestamp}/false/56`;
   const urlDaily = `https://bnbMainnet.server.hinkal.pro/totalVolume/${timestamp}/true/56`;
   try {
@@ -90,15 +90,15 @@ const fetchBNB = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchAVALANCHE = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchAVALANCHE = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://avalanche.server.hinkal.pro/totalVolume/${timestamp}/false/43114`;
   const urlDaily = `https://avalanche.server.hinkal.pro/totalVolume/${timestamp}/true/43114`;
   try {
@@ -109,15 +109,15 @@ const fetchAVALANCHE = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchOPTIMISM = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchOPTIMISM = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://optimism.server.hinkal.pro/totalVolume/${timestamp}/false/10`;
   const urlDaily = `https://optimism.server.hinkal.pro/totalVolume/${timestamp}/true/10`;
   try {
@@ -128,15 +128,15 @@ const fetchOPTIMISM = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const fetchBLAST = async (options: FetchOptions) => {
-  const timestamp = options.endTimestamp;
+const fetchBLAST = async (_t: any, _ta: any,options: FetchOptions) => {
+  const timestamp = options.startOfDay;
   const urlTotal = `https://blast.server.hinkal.pro/totalVolume/${timestamp}/false/81457`;
   const urlDaily = `https://blast.server.hinkal.pro/totalVolume/${timestamp}/true/81457`;
   try {
@@ -147,14 +147,15 @@ const fetchBLAST = async (options: FetchOptions) => {
     const responseDaily = await axios.get(urlDaily);
     const dataDaily = responseDaily.data;
     const dailyVolume = dataDaily.internal_volume + dataDaily.external_volume;
-    return { totalVolume, dailyVolume };
+    return {timestamp: options.startOfDay, totalVolume, dailyVolume };
   } catch (error) {
     console.error("Error fetching volume:", error);
-    return { totalVolume: 0, dailyVolume: 0 };
+    return {timestamp: options.startOfDay, totalVolume: 0, dailyVolume: 0 };
   }
 };
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,

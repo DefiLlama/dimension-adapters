@@ -1,6 +1,7 @@
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const chains = [
     CHAIN.ETHEREUM,
@@ -76,6 +77,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 const adapter: BreakdownAdapter = {
     breakdown: {
         "Dexible_v2": {
+            [DISABLED_ADAPTER_KEY]: disabledAdapter,
             ...chains.reduce((acc, chain) => {
                 return {
                     ...acc,
