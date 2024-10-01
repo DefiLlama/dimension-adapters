@@ -42,6 +42,7 @@ const addressConfig: { [a: string]: string } = {
 const collateralIndexMap: { [s: string | Chain]: { [a: number]: string } } = {
   [CHAIN.POLYGON]: { 1: ADDRESSES.polygon.DAI, 2: ADDRESSES.polygon.WETH, 3: ADDRESSES.polygon.USDC_CIRCLE },
   [CHAIN.ARBITRUM]: { 1: ADDRESSES.arbitrum.DAI, 2: ADDRESSES.arbitrum.WETH, 3: ADDRESSES.arbitrum.USDC_CIRCLE },
+  [CHAIN.BASE]: { 1: ADDRESSES.base.USDC },
 };
 
 const contract_addresses: IAddresses = {
@@ -56,6 +57,9 @@ const contract_addresses: IAddresses = {
     "0x62a9f50c92a57c719ff741133caa55c7a81ce019", // ETH TradingCallbacks
     "0x4542256c583bcad66a19a525b57203773a6485bf", // USDC TradingCallbacks
     "0xff162c694eaa571f685030649814282ea457f169", // v8 Diamond
+  ],
+  [CHAIN.BASE]: [
+    "0x6cD5aC19a07518A8092eEFfDA4f1174C72704eeb", // v9.3 Diamond
   ],
 };
 
@@ -107,6 +111,10 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: 1672358400,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1727351131,
     },
   },
 };

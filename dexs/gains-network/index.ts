@@ -6,6 +6,12 @@ type IAddresses = {
   [s: string | Chain]: string[];
 };
 
+type IPrecisionException = {
+  [chain in CHAIN]?: {
+    [key: string | number]: number;
+  };
+};
+
 interface ILog {
   address: string;
   data: string;
@@ -30,15 +36,26 @@ const topic0_partials = [
   "0xe74b50af866d7f8e3577bc959bf73a2690841f0abce22ab0cfb1b1c84122a7d7", // PositionSizeDecreaseExecuted
 ];
 
-const precisionException: { [a: string | number]: number } = {
-  "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
-  "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
-  3: 1e6, // v8 USDC
+const precisionException: IPrecisionException = {
+  [CHAIN.POLYGON]: {
+    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
+    "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
+    3: 1e6, // v8 USDC
+  },
+  [CHAIN.ARBITRUM]: {
+    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
+    "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
+    3: 1e6, // v8 USDC
+  },
+  [CHAIN.BASE]: {
+    1: 1e6, // USDC is collateralIndex 1 on Base
+  },
 };
 
 const diamonds = {
   [CHAIN.POLYGON]: "0x209a9a01980377916851af2ca075c2b170452018",
   [CHAIN.ARBITRUM]: "0xff162c694eaa571f685030649814282ea457f169",
+  [CHAIN.BASE]: "0x6cD5aC19a07518A8092eEFfDA4f1174C72704eeb",
 };
 
 const contract_addresses: IAddresses = {
@@ -54,9 +71,11 @@ const contract_addresses: IAddresses = {
     "0x4542256c583bcad66a19a525b57203773a6485bf", // USDC TradingCallbacks
     diamonds[CHAIN.ARBITRUM], // v8 Diamond
   ],
+  [CHAIN.BASE]: [diamonds[CHAIN.BASE]],
 };
 
 const fetch: any = async (timestamp: number, _, { getLogs, chain }): Promise<FetchResultVolume> => {
+  const chainPrecisionExceptions = precisionException[chain];
   const [limitLogs, marketLogs, partialsLogs] = (
     await Promise.all([
       // Limit Executed logs
@@ -99,13 +118,13 @@ const fetch: any = async (timestamp: number, _, { getLogs, chain }): Promise<Fet
       if (e.topics[0] === V8_LIMIT_TOPIC0) {
         const leverage = Number("0x" + data.slice(320, 384)) / 1e3;
         const collateralIndex = Number("0x" + data.slice(512, 576));
-        const collateralAmount = Number("0x" + data.slice(640, 704)) / (precisionException[collateralIndex] ?? 1e18);
+        const collateralAmount = Number("0x" + data.slice(640, 704)) / (chainPrecisionExceptions[collateralIndex] ?? 1e18);
         const collateralPriceUsd = Number("0x" + data.slice(1280, 1344)) / 1e8;
         return leverage * collateralAmount * collateralPriceUsd;
       } else {
         // v5-v7
         const leverage = Number("0x" + data.slice(512, 576));
-        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
+        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (chainPrecisionExceptions[e.address] ?? 1e18);
         const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
         return leverage * positionSizeDai * collateralPrice;
       }
@@ -119,13 +138,13 @@ const fetch: any = async (timestamp: number, _, { getLogs, chain }): Promise<Fet
       if (e.topics[0] === V8_MARKET_TOPIC0) {
         const leverage = Number("0x" + data.slice(320, 384)) / 1e3;
         const collateralIndex = Number("0x" + data.slice(512, 576));
-        const collateralAmount = Number("0x" + data.slice(640, 704)) / (precisionException[collateralIndex] ?? 1e18);
+        const collateralAmount = Number("0x" + data.slice(640, 704)) / (chainPrecisionExceptions[collateralIndex] ?? 1e18);
         const collateralPriceUsd = Number("0x" + data.slice(1280, 1344)) / 1e8;
         return leverage * collateralAmount * collateralPriceUsd;
       } else {
         // v5-v7
         const leverage = Number("0x" + data.slice(448, 512));
-        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
+        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (chainPrecisionExceptions[e.address] ?? 1e18);
         const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
         return leverage * positionSizeDai * collateralPrice;
       }
@@ -139,7 +158,7 @@ const fetch: any = async (timestamp: number, _, { getLogs, chain }): Promise<Fet
 
       if (cancelReason > 0) return 0;
 
-      const collateralPrecision = precisionException[Number(e.topics[1])] ?? 1e18;
+      const collateralPrecision = chainPrecisionExceptions[Number(e.topics[1])] ?? 1e18;
       const collateralPriceUsd = Number("0x" + data.slice(384, 448)) / 1e8;
       const positionSizeDelta = Number("0x" + data.slice(576, 640)) / collateralPrecision;
 
@@ -156,6 +175,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: 1684972800 },
     [CHAIN.POLYGON]: { fetch, start: 1684972800 },
+    [CHAIN.BASE]: { fetch, start: 1727351131 },
   },
 };
 
