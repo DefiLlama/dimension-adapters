@@ -34,8 +34,8 @@ For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as
 
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune, queryDuneSql } from "../helpers/dune";
-import { addTokensReceived, nullAddress } from '../helpers/token';
+import { queryDune } from "../helpers/dune";
+import { evmReceivedGasAndTokens } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -46,20 +46,6 @@ const tokens = {
     ],
     base: []
 } as any
-
-const evm = async (options: FetchOptions) => {
-    const receiverWallet = '0x997Cc123cF292F46E55E6E63e806CD77714DB70f'
-    const dailyFees = await addTokensReceived({ options, tokens: tokens[options.chain], target: receiverWallet })
-    const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.transactions
-    where to = ${receiverWallet}
-    AND TIME_RANGE`)
-    dailyFees.add(nullAddress, nativeTransfers[0].received)
-
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-    }
-}
 
 const sol = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
@@ -81,7 +67,7 @@ const adapter: Adapter = {
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
-            fetch: evm,
+            fetch: evmReceivedGasAndTokens('0x997Cc123cF292F46E55E6E63e806CD77714DB70f', tokens[chain]),
             start: 0,
         }
     }), {

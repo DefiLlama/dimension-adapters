@@ -2,16 +2,14 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import customBackfill from "../helpers/customBackfill";
-
-import {
-  getGraphDimensions
-} from "../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R'),
-}
-const v2Graph = getGraphDimensions({
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint(
+    "3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R",
+  ),
+};
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
@@ -20,27 +18,20 @@ const v2Graph = getGraphDimensions({
     SupplySideRevenue: 0.15,
     HoldersRevenue: 0,
     Revenue: 0.1,
-    Fees: 0.25
-  }
+    Fees: 0.25,
+  },
 });
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
-}
-const v3Graphs = getGraphDimensions({
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint(
+    "7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN",
+  ),
+};
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "algebraDayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
-  dailyFees: {
-    factory: "algebraDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -49,24 +40,21 @@ const v3Graphs = getGraphDimensions({
     Fees: 10,
     UserFees: 90, // User fees are 90% of collected fees
     SupplySideRevenue: 90, // 90% of fees are going to LPs
-    Revenue: 10 // Revenue is 10% of collected fees
-  }
+    Revenue: 10, // Revenue is 10% of collected fees
+  },
 });
 
 const endpointsStable = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('H7QEsa69B3bbXZVtmqGaRZVUV8PCUqsKfqXGRb69LHa6')
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint(
+    "H7QEsa69B3bbXZVtmqGaRZVUV8PCUqsKfqXGRb69LHa6",
+  ),
 };
 
-const stableGraph = getGraphDimensions({
+const stableGraph = getGraphDimensions2({
   graphUrls: endpointsStable,
   totalVolume: {
     factory: "tradeVolumes",
     field: "volume",
-  },
-  dailyVolume: {
-    factory: "dailyVolume",
-    field: "volume",
-    dateField: "timestamp"
   },
   feesPercent: {
     type: "volume",
@@ -75,18 +63,19 @@ const stableGraph = getGraphDimensions({
     SupplySideRevenue: 0.02,
     HoldersRevenue: 0,
     Revenue: 0.02,
-    Fees: 0.04
-  }
+    Fees: 0.04,
+  },
 });
 
 const methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
   Fees: "A 0.25% of each swap is collected as trading fees",
-  Revenue: "Protocol receives 0.1% on each swap. A part is used to buyback and burn and a part is used to buy WETH and distribute to stakers.",
+  Revenue:
+    "Protocol receives 0.1% on each swap. A part is used to buyback and burn and a part is used to buy WETH and distribute to stakers.",
   ProtocolRevenue: "Protocol receives 0.1% on each swap.",
   SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Stakers receive WETH a part of protocol revenue."
-}
+  HoldersRevenue: "Stakers receive WETH a part of protocol revenue.",
+};
 
 const methodologyV3 = {
   UserFees: "User pays dynamic swap fee.",
@@ -94,9 +83,9 @@ const methodologyV3 = {
   Revenue: "Protocol receives 10% of the dynamic swap fee",
   ProtocolRevenue: "Protocol receives 10% of the dynamic swap fee",
   SupplySideRevenue: "90% of the dynamic swap fee is distributed to LPs",
-  HoldersRevenue: "A portion of the protocol fees is used to purchase WETH and distribute to stakers."
-}
-
+  HoldersRevenue:
+    "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
+};
 
 const methodologyStable = {
   UserFees: "User pays a 0.04% fee on each swap.",
@@ -104,8 +93,9 @@ const methodologyStable = {
   Revenue: "Protocol receives 0.02% of the swap fee",
   ProtocolRevenue: "Protocol receives 0.02% of the swap fee",
   SupplySideRevenue: "0.02% of the swap fee is distributed to LPs",
-  HoldersRevenue: "A portion of the protocol fees is used to purchase WETH and distribute to stakers."
-}
+  HoldersRevenue:
+    "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
+};
 
 const adapter: BreakdownAdapter = {
   version: 2,
@@ -115,7 +105,7 @@ const adapter: BreakdownAdapter = {
         fetch: v2Graph(CHAIN.ARBITRUM),
         start: 1674432000,
         meta: {
-          methodology
+          methodology,
         },
       },
     },
@@ -124,21 +114,21 @@ const adapter: BreakdownAdapter = {
         fetch: v3Graphs(chain as Chain),
         start: 1676887200,
         meta: {
-          methodology: methodologyV3
-        }
-      }
-      return acc
+          methodology: methodologyV3,
+        },
+      };
+      return acc;
     }, {} as BaseAdapter),
     stable: {
       [CHAIN.ARBITRUM]: {
         fetch: stableGraph(CHAIN.ARBITRUM),
         start: 1676113200,
         meta: {
-          methodology: methodologyStable
+          methodology: methodologyStable,
         },
       },
     },
-  }
-}
+  },
+};
 
 export default adapter;

@@ -2,10 +2,8 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
-const {
-  getChainVolume,
-} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('DFn2ZaLXK4tJkXZ6AhfLF22pNobtTC88f3Ff3bC8by3r'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('BEKfdhcWBQQuZP5vz8jDZ8ZKRRqAeNYEGfuzdDPzzwnQ'),
@@ -16,17 +14,12 @@ const endpoints = {
 
 
 const VOLUME_FIELD = "volumeUSD";
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "wardenSwaps",
     field: VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: "volumeUSD",
-    dateField: "date"
-  }
 });
 
 

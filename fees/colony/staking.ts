@@ -2,70 +2,53 @@ import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 
-export interface StakingFees {
-  dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
-}
-
-interface ITotalStakeFees {
-  totalStakeFees: string;
-  totalUnstakeFees: string;
-}
-
-interface IDailyStakeFees {
-  stakeFees: string;
-  unstakeFees: string;
-}
-
-interface IGraphStakeResponse {
-  metrics: ITotalStakeFees[];
-  dailyMetrics: IDailyStakeFees[];
-}
-
-const queryStakingFeesMetrics = gql
-`query fees($date: Int!) {
-  metrics {
-    totalStakeFees
-    totalUnstakeFees
+const queryStakingFeesMetrics = gql`
+  query fees($block: Int!) {
+    metrics(block: { number: $block }) {
+      totalStakeFees
+      totalUnstakeFees
+    }
   }
-  dailyMetrics(where: {date: $date}) {
-    unstakeFees
-    stakeFees
-  }
-}`;
+`;
 
 export async function stakingFees(
   options: FetchOptions,
   stakingSubgraphEndpoint: string,
-  ColonyGovernanceToken: string
-): Promise<StakingFees> {
-  const { createBalances, startTimestamp } = options;
+  ColonyGovernanceToken: string,
+): Promise<{
+  dailyHoldersRevenue: Balances;
+  totalHoldersRevenue: Balances;
+}> {
+  const { createBalances, getStartBlock, getEndBlock } = options;
 
-  let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
+  const [startBlock, endBlock] = await Promise.all([
+    getStartBlock(),
+    getEndBlock(),
+  ]);
+  let dailyHoldersRevenue = createBalances();
+  let totalHoldersRevenue = createBalances();
 
-  const day = Math.floor(startTimestamp / 86400)
-  const date = day * 86400
+  const [beforeRes, afterRes] = await Promise.all([
+    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
+      block: startBlock,
+    }),
+    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
+      block: endBlock,
+    }),
+  ]);
 
-  try {
-    const res: IGraphStakeResponse = await request(stakingSubgraphEndpoint, queryStakingFeesMetrics, { date });
+  const beforeFees: number =
+    Number(beforeRes.metrics[0].totalStakeFees) +
+    Number(beforeRes.metrics[0].totalUnstakeFees);
+  const afterFees: number =
+    Number(afterRes.metrics[0].totalStakeFees) +
+    Number(afterRes.metrics[0].totalUnstakeFees);
 
-    if (res.dailyMetrics && res.dailyMetrics.length) {
-      dailyHoldersRevenue.add(ColonyGovernanceToken, res.dailyMetrics[0].stakeFees);
-      dailyHoldersRevenue.add(ColonyGovernanceToken, res.dailyMetrics[0].unstakeFees);
-    }
-
-    if (res.metrics && res.metrics.length) {
-      totalHoldersRevenue.add(ColonyGovernanceToken, res.metrics[0].totalStakeFees);
-      totalHoldersRevenue.add(ColonyGovernanceToken, res.metrics[0].totalUnstakeFees);
-    }
-
-  } catch (e) {
-    console.error(e);
-  }
+  dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
+  totalHoldersRevenue.add(ColonyGovernanceToken, afterFees);
 
   return {
     dailyHoldersRevenue,
-    totalHoldersRevenue
-  }
+    totalHoldersRevenue,
+  };
 }

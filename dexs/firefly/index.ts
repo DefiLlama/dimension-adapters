@@ -1,30 +1,22 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
 import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints = {
   [CHAIN.MANTA]: "https://subgraph.fireflydex.io/subgraphs/name/firefly/v3",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
-  },
-  feesPercent: { 
+  feesPercent: {
     type: "fees",
     UserFees: 100, // User fees are 100% of collected fees
     SupplySideRevenue: 100, // 100% of fees are going to LPs

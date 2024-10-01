@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 
@@ -9,16 +9,11 @@ const endpoints = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AB2t32R1htdcguMQVVGt4biKGFeQ2HfXkEgJNkKi1dJa')
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "tradeVolumes",
     field: "volume",
-  },
-  dailyVolume: {
-    factory: "dailyVolume",
-    field: "volume",
-    dateField: "timestamp"
   },
 });
 

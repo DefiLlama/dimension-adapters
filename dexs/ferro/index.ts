@@ -1,22 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-
 
 const endpoints = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/ferro/swap",
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "tradeVolumes",
     field: "volume",
-  },
-  dailyVolume: {
-    factory: "dailyVolume",
-    field: "volume",
-    dateField: "timestamp"
   },
 });
 

@@ -7,6 +7,8 @@ const dispatcher: any = {
   [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
   [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
   [CHAIN.ARBITRUM]: "0x34b5561c30a152b5882c8924973f19df698470f4",
+  [CHAIN.BASE]: "0xb0999731f7c2581844658a9d2ced1be0077b7397",
+  [CHAIN.TRON]: "TS4yvUzwmaSh4XM1scBXRgoKeVdb4oot4S"
 }
 const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
@@ -58,6 +60,8 @@ const adapter: Adapter = {
       fetch: fetchSolana,
       start: 1656633600, // wrong?
     },
+    [CHAIN.BASE]: chainAdapter,
+    [CHAIN.TRON]: chainAdapter,
   },
   isExpensiveAdapter: true
 }

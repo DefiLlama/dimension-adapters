@@ -61,7 +61,7 @@ const graphs = getChainVolume({
 });
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.DOGECHAIN]: {

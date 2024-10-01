@@ -1,12 +1,9 @@
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapters = univ2DimensionAdapter({
+const adapters = univ2DimensionAdapter2({
   graphUrls: {
     [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange"
-  },
-  dailyVolume: {
-    factory: "vvsDayData"
   },
   totalVolume: {
     factory: "vvsFactories"
@@ -23,4 +20,5 @@ const adapters = univ2DimensionAdapter({
 }, {
 });
 adapters.adapter.cronos.start = 1632035122;
+
 export default adapters;

@@ -1,25 +1,41 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2, FetchResultVolume, FetchV2 } from "../../adapters/types";
+import {
+  BaseAdapter,
+  BreakdownAdapter,
+  ChainEndpoints,
+  FetchOptions,
+  FetchResultV2,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV'),
-  [CHAIN.POLYGON]:
-    sdk.graph.modifyEndpoint('78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN'),
-  [CHAIN.ARBITRUM]:
-    sdk.graph.modifyEndpoint('itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc'),
-  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg'),
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
-  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu'),
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
-  [CHAIN.MODE]: "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
-  [CHAIN.FRAXTAL]: "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint(
+    "C4ayEZP2yTXRAB8vSaTrgN4m9anTe9Mdm2ViyiAuV9TV",
+  ),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
+    "78nZMyM9yD77KG6pFaYap31kJvj8eUWLEntbiVzh8ZKN",
+  ),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint(
+    "itkjv6Vdh22HtNEPQuk5c9M3T7VeGLQtXxcH8rFi1vc",
+  ),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint(
+    "EJezH1Cp31QkKPaBDerhVPRWsKVZLrDfzjrLqpmv6cGg",
+  ),
+  [CHAIN.POLYGON_ZKEVM]:
+    "https://api.studio.thegraph.com/query/24660/balancer-polygon-zk-v2/version/latest",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint(
+    "7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu",
+  ),
+  [CHAIN.BASE]:
+    "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
+  [CHAIN.MODE]:
+    "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
+  [CHAIN.FRAXTAL]:
+    "https://api.goldsky.com/api/public/project_clwhu1vopoigi01wmbn514m1z/subgraphs/balancer-fraxtal-v2/latest/gn",
 };
 
 const graphParams = {
@@ -28,53 +44,53 @@ const graphParams = {
     field: "totalSwapVolume",
   },
   hasDailyVolume: false,
-}
-interface IPool {
-  id: string;
-  swapVolume: string;
-}
+};
 interface IPoolSnapshot {
-  today: IPool[];
-  yesterday: IPool[];
+  today: { totalSwapVolume: number }[];
+  yesterday: { totalSwapVolume: number }[];
 }
-
 
 const v2Graphs = (chain: Chain) => {
-    return async ({ endTimestamp }): Promise<FetchResultV2> => {
-      const startTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-      const fromTimestamp = startTimestamp - 60 * 60 * 24
-      const toTimestamp = startTimestamp
-      const graphQuery = gql
-      `query fees {
-        today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
-          id
-          swapVolume
-        }
-        yesterday:poolSnapshots(where: {timestamp:${fromTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
-          id
-          swapVolume
-        }
+  return async ({
+    getFromBlock,
+    getToBlock,
+  }: FetchOptions): Promise<FetchResultV2> => {
+    const [fromBlock, toBlock] = await Promise.all([
+      getFromBlock(),
+      getToBlock(),
+    ]);
+    const graphQuery = gql`query fees {
+        today:balancers(block: { number: ${toBlock}}) { totalSwapVolume }
+        yesterday:balancers(block: { number: ${fromBlock}}) { totalSwapVolume }
       }`;
-      // const blackList = ['0x93d199263632a4ef4bb438f1feb99e57b4b5f0bd0000000000000000000005c2']
-      const graphRes: IPoolSnapshot = (await request(endpoints[chain], graphQuery));
-      const dailyVolume = graphRes["today"].map((p: IPool) => {
-        const yesterdayValue = Number(graphRes.yesterday.find((e: IPool) => e.id.split('-')[0] === p.id.split('-')[0])?.swapVolume || '0')
-        if (yesterdayValue === 0) return 0;
-        return Number(p.swapVolume) - yesterdayValue;
-      }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
-      return {
-        dailyVolume: `${dailyVolume}`,
-      };
+    const graphRes: IPoolSnapshot = await request(endpoints[chain], graphQuery);
+
+    const totalVolume = graphRes.today.reduce(
+      (p, c) => p + c.totalSwapVolume,
+      0,
+    );
+    const previousVolume = graphRes.yesterday.reduce(
+      (p, c) => p + c.totalSwapVolume,
+      0,
+    );
+
+    const dailyVolume = totalVolume - previousVolume;
+
+    return {
+      dailyVolume,
+      totalVolume,
     };
   };
+};
 
-
-const v1graphs = getChainVolume({
+const v1graphs = getChainVolume2({
   graphUrls: {
-    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB')
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint(
+      "93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB",
+    ),
   },
-  ...graphParams
+  ...graphParams,
 });
 
 const adapter: BreakdownAdapter = {
@@ -83,7 +99,7 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: 1582761600
+        start: 1582761600,
       },
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
@@ -95,13 +111,13 @@ const adapter: BreakdownAdapter = {
             endpoints,
             chain: chain,
             dailyDataField: `balancerSnapshots`,
-            dateField: 'timestamp',
-            volumeField: 'totalSwapVolume'
+            dateField: "timestamp",
+            volumeField: "totalSwapVolume",
           }),
-        }
-      }
-    }, {} as BaseAdapter)
-  }
-}
+        },
+      };
+    }, {} as BaseAdapter),
+  },
+};
 
 export default adapter;

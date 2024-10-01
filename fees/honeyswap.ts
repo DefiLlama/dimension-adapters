@@ -1,13 +1,10 @@
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapters = univ2DimensionAdapter({
+const adapters = univ2DimensionAdapter2({
   graphUrls: {
     [CHAIN.POLYGON]: " https://api.thegraph.com/subgraphs/name/1hive/honeyswap-polygon",
     [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/1hive/honeyswap-xdai"
-  },
-  dailyVolume: {
-    factory: "honeyswapDayData"
   },
   totalVolume: {
     factory: "honeyswapFactories"
@@ -33,5 +30,6 @@ const adapters = univ2DimensionAdapter({
 });
 adapters.adapter.polygon.start = 1622173831;
 adapters.adapter.xdai.start = 1599191431;
+
 
 export default adapters;

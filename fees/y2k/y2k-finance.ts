@@ -23,8 +23,7 @@ const fetch = async (options: FetchOptions) => {
   const vaults = vaultRes.flat()
   const dailyFees = createBalances()
 
-  for (const vault of vaults)
-    await addTokensReceived({ options, tokens, fromAddressFilter: vault, target: treasury, balances: dailyFees })
+  await addTokensReceived({ options, tokens, fromAdddesses: vaults, target: treasury, balances: dailyFees })
 
 
   return { dailyFees, dailyRevenue: dailyFees, };

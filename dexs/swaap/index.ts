@@ -55,6 +55,25 @@ const config:Record<string, ChainConfig> = {
         id: '2',
         firstDayVolume: 0
     },
+    [CHAIN.SCROLL]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-scroll/prod/gn",
+        start: 1719508309,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.LINEA]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: 1719507890,
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.MANTLE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: 1719508654,
+        id: '2',
+        firstDayVolume: 0
+    },
+
 }
 
 interface Data {
@@ -129,7 +148,7 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
-                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(options)
+                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(_t, _tt, options)
                     return  {
                         timestamp: options.startOfDay,
                         dailyVolume,
@@ -169,6 +188,18 @@ const adapter: BreakdownAdapter = {
             [CHAIN.MODE]: {
                 fetch: v2graphs,
                 start: 1714652681,
+            },
+            [CHAIN.SCROLL]: {
+                fetch: v2graphs,
+                start: 1719508309,
+            },
+            [CHAIN.LINEA]: {
+                fetch: v2graphs,
+                start: 1719507890,
+            },
+            [CHAIN.MANTLE]: {
+                fetch: v2graphs,
+                start: 1719508654,
             },
 
         }

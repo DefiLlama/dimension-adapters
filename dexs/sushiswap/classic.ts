@@ -1,13 +1,9 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import {
-  CHAIN,
-} from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import {
-  getChainVolumeWithGasToken,
-}  from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getChainVolumeWithGasToken2 }  from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../../adapters/types";
 
 const blacklistTokens = {
@@ -59,7 +55,7 @@ const endpointsClassic = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
-  [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
+  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
   [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'),
   // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
@@ -83,30 +79,21 @@ const feesPercent = {
   SupplySideRevenue: 0.25
 }
 
-const graphsClassic = getGraphDimensions({
+const graphsClassic = getGraphDimensions2({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
-    field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
     field: VOLUME_FIELD,
   },
   feesPercent,
   blacklistTokens
 });
 
-const graphsClassicBoba = getGraphDimensions({
+const graphsClassicBoba = getGraphDimensions2({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
     field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "factoryDaySnapshot",
-    field: VOLUME_FIELD,
-    dateField: "date"
   },
   feesPercent
 });
@@ -121,8 +108,32 @@ const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: chain == "boba" ? graphsClassicBoba(chain as Chain) : graphsClassic(chain as Chain),
-      start: chain == "boba" ? getStartTimestamp({ ...startTimeQueryClassic, dailyDataField: "factoryDaySnapshots", chain }) : getStartTimestamp({ ...startTimeQueryClassic, chain }),
+      fetch: async (options: FetchOptions) => {
+        try {
+          const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
+          const values = (await call(chain)(options));
+          return {
+            dailyVolume: values?.dailyVolume || 0,
+            dailyFees: values?.dailyFees || 0,
+            dailyUserFees: values?.dailyUserFees || 0,
+            dailyProtocolRevenue: values?.dailyProtocolRevenue || 0,
+            dailySupplySideRevenue: values?.dailySupplySideRevenue || 0,
+            dailyHoldersRevenue: values?.dailyHoldersRevenue || 0,
+            dailyRevenue: values?.dailyRevenue || 0,
+          }
+        } catch {
+          return {
+            dailyVolume: 0,
+            dailyFees: 0,
+            dailyUserFees: 0,
+            dailyProtocolRevenue: 0,
+            dailySupplySideRevenue: 0,
+            dailyHoldersRevenue: 0,
+            dailyRevenue: 0,
+          }
+        }
+      },
+      start: 1711982400,
       meta: {
         methodology: {
           Fees: "SushiSwap charges a flat 0.3% fee",
@@ -138,7 +149,7 @@ const classic = Object.keys(endpointsClassic).reduce(
   {}
 ) as any;
 
-const fantomGraphs =  getChainVolumeWithGasToken({
+const fantomGraphs =  getChainVolumeWithGasToken2({
   graphUrls: {
     [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK')
   },
@@ -146,13 +157,9 @@ const fantomGraphs =  getChainVolumeWithGasToken({
     factory: "factories",
     field: 'volumeETH',
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: 'volumeETH',
-    dateField: "date"
-  },
   priceToken: "coingecko:fantom"
 } as any);
+
 classic[CHAIN.FANTOM] = {
   fetch: async (options: FetchOptions) =>   {
     const values = await fantomGraphs(CHAIN.FANTOM)(options);
