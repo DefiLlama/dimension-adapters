@@ -34,7 +34,7 @@ const contract: Contract = {
     yBridge: "0x33383265290421C704c6b09F4BF27ce574DC4203",
     xyRouter: "0x062b1Db694F6A437e3c028FC60dd6feA7444308c"
   },
-  [CHAIN.ZKSYNC]: {
+  [CHAIN.ERA]: {
     yBridge: "0xe4e156167cc9C7AC4AbD8d39d203a5495F775547",
     xyRouter: "0x30E63157bD0bA74C814B786F6eA2ed9549507b46"
   },
