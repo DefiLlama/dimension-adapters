@@ -28,6 +28,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
