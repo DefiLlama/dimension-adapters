@@ -77,7 +77,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 const adapter: BreakdownAdapter = {
     breakdown: {
         "Dexible_v2": {
-            [DISABLED_ADAPTER_KEY]: disabledAdapter,
+            [DISABLED_ADAPTER_KEY]: disabledAdapter, // site has been sunset and discord is dead 
             ...chains.reduce((acc, chain) => {
                 return {
                     ...acc,
