@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2DimensionAdapter } from "../../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../../helpers/getUniSubgraph";
 import { SimpleAdapter } from "../../adapters/types";
 
 const chainConfigs = {
@@ -53,7 +53,7 @@ const adapters: SimpleAdapter = {
 
 Object.entries(chainConfigs).reduce((acc, [chain, value]) => {
   adapters.adapter[chain] = {
-    ...univ2DimensionAdapter(
+    ...univ2DimensionAdapter2(
       {
         graphUrls: {
           [chain]: sdk.graph.modifyEndpoint(value.graphUrl),
