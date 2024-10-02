@@ -15,7 +15,7 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "idex-v4": {
+    xchain: {
       fetch,
       start: 1721312070,
       runAtCurrTime: true,
