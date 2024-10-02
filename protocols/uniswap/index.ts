@@ -1,11 +1,11 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from 'graphql-request';
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultGeneric } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
 
 const v1Endpoints = {
@@ -65,7 +65,7 @@ const v3Endpoints = {
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4gTHdWa9PbqUugt9vsMmpzUowmjb6eRiFRnUSrYLeSJF'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('43Hwfi3dJSoGpyas9VwNoDAv55yjgGrPpNSmbQZArzMG'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
