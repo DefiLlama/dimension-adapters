@@ -1,11 +1,8 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
 import { getProvider } from "@defillama/sdk/build/general";
-import { getBlock } from "../../helpers/getBlock";
-import { getPrices } from "../../utils/prices";
 
 const channels_address = '0x693Bac5ce61c720dDC68533991Ceb41199D8F8ae';
 const wxHOPR_address = ADDRESSES.xdai.XHOPR;
@@ -25,70 +22,48 @@ interface ITx {
   transactionHash: string;
 }
 
-const fetch = async ({ getFromBlock, getToBlock, toTimestamp, }: FetchOptions) => {
+const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) => {
   const provider = getProvider('xdai');
   const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
-  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
-
-  const ticketRedeemedLogs: ITx[] = (await sdk.getEventLogs({
+  const ticketRedeemedLogs: ITx[] = await getLogs({
     target: channels_address,
-    topic: topic0,
-    fromBlock,
-    toBlock,
-    topics: [topic0],
-    chain: CHAIN.XDAI
-  }))as ITx[];
+    eventAbi: 'event TicketRedeemed (bytes32 indexed channelId, uint48 newTicketIndex)', entireLog: true,
+  })
+  const ticketRedeemedHashSet = new Set(ticketRedeemedLogs.map(ticket => ticket.transactionHash.toLowerCase()));
+  console.log('ticketRedeemedHashSet', ticketRedeemedHashSet.size);
 
-  const batchSize = 4500;
-  const batches = Math.ceil((toBlock - fromBlock) / batchSize);
 
-  const erc20transferLog: ITx[] = await Promise.all(
-    Array.from({ length: batches }, (_, index) =>
-    sdk.getEventLogs({
-      target: wxHOPR_address,
-      topic: topic1,
-      toBlock: fromBlock + (index + 1) * batchSize,
-      fromBlock: fromBlock + index * batchSize,
-      topics: [topic1, topic2],
-      chain: CHAIN.XDAI
-    })
-    )
-  ).then((responses) => responses.flatMap((response) => response as ITx[]));
+  const erc20transferLog: ITx[] = await getLogs({
+    target: wxHOPR_address, topics: [topic1, topic2], entireLog: true,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+  });
+  const erc20transferHashSet = new Set(erc20transferLog.map(transaction => transaction.transactionHash.toLowerCase()));
+  console.log('erc20transferHashSet', erc20transferHashSet.size);
+  const erc20TransferMap = new Map(erc20transferLog.map(transaction => [transaction.transactionHash.toLowerCase(), transaction.data]));
 
   let dailyRevenueStayedInChannelsTXs: string[] = [];
   const dailyRevenueArrayPaidToSafe = ticketRedeemedLogs.map(ticket => {
-    const transactionHash = ticket.transactionHash;
-    const index = erc20transferLog.findIndex(transaction => transaction.transactionHash === transactionHash);
-    if(index !== -1) {
-      return erc20transferLog[index].data;
-    } else {
-      dailyRevenueStayedInChannelsTXs.push(ticket.transactionHash);
-    }
+    const transactionHash = ticket.transactionHash.toLowerCase();
+    const data = erc20TransferMap[transactionHash];
+    if (data)
+      return data.args.value
+    dailyRevenueStayedInChannelsTXs.push(ticket.transactionHash);
   }).filter(elem => elem !== undefined) as string[];
 
-  const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async(transactionHash) => {
+  const dailyRevenueStayedInChannels = await Promise.all(dailyRevenueStayedInChannelsTXs.map(async (transactionHash) => {
     const tx = await provider.getTransaction(transactionHash) as any;
     const data = tx!.input;
     const decodedInput = iface.decodeFunctionData('execTransactionFromModule', data)
-    const hexValue = '0x' + decodedInput[2].substring(138,202);
+    const hexValue = '0x' + decodedInput[2].substring(138, 202);
     return hexValue;
   }));
 
-  const dailyRevenue = [...dailyRevenueArrayPaidToSafe, ...dailyRevenueStayedInChannels].map((data: string) => {
-    const amount = Number(data) / 10 ** 18;
-    return amount;
-  }).reduce((a: number, b: number) => a+b,0);
+  const dailyRevenue = dailyRevenueArrayPaidToSafe.concat(dailyRevenueStayedInChannels)
 
-  const prices: any = (await getPrices([`${chain}:${xHOPR_address}`], toTimestamp));
-  const price = prices[`${chain}:${xHOPR_address}`]?.price || 0;
-  const dailyRevenueUSD = dailyRevenue * price;
-
-  return {
-    dailyFees: `${dailyRevenueUSD}`,
-    dailyUserFees: `${dailyRevenueUSD}`,
-    dailyRevenue: `${dailyRevenueUSD}`
-  };
+  const dailyFees = createBalances();
+  dailyFees.add(xHOPR_address, dailyRevenue);
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees };
 }
 
 const adapter: Adapter = {
