@@ -26,7 +26,7 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalFees = (await fetchURL(feeEndpoint))
 
-    const chainData = historicalFees.stats.find(cd => cd.chainId === chainId);
+    const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
 
     const totalFee = chainData.stats
         .filter(item => item.timestamp <= dayTimestamp)
