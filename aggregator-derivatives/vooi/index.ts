@@ -9,9 +9,9 @@ const startTimestampBlast = 1719792000; // 01.07.2024
 const startTimestampOpBNB = 1717200000; // 01.06.2024
 const startTimestampBase = 1722470400; // 01.08.2024
 
-const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${timestamp}`)
+const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+    // const timestamp = options.toTimestamp
+    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`) // returns data for the day before
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
         orderlyItem = {dailyVolume: 0, totalVolume: 0}
@@ -20,15 +20,19 @@ const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
     if (!synfuturesItem) {
         synfuturesItem = {dailyVolume: 0, totalVolume: 0}
     }
-    let kiloexItem = fetchData.find(((item) => item.protocol == "kiloex"))
+    let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
         kiloexItem = {dailyVolume: 0, totalVolume: 0}
     }
-    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(kiloexItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(kiloexItem.totalVolume)
+    let dailyVolume = Number(orderlyItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume)
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
         totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
+    }
+    for (let i in kiloexItem){
+        dailyVolume = Number(dailyVolume) + Number(kiloexItem[i].dailyVolume)
+        totalVolume = Number(totalVolume) + Number(kiloexItem[i].totalVolume)
     }
     return {
         dailyVolume,
@@ -38,8 +42,7 @@ const fetchArbitrum = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 
-const fetchOpBNB = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchOpBNB = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
@@ -47,8 +50,7 @@ const fetchOpBNB = async (options: any): Promise<FetchResult> => {
     };
 };
 
-const fetchBlast = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchBlast = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
@@ -56,8 +58,7 @@ const fetchBlast = async (options: any): Promise<FetchResult> => {
     };
 };
 
-const fetchBase = async (options: any): Promise<FetchResult> => {
-    const timestamp = options.toTimestamp
+const fetchBase = async (timestamp: number): Promise<FetchResult> => {
     return {
         dailyVolume: 0,
         totalVolume: 0,
@@ -84,6 +85,5 @@ const adapter: SimpleAdapter = {
             start: startTimestampBase
         },
     },
-    version: 2
 }
 export default adapter

@@ -3,9 +3,11 @@ export enum CHAIN {
   ARBITRUM = "arbitrum",
   AVAX = "avax",
   BLAST = "blast",
+  BAHAMUT = "ftn",
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
+  BIFROST = "bifrost",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
@@ -141,6 +143,7 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
+  ASTAR = 'astar',
   ASTAR_ZKEVM = "astrzk",
   FILECOIN = "filecoin",
   FRAXTAL = "fraxtal",
@@ -164,6 +167,9 @@ export enum CHAIN {
   IMMUTABLEX = "immutablex",
   CHAINFLIP = "chainflip",
   CRONOS_ZKEVM = "cronos_zkevm",
+  LOGX = "logx_network",
+  FLARE = "flare",
+  NUMBERS = "numbers",
 }
 
 // Don´t use

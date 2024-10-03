@@ -16,15 +16,12 @@ const address: TAddress = {
 }
 
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs,}: FetchOptions) => {
     const dailyFees = createBalances();
 
     (await getLogs({
       target: address[chain],
       eventAbi: event_swap,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
       dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000)
     })

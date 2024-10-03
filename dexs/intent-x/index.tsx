@@ -9,11 +9,11 @@ const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const endpoint_0_8_0 =
   "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
 const endpoint =
-  "https://api.0xgraph.xyz/subgraphs/name/intentx-base-analytcs-082";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
 const endpoint_blast =
-  "https://api.studio.thegraph.com/query/62472/intentx-analytics_082_blast/version/latest";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-blast-analytics-083/latest/gn";
 const endpoint_mantle =
-  "https://subgraph-api.mantle.xyz/subgraphs/name/mantle_intentx-analytics_082";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-mantle-analytics-083/latest/gn";
 
 const query_0_8_0 = gql`
   query stats($from: String!, $to: String!) {
@@ -149,24 +149,34 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     to: String(timestamp),
   });
 
-  let dailyVolume = new BigNumber(0);
+  let dailyMakerVolume = new BigNumber(0);
+  let dailyTakerVolume = new BigNumber(0);
   response_0_8_0.dailyHistories.forEach((data) => {
-    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
+    dailyMakerVolume = dailyMakerVolume.plus(new BigNumber(data.tradeVolume));
+    dailyTakerVolume = dailyTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
   response.dailyHistories.forEach((data) => {
-    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
+    dailyMakerVolume = dailyMakerVolume.plus(new BigNumber(data.tradeVolume));
+    dailyTakerVolume = dailyTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  let totalVolume = new BigNumber(0);
+  let totalMakerVolume = new BigNumber(0);
+  let totalTakerVolume = new BigNumber(0);
   response_0_8_0.totalHistories.forEach((data) => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+    totalMakerVolume = totalMakerVolume.plus(new BigNumber(data.tradeVolume));
+    totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
   response.totalHistories.forEach((data) => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+    totalMakerVolume = totalMakerVolume.plus(new BigNumber(data.tradeVolume));
+    totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -183,8 +193,10 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 const fetchVolumeBlast = async (
   timestamp: number
 ): Promise<FetchResultVolume> => {
-  let dailyVolume = new BigNumber(0);
-  let totalVolume = new BigNumber(0);
+  let dailyMakerVolume = new BigNumber(0);
+  let dailyTakerVolume = new BigNumber(0);
+  let totalMakerVolume = new BigNumber(0);
+  let totalTakerVolume = new BigNumber(0);
 
   const response_blast: IGraphResponse = await request(
     endpoint_blast,
@@ -195,14 +207,20 @@ const fetchVolumeBlast = async (
     }
   );
   response_blast.dailyHistories.forEach((data) => {
-    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
+    dailyMakerVolume = dailyMakerVolume.plus(new BigNumber(data.tradeVolume));
+    dailyTakerVolume = dailyTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
   response_blast.totalHistories.forEach((data) => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+    totalMakerVolume = totalMakerVolume.plus(new BigNumber(data.tradeVolume));
+    totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18)).multipliedBy(2);
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -219,8 +237,10 @@ const fetchVolumeBlast = async (
 const fetchVolumeMantle = async (
   timestamp: number
 ): Promise<FetchResultVolume> => {
-  let dailyVolume = new BigNumber(0);
-  let totalVolume = new BigNumber(0);
+  let dailyMakerVolume = new BigNumber(0);
+  let dailyTakerVolume = new BigNumber(0);
+  let totalMakerVolume = new BigNumber(0);
+  let totalTakerVolume = new BigNumber(0);
 
   const response_mantle: IGraphResponse = await request(
     endpoint_mantle,
@@ -231,14 +251,20 @@ const fetchVolumeMantle = async (
     }
   );
   response_mantle.dailyHistories.forEach((data) => {
-    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
+    dailyMakerVolume = dailyMakerVolume.plus(new BigNumber(data.tradeVolume));
+    dailyTakerVolume = dailyTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
   response_mantle.totalHistories.forEach((data) => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+    totalMakerVolume = totalMakerVolume.plus(new BigNumber(data.tradeVolume));
+    totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);

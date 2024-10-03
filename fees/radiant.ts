@@ -1,98 +1,39 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 
-const topic0NewTransferAdded = '0xc5e1cdb94ac0a9f4f65e1a23fd59354025cffdf472eb03020ac4ba0e92d9969f';
 
 type TAddress = {
   [l: string | Chain]: string;
 }
 
-const address: TAddress  = {
+const address: TAddress = {
   [CHAIN.ARBITRUM]: '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f',
   [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8',
   [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797',
   [CHAIN.BASE]: '0xC49b4D1e6CbbF4cAEf542f297449696d8B47E411'
 }
 
-interface ITx {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
+const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+  const dailyFees = createBalances()
+  const logs = await getLogs({ target: address[chain], eventAbi: 'event NewTransferAdded (address indexed asset, uint256 lpUsdValue)' })
+  logs.forEach((log) => dailyFees.addUSDValue(Number(log.lpUsdValue) / 1e18))
+  const dailySupplySideRevenue = dailyFees.clone(0.25);
+  const dailyHoldersRevenue = dailyFees.clone(0.60);
+  const dailyProtocolRevenue = dailyFees.clone(0.15);
+  const dailyRevenue = dailyFees.clone(0.85);
 
-interface IData {
-  contract_address: string;
-  amount: number;
-}
-
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.getEventLogs({
-      target: address[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0NewTransferAdded],
-      chain: chain
-    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
-    const raw_data_logs: IData[] = logs.map((tx: ITx) => {
-      const amount = Number('0x'+tx.data);
-      const address = tx.topics[1];
-      const contract_address = '0x' + address.slice(26, address.length);
-      return {
-        amount,
-        contract_address,
-        tx: tx.transactionHash
-      };
-    })
-    const feesAmuntsUSD: any[] = raw_data_logs.map((d: any) => {
-      return {amount: d.amount / 10 ** 18, tx: d.tx, a: d.contract_address} // debug
-    });
-    const dailyFee = feesAmuntsUSD.reduce((a: number, b: any) => a+b.amount, 0);
-    const supplySideRev = dailyFee * 0.25;
-    const dailyHoldersRevenue = dailyFee * .60;
-    const protocolRev = dailyFee * .15;
-
-    return {
-      dailyFees: dailyFee.toString(),
-      dailySupplySideRevenue: supplySideRev.toString(),
-      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
-      dailyProtocolRevenue: protocolRev.toString(),
-      dailyRevenue: (protocolRev + dailyHoldersRevenue).toString(),
-      timestamp
-    }
-  }
+  return { dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyFees, };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1679097600,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: 1679788800,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: 1698796800,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: 1719592253,
-    },
+    [CHAIN.ARBITRUM]: { fetch, start: 1679097600, },
+    [CHAIN.BSC]: { fetch, start: 1679788800, },
+    [CHAIN.ETHEREUM]: { fetch, start: 1698796800, },
+    [CHAIN.BASE]: { fetch, start: 1719592253, },
   }
 }
-
 
 export default adapter;

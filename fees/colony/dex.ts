@@ -1,4 +1,4 @@
-import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
@@ -32,7 +32,7 @@ export async function dexFees(
   const VOLUME_USD = "volumeUSD";
   const FEES_USD = "feesUSD";
 
-  const v2Graph = getGraphDimensions({
+  const v2Graph = getGraphDimensions2({
     graphUrls: {
       [options.chain]: dexSubgraphEndpoint,
     },
@@ -40,18 +40,10 @@ export async function dexFees(
       factory: "factories",
       field: VOLUME_USD,
     },
-    dailyVolume: {
-      factory: "dayData",
-      field: VOLUME_USD,
-    },
     totalFees: {
       factory: "factories",
       field: FEES_USD,
     },
-    dailyFees: {
-      factory: "dayData",
-      field: FEES_USD,
-    }
   });
 
   const results = await v2Graph(options.chain)(options)

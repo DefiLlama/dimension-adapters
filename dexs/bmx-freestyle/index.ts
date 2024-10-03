@@ -1,12 +1,15 @@
 import BigNumber from "bignumber.js";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import {
+  FetchOptions,
+  FetchResultVolume,
+  SimpleAdapter,
+} from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
 
-
 const freestyleEndpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/62454/analytics_base_8_2/version/latest",
+    "https://api-v2.morphex.trade/subgraph/3KhmYXgsM3CM1bbUCX8ejhcxQCtWwpUGhP7p9aDKZ94Z",
 };
 
 interface IGraphResponseFreestyle {
@@ -66,50 +69,53 @@ const freestyleQuery = gql`
   }
 `;
 
-const fetchFreestyleVolume = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResultVolume> => {
-    const startTime = options.startOfDay;
-    const endTime = startTime + ONE_DAY_IN_SECONDS;
-    const response: IGraphResponseFreestyle = await request(
-      freestyleEndpoints[options.chain],
-      freestyleQuery,
-      {
-        from: String(startTime),
-        to: String(endTime),
-      }
-    );
+const fetchFreestyleVolume = async (
+  timestamp: number,
+  _t: any,
+  options: FetchOptions
+): Promise<FetchResultVolume> => {
+  const startTime = options.startOfDay;
+  const endTime = startTime + ONE_DAY_IN_SECONDS;
+  const response: IGraphResponseFreestyle = await request(
+    freestyleEndpoints[options.chain],
+    freestyleQuery,
+    {
+      from: String(startTime),
+      to: String(endTime),
+    }
+  );
 
-    let dailyVolume = new BigNumber(0);
-    let totalVolume = new BigNumber(0);
+  let dailyVolume = new BigNumber(0);
+  let totalVolume = new BigNumber(0);
 
-    response.dailyHistories.forEach((data) => {
-      dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
-    });
-    response.totalHistories.forEach((data) => {
-      totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
-    });
+  response.dailyHistories.forEach((data) => {
+    dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
+  });
+  response.totalHistories.forEach((data) => {
+    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
+  });
 
-    dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-    totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
+  dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
+  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
 
-    const _dailyVolume = toString(dailyVolume);
-    const _totalVolume = toString(totalVolume);
+  const _dailyVolume = toString(dailyVolume);
+  const _totalVolume = toString(totalVolume);
 
-
-    return {
-      timestamp: timestamp,
-      dailyVolume: _dailyVolume ?? "0",
-      totalVolume: _totalVolume ?? "0",
-    };
+  return {
+    timestamp: timestamp,
+    dailyVolume: _dailyVolume ?? "0",
+    totalVolume: _totalVolume ?? "0",
   };
+};
 
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFreestyleVolume,
-      start: 0
-    }
-  }
-}
+      start: 1714554000,
+    },
+  },
+};
 
 export default adapter;

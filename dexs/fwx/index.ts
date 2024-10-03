@@ -14,20 +14,14 @@ interface IRes {
   data: IDailyData[];
 }
 
-interface IEndpoint {
-  tradingVolume: string;
-  openInterest: string;
-}
-
 const CHAIN_ID = {
   [CHAIN.AVAX]: 43114,
+  [CHAIN.BASE]: 8453,
 };
 
-const endpoints: Record<Chain, IEndpoint> = {
-  [CHAIN.AVAX]: {
-    tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
-    openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
-  },
+const endpoints = {
+  tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
+  openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
 const fetch = (chain: Chain) => {
@@ -39,22 +33,35 @@ const fetch = (chain: Chain) => {
     const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
     // * call api for daily volume
-    const tradingVolumeRes = await httpPost(endpoints[chain].tradingVolume, {
+    const tradingVolumePerpRes = await httpPost(endpoints.tradingVolume, {
       from_date: formattedDate,
       to_date: formattedDate,
       chain_id: CHAIN_ID[chain],
+      is_perp: true,
     });
-    const tradingVolume = tradingVolumeRes as IRes;
-    const dailyVolumeData = tradingVolume?.data.find(
+    const tradingVolumePerp = tradingVolumePerpRes as IRes;
+    const dailyPerpVolumeData = tradingVolumePerp?.data.find(
+      (x: IDailyData) =>
+        new Date(x.date).getTime() == new Date(formattedDate).getTime()
+    );
+
+    const tradingVolumeAphRes = await httpPost(endpoints.tradingVolume, {
+      from_date: formattedDate,
+      to_date: formattedDate,
+      chain_id: CHAIN_ID[chain],
+      is_perp: false,
+    });
+    const tradingVolumeAph = tradingVolumeAphRes as IRes;
+    const dailyAphVolumeData = tradingVolumeAph?.data.find(
       (x: IDailyData) =>
         new Date(x.date).getTime() == new Date(formattedDate).getTime()
     );
 
     // * call api for daily open interest
-    const openInterestRes = await httpPost(endpoints[chain].openInterest, {
+    const openInterestRes = await httpPost(endpoints.openInterest, {
       from_date: formattedDate,
       to_date: formattedDate,
-      chain_id: 43114,
+      chain_id: CHAIN_ID[chain],
     });
     const openInterestData = openInterestRes as IRes;
     const dailyOpenInterestData = openInterestData?.data.find(
@@ -63,9 +70,12 @@ const fetch = (chain: Chain) => {
     );
 
     return {
-      dailyVolume: convertStringNumber(dailyVolumeData?.total || "0"),
+      dailyVolume: convertStringNumber(
+        BigInt(dailyPerpVolumeData?.total || "0") +
+          BigInt(dailyAphVolumeData?.total || "0")
+      ),
       dailyOpenInterest: convertStringNumber(
-        dailyOpenInterestData?.total || "0"
+        BigInt(dailyOpenInterestData?.total || "0")
       ),
       timestamp: timestamp,
     };
@@ -78,14 +88,17 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.AVAX),
       start: 1701907200,
     },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1725408000,
+    },
   },
 };
 
 export default adapter;
 
 // devide by 1e18
-function convertStringNumber(inputString: string) {
-  let number = BigInt(inputString);
+function convertStringNumber(number: bigint) {
   const divisor = BigInt(1e18);
   let integerPart = number / divisor;
   let fractionalPart = number % divisor;

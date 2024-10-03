@@ -49,21 +49,18 @@ export async function earlyStageFees(
   options: FetchOptions,
   earlystageSubgraphEndpoint: string,
 ): Promise<EarlyStageFees> {
-  const { createBalances, startTimestamp } = options;
+  const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyProtocolRevenue = createBalances()
   let totalProtocolRevenue = createBalances()
   let dailyHoldersRevenue = createBalances()
   let totalHoldersRevenue = createBalances()
 
-  const day = Math.floor(startTimestamp / 86400)
-  const date = day * 86400
-
   try {
     const res: IGraphEarlyStageFeesResponse = await request(earlystageSubgraphEndpoint, queryEarlyStageFees);
 
     if (res.projectDistributions && res.projectDistributions.length) {
-      const todayRes = res.projectDistributions.filter(x => x.timestamp >= date && x.timestamp < date + 86400)
+      const todayRes = res.projectDistributions.filter(x => x.timestamp >= startTimestamp && x.timestamp < endTimestamp)
 
       // --- Protocol Revenue
       dailyProtocolRevenue = todayRes.reduce((acc: Balances, x) => {

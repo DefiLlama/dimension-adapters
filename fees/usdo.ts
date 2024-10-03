@@ -1,4 +1,4 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types"
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
@@ -35,34 +35,21 @@ const contract_interface = new ethers.Interface([
   event_increase_value,
 ]);
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async ({ getLogs, startOfDay }: FetchOptions) => {
   throw new Error("I think neither of these should be counted as fees? or we just count 0.5% of redeemed USDO as fees?")
 
-  const fromTimestamp = timestamp - 60 * 60 * 24
-  const toTimestamp = timestamp
-  const fromBlock = (await getBlock(fromTimestamp, CHAIN.ONUS, {}));
-  const toBlock = (await getBlock(toTimestamp, CHAIN.ONUS, {}));
-  const logs_increase_value = (await sdk.getEventLogs({
+  const logs_increase_value = (await getLogs({
     target: usdo,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    chain: CHAIN.ONUS,
     topics: [topic0_increase_value]
   })).map(((e: any) => contract_interface.parseLog(e)));
 
-  const logs_tx: string[] = (await sdk.getEventLogs({
+  const logs_tx: string[] = (await getLogs({
     target: usdo,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    chain: CHAIN.ONUS,
     topics: [topic0_withdraw]
   })).map((e: any) => e.transactionHash.toLowerCase());
 
-  const logs: ILog[][] = (await Promise.all(pools.map((address: string) => sdk.getEventLogs({
+  const logs: ILog[][] = (await Promise.all(pools.map((address: string) => getLogs({
     target: address,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    chain: CHAIN.ONUS,
     topics: [topic0_swap]
   })))) as any;
 
@@ -82,7 +69,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const tokens1 = underlyingToken1;
   const rawCoins = [...tokens0, ...tokens1].map((e: string) => `${CHAIN.ONUS}:${e}`);
   const coins = [...new Set(rawCoins)]
-  const prices = await getPrices(coins, timestamp);
+  const prices = await getPrices(coins, startOfDay);
 
   const untrackVolumes: number[] = pools.map((_: string, index: number) => {
     const token0Decimals = (prices[`${CHAIN.ONUS}:${tokens0[index]}`]?.decimals || 0)
@@ -123,11 +110,11 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     dailyFees: `${dailyFee}`,
     dailyRevenue: `${dailyFee}`,
-    timestamp
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ONUS]: {
       fetch,

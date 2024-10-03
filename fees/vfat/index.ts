@@ -54,24 +54,26 @@ const chainSettings: any = {
     const settings = chainSettings[chain];
 
 
-    // Fetch Deploy events to get all Sickle contract addresses
+/*     // Fetch Deploy events to get all Sickle contract addresses
     const deployLogs = await getLogs({
       target: settings.factory,
       fromBlock: settings.fromBlock,
       eventAbi: 'event Deploy(address indexed admin, address sickle)',
+      cacheInCloud: true,
     });
 
-    const sickleContracts = deployLogs.map((log: any) => log.sickle);
+    const sickleContracts = deployLogs.map((log: any) => log.sickle); */
 
     const logs = await getLogs({
-      targets: sickleContracts,
+      // targets: sickleContracts,
       eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
     });
 
     const logs2 = await getLogs({
-      targets: sickleContracts,
+      // targets: sickleContracts,
       eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
     });
+
 
     logs.forEach((log: any) => {
       dailyFees.add(log.token, log.amount);

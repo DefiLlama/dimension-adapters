@@ -1,12 +1,10 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
+const adapters = univ2Adapter2({
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/nileexchange/cl-subgraph"
 }, {
   factoriesName: "factories",
-  dayData: "uniswapDayData",
-  dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
 
