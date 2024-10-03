@@ -187,7 +187,7 @@ const fetchBLAST = async (options: FetchOptions) => {
   }
 };
 
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
