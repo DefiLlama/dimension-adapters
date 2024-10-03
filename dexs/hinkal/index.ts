@@ -4,7 +4,6 @@ import { CHAIN } from "../../helpers/chains";
 
 
 const fetchEthereum = async (options: FetchOptions) => {
-  console.log({ options });
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/1`;
@@ -13,8 +12,7 @@ const fetchEthereum = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
@@ -36,15 +34,13 @@ const fetchBase = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -59,15 +55,13 @@ const fetchArbitrum = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -82,15 +76,13 @@ const fetchPolygon = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -105,15 +97,13 @@ const fetchBNB = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -128,15 +118,13 @@ const fetchAVALANCHE = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -151,15 +139,13 @@ const fetchOPTIMISM = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
@@ -174,15 +160,13 @@ const fetchBLAST = async (options: FetchOptions) => {
     const dataTotal = responseVolume.data;
     const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching volume:", error);
     return {
-      timestampStart: options.startTimestamp,
-      timestampEnd: options.endTimestamp,
+      timestamp: options.startTimestamp,
       dailyVolume: 0,
     };
   }
