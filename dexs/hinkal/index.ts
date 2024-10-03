@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const fetchEthereum = async (options: FetchOptions) => {
