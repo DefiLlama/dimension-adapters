@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('743VoDTGxZ1m3QHC3BCnTkKcvXqo8PfyTSs6QGHgcQKd'),
@@ -12,15 +12,11 @@ const endpoints = {
   // [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('CK42aJEkVpr5kS3wygQrpmDegNcRDbdqtkzNhzRLfW21'),
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
 });
 

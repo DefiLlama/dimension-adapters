@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResultV2 } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 const sugars = {

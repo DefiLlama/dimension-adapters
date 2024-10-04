@@ -191,7 +191,7 @@ const getFetch =
   };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v2: {
       [CHAIN.BASE]: {

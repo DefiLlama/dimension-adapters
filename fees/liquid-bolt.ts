@@ -72,8 +72,10 @@ const getAdapter = () => {
         methodology
       }
     },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
+    [CHAIN.POLYGON]: { // no longer in api response 
+      fetch: async (timestamp: number) => ({
+        timestamp
+      }),
       start: 1669312800,
       runAtCurrTime: true,
       meta: {

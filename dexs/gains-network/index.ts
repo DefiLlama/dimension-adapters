@@ -6,6 +6,12 @@ type IAddresses = {
   [s: string | Chain]: string[];
 };
 
+type IPrecisionException = {
+  [chain in CHAIN]?: {
+    [key: string | number]: number;
+  };
+};
+
 interface ILog {
   address: string;
   data: string;
@@ -25,11 +31,31 @@ const topic0_market_ex = [
   "0xca42b0e44cd853d207b87e8f8914eaefef9c9463a8c77ca33754aa62f6904f00", // v7
   V8_MARKET_TOPIC0, // v8
 ];
+const topic0_partials = [
+  "0xf09a9c949c4bd4cbe75b424bea11c683c3ae55e7cdb8321c3ec37e01af72c8d5", // PositionSizeIncreaseExecuted
+  "0xe74b50af866d7f8e3577bc959bf73a2690841f0abce22ab0cfb1b1c84122a7d7", // PositionSizeDecreaseExecuted
+];
 
-const precisionException: { [a: string | number]: number } = {
-  "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
-  "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
-  3: 1e6, // v8 USDC
+const precisionException: IPrecisionException = {
+  [CHAIN.POLYGON]: {
+    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
+    "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
+    3: 1e6, // v8 USDC
+  },
+  [CHAIN.ARBITRUM]: {
+    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": 1e6,
+    "0x4542256c583bcad66a19a525b57203773a6485bf": 1e6,
+    3: 1e6, // v8 USDC
+  },
+  [CHAIN.BASE]: {
+    1: 1e6, // USDC is collateralIndex 1 on Base
+  },
+};
+
+const diamonds = {
+  [CHAIN.POLYGON]: "0x209a9a01980377916851af2ca075c2b170452018",
+  [CHAIN.ARBITRUM]: "0xff162c694eaa571f685030649814282ea457f169",
+  [CHAIN.BASE]: "0x6cD5aC19a07518A8092eEFfDA4f1174C72704eeb",
 };
 
 const contract_addresses: IAddresses = {
@@ -37,38 +63,52 @@ const contract_addresses: IAddresses = {
     "0x82e59334da8c667797009bbe82473b55c7a6b311", // DAI TradingCallbacks
     "0x0bbed2eac3237ba128643670b7cf3be475933755", // ETH TradingCallbacks
     "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef", // USDC TradingCallbacks
-    "0x209a9a01980377916851af2ca075c2b170452018", // v8 Diamond
+    diamonds[CHAIN.POLYGON], // v8 Diamond
   ],
   [CHAIN.ARBITRUM]: [
     "0x298a695906e16aea0a184a2815a76ead1a0b7522", // DAI TradingCallbacks
     "0x62a9f50c92a57c719ff741133caa55c7a81ce019", // ETH TradingCallbacks
     "0x4542256c583bcad66a19a525b57203773a6485bf", // USDC TradingCallbacks
-    "0xff162c694eaa571f685030649814282ea457f169", // v8 Diamond
+    diamonds[CHAIN.ARBITRUM], // v8 Diamond
   ],
+  [CHAIN.BASE]: [diamonds[CHAIN.BASE]],
 };
 
-const fetch: any = async (timestamp: number, _, { getLogs, createBalances, chain }): Promise<FetchResultVolume> => {
-  const limitLogs: ILog[] = (
-    (await Promise.all(
-      topic0_limit_ex.map(async (topic0) =>
-        getLogs({
-          targets: contract_addresses[chain],
-          topics: [topic0],
-        })
-      )
-    )) as ILog[][]
-  ).flat();
+const fetch: any = async (timestamp: number, _, { getLogs, chain }): Promise<FetchResultVolume> => {
+  const chainPrecisionExceptions = precisionException[chain];
+  const [limitLogs, marketLogs, partialsLogs] = (
+    await Promise.all([
+      // Limit Executed logs
+      (await Promise.all(
+        topic0_limit_ex.map(async (topic0) =>
+          getLogs({
+            targets: contract_addresses[chain],
+            topics: [topic0],
+          })
+        )
+      )) as ILog[][],
 
-  const marketLogs: ILog[] = (
-    (await Promise.all(
-      topic0_market_ex.map(async (topic0) =>
-        getLogs({
-          targets: contract_addresses[chain],
-          topics: [topic0],
-        })
-      )
-    )) as ILog[][]
-  ).flat();
+      // Market Executed logs
+      (await Promise.all(
+        topic0_market_ex.map(async (topic0) =>
+          getLogs({
+            targets: contract_addresses[chain],
+            topics: [topic0],
+          })
+        )
+      )) as ILog[][],
+
+      // Partial Increase/Decrease logs
+      (await Promise.all(
+        topic0_partials.map(async (topic0) =>
+          getLogs({
+            targets: [diamonds[chain]],
+            topics: [topic0],
+          })
+        )
+      )) as ILog[][],
+    ])
+  ).map((logs: ILog[][]) => logs.flat());
 
   const limit_volume = limitLogs
     .map((e: ILog) => {
@@ -78,13 +118,13 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances, chain
       if (e.topics[0] === V8_LIMIT_TOPIC0) {
         const leverage = Number("0x" + data.slice(320, 384)) / 1e3;
         const collateralIndex = Number("0x" + data.slice(512, 576));
-        const collateralAmount = Number("0x" + data.slice(640, 704)) / (precisionException[collateralIndex] ?? 1e18);
+        const collateralAmount = Number("0x" + data.slice(640, 704)) / (chainPrecisionExceptions[collateralIndex] ?? 1e18);
         const collateralPriceUsd = Number("0x" + data.slice(1280, 1344)) / 1e8;
         return leverage * collateralAmount * collateralPriceUsd;
       } else {
         // v5-v7
         const leverage = Number("0x" + data.slice(512, 576));
-        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (precisionException[e.address] ?? 1e18);
+        const positionSizeDai = Number("0x" + data.slice(896, 960)) / (chainPrecisionExceptions[e.address] ?? 1e18);
         const collateralPrice = (data.length === 1216 ? Number("0x" + data.slice(1088, 1152)) : 1e8) / 1e8;
         return leverage * positionSizeDai * collateralPrice;
       }
@@ -98,20 +138,35 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances, chain
       if (e.topics[0] === V8_MARKET_TOPIC0) {
         const leverage = Number("0x" + data.slice(320, 384)) / 1e3;
         const collateralIndex = Number("0x" + data.slice(512, 576));
-        const collateralAmount = Number("0x" + data.slice(640, 704)) / (precisionException[collateralIndex] ?? 1e18);
+        const collateralAmount = Number("0x" + data.slice(640, 704)) / (chainPrecisionExceptions[collateralIndex] ?? 1e18);
         const collateralPriceUsd = Number("0x" + data.slice(1280, 1344)) / 1e8;
         return leverage * collateralAmount * collateralPriceUsd;
       } else {
         // v5-v7
         const leverage = Number("0x" + data.slice(448, 512));
-        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (precisionException[e.address] ?? 1e18);
+        const positionSizeDai = Number("0x" + data.slice(832, 896)) / (chainPrecisionExceptions[e.address] ?? 1e18);
         const collateralPrice = (data.length === 1088 ? Number("0x" + data.slice(1024, 1088)) : 1e8) / 1e8;
         return leverage * positionSizeDai * collateralPrice;
       }
     })
     .reduce((a: number, b: number) => a + b, 0);
 
-  const dailyVolume = limit_volume + market_volume;
+  const partials_volume = partialsLogs
+    .map((e: ILog) => {
+      const data = e.data.replace("0x", "");
+      const cancelReason = Number("0x" + data.slice(128, 192));
+
+      if (cancelReason > 0) return 0;
+
+      const collateralPrecision = chainPrecisionExceptions[Number(e.topics[1])] ?? 1e18;
+      const collateralPriceUsd = Number("0x" + data.slice(384, 448)) / 1e8;
+      const positionSizeDelta = Number("0x" + data.slice(576, 640)) / collateralPrecision;
+
+      return positionSizeDelta * collateralPriceUsd;
+    })
+    .reduce((a: number, b: number) => a + b, 0);
+
+  const dailyVolume = limit_volume + market_volume + partials_volume;
 
   return { dailyVolume, timestamp };
 };
@@ -120,6 +175,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: 1684972800 },
     [CHAIN.POLYGON]: { fetch, start: 1684972800 },
+    [CHAIN.BASE]: { fetch, start: 1727351131 },
   },
 };
 

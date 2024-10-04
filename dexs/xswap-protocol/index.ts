@@ -1,12 +1,12 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
   [CHAIN.XDC]: "https://analytics.xspswap.finance/subgraphs/name/some/factory"
 }
 
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.XDC]: {

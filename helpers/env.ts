@@ -27,7 +27,8 @@ export const ENV_KEYS = new Set([
   'ZEROx_API_KEY',
   'ZEROX_API_KEY',
   'AGGREGATOR_0X_API_KEY',
-  'SUI_RPC'
+  'SUI_RPC',
+  '0KX_API_KEY'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

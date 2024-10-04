@@ -1,8 +1,7 @@
 import { SimpleAdapter } from "../../adapters/types";
 import {
-  DEFAULT_DAILY_VOLUME_FIELD,
   DEFAULT_TOTAL_VOLUME_FIELD,
-  getGraphDimensions,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -52,17 +51,12 @@ const startTimes = {
  * The method `getGraphDimensions` try returns daily fees and total fees
  * but we are currently not using them in our subgraphs, so they are undefined
  */
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls,
   graphRequestHeaders,
   totalVolume: {
     factory: "smardexFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "factoryDayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: "date",
   },
 });
 

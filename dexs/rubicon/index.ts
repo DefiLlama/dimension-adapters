@@ -1,23 +1,19 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter, univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 // Define the old and new adapters
-const adapterOld = univ2Adapter({
+const adapterOld = univ2Adapter2({
   [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Arbitrum_V2',
   [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Optimism_V2'
 }, {
   factoriesName: "rubicons",
   totalVolume: "total_volume_usd",
-  dayData: "dayVolume",
-  dailyVolume: "volume_usd",
-  dailyVolumeTimestampField: "dayStartUnix"
 });
 
 adapterOld.adapter.arbitrum.start = 0;
 adapterOld.adapter.optimism.start = 0;
 
-const adapterNew = univ2Adapter({
+const adapterNew = univ2Adapter2({
   [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Optimism_V2',
   [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Arbitrum_V2',
   [CHAIN.BASE]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Base_V2',
@@ -25,9 +21,6 @@ const adapterNew = univ2Adapter({
 }, {
   factoriesName: "rubicons",
   totalVolume: "total_volume_usd",
-  dayData: "dayVolume",
-  dailyVolume: "volume_usd",
-  dailyVolumeTimestampField: "dayStartUnix"
 });
 
 adapterNew.adapter.arbitrum.start = 183178326;
@@ -52,7 +45,6 @@ async function combinedFetch(chain, timestamp, chainBlocks, options) {
   if (!newData) return oldData;
 
   return {
-    timestamp: newData.timestamp,
     totalVolume: (oldData.totalVolume || 0) + (newData.totalVolume || 0),
     dailyVolume: (oldData.dailyVolume || 0) + (newData.dailyVolume || 0),
     // Add any other fields that need to be combined here

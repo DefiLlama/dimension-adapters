@@ -84,13 +84,10 @@ export async function masterChef(
   masterChefSubgraphEndpoint: string,
   earlyStageSubgraphEndpoint: string,
 ): Promise<Airdrops> {
-  const { createBalances, startTimestamp } = options;
+  const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailySupplySideRevenue = createBalances()
   let totalSupplySideRevenue = createBalances()
-
-  const day = Math.floor(startTimestamp / 86400)
-  const date = day * 86400
 
   try {
     const ceTokenRes: ICeTokensResponse = await request(earlyStageSubgraphEndpoint, ceTokensQuery);
@@ -101,7 +98,7 @@ export async function masterChef(
 
     const rewardersRes: IGraphAirdropsResponse = await request(masterChefSubgraphEndpoint, rewardersQuery);
     for (const rewarder of rewardersRes.rewarders) {
-      if (rewarder.startTimestamp >= date && rewarder.startTimestamp < date + 86400) {
+      if (rewarder.startTimestamp >= startTimestamp && rewarder.startTimestamp < endTimestamp) {
         addTokenBalance(
           dailySupplySideRevenue,
           priceMap,

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { getChainVolumeWithGasToken } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolumeWithGasToken2 } from "../../helpers/getUniSubgraphVolume";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { /*AVAX,*/ FANTOM } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
@@ -12,17 +12,13 @@ const endpoints = {
 
 const VOLUME_FIELD = "volumeUSD";
 
-const graphs = getChainVolumeWithGasToken({
+const graphs = getChainVolumeWithGasToken2({
   graphUrls: {
     //[AVAX]: endpoints[AVAX],
     [FANTOM]: endpoints[FANTOM]
   },
   totalVolume: {
     factory: "factories",
-    field: VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
     field: VOLUME_FIELD,
   },
   priceToken: "coingecko:fantom"

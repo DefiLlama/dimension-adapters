@@ -23,7 +23,7 @@ interface IValume {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5')
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6Z7dcfhWCWxvM5EWYtS9ZRmJSKmButFjuTvvDoCWEef')
 }
 
 const fetch = (chain: Chain) => {

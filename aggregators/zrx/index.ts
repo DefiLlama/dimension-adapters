@@ -72,7 +72,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: any = {
-  version: 2,
+  version: 1,
   adapter: {
     ...Object.values(CHAINS).reduce((acc, chain) => {
       return {

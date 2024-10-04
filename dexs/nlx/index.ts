@@ -1,7 +1,5 @@
-import { BreakdownAdapter, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResultVolume, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
 import { adapter_trade } from './nlx-trade/index'
 
@@ -28,18 +26,12 @@ const contract: TChain = {
 }
 
 const fetch = (chain: Chain) => {
-  return async ({ fromTimestamp, toTimestamp }: FetchOptions): Promise<FetchResultVolume> => {
+  return async ({ getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
 
-    const balances = new sdk.Balances({ chain, timestamp: toTimestamp })
-   
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
+    const dailyVolume = createBalances()
 
-    const swap_logs: ILog[] = (await sdk.getEventLogs({
+    const swap_logs: ILog[] = (await getLogs({
       target: contract[chain],
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
       topics: [topic0_ins, topic1_ins]
     })) as ILog[];
 
@@ -55,13 +47,10 @@ const fetch = (chain: Chain) => {
     })
 
     raw_in.map((e: IToken) => {
-      balances.add(e.token, e.amount)
+      dailyVolume.add(e.token, e.amount)
     })
 
-    return {
-      dailyVolume: await balances.getUSDString(),
-      timestamp: toTimestamp
-    }
+    return { dailyVolume } as any
   }
 }
 
