@@ -47,11 +47,11 @@ const CHAINS: TChain = {
     [CHAIN.TON]: 607,
 };
 
-const fetch = async (_timestampParam: number, block: any, options: FetchOptions) => {
-    const timestamp = new Date().toISOString()
-    const path = `/api/v5/dex/aggregator/volume?timestamp=${options.endTimestamp * 1e3}&chainId=${CHAINS[options.chain]}`
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function queryOkxApi(timestamp:string, path:string){
     const [secretKey, passphrase] = getEnv("0KX_API_KEY").split(":")
-    const data = await limits(() => axios.get(`https://www.okx.com${path}`, {
+    const data = await axios.get(`https://www.okx.com${path}`, {
         headers: {
             'OK-ACCESS-PROJECT': 'be0ee327bbc230c3977c6868a77cd894',
             'OK-ACCESS-KEY': 'feb1a319-69e0-4c00-96df-d1188d8a616a',
@@ -61,7 +61,15 @@ const fetch = async (_timestampParam: number, block: any, options: FetchOptions)
             'OK-ACCESS-PASSPHRASE': passphrase,
             'OK-ACCESS-TIMESTAMP': timestamp
         }
-    }));
+    });
+    await sleep(200)
+    return data
+}
+
+const fetch = async (_timestampParam: number, block: any, options: FetchOptions) => {
+    const timestamp = new Date().toISOString()
+    const path = `/api/v5/dex/aggregator/volume?timestamp=${options.endTimestamp * 1e3}&chainId=${CHAINS[options.chain]}`
+    const data = await limits(() => queryOkxApi(timestamp, path))
     return {
         dailyVolume: data.data.data.volumeUsdLast24hour,
         timestamp: options.endTimestamp,
