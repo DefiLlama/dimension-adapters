@@ -170,6 +170,7 @@ export enum CHAIN {
   LOGX = "logx_network",
   FLARE = "flare",
   NUMBERS = "numbers",
+  BSQUARED = "bsquared",
 }
 
 // Don´t use
