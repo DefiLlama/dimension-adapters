@@ -1,13 +1,13 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpointsV2 = {
   [CHAIN.AVAX]:
     "https://api.thegraph.com/subgraphs/name/thehitesh172/vapordex-v2-avalanche-test",
 };
 
-const v2Graphs = getGraphDimensions({
+const v2Graphs = getGraphDimensions2({
   graphUrls: endpointsV2,
   totalVolume: {
     factory: "factories",
@@ -43,7 +43,7 @@ const v2 = Object.keys(endpointsV2).reduce(
       start: startTimeV2[chain],
     },
   }),
-  { }
+  {},
 );
 
 export default v2;
