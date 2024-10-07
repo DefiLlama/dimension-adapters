@@ -1,173 +1,115 @@
-import axios from "axios";
-import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 const fetchEthereum = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://ethMainnet.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/1`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchBase = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://base.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/8453`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchArbitrum = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://arbMainnet.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/42161`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchPolygon = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://polygon.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/137`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchBNB = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://bnbMainnet.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/56`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchAVALANCHE = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://avalanche.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/43114`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchOPTIMISM = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://optimism.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/10`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const fetchBLAST = async (options: FetchOptions) => {
   const timestampStart = options.startTimestamp;
   const timestampEnd = options.endTimestamp;
   const urlVolume = `https://blast.server.hinkal.pro/totalVolume/${timestampStart}/${timestampEnd}/81457`;
-  try {
-    const responseVolume = await axios.get(urlVolume);
-    const dataTotal = responseVolume.data;
-    const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching volume:", error);
-    return {
-      timestamp: options.startTimestamp,
-      dailyVolume: 0,
-    };
-  }
+
+  const responseVolume = await httpGet(urlVolume);
+  const dataTotal = responseVolume;
+  const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
+  return {
+    timestamp: options.startTimestamp,
+    dailyVolume,
+  };
 };
 
 const adapter: Adapter = {
