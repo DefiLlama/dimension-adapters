@@ -1,118 +1,58 @@
-import * as sdk from "@defillama/sdk";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { GraphQLClient } from "graphql-request";
 
 
+const blockNumberGraph = "https://perpgql.trado.one/subgraphs/name/trado/flow_blocks"
 
-const endpoints = {
-    [CHAIN.FLOW]: "https://perpgql.trado.one/subgraphs/name/trado/flow"
-  };
-  
-const blockNumberGraph = {
-    [CHAIN.FLOW]: "https://perpgql.trado.one/subgraphs/name/trado/flow_blocks" 
+async function getBlock(timestamp: number) {
+
+  const blockNumerQuery = `
+  {
+      blocks(
+        where: {timestamp_lte:${timestamp}}
+        orderBy: timestamp
+        orderDirection: desc
+        first: 1
+      ) {
+        id
+        number
+      }
+    }
+  `;
+  const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph)
+  return (await blockNumberGraphQLClient.request(blockNumerQuery)).blocks[0].number
+
 }
 
-const headers = { 'sex-dev': 'ServerDev'}
+async function getTotalVolume(timestamp: number) {
+  const graphQLClient = new GraphQLClient("https://perpgql.trado.one/subgraphs/name/trado/flow");
+  const block = await getBlock(timestamp)
+  const tradeVolumeQuery = `
+  {
+    protocolMetrics(block:{number:${block}}){
+      totalFee
+    }
+  }`
+  return (await graphQLClient.request(tradeVolumeQuery)).protocolMetrics[0].totalFee
+}
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({ toTimestamp }: FetchOptions) => {
+const fetch = async ({ fromTimestamp, toTimestamp, }: FetchOptions) => {
+  const endVolume = await getTotalVolume(toTimestamp)
+  const startVolume = await getTotalVolume(fromTimestamp)
 
-        // Get blockNumers
-        const blockNumerQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${toTimestamp}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
-        const last24hBlockNumberQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${toTimestamp - 24 * 60 * 60}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
+  return {
+    totalFees: endVolume/1e6,
+    dailyFees: (endVolume - startVolume)/1e6,
+  };
+}
 
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
-                headers: chain === CHAIN.ZETA ? headers: null,
-        });
-        const graphQLClient = new GraphQLClient(graphUrls[chain], {
-      		headers: chain === CHAIN.ZETA ? headers: null,
-    	});
-
-
-        const blockNumber = (
-          await blockNumberGraphQLClient.request(blockNumerQuery)
-        ).blocks[0].number;
-        const last24hBlockNumber = (
-          await blockNumberGraphQLClient.request(last24hBlockNumberQuery)
-        ).blocks[0].number;
-
-
-        // get total fee
-        const totalFeeQuery = gql`
-            {
-              protocolMetrics(block:{number:${blockNumber}}){
-                totalFee
-              }
-            }
-          `;
-
-        // get total fee 24 hours ago
-        const last24hTotalFeeQuery = gql`
-          {
-            protocolMetrics(block:{number:${last24hBlockNumber}}){
-                totalFee
-            }
-          }
-        `;
-          
-
-        let totalFee = (
-          await graphQLClient.request(totalFeeQuery)
-        ).protocolMetrics[0].totalFee
-
-        let last24hTotalFee = (
-          await graphQLClient.request(last24hTotalFeeQuery)
-        ).protocolMetrics[0].totalFee
-
-        totalFee = Number(totalFee) / 10 ** 6
-        const dailyFee = Number(totalFee) - (Number(last24hTotalFee) / 10 ** 6)
-
-        return {
-          dailyFees: dailyFee.toString(),
-          totalFees: totalFee.toString(),
-        };
-      }
-
-      return {
-        dailyFees: "0",
-        totalFees: "0",
-      };
-    };
-};
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.FLOW]: {
-      fetch: graphs(endpoints)(CHAIN.FLOW),
+      fetch,
       start: 1430971,
     },
   },
