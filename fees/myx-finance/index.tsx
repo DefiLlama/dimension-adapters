@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResultFees, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter,  FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -49,6 +49,7 @@ const fetchFees = async (_t: any, _b: any, optios: FetchOptions) => {
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
+  [CHAIN.OP_BNB]: 1727443900
 }
 
 const adapter: SimpleAdapter = {
@@ -64,6 +65,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.LINEA]: {
       fetch: fetchFees,
       start: startTimestamps[CHAIN.LINEA],
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: fetchFees,
+      start: startTimestamps[CHAIN.OP_BNB],
       meta: {
         methodology
       }
