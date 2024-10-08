@@ -1,6 +1,5 @@
-import { ChainEndpoints, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { ChainEndpoints, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 const endpoints: ChainEndpoints = {
@@ -16,22 +15,9 @@ const methodology = {
 const getFetch = async (optios: FetchOptions) => {
   const result = await fetchURL(endpoints[optios.chain])
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
+  const dailyVolume = result.data.reduce((acc, item) => acc + (item?.target_volume || 0), 0)
 
-
-  const volume = result.data.reduce((acc, item) => {
-    return acc + (item?.target_volume || 0)
-  }, 0)
-
-  console.log({
-    timestamp: dayTimestamp,
-    dailyVolume: volume || "0",
-  })
-
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume: volume || "0",
-  }
+  return { dailyVolume }
 }
 
 
@@ -46,6 +32,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
+        runAtCurrTime: true,
         fetch: getFetch,
         start: startTimestamps[chain],
         meta: {
