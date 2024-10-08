@@ -32,6 +32,8 @@ const START_BLOCKS = {
   [CHAIN.BITLAYER]: 1704067200,
   [CHAIN.LINEA]: 1704067200,
   [CHAIN.CRONOS]: 1704067200,
+  [CHAIN.CORE]: 1704067200,
+  [CHAIN.TAIKO]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
