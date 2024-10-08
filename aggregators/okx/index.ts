@@ -50,7 +50,7 @@ const CHAINS: TChain = {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function queryOkxApi(timestamp:string, path:string){
-    const [secretKey, passphrase] = getEnv("0KX_API_KEY").split(":")
+    const [secretKey, passphrase] = getEnv("OKX_API_KEY").split(":")
     const data = await axios.get(`https://www.okx.com${path}`, {
         headers: {
             'OK-ACCESS-PROJECT': 'be0ee327bbc230c3977c6868a77cd894',
