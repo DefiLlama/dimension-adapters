@@ -123,6 +123,6 @@ export const queryDuneSql = (options: any, query: string) => {
 export function checkCanRunDuneQuery() {
   if (!isRestrictedMode) return;
   const currentHour = new Date().getUTCHours();
-  if (currentHour >= 1 && currentHour <= 2) return; // 1am - 3am - any time other than this, throw error
-  throw new Error(`Current hour is ${currentHour}. In restricted mode, can run dune queries only between 1am - 2am UTC`);
+  if (currentHour >= 1 && currentHour <= 3) return; // 1am - 3am - any time other than this, throw error
+  throw new Error(`Current hour is ${currentHour}. In restricted mode, can run dune queries only between 1am - 3am UTC`);
 }
