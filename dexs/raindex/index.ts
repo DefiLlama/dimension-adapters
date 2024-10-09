@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains"
 import { Interface, id, EventLog } from "ethers"
-import { BaseAdapter, BreakdownAdapter, FetchV2 } from "../../adapters/types"
+import { BaseAdapter, FetchV2, SimpleAdapter } from "../../adapters/types"
 
 const orderbooks: Record<string, { address: string, start: number }> = {
   [CHAIN.ARBITRUM]: {
@@ -37,9 +37,9 @@ const ABI = {
 
 const abi = new Interface([ ABI.ClearV2, ABI.AfterClear, ABI.TakeOrderV2 ])
 
-const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
+const fetchVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
   const dailyVolume = createBalances()
-  const [afterClearLogs, clearLogs] = await Promise.all([
+  const [afterClearLogs, clearLogs, takeOrderLogs] = await Promise.all([
     api.getLogs({
       toTimestamp,
       fromTimestamp,
@@ -56,6 +56,14 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
       target: orderbooks[api.chain].address,
       topic: id(abi.getEvent("ClearV2")!.format()),
       
+    }),
+    api.getLogs({
+      toTimestamp,
+      fromTimestamp,
+      entireLog: true,
+      chain: api.chain,
+      target: orderbooks[api.chain].address,
+      topic: id(abi.getEvent("TakeOrderV2")!.format()),
     })
   ]) as EventLog[][]
 
@@ -81,21 +89,7 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
     }
   })
 
-  return { dailyVolume }
-}
-
-const fetchExtVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
-  const dailyVolume = createBalances()
-  const logs = await api.getLogs({
-    toTimestamp,
-    fromTimestamp,
-    entireLog: true,
-    chain: api.chain,
-    target: orderbooks[api.chain].address,
-    topic: id(abi.getEvent("TakeOrderV2")!.format()),
-  }) as EventLog[]
-
-  logs.forEach(log => {
+  takeOrderLogs.forEach(log => {
     const { 
       input, 
       output,
@@ -112,37 +106,23 @@ const fetchExtVol: FetchV2 = async function({ createBalances, api, fromTimestamp
   return { dailyVolume }
 }
 
-const intVolAdapter: BaseAdapter = {}
-const extVolAdapter: BaseAdapter = {}
+const volAdapter: BaseAdapter = {}
 Object.keys(orderbooks).forEach(chain => {
-  intVolAdapter[chain] = {
-    fetch: fetchIntVol,
+  volAdapter[chain] = {
+    fetch: fetchVol,
     runAtCurrTime: false,
     start: orderbooks[chain].start,
     meta: {
       methodology: {
-        Volume: "Volume of trades against other Raindex orders and vaults"
-      }
-    }
-  }
-  extVolAdapter[chain] = {
-    fetch: fetchExtVol,
-    runAtCurrTime: false,
-    start: orderbooks[chain].start,
-    meta: {
-      methodology: {
-        Volume: "Volume of trades against external liquidity such as Uniswap pools"
+        Volume: "Volume of trades"
       }
     }
   }
 })
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    internal: intVolAdapter,
-    external: extVolAdapter,
-  },
+  adapter: volAdapter
 }
 
 export default adapter
