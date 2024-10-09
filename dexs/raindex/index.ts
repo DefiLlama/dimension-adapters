@@ -1,5 +1,5 @@
-import { Interface, id, EventLog } from "ethers";
-import { BaseAdapter, BreakdownAdapter, FetchV2, } from "../../adapters/types";
+import { Interface, id, EventLog } from "ethers"
+import { BaseAdapter, BreakdownAdapter, FetchV2 } from "../../adapters/types"
 
 const orderbooks: Record<string, { address: string, start: number }> = {
   arbitrum: {
@@ -34,7 +34,7 @@ const abi = {
   ClearV2: "event ClearV2(address sender, (address owner, (address interpreter, address store, bytes bytecode) evaluable, (address token, uint8 decimals, uint256 vaultId)[] validInputs, (address token, uint8 decimals, uint256 vaultId)[] validOutputs, bytes32 nonce) alice, (address owner, (address interpreter, address store, bytes bytecode) evaluable, (address token, uint8 decimals, uint256 vaultId)[] validInputs, (address token, uint8 decimals, uint256 vaultId)[] validOutputs, bytes32 nonce) bob, (uint256 aliceInputIOIndex, uint256 aliceOutputIOIndex, uint256 bobInputIOIndex, uint256 bobOutputIOIndex, uint256 aliceBountyVaultId, uint256 bobBountyVaultId) clearConfig)",
 }
 
-const fetchInternalTrades: FetchV2 = async ({ createBalances, api, fromTimestamp, toTimestamp }) => {
+const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
   const dailyVolume = createBalances()
   const clearInterface = new Interface([abi.ClearV2])
   const afterclearInterface = new Interface([abi.AfterClear])
@@ -55,34 +55,34 @@ const fetchInternalTrades: FetchV2 = async ({ createBalances, api, fromTimestamp
       topic: id(clearInterface.fragments[0].format()),
       entireLog: true,
     })
-  ]) as EventLog[][];
+  ]) as EventLog[][]
 
   afterClearLogs.forEach(log => {
-    const clearLog = clearLogs.find(v => v.transactionHash === log.transactionHash);
+    const clearLog = clearLogs.find(v => v.transactionHash === log.transactionHash)
     if (clearLog) {
       const { 
         clearStateChange: { aliceOutput, bobOutput, aliceInput, bobInput } 
-      } = afterclearInterface.decodeEventLog("AfterClear", log.data);
+      } = afterclearInterface.decodeEventLog("AfterClear", log.data)
       const { 
         alice: { validInputs, validOutputs },
         clearConfig: { aliceOutputIOIndex, aliceInputIOIndex } 
-      } = clearInterface.decodeEventLog("ClearV2", clearLog.data);
+      } = clearInterface.decodeEventLog("ClearV2", clearLog.data)
 
-      const token1 = validInputs[Number(aliceInputIOIndex)];
-      const token2 = validOutputs[Number(aliceOutputIOIndex)];
+      const token0 = validInputs[Number(aliceInputIOIndex)]
+      const token1 = validOutputs[Number(aliceOutputIOIndex)]
 
-      dailyVolume.add(token1.token, aliceInput.toString());
-      dailyVolume.add(token1.token, bobOutput.toString());
+      dailyVolume.add(token0.token, aliceInput.toString())
+      dailyVolume.add(token0.token, bobOutput.toString())
 
-      dailyVolume.add(token2.token, aliceOutput.toString());
-      dailyVolume.add(token2.token, bobInput.toString());
+      dailyVolume.add(token1.token, aliceOutput.toString())
+      dailyVolume.add(token1.token, bobInput.toString())
     }
   })
 
   return { dailyVolume }
 }
 
-const fetchExternalTrades: FetchV2 = async ({ createBalances, api, fromTimestamp, toTimestamp }) => {
+const fetchExtVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
   const dailyVolume = createBalances()
   const takeOrderInterface = new Interface([abi.TakeOrderV2])
   const logs = await api.getLogs({
@@ -99,35 +99,35 @@ const fetchExternalTrades: FetchV2 = async ({ createBalances, api, fromTimestamp
       input, 
       output,
       config: { outputIOIndex, inputIOIndex, order },
-    } = takeOrderInterface.decodeEventLog("TakeOrderV2", log.data);
+    } = takeOrderInterface.decodeEventLog("TakeOrderV2", log.data)
 
-    let orderInput = order.validInputs[Number(inputIOIndex)];
-    let orderOutput = order.validOutputs[Number(outputIOIndex)];
+    const orderInput = order.validInputs[Number(inputIOIndex)]
+    const orderOutput = order.validOutputs[Number(outputIOIndex)]
 
-    dailyVolume.add(orderInput.token, output.toString());
-    dailyVolume.add(orderOutput.token, input.toString());
+    dailyVolume.add(orderInput.token, output.toString())
+    dailyVolume.add(orderOutput.token, input.toString())
   })
 
   return { dailyVolume }
 }
 
-const internalTradesAdapter: BaseAdapter = {}
-const externalTradesAdapter: BaseAdapter = {}
+const intVolAdapter: BaseAdapter = {}
+const extVolAdapter: BaseAdapter = {}
 Object.keys(orderbooks).forEach(chain => {
-  internalTradesAdapter[chain] = {
-    fetch: fetchInternalTrades,
-    start: orderbooks[chain].start,
+  intVolAdapter[chain] = {
+    fetch: fetchIntVol,
     runAtCurrTime: false,
+    start: orderbooks[chain].start,
     meta: {
       methodology: {
-        Volume: "Volume of internal trades (between Rain Orderbook orders)"
+        Volume: "Volume of internal trades (between Rain Orderbook orders and vaults)"
       }
     }
   }
-  externalTradesAdapter[chain] = {
-    fetch: fetchExternalTrades,
-    start: orderbooks[chain].start,
+  extVolAdapter[chain] = {
+    fetch: fetchExtVol,
     runAtCurrTime: false,
+    start: orderbooks[chain].start,
     meta: {
       methodology: {
         Volume: "Volume of external trades (against onchain liquidity such as Uniswap pools)"
@@ -139,9 +139,9 @@ Object.keys(orderbooks).forEach(chain => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    "Internal": internalTradesAdapter,
-    "External": externalTradesAdapter,
+    "Internal": intVolAdapter,
+    "External": extVolAdapter,
   },
 }
 
-export default adapter;
+export default adapter
