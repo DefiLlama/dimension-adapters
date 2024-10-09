@@ -69,8 +69,6 @@ const v3Endpoints = {
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
-const VOLUME_USD = "volumeUSD";
-
 // fees results are in eth, needs to be converted to a balances objects
 const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
 const v1Graph = getGraphDimensions2({
@@ -325,131 +323,16 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-adapter.breakdown.v3[CHAIN.SEI] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-adapter.breakdown.v3[CHAIN.ERA] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
 
-adapter.breakdown.v3[CHAIN.TAIKO] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
+okuChains.forEach(chain => {
+  adapter.breakdown.v3[chain] = {
+    fetch: fetchFromOku,
+    start: 0,
+    meta: {
+      methodology
+    }
   }
-}
-
-adapter.breakdown.v3[CHAIN.SCROLL] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.FILECOIN] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.BOBA] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MOONBEAM] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTA] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTLE] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.LINEA] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.POLYGON_ZKEVM] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.BLAST] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.XDAI] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.BOB] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.LISK] = {
-  fetch: fetchFromOku,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+})
 
 export default adapter;
