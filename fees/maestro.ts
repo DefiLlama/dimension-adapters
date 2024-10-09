@@ -42,7 +42,7 @@ const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptio
   const value = (await queryDune("3521814", {
     start: options.startTimestamp,
     end: options.endTimestamp,
-    receiver: 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'
+    receiver: 'MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36'
   }));
   dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
 
