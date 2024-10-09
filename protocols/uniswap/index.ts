@@ -69,8 +69,6 @@ const v3Endpoints = {
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
-const VOLUME_USD = "volumeUSD";
-
 // fees results are in eth, needs to be converted to a balances objects
 const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
 const v1Graph = getGraphDimensions2({
@@ -291,11 +289,11 @@ const adapter: BreakdownAdapter = {
   }
 }
 
-interface ISeiResponse {
+interface IOkuResponse {
   volume: number;
   fees: number;
 }
-const fetchSei = async (options: FetchOptions) => {
+const fetchFromOku = async (options: FetchOptions) => {
   try {
     const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
@@ -305,7 +303,7 @@ const fetchSei = async (options: FetchOptions) => {
         3600000 //interval
       ]
     }
-    const response: ISeiResponse[] = (await httpPost(url, body)).result
+    const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
     return {
@@ -320,94 +318,21 @@ const fetchSei = async (options: FetchOptions) => {
 const mappingChain = (chain: string) => {
   if (chain === CHAIN.ERA) return "zksync"
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
+  if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
+  if (chain === CHAIN.XDAI) return "gnosis"
   return chain
 }
 
-adapter.breakdown.v3[CHAIN.SEI] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-adapter.breakdown.v3[CHAIN.ERA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
 
-adapter.breakdown.v3[CHAIN.TAIKO] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
+okuChains.forEach(chain => {
+  adapter.breakdown.v3[chain] = {
+    fetch: fetchFromOku,
+    start: 0,
+    meta: {
+      methodology
+    }
   }
-}
-
-adapter.breakdown.v3[CHAIN.SCROLL] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.FILECOIN] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.BOBA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MOONBEAM] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTLE] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.LINEA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+})
 
 export default adapter;
