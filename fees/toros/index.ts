@@ -2,13 +2,19 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
 const query = `
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+      query managerFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
           where: { manager: $manager, managerFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { managerFee, tokenPriceAtLastFeeMint }
+        ) { managerFee, tokenPriceAtFeeMint }
       }`
-
+// gql`
+//   query managerFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!) {
+//     managerFeeMinteds(
+//       where: { manager: $manager, managerFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+//       first: 1000, orderBy: blockTimestamp, orderDirection: asc
+//     ) { managerFee, daoFee, tokenPriceAtLastFeeMint }
+//   }`,
 // if graph goes down, can be pulled via event logs, example:
 // https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
 /* const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
@@ -38,7 +44,6 @@ const CONFIG = {
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
   [CHAIN.BASE]: {
-    startTimestamp: 1712227101,
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
     torosManagerAddress: "0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879",
   },
@@ -79,7 +84,7 @@ const fetchHistoricalFees = async (chainId: CHAIN, managerAddress: string, start
 const calculateFees = (data: any): number =>
   data.reduce((acc: number, item: any) => {
     const managerFee = Number(item.managerFee);
-    const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
     const managerFeeFormatted = managerFee / 1e18;
     const tokenPriceFormatted = tokenPrice / 1e18;
     const managerFeeUsd = managerFeeFormatted * tokenPriceFormatted;

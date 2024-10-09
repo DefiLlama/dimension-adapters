@@ -6,7 +6,7 @@ const query = `
         managerFeeMinteds(
           where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { daoFee, tokenPriceAtLastFeeMint }
+        ) { daoFee, tokenPriceAtFeeMint }
       }`
 
 
@@ -72,7 +72,7 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 const calculateFees = (data: any): number =>
   data.reduce((acc: number, item: any) => {
     const daoFee = Number(item.daoFee);
-    const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
     const daoFeeInEth = daoFee / 1e18;
     const tokenPriceInEth = tokenPrice / 1e18;
     const result = daoFeeInEth * tokenPriceInEth;
