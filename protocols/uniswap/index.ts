@@ -291,11 +291,11 @@ const adapter: BreakdownAdapter = {
   }
 }
 
-interface ISeiResponse {
+interface IOkuResponse {
   volume: number;
   fees: number;
 }
-const fetchSei = async (options: FetchOptions) => {
+const fetchFromOku = async (options: FetchOptions) => {
   try {
     const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
@@ -305,7 +305,7 @@ const fetchSei = async (options: FetchOptions) => {
         3600000 //interval
       ]
     }
-    const response: ISeiResponse[] = (await httpPost(url, body)).result
+    const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
     return {
@@ -320,18 +320,20 @@ const fetchSei = async (options: FetchOptions) => {
 const mappingChain = (chain: string) => {
   if (chain === CHAIN.ERA) return "zksync"
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
+  if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
+  if (chain === CHAIN.XDAI) return "gnosis"
   return chain
 }
 
 adapter.breakdown.v3[CHAIN.SEI] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
   }
 }
 adapter.breakdown.v3[CHAIN.ERA] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -339,7 +341,7 @@ adapter.breakdown.v3[CHAIN.ERA] = {
 }
 
 adapter.breakdown.v3[CHAIN.TAIKO] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -347,7 +349,7 @@ adapter.breakdown.v3[CHAIN.TAIKO] = {
 }
 
 adapter.breakdown.v3[CHAIN.SCROLL] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -355,7 +357,7 @@ adapter.breakdown.v3[CHAIN.SCROLL] = {
 }
 
 adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -363,7 +365,7 @@ adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
 }
 
 adapter.breakdown.v3[CHAIN.FILECOIN] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -371,7 +373,7 @@ adapter.breakdown.v3[CHAIN.FILECOIN] = {
 }
 
 adapter.breakdown.v3[CHAIN.BOBA] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -379,7 +381,7 @@ adapter.breakdown.v3[CHAIN.BOBA] = {
 }
 
 adapter.breakdown.v3[CHAIN.MOONBEAM] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -387,7 +389,7 @@ adapter.breakdown.v3[CHAIN.MOONBEAM] = {
 }
 
 adapter.breakdown.v3[CHAIN.MANTA] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -395,7 +397,7 @@ adapter.breakdown.v3[CHAIN.MANTA] = {
 }
 
 adapter.breakdown.v3[CHAIN.MANTLE] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
@@ -403,7 +405,47 @@ adapter.breakdown.v3[CHAIN.MANTLE] = {
 }
 
 adapter.breakdown.v3[CHAIN.LINEA] = {
-  fetch: fetchSei,
+  fetch: fetchFromOku,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.POLYGON_ZKEVM] = {
+  fetch: fetchFromOku,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.BLAST] = {
+  fetch: fetchFromOku,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.XDAI] = {
+  fetch: fetchFromOku,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.BOB] = {
+  fetch: fetchFromOku,
+  start: 0,
+  meta: {
+    methodology
+  }
+}
+
+adapter.breakdown.v3[CHAIN.LISK] = {
+  fetch: fetchFromOku,
   start: 0,
   meta: {
     methodology
