@@ -29,17 +29,16 @@ const orderbooks: Record<string, { address: string, start: number }> = {
   },
 } as const
 
-const abi = {
+const ABI = {
   AfterClear: "event AfterClear(address sender, (uint256 aliceOutput, uint256 bobOutput, uint256 aliceInput, uint256 bobInput) clearStateChange)",
   TakeOrderV2: "event TakeOrderV2(address sender, ((address owner, (address interpreter, address store, bytes bytecode) evaluable, (address token, uint8 decimals, uint256 vaultId)[] validInputs, (address token, uint8 decimals, uint256 vaultId)[] validOutputs, bytes32 nonce) order, uint256 inputIOIndex, uint256 outputIOIndex, (address signer, uint256[] context, bytes signature)[] signedContext) config, uint256 input, uint256 output)",
   ClearV2: "event ClearV2(address sender, (address owner, (address interpreter, address store, bytes bytecode) evaluable, (address token, uint8 decimals, uint256 vaultId)[] validInputs, (address token, uint8 decimals, uint256 vaultId)[] validOutputs, bytes32 nonce) alice, (address owner, (address interpreter, address store, bytes bytecode) evaluable, (address token, uint8 decimals, uint256 vaultId)[] validInputs, (address token, uint8 decimals, uint256 vaultId)[] validOutputs, bytes32 nonce) bob, (uint256 aliceInputIOIndex, uint256 aliceOutputIOIndex, uint256 bobInputIOIndex, uint256 bobOutputIOIndex, uint256 aliceBountyVaultId, uint256 bobBountyVaultId) clearConfig)",
 } as const
 
+const abi = new Interface([ ABI.ClearV2, ABI.AfterClear, ABI.TakeOrderV2 ])
+
 const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
   const dailyVolume = createBalances()
-  const clearInterface = new Interface([ abi.ClearV2 ])
-  const afterclearInterface = new Interface([ abi.AfterClear ])
-
   const [afterClearLogs, clearLogs] = await Promise.all([
     api.getLogs({
       toTimestamp,
@@ -47,7 +46,7 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
       entireLog: true,
       chain: api.chain,
       target: orderbooks[api.chain].address,
-      topic: id(afterclearInterface.fragments[0].format()),
+      topic: id(abi.getEvent("AfterClear")!.format()),
     }),
     api.getLogs({
       toTimestamp,
@@ -55,7 +54,7 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
       entireLog: true,
       chain: api.chain,
       target: orderbooks[api.chain].address,
-      topic: id(clearInterface.fragments[0].format()),
+      topic: id(abi.getEvent("ClearV2")!.format()),
       
     })
   ]) as EventLog[][]
@@ -65,11 +64,11 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
     if (clearLog) {
       const { 
         clearStateChange: { aliceOutput, bobOutput, aliceInput, bobInput } 
-      } = afterclearInterface.decodeEventLog("AfterClear", log.data)
+      } = abi.decodeEventLog("AfterClear", log.data)
       const { 
         alice: { validInputs, validOutputs },
         clearConfig: { aliceOutputIOIndex, aliceInputIOIndex } 
-      } = clearInterface.decodeEventLog("ClearV2", clearLog.data)
+      } = abi.decodeEventLog("ClearV2", clearLog.data)
 
       const token0 = validInputs[Number(aliceInputIOIndex)]
       const token1 = validOutputs[Number(aliceOutputIOIndex)]
@@ -87,15 +86,13 @@ const fetchIntVol: FetchV2 = async function({ createBalances, api, fromTimestamp
 
 const fetchExtVol: FetchV2 = async function({ createBalances, api, fromTimestamp, toTimestamp }) {
   const dailyVolume = createBalances()
-  const takeOrderInterface = new Interface([ abi.TakeOrderV2 ])
-
   const logs = await api.getLogs({
     toTimestamp,
     fromTimestamp,
     entireLog: true,
     chain: api.chain,
     target: orderbooks[api.chain].address,
-    topic: id(takeOrderInterface.fragments[0].format()),
+    topic: id(abi.getEvent("TakeOrderV2")!.format()),
   }) as EventLog[]
 
   logs.forEach(log => {
@@ -103,7 +100,7 @@ const fetchExtVol: FetchV2 = async function({ createBalances, api, fromTimestamp
       input, 
       output,
       config: { outputIOIndex, inputIOIndex, order },
-    } = takeOrderInterface.decodeEventLog("TakeOrderV2", log.data)
+    } = abi.decodeEventLog("TakeOrderV2", log.data)
 
     const orderInput = order.validInputs[Number(inputIOIndex)]
     const orderOutput = order.validOutputs[Number(outputIOIndex)]
@@ -124,7 +121,7 @@ Object.keys(orderbooks).forEach(chain => {
     start: orderbooks[chain].start,
     meta: {
       methodology: {
-        Volume: "Volume of internal trades (between Rain Orderbook orders and vaults)"
+        Volume: "Volume of trades against other Raindex orders and vaults"
       }
     }
   }
@@ -134,7 +131,7 @@ Object.keys(orderbooks).forEach(chain => {
     start: orderbooks[chain].start,
     meta: {
       methodology: {
-        Volume: "Volume of external trades (against onchain liquidity such as Uniswap pools)"
+        Volume: "Volume of trades against external liquidity such as Uniswap pools"
       }
     }
   }
