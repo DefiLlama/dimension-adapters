@@ -1,5 +1,5 @@
 
-import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
+import { FetchOptions, FetchResultV2, ProtocolType, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import ADDRESSES from '../helpers/coreAssets.json';
 
@@ -33,7 +33,8 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: 1691971200,
     }
-  }
+  },
+  protocolType: ProtocolType.CHAIN,
 }
 
 export default adapter;
