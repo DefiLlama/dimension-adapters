@@ -1,7 +1,7 @@
 
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from '../adapters/types';
+import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import ADDRESSES from '../helpers/coreAssets.json'
+import ADDRESSES from '../helpers/coreAssets.json';
 
 async function getFees(options: FetchOptions) {
 
@@ -20,13 +20,14 @@ async function getFees(options: FetchOptions) {
 }
 
 
-const fetch = async (timestamp: number, _chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = await getFees(options)
 
-  return { timestamp, dailyFees }
+  return { dailyFees }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM_NOVA]: {
       fetch: fetch,
