@@ -27,10 +27,19 @@ interface IRevenue {
   linea: number;
 }
 
+const requests: any = {}
+export async function fetchURLWithRetry(queryId: string, endTimestamp: number) {
+  const start = endTimestamp;
+  const key = `${queryId}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune(queryId, {endTimestamp})
+  return requests[key]
+}
+
 const fetch = (chain: Exclude<keyof IRevenue, 'day'>): Fetch => {
   return async (timestamp, _, {startOfDay}): Promise<FetchResultFees> => {
     const endTimestamp = startOfDay + 86400;
-    const allRevenue: IRevenue[] = (await queryDune('3594948', {endTimestamp}));
+    const allRevenue: IRevenue[] = (await fetchURLWithRetry('3594948', endTimestamp));
     const day = getDay(timestamp);
     const entry = allRevenue.find(r => r.day === day);
 

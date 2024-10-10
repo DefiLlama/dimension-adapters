@@ -25,7 +25,7 @@ const startTimeQueryTrident = {
 
 const tridentQuery = gql`
   query trident($number: Int) {
-    factory( 
+    factory(
       id: "ALL"
       block: { number: $number }
     ) {
@@ -60,7 +60,7 @@ const trident = Object.keys(endpointsTrident).reduce(
           dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
         }
       },
-      start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
+      start: 1711982400,
     },
   }),
   {}

@@ -69,7 +69,7 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp | number
+    start?: IStartTimestamp | number
     fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch | FetchV2;
@@ -172,7 +172,8 @@ export enum AdapterType {
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
   ROYALTIES = 'royalties',
-  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives'
+  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
+  BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives

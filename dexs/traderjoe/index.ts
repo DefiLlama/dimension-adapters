@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
@@ -24,12 +24,15 @@ interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
-  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
+const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = options.startOfDay;
+  const start = options.startOfDay;
+  const end = start + 24 * 60 * 60;
+  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
   const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
     'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
   }}));
+
   const totalVolume = historicalVolume
     .filter(volItem => volItem.timestamp <= dayTimestamp)
     .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
@@ -39,6 +42,7 @@ const fetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    timestamp: dayTimestamp,
   }
 }
 const mapChain = (chain: Chain): string => {
@@ -46,7 +50,7 @@ const mapChain = (chain: Chain): string => {
   return chain
 }
 
-const graphsV1 = getChainVolume2({
+const graphsV1 = getChainVolume({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
@@ -55,7 +59,7 @@ const graphsV1 = getChainVolume2({
 });
 
 
-const graphsV2 = getChainVolume2({
+const graphsV2 = getChainVolume({
   graphUrls: endpointsV2,
   totalVolume: {
     factory: "lbfactories",
@@ -64,7 +68,7 @@ const graphsV2 = getChainVolume2({
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {

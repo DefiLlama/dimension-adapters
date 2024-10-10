@@ -11,7 +11,7 @@ interface IGraph {
 	id: string;
 }
 
-const URL = 'https://api.studio.thegraph.com/query/43986/pingu-sg/0.1.1';
+const URL = 'https://api.studio.thegraph.com/query/75208/pingu-sg-v2/0.0.1/';
 const fetch = async (timestamp: number): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 	const chain = CHAIN.ARBITRUM;

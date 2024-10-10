@@ -91,7 +91,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
 
   async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
-    const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
+    const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
     }

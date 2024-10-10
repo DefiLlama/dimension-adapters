@@ -1,9 +1,5 @@
-import { ethers } from "ethers";
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchOptions, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { promises } from "dns";
-import { getBlock } from "../../helpers/getBlock";
 import { addTokensReceived } from "../../helpers/token";
 
 const supportedERC20Tokens: Record<string, string[]> = {

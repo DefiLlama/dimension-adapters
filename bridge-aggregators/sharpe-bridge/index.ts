@@ -33,7 +33,7 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
     eventAbi: 'event LiFiTransferStarted(bytes32 indexed transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId,bool hasSourceSwaps,bool hasDestinationCall )'
   });
   data.forEach((e: any) => {
-    if (e.integrator === 'jumper.exchange' || e.integrator === 'jumper.exchange.gas') {
+    if (e.integrator === 'sharpe.ai') {
       dailyVolume.add(e.sendingAssetId, e.minAmount);
     }
   });
@@ -42,10 +42,11 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: 1691625600, }
+      [chain]: { fetch, start: 1711963031, }
     }
   }, {})
 };

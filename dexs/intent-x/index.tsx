@@ -9,11 +9,11 @@ const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const endpoint_0_8_0 =
   "https://api.studio.thegraph.com/query/62472/perpetuals-analytics_base/version/latest";
 const endpoint =
-  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-082/latest/gn";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
 const endpoint_blast =
   "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-blast-analytics-083/latest/gn";
 const endpoint_mantle =
-  "https://subgraph-api.mantle.xyz/subgraphs/name/mantle_intentx-analytics_082";
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-mantle-analytics-083/latest/gn";
 
 const query_0_8_0 = gql`
   query stats($from: String!, $to: String!) {
@@ -171,8 +171,12 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume).dividedBy(new BigNumber(1e18));
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume).dividedBy(new BigNumber(1e18));
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -211,8 +215,12 @@ const fetchVolumeBlast = async (
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume).dividedBy(new BigNumber(1e18));
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume).dividedBy(new BigNumber(1e18));
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
@@ -251,8 +259,12 @@ const fetchVolumeMantle = async (
     totalTakerVolume = totalTakerVolume.plus(new BigNumber(data.tradeVolume));
   });
 
-  const dailyVolume = dailyMakerVolume.plus(dailyTakerVolume).dividedBy(new BigNumber(1e18));
-  const totalVolume = totalMakerVolume.plus(totalTakerVolume).dividedBy(new BigNumber(1e18));
+  const dailyVolume = dailyMakerVolume
+    .plus(dailyTakerVolume)
+    .dividedBy(new BigNumber(1e18));
+  const totalVolume = totalMakerVolume
+    .plus(totalTakerVolume)
+    .dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);

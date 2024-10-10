@@ -9,13 +9,10 @@ const discount = 0.0045;
 // Deposit Event
 const discountThreshold = 1000000 * (9 ** 18);
 
-const fetch: any = async ({ getLogs, api, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+const fetch: any = async ({ getLogs, api,}: FetchOptions) => {
     const logs = await getLogs({
         target: OxOPoolETHAddress,
         eventAbi: "event Deposit (address sender, uint256 tokenAmount, uint256 ringIndex)", 
-        fromBlock, 
-        toBlock
     })
     const senders = logs.map((log: any) => log.sender);
     const balances = await api.multiCall({ abi: 'erc20:balanceOf', calls: senders, target: OxOToken })

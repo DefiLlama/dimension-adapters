@@ -1,52 +1,41 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, GraphQLClient } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
+const query = `
+      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        managerFeeMinteds(
+          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
+        ) { daoFee, tokenPriceAtFeeMint }
+      }`
 
+
+// if graph goes down, can be pulled via event logs, example:
+// https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
+/* const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const logs = await getLogs({
+    eventAbi: 'event ManagerFeeMinted (address pool, address manager, uint256 available, uint256 daoFee, uint256 managerFee, uint256 tokenPriceAtLastFeeMint)',
+  });
+  logs.forEach(i => {
+    dailyFees.addUSDValue(i.daoFee.toString() * i.tokenPriceAtLastFeeMint.toString() / 1e36)
+  });
+
+  return { dailyFees, dailyRevenue: dailyFees };
+} */
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.POLYGON]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.ARBITRUM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
   [CHAIN.BASE]: {
     startTimestamp: 1712227101,
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
-    feeMintedEventsQuery: gql`
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) { daoFee, tokenPriceAtLastFeeMint }
-      }`,
-    managerFeeMintedEventsField: "managerFeeMinteds",
   },
 };
 
@@ -73,7 +62,6 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 
       if (entries.length < batchSize) break;
 
-      await sleep(500);
     } catch (e) {
       throw new Error(`Error fetching data for chain ${chainId}: ${e.message}`);
     }
@@ -82,58 +70,34 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 };
 
 const calculateFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-      const daoFee = Number(item.daoFee);
-      const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
-      const daoFeeInEth = daoFee / 1e18;
-      const tokenPriceInEth = tokenPrice / 1e18;
-      const result = daoFeeInEth * tokenPriceInEth;
-      return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const daoFee = Number(item.daoFee);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
+    const daoFeeInEth = daoFee / 1e18;
+    const tokenPriceInEth = tokenPrice / 1e18;
+    const result = daoFeeInEth * tokenPriceInEth;
+    return acc + result;
+  }, 0);
 
-const fetch = (chain) => {
-  return () => {
-    return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
-      const config = PROVIDER_CONFIG[chain];
-      if (!config) throw new Error(`Unsupported chain: ${chain}`);
+const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
+  const config = PROVIDER_CONFIG[chain];
+  if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-      const [
-        dailyFees
-      ] = await Promise.all([
-        fetchHistoricalFees(chain as CHAIN, config.feeMintedEventsQuery, config.managerFeeMintedEventsField, startTimestamp, endTimestamp)
-      ]);
+  const dailyFees = await fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
 
-      return {
-        dailyFees: String(calculateFees(dailyFees)),
-        dailyRevenue: calculateFees(dailyFees),
-        timestamp: endTimestamp,
-      };
-    }
-  }
-};
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return {
+    dailyFees: calculateFees(dailyFees),
+    dailyRevenue: calculateFees(dailyFees),
+    timestamp: endTimestamp,
+  };
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM)(),
-      start: 1638446653,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON)(),
-      start: 1627560253,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM)(),
-      start: 1679918653,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE)(),
-      start: 1703073853,
-    },
+    [CHAIN.OPTIMISM]: { fetch, start: 1638446653, },
+    [CHAIN.POLYGON]: { fetch, start: 1627560253, },
+    [CHAIN.ARBITRUM]: { fetch, start: 1679918653, },
+    [CHAIN.BASE]: { fetch, start: 1703073853, },
   },
   version: 2
 }

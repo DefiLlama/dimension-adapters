@@ -1,11 +1,11 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from 'graphql-request';
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultGeneric } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
 
 const v1Endpoints = {
@@ -65,11 +65,9 @@ const v3Endpoints = {
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4gTHdWa9PbqUugt9vsMmpzUowmjb6eRiFRnUSrYLeSJF'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('43Hwfi3dJSoGpyas9VwNoDAv55yjgGrPpNSmbQZArzMG'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
-
-const VOLUME_USD = "volumeUSD";
 
 // fees results are in eth, needs to be converted to a balances objects
 const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
@@ -256,7 +254,28 @@ const adapter: BreakdownAdapter = {
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: async (options: FetchOptions) => {
+          try {
+            const res = (await v3Graphs(chain as Chain)(options))
+            return {
+              totalVolume: res?.totalVolume || 0,
+              dailyVolume: res?.dailyVolume || 0,
+              totalFees: res?.totalFees || 0,
+              totalUserFees: res?.totalUserFees || 0,
+              dailyFees: res?.dailyFees || 0,
+              dailyUserFees: res?.dailyUserFees || 0
+            }
+          } catch {
+            return {
+              totalVolume: 0,
+              dailyVolume: 0,
+              totalFees: 0,
+              totalUserFees: 0,
+              dailyFees: 0,
+              dailyUserFees: 0
+            }
+          }
+        },
         start: startTimeV3[chain],
         meta: {
           methodology: {
@@ -270,11 +289,11 @@ const adapter: BreakdownAdapter = {
   }
 }
 
-interface ISeiResponse {
+interface IOkuResponse {
   volume: number;
   fees: number;
 }
-const fetchSei = async (options: FetchOptions) => {
+const fetchFromOku = async (options: FetchOptions) => {
   try {
     const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
@@ -284,7 +303,7 @@ const fetchSei = async (options: FetchOptions) => {
         3600000 //interval
       ]
     }
-    const response: ISeiResponse[] = (await httpPost(url, body)).result
+    const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
     return {
@@ -299,94 +318,21 @@ const fetchSei = async (options: FetchOptions) => {
 const mappingChain = (chain: string) => {
   if (chain === CHAIN.ERA) return "zksync"
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
+  if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
+  if (chain === CHAIN.XDAI) return "gnosis"
   return chain
 }
 
-adapter.breakdown.v3[CHAIN.SEI] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-adapter.breakdown.v3[CHAIN.ERA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
 
-adapter.breakdown.v3[CHAIN.TAIKO] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
+okuChains.forEach(chain => {
+  adapter.breakdown.v3[chain] = {
+    fetch: fetchFromOku,
+    start: 0,
+    meta: {
+      methodology
+    }
   }
-}
-
-adapter.breakdown.v3[CHAIN.SCROLL] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.ROOTSTOCK] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.FILECOIN] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.BOBA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MOONBEAM] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.MANTLE] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
-
-adapter.breakdown.v3[CHAIN.LINEA] = {
-  fetch: fetchSei,
-  start: 0,
-  meta: {
-    methodology
-  }
-}
+})
 
 export default adapter;

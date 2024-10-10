@@ -1,17 +1,7 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-
-const gurar = '0xe521fc2C55AF632cdcC3D69E7EFEd93d56c89015';
-const abis: any = {
-  "forSwaps": "function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])"
-}
-
-interface IForSwap {
-  lp: string;
-  token0: string;
-  token1: string;
-  pool_fee: string;
-}
+import { addOneToken } from "../../helpers/prices";
+import { filterPools2 } from "../../helpers/uniswap";
 
 interface ILog {
   address: string;
@@ -21,71 +11,37 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
+  const { api, getLogs, createBalances, } = fetchOptions
+  const chain = api.chain
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  const chunkSize = 400;
-  let currentOffset = 965; // Slipstream launched after ~970 v2 pools were already created
-  const allForSwaps: IForSwap[] = [];
-  let unfinished = true;
+  let pairs = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A' })
+  let token0s = await api.multiCall({ abi: 'address:token0', calls: pairs })
+  let token1s = await api.multiCall({ abi: 'address:token1', calls: pairs })
+  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s })
+  api.log(res.pairs.length, 'pairs out of', pairs.length, chain, 'aerodrome')
+  pairs = res.pairs
+  token0s = res.token0s
+  token1s = res.token1s
+  const fees = await api.multiCall({ abi: 'uint256:fee', calls: pairs })
 
-  while (unfinished) {
-    const forSwapsUnfiltered: IForSwap[] = (await api.call({
-      target: gurar,
-      params: [chunkSize, currentOffset],
-      abi: abis.forSwaps,
-      chain: CHAIN.BASE,
-    }));
-
-    const forSwaps: IForSwap[] = forSwapsUnfiltered.filter(t => Number(t.type) > 0).map((e: any) => {
-      return {
-        lp: e.lp,
-        token0: e.token0,
-        token1: e.token1,
-        pool_fee: e.pool_fee,
-      }
-    });
-
-    unfinished = forSwapsUnfiltered.length !== 0;
-    currentOffset += chunkSize;
-    allForSwaps.push(...forSwaps);
-  }
-  
-  const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
-
-  let logs: ILog[][] = [];
-  const targetChunkSize = 5;
-  let currentTargetOffset = 0;
-  unfinished = true;
-
-  while (unfinished) {
-    let endOffset = currentTargetOffset + targetChunkSize;
-    if (endOffset >= targets.length) {
-      unfinished = false;
-      endOffset = targets.length;
-    }
-
-    let currentLogs: ILog[][] = await getLogs({
-      targets: targets.slice(currentTargetOffset, endOffset),
-      eventAbi: event_swap,
-      flatten: false,
-    })
-
-    logs.push(...currentLogs);
-    currentTargetOffset += targetChunkSize;
-  }
-
+  let logs: ILog[][] = await getLogs({ targets: pairs, eventAbi: event_swap, flatten: false, })
   logs.forEach((logs: ILog[], idx: number) => {
-    const { token1, pool_fee } = allForSwaps[idx]
+    const token0 = token0s[idx]
+    const token1 = token1s[idx]
+    const fee = fees[idx]/1e6
     logs.forEach((log: any) => {
-      dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
-      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0) * fee, amount1: Number(log.amount1) * fee })
     })
   })
 
-  return { dailyVolume, timestamp, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees } as any
 }
+
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,

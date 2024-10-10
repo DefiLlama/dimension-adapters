@@ -23,15 +23,12 @@ const address_bribe: TAddress = {
 
 //cake emissions and vote incentives for pools are the revenue
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     if (chain=='BSC'){
     (await getLogs({
       target: address_reward[chain],
       eventAbi: event_paid_stream,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
       // check if it is cake address
         if (e.token === '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82') {
@@ -42,8 +39,6 @@ const graph = (chain: Chain) => {
     (await getLogs({
       target: address_bribe[chain],
       eventAbi: event_paid_bribe,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
       dailyFees.add(e._bribeToken, e._amount)     
     })

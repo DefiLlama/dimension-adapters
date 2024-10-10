@@ -11,11 +11,10 @@ interface IVolume {
 }
 
 const VolumeQuery = `
-query GetAllPairStatisticsToday {
-  pairs {
-    getAllPairStatistics {
-      volume
-      timestamp
+query getVolume {
+  overview {
+    getPrevious24h {
+      volume_24h
     }
   }
 }
@@ -23,12 +22,9 @@ query GetAllPairStatisticsToday {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) + 86400;
-  const results: IVolume[] = (await request(API_URL, VolumeQuery)).pairs.getAllPairStatistics;
-  let dailyVolume = results.filter((volumeInfo)=>{
-    return volumeInfo.timestamp === dayTimestamp;
-  })
+  const dailyVolume: number = (await request(API_URL, VolumeQuery)).overview.getPrevious24h.volume_24h;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume[0].volume}` : undefined,
+    dailyVolume,
     timestamp: dayTimestamp,
   };
 }

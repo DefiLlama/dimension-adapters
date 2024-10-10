@@ -368,12 +368,8 @@ const getLiquidityRevenueFromTo = async (
   const { fromTimestamp, toTimestamp, api } = options;
   const tokens: string[] = await (await liquidityResolver(api)).listedTokens();
 
-  const collectRevenueLogs: [string, BigNumber][] = (await sdk.getEventLogs({
+  const collectRevenueLogs: [string, BigNumber][] = (await options.getLogs({
     target: config.liquidity,
-    fromBlock: (await getBlock(api.chain, fromTimestamp)).number,
-    toBlock: (await getBlock(api.chain, toTimestamp)).number,
-    chain: api.chain,
-    onlyArgs: true,
     eventAbi:
       "event LogCollectRevenue(address indexed token, uint256 indexed amount)",
   })) as [string, BigNumber][];
