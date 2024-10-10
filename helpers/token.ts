@@ -7,6 +7,7 @@ import { ethers } from "ethers";
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import { getEnv } from './env';
 import { queryDuneSql } from './dune';
+import { queryAllium } from './allium';
 
 export const nullAddress = ADDRESSES.null
 
@@ -307,3 +308,17 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       dailyRevenue: dailyFees,
     }
   }
+
+export async function getSolanaReceived({ options, balances, target }: { options: FetchOptions, balances?: sdk.Balances, target: string }) {
+  if (!balances) balances = options.createBalances()
+  const query = `
+    SELECT SUM(usd_amount) as usd_value,  SUM(amount) as amount
+    FROM solana.assets.credit_debit
+    WHERE counterparty_address = '${target}' 
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})`
+  console.log(query)
+  const res = await queryAllium(query)
+  console.log('res', res)
+  balances.addUSDValue(res[0].usd_value)
+  return balances
+}
