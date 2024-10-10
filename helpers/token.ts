@@ -316,7 +316,8 @@ export async function getSolanaReceived({ options, balances, target }: { options
     FROM solana.assets.transfers
     WHERE to_address = '${target}' 
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    AND transfer_type = 'sol_transfer'`
+    `
+    // AND transfer_type = 'sol_transfer'`  // enable this if you want to track only SOL transfers
     
   const res = await queryAllium(query)
   balances.addUSDValue(res[0].usd_value)
