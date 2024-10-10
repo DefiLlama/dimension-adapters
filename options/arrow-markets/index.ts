@@ -12,6 +12,7 @@ interface ArrowMarketsVolumeResponse {
 export const arrowMarketsVolumeEndpoint = "https://api-rfq-testnet.prd.arrowmarkets.delivery/admin/volume"
 
 export const v2_adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchArrowMarketsVolumeData,
@@ -22,16 +23,15 @@ export const v2_adapter: SimpleAdapter = {
 
 export async function fetchArrowMarketsVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  {endTimestamp} 
 ) {
-  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, timestamp);
+  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, endTimestamp);
 
   const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume).toFixed(2);
   const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume).toFixed(2);
   const totalNotionalVolume = Number(ArrowMarketsVolumeData.total_notional_volume).toFixed(2);
 
   return {
-    timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
     totalNotionalVolume,
