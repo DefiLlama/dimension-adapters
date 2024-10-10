@@ -313,12 +313,12 @@ export async function getSolanaReceived({ options, balances, target }: { options
   if (!balances) balances = options.createBalances()
   const query = `
     SELECT SUM(usd_amount) as usd_value,  SUM(amount) as amount
-    FROM solana.assets.credit_debit
-    WHERE counterparty_address = '${target}' 
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})`
-  console.log(query)
+    FROM solana.assets.transfers
+    WHERE to_address = '${target}' 
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    AND transfer_type = 'sol_transfer'`
+    
   const res = await queryAllium(query)
-  console.log('res', res)
   balances.addUSDValue(res[0].usd_value)
   return balances
 }
