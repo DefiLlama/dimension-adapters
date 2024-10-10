@@ -10,6 +10,7 @@ import { queryDuneSql } from './dune';
 
 export const nullAddress = ADDRESSES.null
 
+// NOTE: this works only with multisig contracts
 export async function addGasTokensReceived(params: {
   multisig?: string;
   multisigs?: string[];
