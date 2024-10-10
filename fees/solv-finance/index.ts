@@ -324,7 +324,6 @@ async function getBalance(
       return BigNumber(amount, 10);
     } catch (err) {
       retryCount++;
-      console.log(block, err);
     }
   }
   throw new Error(`retry max ${block}`);
