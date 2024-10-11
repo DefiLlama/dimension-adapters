@@ -1,15 +1,24 @@
 import fetchURL from '../../utils/fetchURL'
 
 const fetch = async () => {
-    const volumeApiResult = await fetchURL(
+    const swapVolumeApiResult = await fetchURL(
         'https://api.pixelswap.io/apis/pairs',
     );
-    const volumeResult = volumeApiResult.data.pairs;
+    const depositAndWithdrawVolumeResult = await fetchURL(
+        'https://api.pixelswap.io/apis/tokens',
+    );
+    const swapvolumeResult = swapVolumeApiResult.data.pairs;
+    const depositAndWithdrawVolume = depositAndWithdrawVolumeResult.data.tokens;
     let dailyVolumeResult = 0;
     let totalVolumeResult = 0;
-    volumeResult.forEach(pairs => {
+    swapvolumeResult.forEach(pairs => {
         dailyVolumeResult += Number(pairs.volume.dailyVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
         totalVolumeResult += Number(pairs.volume.totalVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
+    });
+
+    depositAndWithdrawVolume.forEach(token => {
+        dailyVolumeResult += Number(token.volume.dailyVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
+        totalVolumeResult += Number(token.volume.totalVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
     });
 
     return {
