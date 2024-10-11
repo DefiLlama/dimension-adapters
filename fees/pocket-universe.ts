@@ -13,18 +13,19 @@ const fetch: any = async (options: FetchOptions) => {
   return { dailyFees, }
 };
 
+const start = 1712710800
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 0, },
-    [CHAIN.BASE]: { fetch, start: 0, },
-    [CHAIN.ARBITRUM]: { fetch, start: 0, },
-    [CHAIN.POLYGON]: { fetch, start: 0, },
-    [CHAIN.ERA]: { fetch, start: 0, },
-    [CHAIN.BSC]: { fetch, start: 0, },
-    [CHAIN.OPTIMISM]: { fetch, start: 0, },
-    [CHAIN.CELO]: { fetch, start: 0, },
-    [CHAIN.AVAX]: { fetch, start: 0, },
+    [CHAIN.ETHEREUM]: { fetch, start },
+    [CHAIN.BASE]: { fetch, start },
+    [CHAIN.ARBITRUM]: { fetch, start },
+    [CHAIN.POLYGON]: { fetch, start },
+    [CHAIN.ERA]: { fetch, start },
+    [CHAIN.BSC]: { fetch, start },
+    [CHAIN.OPTIMISM]: { fetch, start },
+    [CHAIN.CELO]: { fetch, start },
+    [CHAIN.AVAX]: { fetch, start },
   },
 };
 export default adapter;
