@@ -6,7 +6,6 @@ import { getCache, setCache } from "./cache";
 import { ethers } from "ethers";
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import { getEnv } from './env';
-import { queryDuneSql } from './dune';
 import { queryAllium } from './allium';
 
 export const nullAddress = ADDRESSES.null
@@ -49,6 +48,7 @@ type AddTokensReceivedParams = {
   fetchTokenList?: boolean;
   token?: string;
   skipIndexer?: boolean;
+  logFilter?: (log: any) => boolean;
 }
 
 export async function addTokensReceived(params: AddTokensReceivedParams) {
@@ -64,7 +64,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
 
 
-  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token, fromAdddesses, } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token, fromAdddesses, logFilter = () => true, } = params;
   const { chain, createBalances, getLogs, } = options
 
   if (!balances) balances = createBalances()
@@ -118,13 +118,13 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   logs.forEach((logs, index) => {
     const token = tokens![index]
-    logs.forEach((i: any) => balances!.add(tokenTransform(token), i.value))
+    logs.filter(logFilter).forEach((i: any) => balances!.add(tokenTransform(token), i.value))
   })
   return balances
 }
 
 async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
-  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens } = params
+  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens,  logFilter = () => true,  } = params
   const { createBalances, chain, getFromBlock, getToBlock } = options
   if (!balances) balances = createBalances()
   if (fromAdddesses && fromAdddesses.length) (fromAddressFilter as any) = fromAdddesses
@@ -136,7 +136,7 @@ async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
     fromAddressFilter: fromAddressFilter as any,
     tokens,
   })
-  logs.forEach((i: any) => {
+  logs.filter(logFilter).forEach((i: any) => {
     balances!.add(tokenTransform(i.token), i.value)
   })
 
@@ -296,12 +296,13 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
   async (options: FetchOptions) => {
     let dailyFees = options.createBalances()
     if (tokens.length > 0) {
-      dailyFees = await addTokensReceived({ options, tokens: tokens, target: receiverWallet })
+      await addTokensReceived({ options, tokens: tokens, target: receiverWallet, balances: dailyFees })
     }
-    const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.traces
-  where to = ${receiverWallet} AND tx_success = TRUE
-  AND TIME_RANGE`)
-    dailyFees.add(nullAddress, nativeTransfers[0].received)
+  //   const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.traces
+  // where to = ${receiverWallet} AND tx_success = TRUE
+  // AND TIME_RANGE`)
+  //   dailyFees.add(nullAddress, nativeTransfers[0].received)
+    await getETHReceived({ options, balances: dailyFees, target: receiverWallet })
 
     return {
       dailyFees,
@@ -309,17 +310,63 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-export async function getSolanaReceived({ options, balances, target }: { options: FetchOptions, balances?: sdk.Balances, target: string }) {
+export async function getSolanaReceived({ options, balances, target, targets }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
   if (!balances) balances = options.createBalances()
+
+  if (targets?.length) {
+    for (const target of targets)
+      await getSolanaReceived({ options, balances, target })
+    return balances
+  }
+
   const query = `
     SELECT SUM(usd_amount) as usd_value,  SUM(amount) as amount
     FROM solana.assets.transfers
     WHERE to_address = '${target}' 
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `
-    // AND transfer_type = 'sol_transfer'`  // enable this if you want to track only SOL transfers
-    
+  // AND transfer_type = 'sol_transfer'`  // enable this if you want to track only SOL transfers
+
   const res = await queryAllium(query)
   balances.addUSDValue(res[0].usd_value)
+  return balances
+}
+
+export async function getETHReceived({ options, balances, target, targets }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+  if (!balances) balances = options.createBalances()
+
+  if (targets?.length) {
+    for (const target of targets)
+      await getETHReceived({ options, balances, target })
+    return balances
+  }
+
+  target = target?.toLowerCase()
+  const chainMap: any = {
+    ethereum: 'ethereum',
+    base: 'base',
+    optimism: 'optimism',
+    scroll: 'scroll',
+    bsc: 'bsc',
+    arbitrum: 'arbitrum',
+    polygon: 'polygon',
+    blast: 'blast',
+    celo: 'celo',
+  }
+  const tableMap: any = {
+    bsc: 'bnb_token_transfers',
+  }
+  const chainKey = chainMap[options.chain]
+  if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)
+
+  const query = `
+    SELECT SUM(raw_amount) as value
+    FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
+    WHERE to_address = '${target}' 
+    AND transfer_type = 'value_transfer'
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `
+  const res = await queryAllium(query)
+  balances.add(nullAddress, res[0].value)
   return balances
 }
