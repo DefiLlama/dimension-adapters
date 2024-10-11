@@ -320,6 +320,6 @@ export async function getSolanaReceived({ options, balances, target }: { options
     // AND transfer_type = 'sol_transfer'`  // enable this if you want to track only SOL transfers
     
   const res = await queryAllium(query)
-  balances.addUSDValue(res[0].usd_value)
+  balances.addUSDValue(res[0].usd_value ?? 0)
   return balances
 }
