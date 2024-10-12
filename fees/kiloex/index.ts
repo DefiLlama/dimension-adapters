@@ -46,21 +46,21 @@ const fetch = (chainId: string) => {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: 1686528000
-    },
-    [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: 1696636800
-    },
-    [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: 1698796800
-    },
-    [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: async () => 1717027200
-    },
-    [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: async () => 1722297600
-    },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch(CHAIN.BSC), start: 1686528000
+    // },
+    // [CHAIN.OP_BNB]: {
+    //   fetch: fetch(CHAIN.OP_BNB), start: 1696636800
+    // },
+    // [CHAIN.MANTA]: {
+    //   fetch: fetch(CHAIN.MANTA), start: 1698796800
+    // },
+    // [CHAIN.TAIKO]: {
+    //   fetch: fetch(CHAIN.TAIKO), start: async () => 1717027200
+    // },
+    // [CHAIN.BSQUARED]: {
+    //   fetch: fetch(CHAIN.BSQUARED), start: async () => 1722297600
+    // },
   },
 };
 
