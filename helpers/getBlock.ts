@@ -118,7 +118,7 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
     block = Number((await retry(async () => (await httpGet(`https://blockscout.scroll.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
       throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
     }))?.result?.blockNumber, { retries: 3 })));
-    else if (chain === CHAIN.MINT)
+  else if (chain === CHAIN.MINT)
     block = Number((await retry(async () => (await httpGet(`https://explorer.mintchain.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
       throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
     }))?.result?.blockNumber, { retries: 3 })));
