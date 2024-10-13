@@ -4,47 +4,49 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-    [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
+  [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
 };
 
 const graphFetch = getGraphDimensions2({
-    graphUrls: endpoints,
-    dailyVolume: {
-        factory: "dayData"
-    },
-    feesPercent: {
-        type: 'volume',
-        Fees: 0.3,
-        UserFees: 0.3,
-        HoldersRevenue: 0.3,
-        Revenue: 0.3,
-        SupplySideRevenue: 0,
-        ProtocolRevenue: 0,
-    }
+  graphUrls: endpoints,
+  totalVolume: {
+    factory: "factories",
+  },
+  feesPercent: {
+    type: "volume",
+    Fees: 0.3,
+    UserFees: 0.3,
+    HoldersRevenue: 0.3,
+    Revenue: 0.3,
+    SupplySideRevenue: 0,
+    ProtocolRevenue: 0,
+  },
 });
 
 const adapter: Adapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.TELOS]: {
-            fetch: graphFetch(CHAIN.TELOS),
-            start: getStartTimestamp({
-                endpoints: endpoints,
-                chain: CHAIN.TELOS,
-                dailyDataField: "dayDatas"
-            }),
-            meta: {
-                methodology: {
-                    Fees: "The trading fees are 0.05%, and can be adjusted from 0.01% up to 0.1%.",
-                    UserFees: "Currently users pay a trading fee of 0.05%.",
-                    HoldersRevenue: "veArc voters receive all protocol fees.",
-                    Revenue: "All trading fees are paid to veArc voters.",
-                    SupplySideRevenue: "LPs do not earn any revenue from trading fees, only Arc emission decided by veArc voters.",
-                    ProtocolRevenue: "Treasury does not earn any revenue from trading fees."
-                }
-            }
-        }
-    }
+  version: 2,
+  adapter: {
+    [CHAIN.TELOS]: {
+      fetch: graphFetch(CHAIN.TELOS),
+      start: getStartTimestamp({
+        endpoints: endpoints,
+        chain: CHAIN.TELOS,
+        dailyDataField: "dayDatas",
+      }),
+      meta: {
+        methodology: {
+          Fees: "The trading fees are 0.05%, and can be adjusted from 0.01% up to 0.1%.",
+          UserFees: "Currently users pay a trading fee of 0.05%.",
+          HoldersRevenue: "veArc voters receive all protocol fees.",
+          Revenue: "All trading fees are paid to veArc voters.",
+          SupplySideRevenue:
+            "LPs do not earn any revenue from trading fees, only Arc emission decided by veArc voters.",
+          ProtocolRevenue:
+            "Treasury does not earn any revenue from trading fees.",
+        },
+      },
+    },
+  },
 };
 
 export default adapter;
