@@ -40,7 +40,6 @@ const adapter: Adapter = {
         start: 1646784000,
     },
   },
-  deadFrom: 1728824666 // no tvl and api dead 
 }
 
 export default adapter;
