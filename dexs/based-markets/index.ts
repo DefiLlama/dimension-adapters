@@ -1,19 +1,18 @@
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const fetch = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.BASE]: sdk.graph.modifyEndpoint(
-      "3E7EJF1zWHD3LHTKV5L6dspCno2ghxZ3WYe9MN7QVnEE",
-    ),
+    [CHAIN.BASE]: 'https://api.studio.thegraph.com/query/62454/analytics_base_8_2/version/latest',
   },
   totalVolume: {
-    factory: "factories",
+    factory: "totalHistories",
+    field: 'tradeVolume'
   },
   totalFees: {
-    factory: "factories",
+    factory: "totalHistories",
+    field: 'platformFee'
   },
 });
 
