@@ -1,46 +1,9 @@
-import customBackfill from "../../helpers/customBackfill";
-import {
-  DEFAULT_TOTAL_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD,
-  getChainVolume,
-} from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type {
-  Fetch,
-  ChainEndpoints,
-  BreakdownAdapter,
-} from "../../adapters/types";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import type { BreakdownAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-// Subgraphs endpoints
-const endpoints: ChainEndpoints = {
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/chimpydev/swapbase",
-};
-
-// Fetch function to query the subgraphs
-const graphs = getGraphDimensions({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "volume",
-    UserFees: 0.3,
-    SupplySideRevenue: 0.25,
-    ProtocolRevenue: 0.05,
-    Revenue: 0.25,
-    Fees: 0.3,
-  },
-});
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const endpointsV3 = {
   [CHAIN.BASE]:
@@ -195,9 +158,11 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v2: {
       [CHAIN.BASE]: {
-        fetch: graphs(CHAIN.BASE),
+        fetch: async (_a, _b, options) =>
+          getUniV2LogAdapter({
+            factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
+          })(options),
         start: 1690495200,
-        customBackfill: customBackfill(CHAIN.BASE, graphs),
         meta: { methodology },
       },
     },
