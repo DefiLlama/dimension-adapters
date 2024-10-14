@@ -18,16 +18,14 @@ const arbitrumPools = [
 
 const fetch: any = async ({ api, fromApi, createBalances, }: FetchOptions) => {
     const dailyFees = createBalances()
-    const totalFees = createBalances()
     const feeAmounts = await api.multiCall({ abi: "function feeTokens(address) view returns (uint256)", target: feeMaangerContract, calls: arbitrumPools, permitFailure: true, });
     const feeAmountsADayAgo = await fromApi.multiCall({ abi: "function feeTokens(address) view returns (uint256)", target: feeMaangerContract, calls: arbitrumPools, permitFailure: true, });
 
 
     dailyFees.add(arbitrumPools, feeAmounts.map(i => i ?? 0));
-    totalFees.add(arbitrumPools, feeAmounts.map(i => i ?? 0));
     dailyFees.add(arbitrumPools, feeAmountsADayAgo.map(i => (i ?? 0) * -1));
 
-    return { dailyFees, totalFees, }
+    return { dailyFees, }
 };
 
 const adapter: SimpleAdapter = {
