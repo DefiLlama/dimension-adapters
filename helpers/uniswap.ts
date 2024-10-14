@@ -103,6 +103,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     const { createBalances, getLogs, chain, api } = fetchOptions
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
+    console.log('fetching from cache', cacheKey)
     const iface = new ethers.Interface([poolCreatedEvent])
     let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')

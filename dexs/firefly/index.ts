@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.MANTA]: {
       fetch: getUniV3LogAdapter({
