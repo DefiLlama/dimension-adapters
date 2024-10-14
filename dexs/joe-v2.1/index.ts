@@ -52,17 +52,11 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
     const lpTokens = pools[options.chain]
     const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
     const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
-    const logs: any[][] = (await Promise.all(lpTokens.map((lp: string) => options.getLogs({
-      target: lp,
-      eventAbi: event_swap,
-      flatten: false
-    }))))
-
+    const logs: any[][] = await options.getLogs({ targets: lpTokens, eventAbi: event_swap, flatten: false });
     logs.map((log: any, index: number) => {
       const token0 = tokens0[index];
       const token1 = tokens1[index];
       log.forEach((i: any) => {
-        if (!i.amountsIn) return;
         const amountInX = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(0, 32))
         const amountInY = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(32, 64))
         dailyVolume.add(token0, amountInY);
@@ -70,7 +64,6 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
       })
     });
     return { dailyVolume };
-
 }
 
 const adapter: SimpleAdapter = {
