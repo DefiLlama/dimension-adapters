@@ -4,7 +4,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
-    [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
+  [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
 };
 
 const adapter: Adapter = {
