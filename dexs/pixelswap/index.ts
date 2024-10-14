@@ -33,6 +33,7 @@ const adapter = {
             fetch,
             start: 1726034340,
         },
+        runAtCurrTime: true,
     },
 }
 
