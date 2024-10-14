@@ -16,18 +16,18 @@ const arbitrumPools = [
     "0x5979D7b546E38E414F7E9822514be443A4800529",
 ];
 
-const fetch: any = async ({ api }: FetchOptions) => {
-    const feeAmounts = await api.multiCall({
-        abi: "function feeTokens(address) view returns (uint256)",
-        target: feeMaangerContract,
-        calls: arbitrumPools,
-    });
+const fetch: any = async ({ api, fromApi, createBalances, }: FetchOptions) => {
+    const dailyFees = createBalances()
+    const totalFees = createBalances()
+    const feeAmounts = await api.multiCall({ abi: "function feeTokens(address) view returns (uint256)", target: feeMaangerContract, calls: arbitrumPools, permitFailure: true, });
+    const feeAmountsADayAgo = await fromApi.multiCall({ abi: "function feeTokens(address) view returns (uint256)", target: feeMaangerContract, calls: arbitrumPools, permitFailure: true, });
 
-    api.add(arbitrumPools, feeAmounts);
 
-    return {
-        dailyFees: await api.getUSDValue(),
-    };
+    dailyFees.add(arbitrumPools, feeAmounts.map(i => i ?? 0));
+    totalFees.add(arbitrumPools, feeAmounts.map(i => i ?? 0));
+    dailyFees.add(arbitrumPools, feeAmountsADayAgo.map(i => (i ?? 0) * -1));
+
+    return { dailyFees, totalFees, }
 };
 
 const adapter: SimpleAdapter = {
@@ -35,7 +35,6 @@ const adapter: SimpleAdapter = {
     adapter: {
         [ARBITRUM]: {
             fetch,
-            runAtCurrTime: true,
             start: 1727740800,
         },
     },
