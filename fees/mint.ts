@@ -3,18 +3,17 @@ import { Adapter, ProtocolType } from "../adapters/types";
 import { L2FeesFetcher } from "../helpers/ethereum-l2";
 
 const ethereumWallets = [
-  '',
-  '0xff00000000000000000000000000000000008453',
-  '0x642229f238fb9dE03374Be34B0eD8D9De80752c5',
-  '0x56315b90c40730925ec5485cf004d835058518A0'
+  '0x68bdfece01535090c8f3c27ec3b1ae97e83fa4aa',
+  '0x4e31448a098393727b786e25b54e59dca1b77fe1',
+  '0xB751A613f2Db932c6cdeF5048E6D2af05F9B98ED'
 ]
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.MINT]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
-      start: 1687474800,
+      start: 1715942400,
     },
   },
   protocolType: ProtocolType.CHAIN
