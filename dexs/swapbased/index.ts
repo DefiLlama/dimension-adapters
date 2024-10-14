@@ -1,26 +1,8 @@
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import type { BreakdownAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getUniV2LogAdapter } from "../../helpers/uniswap";
-
-const endpointsV3 = {
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/67101/swapbased-pcsv3-core/version/latest",
-};
-const graphsV3 = getChainVolume({
-  graphUrls: endpointsV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "volumeUSD",
-    dateField: "date",
-  },
-});
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const methodology = {
   UserFees: "User pays 0.30% fees on each swap.",
@@ -168,7 +150,12 @@ const adapter: BreakdownAdapter = {
     },
     v3: {
       [CHAIN.BASE]: {
-        fetch: graphsV3(CHAIN.BASE),
+        fetch: async (_a, _b, options) =>
+          getUniV3LogAdapter({
+            factory: "0xb5620F90e803C7F957A9EF351B8DB3C746021BEa",
+            swapEvent:
+              "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)",
+          })(options),
         start: 1690443269,
       },
     },
