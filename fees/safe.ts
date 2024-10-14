@@ -15,7 +15,7 @@ const fetch: any = async (options: FetchOptions) => {
     to_address = '\\x63695Eee2c3141BDE314C5a6f89B98E62808d716'
     AND block_time BETWEEN llama_replace_date_range;
     `, options);
-    eth_transfer_logs.map((e: any) => dailyFees.addGasToken(e.eth_value))
+    eth_transfer_logs.map((e: any) => dailyFees.addGasToken(e.eth_value ?? 0))
     return { dailyFees, dailyRevenue: dailyFees }
 }
 
