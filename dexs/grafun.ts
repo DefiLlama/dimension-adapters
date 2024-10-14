@@ -7,11 +7,6 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://api.studio.thegraph.com/query/77001/grafun-prod/v1.0.5"
 }
 
-const methodology = {
-  Fees: "Sum of all fees from Token Sale Factory smart contract.",
-  Revenue: "Sum of all revenue from Token Sale Factory smart contract.",
-}
-
 const query = `
   query get_daily_stats($date: String!) {
     dailyStatistics_collection( where: { date: $date } ) {
@@ -26,17 +21,19 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const startFormatted = new Date(startTimestamp * 1000).toISOString().split("T")[0]
 
   const graphRes = await request(endpoints[chain], query, { date: startFormatted });
+  if(!graphRes?.dailyStatistics_collection || graphRes?.dailyStatistics_collection.length === 0) {
+    return {}
+  }
+
   const dayItem = graphRes.dailyStatistics_collection[0]
 
-  const dailyFees = restOpts.createBalances();
-  const dailyRevenue = restOpts.createBalances();
+  const dailyVolume = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem.cumulativeFeesBNB);
-  dailyRevenue.addGasToken(dayItem.cumulativeRevenueBNB);
+  dailyVolume.addGasToken(dayItem.cumulativeTradingVolumeBNB);
 
   return {
-    dailyFees,
-    dailyRevenue,
+    timestamp: restOpts.startOfDay,
+    dailyVolume,
   }
 }
 
@@ -46,7 +43,6 @@ const adapter: Adapter = {
     [CHAIN.BSC]: {
       start: 1727417433,
       fetch,
-      meta: { methodology }
     },
   },
 
