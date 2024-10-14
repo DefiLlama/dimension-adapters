@@ -6,7 +6,9 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.EVMOS]: {
-      fetch: getUniV3LogAdapter({ factory: '0xf544365e7065966f190155F629cE0182fC68Eaa2' }),
+      fetch: getUniV3LogAdapter({
+        factory: "0xf544365e7065966f190155F629cE0182fC68Eaa2",
+      }),
       start: 1680480000,
     },
   },
