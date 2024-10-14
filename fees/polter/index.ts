@@ -81,7 +81,7 @@ const tokens: any = {
       gecko: "usd-coin",
       decimals: 6,
     },
-    "0x940181a94a35a4569e4529a3cdfb74e38fd98631": {
+    "0x6f78d5d203ee7f4f3821ea7ae507e3e20b0930ef": {
       gecko: "aerodrome-finance",
       decimals: 18,
     },
