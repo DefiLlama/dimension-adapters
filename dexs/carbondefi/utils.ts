@@ -1,6 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 
-type CarbonAnalyticsItem = {
+export type CarbonAnalyticsItem = {
   timestamp: string;
   feesUsd: number;
   volumeUsd: number;
