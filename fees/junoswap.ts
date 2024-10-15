@@ -39,7 +39,7 @@ const adapter: Adapter = {
         fetch: fetch,
         start: 1646784000,
     },
-  }
+  },
 }
 
 export default adapter;

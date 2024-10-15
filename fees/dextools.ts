@@ -34,8 +34,7 @@ For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as
 
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
-import { evmReceivedGasAndTokens } from '../helpers/token';
+import { evmReceivedGasAndTokens, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -48,17 +47,8 @@ const tokens = {
 } as any
 
 const sol = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const value = (await queryDune("3521814", {
-        start: options.startTimestamp,
-        end: options.endTimestamp,
-        receiver: 'GZ7GGigCJF5AUDky2kts5GAsHwdfkzuFXochCQy3cxfW'
-    }));
-    dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-    }
+    const dailyFees = await getSolanaReceived({ options, target: 'GZ7GGigCJF5AUDky2kts5GAsHwdfkzuFXochCQy3cxfW' })
+    return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 const adapter: Adapter = {

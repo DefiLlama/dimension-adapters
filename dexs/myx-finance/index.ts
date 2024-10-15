@@ -1,10 +1,12 @@
-import { ChainEndpoints, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { ChainEndpoints, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.ARBITRUM]: "https://api-arb.myx.finance/coingecko/contracts",
-  [CHAIN.LINEA]: "https://api-linea.myx.finance/coingecko/contracts",
+  [CHAIN.ARBITRUM]: "https://api.myx.finance/v2/quote/market/contracts/arbitrum",
+  [CHAIN.LINEA]: "https://api.myx.finance/v2/quote/market/contracts/linea",
+  [CHAIN.OP_BNB]: "https://api.myx.finance/v2/quote/market/contracts/opbnb",
 }
 
 const methodology = {
@@ -15,15 +17,29 @@ const methodology = {
 const getFetch = async (optios: FetchOptions) => {
   const result = await fetchURL(endpoints[optios.chain])
 
-  const dailyVolume = result.data.reduce((acc, item) => acc + (item?.target_volume || 0), 0)
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
 
-  return { dailyVolume }
+
+  const volume = result.data.reduce((acc, item) => {
+    return acc + (item?.target_volume || 0)
+  }, 0)
+
+  console.log({
+    timestamp: dayTimestamp,
+    dailyVolume: volume || "0",
+  })
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume: volume || "0",
+  }
 }
 
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
+  [CHAIN.OP_BNB]: 1727443900,
 }
 
 const adapter: SimpleAdapter = {
@@ -32,7 +48,6 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        runAtCurrTime: true,
         fetch: getFetch,
         start: startTimestamps[chain],
         meta: {
