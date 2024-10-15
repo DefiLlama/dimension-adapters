@@ -1,10 +1,10 @@
 import { FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { CarbonAnalyticsResponse } from "./types";
 import {
   getEmptyData,
   getDimensionsSum,
+  CarbonAnalyticsItem,
   // getDimensionsSumByToken,
 } from "./utils";
 
@@ -52,7 +52,7 @@ const getData = async (options: FetchOptions) => {
   const endTimestamp = options.toTimestamp;
 
   try {
-    const swapData: CarbonAnalyticsResponse = await fetchURL(analyticsEndpoint);
+    const swapData: CarbonAnalyticsItem[] = await fetchURL(analyticsEndpoint);
 
     // if (getDimensionsByToken) {
     //   return getDimensionsSumByToken(
