@@ -5,7 +5,7 @@ import { CarbonAnalyticsResponse } from "./types";
 import {
   getEmptyData,
   getDimensionsSum,
-  getDimensionsSumByToken,
+  // getDimensionsSumByToken,
 } from "./utils";
 
 const CARBON_METADATA: {
@@ -35,33 +35,33 @@ const chainInfo: { [key: string]: any } = {
     endpoint: "https://sei-api.carbondefi.xyz/v1/analytics/volume",
     startBlock: 79146720,
     startTimestamp: 1716825673,
-    getDimensionsByToken: true,
+    getDimensionsByToken: false,
   },
   [CHAIN.CELO]: {
     endpoint: "https://celo-api.carbondefi.xyz/v1/analytics/volume",
     startBlock: 26828280,
     startTimestamp: 1721813184,
-    getDimensionsByToken: true,
+    getDimensionsByToken: false,
   },
 };
 
 const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
-  const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
+  // const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
   const startTimestamp = options.fromTimestamp;
   const endTimestamp = options.toTimestamp;
 
   try {
     const swapData: CarbonAnalyticsResponse = await fetchURL(analyticsEndpoint);
 
-    if (getDimensionsByToken) {
-      return getDimensionsSumByToken(
-        swapData,
-        startTimestamp,
-        endTimestamp,
-        getEmptyData(options)
-      );
-    }
+    // if (getDimensionsByToken) {
+    //   return getDimensionsSumByToken(
+    //     swapData,
+    //     startTimestamp,
+    //     endTimestamp,
+    //     getEmptyData(options),
+    //   );
+    // }
     return getDimensionsSum(swapData, startTimestamp, endTimestamp);
   } catch (e) {
     console.error(e);
