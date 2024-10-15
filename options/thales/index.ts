@@ -1,24 +1,58 @@
-import * as sdk from "@defillama/sdk";
-import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
+import { Chain } from "@defillama/sdk/build/general";
+import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import getChainData, { MIN_TIMESTAMP } from "./getChainData";
+import { queryDune } from "../../helpers/dune";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { time } from "console";
 
-const endpoints: ChainEndpoints = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('GADfDRePpbqyjK2Y3JkQTBPBVQj98imhgKo7oRWW7RqQ'),
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G7wi71W3PdtYYidKy5pEmJvJ1Xpop25ogynstRjPdyPG'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('FZH9ySiLCdqKrwefaospe6seSqV1ZoW4FvPQUGP7MFob'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FrSU8JkxyoGiLyj1b5X8jATrNBYPts7h64rd5HZSCqAb'),
+interface IFee {
+  timestamp: string;
+  daily_fee: number;
+  total_fee: number;
+}
+
+const getFeeQueryId = (chain: Chain): string => {
+  switch (chain) {
+    case CHAIN.ARBITRUM:
+      return "4165344";
+    case CHAIN.OPTIMISM:
+      return "4165303";
+    case CHAIN.BASE:
+    default:
+      return "4165350";
+  }
 };
 
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
+const fetch = (chain: Chain) => {
+  return async (options: FetchOptions) => {
+    const fees: IFee[] = await queryDune(getFeeQueryId(chain))
+    const dateString = new Date(options.endTimestamp * 1000).toISOString().split("T")[0];
+    const daily = fees.find(({ timestamp })=> timestamp.split(' ')[0] === dateString);
+    const dailyFees = daily?.daily_fee || 0;
+    const totalFees = daily?.total_fee || 0;
     return {
-      ...acc,
-      [chain]: {
-        fetch: async (timestamp: number) => await getChainData(endpoints[chain], timestamp, chain),
-        start: MIN_TIMESTAMP
-      }
-    }
-  }, {})
+      dailyFees,
+      totalFees,
+    };
+  };
+};
+
+const adapter: Adapter = {
+  version: 2,
+  isExpensiveAdapter: true,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch(CHAIN.ARBITRUM),
+      start: 1662463922,
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: fetch(CHAIN.OPTIMISM),
+      start: 1641838619,
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1691692525,
+    },
+  },
 };
 export default adapter;
