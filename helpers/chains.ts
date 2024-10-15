@@ -173,6 +173,7 @@ export enum CHAIN {
   BSQUARED = "bsquared",
   LISK = "lisk",
   MINT = "mint",
+  HELA = "hela",
 }
 
 // Don´t use
