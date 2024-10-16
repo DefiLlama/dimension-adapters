@@ -7,6 +7,8 @@ const fetch: any = async (options: FetchOptions) => {
     options, targets: [
       '0x77777D91c0B8Ec9984a05302E4Ef041dcCf77FeE',
       '0xc8c0e780960f954c3426a32b6ab453248d632b59'
+    ], fromAdddesses: [
+      "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD"
     ]
   })
 
