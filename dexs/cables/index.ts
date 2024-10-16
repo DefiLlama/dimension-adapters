@@ -21,7 +21,7 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume }
 };
 
-// it is critical for AVAX RPC to have a fresh timestamp
+// it is critical for ARBITRUM RPC to have a fresh timestamp
 const startTimestamp = Math.floor(Date.now() / 1000) - 3 * 60 * 60 * 24;
 
 const adapter: SimpleAdapter = {
