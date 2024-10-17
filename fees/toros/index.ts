@@ -36,23 +36,27 @@ const CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
     torosManagerAddress: "0x813123a13d01d3f07d434673fdc89cbba523f14d",
+    easyswapperAddresses: ["0x3988513793bce39f0167064a9f7fc3617faf35ab", "0x2ed1bd7f66e47113672f3870308b5e867c5bb743"],
   },
   [CHAIN.POLYGON]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
     torosManagerAddress: "0x090e7fbd87a673ee3d0b6ccacf0e1d94fb90da59",
+    easyswapperAddresses: ["0xb2f1498983bf9c9442c35f772e6c1ade66a8dede", "0x45b90480d6f643de2f128db091a357c3c90399f2"],
   },
   [CHAIN.ARBITRUM]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
+    easyswapperAddresses: ["0x80b9411977c4ff8d618f2ac3f29f1e2d623c4d34", "0xa5679c4272a056bb83f039961fae7d99c48529f5"],
   },
   [CHAIN.BASE]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
     torosManagerAddress: "0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879",
+    easyswapperAddresses: ["0xe10ed1e5354eed0f7c9d2e16250ba8996c12db7a", "0xa907504d7a4c415b4e6e1d0866d96afe8202f0e5"],
   },
 };
 
-const fetchHistoricalFees = async (chainId: CHAIN, managerAddress: string, startTimestamp: number, endTimestamp: number) => {
-  const { endpoint, } = CONFIG[chainId];
+const fetchHistoricalFees = async (chainId: CHAIN, startTimestamp: number, endTimestamp: number) => {
+  const { endpoint, torosManagerAddress} = CONFIG[chainId];
 
   let allData = [];
   let skip = 0;
@@ -61,7 +65,7 @@ const fetchHistoricalFees = async (chainId: CHAIN, managerAddress: string, start
   while (true) {
     try {
       const data = await new GraphQLClient(endpoint).request(query, {
-        manager: managerAddress,
+        manager: torosManagerAddress,
         startTimestamp: startTimestamp.toString(),
         endTimestamp: endTimestamp.toString(),
         first: batchSize,
@@ -75,7 +79,6 @@ const fetchHistoricalFees = async (chainId: CHAIN, managerAddress: string, start
       skip += batchSize;
 
       if (entries.length < batchSize) break;
-
     } catch (e) {
       throw new Error(`Error fetching data for chain ${chainId}: ${e.message}`);
     }
@@ -87,23 +90,26 @@ const getTransferLogs = async (chain: string, getLogs, poolAddress: string, from
   return await getLogs({
     target: poolAddress,
     topic: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-    fromBlock: fromBlock,
-    toBlock: toBlock,
+    fromBlock,
+    toBlock,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     onlyArgs: true,
   });
 }
 
 async function addEntryExitFees(dailyFees: any[], chain: CHAIN, getLogs: any) {
+  const easyswapperAddresses = CONFIG[chain].easyswapperAddresses;
+
   for (const dailyFeesDto of dailyFees) {
     const transferLogs = await getTransferLogs(chain.toString(), getLogs, dailyFeesDto.pool, +dailyFeesDto.block, +dailyFeesDto.block);
     const exitEntryFeeLogs = transferLogs.filter(transfer => {
-      return (transfer.from.toLowerCase() === ZeroAddress
-          && transfer.to.toLowerCase() === dailyFeesDto.manager.toLowerCase()
-          && Number(transfer.value) !== Number(dailyFeesDto.managerFee))
-            || (transfer.from.toLowerCase() === dailyFeesDto.pool.toLowerCase()
-              && transfer.to.toLowerCase() === dailyFeesDto.manager.toLowerCase()
-              && Number(transfer.value) !== Number(dailyFeesDto.managerFee));
+      const from = transfer.from.toLowerCase();
+      const to = transfer.to.toLowerCase();
+      const isZeroAddressTransfer = from === ZeroAddress && to === dailyFeesDto.manager.toLowerCase();
+      const isEasySwapperTransfer = easyswapperAddresses.includes(from) && to === dailyFeesDto.manager.toLowerCase();
+      const isPoolTransfer = from === dailyFeesDto.pool.toLowerCase() && to === dailyFeesDto.manager.toLowerCase();
+      const notManagerFeeTransfer = Number(transfer.value) !== Number(dailyFeesDto.managerFee);
+      return (isZeroAddressTransfer || isEasySwapperTransfer || isPoolTransfer) && notManagerFeeTransfer;
     });
 
     if (exitEntryFeeLogs !== null && exitEntryFeeLogs.length > 0) {
@@ -128,7 +134,7 @@ const fetch = async ({ chain, getLogs, endTimestamp, startTimestamp }: FetchOpti
   const config = CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const dailyFees = await fetchHistoricalFees(chain as CHAIN, config.torosManagerAddress, startTimestamp, endTimestamp);
+  const dailyFees = await fetchHistoricalFees(chain as CHAIN, startTimestamp, endTimestamp);
   await addEntryExitFees(dailyFees, chain as CHAIN, getLogs);
 
   return {
