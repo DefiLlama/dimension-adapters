@@ -1,12 +1,14 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
+import { ZeroAddress } from "ethers";
+
 const query = `
       query managerFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
           where: { manager: $manager, managerFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { managerFee, tokenPriceAtFeeMint }
+        ) { managerFee, tokenPriceAtFeeMint, pool, manager, block }
       }`
 // gql`
 //   query managerFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!) {
@@ -81,21 +83,53 @@ const fetchHistoricalFees = async (chainId: CHAIN, managerAddress: string, start
   return allData;
 };
 
-const calculateFees = (data: any): number =>
-  data.reduce((acc: number, item: any) => {
-    const managerFee = Number(item.managerFee);
-    const tokenPrice = Number(item.tokenPriceAtFeeMint);
-    const managerFeeFormatted = managerFee / 1e18;
-    const tokenPriceFormatted = tokenPrice / 1e18;
-    const managerFeeUsd = managerFeeFormatted * tokenPriceFormatted;
-    return acc + managerFeeUsd;
-  }, 0);
+const getTransferLogs = async (chain: string, getLogs, poolAddress: string, fromBlock: number, toBlock: number): Promise<any> => {
+  return await getLogs({
+    target: poolAddress,
+    topic: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    onlyArgs: true,
+  });
+}
 
-const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
+async function addEntryExitFees(dailyFees: any[], chain: CHAIN, getLogs: any) {
+  for (const dailyFeesDto of dailyFees) {
+    const transferLogs = await getTransferLogs(chain.toString(), getLogs, dailyFeesDto.pool, +dailyFeesDto.block, +dailyFeesDto.block);
+    const exitEntryFeeLogs = transferLogs.filter(transfer => {
+      return (transfer.from.toLowerCase() === ZeroAddress
+          && transfer.to.toLowerCase() === dailyFeesDto.manager.toLowerCase()
+          && Number(transfer.value) !== Number(dailyFeesDto.managerFee))
+            || (transfer.from.toLowerCase() === dailyFeesDto.pool.toLowerCase()
+              && transfer.to.toLowerCase() === dailyFeesDto.manager.toLowerCase()
+              && Number(transfer.value) !== Number(dailyFeesDto.managerFee));
+    });
+
+    if (exitEntryFeeLogs !== null && exitEntryFeeLogs.length > 0) {
+      const exitEntryFeeFormatted = Number(exitEntryFeeLogs[0].value) / 1e18;
+      const tokenPriceFormatted = Number(dailyFeesDto.tokenPriceAtFeeMint) / 1e18;
+      dailyFeesDto.exitEntryFeeUsd = exitEntryFeeFormatted * tokenPriceFormatted;
+    } else dailyFeesDto.exitEntryFeeUsd = Number(0);
+  }
+}
+
+const calculateFees = (dailyFees: any): number =>
+    dailyFees.reduce((acc: number, dailyFeesDto: any) => {
+      const managerFee = Number(dailyFeesDto.managerFee);
+      const tokenPrice = Number(dailyFeesDto.tokenPriceAtFeeMint);
+      const managerFeeFormatted = managerFee / 1e18;
+      const tokenPriceFormatted = tokenPrice / 1e18;
+      const managerFeeUsd = managerFeeFormatted * tokenPriceFormatted + dailyFeesDto.exitEntryFeeUsd;
+      return acc + managerFeeUsd;
+    }, 0);
+
+const fetch = async ({ chain, getLogs, endTimestamp, startTimestamp }: FetchOptions) => {
   const config = CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const dailyFees = await fetchHistoricalFees(chain as CHAIN, config.torosManagerAddress, startTimestamp, endTimestamp)
+  const dailyFees = await fetchHistoricalFees(chain as CHAIN, config.torosManagerAddress, startTimestamp, endTimestamp);
+  await addEntryExitFees(dailyFees, chain as CHAIN, getLogs);
 
   return {
     dailyFees: calculateFees(dailyFees),
