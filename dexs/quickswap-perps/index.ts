@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter, ChainEndpoints, FetchV2 } from "../../adapters/types";
+import { Adapter, ChainEndpoints, Fetch, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -15,8 +15,8 @@ interface IVolumeStat {
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+  const fetch: Fetch = async (timestamp: any, _cb: any, { chain, }) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
     const graphQuery = gql`
     query MyQuery {
@@ -57,7 +57,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: graphs(endpoints),
