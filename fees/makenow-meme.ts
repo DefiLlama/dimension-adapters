@@ -10,7 +10,8 @@ import { getSolanaReceived } from "../helpers/token"
 const fetchFees = async (options: FetchOptions) => {
   const targets = [
     '8tA49tvPiTCkeVfuTms1F2nwVg6FWpQsQ8eNZ4g9vVQF',
-    'AEBoqzQU3fDYzhVmaRedcNeVcQQSMEqCAuQ2A7pYNEd7'
+    'AEBoqzQU3fDYzhVmaRedcNeVcQQSMEqCAuQ2A7pYNEd7',
+    '4KRS8BPCgDZHBTXkugCHuh2ZsZQhmAbdx6ASjMQYNdXd'
   ]
   const dailyFees = await getSolanaReceived({ options, targets: targets })
   return { dailyFees, dailyRevenue: dailyFees, }
