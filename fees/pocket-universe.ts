@@ -19,7 +19,7 @@ const fetch: any = async (options: FetchOptions) => {
     ]
   })
 
-  return { dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees }
 };
 
 const start = 1712710800
