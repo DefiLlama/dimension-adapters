@@ -174,6 +174,7 @@ export enum CHAIN {
   LISK = "lisk",
   MINT = "mint",
   HELA = "hela",
+  FUEL = "fuel",
 }
 
 // Don´t use
