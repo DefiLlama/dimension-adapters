@@ -14,10 +14,10 @@ const methodology = {
   DailyVolume: "Daily Volume from the sum of the open/close/liquidation of positions.",
 }
 
-const getFetch = async (optios: FetchOptions) => {
-  const result = await fetchURL(endpoints[optios.chain])
+const getFetch = async (_t: any, _tts: any, options: FetchOptions) => {
+  const result = await fetchURL(endpoints[options.chain])
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.endTimestamp * 1000)))
   const volume = result.data.reduce((acc, item) => {
     return acc + (item?.target_volume || 0)
   }, 0)
