@@ -12,12 +12,12 @@ const fetch = async () => {
     let dailyVolumeResult = 0;
     let totalVolumeResult = 0;
     swapvolumeResult.forEach(pairs => {
-        dailyVolumeResult += Number(pairs.volume.dailyVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
+        dailyVolumeResult += Number(pairs.volume.volume24h / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
         totalVolumeResult += Number(pairs.volume.totalVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
     });
 
     depositAndWithdrawVolume.forEach(token => {
-        dailyVolumeResult += Number(token.volume.dailyVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
+        dailyVolumeResult += Number(token.volume.volume24h / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
         totalVolumeResult += Number(token.volume.totalVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
     });
 
