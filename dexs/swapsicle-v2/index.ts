@@ -14,5 +14,5 @@ const adapters = univ2Adapter({
 
 adapters.adapter[CHAIN.MANTLE].start = 1697155200;
 adapters.adapter[CHAIN.TELOS].start = 1698105600;
-adapters.adapter[CHAIN.TAIKO].start = 338445;
+adapters.adapter[CHAIN.TAIKO].start = 1724943360;
 export default adapters;
