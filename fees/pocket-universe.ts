@@ -30,11 +30,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { fetch, start },
     [CHAIN.ARBITRUM]: { fetch, start },
     [CHAIN.POLYGON]: { fetch, start },
-    [CHAIN.ERA]: { fetch, start },
     [CHAIN.BSC]: { fetch, start },
     [CHAIN.OPTIMISM]: { fetch, start },
-    [CHAIN.CELO]: { fetch, start },
-    [CHAIN.AVAX]: { fetch, start },
   },
 };
 export default adapter;
