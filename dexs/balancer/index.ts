@@ -30,8 +30,7 @@ const endpoints: ChainEndpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint(
     "7asfmtQA1KYu6CP7YVm5kv4bGxVyfAHEiptt2HMFgkHu",
   ),
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/24660/balancer-base-v2/version/latest",
   [CHAIN.MODE]:
     "https://api.studio.thegraph.com/query/75376/balancer-mode-v2/version/latest",
   [CHAIN.FRAXTAL]:
@@ -59,28 +58,34 @@ const v2Graphs = (chain: Chain) => {
       getFromBlock(),
       getToBlock(),
     ]);
-    const graphQuery = gql`query fees {
-        today:balancers(block: { number: ${toBlock}}) { totalSwapVolume }
-        yesterday:balancers(block: { number: ${fromBlock}}) { totalSwapVolume }
-      }`;
+    try {   const graphQuery = gql`query fees {
+      today:balancers(block: { number: ${toBlock}}) { totalSwapVolume }
+      yesterday:balancers(block: { number: ${fromBlock}}) { totalSwapVolume }
+    }`;
 
-    const graphRes: IPoolSnapshot = await request(endpoints[chain], graphQuery);
+  const graphRes: IPoolSnapshot = await request(endpoints[chain], graphQuery);
 
-    const totalVolume = graphRes.today.reduce(
-      (p, c) => p + c.totalSwapVolume,
-      0,
-    );
-    const previousVolume = graphRes.yesterday.reduce(
-      (p, c) => p + c.totalSwapVolume,
-      0,
-    );
+  const totalVolume = graphRes.today.reduce(
+    (p, c) => p + c.totalSwapVolume,
+    0,
+  );
+  const previousVolume = graphRes.yesterday.reduce(
+    (p, c) => p + c.totalSwapVolume,
+    0,
+  );
 
-    const dailyVolume = totalVolume - previousVolume;
+  const dailyVolume = totalVolume - previousVolume;
 
+  return {
+    dailyVolume,
+    totalVolume,
+  };} catch {
     return {
-      dailyVolume,
-      totalVolume,
+      dailyVolume: 0,
+      totalVolume: 0,
     };
+  }
+
   };
 };
 
