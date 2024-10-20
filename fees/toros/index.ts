@@ -86,22 +86,22 @@ const fetchHistoricalFees = async (chainId: CHAIN, startTimestamp: number, endTi
   return allData;
 };
 
-const getTransferLogs = async (chain: string, getLogs, poolAddress: string, fromBlock: number, toBlock: number): Promise<any> => {
+const getTransferLogs = async (getLogs, poolAddresss: string[]): Promise<any> => {
   return await getLogs({
-    target: poolAddress,
+    targets: poolAddresss,
     topic: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-    fromBlock,
-    toBlock,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     onlyArgs: true,
+    flatten: false,
   });
 }
 
 async function addEntryExitFees(dailyFees: any[], chain: CHAIN, getLogs: any) {
   const easyswapperAddresses = CONFIG[chain].easyswapperAddresses;
-
-  for (const dailyFeesDto of dailyFees) {
-    const transferLogs = await getTransferLogs(chain.toString(), getLogs, dailyFeesDto.pool, +dailyFeesDto.block, +dailyFeesDto.block);
+  const poolAddresses = dailyFees.map(e => e.pool)
+  const _transferLogs = await getTransferLogs(getLogs, poolAddresses)
+  for (const [index,dailyFeesDto] of dailyFees.entries()) {
+    const transferLogs = _transferLogs[index];
     const exitEntryFeeLogs = transferLogs.filter(transfer => {
       const from = transfer.from.toLowerCase();
       const to = transfer.to.toLowerCase();
