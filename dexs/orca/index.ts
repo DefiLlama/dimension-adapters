@@ -7,6 +7,7 @@ async function fetch(timestamp: number) {
     const [whirlpools] = await Promise.all([httpGet(wpEndpoint)]);
     const wpVol = whirlpools.whirlpools
         .filter((pool: any) => pool?.tvl > 100_000)
+        .filter((pool: any) => pool?.volume?.day < 100_000_000)
         .reduce((sum: number, pool: any) =>
         sum + (pool?.volume?.day || 0)
         , 0);

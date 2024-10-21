@@ -1,9 +1,13 @@
-import { Balances } from "@defillama/sdk";
-import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
 
+export type CarbonAnalyticsItem = {
+  timestamp: string;
+  feesUsd: number;
+  volumeUsd: number;
+}
+
 const filterDataByDate = (
-  swapData: CarbonAnalyticsResponse,
+  swapData: CarbonAnalyticsItem[],
   startTimestampS: number,
   endTimestampS: number
 ) => {
@@ -17,7 +21,7 @@ const filterDataByDate = (
 };
 
 export const getDimensionsSum = (
-  swapData: CarbonAnalyticsResponse,
+  swapData: CarbonAnalyticsItem[],
   startTimestamp: number,
   endTimestamp: number
 ) => {
@@ -26,8 +30,8 @@ export const getDimensionsSum = (
   const { dailyVolume, dailyFees } = dailyData.reduce(
     (prev, curr) => {
       return {
-        dailyVolume: prev.dailyVolume + curr.targetamount_usd,
-        dailyFees: prev.dailyFees + curr.tradingfeeamount_usd,
+        dailyVolume: prev.dailyVolume + curr.volumeUsd,
+        dailyFees: prev.dailyFees + curr.feesUsd,
       };
     },
     {
@@ -38,8 +42,8 @@ export const getDimensionsSum = (
   const { totalVolume, totalFees } = swapData.reduce(
     (prev, curr) => {
       return {
-        totalVolume: prev.totalVolume + curr.targetamount_usd,
-        totalFees: prev.totalFees + curr.tradingfeeamount_usd,
+        totalVolume: prev.totalVolume + curr.volumeUsd,
+        totalFees: prev.totalFees + curr.feesUsd,
       };
     },
     {
@@ -55,55 +59,55 @@ export const getDimensionsSum = (
   };
 };
 
-const isNativeToken = (address: string) => address.toLowerCase() === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
+// const isNativeToken = (address: string) => address.toLowerCase() === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
 
-export const getDimensionsSumByToken = (
-  swapData: CarbonAnalyticsResponse,
-  startTimestamp: number,
-  endTimestamp: number,
-  emptyData: {
-    dailyVolume: Balances;
-    dailyFees: Balances;
-    totalVolume: Balances;
-    totalFees: Balances;
-  },
-) => {
-  const dailyData = filterDataByDate(swapData, startTimestamp, endTimestamp);
-  const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
+// export const getDimensionsSumByToken = (
+//   swapData: CarbonAnalyticsItem[],
+//   startTimestamp: number,
+//   endTimestamp: number,
+//   emptyData: {
+//     dailyVolume: Balances;
+//     dailyFees: Balances;
+//     totalVolume: Balances;
+//     totalFees: Balances;
+//   },
+// ) => {
+//   const dailyData: CarbonAnalyticsItem[] = filterDataByDate(swapData, startTimestamp, endTimestamp);
+//   const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
 
-  swapData.forEach((swap) => {
-    if (isNativeToken(swap.targetaddress)) {
-      totalVolume.addGasToken(swap.targetamount_real * 1e18);
-    } else {
-      totalVolume.add(swap.targetaddress, swap.targetamount_real);
-    }
-    if (isNativeToken(swap.feeaddress)) {
-      totalFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-    } else {
-      totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
-    }
-  });
+//   swapData.forEach((swap) => {
+//     if (isNativeToken(swap.targetaddress)) {
+//       totalVolume.addGasToken(swap.targetamount_real * 1e18);
+//     } else {
+//       totalVolume.add(swap.targetaddress, swap.targetamount_real);
+//     }
+//     if (isNativeToken(swap.feeaddress)) {
+//       totalFees.addGasToken(swap.tradingfeeamount_real * 1e18);
+//     } else {
+//       totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+//     }
+//   });
 
-  dailyData.forEach((swap) => {
-    if (isNativeToken(swap.targetaddress)) {
-      dailyVolume.addGasToken(swap.targetamount_real * 1e18);
-    } else {
-      dailyVolume.add(swap.targetaddress, swap.targetamount_real);
-    }
-    if (isNativeToken(swap.feeaddress)) {
-      dailyFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-    } else {
-      dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
-    }
-  });
+//   dailyData.forEach((swap) => {
+//     if (isNativeToken(swap.targetaddress)) {
+//       dailyVolume.addGasToken(swap.targetamount_real * 1e18);
+//     } else {
+//       dailyVolume.add(swap.targetaddress, swap.targetamount_real);
+//     }
+//     if (isNativeToken(swap.feeaddress)) {
+//       dailyFees.addGasToken(swap.tradingfeeamount_real * 1e18);
+//     } else {
+//       dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+//     }
+//   });
 
-  return {
-    dailyVolume,
-    dailyFees,
-    totalVolume,
-    totalFees,
-  };
-};
+//   return {
+//     dailyVolume,
+//     dailyFees,
+//     totalVolume,
+//     totalFees,
+//   };
+// };
 
 export const getEmptyData = (options: FetchOptions) => {
   return {

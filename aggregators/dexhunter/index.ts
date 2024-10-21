@@ -3,8 +3,8 @@ import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const URL = 'https://dexhunter-staging-xoi27nkjlq-uc.a.run.app';
-const endpoint = '/openapi/stats';
+const URL = 'https://api-us.dexhunterv3.app';
+const endpoint = '/stats/fear_and_greed';
 const startTimestamp = 1684108800; // 15.10.2023
 
 interface IAPIResponse {
@@ -21,7 +21,7 @@ const fetchData = async (period: '24h' | 'all'): Promise<string> => {
     throw new Error('No dexhunter data found');
   }
 
-  return dexhunterData.usd_volume.toString()
+  return (dexhunterData.usd_volume / 1000000).toString()
 }
 
 const fetch = async (): Promise<FetchResult> => {
@@ -30,8 +30,8 @@ const fetch = async (): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date());
 
   return {
-    dailyVolume,
-    totalVolume,
+    dailyVolume: dailyVolume,
+    totalVolume: totalVolume,
     timestamp: dayTimestamp,
   };
 }

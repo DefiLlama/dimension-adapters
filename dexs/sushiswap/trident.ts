@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
@@ -44,6 +43,7 @@ const trident = Object.keys(endpointsTrident).reduce(
           getStartBlock(),
           getEndBlock()
         ])
+      try {
         const beforeRes = await request(endpointsTrident[chain], tridentQuery, {
           number: startBlock,
         });
@@ -59,6 +59,14 @@ const trident = Object.keys(endpointsTrident).reduce(
           dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
           dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
         }
+      } catch {
+        return {
+          dailyVolume: 0,
+          dailyFees: 0,
+          dailyUserFees: 0
+        }
+      }
+
       },
       start: 1711982400,
     },

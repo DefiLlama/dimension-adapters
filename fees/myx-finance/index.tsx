@@ -30,7 +30,7 @@ const fetchApi = async (type: FetchType, startTime: number, endTime: number) => 
   return data
 }
 
-const fetchFees = async ({ fromTimestamp, toTimestamp, api }: FetchOptions) => {
+const fetchFees = async (_t: any, _tts: any, { fromTimestamp, toTimestamp, api }: FetchOptions) => {
   const chainId = api.chainId
   const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, fromTimestamp, toTimestamp )
   const dailyFees = dailyAlls.find((daily: Data)=> daily.chainId === chainId)
@@ -39,6 +39,7 @@ const fetchFees = async ({ fromTimestamp, toTimestamp, api }: FetchOptions) => {
   const totalFees = totalAlls.find((daily: Data)=> daily.chainId === chainId)
 
   return {
+    timestamp: toTimestamp,
     totalFees: totalFees?.tradingFee,
     dailyFees: dailyFees?.tradingFee,
   }
@@ -51,7 +52,7 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
