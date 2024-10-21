@@ -1,12 +1,12 @@
-import ADDRESSES from './coreAssets.json'
-import { FetchOptions } from "../adapters/types";
-import * as sdk from '@defillama/sdk'
-import axios from 'axios'
-import { getCache, setCache } from "./cache";
-import { ethers } from "ethers";
+import * as sdk from '@defillama/sdk';
 import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
-import { getEnv } from './env';
+import axios from 'axios';
+import { ethers } from "ethers";
+import { FetchOptions } from "../adapters/types";
 import { queryAllium } from './allium';
+import { getCache, setCache } from "./cache";
+import ADDRESSES from './coreAssets.json';
+import { getEnv } from './env';
 
 export const nullAddress = ADDRESSES.null
 
@@ -310,27 +310,41 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-export async function getSolanaReceived({ options, balances, target, targets }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
-  if (!balances) balances = options.createBalances()
-
-  if (targets?.length) {
-    for (const target of targets)
-      await getSolanaReceived({ options, balances, target })
-    return balances
+  export async function getSolanaReceived({ options, balances, target, targets, blacklists }: {
+    options: FetchOptions;
+    balances?: sdk.Balances;
+    target?: string;
+    targets?: string[];
+    blacklists?: string[];
+  }) {
+    if (!balances) balances = options.createBalances();
+  
+    if (targets?.length) {
+      for (const target of targets)
+        await getSolanaReceived({ options, balances, target, blacklists });
+      return balances;
+    }
+  
+    let blacklistCondition = '';
+    
+    if (blacklists && blacklists.length > 0) {
+      const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
+      blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
+    }
+  
+    const query = `
+      SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
+      FROM solana.assets.transfers
+      WHERE to_address = '${target}'
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      ${blacklistCondition}
+    `;
+  
+    const res = await queryAllium(query);
+    balances.addUSDValue(res[0]?.usd_value ?? 0);
+    return balances;
   }
-
-  const query = `
-    SELECT SUM(usd_amount) as usd_value,  SUM(amount) as amount
-    FROM solana.assets.transfers
-    WHERE to_address = '${target}' 
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    `
-  // AND transfer_type = 'sol_transfer'`  // enable this if you want to track only SOL transfers
-
-  const res = await queryAllium(query)
-  balances.addUSDValue(res[0].usd_value ?? 0)
-  return balances
-}
+  
 
 export async function getETHReceived({ options, balances, target, targets }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
   if (!balances) balances = options.createBalances()
