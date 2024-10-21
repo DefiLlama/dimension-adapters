@@ -69,6 +69,7 @@ const fetch = (chain: Chain) => {
     const dailyLiquidationFee =
       parseFloat(marginTradeResData.daily_liquidation_fee) +
       parseFloat(perpResData.daily_liquidation_fee);
+
     const totalInterestPaid =
       parseFloat(marginTradeResData.total_interest_paid) +
       parseFloat(perpResData.total_interest_paid);
@@ -96,13 +97,19 @@ const fetch = (chain: Chain) => {
       dailyBountyFeeToLiquidator +
       dailyBountyFeeToProtocol +
       dailyOtfFee;
+
     const dailySupplySideRevenue =
-      0.1 * dailyInterestPaid +
-      0.8 * dailyTradingFee +
-      dailyBountyFeeToProtocol +
-      dailyOtfFee;
+      0.9 * parseFloat(marginTradeResData.daily_interest_paid) +
+      0.2 * parseFloat(marginTradeResData.daily_trading_fee) +
+      0.8 * parseFloat(perpResData.daily_trading_fee) +
+      parseFloat(perpResData.daily_otf_fee);
+
     const dailyProtocolRevenue =
-      0.9 * dailyInterestPaid + 0.2 * dailyTradingFee;
+      0.1 * parseFloat(marginTradeResData.daily_interest_paid) +
+      0.8 * parseFloat(marginTradeResData.daily_trading_fee) +
+      0.2 * parseFloat(perpResData.daily_trading_fee) +
+      parseFloat(marginTradeResData.daily_bounty_fee_to_protocol) +
+      parseFloat(perpResData.daily_bounty_fee_to_protocol);
 
     // total
     const totalFees =
@@ -112,13 +119,19 @@ const fetch = (chain: Chain) => {
       totalBountyFeeToLiquidator +
       totalBountyFeeToProtocol +
       totalOtfFee;
+
     const totalSupplySideRevenue =
-      0.1 * totalInterestPaid +
-      0.8 * totalTradingFee +
-      totalBountyFeeToProtocol +
-      totalOtfFee;
+      0.9 * parseFloat(marginTradeResData.total_interest_paid) +
+      0.2 * parseFloat(marginTradeResData.total_trading_fee) +
+      0.8 * parseFloat(perpResData.total_trading_fee) +
+      parseFloat(perpResData.total_otf_fee);
+
     const totalProtocolRevenue =
-      0.9 * totalInterestPaid + 0.2 * totalTradingFee;
+      0.1 * parseFloat(marginTradeResData.total_interest_paid) +
+      0.8 * parseFloat(marginTradeResData.total_trading_fee) +
+      0.2 * parseFloat(perpResData.total_trading_fee) +
+      parseFloat(marginTradeResData.total_bounty_fee_to_protocol) +
+      parseFloat(perpResData.total_bounty_fee_to_protocol);
 
     return {
       timestamp,
@@ -138,7 +151,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1701907200,
+      start: 1698796800,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
