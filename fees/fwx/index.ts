@@ -151,7 +151,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1701907200,
+      start: 1698796800,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
