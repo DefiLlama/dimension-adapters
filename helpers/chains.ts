@@ -1,6 +1,7 @@
 // Use
 export enum CHAIN {
   ARBITRUM = "arbitrum",
+  ASSETCHAIN = "assetchain",
   AVAX = "avax",
   BLAST = "blast",
   BAHAMUT = "ftn",
