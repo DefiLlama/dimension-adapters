@@ -16,7 +16,6 @@ const methodology = {
 }
 
 const fetchApi = async (startTime: number, endTime: number) => {
-  console.log(startTime, endTime)
   const rs = await fetchURL(`${FETCH_URL}?startTime=${startTime}&endTime=${endTime}`)
   const data: VolumeType[] = rs?.data ?? []
 
