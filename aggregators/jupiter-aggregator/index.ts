@@ -20,7 +20,6 @@ const adapter: any = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: (_t: any, _tt: any, options: FetchOptions) => fetch(options),
-      runAtCurrTime: true,
       start: 1681599600,
       meta: {
         methodology: {
