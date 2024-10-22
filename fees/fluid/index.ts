@@ -175,7 +175,12 @@ const vaultResolver = async (api: sdk.ChainApi) => {
         abi = abis.vaultResolver_before_19992222;
         break;
       }
-      address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
+      if (block < 20983000) {
+        address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
+        break;
+      }
+      // above VaultResolver for T1 type vaults only
+      address = "0x6922b85D6a7077BE56C0Ae8Cab97Ba3dc4d2E7fA"; // VaultT1Resolver compatibility for all vault types
       break;
     case CHAIN.ARBITRUM:
       address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
