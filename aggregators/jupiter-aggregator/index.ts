@@ -3,10 +3,9 @@ import { FetchOptions } from "../../adapters/types";
 import { queryDune } from "../../helpers/dune";
 
 const fetch = async (options: FetchOptions) => {
-  const start = options.startOfDay;
   const data = await queryDune("4187430", {
-    start: start,
-    end: start + 24 * 60 * 60,
+    start: options.startTimestamp,
+    end: options.endTimestamp,
   });
   const chainData = data[0];
   if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
@@ -17,9 +16,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: any = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: (_t: any, _tt: any, options: FetchOptions) => fetch(options),
+      fetch,
       start: 1681599600,
       meta: {
         methodology: {
@@ -31,7 +31,6 @@ const adapter: any = {
       },
     },
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;
