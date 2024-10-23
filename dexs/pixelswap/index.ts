@@ -13,9 +13,10 @@ const fetch = async (options: FetchOptions) => {
     const swapVolume = res.data.pairs;
     const depositWithdraw = res.data.tokens;
     let dailyVolumeResult = 0;
+
     swapVolume.forEach(pair => {
         if (pair.volumeInRange != 0) { 
-            dailyVolumeResult += Number(pair.volumeInRange / (Math.pow(10, Number(pair.token1.decimals))) * pair.token1.usdPrice);
+            dailyVolumeResult += Number(pair.volumeInRange / (Math.pow(10, Number(pair.pairDetails.token1.decimals))) * pair.pairDetails.token1.usdPrice);
         }
     })
     depositWithdraw.forEach(token => {
