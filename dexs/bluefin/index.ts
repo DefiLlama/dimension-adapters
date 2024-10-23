@@ -7,7 +7,7 @@ const URL_CONFIG = {
 }
 
 const PRODUCT_CONFIG = {
-  "sui": ["ETH-PERP", "BTC-PERP"],
+  "sui": ["ETH-PERP", "BTC-PERP", "SUI-PERP", "SOL-PERP", "APT-PERP", "AVAX-PERP", "SEI-PERP", "TIA-PERP", "ARB-PERP", "POL-PERP"],
 }
 
 interface Volume {
