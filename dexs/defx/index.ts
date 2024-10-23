@@ -27,7 +27,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "defx": {
+    [CHAIN.ARBITRUM]: {
       fetch,
       start: 1727780831,
       runAtCurrTime: true
