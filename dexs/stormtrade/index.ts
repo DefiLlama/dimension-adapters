@@ -1,8 +1,6 @@
 import { time } from 'console';
 import { CHAIN } from '../../helpers/chains'
-import { postURL } from '../../utils/fetchURL'
-
-const GRAPHQL_ENDPOINT = 'https://api5.storm.tg/graphql';
+import fetchURL from '../../utils/fetchURL'
 
 export default {
     adapter: {
@@ -16,18 +14,14 @@ export default {
                 },
             },
             fetch: async (timestamp: number) => {
-                const response = (await postURL(GRAPHQL_ENDPOINT, {
-                    query: `
-                    query VolumeDaily  {
-                        marketInfo {
-                          exchangedTradeVolume
-                        }
-                      }
-                      `
-                }));
+                const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${timestamp}`)
+
+                if (!response) {
+                    throw new Error('Error during API call')
+                }
 
                 return {
-                    dailyVolume: response.data.marketInfo.exchangedTradeVolume / 1e9,
+                    dailyVolume: parseInt(response.exchangedDailyTradingVolume) / 1e9,
                     timestamp: new Date().getTime() / 1000
                 }
             },
