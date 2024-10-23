@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDune } from "../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
@@ -26,7 +26,7 @@ interface IStats {
   gns_stakers: number;
 }
 
-const fetch = async (timestamp: number, _, { chain }): Promise<FetchResultFees> => {
+const fetch = async (timestamp: number, _: ChainBlocks, { chain }: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = await queryDune("4192058"); // dune.gains.result_g_trade_stats_defillama
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
