@@ -1,21 +1,21 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IStats {
+  unix_ts: number;
   day: string;
   blockchain: string;
   daily_volume: number;
 }
 
-const fetch: any = async (timestamp: number, _, { chain }): Promise<FetchResultVolume> => {
-  const stats: IStats[] = await queryDune("4192058"); // dune.gains.result_g_trade_stats_defillama
-
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-
-  const chainStat = stats.find((stat) => stat.day.split(" ")[0] === dateString && stat.blockchain === chain);
+const fetch: any = async (
+  timestamp: number,
+  _: ChainBlocks,
+  { chain, startOfDay, toTimestamp }: FetchOptions
+): Promise<FetchResultVolume> => {
+  const stats: IStats[] = await queryDune("4192496", { start: startOfDay, end: toTimestamp });
+  const chainStat = stats.find((stat) => stat.unix_ts === startOfDay && stat.blockchain === chain);
 
   return { timestamp, dailyVolume: chainStat?.daily_volume || 0 };
 };
