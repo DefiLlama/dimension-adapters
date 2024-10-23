@@ -9,13 +9,28 @@ interface IStats {
   daily_volume: number;
 }
 
+const requests: any = {}
+
+
+export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  const start = options.startTimestamp;
+  const end = options.endTimestamp;
+  const key = `${url}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune("4192496", {
+      start: start,
+      end: end,
+    })
+  return requests[key]
+}
+
 const fetch: any = async (
   timestamp: number,
   _: ChainBlocks,
-  { chain, startOfDay, toTimestamp }: FetchOptions
+  options: FetchOptions
 ): Promise<FetchResultVolume> => {
-  const stats: IStats[] = await queryDune("4192496", { start: startOfDay, end: toTimestamp });
-  const chainStat = stats.find((stat) => stat.unix_ts === startOfDay && stat.blockchain === chain);
+  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+  const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
 
   return { timestamp, dailyVolume: chainStat?.daily_volume || 0 };
 };
@@ -26,6 +41,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: { fetch, start: 1684972800 },
     [CHAIN.BASE]: { fetch, start: 1727351131 },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

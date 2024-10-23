@@ -25,10 +25,23 @@ interface IStats {
   // GNS staking
   gns_stakers: number;
 }
+const requests: any = {}
 
-const fetch = async (timestamp: number, _: ChainBlocks, { chain, startOfDay, toTimestamp }: FetchOptions): Promise<FetchResultFees> => {
-  const stats: IStats[] = await queryDune("4192496", { start: startOfDay, end: toTimestamp });
-  const chainStat = stats.find((stat) => stat.unix_ts === startOfDay && stat.blockchain === chain);
+export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  const start = options.startTimestamp;
+  const end = options.endTimestamp;
+  const key = `${url}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune("4192496", {
+      start: start,
+      end: end,
+    })
+  return requests[key]
+}
+
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+  const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
   const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, totalFees] = chainStat
     ? [
         chainStat.all_fees,
@@ -64,6 +77,7 @@ const adapter: Adapter = {
       start: 1727351131,
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
