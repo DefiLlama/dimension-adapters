@@ -1,33 +1,31 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
-
-
-interface IFees {
-  block_date: string;
-  total_fees: number;
-}
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
-        const next = startOfDay + 86400;
-        const _dailyFees: IFees = (await queryDune('3277066', { endTime: next, }))[0]
+      fetch: async ({ createBalances, startTimestamp, endTimestamp, }: FetchOptions) => {
 
         const dailyFees = createBalances()
-        dailyFees.addCGToken('solana', _dailyFees.total_fees)
+
+        const query = `
+          SELECT SUM(fee) as value
+          FROM solana.raw.transactions
+          WHERE block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${startTimestamp}) AND TO_TIMESTAMP_NTZ(${endTimestamp})
+          `
+        const res = await queryAllium(query)
+        dailyFees.add('So11111111111111111111111111111111111111112', res[0].value)
         const dailyRevenue = dailyFees.clone(0.5)
 
         return {
-          timestamp,
           dailyFees: dailyFees,
           dailyRevenue: dailyRevenue,
           dailyHoldersRevenue: dailyRevenue,
         };
       },
       start: 1610841600,
-      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,

@@ -1,14 +1,10 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { addTokensReceived } from "../../helpers/token";
-import { httpGet } from "../../utils/fetchURL";
-import { gql, request } from "graphql-request";
-import { getPrices } from "../../utils/prices";
-import { BigNumber } from "bignumber.js";
+import { addGasTokensReceived, addTokensReceived } from "../../helpers/token";
+import { request } from "graphql-request";
 import { Balances } from "@defillama/sdk";
-import * as sdk from "@defillama/sdk";
+import { getConfig } from "../../helpers/cache";
 const feesConfig =
   "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/main/solv-fees.json";
 const graphUrl =
@@ -47,13 +43,11 @@ const fetch: FetchV2 = async (options) => {
         deployedAt: number;
       };
     };
-  } = await httpGet(feesConfig);
+  } = await getConfig('solv-fi/fees', feesConfig);
 
-  if (!contracts[options.chain]) {
-    return {
-      timestamp: new Date().getTime(),
-    };
-  }
+  if (!contracts[options.chain])
+    return {}
+
 
   const dailyFees = options.createBalances();
   const protocolFees = await protocol(options, contracts);
@@ -77,13 +71,11 @@ async function protocol(
   if (!contracts[options.chain]["protocolFees"]) {
     return options.createBalances();
   }
-  const dailyFees = await addTokensReceived({
+  return addTokensReceived({
     options,
     targets: contracts[options.chain]["protocolFees"].address,
     tokens: contracts[options.chain]["protocolFees"].token,
   });
-
-  return dailyFees;
 }
 
 async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
@@ -97,8 +89,8 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
   );
   const shareConcretes = await concrete(pools, options);
 
-  const fromTimestamp = getTimestampAtStartOfDayUTC(options.fromTimestamp);
-  const toTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+  const fromTimestamp = options.fromTimestamp * 1000;
+  const toTimestamp = options.toTimestamp * 1000;
 
   const yesterdayNavs = await options.fromApi.multiCall({
     abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
@@ -155,12 +147,9 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
       continue;
     }
 
-    const token = `${options.chain}:${poolBaseInfo.currency}`;
     // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolTokenDecimals)
-    const poolFee = BigNumber(shareTotalValue)
-      .dividedBy(BigNumber(10).pow(18))
-      .times(BigNumber(poolNavIncrease));
-    dailyFees.addBalances({ [token]: poolFee.toNumber() });
+    const poolFee = shareTotalValue * poolNavIncrease / 1e18
+    dailyFees.add(poolBaseInfo.currency, poolFee)
   }
 
   return dailyFees;
@@ -169,11 +158,11 @@ async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
 async function getGraphData(poolId: string[], chain: Chain) {
   const graphUrlList: {
     [chain: Chain]: string;
-  } = await httpGet(graphUrl);
-  const query = gql`{
+  } = await getConfig(`solv-fi/graph`, graphUrl);
+  const query = `{
               poolOrderInfos(first: 1000  where:{poolId_in: ${JSON.stringify(
-                poolId
-              )}}) {
+    poolId
+  )}}) {
                 marketContractAddress
                 contractAddress
                 navOracle
@@ -213,10 +202,6 @@ async function concrete(slots: any[], options: FetchOptions): Promise<any> {
   return concretes;
 }
 
-interface IBalanceChange {
-  block: number;
-  amount: BigNumber;
-}
 async function nativeToken(
   options: FetchOptions,
   contracts: any
@@ -224,109 +209,8 @@ async function nativeToken(
   if (!contracts[options.chain]["nativeTokenFees"]) {
     return options.createBalances();
   }
-
-  const fromBlockHeight = await options.getFromBlock();
-  const toBlockHeight = await options.getToBlock();
-
-  const feeAmount = await getNativeTokenDepositAmount(
-    contracts[options.chain]["nativeTokenFees"].address,
-    fromBlockHeight,
-    toBlockHeight,
-    options.chain
-  );
-  const fees = options.createBalances();
-  fees.addGasToken(feeAmount.toString(10));
-  return fees;
-}
-
-async function getNativeTokenDepositAmount(
-  targetAddress: string,
-  fromBlock: number,
-  toBlock: number,
-  chain: string
-): Promise<BigNumber> {
-  const balanceChanges = await foundNativeTokenTransfer(
-    targetAddress,
-    fromBlock,
-    toBlock,
-    chain
-  );
-  let balance = BigNumber(0);
-  for (const balChangeInfo of balanceChanges) {
-    if (balChangeInfo.amount.isPositive()) {
-      balance = balance.plus(balChangeInfo.amount);
-    }
-  }
-  return balance;
-}
-
-async function foundNativeTokenTransfer(
-  targetAddress: string,
-  fromBlock: number,
-  toBlock: number,
-  chain: string
-): Promise<IBalanceChange[]> {
-  const logPrefix = `${fromBlock}_${toBlock}`;
-
-  if (fromBlock > toBlock) {
-    throw new Error(`${fromBlock} greater than ${toBlock}`);
-  }
-
-  if (fromBlock === toBlock) {
-    const [preAmount, afterAmount] = await Promise.all([
-      getBalance(targetAddress, fromBlock - 1, chain),
-      getBalance(targetAddress, fromBlock, chain),
-    ]);
-    if (preAmount.isEqualTo(afterAmount)) {
-      return [];
-    } else {
-      return [{ block: fromBlock, amount: afterAmount.minus(preAmount) }];
-    }
-  }
-  const [fromAmount, toAmount] = await Promise.all([
-    getBalance(targetAddress, fromBlock - 1, chain),
-    getBalance(targetAddress, toBlock, chain),
-  ]);
-  if (!toAmount.isEqualTo(fromAmount)) {
-    const middleBlock = Math.floor((fromBlock + toBlock) / 2);
-    const leftResults = await foundNativeTokenTransfer(
-      targetAddress,
-      fromBlock,
-      middleBlock,
-      chain
-    );
-    const rightResults = await foundNativeTokenTransfer(
-      targetAddress,
-      middleBlock + 1,
-      toBlock,
-      chain
-    );
-
-    return [leftResults, rightResults].flat();
-  } else {
-    return [];
-  }
-}
-
-async function getBalance(
-  address: string,
-  block: number,
-  chain: string
-): Promise<BigNumber> {
-  let retryCount = 0;
-  while (retryCount < 3) {
-    try {
-      const provider = sdk.getProvider(chain, true);
-      const amount = (await provider.getBalance(
-        address,
-        block
-      )) as any as string;
-      return BigNumber(amount, 10);
-    } catch (err) {
-      retryCount++;
-    }
-  }
-  throw new Error(`retry max ${block}`);
+  const multisig = contracts[options.chain]["nativeTokenFees"].address;
+  return  addGasTokensReceived({ multisig, options })
 }
 
 const adapter: SimpleAdapter = { adapter: {}, version: 2 };

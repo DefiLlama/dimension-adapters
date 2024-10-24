@@ -1,33 +1,17 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
-    [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
+  [CHAIN.TELOS]: "https://api.archly.fi/subgraphs/name/archly/amm",
 };
-
-const graphFetch = getGraphDimensions2({
-    graphUrls: endpoints,
-    dailyVolume: {
-        factory: "dayData"
-    },
-    feesPercent: {
-        type: 'volume',
-        Fees: 0.3,
-        UserFees: 0.3,
-        HoldersRevenue: 0.3,
-        Revenue: 0.3,
-        SupplySideRevenue: 0,
-        ProtocolRevenue: 0,
-    }
-});
 
 const adapter: Adapter = {
     version: 2,
     adapter: {
         [CHAIN.TELOS]: {
-            fetch: graphFetch(CHAIN.TELOS),
+            fetch: getUniV2LogAdapter({ factory: '0x39fdd4Fec9b41e9AcD339a7cf75250108D32906c' }),
             start: getStartTimestamp({
                 endpoints: endpoints,
                 chain: CHAIN.TELOS,

@@ -1,51 +1,16 @@
-import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { queryDune } from "../../helpers/dune";
-import BigNumber from "bignumber.js";
+import { addTokensReceived } from "../../helpers/token";
 
-const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'
-
-interface CaiFees {
-  dailyProtocolRevenue: Balances;
-  totalProtocolRevenue: Balances;
-  dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
-}
-
-interface DuneResponse {
-  fees: string;
-  cum_fees: string;
-  date: string;
-}
-
-export async function caiFees(options: FetchOptions): Promise<CaiFees> {
-  const dailyProtocolRevenue = options.createBalances();
-  const totalProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const totalHoldersRevenue = options.createBalances();
-
-  try {
-    const response = (await queryDune("3944152"));
-
-    const result = response.filter((x: DuneResponse) => {
-      const recordTimestamp = Date.parse(x.date) / 1000
-      return recordTimestamp >= options.fromTimestamp && recordTimestamp < options.toTimestamp
-    })
-
-    dailyProtocolRevenue.addToken(usdcToken, new BigNumber(result[0].fees).multipliedBy(0.5).multipliedBy(1e6).toFixed(0))
-    totalProtocolRevenue.addToken(usdcToken, new BigNumber(result[0].cum_fees).multipliedBy(0.5).multipliedBy(1e6).toFixed(0))
-
-    dailyHoldersRevenue.addToken(usdcToken, new BigNumber(result[0].fees).multipliedBy(0.5).multipliedBy(1e6).toFixed(0))
-    totalHoldersRevenue.addToken(usdcToken, new BigNumber(result[0].cum_fees).multipliedBy(0.5).multipliedBy(1e6).toFixed(0))
-  } catch (e) {
-    console.error(e);
-  }
+export async function caiFees(options: FetchOptions) {
+  const res = await addTokensReceived({
+    options, 
+    targets: ['0x6D9F100ca14384262Ca6afd8ef7ceC265a113113', '0x6d825cE7F220c6cc03fE156F28BE6318e6546Ca8', ],
+    tokens: ['0x48f88A3fE843ccb0b5003e70B4192c1d7448bEf0'],
+  })
 
   return {
-    dailyProtocolRevenue,
-    totalProtocolRevenue,
-    dailyHoldersRevenue,
-    totalHoldersRevenue
+    dailyProtocolRevenue: res.clone(0.5),
+    dailyHoldersRevenue: res.clone(0.5),
   }
 }
 

@@ -48,18 +48,11 @@ const pools: TPool = {
 }
 
 const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyVolume = options.createBalances();
-  const lpTokens = pools[options.chain]
-  try {
+    const dailyVolume = options.createBalances();
+    const lpTokens = pools[options.chain]
     const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
     const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
-
-    const logs: any[][] = (await Promise.all(lpTokens.map((lp: string) => options.getLogs({
-      target: lp,
-      eventAbi: event_swap,
-      flatten: false
-    }))))
-
+    const logs: any[][] = await options.getLogs({ targets: lpTokens, eventAbi: event_swap, flatten: false });
     logs.map((log: any, index: number) => {
       const token0 = tokens0[index];
       const token1 = tokens1[index];
@@ -70,12 +63,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
         dailyVolume.add(token1, amountInX);
       })
     });
-    console.info(`joe-v2.1: ${options.chain} done`)
     return { dailyVolume };
-  } catch (err: any) {
-    console.error(`joe-v2.1: ${options.chain} error ${err}`)
-    return { dailyVolume };
-  }
 }
 
 const adapter: SimpleAdapter = {
