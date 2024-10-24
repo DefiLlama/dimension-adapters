@@ -32,6 +32,9 @@ const chains: {
   [CHAIN.CORE]: {
     deployedAt: 1726531200,
   },
+  [CHAIN.SCROLL]: {
+    deployedAt: 1726531200,
+  },
 };
 
 const fetch: FetchV2 = async (options) => {
@@ -58,11 +61,56 @@ const fetch: FetchV2 = async (options) => {
 
   const nativeTokenFees = await nativeToken(options, contracts);
   dailyFees.addBalances(nativeTokenFees);
+
+  const dailyRevenue = options.createBalances();
+  const receivedRevenues = await revenues(options, contracts);
+  dailyRevenue.addBalances(receivedRevenues);
+
+  dailyRevenue.addBalances(dailyFees.clone(yields));
+  
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(yields),
+    dailyRevenue,
   };
 };
+
+
+async function revenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const dailyRevenues = options.createBalances();
+
+  const receivedRevenue = await receivedRevenues(options, contracts);
+  dailyRevenues.addBalances(receivedRevenue);
+
+  const nativeTokenRevenue = await nativeTokenRevenues(options, contracts);
+  dailyRevenues.addBalances(nativeTokenRevenue);
+
+  return dailyRevenues;
+}
+
+async function receivedRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const receivedRevenueConfig = contracts[options.chain]?.receivedRevenue;
+  if (!receivedRevenueConfig) {
+      return options.createBalances();
+  }
+
+  return addTokensReceived({
+      options,
+      targets: receivedRevenueConfig.address,
+      tokens: receivedRevenueConfig.token,
+  });
+}
+
+async function nativeTokenRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const nativeTokenConfig = contracts[options.chain]?.nativeTokenRevenue;
+  if (!nativeTokenConfig) {
+      return options.createBalances();
+  }
+
+  return addGasTokensReceived({
+      multisig: nativeTokenConfig.address,
+      options,
+  });
+}
 
 async function protocol(
   options: FetchOptions,
@@ -210,7 +258,7 @@ async function nativeToken(
     return options.createBalances();
   }
   const multisig = contracts[options.chain]["nativeTokenFees"].address;
-  return  addGasTokensReceived({ multisig, options })
+  return addGasTokensReceived({ multisig, options })
 }
 
 const adapter: SimpleAdapter = { adapter: {}, version: 2 };
