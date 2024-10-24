@@ -2,7 +2,9 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
+const dateToTs = (date: string) => new Date(date).getTime() / 1000
 const api = "https://api.deltatrade.ai/api/home/data";
+
 
 const fetch = async () => {
   const timestamp = getUniqStartOfTodayTimestamp();
@@ -22,6 +24,14 @@ const adapter: SimpleAdapter = {
       fetch,
       start: 0,
       runAtCurrTime: true,
+    },
+    solana: {
+      fetch,
+      runAtCurrTime: true,
+      start: async()=>{
+        const data = await httpGet(api)
+        return dateToTs(data[0].date)
+      },
     },
   },
 };
