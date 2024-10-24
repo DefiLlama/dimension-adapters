@@ -1,4 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {
   DEFAULT_DAILY_VOLUME_FACTORY,
@@ -10,12 +10,9 @@ import {
 
 const endpoints = {
   [CHAIN.BLAST]:
-  "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v2-subgraph/0.0.1/gn",
+    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v2-subgraph/0.0.1/gn",
 };
-const endpointsAlgebraV3 = {
-  [CHAIN.BLAST]:
-    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v3-dex/ce3738b/gn",
-};
+
 
 const graphs = getChainVolume({
   graphUrls: endpoints,
@@ -30,36 +27,14 @@ const graphs = getChainVolume({
   },
   hasDailyVolume: true,
 });
-const graphsAlgebraV3 = getChainVolume({
-  graphUrls: endpointsAlgebraV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "algebraDayData",
-    field: "volumeUSD",
-    dateField: "date",
-  },
-});
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 1,
-  breakdown: {
-    v2: {
-      [CHAIN.BLAST]: {
-        fetch: graphs(CHAIN.BLAST),
-        start: 1596021,
-      },
+  adapter: {
+    [CHAIN.BLAST]: {
+      fetch: graphs(CHAIN.BLAST),
+      start: 1596021,
     },
-    v3: {
-      [CHAIN.BLAST]: {
-        fetch: graphsAlgebraV3(CHAIN.BLAST),
-        start: 1596025,
-      },
-     
-    },
-   
   },
 };
 
