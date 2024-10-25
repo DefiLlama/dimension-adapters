@@ -1,6 +1,5 @@
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
 
 const contractAddress = '0xFC00FACE00000000000000000000000000000000';
 
@@ -19,12 +18,6 @@ async function getFees24Hr(api: any) {
   return epochData.reduce((acc: any, data: any) => acc + +data.epochFee, 0)
 }
 
-export async function getPrice() {
-  const url = 'https://price.assetchain.org/api/v1/price';
-  const { data: { price }} = await httpGet(url)
-  return price
-}
-
 const adapter: Adapter = {
   version: 2,
   adapter: {
@@ -32,8 +25,7 @@ const adapter: Adapter = {
       fetch: async ({ api, createBalances }: FetchOptions) => {
         const feesInRwa = await getFees24Hr(api)
         const dailyFees = createBalances()
-        const price = await getPrice()
-        dailyFees.addUSDValue(price * feesInRwa/1e18)
+        dailyFees.addCGToken('xend-finance', feesInRwa/1e18)
         return { dailyFees, dailyRevenue: dailyFees }
       },
       start: 1598671449,
