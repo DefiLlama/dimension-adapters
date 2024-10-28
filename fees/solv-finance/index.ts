@@ -1,7 +1,7 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
-import { addGasTokensReceived, addTokensReceived } from "../../helpers/token";
+import { addGasTokensReceived, addTokensReceived, getSolanaReceived } from "../../helpers/token";
 import { request } from "graphql-request";
 import { Balances } from "@defillama/sdk";
 import { getConfig } from "../../helpers/cache";
@@ -53,27 +53,20 @@ const fetch: FetchV2 = async (options) => {
 
 
   const dailyFees = options.createBalances();
-  const protocolFees = await protocol(options, contracts);
-  dailyFees.addBalances(protocolFees);
-
-  const poolFees = await pool(options, contracts);
-  dailyFees.addBalances(poolFees);
-
-  const nativeTokenFees = await nativeToken(options, contracts);
-  dailyFees.addBalances(nativeTokenFees);
+  const feeRevenue = await feeRevenues(options, contracts);
+  dailyFees.addBalances(feeRevenue);
 
   const dailyRevenue = options.createBalances();
   const receivedRevenues = await revenues(options, contracts);
   dailyRevenue.addBalances(receivedRevenues);
 
   dailyRevenue.addBalances(dailyFees.clone(yields));
-  
+
   return {
     dailyFees,
     dailyRevenue,
   };
 };
-
 
 async function revenues(options: FetchOptions, contracts: any): Promise<Balances> {
   const dailyRevenues = options.createBalances();
@@ -84,32 +77,63 @@ async function revenues(options: FetchOptions, contracts: any): Promise<Balances
   const nativeTokenRevenue = await nativeTokenRevenues(options, contracts);
   dailyRevenues.addBalances(nativeTokenRevenue);
 
+  const solanaRevenue = await solanaRevenues(options, contracts);
+  dailyRevenues.addBalances(solanaRevenue);
+
   return dailyRevenues;
 }
 
 async function receivedRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
   const receivedRevenueConfig = contracts[options.chain]?.receivedRevenue;
   if (!receivedRevenueConfig) {
-      return options.createBalances();
+    return options.createBalances();
   }
 
   return addTokensReceived({
-      options,
-      targets: receivedRevenueConfig.address,
-      tokens: receivedRevenueConfig.token,
+    options,
+    targets: receivedRevenueConfig.address,
+    tokens: receivedRevenueConfig.token,
   });
 }
 
 async function nativeTokenRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
   const nativeTokenConfig = contracts[options.chain]?.nativeTokenRevenue;
   if (!nativeTokenConfig) {
-      return options.createBalances();
+    return options.createBalances();
   }
 
   return addGasTokensReceived({
-      multisig: nativeTokenConfig.address,
-      options,
+    multisig: nativeTokenConfig.address,
+    options,
   });
+}
+
+async function solanaRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const solanaRevenueConfig = contracts[options.chain]?.solanaRevenue;
+  if (!solanaRevenueConfig) {
+    return options.createBalances();
+  }
+
+  return await getSolanaReceived({ options, targets: solanaRevenueConfig });
+}
+
+
+async function feeRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const dailyFees = options.createBalances();
+
+  const protocolFees = await protocol(options, contracts);
+  dailyFees.addBalances(protocolFees);
+
+  const poolFees = await pool(options, contracts);
+  dailyFees.addBalances(poolFees);
+
+  const nativeTokenFees = await nativeToken(options, contracts);
+  dailyFees.addBalances(nativeTokenFees);
+
+  const solanaFees = await solanas(options, contracts);
+  dailyFees.addBalances(solanaFees);
+
+  return dailyFees;
 }
 
 async function protocol(
@@ -259,6 +283,15 @@ async function nativeToken(
   }
   const multisig = contracts[options.chain]["nativeTokenFees"].address;
   return addGasTokensReceived({ multisig, options })
+}
+
+async function solanas(options: FetchOptions, contracts: any): Promise<Balances> {
+  const solanaFeesConfig = contracts[options.chain]?.solanaFees;
+  if (!solanaFeesConfig) {
+    return options.createBalances();
+  }
+
+  return await getSolanaReceived({ options, targets: solanaFeesConfig });
 }
 
 const adapter: SimpleAdapter = { adapter: {}, version: 2 };
