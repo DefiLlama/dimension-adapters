@@ -15,6 +15,11 @@ const CHAINS: TChain = {
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.BASE]: 8453,
+  [CHAIN.BITCOIN]: 0,
+  [CHAIN.BITCOIN_CASH]: 0,
+  [CHAIN.LITECOIN]: 0,
+  [CHAIN.DOGECHAIN]: 0,
+  [CHAIN.COSMOS]: 0,
 };
 
 interface VolumeReport {
@@ -34,8 +39,14 @@ function isVolumeReport(data: any): data is VolumeReport {
 
 const fetch = (chain: string) =>
     async (_: number): Promise<FetchResult> => {
-      const chainCode = CHAINS[chain];
       const unixTimestamp = getUniqStartOfTodayTimestamp();
+      const chainCode = CHAINS[chain];
+      if (!chainCode) {
+        return {
+          dailyVolume: 0,
+          timestamp: unixTimestamp,
+        }; 
+      }
       const url = `https://api.zcx.com/private/integrators/report/volumeAndCount/24h`;
       const data = (await httpGet(url, { headers: {
         'User-Agent': 'Mozilla/5.0+(compatible; unizen; exchange)',
