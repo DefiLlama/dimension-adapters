@@ -8,37 +8,57 @@ interface IProducts {
   margined_products: number[];
 }
 
-const gatewayBaseUrl = "https://gateway.prod.vertexprotocol.com/v1";
-const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
+const gatewayArbitrumUrl = "https://gateway.prod.vertexprotocol.com/v1";
+const archiveArbitrumUrl = "https://archive.prod.vertexprotocol.com/v1";
 
-const gatewayMatleBaseUrl = "https://gateway.mantle-prod.vertexprotocol.com/v1";
-const archiveMatleBaseUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
+const gatewayMantleUrl = "https://gateway.mantle-prod.vertexprotocol.com/v1";
+const archiveMantleUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
+
+const gatewaySeiUrl = "https://gateway.sei-prod.vertexprotocol.com/v1";
+const archiveSeiUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
+
+const gatewayBaseUrl = "https://gateway.base-prod.vertexprotocol.com/v1";
+const archiveBaseUrl = "https://archive.base-prod.vertexprotocol.com/v1";
 
 type TURL = {
   [s: string]: {
     gateway: string;
     archive: string;
-  }
-}
+  };
+};
 const url: TURL = {
   [CHAIN.ARBITRUM]: {
+    gateway: gatewayArbitrumUrl,
+    archive: archiveArbitrumUrl,
+  },
+  [CHAIN.MANTLE]: {
+    gateway: gatewayMantleUrl,
+    archive: archiveMantleUrl,
+  },
+  [CHAIN.BASE]: {
     gateway: gatewayBaseUrl,
     archive: archiveBaseUrl,
   },
-  [CHAIN.MANTLE]: {
-    gateway: gatewayMatleBaseUrl,
-    archive: archiveMatleBaseUrl,
-  }
-}
+  [CHAIN.SEI]: {
+    gateway: gatewaySeiUrl,
+    archive: archiveSeiUrl,
+  },
+};
 
-const fetchValidSymbols = async (fetchOptions: FetchOptions): Promise<number[]> => {
-  const symbols = (await httpGet(`${url[fetchOptions.chain].gateway}/symbols`));
+const fetchValidSymbols = async (
+  fetchOptions: FetchOptions
+): Promise<number[]> => {
+  const symbols = await httpGet(`${url[fetchOptions.chain].gateway}/symbols`);
   return symbols.map((product: { product_id: number }) => product.product_id);
 };
 
-const fetchProducts = async (fetchOptions: FetchOptions): Promise<IProducts> => {
+const fetchProducts = async (
+  fetchOptions: FetchOptions
+): Promise<IProducts> => {
   const validSymbols = await fetchValidSymbols(fetchOptions);
-  const allProducts = (await httpGet(`${url[fetchOptions.chain].gateway}/query?type=all_products`)).data;
+  const allProducts = (
+    await httpGet(`${url[fetchOptions.chain].gateway}/query?type=all_products`)
+  ).data;
   return {
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
@@ -52,7 +72,11 @@ const fetchProducts = async (fetchOptions: FetchOptions): Promise<IProducts> => 
   };
 };
 
-const computeVolume = async (timestamp: number, productIds: number[], fetchOptions: FetchOptions) => {
+const computeVolume = async (
+  timestamp: number,
+  productIds: number[],
+  fetchOptions: FetchOptions
+) => {
   const snapshots = (
     await httpPost(url[fetchOptions.chain].archive, {
       market_snapshots: {
@@ -89,14 +113,23 @@ const computeVolume = async (timestamp: number, productIds: number[], fetchOptio
   };
 };
 
-const fetchSpots = async (timeStamp: number, _: any, fetchOptions: FetchOptions) => {
+const fetchSpots = async (
+  timeStamp: number,
+  _: any,
+  fetchOptions: FetchOptions
+) => {
   const spotProductIds = (await fetchProducts(fetchOptions)).spot_products;
   return await computeVolume(timeStamp, spotProductIds, fetchOptions);
 };
 
-const fetchPerps = async (timeStamp: number, _: any, fetchOptions: FetchOptions) => {
+const fetchPerps = async (
+  timeStamp: number,
+  _: any,
+  fetchOptions: FetchOptions
+) => {
   const perpProductIds = (await fetchProducts(fetchOptions)).perp_products;
-  const marginedProductIds = (await fetchProducts(fetchOptions)).margined_products;
+  const marginedProductIds = (await fetchProducts(fetchOptions))
+    .margined_products;
   return await computeVolume(
     timeStamp,
     perpProductIds.concat(marginedProductIds),
@@ -105,6 +138,8 @@ const fetchPerps = async (timeStamp: number, _: any, fetchOptions: FetchOptions)
 };
 
 const startTime = 1682514000;
+const seiStartTime = 1723547681;
+const baseStartTime = 1725476671;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -116,7 +151,15 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTLE]: {
         fetch: fetchSpots,
         start: startTime,
-      }
+      },
+      [CHAIN.SEI]: {
+        fetch: fetchSpots,
+        start: seiStartTime,
+      },
+      [CHAIN.BASE]: {
+        fetch: fetchSpots,
+        start: baseStartTime,
+      },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
@@ -126,7 +169,15 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTLE]: {
         fetch: fetchPerps,
         start: 1718841600,
-      }
+      },
+      [CHAIN.SEI]: {
+        fetch: fetchPerps,
+        start: seiStartTime,
+      },
+      [CHAIN.BASE]: {
+        fetch: fetchPerps,
+        start: baseStartTime,
+      },
     },
   },
 };

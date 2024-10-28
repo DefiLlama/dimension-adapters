@@ -69,10 +69,10 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp | number
-    fetch: Fetch|FetchV2;
+    start?: IStartTimestamp | number
+    fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch|FetchV2;
+    customBackfill?: Fetch | FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
@@ -172,10 +172,20 @@ export enum AdapterType {
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
   ROYALTIES = 'royalties',
-  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives'
+  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
+  BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
+
+export const whitelistedDimensionKeys = new Set([
+  'startTimestamp', 'chain', 'timestamp','block',
+
+  'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
+  'tokenIncentives',
+  'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+])
 
 // End of specific adaptors type
 

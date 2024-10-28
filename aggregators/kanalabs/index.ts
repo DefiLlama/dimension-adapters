@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
@@ -21,8 +20,8 @@ export enum KanaChainID {
   "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+const fetch = (chain: KanaChainID) => async (timestamp: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
@@ -33,8 +32,8 @@ const fetch = (chain: KanaChainID) => async (timestamp: number) => {
   };
 };
 
-const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${TRADE_URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
@@ -80,9 +79,9 @@ const adapter: SimpleAdapter = {
       start: startTimeBlock,
     },
     [CHAIN.APTOS]: {
-      fetch: async (timestamp: number) => {
-         const swap = await fetch(KanaChainID.aptos)(timestamp); 
-        const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
+      fetch: async (timestamp: number, _t: any, options: FetchOptions) => {
+        const swap = await fetch(KanaChainID.aptos)(options.startOfDay, _t, options)
+        const trade = await fetchDerivatives(KanaChainID.aptos)(options.startOfDay, _t, options);
         return {
           dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
           totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),

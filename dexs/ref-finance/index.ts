@@ -1,4 +1,4 @@
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -13,12 +13,16 @@ const adapter: SimpleAdapter = {
         const data = await httpGet(api)
         return dateToTs(data[0].date)
       },
-      fetch: async(ts)=>{
+      fetch: async(ts, _t: any, options: FetchOptions)=>{
         const data = await httpGet(api)
-        const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(ts * 1000))
+        const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
+        const dailyVolume = data.find((t:any)=> t.date.split('T')[0] === dateStr)?.volume
+        if (!dailyVolume || Number(dailyVolume) < 0 || Number((dailyVolume)) > 1_000_000_000) {
+          throw new Error(`Invalid daily volume: ${dailyVolume}`)
+        }
         return {
-          timestamp: cleanTimestamp,
-          dailyVolume: data.find((t:any)=>dateToTs(t.date) === cleanTimestamp)?.volume
+          timestamp: options.startOfDay ,
+          dailyVolume: dailyVolume
         }
       }
     }

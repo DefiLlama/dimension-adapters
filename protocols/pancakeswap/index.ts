@@ -1,8 +1,7 @@
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
@@ -10,7 +9,7 @@ import { getEnv } from "../../helpers/env";
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx'),
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3'),
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
@@ -20,13 +19,14 @@ const endpoints = {
 
 const stablesSwapEndpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
 }
 
 const v3Endpoint = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hv1GncLY5docZoGtXjo4kwbTvxm3MAhVZqBZE4sUT9eZ'),
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS'),
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest",
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve'),
   [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
@@ -34,9 +34,7 @@ const v3Endpoint = {
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.BSC]: {
@@ -45,9 +43,6 @@ const graphs = getGraphDimensions({
   },
   totalVolume: {
     factory: "pancakeFactories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -60,13 +55,10 @@ const graphs = getGraphDimensions({
   }
 });
 
-const graphsStableSwap = getGraphDimensions({
+const graphsStableSwap = getGraphDimensions2({
   graphUrls: stablesSwapEndpoints,
   totalVolume: {
     factory: "factories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -79,22 +71,13 @@ const graphsStableSwap = getGraphDimensions({
   }
 });
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
-
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD
   },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD"
   },
 });
 
@@ -110,6 +93,7 @@ const startTimes = {
 } as IJSON<number>
 
 const stableTimes = {
+  [CHAIN.ETHEREUM]: 1705363200,
   [CHAIN.BSC]: 1663718400,
   [CHAIN.ARBITRUM]: 1705363200
 } as IJSON<number>
@@ -162,9 +146,7 @@ const getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume: FetchV2 = async ({ endTimestamp: timestamp, createBalances }) => {
-  const fromTimestamp = timestamp - 86400;
-  const toTimestamp = timestamp;
+const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances }) => {
   const account_resource: any[] = (await getResources(account))
   const pools = account_resource.filter(e => e.type?.includes('swap::PairEventHolder'))
     .map((e: any) => {

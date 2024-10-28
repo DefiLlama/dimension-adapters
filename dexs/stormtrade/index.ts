@@ -1,6 +1,8 @@
+import { time } from 'console';
 import { CHAIN } from '../../helpers/chains'
-import fetchURL from '../../utils/fetchURL'
+import { postURL } from '../../utils/fetchURL'
 
+const GRAPHQL_ENDPOINT = 'https://api5.storm.tg/graphql';
 
 export default {
     adapter: {
@@ -10,15 +12,23 @@ export default {
             meta: {
                 methodology: {
                     DailyVolume: 'Leverage trading volume',
-                    DataSource: 'Data collected by the re:doubt team, available at https://beta.redoubt.online/tracker'
+                    DataSource: 'Data prepared by the project team by indexing blockchain data'
                 },
             },
-            fetch: async () => {
-                const response = await fetchURL('https://api.redoubt.online/dapps/v1/export/defi/storm')
+            fetch: async (timestamp: number) => {
+                const response = (await postURL(GRAPHQL_ENDPOINT, {
+                    query: `
+                    query VolumeDaily  {
+                        marketInfo {
+                          exchangedTradeVolume
+                        }
+                      }
+                      `
+                }));
 
                 return {
-                    dailyVolume: response.volume.toString(),
-                    timestamp: response.timestamp
+                    dailyVolume: response.data.marketInfo.exchangedTradeVolume / 1e9,
+                    timestamp: new Date().getTime() / 1000
                 }
             },
         },

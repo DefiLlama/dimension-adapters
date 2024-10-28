@@ -29,7 +29,7 @@ process.on('uncaughtException', handleError)
 checkArguments(process.argv)
 
 function getTimestamp30MinutesAgo() {
-  return Math.trunc(Date.now() / 1000) - 60 * 30
+  return Math.trunc(Date.now() / 1000) - 60 * 60 * 2.5
 }
 
 // Get path of module import
@@ -82,6 +82,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
       runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
+        isTest: true,
       }).then(res => ({ version, res }))
     ))
     allVolumes.forEach(({ version, res }) => {

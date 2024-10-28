@@ -4,7 +4,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
   DEFAULT_DAILY_VOLUME_FIELD,
   DEFAULT_TOTAL_VOLUME_FIELD,
-  getChainVolume,
+  getChainVolume2,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -20,15 +20,11 @@ export const endpoints = {
     sdk.graph.modifyEndpoint('HXeVedRK7VgogXwbK5Sc4mjyLkhBAS5akskRvbSYnkHU'),
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
 });
 

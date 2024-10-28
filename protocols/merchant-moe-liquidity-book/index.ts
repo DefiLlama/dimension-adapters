@@ -3,10 +3,6 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const endpointsV2 = {
-  [CHAIN.MANTLE]: "https://barn.merchantmoe.com/v1/lb/dex/analytics/mantle?startTime=1711929600&aggregateBy=daily"
-}
-
 interface IData {
   feesUsd: number;
   protocolFeesUsd: number;
@@ -16,6 +12,12 @@ interface IData {
 
 const graph = async (timestamp: number, _c: ChainBlocks, { chain, startOfDay }: FetchOptions): Promise<FetchResult> => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(startOfDay)
+
+  const queryTimestamp = dayTimestamp - 24 * 60 * 60 * 7 // 1 week 
+  const endpointsV2 = {
+    [CHAIN.MANTLE]: `https://barn.merchantmoe.com/v1/lb/dex/analytics/mantle?startTime=${queryTimestamp}&aggregateBy=daily`
+  }
+
   const historical: IData[] = (await httpGet(endpointsV2[chain]));
   const dailyFees = historical
     .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd || 0

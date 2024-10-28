@@ -1,43 +1,70 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
+
+const historicalVolumeEndpoint = "https://api.dexalot.com/api/stats/chaindailyvolumes"
 
 interface IVolumeall {
   volumeusd: string;
-  date: number;
+  date: string;
 }
 
-const address: any = {
-  [CHAIN.ARBITRUM]: "0x010224949cCa211Fb5dDfEDD28Dc8Bf9D2990368",
-  [CHAIN.AVAX]: "0xEed3c159F3A96aB8d41c8B9cA49EE1e5071A7cdD"
+const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
+
+const chainToEnv = (chain: CHAIN) => {
+  switch (chain) {
+    case CHAIN.AVAX:
+      return "production-multi-avax"
+    case CHAIN.ARBITRUM:
+      return "production-multi-arb"
+    case CHAIN.BASE:
+      return "production-multi-base"
+    default:
+      return "production-multi-subnet"
+  }
 }
 
-const event = "event SwapExecuted(uint256 indexed nonceAndMeta,address taker,address destTrader,uint256 destChainId,address srcAsset,address destAsset,uint256 srcAmount,uint256 destAmount)"
+const fetchFromChain = (chain: CHAIN) => {
+  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
 
-const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const logs = await options.getLogs({
-    target: address[options.chain],
-    eventAbi: event
-  })
-  logs.forEach(log => {
-    dailyVolume.add(log.destAsset, log.destAmount)
-  })
-  return { dailyVolume }
+  return async (_a:any, _t: any, options: FetchOptions): Promise<FetchResult> => {
+    const dayTimestamp = new Date(options.startOfDay * 1000)
+    const dateStr = dayTimestamp.toISOString().split('T')[0]
+    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
+
+    const totalVolume = historicalVolume
+      .filter(volItem => new Date(volItem.date) <= dayTimestamp)
+      .reduce((acc, { volumeusd }) => acc + Number(volumeusd), 0)
+    const dailyVolume = historicalVolume
+      .find(dayItem => dayItem.date.split('T')[0] === dateStr)?.volumeusd
+
+    return {
+      timestamp: options.startOfDay,
+      totalVolume: `${totalVolume}`,
+      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    };
+  }
 };
 
+const getStartTimestamp = (chain: CHAIN) => {
+  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
+  return async () => {
+    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
+    return (new Date(historicalVolume[0].date).getTime()) / 1000
+  }
+}
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.AVAX]: {
-      fetch: fetch,
-      start: 0,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: 0,
-    },
-  },
+  version: 1,
+  adapter: supportedChains.reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: fetchFromChain(chain),
+        start: getStartTimestamp(chain),
+      }
+    }
+  }, {} as BaseAdapter),
 };
 
 export default adapter;

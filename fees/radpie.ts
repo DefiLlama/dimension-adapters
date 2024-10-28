@@ -29,8 +29,7 @@ const address_rdnt: TAddress = {
     }
 
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock,api }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs, api }: FetchOptions) => {
     const dailyFees = createBalances();
     let poolLength = await api.call({ abi: 'uint256:poolLength', target:address_reward[chain], });
     // console.log(poolLength);
@@ -43,8 +42,6 @@ const graph = (chain: Chain) => {
         const logs = await getLogs({
           target: i.rewarder,
           eventAbi: event_paid_stream,
-          fromBlock, 
-          toBlock
         });
         // console.log(logs)
         logs.forEach((e: any) => {
@@ -56,8 +53,6 @@ const graph = (chain: Chain) => {
     (await getLogs({
       target: address_rdnt_reward[chain],
       eventAbi: event_paid_rdnt,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
         // console.log(e)
         dailyFees.add(address_rdnt[chain], e._amount)     

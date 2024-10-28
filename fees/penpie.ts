@@ -17,6 +17,18 @@ const address_reward: TAddress = {
   [CHAIN.ETHEREUM]: '0x6E799758CEE75DAe3d84e09D40dc416eCf713652'
 }
 const reward_eth_pendle='0x8C237520a8E14D658170A633D96F8e80764433b9'
+const exclude: any = {
+  [CHAIN.ETHEREUM]: [
+    '0xd1D7D99764f8a52Aff007b7831cc02748b2013b5',
+    '0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2',
+    '0x6010676Bc2534652aD1Ef5Fa8073DcF9AD7EBFBe',
+    '0x038C1b03daB3B891AfbCa4371ec807eDAa3e6eB6'
+  ],
+  [CHAIN.BSC]: [],
+  [CHAIN.ARBITRUM]: [
+    '0xa877a0E177b54A37066c1786F91a1DAb68F094AF'
+  ]
+}
 const address_bribe: TAddress = {
   [CHAIN.BSC]: '0x6E796bCF2B63b070F9cC0a7D3d857FeF628E9e5b',
   [CHAIN.ARBITRUM]: '0x8CE523cf1120d9B7703806c745B69663a2847504',
@@ -25,17 +37,14 @@ const address_bribe: TAddress = {
 //all revenue is from bribes and is given to governance token holders 100%
 
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     if (chain=='ETHEREUM'){
       (await getLogs({
         target:reward_eth_pendle ,
         eventAbi: event_pendle_fee,
-        fromBlock, 
-        toBlock
       })).map((e: any) => {
-        // check if it is penpie 
+        // check if it is penpie
           if (e.user === '0x6e799758cee75dae3d84e09d40dc416ecf713652') {
               dailyFees.add(ADDRESSES.null, e.sumTopUp);
             }
@@ -44,18 +53,20 @@ const graph = (chain: Chain) => {
     (await getLogs({
       target: address_reward[chain],
       eventAbi: event_paid_stream,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
-      dailyFees.add(e._rewardToken, e._feeAmount)     
+      if (exclude[chain].includes(e._rewardToken)) {
+        return
+      }
+      dailyFees.add(e._rewardToken, e._feeAmount)
     }),
     (await getLogs({
       target: address_bribe[chain],
       eventAbi: event_paid_bribe,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
-      dailyFees.add(e.token, e.amount)     
+      if (exclude[chain].includes(e.token)) {
+        return
+      }
+      dailyFees.add(e.token, e.amount)
     })
     return { dailyFees, dailyRevenue: dailyFees,dailyUserFees:dailyFees  };
   }
@@ -65,7 +76,6 @@ const graph = (chain: Chain) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: 77678653,

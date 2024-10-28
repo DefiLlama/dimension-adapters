@@ -1,5 +1,5 @@
 import { ChainEndpoints, BreakdownAdapter } from "../../adapters/types";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
@@ -37,31 +37,22 @@ const getCustomBlock = async (timestamp: number) => {
   return Number(block.blocks[0].number);
 };
 
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
     field: "totalVolumeUSD",
   },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
-  },
   getCustomBlock
 });
 
-const v1graphs = getGraphDimensions({
+const v1graphs = getGraphDimensions2({
   graphUrls: {
     [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/surfswap-stable-amm",
   },
   totalVolume: {
     factory: "tradeVolumes",
     field: "volume",
-  },
-  dailyVolume: {
-    factory: "dailyVolume",
-    field: "volume",
-    dateField: "timestamp"
   },
   getCustomBlock
 });

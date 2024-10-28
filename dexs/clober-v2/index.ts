@@ -8,12 +8,8 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
     const dayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
 
     const dailyVolume = options.createBalances()
-    const totalVolume = options.createBalances()
 
     const bookInfos: any = {}
-
-    const fromBlock = await options.getFromBlock();
-    const toBlock = await options.getToBlock();
     const CONTRACT_INFO = CONTRACT_INFOS[options.chain];
 
     const openEvents = await options.getLogs({
@@ -30,25 +26,12 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
         }
     }
 
-    const totalTakeEvents = await options.getLogs({
-        target: CONTRACT_INFO.bookManagerContract.address,
-        fromBlock: CONTRACT_INFO.bookManagerContract.fromBlock,
-        toBlock: toBlock,
-        eventAbi: CONTRACT_INFO.bookManagerContract.abi.takeEvent,
-        onlyArgs: true,
-    })
     const dailyTakeEvents = await options.getLogs({
         target: CONTRACT_INFO.bookManagerContract.address,
-        fromBlock: fromBlock,
-        toBlock: toBlock,
         eventAbi: CONTRACT_INFO.bookManagerContract.abi.takeEvent,
         onlyArgs: true,
     })
     const takeEvents = [
-        {
-            events: totalTakeEvents,
-            volume: totalVolume,
-        },
         {
             events: dailyTakeEvents,
             volume: dailyVolume,
@@ -69,7 +52,6 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
 
     return {
         dailyVolume: dailyVolume,
-        totalVolume: totalVolume,
         timestamp: dayTimestamp,
     };
 };

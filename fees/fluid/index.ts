@@ -1,10 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { getBlock } from "@defillama/sdk/build/util/blocks";
 import BigNumber from "bignumber.js";
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const abis = {
+const abis: any = {
   revenueResolver: {
     calcRevenueSimulatedTime:
       "function calcRevenueSimulatedTime(uint256 totalAmounts_,uint256 exchangePricesAndConfig_,uint256 liquidityTokenBalance_,uint256 simulatedTimestamp_) public view returns (uint256 revenueAmount_)",
@@ -54,6 +54,9 @@ const revenueResolver = async (api: sdk.ChainApi) => {
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
       break;
     case CHAIN.ARBITRUM:
+      address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
+      break;
+    case CHAIN.BASE:
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
       break;
   }
@@ -110,6 +113,9 @@ const liquidityResolver = async (api: sdk.ChainApi) => {
     case CHAIN.ARBITRUM:
       address = "0x46859d33E662d4bF18eEED88f74C36256E606e44";
       break;
+    case CHAIN.BASE:
+      address = "0x35A915336e2b3349FA94c133491b915eD3D3b0cd";
+      break;
   }
 
   return {
@@ -124,26 +130,24 @@ const liquidityResolver = async (api: sdk.ChainApi) => {
         params: undefined,
       });
     },
-    getExchangePricesAndConfig: async (token: string) => {
+    getExchangePricesAndConfig: async (tokens: string[]) => {
       if (!address) {
         return 0;
       }
 
-      return await api.call({
-        target: address,
+      return await api.multiCall({
         abi: abi.getExchangePricesAndConfig,
-        params: [token],
+        calls: tokens.map((token) => ({ target: address, params: [token] })),
       });
     },
-    getTotalAmounts: async (token: string) => {
+    getTotalAmounts: async (tokens: string[]) => {
       if (!address) {
         return 0;
       }
 
-      return await api.call({
-        target: address,
+      return await api.multiCall({
         abi: abi.getTotalAmounts,
-        params: [token],
+        calls: tokens.map((token) => ({ target: address, params: [token] })),
       });
     },
   };
@@ -171,10 +175,18 @@ const vaultResolver = async (api: sdk.ChainApi) => {
         abi = abis.vaultResolver_before_19992222;
         break;
       }
-      address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
+      if (block < 20983000) {
+        address = "0x56ddF84B2c94BF3361862FcEdB704C382dc4cd32";
+        break;
+      }
+      // above VaultResolver for T1 type vaults only
+      address = "0x6922b85D6a7077BE56C0Ae8Cab97Ba3dc4d2E7fA"; // VaultT1Resolver compatibility for all vault types
       break;
     case CHAIN.ARBITRUM:
       address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
+      break;
+    case CHAIN.BASE:
+      address = "0x94695A9d0429aD5eFec0106a467aDEaDf71762F9";
       break;
   }
 
@@ -190,21 +202,21 @@ const vaultResolver = async (api: sdk.ChainApi) => {
         params: undefined,
       });
     },
-    getVaultEntireData: async (vault: string) => {
+    getVaultEntireData: async (vaults: string[]) => {
       if (!address) {
         return null;
       }
 
-      return await api.call({
-        target: address,
+      return await api.multiCall({
         abi: abi.getVaultEntireData,
-        params: [vault],
+        calls: vaults.map((vault) => ({ target: address, params: [vault] })),
+        permitFailure: true,
       });
     },
   };
 };
 
-const config = {
+const config: any = {
   liquidity: "0x52aa899454998be5b000ad077a46bbe360f4e497",
   ethereum: {
     dataStartTimestamp: 1708246655, // ~ when liquidity resolver was deployed
@@ -222,6 +234,14 @@ const config = {
     vaultResolverExistAfterTimestamp: 1720018637,
     vaultResolverExistAfterBlock: 228361632,
   },
+  base: {
+    dataStartTimestamp: 1723484700, // ~ before any activity started (block 18347681)
+
+    revenueResolverExistAfterBlock: 18347681,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1723484700,
+    vaultResolverExistAfterBlock: 18347681,
+  },
 };
 
 const methodologyFluid = {
@@ -229,20 +249,10 @@ const methodologyFluid = {
   Revenue: "Percentage of interest going to treasury",
 };
 
-const fetch: FetchV2 = async ({ api, fromTimestamp, toTimestamp }) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   return {
-    // totalFees: await getFeesFromTo(
-    //   api,
-    //   config[api.chain].dataStartTimestamp,
-    //   toTimestamp
-    // ),
-    dailyFees: await getFeesFromTo(api, fromTimestamp, toTimestamp),
-    // totalRevenue: await getRevenueFromTo(
-    //   api,
-    //   config[api.chain].dataStartTimestamp,
-    //   toTimestamp
-    // ),
-    dailyRevenue: await getRevenueFromTo(api, fromTimestamp, toTimestamp),
+    dailyFees: await getFeesFromTo(options),
+    dailyRevenue: await getRevenueFromTo(options),
   };
 };
 const adapter: Adapter = {
@@ -262,56 +272,55 @@ const adapter: Adapter = {
         methodology: methodologyFluid,
       },
     },
+    [CHAIN.BASE]: {
+      fetch,
+      start: config.base.dataStartTimestamp,
+      meta: {
+        methodology: methodologyFluid,
+      },
+    },
   },
 };
 
 export default adapter;
 
 const getFeesFromTo = async (
-  api: sdk.ChainApi,
-  fromTimestamp: number,
-  toTimestamp: number
-): Promise<number> => {
-  let fromBlock = (await getBlock(api.chain, fromTimestamp)).number;
-  const toBlock = (await getBlock(api.chain, toTimestamp)).number;
+  options: FetchOptions
+): Promise<sdk.Balances> => {
 
-  if (fromTimestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
-    fromTimestamp = config[api.chain].vaultResolverExistAfterTimestamp;
-    fromBlock = config[api.chain].vaultResolverExistAfterBlock;
-  }
-  if (fromTimestamp >= toTimestamp) {
-    return 0;
-  }
-
-  const liquidityOperateLogs = (await sdk.getEventLogs({
+  const liquidityOperateLogs = (await options.getLogs({
     target: config.liquidity,
-    fromBlock,
-    toBlock,
-    chain: api.chain,
     onlyArgs: true,
-    eventAbi:
-      "event LogOperate(address indexed user,address indexed token,int256 supplyAmount,int256 borrowAmount,address withdrawTo,address borrowTo,uint256 totalAmounts,uint256 exchangePricesAndConfig)",
+    eventAbi: "event LogOperate(address indexed user,address indexed token,int256 supplyAmount,int256 borrowAmount,address withdrawTo,address borrowTo,uint256 totalAmounts,uint256 exchangePricesAndConfig)",
   })) as any[];
 
-  const fromApi = new sdk.ChainApi({
-    chain: api.chain,
-    block: fromBlock,
-  });
-  const toApi = new sdk.ChainApi({
-    chain: api.chain,
-    block: toBlock,
-  });
+  const dailyFees = options.createBalances();
+
+  const fromApi = options.fromApi;
+  const toApi = options.toApi;
   const vaults: string[] = await (
     await vaultResolver(toApi)
   ).getAllVaultsAddresses();
 
-  for await (const vault of vaults) {
+  const vaultEntiresDataFrom: any[] = (await (
+    await vaultResolver(fromApi)
+  ).getVaultEntireData(vaults)) as any[];
+
+  const vaultEntiresDataTo: any[] = (await (
+    await vaultResolver(toApi)
+  ).getVaultEntireData(vaults)) as any[];
+
+  const vaultBorrowTokenCall = (await toApi.multiCall({
+    abi: abis.vault.constantsView,
+    calls: vaults,
+  })) as { borrowToken: string }[];
+
+
+  for (const [index, vault] of vaults.entries()) {
     let borrowBalance = new BigNumber(0);
     let borrowToken = "";
     try {
-      const { constantVariables, totalSupplyAndBorrow } = await (
-        await vaultResolver(fromApi)
-      ).getVaultEntireData(vault);
+      const { constantVariables, totalSupplyAndBorrow } = vaultEntiresDataFrom[index];
 
       borrowToken = constantVariables.borrowToken;
       borrowBalance = new BigNumber(totalSupplyAndBorrow.totalBorrowVault);
@@ -320,89 +329,69 @@ const getFeesFromTo = async (
     }
 
     if (!borrowToken) {
-      const { borrowToken: vaultBorrowToken } = await toApi.call({
-        target: vault,
-        abi: abis.vault.constantsView,
-        chain: toApi.chain,
-      });
+      const { borrowToken: vaultBorrowToken } = vaultBorrowTokenCall[index];
       borrowToken = vaultBorrowToken;
     }
 
     // get block numbers where an update to vault borrow amounts happened + start block and end block
-    let vaultOperates = liquidityOperateLogs.filter(
+    const vaultOperates = liquidityOperateLogs.filter(
       (x) =>
         x[0] == vault && // filter user must be vault
         x[1] == borrowToken // filter token must be vault borrow token (ignore supply / withdraw)
     );
 
-    for await (const vaultOperate of vaultOperates) {
+    for (const vaultOperate of vaultOperates) {
       borrowBalance = borrowBalance.plus(new BigNumber(vaultOperate[3]));
     }
-
     try {
-      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = await (
-        await vaultResolver(toApi)
-      ).getVaultEntireData(vault);
+      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultEntiresDataTo[index];
 
-      toApi.addToken(
+      dailyFees.add(
         borrowToken,
         new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
           borrowBalance
         )
       );
-    } catch (ex) {
-      // when vault is deployed but not fully configured yet, getVaultEntireData() will revert at the used version of VaultResolver.
-      // totalBorrow is still 0 at that point.
-    }
+    } catch (ex) {}
+
   }
 
-  return await toApi.getUSDValue();
+  return dailyFees;
 };
 
 const getRevenueFromTo = async (
-  api: sdk.ChainApi,
-  fromTimestamp: number,
-  toTimestamp: number
+  options: FetchOptions
 ): Promise<number> => {
-  return (
-    (await getLiquidityRevenueFromTo(api, fromTimestamp, toTimestamp)) +
-    (await getVaultsMagnifierRevenueFromTo(api, fromTimestamp, toTimestamp))
-  );
+  const LPRsevenueFromTo = await getLiquidityRevenueFromTo(options);
+  const vaultRevenueFromTo = await getVaultsMagnifierRevenueFromTo(options);
+  return LPRsevenueFromTo + vaultRevenueFromTo;
 };
 
 const getLiquidityRevenueFromTo = async (
-  api: sdk.ChainApi,
-  fromTimestamp: number,
-  toTimestamp: number
+  options: FetchOptions
 ) => {
+  const { fromTimestamp, toTimestamp, api } = options;
   const tokens: string[] = await (await liquidityResolver(api)).listedTokens();
 
-  const collectRevenueLogs: [string, BigNumber][] = (await sdk.getEventLogs({
+  const collectRevenueLogs: [string, BigNumber][] = (await options.getLogs({
     target: config.liquidity,
-    fromBlock: (await getBlock(api.chain, fromTimestamp)).number,
-    toBlock: (await getBlock(api.chain, toTimestamp)).number,
-    chain: api.chain,
-    onlyArgs: true,
     eventAbi:
       "event LogCollectRevenue(address indexed token, uint256 indexed amount)",
   })) as [string, BigNumber][];
 
-  const balancesApi = new sdk.ChainApi({
-    block: await api.getBlock(),
-    chain: api.chain,
-  });
+  const revenueFrom: BigNumber[] = await getLiquidityUncollectedRevenueAt(
+    api,
+    fromTimestamp,
+    tokens
+  );
 
-  for await (const token of tokens) {
-    const revenueFrom = await getLiquidityUncollectedRevenueAt(
-      api,
-      fromTimestamp,
-      token
-    );
-    let revenueTo = await getLiquidityUncollectedRevenueAt(
-      api,
-      toTimestamp,
-      token
-    );
+  const revenueTo:BigNumber[] = await getLiquidityUncollectedRevenueAt(
+    api,
+    toTimestamp,
+    tokens
+  );
+  const dailyValues = options.createBalances();
+  for await (const [index, token] of tokens.entries()) {
 
     // consider case where collect revenue has been executed in the time frame
     const logs = collectRevenueLogs.filter((x) => x[0] == token);
@@ -412,24 +401,25 @@ const getLiquidityRevenueFromTo = async (
 
     // add collected revenue in time frame to the to time point revenue.
     // to revenue = uncollected at that point + all collected revenue since from
-    revenueTo = revenueTo.plus(collectedRevenue);
+    const _revenueTo = BigNumber(revenueTo[index])
+    _revenueTo.plus(collectedRevenue);
 
     // get uncollected revenue in from -> to timespan
-    balancesApi.add(
+    dailyValues.add(
       token,
-      revenueTo.gt(revenueFrom)
-        ? revenueTo.minus(revenueFrom)
+      _revenueTo.gt(revenueFrom[index])
+        ? _revenueTo.minus(revenueFrom[index])
         : new BigNumber(0)
     );
   }
 
-  return await balancesApi.getUSDValue();
+  return await dailyValues.getUSDValue();
 };
 
 const getLiquidityUncollectedRevenueAt = async (
   api: sdk.ChainApi,
   timestamp: number,
-  token: string
+  tokens: string[]
 ) => {
   const timestampedApi = new sdk.ChainApi({
     chain: api.chain,
@@ -437,110 +427,89 @@ const getLiquidityUncollectedRevenueAt = async (
   });
 
   // check if token was listed at that timestamp at Liquidity, if not, revenue is 0
-  if (
-    !(
-      (await (
-        await liquidityResolver(timestampedApi)
-      ).listedTokens()) as string[]
-    ).includes(token)
-  ) {
-    return new BigNumber(0);
-  }
 
   // get liquidity packed storage slots data at timestamped Api block number
-  const totalAmounts = await (
+  const totalAmounts: any[] = await (
     await liquidityResolver(timestampedApi)
-  ).getTotalAmounts(token);
+  ).getTotalAmounts(tokens) as any[];
 
-  const exchangePricesAndConfig = await (
+  const exchangePricesAndConfig: any[] = await (
     await liquidityResolver(timestampedApi)
-  ).getExchangePricesAndConfig(token);
+  ).getExchangePricesAndConfig(tokens) as any[];
 
-  let liquidityTokenBalance: BigNumber | string;
-  if (token.toLowerCase() == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee") {
-    liquidityTokenBalance = (
+  const ee = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+  const findIndex = tokens.findIndex((x) => x.toLowerCase() === ee);
+  const liquidityTokenBalance: string[] = await timestampedApi.multiCall({
+    abi: "erc20:balanceOf",
+    calls: tokens
+      .filter(e => e.toLowerCase() !== ee)
+      .map((token) => ({ target: token, params: [config.liquidity] })),
+  });
+
+  if (findIndex != -1) {
+    const eeBalance = (
       await sdk.api.eth.getBalance({
         target: config.liquidity,
         chain: timestampedApi.chain,
         block: await timestampedApi.getBlock(),
       })
     ).output;
-  } else {
-    liquidityTokenBalance = await timestampedApi.call({
-      target: token,
-      chain: timestampedApi.chain,
-      abi: "erc20:balanceOf",
-      params: [config.liquidity],
-    });
+    liquidityTokenBalance.splice(findIndex, 0, eeBalance);
   }
 
-  // pass data into revenue resolver, available at current api block, which calculates revenue at the
-  // simulated timestamp based on storage slots data
-  const uncollectedRevenue = await (
-    await revenueResolver(
-      new sdk.ChainApi({
-        chain: api.chain,
-        block: config[api.chain].revenueResolverExistAfterBlock,
-      })
-    )
-  )?.calcRevenueSimulatedTime(
-    totalAmounts,
-    exchangePricesAndConfig,
-    liquidityTokenBalance,
-    timestamp
-  );
 
-  return new BigNumber(uncollectedRevenue);
+  // // pass data into revenue resolver, available at current api block, which calculates revenue at the
+  // // simulated timestamp based on storage slots data
+  const uncollectedRevenue: BigNumber[] = []
+  for(const [index, _token] of tokens.entries()) {
+    try {
+      const _uncollectedRevenue = await (
+        await revenueResolver(api)
+      ).calcRevenueSimulatedTime(
+        totalAmounts[index],
+        exchangePricesAndConfig[index],
+        liquidityTokenBalance[index],
+        timestamp
+      );
+      uncollectedRevenue.push(new BigNumber(_uncollectedRevenue));
+    } catch (ex) {
+      console.error(ex);
+    }
+  }
+
+  return uncollectedRevenue;
 };
 
 const getVaultsMagnifierRevenueFromTo = async (
-  api: sdk.ChainApi,
-  fromTimestamp: number,
-  toTimestamp: number
+  options: FetchOptions
 ) => {
+  const { fromTimestamp, toTimestamp, api } = options;
   if (toTimestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
     return 0;
   }
 
-  let fromBalancesApi = new sdk.ChainApi({
-    block: await api.getBlock(),
-    chain: api.chain,
-  });
-
-  let toBalancesApi = new sdk.ChainApi({
-    block: (await getBlock(api.chain, toTimestamp)).number,
-    chain: api.chain,
-  });
-
   const vaults: string[] = await (
-    await vaultResolver(toBalancesApi)
+    await vaultResolver(api)
   ).getAllVaultsAddresses();
 
-  for await (const vault of vaults) {
-    fromBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
-      api,
-      fromTimestamp,
-      vault,
-      fromBalancesApi
-    );
+  const fromBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
+    api,
+    fromTimestamp,
+    vaults,
+    options
+  );
 
-    toBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
-      api,
-      toTimestamp,
-      vault,
-      toBalancesApi
-    );
+  let toBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
+    api,
+    toTimestamp,
+    vaults,
+    options
+  );
 
-    // add collected revenue in time frame to the to time point revenue.
-    // to revenue = uncollected at that point + all collected revenue since from
-    toBalancesApi = await getVaultMagnifierCollectedRevenueFromTo(
-      api,
-      vault,
-      fromTimestamp,
-      toTimestamp,
-      toBalancesApi
-    );
-  }
+  toBalancesApi = await getVaultMagnifierCollectedRevenueFromTo(
+      options,
+      vaults
+  );
 
   const revenueFrom = await fromBalancesApi.getUSDValue();
   const revenueTo = await toBalancesApi.getUSDValue();
@@ -549,65 +518,60 @@ const getVaultsMagnifierRevenueFromTo = async (
 };
 
 const getVaultMagnifierCollectedRevenueFromTo = async (
-  api: sdk.ChainApi,
-  vault: string,
-  fromTimestamp: number,
-  toTimestamp: number,
-  balancesApi: sdk.ChainApi
+  options: FetchOptions,
+  vaults: string[],
 ) => {
-  const rebalanceEventLogs: { colAmt: BigNumber; debtAmt: BigNumber }[] = (
-    (await sdk.getEventLogs({
-      target: vault,
-      fromBlock: (await getBlock(api.chain, fromTimestamp)).number,
-      toBlock: (await getBlock(api.chain, toTimestamp)).number,
-      chain: api.chain,
-      onlyArgs: true,
-      eventAbi:
-        /// @notice emitted when a `rebalance()` has been executed, balancing out total supply / borrow between Vault
-        /// and Fluid Liquidity pools.
-        /// if `colAmt_` is negative then profit, meaning withdrawn from vault and sent to rebalancer address.
-        /// if `debtAmt_` is positive then profit, meaning borrow from vault and sent to rebalancer address.
-        "event LogRebalance(int colAmt_, int debtAmt_)",
-    })) as [BigInt, BigInt][]
-  ).map((x) => ({
-    colAmt: new BigNumber(x[0].toString()),
-    debtAmt: new BigNumber(x[1].toString()),
-  }));
+  const values = options.createBalances();
+  const rebalanceEventLogs =  await options.getLogs({
+    targets: vaults,
+    onlyArgs: true,
+    flatten: false,
+    eventAbi:
+      /// @notice emitted when a `rebalance()` has been executed, balancing out total supply / borrow between Vault
+      /// and Fluid Liquidity pools.
+      /// if `colAmt_` is negative then profit, meaning withdrawn from vault and sent to rebalancer address.
+      /// if `debtAmt_` is positive then profit, meaning borrow from vault and sent to rebalancer address.
+      "event LogRebalance(int colAmt_, int debtAmt_)",
+  })
 
   if (rebalanceEventLogs.length == 0) {
-    return balancesApi;
+    return values
   }
+
 
   // get collateral and borrow token of the vault
-  const { supplyToken, borrowToken } = await api.call({
-    target: vault,
+  const contractViews: any[] = await options.api.multiCall({
     abi: abis.vault.constantsView,
-    chain: api.chain,
+    calls: vaults.map((vault) => ({ target: vault })),
   });
 
-  for await (const log of rebalanceEventLogs) {
-    if (log.colAmt.isNegative()) {
-      // add collateral token amount to balances
-      balancesApi.addToken(supplyToken, log.colAmt.absoluteValue());
-    }
-    if (log.debtAmt.isPositive()) {
-      // add borrow token amount to balances
-      balancesApi.addToken(borrowToken, log.debtAmt);
-    }
-  }
-
-  return balancesApi;
+  rebalanceEventLogs.forEach((logs, index) => {
+    logs.forEach((log: any) => {
+      if (log.colAmt.isNegative()) {
+        // add collateral token amount to balances
+        const colAmt = new BigNumber(log.colAmt_);
+        values.add(contractViews[index].supplyToken, colAmt.absoluteValue());
+      }
+      if (log.debtAmt.isPositive()) {
+        // add borrow token amount to balances
+        const debtAmt = new BigNumber(log.debtAmt_);
+        values.add(contractViews[index].borrowToken, debtAmt);
+      }
+    })
+  });
+  return values;
 };
 
 const getVaultMagnifierUncollectedRevenueAt = async (
   api: sdk.ChainApi,
   timestamp: number,
-  vault: string,
-  balancesApi: sdk.ChainApi
+  vaults: string[],
+  options: FetchOptions
 ) => {
+  const values = options.createBalances();
   if (timestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
     // vault resolver related revenue only exists after this timestamp. before this there has been no such revenue.
-    return balancesApi;
+    return values;
   }
 
   const targetBlock = (await getBlock(api.chain, timestamp)).number;
@@ -616,40 +580,41 @@ const getVaultMagnifierUncollectedRevenueAt = async (
     chain: api.chain,
     block: targetBlock,
   });
+  const vaultEntiresDataFrom: any[] = await (
+    await vaultResolver(timestampedApi)
+  ).getVaultEntireData(vaults) as any[];
 
-  try {
-    const { totalSupplyAndBorrow, constantVariables } = await (
-      await vaultResolver(timestampedApi)
-    ).getVaultEntireData(vault);
+  for (const [index, _vault] of vaults.entries()) {
+    try {
+      const { totalSupplyAndBorrow , constantVariables} = vaultEntiresDataFrom[index];
+      const totalSupplyVault = new BigNumber(
+        totalSupplyAndBorrow.totalSupplyVault
+      );
+      const totalBorrowVault = new BigNumber(
+        totalSupplyAndBorrow.totalBorrowVault
+      );
+      const totalSupplyLiquidity = new BigNumber(
+        totalSupplyAndBorrow.totalSupplyLiquidity
+      );
+      const totalBorrowLiquidity = new BigNumber(
+        totalSupplyAndBorrow.totalBorrowLiquidity
+      );
 
-    const totalSupplyVault = new BigNumber(
-      totalSupplyAndBorrow.totalSupplyVault
-    );
-    const totalBorrowVault = new BigNumber(
-      totalSupplyAndBorrow.totalBorrowVault
-    );
-    const totalSupplyLiquidity = new BigNumber(
-      totalSupplyAndBorrow.totalSupplyLiquidity
-    );
-    const totalBorrowLiquidity = new BigNumber(
-      totalSupplyAndBorrow.totalBorrowLiquidity
-    );
+      // if more supply at liquidity than at vault -> uncollected profit
+      const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
+        ? totalSupplyLiquidity.minus(totalSupplyVault)
+        : new BigNumber(0);
+      // if less borrow at liquidity than at vault -> profit
+      const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
+        ? totalBorrowVault.minus(totalBorrowLiquidity)
+        : new BigNumber(0);
 
-    // if more supply at liquidity than at vault -> uncollected profit
-    const supplyTokenProfit = totalSupplyLiquidity.gt(totalSupplyVault)
-      ? totalSupplyLiquidity.minus(totalSupplyVault)
-      : new BigNumber(0);
-    // if less borrow at liquidity than at vault -> profit
-    const borrowTokenProfit = totalBorrowVault.gt(totalBorrowLiquidity)
-      ? totalBorrowVault.minus(totalBorrowLiquidity)
-      : new BigNumber(0);
-
-    balancesApi.add(constantVariables.supplyToken, supplyTokenProfit);
-    balancesApi.add(constantVariables.borrowToken, borrowTokenProfit);
-  } catch (ex) {
-    // when vault did not exist yet, getVaultEntireData() will revert. there is no uncollected revenue at that point.
+      values.add(constantVariables.supplyToken, supplyTokenProfit);
+      values.add(constantVariables.borrowToken, borrowTokenProfit);
+    } catch (ex) {
+      // when vault did not exist yet, getVaultEntireData() will revert. at from block then we start from 0 balance.
+    }
   }
-
-  return balancesApi;
+  return values;
 };
 // yarn test fees fluid

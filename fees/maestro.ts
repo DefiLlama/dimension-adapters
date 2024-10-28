@@ -1,12 +1,14 @@
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, } from "../adapters/types";
-import { getTokenDiff } from "../helpers/token";
+import { getSolanaReceived, getTokenDiff } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
 const dispatcher: any = {
   [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
   [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
   [CHAIN.ARBITRUM]: "0x34b5561c30a152b5882c8924973f19df698470f4",
+  [CHAIN.BASE]: "0xb0999731f7c2581844658a9d2ced1be0077b7397",
+  [CHAIN.TRON]: "TS4yvUzwmaSh4XM1scBXRgoKeVdb4oot4S"
 }
 const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
@@ -33,19 +35,9 @@ async function fetch(timestamp: number, _1: any, options: FetchOptions) {
 
 const chainAdapter = { fetch: fetch as any, start: 1656633600, }
 
-import { queryDune } from "../helpers/dune";
-
 const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const value = (await queryDune("3521814", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-    receiver: 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'
-  }));
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-
-  return { dailyFees, dailyRevenue: dailyFees }
-
+  const dailyFees = await getSolanaReceived({ options, target: 'MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36' })
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 
@@ -58,6 +50,8 @@ const adapter: Adapter = {
       fetch: fetchSolana,
       start: 1656633600, // wrong?
     },
+    [CHAIN.BASE]: chainAdapter,
+    [CHAIN.TRON]: chainAdapter,
   },
   isExpensiveAdapter: true
 }

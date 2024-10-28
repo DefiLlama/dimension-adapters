@@ -1,12 +1,12 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('FvP7tK71rX51wsb663j5GRx2YTtDRa1Adq8QSCi5akLS'),
 };
 
-const adapter = univ2Adapter(endpoints, {
+const adapter = univ2Adapter2(endpoints, {
   factoriesName: "factories",
   dayData: "dayData",
   dailyVolume: "volumeUSD",

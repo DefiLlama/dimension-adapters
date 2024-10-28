@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, FetchResultV2, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResultV2 } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 const sugars = {
@@ -57,11 +57,27 @@ while (unfinished) {
 
 const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-const logs: ILog[][] = await getLogs({
-    targets,
+let logs: ILog[][] = [];
+const targetChunkSize = 5;
+let currentTargetOffset = 0;
+unfinished = true;
+
+while (unfinished) {
+  let endOffset = currentTargetOffset + targetChunkSize;
+  if (endOffset >= targets.length) {
+    unfinished = false;
+    endOffset = targets.length;
+  }
+
+  let currentLogs: ILog[][] = await getLogs({
+    targets: targets.slice(currentTargetOffset, endOffset),
     eventAbi: event_swap,
     flatten: false,
-})
+  })
+
+  logs.push(...currentLogs);
+  currentTargetOffset += targetChunkSize;
+}
 
 logs.forEach((logs: ILog[], idx: number) => {
     const { token0, token1, pool_fee } = allForSwaps[idx]
@@ -73,11 +89,26 @@ logs.forEach((logs: ILog[], idx: number) => {
     })
 })
 
-const slipstreamLogs: ILog[][] = await getLogs({
-    targets,
+let slipstreamLogs: ILog[][] = [];
+currentTargetOffset = 0;
+unfinished = true;
+
+while (unfinished) {
+  let endOffset = currentTargetOffset + targetChunkSize;
+  if (endOffset >= targets.length) {
+    unfinished = false;
+    endOffset = targets.length;
+  }
+
+  let currentSlipstreamLogs: ILog[][] = await getLogs({
+    targets: targets.slice(currentTargetOffset, endOffset),
     eventAbi: event_swap_slipstream,
     flatten: false,
-})
+  })
+
+  slipstreamLogs.push(...currentSlipstreamLogs);
+  currentTargetOffset += targetChunkSize;
+}
 
 slipstreamLogs.forEach((logs: ILog[], idx: number) => {
     const { token1, pool_fee } = allForSwaps[idx]

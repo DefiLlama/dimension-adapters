@@ -1,9 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import {
-  CHAIN,
-} from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
@@ -26,19 +23,13 @@ const startTimeQueryTrident = {
 };
 
 const tridentQuery = gql`
-  query trident($timestampLow: Int, $timestampHigh: Int) {
-    factoryDaySnapshots(where: {date_gt: $timestampLow, date_lt: $timestampHigh}, first: 10) {
-      date
+  query trident($number: Int) {
+    factory(
+      id: "ALL"
+      block: { number: $number }
+    ) {
       volumeUSD
       feesUSD
-      factory {
-        type
-      }
-    }
-    factories(where: {type: "ALL"}) {
-      volumeUSD
-      feesUSD
-      type
     }
   }
 `
@@ -47,24 +38,37 @@ const trident = Object.keys(endpointsTrident).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: async (options: FetchOptions) => {
-        const res = await request(endpointsTrident[chain], tridentQuery, {
-          timestampHigh: options.endTimestamp,
-          timestampLow: options.startTimestamp,
+      fetch: async ({ getStartBlock, getEndBlock }: FetchOptions) => {
+        const [startBlock, endBlock] = await Promise.all([
+          getStartBlock(),
+          getEndBlock()
+        ])
+      try {
+        const beforeRes = await request(endpointsTrident[chain], tridentQuery, {
+          number: startBlock,
         });
-        const daily = res.factoryDaySnapshots.find((snapshot: any) => {
-          return snapshot.factory.type == "ALL"
-        })
+        const afterRes = await await request(endpointsTrident[chain], tridentQuery, {
+          number: endBlock,
+        });
+
         return {
-          totalVolume: res.factories[0]?.volumeUSD,
-          totalFees: res.factories[0]?.feesUSD,
-          totalUserFees: res.factories[0]?.feesUSD,
-          dailyVolume: daily?.volumeUSD || 0,
-          dailyFees: daily?.feesUSD || 0,
-          dailyUserFees: daily?.feesUSD || 0
+          totalVolume: afterRes.factory.volumeUSD,
+          totalFees: afterRes.factory.feesUSD,
+          totalUserFees: afterRes.factory.feesUSD,
+          dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
+          dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
+          dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
         }
+      } catch {
+        return {
+          dailyVolume: 0,
+          dailyFees: 0,
+          dailyUserFees: 0
+        }
+      }
+
       },
-      start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
+      start: 1711982400,
     },
   }),
   {}

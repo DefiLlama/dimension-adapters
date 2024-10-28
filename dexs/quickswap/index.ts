@@ -2,11 +2,19 @@ import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import { DEFAULT_DAILY_VOLUME_FACTORY, DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
-import fetchURL from "../../utils/fetchURL"
+import {
+  DEFAULT_DAILY_VOLUME_FACTORY,
+  DEFAULT_DAILY_VOLUME_FIELD,
+  DEFAULT_TOTAL_VOLUME_FACTORY,
+  DEFAULT_TOTAL_VOLUME_FIELD,
+  getChainVolume,
+} from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL";
 
 const endpoints = {
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
+    "FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd",
+  ),
 };
 
 const graphs = getChainVolume({
@@ -18,20 +26,27 @@ const graphs = getChainVolume({
   dailyVolume: {
     factory: DEFAULT_DAILY_VOLUME_FACTORY,
     field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: "date"
+    dateField: "date",
   },
+  hasDailyVolume: true,
 });
 
 const endpointsAlgebraV3 = {
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
+    "CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7",
+  ),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
-  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn"
+  [CHAIN.POLYGON_ZKEVM]:
+    "https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
+  [CHAIN.MANTA]:
+    "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
 };
 
 const endpointsUniV3 = {
-  [CHAIN.MANTA]:"https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
-  [CHAIN.ASTAR_ZKEVM]:"https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest"
+  [CHAIN.MANTA]:
+    "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
+  [CHAIN.ASTAR_ZKEVM]:
+    "https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest",
 };
 
 const graphsAlgebraV3 = getChainVolume({
@@ -43,7 +58,7 @@ const graphsAlgebraV3 = getChainVolume({
   dailyVolume: {
     factory: "algebraDayData",
     field: "volumeUSD",
-    dateField: "date"
+    dateField: "date",
   },
 });
 
@@ -67,37 +82,37 @@ const v3GraphsUni = getGraphDimensions({
   },
 });
 
-
 const fetchLiquidityHub = async (timestamp: number) => {
-    let dailyResult = (await fetchURL('https://hub.orbs.network/analytics-daily/v1'));
+  let dailyResult = await fetchURL(
+    "https://hub.orbs.network/analytics-daily/v1",
+  );
 
-    let rows = dailyResult.result.rows;
-    let lastDay = rows[rows.length - 1];
-    let dailyVolume = lastDay.daily_total_calculated_value;
-    let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`)).result.rows[0].total_calculated_value;
+  let rows = dailyResult.result.rows;
+  let lastDay = rows[rows.length - 1];
+  let dailyVolume = lastDay.daily_total_calculated_value;
+  let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`))
+    .result.rows[0].total_calculated_value;
 
-    return {
-        dailyVolume: `${dailyVolume}`,
-        totalVolume: `${totalVolume}`,
-        timestamp: timestamp,
-    };
-
-}
-
+  return {
+    dailyVolume: `${dailyVolume}`,
+    totalVolume: `${totalVolume}`,
+    timestamp: timestamp,
+  };
+};
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
-        start: 1602118043
+        start: 1602118043,
       },
     },
     v3: {
       [CHAIN.POLYGON]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON),
-        start: 1662425243
+        start: 1662425243,
       },
       // [CHAIN.DOGECHAIN]: {
       //   fetch: graphsV3(CHAIN.DOGECHAIN),
@@ -105,17 +120,17 @@ const adapter: BreakdownAdapter = {
       // },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
-        start: 1679875200
+        start: 1679875200,
       },
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
-        start: 1697690974
-      }
+        start: 1697690974,
+      },
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
         fetch: fetchLiquidityHub,
-        start: 1695042000
+        start: 1695042000,
       },
     },
   },
