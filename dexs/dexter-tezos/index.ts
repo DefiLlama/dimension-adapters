@@ -1,19 +1,24 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
+let _data: any
 
-interface IData {
-  volume: number
-  date: string
+async function getData() {
+  if (!_data)
+    _data = httpGet("https://github.com/StableTechnologies/usdtz-stats/blob/main/temp/dollarizedRevenue_3.json")
+
+  return _data
 }
 
 const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
-  const merged = require('./merged.json') as IData[];
+
   const date = new Date(options.startOfDay * 1000).toLocaleDateString()
-  const dailyVolume = merged.filter(e => e.date === date)
-    .reduce((acc, cur) => acc + cur?.volume || 0, 0)
+  console.log(date)
+  const data = (await getData())[date]
+  if (!data) throw new Error("No data found for date " + date)
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume: data.volume,
     timestamp: options.startOfDay,
   }
 }
