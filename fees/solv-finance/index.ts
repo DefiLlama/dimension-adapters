@@ -35,6 +35,9 @@ const chains: {
   [CHAIN.SCROLL]: {
     deployedAt: 1726531200,
   },
+  [CHAIN.SOLANA]: {
+    deployedAt: 1726531200,
+  },
 };
 
 const fetch: FetchV2 = async (options) => {
