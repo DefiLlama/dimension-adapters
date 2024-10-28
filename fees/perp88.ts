@@ -49,23 +49,23 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
 
       const finalizedDailyFee =
-        Number(dailyFeeResp.dailyFeesStat.totalFeePaid) / 1e30;
+        Number(dailyFeeResp.dailyFeesStat?.totalFeePaid || 0 ) / 1e30;
       const finalizedTotalFee =
-        Number(totalFeeResp.globalFeesStat.totalFeePaid) / 1e30;
+        Number(totalFeeResp.globalFeesStat?.totalFeePaid || 0) / 1e30;
       const finalizedDailyFeeWithoutFundingFee =
-        (Number(dailyFeeResp.dailyFeesStat.tradingFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.borrowingFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.liquidationFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.settlementFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.addLiquidityFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.removeLiquidityFeePaid)) /
+        (Number(dailyFeeResp.dailyFeesStat?.tradingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.borrowingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.liquidationFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.settlementFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.addLiquidityFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.removeLiquidityFeePaid || 0)) /
         1e30;
       const finalizedDailyUserFee =
-        (Number(dailyFeeResp.dailyFeesStat.tradingFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.borrowingFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.liquidationFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.fundingFeePaid) +
-          Number(dailyFeeResp.dailyFeesStat.settlementFeePaid)) /
+        (Number(dailyFeeResp.dailyFeesStat?.tradingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.borrowingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.liquidationFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.fundingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.settlementFeePaid || 0)) /
         1e30;
       const finalizedTotalUserFee =
         (Number(totalFeeResp.globalFeesStat.tradingFeePaid) +
