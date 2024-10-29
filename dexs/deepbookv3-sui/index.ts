@@ -59,23 +59,23 @@ const fetch: any = async (options: FetchOptions) => {
   try {
     const poolId = Object.values(pools).join(",");
 
-    const dailyVolumeUrl = `http://localhost:9008/get_24hr_volume/${poolId}`;
+    const dailyVolumeUrl = `http://localhost:9008/get_24hr_volume/${poolId}`; // Update to prod url
     const dailyVolumeResponse = await axios.get(dailyVolumeUrl);
     const dailyVolumeData = dailyVolumeResponse.data;
 
     if (!dailyVolumeData)
-      throw new Error(`No daily volume data found for pools: ${poolId}`);
+      throw new Error(`No daily volume data found for pool: ${poolId}`);
 
     const dailyVolumeInUsd = await fetchVolumeInUsd(dailyVolumeData);
 
     const startTime = new Date("2024-10-01T00:00:00Z").getTime();
     const endTime = Date.now();
-    const historicalVolumeUrl = `http://localhost:9008/get_historical_volume/${poolId}/${startTime}/${endTime}`;
+    const historicalVolumeUrl = `http://localhost:9008/get_historical_volume/${poolId}/${startTime}/${endTime}`; // Update to prod url
     const historicalVolumeResponse = await axios.get(historicalVolumeUrl);
     const historicalVolumeData = historicalVolumeResponse.data;
 
     if (!historicalVolumeData)
-      throw new Error(`No historical volume data found for pools: ${poolId}`);
+      throw new Error(`No historical volume data found for pool: ${poolId}`);
 
     const totalVolumeInUsd = await fetchVolumeInUsd(historicalVolumeData);
 
