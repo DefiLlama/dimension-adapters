@@ -89,13 +89,21 @@ const fetch: any = async (options: FetchOptions) => {
   }
 };
 
+const methodology = {
+  dailyVolume: "Sum of volume in USD for all pools in the past 24 hours",
+  totalVolume: "Sum of volume in USD for all pools since protocol inception",
+};
+
 export default {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
-      start: 0,
+      start: 1727758800,
       runAtCurrTime: true,
+      meta: {
+        methodology,
+      },
     },
   },
 } as SimpleAdapter;
