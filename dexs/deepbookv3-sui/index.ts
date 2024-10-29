@@ -31,22 +31,52 @@ const fetch: any = async (options: FetchOptions) => {
     };
 
     const poolId = Object.values(pools).join(",");
-    const url = `https://deepbook-indexer.mainnet.mystenlabs.com/get_24hr_volume/${poolId}`;
-    const response = await axios.get(url);
-    const volumeData = response.data;
+    const dailyVolumeUrl = `http://localhost:9008/get_24hr_volume/${poolId}`;
+    const dailyVolumeResponse = await axios.get(dailyVolumeUrl);
+    const dailyVolumeData = dailyVolumeResponse.data;
 
-    if (!volumeData)
-      throw new Error(`No volume data found for pools: ${poolId}`);
+    if (!dailyVolumeData)
+      throw new Error(`No daily volume data found for pools: ${poolId}`);
 
-    let totalVolumeInUsd = 0;
+    let dailyVolumeInUsd = 0;
 
-    for (const [poolAddress, poolVolume] of Object.entries(volumeData)) {
+    for (const [poolAddress, poolVolume] of Object.entries(dailyVolumeData)) {
       const poolKey = Object.keys(pools).find(
         (key) => pools[key] === poolAddress
       );
-      if (!poolKey) continue;
+      const baseToken = poolKey!.split("_")[0];
+      const decimalScalar = decimalScalars[baseToken];
+      const volume = Number(poolVolume) / decimalScalar;
 
-      const baseToken = poolKey.split("_")[0];
+      const priceUrl = turbosPriceAddress[baseToken] || null;
+      let tokenPriceUsd = 1;
+
+      if (priceUrl) {
+        const priceResponse = await axios.get(priceUrl);
+        tokenPriceUsd = priceResponse.data.pairs[0].priceUsd;
+      }
+
+      dailyVolumeInUsd += volume * tokenPriceUsd;
+    }
+
+    const startTime = new Date("2024-10-01T00:00:00Z").getTime();
+    const endTime = Date.now();
+    const historicalVolumeUrl = `http://localhost:9008/get_historical_volume/${poolId}/${startTime}/${endTime}`;
+    const historicalVolumeResponse = await axios.get(historicalVolumeUrl);
+    const historicalVolumeData = historicalVolumeResponse.data;
+
+    if (!historicalVolumeData)
+      throw new Error(`No historical volume data found for pools: ${poolId}`);
+
+    let totalVolumeInUsd = 0;
+
+    for (const [poolAddress, poolVolume] of Object.entries(
+      historicalVolumeData
+    )) {
+      const poolKey = Object.keys(pools).find(
+        (key) => pools[key] === poolAddress
+      );
+      const baseToken = poolKey!.split("_")[0];
       const decimalScalar = decimalScalars[baseToken];
       const volume = Number(poolVolume) / decimalScalar;
 
@@ -62,10 +92,11 @@ const fetch: any = async (options: FetchOptions) => {
     }
 
     return {
-      dailyVolume: totalVolumeInUsd,
+      dailyVolume: dailyVolumeInUsd,
+      totalVolume: totalVolumeInUsd,
     };
   } catch (error) {
-    console.error("Error fetching 24hr volume or token price:", error);
+    console.error("Error fetching volume or token price:", error);
     throw error;
   }
 };
