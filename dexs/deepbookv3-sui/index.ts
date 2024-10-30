@@ -59,7 +59,7 @@ const fetch: any = async (options: FetchOptions) => {
   try {
     const poolId = Object.values(pools).join(",");
 
-    const dailyVolumeUrl = `http://localhost:9008/get_24hr_volume/${poolId}`; // Update to prod url
+    const dailyVolumeUrl = `https://deepbook-indexer.mainnet.mystenlabs.com/get_24hr_volume/${poolId}`;
     const dailyVolumeResponse = await axios.get(dailyVolumeUrl);
     const dailyVolumeData = dailyVolumeResponse.data;
 
@@ -70,7 +70,7 @@ const fetch: any = async (options: FetchOptions) => {
 
     const startTime = new Date("2024-10-01T00:00:00Z").getTime();
     const endTime = Date.now();
-    const historicalVolumeUrl = `http://localhost:9008/get_historical_volume/${poolId}/${startTime}/${endTime}`; // Update to prod url
+    const historicalVolumeUrl = `https://deepbook-indexer.mainnet.mystenlabs.com/get_historical_volume/${poolId}/${startTime}/${endTime}`;
     const historicalVolumeResponse = await axios.get(historicalVolumeUrl);
     const historicalVolumeData = historicalVolumeResponse.data;
 
