@@ -58,7 +58,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
     dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    totalFees,
+    // totalFees, // seem to be wrong
   };
 };
 
