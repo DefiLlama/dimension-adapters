@@ -20,10 +20,6 @@ const pools = {
   WUSDT_USDC: "0x4e2ca3988246e1d50b9bf209abb9c1cbfec65bd95afdacc620a36c67bdb8452f",
 };
 
-const turbosPriceAddress = {
-  SUI: "https://api.dexscreener.com/latest/dex/pairs/sui/0x5eb2dfcdd1b15d2021328258f6d5ec081e9a0cdcfa9e13a0eaeb9b5f7505ca78",
-  DEEP: "https://api.dexscreener.com/latest/dex/pairs/sui/0x17544259f33f56b2d035cf516e18bf0ad09e0c6d174892980da648f623aa8832",
-};
 
 const fetchVolumeInUsd = (
   volumeData: Record<string, number>,
