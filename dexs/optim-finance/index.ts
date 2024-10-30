@@ -1,8 +1,9 @@
 import { FetchOptions, BreakdownAdapter, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 const fetchVolume: FetchV2 = async (options: FetchOptions) => {
-  const volumeResponse = await fetch(`https://spo-server.optim.finance/oada/stake-auction-volume?timeframe=1d&time=${options.endTimestamp}`).then(response => response.json())
+  const volumeResponse = await httpGet(`https://spo-server.optim.finance/oada/stake-auction-volume?timeframe=1d&time=${options.endTimestamp}`);
 
   if (volumeResponse.tag !== 'OK') throw new Error('Failed to fetch volume data')
 
