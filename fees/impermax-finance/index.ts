@@ -42,18 +42,11 @@ const config = {
     "https://api.goldsky.com/api/public/project_cm2d5q4l4w31601vz4swb3vmi/subgraphs/impermax-finance/impermax-real-v2-stable/gn",
     "https://api.goldsky.com/api/public/project_cm2rhb30ot9wu01to8c9h9e37/subgraphs/impermax-real-solv2/3.0/gn",
   ],
-};
-
-const getChainBorrowables = async (chain: CHAIN) => {
-  const urls = config[chain];
-  let allBorrowables = [];
-
-  for (const url of urls) {
-    const queryResult = await request(url, query);
-    allBorrowables = allBorrowables.concat(queryResult.borrowables);
-  }
-
-  return allBorrowables;
+  avax: [ 
+    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v1/v0.0.1',
+    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v2/v0.0.2',
+    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-solv2/v0.0.2',
+  ]
 };
 
 interface IBorrowable {
@@ -69,7 +62,20 @@ interface IBorrowable {
   };
 }
 
-const MONTH_IN_SECONDS = 30 * 24 * 60 * 60;
+const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
+  const urls = config[chain];
+  let allBorrowables: IBorrowable[] = [];
+
+  for (const url of urls) {
+    const queryResult = await request(url, query);
+    allBorrowables = allBorrowables.concat(queryResult.borrowables);
+  }
+
+  return allBorrowables;
+};
+
+// We consider 3 weeks without accrual dead
+const ACCRUAL_WINDOW = 21 * 24 * 60 * 60;
 
 const calculate = (
   borrowable: IBorrowable,
@@ -88,7 +94,7 @@ const calculate = (
 
   // Filter out dead borrowables and those we cannot get the underlying price
   const underlyingPrice = prices[`${chain}:${underlying.id}`];
-  const hasAccruedRecently = timestamp - Number(accrualTimestamp) <= MONTH_IN_SECONDS;
+  const hasAccruedRecently = timestamp - Number(accrualTimestamp) <= ACCRUAL_WINDOW;
 
   if (!underlyingPrice || !hasAccruedRecently) { 
     return { dailyFees: 0, dailyRevenue: 0 };
@@ -186,6 +192,14 @@ const adapter: Adapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs()(CHAIN.OPTIMISM),
+      runAtCurrTime: true,
+      start: 1698019200,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.AVAX]: {
+      fetch: graphs()(CHAIN.AVAX),
       runAtCurrTime: true,
       start: 1698019200,
       meta: {
