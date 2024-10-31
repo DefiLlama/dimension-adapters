@@ -1,6 +1,6 @@
 import { Adapter, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { BigNumberish, ethers } from 'ethers';
+import { ethers, formatEther } from 'ethers';
 import { httpGet } from "../utils/fetchURL";
 
 const provider = new ethers.JsonRpcProvider('https://mainnet-rpc.assetchain.org');
@@ -27,14 +27,11 @@ async function getFees24Hr() {
         const epochData = await Promise.all(await epochs.map((epoch: any) => contract.getEpochSnapshot(epoch)));
 
         // Calculate total fees and volume
-        let totalFees: BigInt = BigInt(0);
-        epochData.forEach((data: any) => {
-            const { epochFee } = data;
-            totalFees = totalFees += epochFee;
-        });
+        let totalFees = epochData.reduce((acc, data: any) => {
+            return acc + BigInt(data[1]);
+        }, BigInt(0));
 
-        return ethers.formatEther(totalFees as unknown as BigNumberish);
-
+        return formatEther(totalFees);
     } catch (error) {
         console.error('Error fetching fees:', error);
         throw error;
