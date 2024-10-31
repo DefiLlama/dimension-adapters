@@ -1,11 +1,9 @@
 import { FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
 import {
   getEmptyData,
   getDimensionsSum,
-  CarbonAnalyticsItem,
-  // getDimensionsSumByToken,
+  getDimensionsSumByToken,
 } from "./utils";
 
 const CARBON_METADATA: {
@@ -26,43 +24,54 @@ const CARBON_METADATA: {
 
 const chainInfo: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
-    endpoint: "https://api.carbondefi.xyz/v1/analytics/volume",
+    endpoint: "https://api.carbondefi.xyz/v1/ethereum/analytics/volume",
+    controller: "0xC537e898CD774e2dCBa3B14Ea6f34C93d5eA45e1",
     startBlock: 17087375,
     startTimestamp: 1681986059,
     getDimensionsByToken: false,
   },
   [CHAIN.SEI]: {
-    endpoint: "https://sei-api.carbondefi.xyz/v1/analytics/volume",
+    endpoint: "https://api.carbondefi.xyz/v1/sei/analytics/volume",
+    controller: "0xe4816658ad10bF215053C533cceAe3f59e1f1087",
     startBlock: 79146720,
     startTimestamp: 1716825673,
-    getDimensionsByToken: false,
+    getDimensionsByToken: true,
   },
   [CHAIN.CELO]: {
-    endpoint: "https://celo-api.carbondefi.xyz/v1/analytics/volume",
+    endpoint: "https://api.carbondefi.xyz/v1/celo/analytics/volume",
+    controller: "0x6619871118D144c1c28eC3b23036FC1f0829ed3a",
+    gasToken: "0x471EcE3750Da237f93B8E339c536989b8978a438",
     startBlock: 26828280,
     startTimestamp: 1721813184,
-    getDimensionsByToken: false,
+    getDimensionsByToken: true,
   },
 };
 
 const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
-  // const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
+  const getDimensionsByToken = chainInfo[options.chain].getDimensionsByToken;
   const startTimestamp = options.fromTimestamp;
   const endTimestamp = options.toTimestamp;
+  const controller = chainInfo[options.chain].controller;
 
   try {
-    const swapData: CarbonAnalyticsItem[] = await fetchURL(analyticsEndpoint);
-
-    // if (getDimensionsByToken) {
-    //   return getDimensionsSumByToken(
-    //     swapData,
-    //     startTimestamp,
-    //     endTimestamp,
-    //     getEmptyData(options),
-    //   );
-    // }
-    return getDimensionsSum(swapData, startTimestamp, endTimestamp);
+    if (getDimensionsByToken) {
+      const pairs: string[] = (
+        await options.api.call({
+          target: controller,
+          abi: "function pairs() view returns (address[2][])",
+        })
+      ).flat();
+      const uniqueTokens: string[] = [...new Set(pairs)];
+      return getDimensionsSumByToken(
+        analyticsEndpoint,
+        uniqueTokens,
+        startTimestamp,
+        endTimestamp,
+        getEmptyData(options)
+      );
+    }
+    return getDimensionsSum(analyticsEndpoint, startTimestamp, endTimestamp);
   } catch (e) {
     console.error(e);
     // Return empty values

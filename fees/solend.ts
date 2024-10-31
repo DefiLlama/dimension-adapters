@@ -1,5 +1,6 @@
 import {
   Adapter,
+  FetchOptions,
   FetchResultFees,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -27,8 +28,8 @@ const methodology = {
   ProtocolReveneue: 'The portion of the total fees going to the Solend DAO treasury'
 }
 
-const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => {
-  const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
+const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
+  const url = `${solendFeesURL}?ts=${endTimestamp}&span=24h`
   const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
@@ -46,17 +47,17 @@ const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => 
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
   return {
-    timestamp,
-    dailyFees: userFees.toString(),
-    dailyUserFees: userFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
+    dailyFees: userFees,
+    dailyUserFees: userFees,
+    dailyRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
   };
 };
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       runAtCurrTime: false,
