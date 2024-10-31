@@ -55,14 +55,14 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
   const swapEvents1to0 = allSwapEvents.filter(event => !event.swap0to1);
 
   const processSwapEvents = (events: SwapEventArgs[], isSwap0to1: boolean) => {
-    events.forEach(({ amountIn, amountOut, token0, token1, fee }) => {
-      const feesCollected = amountOut * 1000000n / (1000000n - fee) - amountOut; // 1000000n = 100%
+    events.forEach(({ amountIn, token0, token1, fee }) => {
+      const feesCollected = (amountIn * fee) / 1000000n // 1000000n = 100%
       if (isSwap0to1) {
         dailyVolume.add(token0, amountIn);
-        dailyFees.add(token1, feesCollected);
+        dailyFees.add(token0, feesCollected);
       } else {
         dailyVolume.add(token1, amountIn);
-        dailyFees.add(token0, feesCollected);
+        dailyFees.add(token1, feesCollected);
       }
     });
   };
