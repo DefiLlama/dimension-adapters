@@ -17,7 +17,6 @@ const chainIds = {
   [CHAIN.BSQUARED]: 223,
   [CHAIN.MERLIN]: 4200,
   [CHAIN.MANTA]: 169,
-  [CHAIN.ROOTSTOCK]: 30,
 };
 
 const startTimestamps = {
@@ -27,7 +26,6 @@ const startTimestamps = {
   [CHAIN.BSQUARED]: 1730160000,// 29/10/2024
   [CHAIN.MERLIN]: 1730160000,// 29/10/2024
   [CHAIN.MANTA]: 1730160000,// 29/10/2024
-  [CHAIN.ROOTSTOCK]: 1730160000,// 29/10/2024
 };
 
 const fetch = async (timestamp: number, _: any, { chain }: FetchOptions): Promise<FetchResult> => {
