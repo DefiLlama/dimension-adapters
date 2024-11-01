@@ -3,11 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import { query } from "./query";
 import { getChainUnderlyingPrices } from "./prices";
+import { BLACKLIST } from "./blacklist";
 
 const methodology = {
   Fees: "Fees is the interest rate paid by borrowers",
-  Revenue:
-    "Percentage of interest going to treasury, determined by each lending pools reserve factor.",
+  Revenue: "Percentage of interest going to treasury, based on each lending pool's reserve factor.",
 };
 
 const config = {
@@ -42,11 +42,11 @@ const config = {
     "https://api.goldsky.com/api/public/project_cm2d5q4l4w31601vz4swb3vmi/subgraphs/impermax-finance/impermax-real-v2-stable/gn",
     "https://api.goldsky.com/api/public/project_cm2rhb30ot9wu01to8c9h9e37/subgraphs/impermax-real-solv2/3.0/gn",
   ],
-  avax: [ 
-    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v1/v0.0.1',
-    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v2/v0.0.2',
-    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-solv2/v0.0.2',
-  ]
+  avax: [
+    "https://api.studio.thegraph.com/query/46041/impermax-avalanche-v1/v0.0.1",
+    "https://api.studio.thegraph.com/query/46041/impermax-avalanche-v2/v0.0.2",
+    "https://api.studio.thegraph.com/query/46041/impermax-avalanche-solv2/v0.0.2",
+  ],
 };
 
 interface IBorrowable {
@@ -54,10 +54,11 @@ interface IBorrowable {
   borrowRate: string;
   reserveFactor: string;
   totalBorrows: string;
-  totalBalance: string;
   accrualTimestamp: string;
   underlying: {
-    symbol: string;
+    id: string;
+  };
+  lendingPool: {
     id: string;
   };
 }
@@ -71,37 +72,21 @@ const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
     allBorrowables = allBorrowables.concat(queryResult.borrowables);
   }
 
-  return allBorrowables;
+  return allBorrowables.filter(
+    (i) => !BLACKLIST[chain].includes(i.lendingPool.id),
+  );
 };
-
-// We consider 3 weeks without accrual dead
-const ACCRUAL_WINDOW = 21 * 24 * 60 * 60;
 
 const calculate = (
   borrowable: IBorrowable,
   prices: object,
   chain: CHAIN,
-  timestamp: number,
 ): { dailyFees: number; dailyRevenue: number } => {
-  // Get this borrowable's stored data
-  const {
-    totalBorrows,
-    borrowRate,
-    reserveFactor,
-    underlying,
-    accrualTimestamp,
-  } = borrowable;
+  const { totalBorrows, borrowRate, reserveFactor, underlying } = borrowable;
 
-  // Filter out dead borrowables and those we cannot get the underlying price
   const underlyingPrice = prices[`${chain}:${underlying.id}`];
-  const hasAccruedRecently = timestamp - Number(accrualTimestamp) <= ACCRUAL_WINDOW;
+  if (!underlyingPrice) return { dailyFees: 0, dailyRevenue: 0 };
 
-  if (!underlyingPrice || !hasAccruedRecently) { 
-    return { dailyFees: 0, dailyRevenue: 0 };
-  }
-
-  // The daily fees is the interest paid to lenders, while the daily revenue
-  // is the percentage that goes to the reserves according to the reserve factor.
   const dailyBorrowAPR = Number(borrowRate) * 86400;
   const dailyFees = Number(totalBorrows) * underlyingPrice * dailyBorrowAPR;
   const dailyRevenue = dailyFees * Number(reserveFactor);
@@ -119,10 +104,9 @@ const graphs = () => {
       const underlyings = borrowables.map((i) => i.underlying.id);
       const prices = await getChainUnderlyingPrices(chain, underlyings);
 
-      // Since each borrowable may have different reserve factor we have to
-      // loop through each one.
+      // 3. Add the daily fees/revenue of each borrowable's based on their reserve factor
       const { dailyFees, dailyRevenue } = borrowables
-        .map((b: IBorrowable) => calculate(b, prices, chain, timestamp))
+        .map((b: IBorrowable) => calculate(b, prices, chain))
         .reduce(
           (acc, val) => ({
             dailyFees: acc.dailyFees + val.dailyFees,
@@ -198,16 +182,16 @@ const adapter: Adapter = {
         methodology,
       },
     },
-    [CHAIN.AVAX]: {
-      fetch: graphs()(CHAIN.AVAX),
+    [CHAIN.REAL]: {
+      fetch: graphs()(CHAIN.REAL),
       runAtCurrTime: true,
       start: 1698019200,
       meta: {
         methodology,
       },
     },
-    [CHAIN.REAL]: {
-      fetch: graphs()(CHAIN.REAL),
+    [CHAIN.AVAX]: {
+      fetch: graphs()(CHAIN.AVAX),
       runAtCurrTime: true,
       start: 1698019200,
       meta: {
