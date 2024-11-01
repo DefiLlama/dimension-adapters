@@ -51,7 +51,12 @@ const blacklistedLendingPools = {
     "0x228BE1a38437312C649711f1BFf28d99e9E749B6", //SOLIDsex-FTM
   ],
   base: [],
-  scroll: [],
+  scroll: [
+      "0x94d81405985A4c34EaC4945d2b98c74258EdD07F", // tkn/chi - stakedlp
+      "0xE8f4895DF06a0c69A9BA87509EfdBBFBAFe86c2d", // weth/tkn - stakedlp
+      "0x7c80Be56a6f23A3E598822648baaFD7524fe1239", // chi/wUKRE stakedlp
+      "0xDD14d0c651C63e1EeA5bd8b250cf99757425D68F", // chi/usdc stakedlp
+  ],
   real: [],
   avax: [
     // Traderjoe
