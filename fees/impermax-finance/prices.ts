@@ -1,5 +1,5 @@
 const GECKOTERMINAL_IDS = { 
-  avalanche: 'avax',
+  avax: 'avax',
   ethereum: 'eth',
   polygon: 'polygon_pos',
   arbitrum: 'arbitrum',
@@ -70,7 +70,7 @@ const getPriceFromDefiLlama = async (chain: string, tokenAddresses: string[]) =>
 
 async function getPriceFromGeckoTerminal(chain: string, tokenAddresses: string[]) {
   console.log(`Getting ${tokenAddresses.length} tokens from gecko on ${chain}`);
-  const MAX_GECKO_COINS = 25;
+  const MAX_GECKO_COINS = 29;
   const geckoChainId = GECKOTERMINAL_IDS[chain];
   const tokenPrices = {};
 
