@@ -1,123 +1,57 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { GraphQLClient } from "graphql-request";
+import type { FetchOptions } from "../../adapters/types";
 
 
 const endpoints = {
   [CHAIN.IOTEX]: "https://gql.quenta.io/subgraphs/name/iotex/quenta"
 };
 
-const blockNumberGraph = {
-  [CHAIN.IOTEX]: "https://graph.mainnet.iotex.io/subgraphs/name/quenta/blocks" 
-}
+async function fetch({ getFromBlock, getToBlock, chain, }: FetchOptions) {
+  const fromBlock = await getFromBlock()
+  const toBlock = await getToBlock()
 
-const headers = { 'sex-dev': 'ServerDev'}
-
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-
-        // Get blockNumers
-        const blockNumerQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${timestamp}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
-        const last24hBlockNumberQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${timestamp - 24 * 60 * 60}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
-
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
-          headers: chain === CHAIN.ZETA ? headers: null,
-        });
-        const graphQLClient = new GraphQLClient(graphUrls[chain], {
-          headers: chain === CHAIN.ZETA ? headers: null,
-        });
-
-
-        const blockNumber = (
-          await blockNumberGraphQLClient.request(blockNumerQuery)
-        ).blocks[0].number;
-        const last24hBlockNumber = (
-          await blockNumberGraphQLClient.request(last24hBlockNumberQuery)
-        ).blocks[0].number;
-
-
-        // get total volume
-        const tradeVolumeQuery = gql`
+  const graphQLClient = new GraphQLClient(endpoints[chain]);
+  // get total volume
+  const tradeVolumeQuery = `
             {
-              protocolMetrics(block:{number:${blockNumber}}){
+              protocolMetrics(block:{number:${toBlock}}){
                 totalVolume
               }
             }
           `;
 
-        // get total volume 24 hours ago
-        const lastTradeVolumeQuery = gql`
+  // get total volume 24 hours ago
+  const lastTradeVolumeQuery = `
           {
-            protocolMetrics(block:{number:${last24hBlockNumber}}){
+            protocolMetrics(block:{number:${fromBlock}}){
               totalVolume
             }
           }
         `;
 
 
-        let tradeVolume = (
-          await graphQLClient.request(tradeVolumeQuery)
-        ).protocolMetrics[0].totalVolume
+  let { protocolMetrics: [{ totalVolume }] } = await graphQLClient.request(tradeVolumeQuery)
+  let { protocolMetrics: [{ totalVolume: totalVolumePast }] } = await graphQLClient.request(lastTradeVolumeQuery)
 
-        let last24hTradeVolume = (
-          await graphQLClient.request(lastTradeVolumeQuery)
-        ).protocolMetrics[0].totalVolume
-
-        const totalVolume = Number(tradeVolume) / 10 ** 6
-        const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
-
-        return {
-          timestamp,
-          totalVolume: totalVolume.toString(),
-          dailyVolume: dailyVolume.toString(),
-        };
-      }
-
-
-      return {
-        timestamp,
-        totalVolume: "0",
-        dailyVolume: "0",
-      };
-    };
+  totalVolume = totalVolume / 1e6
+  totalVolumePast = totalVolumePast / 1e6
+  console.log(fromBlock, toBlock, totalVolume, totalVolumePast)
+  return {
+    totalVolume,
+    dailyVolume: totalVolume - totalVolumePast,
   };
+}
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
-
     [CHAIN.IOTEX]: {
-      fetch: graphs(endpoints)(CHAIN.IOTEX),
+      fetch,
       start: 29643703,
-    }, 
+    },
   },
 };
 

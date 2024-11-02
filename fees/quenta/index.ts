@@ -1,118 +1,55 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
-
+import { GraphQLClient } from "graphql-request";
+import type { FetchOptions } from "../../adapters/types";
 
 
 const endpoints = {
-    [CHAIN.IOTEX]: "https://gql.quenta.io/subgraphs/name/iotex/quenta"
-  };
-  
-const blockNumberGraph = {
-    [CHAIN.IOTEX]: "https://graph.mainnet.iotex.io/subgraphs/name/quenta/blocks" 
-}
+  [CHAIN.IOTEX]: "https://gql.quenta.io/subgraphs/name/iotex/quenta"
+};
 
-const headers = { 'sex-dev': 'ServerDev'}
+async function fetch({ getFromBlock, getToBlock, chain, }: FetchOptions) {
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({ toTimestamp }: FetchOptions) => {
+  const fromBlock = await getFromBlock()
+  const toBlock = await getToBlock()
 
-        // Get blockNumers
-        const blockNumerQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${toTimestamp}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
-        const last24hBlockNumberQuery = gql`
-        {
-            blocks(
-              where: {timestamp_lte:${toTimestamp - 24 * 60 * 60}}
-              orderBy: timestamp
-              orderDirection: desc
-              first: 1
-            ) {
-              id
-              number
-            }
-          }
-        `;
-
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
-                headers: chain === CHAIN.ZETA ? headers: null,
-        });
-        const graphQLClient = new GraphQLClient(graphUrls[chain], {
-      		headers: chain === CHAIN.ZETA ? headers: null,
-    	});
-
-
-        const blockNumber = (
-          await blockNumberGraphQLClient.request(blockNumerQuery)
-        ).blocks[0].number;
-        const last24hBlockNumber = (
-          await blockNumberGraphQLClient.request(last24hBlockNumberQuery)
-        ).blocks[0].number;
-
-
-        // get total fee
-        const totalFeeQuery = gql`
+  const graphQLClient = new GraphQLClient(endpoints[chain]);
+  // get total volume
+  const tradeVolumeQuery = `
             {
-              protocolMetrics(block:{number:${blockNumber}}){
+              protocolMetrics(block:{number:${toBlock}}){
                 totalFee
               }
             }
           `;
 
-        // get total fee 24 hours ago
-        const last24hTotalFeeQuery = gql`
+  // get total volume 24 hours ago
+  const lastTradeVolumeQuery = `
           {
-            protocolMetrics(block:{number:${last24hBlockNumber}}){
-                totalFee
+            protocolMetrics(block:{number:${fromBlock}}){
+              totalFee
             }
           }
         `;
-          
 
-        let totalFee = (
-          await graphQLClient.request(totalFeeQuery)
-        ).protocolMetrics[0].totalFee
 
-        let last24hTotalFee = (
-          await graphQLClient.request(last24hTotalFeeQuery)
-        ).protocolMetrics[0].totalFee
+  let { protocolMetrics: [{ totalFee: totalVolume }] } = await graphQLClient.request(tradeVolumeQuery)
+  let { protocolMetrics: [{ totalFee: totalVolumePast }] } = await graphQLClient.request(lastTradeVolumeQuery)
 
-        totalFee = Number(totalFee) / 10 ** 6
-        const dailyFee = Number(totalFee) - (Number(last24hTotalFee) / 10 ** 6)
+  totalVolume = totalVolume / 1e6
+  totalVolumePast = totalVolumePast / 1e6
+  return {
+    totalVolume,
+    dailyVolume: totalVolume - totalVolumePast,
+  };
+}
 
-        return {
-          dailyFees: dailyFee.toString(),
-          totalFees: totalFee.toString(),
-        };
-      }
-
-      return {
-        dailyFees: "0",
-        totalFees: "0",
-      };
-    };
-};
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.IOTEX]: {
-      fetch: graphs(endpoints)(CHAIN.IOTEX),
+      fetch,
       start: 29643703,
     },
   },
