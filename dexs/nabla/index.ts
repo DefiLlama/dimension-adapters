@@ -25,6 +25,14 @@ const abis = {
     }
 }
 
+const methodology = {
+    UserFees: "User pays between 0.01% and 0.1% fees on each swap.",
+    ProtocolRevenue: "Currently no fees are taken by the protocl.",
+    // SupplySideRevenue: "LPs receive 0.17% of the fees.",
+    // HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
+    // Revenue: "All revenue generated comes from user fees.",
+    Fees: "All fees comes from the user."
+}
 export default {
   adapter: {
     [CHAIN.ARBITRUM]: {
@@ -56,23 +64,25 @@ export default {
       
  
         const dailyFees = createBalances()
-        const dailyRevenue = createBalances()
+        const dailyUserFees = createBalances()
+        const dailyProtocolRevenue = createBalances()
         const logs = await Promise.all(pools.map(pool => getLogs({
                 target: pool,
                 eventAbi: abis.swapPool.chargedSwapFeesEvent
             })
         ));
         logs.forEach((log, i) => {
-            let s = BigInt(0);
             log.map((e: any) => {
-                s = s+ (e.lpFees+e.backstopFees+e.protocolFees)
                 dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                dailyRevenue.add(assets[i], e.protocolFees) 
+                dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
+                dailyProtocolRevenue.add(assets[i], e.protocolFees) 
             })
-            console.log(s)
         })
-        return { dailyFees, dailyRevenue, }
+        return { dailyFees, dailyProtocolRevenue, }
       }) as FetchV2,
+      meta: {
+        methodology 
+      },
       start: 1723690984,
     },
     [CHAIN.BASE]: {
@@ -89,17 +99,17 @@ export default {
                 })
             ));
             logs.forEach((log, i) => {
-                let s = BigInt(0);
                 log.map((e: any) => {
-                    s = s+ (e.lpFees+e.backstopFees+e.protocolFees)
                     dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
                     dailyRevenue.add(assets[i], e.protocolFees) 
                 })
-                console.log(s)
             })
             return { dailyFees, dailyRevenue, }
         }) as FetchV2,
         start: 1726157219,
+        meta: {
+            methodology 
+        }
       },
   },
   version: 2,
