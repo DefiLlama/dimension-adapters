@@ -39,8 +39,8 @@ async function fetch({ getFromBlock, getToBlock, chain, }: FetchOptions) {
   totalVolume = totalVolume / 1e6
   totalVolumePast = totalVolumePast / 1e6
   return {
-    totalVolume,
-    dailyVolume: totalVolume - totalVolumePast,
+    totalFees: totalVolume,
+    dailyFees: totalVolume - totalVolumePast,
   };
 }
 
@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IOTEX]: {
       fetch,
-      start: 29643703,
+      start: 1730160000,
     },
   },
 };
