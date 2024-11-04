@@ -14,6 +14,7 @@ const historicalVolumeEndpoints: ChainMap = {
   [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
   [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary",
   [CHAIN.BSQUARED]: "https://b2api.kiloex.io/common/queryTradeSummary",
+  [CHAIN.BASE]: "https://baseapi.kiloex.io/common/queryTradeSummary",
 };
 
 interface IVolume {
@@ -58,6 +59,9 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BSQUARED]: {
       fetch: fetch(CHAIN.BSQUARED), start: async () => 1722297600
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE), start: async () => 1728446497
     },
   },
 };

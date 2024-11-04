@@ -8,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 
 const endpoints = {
-  [ETHEREUM]: sdk.graph.modifyEndpoint('C3ahLtmwYjrPsxgJpKtRieLFyT33FWSxfPcUFXFBo6KW'),
+  [ETHEREUM]: sdk.graph.modifyEndpoint('F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'),
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
