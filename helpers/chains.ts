@@ -144,7 +144,7 @@ export enum CHAIN {
   JBC = "jbc",
   ZKFAIR = "zkfair",
   ZETA = "zeta",
-  ASTAR = 'astar',
+  ASTAR = "astar",
   ASTAR_ZKEVM = "astrzk",
   FILECOIN = "filecoin",
   FRAXTAL = "fraxtal",
@@ -178,6 +178,7 @@ export enum CHAIN {
   FUEL = "fuel",
   REAL = "real",
   CELESTIA = "celestia",
+  MORPH = "morph",
 }
 
 // Don´t use
@@ -203,26 +204,4 @@ const DOGE = "doge";
 const ZKSYNC = "zksync";
 const MANTLE = "mantle";
 // Don't use
-export {
-  ARBITRUM,
-  AURORA,
-  AVAX,
-  BITCOIN,
-  BOBA,
-  BSC,
-  CELO,
-  DOGE,
-  ETHEREUM,
-  FANTOM,
-  HARMONY,
-  HECO,
-  LITECOIN,
-  MANTLE,
-  MOONRIVER,
-  OKEXCHAIN,
-  OPTIMISM,
-  POLYGON,
-  RONIN,
-  XDAI,
-  ZKSYNC,
-};
+export { ARBITRUM, AURORA, AVAX, BITCOIN, BOBA, BSC, CELO, DOGE, ETHEREUM, FANTOM, HARMONY, HECO, LITECOIN, MANTLE, MOONRIVER, OKEXCHAIN, OPTIMISM, POLYGON, RONIN, XDAI, ZKSYNC };
