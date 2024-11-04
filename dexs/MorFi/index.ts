@@ -1,17 +1,36 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { Adapter } from "../../adapters/types";
+import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
-const adapters = univ2Adapter(
-  {
+const fetch = getGraphDimensions({
+  graphUrls: {
     [CHAIN.MORPH]: "https://subgraph.morfi.io/subgraphs/name/morfi/core",
   },
-  {
-    factoriesName: "factories",
-    dayData: "algebraDayData",
-    dailyVolume: "volumeUSD",
-    totalVolume: "totalVolumeUSD",
-  }
-);
+  totalVolume: {
+    factory: "factories",
+    field: "totalVolumeUSD",
+  },
+  dailyVolume: {
+    factory: "algebraDayData",
+    field: "volumeUSD",
+  },
+  totalFees: {
+    factory: "factories",
+    field: "totalFeesUSD",
+  },
+  dailyFees: {
+    factory: "algebraDayData",
+    field: "feesUSD",
+  },
+});
 
-adapters.adapter[CHAIN.MORPH].start = 1730177105;
+const adapters: Adapter = {
+  adapter: {
+    [CHAIN.MORPH]: {
+      fetch: fetch(CHAIN.MORPH),
+      start: 1730177105,
+    },
+  },
+};
+
 export default adapters;
