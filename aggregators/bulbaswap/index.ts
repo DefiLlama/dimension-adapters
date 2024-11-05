@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MORPH]: {
       fetch,
-      start: 1690848000,
+      start: 1729591543,
     },
   },
 };
