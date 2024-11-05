@@ -1,8 +1,7 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import { query } from "./query";
-import { getChainUnderlyingPrices } from "./prices";
 import { BLACKLIST } from "./blacklist";
 
 const methodology = {
@@ -57,6 +56,7 @@ interface IBorrowable {
   accrualTimestamp: string;
   underlying: {
     id: string;
+    decimals: string;
   };
   lendingPool: {
     id: string;
@@ -78,16 +78,12 @@ const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
 
 const calculate = (
   borrowable: IBorrowable,
-  prices: object,
-  chain: CHAIN,
 ): { dailyFees: number; dailyRevenue: number } => {
-  const { totalBorrows, borrowRate, reserveFactor, underlying } = borrowable;
+  const { totalBorrows, borrowRate, reserveFactor } = borrowable;
 
-  const underlyingPrice = prices[`${chain}:${underlying.id}`];
-  if (!underlyingPrice) return { dailyFees: 0, dailyRevenue: 0 };
 
   const dailyBorrowAPR = Number(borrowRate) * 86400;
-  const dailyFees = Number(totalBorrows) * underlyingPrice * dailyBorrowAPR;
+  const dailyFees = (Number(totalBorrows) * dailyBorrowAPR)
   const dailyRevenue = dailyFees * Number(reserveFactor);
 
   return { dailyFees, dailyRevenue };
@@ -95,29 +91,21 @@ const calculate = (
 
 const graphs = () => {
   return (chain: CHAIN) => {
-    return async (timestamp: number) => {
-      // 1. Get all the chain borrowables
+    return async (timestamp: number, _t: any, options: FetchOptions) => {
       const borrowables: IBorrowable[] = await getChainBorrowables(chain);
-
-      // 2. Get the prices of all underlyings on this chain using llama + gecko
-      const underlyings = borrowables.map((i) => i.underlying.id);
-      const prices = await getChainUnderlyingPrices(chain, underlyings);
-
-      // 3. Add the daily fees/revenue of each borrowable's based on their reserve factor
-      const { dailyFees, dailyRevenue } = borrowables
-        .map((b: IBorrowable) => calculate(b, prices, chain))
-        .reduce(
-          (acc, val) => ({
-            dailyFees: acc.dailyFees + val.dailyFees,
-            dailyRevenue: acc.dailyRevenue + val.dailyRevenue,
-          }),
-          { dailyFees: 0, dailyRevenue: 0 },
-        );
+      const dailyFees = options.createBalances();
+      const dailyRevenue = options.createBalances();
+      borrowables.forEach((b: IBorrowable) => {
+        const { dailyFees: df, dailyRevenue: dr } = calculate(b);
+        const decimals = Number(b.underlying.decimals);
+        dailyFees.add(b.underlying.id, df * (10 ** decimals));
+        dailyRevenue.add(b.underlying.id, dr * (10 ** decimals));
+      })
 
       return {
         timestamp,
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyRevenue.toString(),
+        dailyFees: dailyFees,
+        dailyRevenue: dailyRevenue,
       };
     };
   };
