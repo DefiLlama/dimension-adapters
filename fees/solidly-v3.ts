@@ -61,20 +61,16 @@ const adapter: Adapter = {
     },
     // [CHAIN.BASE]: {
     //   fetch: fetch(CHAIN.BASE),
-    //   start: 0,
-    // },
+    //       // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 0,
-    },
+          },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 0,
-    },
+          },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 0,
-    },
+          },
   },
 };
 

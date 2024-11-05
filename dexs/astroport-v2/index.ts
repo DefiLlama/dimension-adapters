@@ -35,32 +35,27 @@ const adapter: SimpleAdapter = {
       fetch: fetch("phoenix-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-    },
+          },
     [CHAIN.INJECTIVE]: {
       fetch: fetch("injective-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-    },
+          },
     neutron: {
       fetch: fetch("neutron-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-    },
+          },
     [CHAIN.SEI]: {
       fetch: fetch("pacific-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-    },
+          },
     [CHAIN.OSMOSIS]: {
       fetch: fetch("osmosis-1"),
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-    }
+          }
   },
 };
 

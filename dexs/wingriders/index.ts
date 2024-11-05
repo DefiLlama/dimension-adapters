@@ -34,7 +34,6 @@ export default {
         [CHAIN.CARDANO]: {
             fetch: fetchVolume,
             runAtCurrTime: true,
-            start: 0,
-        }
+                    }
     }
 } as Adapter

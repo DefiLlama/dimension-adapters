@@ -50,8 +50,7 @@ const adapter: SimpleAdapter = {
       fetch,
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 0,
-      meta: {
+            meta: {
         methodology
       }
     },

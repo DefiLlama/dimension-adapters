@@ -53,8 +53,7 @@ const adapter: Adapter = {
             runAtCurrTime: true,
             customBackfill: undefined,
             fetch: fetchFlashStats,
-            start: 0,
-            meta: {
+                        meta: {
                 methodology,
             },
         },

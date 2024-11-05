@@ -73,8 +73,7 @@ const adapter: BreakdownAdapter = {
             timestamp
           }
         },
-        start: 0,
-        meta: {
+                meta: {
           methodology,
         },
       },

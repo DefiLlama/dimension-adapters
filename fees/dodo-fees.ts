@@ -31,8 +31,7 @@ const adapter: Adapter = {
         };
       },
       runAtCurrTime: true,
-      start: 0,
-    }
+          }
   }), {} as any)
 };
 
