@@ -88,21 +88,21 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(endpoints)(CHAIN.CRONOS),
-      start: 1677470400,
+      start: '2023-02-27',
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
       fetch: graphs(endpoints)(CHAIN.ERA),
-      start: 1696496400,
+      start: '2023-10-05',
       meta: {
         methodology,
       },
     },
     [CHAIN.CRONOS_ZKEVM]: {
       fetch: graphs(endpoints)(CHAIN.CRONOS_ZKEVM),
-      start: 1723698700,
+      start: '2024-08-15',
       meta: {
         methodology,
       },

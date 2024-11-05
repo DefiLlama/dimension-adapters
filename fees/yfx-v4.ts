@@ -66,14 +66,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1713916800,
+      start: '2024-04-24',
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),
-      start: 1721001600,
+      start: '2024-07-15',
       meta: {
         methodology
       }

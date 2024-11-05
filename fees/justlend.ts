@@ -164,7 +164,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch: fetch,
-      start: 1700352000,
+      start: '2023-11-19',
       // runAtCurrTime: true,
     },
   },

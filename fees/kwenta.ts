@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OPTIMISM]: {
       fetch: fetchData(CHAIN.OPTIMISM),
-      start: 1682121600,
+      start: '2023-04-22',
     },
   }
 };

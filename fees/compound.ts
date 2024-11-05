@@ -62,7 +62,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: 1557201600,
+        start: '2019-05-07',
     },
   }
 }

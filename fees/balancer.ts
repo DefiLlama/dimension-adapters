@@ -159,7 +159,7 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
-        start: 1582761600,
+        start: '2020-02-27',
         meta: {
           methodology: {
             UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
@@ -174,63 +174,63 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
-        start: 1619136000,
+        start: '2021-04-23',
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
-        start: 1624492800,
+        start: '2021-06-24',
         meta: {
           methodology
         }
       },
       [CHAIN.ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
-        start: 1630368000,
+        start: '2021-08-31',
         meta: {
           methodology
         }
       },
       [CHAIN.AVAX]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
-        start: 1677283200,
+        start: '2023-02-25',
         meta: {
           methodology
         }
       },
       [CHAIN.XDAI]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
-        start: 1673308800,
+        start: '2023-01-10',
         meta: {
           methodology
         }
       },
       [CHAIN.BASE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-        start: 1690329600,
+        start: '2023-07-26',
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
-        start: 1686614400,
+        start: '2023-06-13',
         meta: {
           methodology
         }
       },
       [CHAIN.MODE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
-        start: 1716336000,
+        start: '2024-05-22',
         meta: {
           methodology
         }
       },
       [CHAIN.FRAXTAL]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
-        start: 1716163200,
+        start: '2024-05-20',
         meta: {
           methodology
         }

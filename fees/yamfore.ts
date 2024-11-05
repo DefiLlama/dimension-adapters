@@ -18,7 +18,7 @@ export default {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch: fetch,
-      start: 1728878400,
+      start: '2024-10-14',
       methodology:
         "Fees collected from loan creation fees, interest accured is not yet calculated.",
     },

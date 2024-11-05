@@ -67,15 +67,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1654214400,
+      start: '2022-06-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1672358400,
+      start: '2022-12-30',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 1727351131,
+      start: '2024-09-26',
     },
   },
   isExpensiveAdapter: true,

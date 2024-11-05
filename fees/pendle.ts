@@ -205,23 +205,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691733600,
+      start: '2023-08-11',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1711506087,
+      start: '2024-03-27',
     },
   },
 };

@@ -38,7 +38,7 @@ const adapter: Adapter = {
       fetch,
       runAtCurrTime: false,
       // 2024-04-30T17:55:14:00Z
-      start: 1714499714,
+      start: '2024-04-30',
       meta: {
         methodology: {
           UserFees: "MilkyWay takes 10% fee on users staking rewards",

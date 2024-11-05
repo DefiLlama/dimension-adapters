@@ -50,7 +50,7 @@ const baseAdapter: BaseAdapter = {
     ...adapterObj[CHAIN.ERA],
     fetch: fetch(CHAIN.ERA, 0.0008, 0.0004),
     customBackfill: fetch(CHAIN.ERA, 0.0008, 0.0004),
-    start: 1696118400,
+    start: '2023-10-01',
     meta: {
       methodology
     }

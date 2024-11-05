@@ -73,7 +73,7 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: v2Graph(CHAIN.POLYGON),
-        start: 1602118043,
+        start: '2020-10-08',
         meta: {
           methodology,
         },

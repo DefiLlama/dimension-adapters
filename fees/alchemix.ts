@@ -62,15 +62,15 @@ const adapter: Adapter = {
   adapter: {
     // [CHAIN.ETHEREUM]: { // index error
     //   fetch: graph(endpoints)(CHAIN.ETHEREUM),
-    //   start: 1669852800
+    //   start: '2022-12-01'
     // },
     // [CHAIN.FANTOM]: {
     //   fetch: graph(endpoints)(CHAIN.FANTOM),
-    //   start: 1669852800
+    //   start: '2022-12-01'
     // },
     [CHAIN.OPTIMISM]: {
       fetch: graph(endpoints)(CHAIN.OPTIMISM),
-      start: 1669852800
+      start: '2022-12-01'
     }
   }
 }

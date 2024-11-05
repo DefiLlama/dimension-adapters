@@ -37,20 +37,20 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 1685577600,
+      start: '2023-06-01',
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
       runAtCurrTime: true,
-      start: 1685577600,
+      start: '2023-06-01',
     },
     [CHAIN.BLAST]: {
       fetch: fetchFees,
-      start: 1685577600,
+      start: '2023-06-01',
     },
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 1685577600,
+      start: '2023-06-01',
     },
   },
   isExpensiveAdapter: true,

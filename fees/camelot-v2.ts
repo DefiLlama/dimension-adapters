@@ -51,7 +51,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1668124800,
+      start: '2022-11-11',
     },
   },
 };
