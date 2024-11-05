@@ -16,12 +16,12 @@ const fetchDailyVolume = async (options: FetchOptions) => {
       sqlQuery: {
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
               FROM \`swapEvent\`
-              WHERE timestamp >= ${options.startOfDay} AND timestamp <= ${options.endTimestamp};`
+              WHERE timestamp >= ${options.startOfDay} AND timestamp <= ${options.startOfDay+86400};`
       },
       version: 15
     })
   }).then(response => response.json());
-
+  
   return {
     dailyVolume: res.result.rows[0].usdValue,
   }
@@ -30,7 +30,7 @@ const fetchDailyVolume = async (options: FetchOptions) => {
 
 //NAVI Aggregator Volume
 const navi_aggregator: any = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchDailyVolume,
