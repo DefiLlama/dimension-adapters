@@ -62,7 +62,6 @@ const adapter: Adapter = {
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     })
     // missing tron and ton

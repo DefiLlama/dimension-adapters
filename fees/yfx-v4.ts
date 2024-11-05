@@ -66,14 +66,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: async () => 1713916800,
+      start: 1713916800,
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),
-      start: async () => 1721001600,
+      start: 1721001600,
       meta: {
         methodology
       }

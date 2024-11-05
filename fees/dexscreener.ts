@@ -33,7 +33,6 @@ const adapter: Adapter = {
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     }),
     isExpensiveAdapter: true

@@ -49,7 +49,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: graphs(endpoints)(CHAIN.BSC),
-      start: async () => 1706832000,
+      start: 1706832000,
       meta: {
         methodology: "All treasury, pool and keeper fees are collected",
       },

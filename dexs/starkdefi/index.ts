@@ -29,7 +29,7 @@ const adapter: Adapter = {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       // runAtCurrTime: true,
-      start: async () => 1700956800,
+      start: 1700956800,
     },
   },
 };
