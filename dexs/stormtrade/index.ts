@@ -1,6 +1,6 @@
-import { time } from 'console';
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
+import { FetchResult } from "../../adapters/types";
 
 export default {
     adapter: {
@@ -13,7 +13,7 @@ export default {
                     DataSource: 'Data prepared by the project team by indexing blockchain data'
                 },
             },
-            fetch: async (timestamp: number) => {
+            fetch: async (timestamp: number): Promise<FetchResult> => {
                 const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${timestamp}`)
 
                 if (!response) {
@@ -22,7 +22,7 @@ export default {
 
                 return {
                     dailyVolume: parseInt(response.exchangedDailyTradingVolume) / 1e9,
-                    timestamp: new Date().getTime() / 1000
+                    timestamp: timestamp,
                 }
             },
         },
