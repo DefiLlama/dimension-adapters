@@ -62,12 +62,6 @@ const fetch = async (options) => {
   return { dailyFees };
 };
 
-//do some testing here
-// const options = { 
-
-// }
-// fetch(options);
-
 const adapter: Adapter = {
   version: 2,
   adapter: {
