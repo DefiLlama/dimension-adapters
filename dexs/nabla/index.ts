@@ -78,7 +78,6 @@ export default {
 
         volumeLogs.forEach((logs, i) => {
             logs.forEach((e: any) => {
-                dailyVolume.add(e.tokenIn, e.amountIn)
                 dailyVolume.add(e.tokenOut, e.amountOut)
             })
         })
@@ -120,7 +119,6 @@ export default {
     
             volumeLogs.forEach((e, i) => {
                 dailyVolume.add(e.tokenIn, e.amountIn)
-                dailyVolume.add(e.tokenOut, e.amountOut)
             })
 
             const dailyFees = createBalances()
