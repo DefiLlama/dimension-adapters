@@ -44,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
   const [asset_usd, rate_usd] = await getPayoutDetails(options, LIQUID_VAULT_ACCOUNTANT_USD);
 
   // get total staking fees earned
-  let totalStakeFees = 0;
+  let totalStakeFees = BigInt(0);
   const protocolFeesLog = await options.getLogs({
     target: LIQUIDITY_POOL,
     fromBlock: await options.getStartBlock(),
@@ -60,6 +60,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(EETH, totalStakeFees);
   return { dailyFees };
 };
+
 
 const adapter: Adapter = {
   version: 2,
