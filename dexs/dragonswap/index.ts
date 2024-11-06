@@ -4,11 +4,11 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v2",
+  [CHAIN.KLAYTN]: "https://gateway.graph.dgswap.io/dgswap-exchange-v2-kaia",
 };
 
 const v3Endpoint = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v3",
+  [CHAIN.KLAYTN]: "https://gateway.graph.dgswap.io/dgswap-exchange-v3-kaia",
 };
 
 const startTimes = {
