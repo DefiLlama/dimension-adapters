@@ -31,7 +31,7 @@ const getPayoutDetails = async (options, target) => {
   return [asset_eth, rate_eth];
 };
 
-const fetch = async (options) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   // liquid earnings
@@ -42,9 +42,6 @@ const fetch = async (options) => {
   // usd vault
   const totalSupply_usd = await getTotalSupply(options, LIQUID_VAULT_USD);
   const [asset_usd, rate_usd] = await getPayoutDetails(options, LIQUID_VAULT_ACCOUNTANT_USD);
-
-  dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
-  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 *  0.02 / YEAR);
 
   // get total staking fees earned
   let totalStakeFees = 0;
@@ -58,6 +55,8 @@ const fetch = async (options) => {
   for (const log of protocolFeesLog) {
     totalStakeFees += log.protocolFees;
   }
+  dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
+  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 *  0.02 / YEAR);
   dailyFees.add(EETH, totalStakeFees);
   return { dailyFees };
 };
