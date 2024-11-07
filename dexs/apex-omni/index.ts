@@ -25,22 +25,7 @@ interface IOpenInterest {
 }
 
 const getVolume = async (timestamp: number) => {
-    const symbol = [
-        'BTCUSDT',      'ETHUSDT',      'SOLUSDT',
-        'TONUSDT',      'NEARUSDT',     'XRPUSDT',
-        'ADAUSDT',      'SUIUSDT',      'AVAXUSDT',
-        'BCHUSDT',      'LTCUSDT',      'MATICUSDT',
-        'ARBUSDT',      'OPUSDT',       'STXUSDT',
-        'DOGEUSDT',     '1000SHIBUSDT', '1000PEPEUSDT',
-        '1000BONKUSDT', 'WIFUSDT',      'ORDIUSDT',
-        'PEOPLEUSDT',   'WLDUSDT',      'RNDRUSDT',
-        'ONDOUSDT',     'LINKUSDT',     'ENSUSDT',
-        'UNIUSDT',      'ENAUSDT',      'PENDLEUSDT',
-        'LDOUSDT',      'JUPUSDT',      'RONUSDT',
-        'FILUSDT',      'ARUSDT',       'ZKUSDT',
-        'IOUSDT',       'NOTUSDT',      'ZROUSDT',
-        'BLASTUSDT'
-    ]
+    const symbol = (await getSumbols());
 
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: any[] = (await Promise.all(symbol.map((coins: string) => httpGet(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24), { timeout: 10000 }))))
