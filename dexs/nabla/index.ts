@@ -67,8 +67,8 @@ export default {
             calls: poolsCalls
         });
 
-        
-        
+
+
         const dailyVolume = createBalances()
         const volumeLogs = await Promise.all(routers.map(router => getLogs({
                 target: router,
@@ -81,7 +81,7 @@ export default {
                 dailyVolume.add(e.tokenOut, e.amountOut)
             })
         })
- 
+
         const dailyFees = createBalances()
         const dailyUserFees = createBalances()
         const dailyProtocolRevenue = createBalances()
@@ -92,17 +92,17 @@ export default {
         ));
         logs.forEach((log, i) => {
             log.forEach((e: any) => {
-                dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                dailyProtocolRevenue.add(assets[i], e.protocolFees) 
+                dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                dailyProtocolRevenue.add(assets[i], e.protocolFees)
             })
         })
         return { dailyFees, dailyProtocolRevenue, dailyUserFees, dailyVolume, }
       }) as FetchV2,
       meta: {
-        methodology 
+        methodology
       },
-      start: 1723690984,
+      start: '2024-08-15',
     },
     [CHAIN.BASE]: {
         fetch: (async ({ getLogs, createBalances}) => {
@@ -110,13 +110,13 @@ export default {
             const router = "0x791Fee7b66ABeF59630943194aF17B029c6F487B";
             const pools = ["0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85", "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB"];
             const assets = ["0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf", "0x4200000000000000000000000000000000000006"];
-            
+
             const dailyVolume = createBalances()
             const volumeLogs = await getLogs({
                 target: router,
                 eventAbi: abis.router.swapEvent
             });
-    
+
             volumeLogs.forEach((e, i) => {
                 dailyVolume.add(e.tokenIn, e.amountIn)
             })
@@ -131,16 +131,16 @@ export default {
             ));
             logs.forEach((log, i) => {
                 log.forEach((e: any) => {
-                    dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                    dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                    dailyRevenue.add(assets[i], e.protocolFees) 
+                    dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                    dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                    dailyRevenue.add(assets[i], e.protocolFees)
                 })
             })
             return { dailyFees, dailyRevenue, dailyUserFees, dailyVolume }
         }) as FetchV2,
-        start: 1726157219,
+        start: '2024-09-12',
         meta: {
-            methodology 
+            methodology
         }
       },
   },
