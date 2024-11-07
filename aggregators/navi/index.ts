@@ -1,10 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions } from "../../adapters/types";
 
 const sentioApiKey = '3taTsrTS3cZq4tcKkKVSajWSJxkjZmcet'; //Read Only
 
-const fetchDailyVolume = async (options: FetchOptions) => {
+const fetchDailyVolume = async ({ fromTimestamp, toTimestamp, startOfDay }: FetchOptions) => {
   const url = 'https://app.sentio.xyz/api/v1/analytics/navi/dex-aggregator/sql/execute';
   const res = await fetch(url, {
     method: 'POST',
@@ -16,16 +15,15 @@ const fetchDailyVolume = async (options: FetchOptions) => {
       sqlQuery: {
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
               FROM \`swapEvent\`
-              WHERE timestamp >= ${options.startOfDay} AND timestamp <= ${options.startOfDay+86400};`
+              WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`
       },
       version: 15
     })
   }).then(response => response.json());
-  
+
   return {
     dailyVolume: res.result.rows[0].usdValue,
   }
-
 };
 
 //NAVI Aggregator Volume
