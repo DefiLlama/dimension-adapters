@@ -11,6 +11,7 @@ const getData = async (timestamp: number) => {
         id
         burn
         margin
+        liquidation
         mint
         period
         timestamp
@@ -19,11 +20,11 @@ const getData = async (timestamp: number) => {
   `;
   const response = await request(graphUrl, query);
   let dailyVolume = new BigNumber(0);
-
   if (response.volumeStats) {
     const data = response.volumeStats[0];
     dailyVolume = dailyVolume
       .plus(new BigNumber(data.mint))
+      .plus(new BigNumber(data.liquidation))
       .plus(new BigNumber(data.burn))
       .plus(new BigNumber(data.margin))
       .dividedBy(new BigNumber(1e30));
