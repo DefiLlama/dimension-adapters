@@ -3,7 +3,7 @@ import { FetchOptions } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 
 const graphUrl =
-  "https://iota.graph.cyberperp.io/api/subgraphs/name/cyberLP-pool";
+  "https://api.goldsky.com/api/public/project_clzwt9f7wxczz01vw8zx90k22/subgraphs/cyberLP-pool/latest/gn";
 
 const getData = async (timestamp: number) => {
   const query = gql`
