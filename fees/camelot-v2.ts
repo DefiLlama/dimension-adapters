@@ -15,7 +15,13 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8zagLSufxk5cVhzkzai3tyABwJh53zxn9tmUYJcJxijG')
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8zagLSufxk5cVhzkzai3tyABwJh53zxn9tmUYJcJxijG'),
+  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-apechain/api`,
+  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-gravity/api`,
+  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-rari/api`,
+  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-reya/api`,
+  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-xai/api`,
+  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-sanko/api`,
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -50,6 +56,30 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.GRAVITY]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.RARI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.REYA]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.SANKO]: {
       fetch: fetch,
       start: '2022-11-11',
     },

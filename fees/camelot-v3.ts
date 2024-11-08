@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
@@ -17,11 +17,16 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp')
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp'),
+  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-apechain/api`,
+  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-gravity/api`,
+  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-rari/api`,
+  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-reya/api`,
+  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-xai/api`,
+  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-sanko/api`,
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+const fetch =  async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
     const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
     const graphQuery = gql
@@ -34,7 +39,7 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
+    const graphRes: IPoolData = (await request(endpoints[options.chain], graphQuery)).algebraDayData;
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
@@ -47,15 +52,38 @@ const fetch = (chain: Chain) => {
       dailyHoldersRevenue: dailyFee.multipliedBy(0.17).toString(),
       dailySupplySideRevenue: dailyFee.multipliedBy(0.80).toString(),
     };
-  };
 }
 
 const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
+      fetch: fetch,
       start: '2023-03-31',
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.GRAVITY]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.RARI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.REYA]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.SANKO]: {
+      fetch: fetch,
+      start: '2022-11-11',
     },
   },
 };
