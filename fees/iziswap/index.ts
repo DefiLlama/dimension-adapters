@@ -9,7 +9,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 const historicalVolumeEndpoint = (chain_id: number, page: number) => `https://api.izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000&page=${page}`
 
 interface IVolumeall {
-  volDay: number;
+  feesDay: number;
   chainId: number;
   timestamp: number;
 }
@@ -21,21 +21,6 @@ type TAdapter = {
 };
 
 const chains: TChains =  {
-  [CHAIN.BSC]: 56,
-  [CHAIN.ERA]: 324,
-  [CHAIN.ARBITRUM]: 42161,
-  [CHAIN.METER]: 82,
-  [CHAIN.AURORA]: 1313161554,
-  [CHAIN.POLYGON]: 137,
-  [CHAIN.MANTLE]: 5000,
-  [CHAIN.ONTOLOGY_EVM]: 58,
-  [CHAIN.ULTRON]: 1231,
-  [CHAIN.LINEA]: 59144,
-  [CHAIN.SCROLL]: 534352,
-  [CHAIN.BASE]: 8453,
-  [CHAIN.MANTA]: 169,
-  [CHAIN.ZETA]: 7000,
-  [CHAIN.MODE]: 34443,
   [CHAIN.IOTEX]: 4689,
 };
 
@@ -55,16 +40,16 @@ const fetch = (chain: Chain) => {
       };
     };
     const historicalVolume = historical.filter(e => e.chainId === chains[chain]);
-    const totalVolume = historicalVolume
+    const totalFees = historicalVolume
       .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
-      .reduce((acc, { volDay }) => acc + Number(volDay), 0)
+      .reduce((acc, { feesDay }) => acc + Number(feesDay), 0)
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
+    const dailyFees = historicalVolume
+      .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.feesDay
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalFees: `${totalFees}`,
+      dailyFees: dailyFees ? `${dailyFees}` : undefined,
       timestamp: dayTimestamp,
     };
   }
@@ -72,11 +57,7 @@ const fetch = (chain: Chain) => {
 
 const adapters: TAdapter = {};
 for (const chain in chains) {
-  let startTime = 1689523200;
-  if (chain == CHAIN.BSC || chain == CHAIN.ERA){
-    startTime = 1680739200;
-  };
-  if (chain === CHAIN.AURORA) startTime = 1665446400;
+  let startTime = 1722009600;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch(chain),
