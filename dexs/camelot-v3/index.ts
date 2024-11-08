@@ -16,4 +16,10 @@ const adapters = univ2Adapter2({
 });
 
 adapters.adapter.arbitrum.start = 1680220800;
+adapters.adapter.apechain.start = 1680220800;
+adapters.adapter.gravity.start = 1680220800;
+adapters.adapter.rari.start = 1680220800;
+adapters.adapter.reya.start = 1680220800;
+adapters.adapter.xdai.start = 1680220800;
+adapters.adapter.sanko.start = 1680220800;
 export default adapters;
