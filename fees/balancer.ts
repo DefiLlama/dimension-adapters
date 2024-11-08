@@ -111,36 +111,46 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           timestamp
         }
       }`;
+      try {
+        const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
 
-      const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
+        let dailySwapFee = new BigNumber(0);
+        let dailyProtocolFee = new BigNumber(0);
+        if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+          dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+          dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        }
 
-      let dailySwapFee = new BigNumber(0);
-      let dailyProtocolFee = new BigNumber(0);
-      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
-        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
-        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        let tenPcFeeTimestamp = 0;
+        let fiftyPcFeeTimestamp = 0;
+
+        if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
+          tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
+          fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
+        }
+
+        // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
+        // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
+        const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
+          toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
+
+        return {
+          dailyUserFees: dailySwapFee.toString(),
+          dailyFees: dailyFees.toString(),
+          dailyRevenue: dailyProtocolFee.toString(),
+          dailyProtocolRevenue: dailyProtocolFee.toString(),
+          dailySupplySideRevenue: dailySwapFee.toString(),
+        };
+      } catch (e) {
+        return {
+          dailyUserFees: "0",
+          dailyFees: "0",
+          dailyRevenue: "0",
+          dailyProtocolRevenue: "0",
+          dailySupplySideRevenue: "0",
+        };
       }
 
-      let tenPcFeeTimestamp = 0;
-      let fiftyPcFeeTimestamp = 0;
-
-      if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
-        tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
-        fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
-      }
-
-      // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
-      // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-      const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
-        toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
-
-      return {
-        dailyUserFees: dailySwapFee.toString(),
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyProtocolFee.toString(),
-        dailyProtocolRevenue: dailyProtocolFee.toString(),
-        dailySupplySideRevenue: dailySwapFee.toString(),
-      };
     };
   };
 };
