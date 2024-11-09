@@ -14,6 +14,11 @@ const CHAINS: TChain = {
   [CHAIN.ETHEREUM]: 1,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.POLYGON]: 137,
+  [CHAIN.BLAST]: 81457,
+  [CHAIN.LINEA]: 59144,
+  [CHAIN.SCROLL]: 534352,
+  [CHAIN.MANTLE]: 5000,
+  [CHAIN.MODE]: 34443,
 };
 
 const fetch = async (_a, _b, options: FetchOptions) => {
