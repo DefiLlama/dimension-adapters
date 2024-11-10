@@ -168,7 +168,7 @@ export default {
 
                 })
             })
-            return { dailyFees, dailyRevenue, dailyUserFees, dailyVolume }
+            return { dailyFees, dailyProtocolRevenue, dailyUserFees, dailyVolume }
         }) as FetchV2,
         start: '2024-09-12',
         meta: {
