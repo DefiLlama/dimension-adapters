@@ -77,31 +77,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetchKeeper(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchKeeper(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetchKeeper(CHAIN.FANTOM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetchKeeper(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchKeeper(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchKeeper(CHAIN.OPTIMISM),
-      start: 1675382400
+      start: '2023-02-03'
     }
   }
 }

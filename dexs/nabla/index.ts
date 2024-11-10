@@ -98,6 +98,7 @@ export default {
       fetch: (async ({ getLogs, createBalances, api}) => {
         const {routers, pools, assets} = await getAddresses(CHAIN.ARBITRUM, api)
         
+
         const dailyVolume = createBalances()
         const volumeLogs = await Promise.all(routers.map(router => getLogs({
                 target: router,
@@ -110,7 +111,7 @@ export default {
                 dailyVolume.add(e.tokenOut, e.amountOut)
             })
         })
- 
+
         const dailyFees = createBalances()
         const dailyUserFees = createBalances()
         const dailyProtocolRevenue = createBalances()
@@ -121,17 +122,17 @@ export default {
         ));
         logs.forEach((log, i) => {
             log.forEach((e: any) => {
-                dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
-                dailyProtocolRevenue.add(assets[i], e.protocolFees) 
+                dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees)
+                dailyProtocolRevenue.add(assets[i], e.protocolFees)
             })
         })
         return { dailyFees, dailyProtocolRevenue, dailyUserFees, dailyVolume, }
       }) as FetchV2,
       meta: {
-        methodology 
+        methodology
       },
-      start: 1723690984,
+      start: '2024-08-15',
     },
     [CHAIN.BASE]: {
         fetch: (async ({ getLogs, createBalances, api}) => {
@@ -142,7 +143,7 @@ export default {
             const volumeLogs = await Promise.all(routers.map(router => getLogs({
                 target: router,
                 eventAbi: abis.router.swapEvent
-            })
+              })
             ));
 
             volumeLogs.forEach((logs, i) => {
@@ -153,7 +154,6 @@ export default {
 
             const dailyFees = createBalances()
             const dailyUserFees = createBalances()
-            const dailyRevenue = createBalances()
             const dailyProtocolRevenue = createBalances()
             const logs = await Promise.all(pools.map(pool => getLogs({
                 target: pool,
@@ -165,13 +165,14 @@ export default {
                     dailyFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
                     dailyUserFees.add(assets[i], e.lpFees+e.backstopFees+e.protocolFees) 
                     dailyProtocolRevenue.add(assets[i], e.protocolFees) 
+
                 })
             })
             return { dailyFees, dailyRevenue, dailyUserFees, dailyVolume }
         }) as FetchV2,
-        start: 1726157219,
+        start: '2024-09-12',
         meta: {
-            methodology 
+            methodology
         }
       },
   },

@@ -63,7 +63,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchSolendStats,
-      start: 1675123053,
+      start: '2023-01-31',
       meta: {
         methodology,
       },

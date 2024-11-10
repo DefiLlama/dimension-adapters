@@ -33,35 +33,35 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: 1675382400,
+        start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1675382400,
+      start: '2023-02-03',
     }
   }
 }

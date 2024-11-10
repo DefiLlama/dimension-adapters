@@ -58,12 +58,10 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: evmReceivedGasAndTokens('0x997Cc123cF292F46E55E6E63e806CD77714DB70f', tokens[chain]),
-            start: 0,
-        }
+                    }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     })
     // missing tron and ton

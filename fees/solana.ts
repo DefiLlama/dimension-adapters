@@ -25,7 +25,7 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyRevenue,
         };
       },
-      start: 1610841600,
+      start: '2021-01-17',
     },
   },
   isExpensiveAdapter: true,

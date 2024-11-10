@@ -16,7 +16,7 @@ const adapter: SimpleAdapter = {
           timestamp
         }
       },
-      start: 1719847914,
+      start: '2024-07-01',
       meta: {
         methodology: {
           Volume: "Total costs + payouts",

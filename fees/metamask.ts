@@ -79,19 +79,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 1672531200,
+      start: '2023-01-01',
       runAtCurrTime: true,
     }
   },

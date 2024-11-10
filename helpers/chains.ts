@@ -178,6 +178,12 @@ export enum CHAIN {
   FUEL = "fuel",
   REAL = "real",
   CELESTIA = "celestia",
+  APECHAIN = "apechain",
+  DUCKCHAIN = "duckchain",
+  GRAVITY = "gravity",
+  RARI = "rari",
+  REYA = "reya",
+  SANKO = "sanko",
 }
 
 // Don´t use

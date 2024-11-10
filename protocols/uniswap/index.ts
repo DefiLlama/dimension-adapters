@@ -247,8 +247,7 @@ const adapter: BreakdownAdapter = {
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
-          start: 0,
-        }
+                  }
         return acc
       }, {})
     },
@@ -328,8 +327,7 @@ const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTS
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
     fetch: fetchFromOku,
-    start: 0,
-    meta: {
+        meta: {
       methodology
     }
   }

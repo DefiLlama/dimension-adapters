@@ -122,7 +122,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1687910400,
+      start: '2023-06-28',
     },
   },
 };

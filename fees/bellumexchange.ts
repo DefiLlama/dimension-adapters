@@ -28,7 +28,7 @@ const adapter: Adapter = {
         })
         return { dailyFees, dailyRevenue: dailyFees }
       }) as any,
-      start: 1723360238
+      start: '2024-08-11'
     },
   },
 

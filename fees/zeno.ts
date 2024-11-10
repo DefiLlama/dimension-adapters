@@ -111,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: graphs(endpoints),
-      start: 1710294153,
+      start: '2024-03-13',
     },
   },
 };

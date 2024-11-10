@@ -18,26 +18,6 @@ export const query = gql`
       }
       lendingPool {
         id
-        collateral {
-          liquidationFee
-          liquidationIncentive
-          safetyMargin
-        }
-        pair {
-          uniswapV2Factory
-          token0 {
-            id
-            name
-            symbol
-            decimals
-          }
-          token1 {
-            id
-            name
-            symbol
-            decimals
-          }
-        }
       }
     }
   }
