@@ -19,7 +19,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchFees,
-      start: 1644710400
+      start: '2022-02-13'
     }
   }
 }

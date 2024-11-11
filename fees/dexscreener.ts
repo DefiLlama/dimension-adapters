@@ -29,12 +29,10 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: eth,
-            start: 0,
-        }
+                    }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     }),
     isExpensiveAdapter: true

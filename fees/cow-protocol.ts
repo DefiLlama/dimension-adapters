@@ -44,14 +44,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM) as any,
-      start: 1675382400,
+      start: '2023-02-03',
       meta: {
         methodology
       }
     },
     // [CHAIN.XDAI]: {
     //   fetch: fetch(CHAIN.XDAI) as any,
-    //   start: 1675382400,
+    //   start: '2023-02-03',
     //   meta: {
     //     methodology
     //   }

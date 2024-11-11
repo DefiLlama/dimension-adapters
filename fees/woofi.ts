@@ -67,43 +67,43 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.LINEA]: {
       fetch: fetch(CHAIN.LINEA),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1673222400,
+      start: '2023-01-09',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1673222400,
+      start: '2023-01-09',
     }
   }
 }

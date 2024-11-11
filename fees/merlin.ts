@@ -56,7 +56,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ERA]: {
       fetch: async (timestamp: number) => {return{timestamp}},
-      start: 1680274800,
+      start: '2023-03-31',
     },
   },
 };

@@ -16,8 +16,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: {
       fetch: fetch,
-      start: 0,
-    }
+          }
   }
 }
 

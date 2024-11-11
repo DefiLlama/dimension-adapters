@@ -53,8 +53,7 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: evm,
-            start: 0,
-        }
+                    }
     }), {})
 }
 

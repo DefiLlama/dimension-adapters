@@ -25,8 +25,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 0,
-    }
+          }
   }
 }
 export default adapters

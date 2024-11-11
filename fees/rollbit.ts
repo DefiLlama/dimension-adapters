@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: 1643673600,
+            start: '2022-02-01',
             meta: {
                 methodology: {
                     Fees: "Money that users lose gambling",

@@ -69,11 +69,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetch(FEE_ADDRESS[CHAIN.ERA]),
-      start: 1690848000, // 2023/08/01 00:00:00
+      start: '2023-08-01', // 2023/08/01 00:00:00
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(FEE_ADDRESS[CHAIN.ARBITRUM]),
-      start: 1698883200, // 2023/11/02 00:00:00
+      start: '2023-11-02', // 2023/11/02 00:00:00
     },
   },
 };

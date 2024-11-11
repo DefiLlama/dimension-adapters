@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: 1721083903,
+      start: '2024-07-16',
       meta: {
         methodology: {
           Fees: methodology,

@@ -77,7 +77,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFees(),
-      start: 1672790400,
+      start: '2023-01-04',
       meta: {
         methodology
       }

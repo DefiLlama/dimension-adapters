@@ -31,6 +31,15 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     ]] as any,
   }))[0]
 
+  const extra_fees_to_distribute = (await options.getLogs({
+    targets: [usdt],
+    flatten: false,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
+      ethers.zeroPadValue("0xd0ec8cc7414f27ce85f8dece6b4a58225f273311", 32),
+    ]] as any,
+  }))[0]
+
   const dailyFeesInflow = options.createBalances();
   const supplyRewards = options.createBalances();
 
@@ -40,6 +49,11 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
   });
   out_flow.map((log: any) => {
     const amount = Number(log.value);
+    supplyRewards.add(usdt, amount);
+  });
+  extra_fees_to_distribute.map((log: any) => {
+    const amount = Number(log.value);
+    dailyFeesInflow.add(usdt, amount);
     supplyRewards.add(usdt, amount);
   });
   const dailyFeesMint = options.createBalances();
@@ -62,7 +76,7 @@ const adapters = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1700784000,
+      start: '2023-11-24',
     },
   },
 };

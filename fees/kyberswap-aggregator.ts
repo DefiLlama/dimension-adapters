@@ -19,7 +19,7 @@ export default {
             ...acc,
             [curr]:{
                 fetch: fetch,
-                start: 1683893231
+                start: '2023-05-12'
             }
         }), {})
     ,

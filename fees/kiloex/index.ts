@@ -56,10 +56,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.MANTA), start: 1698796800
     },
     [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: async () => 1717027200
+      fetch: fetch(CHAIN.TAIKO), start: 1717027200
     },
     [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: async () => 1722297600
+      fetch: fetch(CHAIN.BSQUARED), start: 1722297600
     },
   },
 };

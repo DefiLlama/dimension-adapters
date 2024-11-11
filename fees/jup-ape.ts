@@ -12,8 +12,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 0,
-    },
+          },
   },
   isExpensiveAdapter: true
 };

@@ -70,7 +70,7 @@ const adapter: Adapter = {
         dailyFees: 0,
         dailyUserFees: 0
       }),
-      start: 1682035200,
+      start: '2023-04-21',
     },
   }
 }

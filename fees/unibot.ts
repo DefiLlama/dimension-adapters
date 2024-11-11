@@ -77,7 +77,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1684972800,
+      start: '2023-05-25',
     },
   },
 };

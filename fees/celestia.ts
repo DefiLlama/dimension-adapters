@@ -24,8 +24,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CELESTIA]: {
       fetch: fetchFees,
-      start: 0,
-    },
+          },
   },
   protocolType: ProtocolType.CHAIN,
 }

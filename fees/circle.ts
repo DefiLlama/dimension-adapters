@@ -21,7 +21,6 @@ const adapter: Adapter = {
                     dailyRevenue: dailyFees
                 }
             },
-            start: 0
         }
     }
 }

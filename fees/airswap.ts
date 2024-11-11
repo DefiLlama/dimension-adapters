@@ -35,23 +35,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 1689811200,
+      start: '2023-07-20',
     },
   }
 };

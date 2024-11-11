@@ -24,8 +24,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
-            start: 0,
-        },
+                    },
     }
 }
 

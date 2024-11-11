@@ -34,7 +34,7 @@ const methodology = {
   Revenue: "Take 0.85% from trading volume",
 }
 
-const chainAdapter = { fetch, start: 1672531200, meta: { methodology } }
+const chainAdapter = { fetch, start: '2023-01-01', meta: { methodology } }
 
 const adapter: Adapter = {
   adapter: {
