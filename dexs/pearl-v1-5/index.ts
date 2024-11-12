@@ -2,5 +2,5 @@ import { CHAIN } from "../../helpers/chains";
 import { uniV2Exports } from "../../helpers/uniswap";
 
 export default uniV2Exports({
-  [CHAIN.POLYGON]: { factory: '0xEaF188cdd22fEEBCb345DCb529Aa18CA9FcB4FBd', },
+  [CHAIN.REAL]: { factory: '0xAed0A784f357BE9C3f8113BB227a7517a3444Efe', },
 })
