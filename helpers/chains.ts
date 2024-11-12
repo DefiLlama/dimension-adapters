@@ -185,6 +185,7 @@ export enum CHAIN {
   RARI = "rari",
   REYA = "reya",
   SANKO = "sanko",
+  ECLIPSE = "eclipse",
 }
 
 // Don´t use
