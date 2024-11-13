@@ -1,7 +1,8 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
-const statsApiEndpoint = "https://stats-api.mainnet.orca.so/api/whirlpools"
+const statsApiEndpoint = "https://stats-api.mainnet.orca.so/api/whirlpools";
+const eclipseStatsApiEndpoint = "https://stats-api-eclipse.mainnet.orca.so/api/whirlpools";
 const FEE_RATE_DENOMINATOR = 1_000_000;
 const FEE_RATE_THRESHOLD = 0.0016; // Threshold for when a pool's LPs are charged a protocol fee
 const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climat fund 
@@ -82,8 +83,8 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
     return 0;
 }
 
-async function fetch(timestamp: number) {
-    const [whirlpools]: [StatsApiResponse] = await Promise.all([httpGet(statsApiEndpoint)]);
+async function fetch(timestamp: number, url: string) {
+    const [whirlpools]: [StatsApiResponse] = await Promise.all([httpGet(url)]);
 
     const validPools = whirlpools.data.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);
 
@@ -111,10 +112,23 @@ async function fetch(timestamp: number) {
     }
 }
 
+async function fetchSolana(timestamp: number) {
+    return await fetch(timestamp, statsApiEndpoint);
+}
+
+async function fetchEclipse(timestamp: number) {
+    return await fetch(timestamp, eclipseStatsApiEndpoint);
+}
+
 export default {
     adapter: {
         [CHAIN.SOLANA]: {
-            fetch: fetch,
+            fetch: fetchSolana,
+            runAtCurrTime: true,
+            start: 1663113600,
+        },
+        [CHAIN.ECLIPSE]: {
+            fetch: fetchEclipse,
             runAtCurrTime: true,
             start: 1663113600,
         }
