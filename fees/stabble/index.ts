@@ -24,7 +24,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      runAtCurrTime: true,
       start: 1717563162,
     },
   },
