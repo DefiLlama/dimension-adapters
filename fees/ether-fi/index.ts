@@ -166,7 +166,6 @@ const fetch = async (options: FetchOptions) => {
 
   // add ssv revenue for running ssv validators
   const ssvRevenue = await getSsvRevenue(options);
-  console.log(ssvRevenue)
   dailyFees.add(SSV, ssvRevenue / BigInt(30));
   dailyRev.add(SSV, ssvRevenue / BigInt(30));
 
@@ -180,11 +179,10 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(STETH, BigInt(stethFees) + BigInt(stethRevenue));
   dailyRev.add(STETH, (stethRevenue));
 
-  console.log(dailyRev)
-
-  // //staking
+  //staking
   dailyRev.add(EETH, totalStakeFees);
   dailyFees.add(EETH, totalStakeFees * BigInt(10));
+
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyRev,
