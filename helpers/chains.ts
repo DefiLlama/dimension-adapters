@@ -187,6 +187,7 @@ export enum CHAIN {
   SANKO = "sanko",
   ECLIPSE = "eclipse",
   UNIT0 = "unit0",
+  SHIDO = "shido",
 }
 
 // Don´t use
