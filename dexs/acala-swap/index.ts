@@ -34,6 +34,7 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { dailyTradeVolumeUSD }) => acc + Number(dailyTradeVolumeUSD), 0)
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.timestamp.split('T')[0] === dateString)?.dailyTradeVolumeUSD
+  if (Number(Number(dailyVolume) / 10 ** 18) > 1_000_000_000) throw new Error("Daily volume is too high");
   return {
     totalVolume: `${totalVolume / 10 ** 18}`,
     dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10 ** 18}` : undefined,
