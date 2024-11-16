@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SHIDO]: {
       fetch: fetchV2Data,
-      start: 1654992851,
+      start: 1727308800,
     }
   },
 };
