@@ -17,6 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     'alephium': {
       fetch: fetchVolume,
+      runAtCurrTime: true,
       start: 1654992851,
     }
   }
