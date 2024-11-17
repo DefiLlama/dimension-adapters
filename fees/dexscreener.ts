@@ -19,7 +19,7 @@ const eth = async (options: FetchOptions) => {
 
 // TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, target: '23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft' })
+    const dailyFees = await getSolanaReceived({ options, targets: ['23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft', 'AJENSD55ZJBwipZnEf7UzW2pjxex1cV2jSKPz7aMwJo5'] })
     return { dailyFees, dailyRevenue: dailyFees, }
 }
 
