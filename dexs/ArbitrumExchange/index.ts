@@ -5,8 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
+  getGraphDimensions2,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
 
@@ -18,9 +17,7 @@ const v3Endpoints = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu'),
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
@@ -33,15 +30,11 @@ const v2Graph = getGraphDimensions({
   }
 });
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",

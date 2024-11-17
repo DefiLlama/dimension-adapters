@@ -1,18 +1,8 @@
 import request, { gql } from "graphql-request";
-import {
-  BreakdownAdapter,
-  Fetch,
-  FetchResultVolume,
-} from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import BigNumber from "bignumber.js";
-
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
-const toString = (x: BigNumber) => {
-  if (x.isEqualTo(0)) return undefined;
-  return x.toString();
-};
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.BASE]: 1694304000,
@@ -20,13 +10,9 @@ const startTimestamps: { [chain: string]: number } = {
 };
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
+    "https://api-v2.morphex.trade/subgraph/2vZHkWfx8g27Tri5LkTbhvCExCQcXJ3f28X2BwzFhjf6",
   [CHAIN.MODE]:
-    "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
-};
-const freestyleEndpoints: { [key: string]: string } = {
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/62454/analytics_base_8_2/version/latest",
+    "https://api-v2.morphex.trade/subgraph/8tp7xrDSCuutJ5omjfQKHvkGJpLszqPVWg3pby9XMLEz",
 };
 
 const historicalDataSwap = gql`
@@ -50,30 +36,6 @@ const historicalOI = gql`
       id
       longOpenInterest
       shortOpenInterest
-    }
-  }
-`;
-const freestyleQuery = gql`
-  query stats($from: String!, $to: String!) {
-    dailyHistories(
-      where: {
-        timestamp_gte: $from
-        timestamp_lte: $to
-        accountSource: "0x6D63921D8203044f6AbaD8F346d3AEa9A2719dDD"
-      }
-    ) {
-      timestamp
-      platformFee
-      accountSource
-      tradeVolume
-    }
-    totalHistories(
-      where: { accountSource: "0x6D63921D8203044f6AbaD8F346d3AEa9A2719dDD" }
-    ) {
-      timestamp
-      platformFee
-      accountSource
-      tradeVolume
     }
   }
 `;
@@ -138,13 +100,13 @@ const getFetch =
         }
       );
       dailyOpenInterest =
-        Number(tradingStats.tradingStats[0].longOpenInterest) +
-        Number(tradingStats.tradingStats[0].shortOpenInterest);
+        Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
+        Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
       dailyLongOpenInterest = Number(
-        tradingStats.tradingStats[0].longOpenInterest
+        tradingStats.tradingStats[0]?.longOpenInterest || 0
       );
       dailyShortOpenInterest = Number(
-        tradingStats.tradingStats[0].shortOpenInterest
+        tradingStats.tradingStats[0]?.shortOpenInterest || 0
       );
     }
 
@@ -184,46 +146,6 @@ const getFetch =
     };
   };
 
-const fetchFreestyleVolume =
-  (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number): Promise<FetchResultVolume> => {
-    const response: IGraphResponseFreestyle = await request(
-      freestyleEndpoints[chain],
-      query,
-      {
-        from: String(timestamp - ONE_DAY_IN_SECONDS),
-        to: String(timestamp),
-      }
-    );
-
-    let dailyVolume = new BigNumber(0);
-    let totalVolume = new BigNumber(0);
-
-    response.dailyHistories.forEach((data) => {
-      dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
-    });
-    response.totalHistories.forEach((data) => {
-      totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
-    });
-
-    dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-    totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
-
-    const _dailyVolume = toString(dailyVolume);
-    const _totalVolume = toString(totalVolume);
-
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: _dailyVolume ?? "0",
-      totalVolume: _totalVolume ?? "0",
-    };
-  };
-
 const adapter: BreakdownAdapter = {
   breakdown: {
     swap: Object.keys(endpoints).reduce((acc, chain) => {
@@ -235,7 +157,7 @@ const adapter: BreakdownAdapter = {
         },
       };
     }, {}),
-    "derivatives-classic": Object.keys(endpoints).reduce((acc, chain) => {
+    derivatives: Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
@@ -244,12 +166,6 @@ const adapter: BreakdownAdapter = {
         },
       };
     }, {}),
-    "derivatives-freestyle": {
-      [CHAIN.BASE]: {
-        fetch: fetchFreestyleVolume(freestyleQuery)(CHAIN.BASE),
-        start: 1714681913,
-      },
-    },
   },
 };
 

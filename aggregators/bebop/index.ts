@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
+import {queryDuneSql} from "../../helpers/dune"
 
 const abis = {
   "AggregateOrderExecuted": "event AggregateOrderExecuted(bytes32 order_hash)",
@@ -43,7 +44,7 @@ const jamAddress = {
 }
 
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
   const logs = await getLogs({
@@ -86,7 +87,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   const jamLogs = await getLogs({
     target: jamAddress[chain] || jamAddress.default,
     topics: ['0x7a70845dec8dc098eecb16e760b0c1569874487f0459ae689c738e281b28ed38'] // Settlement,
-
   });
 
   const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
@@ -105,21 +105,30 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
     })
   }
 
-  return { timestamp, dailyVolume }
+  return { dailyVolume }
 };
 
-const adapter: any = {
+async function fetchDune(options: FetchOptions){
+  const vol = await queryDuneSql(options, `SELECT SUM(amount_usd) AS vol FROM bebop.trades WHERE blockchain = 'CHAIN' AND TIME_RANGE`)
+  const dailyVolume = options.createBalances()
+  dailyVolume.addCGToken("tether", vol[0].vol)
+  return { dailyVolume }
+}
+
+const adapter: Adapter = {
+  version: 2,
+  isExpensiveAdapter: true,
   adapter: {
-    arbitrum: { fetch, start: 1685491200, },
-    ethereum: { fetch, start: 1685491200, },
-    polygon: { fetch, start: 1685491200, },
-    bsc: { fetch, start: 1685491200, },
+    arbitrum: { fetch: fetchDune, start: 1685491200, },
+    ethereum: { fetch: fetchDune, start: 1685491200, },
+    polygon: { fetch: fetchDune, start: 1685491200, },
+    bsc: { fetch: fetchDune, start: 1685491200, },
     blast: { fetch, start: 1685491200, },
     era: { fetch, start: 1685491200, },
-    optimism: { fetch, start: 1685491200, },
+    optimism: { fetch: fetchDune, start: 1685491200, },
     mode: { fetch, start: 1685491200, },
-    base: { fetch, start: 1685491200, },
-    scroll: { fetch, start: 1685491200, },
+    base: { fetch: fetchDune, start: 1685491200, },
+    scroll: { fetch: fetchDune, start: 1685491200, },
     taiko: { fetch, start: 1685491200, },
   },
 };

@@ -1,14 +1,14 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { FetchV2 } from "../adapters/types"
+import type { FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
+    "https://api-v2.morphex.trade/subgraph/2vZHkWfx8g27Tri5LkTbhvCExCQcXJ3f28X2BwzFhjf6",
   [CHAIN.MODE]:
-    "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
+    "https://api-v2.morphex.trade/subgraph/8tp7xrDSCuutJ5omjfQKHvkGJpLszqPVWg3pby9XMLEz",
 };
 
 const methodology = {
@@ -48,7 +48,6 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
   const finalUserFee = userFee / 1e30;
 
   return {
-    endTimestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.4).toString(),
@@ -62,18 +61,18 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs,
-      start: 1694304000,
+      start: '2023-09-10',
       meta: {
         methodology,
       },
     },
     [CHAIN.MODE]: {
       fetch: graphs,
-      start: 1720627435,
+      start: '2024-07-10',
       meta: {
         methodology,
       },
-    }
+    },
   },
 };
 

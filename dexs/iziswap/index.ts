@@ -34,7 +34,9 @@ const chains: TChains =  {
   [CHAIN.SCROLL]: 534352,
   [CHAIN.BASE]: 8453,
   [CHAIN.MANTA]: 169,
-  [CHAIN.ZETA]: 7000
+  [CHAIN.ZETA]: 7000,
+  [CHAIN.MODE]: 34443,
+  [CHAIN.IOTEX]: 4689,
 };
 
 const fetch = (chain: Chain) => {

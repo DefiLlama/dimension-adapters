@@ -19,7 +19,7 @@ const CHAINS = {
   osmosis: "osmosis",
   sei: "sei",
   solana: "solana",
-  terra: "terraclassic",
+  // terra: "terraclassic",
   terra2: "terra",
 } as const;
 // Number of milliseconds in a day (24 hours)

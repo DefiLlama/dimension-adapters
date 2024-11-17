@@ -1,4 +1,4 @@
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
@@ -39,18 +39,11 @@ const getCustomBlock = async (timestamp: number) => {
   return block;
 };
 
-const DAILY_VOLUME_FACTORY = "uniswapDayData";
-
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: 'date'
   },
   getCustomBlock,
 });

@@ -1,8 +1,8 @@
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
+import { SimpleAdapter } from "../../adapters/types";
 
-
-export default {
+const adapter: SimpleAdapter= {
     version: 1,
     adapter: {
         [CHAIN.TON]: {
@@ -11,22 +11,28 @@ export default {
             meta: {
                 methodology: {
                     Fees: 'Traders pay opening and closing fees',
-                    DataSource: 'Data collected by the re:doubt team, available at https://beta.redoubt.online/tracker'
+                    DataSource: 'Data prepared by the project team by indexing blockchain data'
                 },
             },
-            fetch: async () => {
-                const response = await fetchURL('https://api.redoubt.online/dapps/v1/export/defi/storm')
+            fetch: async (timestamp: number,) => {
+                const response = await fetchURL('https://api5.storm.tg/api/markets/stats')
 
                 if (!response) {
-                    throw new Error('Error during re:doubt API call')
+                    throw new Error('Error during API call')
                 }
 
+                const dailyFees= parseInt(response.exchangedDailyFees) / 1e9;
+
                 return {
-                    dailyUserFees: response.fees.toString(),
-                    dailyFees: response.fees.toString(),
-                    timestamp: response.timestamp
+                    dailyUserFees: dailyFees,
+                    dailyFees:  dailyFees,
+                    dailyRevenue: `${dailyFees * 0.3}`,
+                    dailyHoldersRevenue: `${dailyFees * 0.3}`,
+                    timestamp: timestamp,
                 }
             },
         },
     },
 }
+
+export default adapter;

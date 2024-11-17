@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addGasTokensReceived, addTokensReceived } from "../helpers/token";
 
@@ -17,10 +17,10 @@ const multisigs: TMulitsig = {
   [CHAIN.BSC]: [multisig1]
 }
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await addGasTokensReceived({ multisigs: multisigs[options.chain], options })
   await addTokensReceived({ targets: multisigs[options.chain], options, balances: dailyFees,})
-  return { timestamp, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
 const methodology = {
@@ -28,8 +28,9 @@ const methodology = {
   Revenue: "Take 0.5% from trading volume",
 }
 
-const chainAdapter = { fetch, start: 1672531200, meta: { methodology } }
+const chainAdapter = { fetch, start: '2023-01-01', meta: { methodology } }
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: chainAdapter,
     [CHAIN.OPTIMISM]: chainAdapter,

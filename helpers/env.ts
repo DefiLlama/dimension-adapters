@@ -7,7 +7,7 @@ const DEFAULTS: any = {
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
-  BITLAYER_RPC: "https://rpc-bitlayer.rockx.com",
+  BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
 }
 
@@ -18,6 +18,7 @@ export const ENV_KEYS = new Set([
   'INDEXA_DB',
   'FLIPSIDE_API_KEY',
   'DUNE_API_KEYS',
+  'DUNE_RESTRICTED_MODE',
   'ALLIUM_API_KEY',
   'BIT_QUERY_API_KEY',
   'SMARDEX_SUBGRAPH_API_KEY',
@@ -27,7 +28,8 @@ export const ENV_KEYS = new Set([
   'ZEROx_API_KEY',
   'ZEROX_API_KEY',
   'AGGREGATOR_0X_API_KEY',
-  'SUI_RPC'
+  'SUI_RPC',
+  'OKX_API_KEY'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

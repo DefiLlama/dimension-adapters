@@ -37,28 +37,20 @@ const PYTH_CONFIG = {
 type PYTH_CONFIG_TYPE = typeof PYTH_CONFIG;
 type PYTH_CONFIG_KEYS = keyof PYTH_CONFIG_TYPE;
 
-const fetchGaiRevenue = async (fromBlock: number, toBlock: number, balances: sdk.Balances) => {
-  const logs = await sdk.getEventLogs({
+const fetchGaiRevenue = async (getLogs: any, balances: sdk.Balances) => {
+  const logs = await getLogs({
     targets: BORROW_CONTRACT_ADDRESS,
-    toBlock: toBlock,
-    fromBlock: fromBlock,
-    chain: CHAIN.MANTA as Chain,
     eventAbi: "event GAIBorrowingFeePaid(address indexed _borrower, uint256 _GAIFee)",
-    onlyArgs: true,
   });
 
   logs.forEach(log => balances.add('0xcd91716ef98798A85E79048B78287B13ae6b99b2', log._GAIFee))
 };
 
-const fetchCollateralRedemptionRevenue = async (fromBlock: number, toBlock: number, balances: sdk.Balances) => {
+const fetchCollateralRedemptionRevenue = async (getLogs: any, balances: sdk.Balances) => {
   for (const token of Object.keys(PYTH_CONFIG) as PYTH_CONFIG_KEYS[]) {
     const { contractAddress, address, } = PYTH_CONFIG[token];
-    const logs = await sdk.getEventLogs({
+    const logs = await getLogs({
       target: contractAddress,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: CHAIN.MANTA as Chain,
-      onlyArgs: true,
       eventAbi: "event Redemption(uint256 _attemptedGAIAmount, uint256 _actualGAIAmount, uint256 _COLSent, uint256 _COLFee)",
     });
 
@@ -71,11 +63,10 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.MANTA]: {
-      fetch: async ({ getFromBlock, getToBlock }: FetchOptions) => {
+      fetch: async ({getLogs }: FetchOptions) => {
         const balances = new sdk.Balances({ chain: CHAIN.MANTA as Chain });
-        const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
-        await fetchGaiRevenue(fromBlock, toBlock, balances);
-        await fetchCollateralRedemptionRevenue(fromBlock, toBlock, balances);
+        await fetchGaiRevenue(getLogs, balances);
+        await fetchCollateralRedemptionRevenue(getLogs, balances);
 
         const totalRevenue = await balances.getUSDString()
         return {

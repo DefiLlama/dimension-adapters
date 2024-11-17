@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch(),
-      start: async () => 1706832000,
+      start: 1706832000,
       meta: {
         methodology,
       },

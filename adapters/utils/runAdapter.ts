@@ -91,7 +91,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
 
   async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
-    const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 2 * 60 * 60 // 2 hours
+    const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
     }
@@ -153,30 +153,35 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
-    const _start = volumeAdapter[chain]?.start
-    if (_start === undefined) return;
+    let _start = volumeAdapter[chain]?.start ?? 0
+    if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
+    // if (_start === undefined) return;
+
     if (typeof _start === 'number') {
       validStart[chain] = {
         canRun: _start <= cleanPreviousDayTimestamp,
         startTimestamp: _start
       }
-    } else if (_start) {
-      const defaultStart = Math.trunc(Date.now() / 1000)
-      if (closeToCurrentTime) {// intentionally set to true to allow for backfilling
-        validStart[chain] = {
-          canRun: true,
-          startTimestamp: defaultStart
-        }
-        return;
-      }
-      const start = await (_start as any)().catch(() => {
-        console.error(`Failed to get start time for ${id} ${version} ${chain}`)
-        return defaultStart
-      })
+      return;
+    }
+
+    const defaultStart = Math.trunc(Date.now() / 1000)
+    if (closeToCurrentTime) {// intentionally set to true to allow for backfilling
       validStart[chain] = {
-        canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
-        startTimestamp: start
+        canRun: true,
+        startTimestamp: defaultStart
       }
+      return;
+    }
+
+    // if _start is an async function that returns timestamp
+    const start = await (_start as any)().catch(() => {
+      console.error(`Failed to get start time for ${id} ${version} ${chain}`)
+      return defaultStart
+    })
+    validStart[chain] = {
+      canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
+      startTimestamp: start
     }
   }
 }

@@ -1,6 +1,7 @@
 import fetchURL from "../utils/fetchURL"
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/markets"
 const stats = (market: string) => `https://api.dydx.exchange/v3/stats/${market}?days=1`
@@ -24,9 +25,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1700265600,
+      start: '2023-11-18',
       // runAtCurrTime: true,
     },
   },

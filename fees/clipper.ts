@@ -88,23 +88,23 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1659657600,
+      start: '2022-08-05',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: 1656460800,
+      start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: 1650412800,
+      start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
     //   fetch: fetchFees(CHAIN.MOONBEAN),
-    //   start: 1659657600,
+    //   start: '2022-08-05',
     // },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: 1690934400,
+      start: '2023-08-02',
     }
   }
 }

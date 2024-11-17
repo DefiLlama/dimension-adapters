@@ -1,14 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchV2 } from "./v2";
+import { uniV2Exports } from "../../helpers/uniswap";
+const swapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)';
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchV2,
-      start: 1677110400
-    },
-  },
-};
-
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a',  swapEvent, },
+})

@@ -1,20 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
   [CHAIN.LIGHTLINK_PHOENIX]: "https://subgraph.elektrik.network/subgraphs/name/ELEKTRIK-GRAPH",
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD",
   },
 });
 

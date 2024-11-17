@@ -123,7 +123,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: async (timestamp: number) => {return {timestamp, dailyFees: "0", dailyRevenue: "0", dailySupplySideRevenue: "0", dailyProtocolRevenue: "0"}},
-      start: 1658534400,
+      start: '2022-07-23',
     },
   },
 };

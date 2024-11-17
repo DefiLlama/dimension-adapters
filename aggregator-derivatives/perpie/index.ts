@@ -31,6 +31,8 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
 
     const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(date);
 
+    // throw new Error('Dune query is broken, fix it by turning adapter on chain')
+
     let data = (
       await queryDune("3855069", {
         daytime: date.toISOString(),

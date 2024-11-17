@@ -34,11 +34,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyFoundationReceived = BigNumber(foundationBalanceEnd).minus(BigNumber(foundationBalanceStart));
   const dailyRevenueReceived = BigNumber(revenueBalanceEnd).minus(BigNumber(revenueBalanceStart));
   const dailyTotal = dailyFoundationReceived.plus(dailyRevenueReceived).toFixed(0);
+  const totalFee = BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0);
   dailyFees.add(USDT_MINT, dailyTotal);
-  totalFees.add(USDT_MINT, BigNumber(foundationBalanceEnd).plus(BigNumber(revenueBalanceEnd)).toFixed(0));
-  dailyProtocolRevenue.add(USDT_MINT, dailyFoundationReceived.toFixed(0));
-  totalProtocolRevenue.add(USDT_MINT, foundationBalanceEnd);
-  return { dailyFees, totalFees, dailyProtocolRevenue, dailyRevenue: dailyProtocolRevenue, totalProtocolRevenue };
+  totalFees.add(USDT_MINT, totalFee);
+  dailyProtocolRevenue.add(USDT_MINT, dailyTotal);
+  totalProtocolRevenue.add(USDT_MINT, totalFee);
+  return { dailyFees, totalFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, totalProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -46,10 +47,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1717200000,
+      start: '2024-03-06',
       meta: {
         methodology: {
-            ProtocolRevenue: "Treasury receives 30% of each security service purchase.",
+            ProtocolRevenue: "The revenue of the agreement comes from users purchasing security services, and the total cost equals the revenue.",
             Fees: "All fees comes from users for security service provided by GoPlus Network."
         }
       }

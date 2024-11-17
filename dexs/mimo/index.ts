@@ -1,25 +1,18 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
-const {
-  getChainVolume,
-} = require("../../helpers/getUniSubgraphVolume");
 const endpoints = {
   [CHAIN.IOTEX]: "https://graph.mimo.exchange/subgraphs/name/mimo/mainnet"
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "uniswapFactories",
     field: "totalVolumeUSD",
   },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
-    dateField: "date"
-  }
 });
 
 

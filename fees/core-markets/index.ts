@@ -101,7 +101,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetchVolume,
-      start: async () => 236678,
     },
   },
   version: 2

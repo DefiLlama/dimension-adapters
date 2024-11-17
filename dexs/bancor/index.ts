@@ -70,8 +70,7 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ETHEREUM]: {
         fetch: fetchV3,
         runAtCurrTime: true,
-        start: 0,
-      }
+              }
     }
   }
 }

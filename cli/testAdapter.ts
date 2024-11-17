@@ -29,7 +29,16 @@ process.on('uncaughtException', handleError)
 checkArguments(process.argv)
 
 function getTimestamp30MinutesAgo() {
-  return Math.trunc(Date.now() / 1000) - 60 * 30
+  return Math.trunc(Date.now() / 1000) - 60 * 60 * 2.5
+}
+
+
+function toTimestamp(timeArg:string){
+  if(Number.isNaN(Number(timeArg))){
+    return Math.round(new Date(timeArg).getTime()/1e3)
+  } else {
+    return Number(timeArg)
+  }
 }
 
 // Get path of module import
@@ -39,7 +48,7 @@ const file = `${adapterType}/${process.argv[3]}`
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
 
-  const cleanDayTimestamp = process.argv[4] ? Number(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
+  const cleanDayTimestamp = process.argv[4] ? toTimestamp(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`---------------------------------------------------`)
@@ -48,7 +57,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   const adapterVersion = module.version
   let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
-    endTimestamp = (process.argv[4] ? Number(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
+    endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
   } else {
     checkIfFileExistsInMasterBranch(file)
   }

@@ -79,19 +79,19 @@ const graph = (chain: Chain): any => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: graph(CHAIN.ETHEREUM), start: 1689292800 },
-    [CHAIN.ARBITRUM]: { fetch: graph(CHAIN.ARBITRUM), start: 1689292800 },
-    [CHAIN.OPTIMISM]: { fetch: graph(CHAIN.OPTIMISM), start: 1689292800 },
-    [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: 1689292800 },
-    [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: 1689292800 },
-    [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: 1689292800 },
-    [CHAIN.BSC]: { fetch: graph(CHAIN.BSC), start: 1689292800 },
-    [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: 1689292800 },
-    [CHAIN.ERA]: { fetch: graph(CHAIN.ERA), start: 1689292800 },
-    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: 1689292800 },
-    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: 1689292800 },
-    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: 1689292800 },
-    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: 1689292800 },
+    [CHAIN.ETHEREUM]: { fetch: graph(CHAIN.ETHEREUM), start: '2023-07-14' },
+    [CHAIN.ARBITRUM]: { fetch: graph(CHAIN.ARBITRUM), start: '2023-07-14' },
+    [CHAIN.OPTIMISM]: { fetch: graph(CHAIN.OPTIMISM), start: '2023-07-14' },
+    [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: '2023-07-14' },
+    [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: '2023-07-14' },
+    [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: '2023-07-14' },
+    [CHAIN.BSC]: { fetch: graph(CHAIN.BSC), start: '2023-07-14' },
+    [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: '2023-07-14' },
+    [CHAIN.ERA]: { fetch: graph(CHAIN.ERA), start: '2023-07-14' },
+    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: '2023-07-14' },
+    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: '2023-07-14' },
+    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: '2023-07-14' },
+    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: '2023-07-14' },
   }
 };
 

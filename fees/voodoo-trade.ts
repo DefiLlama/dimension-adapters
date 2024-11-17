@@ -111,7 +111,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),
-      start: 1693997105,
+      start: '2023-09-06',
       meta: {
         methodology
       }

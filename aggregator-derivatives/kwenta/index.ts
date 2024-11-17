@@ -29,7 +29,7 @@ const PROVIDER_CONFIG = {
   },
   [CHAIN.ARBITRUM]: {
     startTimestamp: 1696032000,
-    endpoint: "https://subgraph.satsuma-prod.com/7ed49092fef1/equilibria/perennial-v2-arbitrum-new/api",
+    endpoint: "https://subgraph.perennial.finance/arbitrum",
     query: gql`
       query aggregateStats($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
         marketAccumulations(

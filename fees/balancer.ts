@@ -111,36 +111,46 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           timestamp
         }
       }`;
+      try {
+        const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
 
-      const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
+        let dailySwapFee = new BigNumber(0);
+        let dailyProtocolFee = new BigNumber(0);
+        if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+          dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+          dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        }
 
-      let dailySwapFee = new BigNumber(0);
-      let dailyProtocolFee = new BigNumber(0);
-      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
-        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
-        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        let tenPcFeeTimestamp = 0;
+        let fiftyPcFeeTimestamp = 0;
+
+        if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
+          tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
+          fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
+        }
+
+        // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
+        // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
+        const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
+          toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
+
+        return {
+          dailyUserFees: dailySwapFee.toString(),
+          dailyFees: dailyFees.toString(),
+          dailyRevenue: dailyProtocolFee.toString(),
+          dailyProtocolRevenue: dailyProtocolFee.toString(),
+          dailySupplySideRevenue: dailySwapFee.toString(),
+        };
+      } catch (e) {
+        return {
+          dailyUserFees: "0",
+          dailyFees: "0",
+          dailyRevenue: "0",
+          dailyProtocolRevenue: "0",
+          dailySupplySideRevenue: "0",
+        };
       }
 
-      let tenPcFeeTimestamp = 0;
-      let fiftyPcFeeTimestamp = 0;
-
-      if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
-        tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
-        fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
-      }
-
-      // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
-      // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-      const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
-        toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
-
-      return {
-        dailyUserFees: dailySwapFee.toString(),
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyProtocolFee.toString(),
-        dailyProtocolRevenue: dailyProtocolFee.toString(),
-        dailySupplySideRevenue: dailySwapFee.toString(),
-      };
     };
   };
 };
@@ -159,7 +169,7 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
-        start: 1582761600,
+        start: '2020-02-27',
         meta: {
           methodology: {
             UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
@@ -174,63 +184,63 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
-        start: 1619136000,
+        start: '2021-04-23',
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
-        start: 1624492800,
+        start: '2021-06-24',
         meta: {
           methodology
         }
       },
       [CHAIN.ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
-        start: 1630368000,
+        start: '2021-08-31',
         meta: {
           methodology
         }
       },
       [CHAIN.AVAX]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
-        start: 1677283200,
+        start: '2023-02-25',
         meta: {
           methodology
         }
       },
       [CHAIN.XDAI]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
-        start: 1673308800,
+        start: '2023-01-10',
         meta: {
           methodology
         }
       },
       [CHAIN.BASE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-        start: 1690329600,
+        start: '2023-07-26',
         meta: {
           methodology
         }
       },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
-        start: 1686614400,
+        start: '2023-06-13',
         meta: {
           methodology
         }
       },
       [CHAIN.MODE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
-        start: 1716336000,
+        start: '2024-05-22',
         meta: {
           methodology
         }
       },
       [CHAIN.FRAXTAL]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
-        start: 1716163200,
+        start: '2024-05-20',
         meta: {
           methodology
         }

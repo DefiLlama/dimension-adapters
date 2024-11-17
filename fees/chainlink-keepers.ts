@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { getTxReceipts } from "../helpers/getTxReceipts";
 import { Chain } from "@defillama/sdk/build/general";
-import * as sdk from "@defillama/sdk";
 
 type TAddrress = {
   [l: string | Chain]: string;
@@ -40,14 +39,10 @@ const gasTokenId: IGasTokenId = {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
-    const logs: ITx[] = (await sdk.getEventLogs({
+  return async ({ toTimestamp, getLogs, }: FetchOptions) => {
+    const logs: ITx[] = (await getLogs({
       target: address_keeper[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: [topic0_keeper],
-      chain: chain
     })).map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
       .filter((e: ITx) => e.topics.includes(success_topic));
     const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
@@ -82,31 +77,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetchKeeper(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchKeeper(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetchKeeper(CHAIN.FANTOM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetchKeeper(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchKeeper(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchKeeper(CHAIN.OPTIMISM),
-      start: 1675382400
+      start: '2023-02-03'
     }
   }
 }

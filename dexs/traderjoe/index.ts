@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
@@ -24,12 +24,15 @@ interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
-  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
+const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = options.startOfDay;
+  const start = options.startOfDay;
+  const end = start + 24 * 60 * 60;
+  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
   const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
     'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
   }}));
+
   const totalVolume = historicalVolume
     .filter(volItem => volItem.timestamp <= dayTimestamp)
     .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
@@ -53,11 +56,6 @@ const graphsV1 = getChainVolume({
     factory: "factories",
     field: "volumeUSD",
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
 });
 
 
@@ -67,15 +65,10 @@ const graphsV2 = getChainVolume({
     factory: "lbfactories",
     field: "volumeUSD",
   },
-  dailyVolume: {
-    factory: "traderJoeDayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {

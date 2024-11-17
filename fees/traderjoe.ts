@@ -1,12 +1,9 @@
-import {
-  getDexChainFees,
-  getUniqStartOfTodayTimestamp,
-} from "../helpers/getUniSubgraphFees";
-import volumeAdapter from "../dexs/traderjoe";
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../helpers/chains";
-import {httpGet} from "../utils/fetchURL";
+import { httpGet } from "../utils/fetchURL";
+import * as sdk from "@defillama/sdk";
+import { getChainVolume } from "../helpers/getUniSubgraphVolume";
 
 const TOTAL_FEES = 0.003;
 const LP_FEE = 0.0025;
@@ -33,18 +30,24 @@ const endpointsV2: TEndpoint = {
     "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily",
 };
 
-const adapterV1 = getDexChainFees({
-  totalFees: TOTAL_FEES,
-  protocolFees: PROTOCOL_FEES,
-  revenue: PROTOCOL_FEES,
-  supplySideRevenue: LP_FEE,
-  holdersRevenue: HOLDER_REV,
-  volumeAdapter: { adapter: volumeAdapter.breakdown.v1 },
-});
+const endpoints = {
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('3VgCBQh13PseR81hPNAbKua3gD8b8r33LauKjVnMbSAs'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk'),
+};
 
-const graph = async (options: FetchOptions) => {
-    const dayTimestamp = options.startOfDay * 1000
-      const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
+const graphsV1 = getChainVolume({
+  graphUrls: endpoints,
+  totalVolume: {
+    factory: "factories",
+    field: "volumeUSD",
+  },
+});
+const graph = async (_t: any, _tt: any, options: FetchOptions) => {
+    const dayTimestamp = options.startOfDay;
+    const start = options.startOfDay;
+    const end = start + 24 * 60 * 60;
+      const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
     const historical: IData[] = (await httpGet(url, { headers: {
       'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
     }}));
@@ -63,6 +66,7 @@ const graph = async (options: FetchOptions) => {
         ? `${(dailyFees || 0) - (dailyRevenue || 0)}`
         : undefined,
       dailyProtocolRevenue: `${dailyRevenue}`,
+      timestamp: options.startOfDay,
     };
 };
 
@@ -73,25 +77,68 @@ const mapChain = (chain: Chain): string => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   breakdown: {
-    v1: adapterV1,
+    v1: {
+      [CHAIN.ARBITRUM]: {
+        fetch: async (_t: any, _tt: any, options: FetchOptions) => {
+          const data = await graphsV1(CHAIN.ARBITRUM)(_t, _tt, options);
+          return {
+            dailyFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyUserFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * PROTOCOL_FEES}` : "0",
+            dailyHoldersRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * HOLDER_REV}` : "0",
+            dailySupplySideRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * LP_FEE}` : "0",
+            timestamp: options.startOfDay,
+          };
+        },
+        start: '2022-12-26',
+      },
+      [CHAIN.BSC]: {
+        fetch: async (_t: any, _tt: any, options: FetchOptions) => {
+          const data = await graphsV1(CHAIN.BSC)(_t, _tt, options);
+          return {
+            dailyFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyUserFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * PROTOCOL_FEES}` : "0",
+            dailyHoldersRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * HOLDER_REV}` : "0",
+            dailySupplySideRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * LP_FEE}` : "0",
+            timestamp: options.startOfDay,
+          };
+        },
+        start: '2022-10-04',
+      },
+      [CHAIN.AVAX]: {
+        fetch: async (_t: any, _tt: any, options: FetchOptions) => {
+          const data = await graphsV1(CHAIN.AVAX)(_t, _tt, options);
+          return {
+            dailyFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyUserFees: data.dailyVolume ? `${Number(data.dailyVolume) * TOTAL_FEES}` : "0",
+            dailyRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * PROTOCOL_FEES}` : "0",
+            dailyHoldersRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * HOLDER_REV}` : "0",
+            dailySupplySideRevenue: data.dailyVolume ? `${Number(data.dailyVolume) * LP_FEE}` : "0",
+            timestamp: options.startOfDay,
+          };
+        },
+        start: '2022-11-26',
+      },
+    },
     v2: {
       [CHAIN.AVAX]: {
         fetch: graph,
-        start: 1669420800,
+        start: '2022-11-26',
       },
       [CHAIN.ARBITRUM]: {
         fetch: graph,
-        start: 1672012800,
+        start: '2022-12-26',
       },
       [CHAIN.BSC]: {
         fetch: graph,
-        start: 1678147200,
+        start: '2023-03-07',
       },
       [CHAIN.ETHEREUM]: {
         fetch: graph,
-        start: 1695513600,
+        start: '2023-09-24',
       },
     },
   },

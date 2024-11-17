@@ -21,22 +21,17 @@ const address_base: TAddress = {
 //all revenue is from bribes and is given to governance token holders 100%
 
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     (await getLogs({
       target: address_stream[chain],
       eventAbi: event_paid_stream,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
       dailyFees.add(e._rewardToken, e._reward)     
     }),
     (await getLogs({
       target: address_base[chain],
       eventAbi: event_paid_base,
-      fromBlock, 
-      toBlock
     })).map((e: any) => {
       dailyFees.add(e._token, e._reward)     
     })
@@ -51,11 +46,9 @@ const adapter: SimpleAdapter = {
 
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 77678653,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 77678653,
     },
   }
 };

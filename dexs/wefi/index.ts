@@ -1,5 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
 const address: any = {
   [CHAIN.LINEA]: '0x7e0da0deccac2e7b9ad06e378ee09c15b5bdeefa',
@@ -11,15 +12,11 @@ const address: any = {
 const fetchVolume: FetchV2 = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: address[options.chain],
-    topics: ['0x83b12020cebd1d9ce669793959a6d6d48f26757609759d2bb7a45590a158c657'],
+    eventAbi: 'event Swap(uint8 dex, address sender, address recipient, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)',
   })
   const dailyVolume = options.createBalances();
   logs.forEach((log: any) => {
-    const data = log.data.replace('0x', '')
-    const amountOut = Number('0x' + data.slice(6 * 64, 7 * 64))
-    const address = data.slice(4 * 64, 5 * 64);
-    const tokenOut = '0x' + address.slice(24, address.length);
-    dailyVolume.add(tokenOut, amountOut)
+     addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.tokenIn, token1: log.tokenOut, amount0: log.amountIn, amount1: log.amountOut })
   });
   return {
     dailyVolume: dailyVolume,

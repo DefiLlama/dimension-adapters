@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => getStartTimestamp(chain),
+        // start: async () => getStartTimestamp(chain),
         customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }

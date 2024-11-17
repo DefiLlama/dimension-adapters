@@ -1,63 +1,8 @@
-import customBackfill from "../../helpers/customBackfill";
-import {
-  DEFAULT_TOTAL_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD,
-  getChainVolume,
-} from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type {
-  Fetch,
-  ChainEndpoints,
-  BreakdownAdapter,
-} from "../../adapters/types";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import type { BreakdownAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-// Subgraphs endpoints
-const endpoints: ChainEndpoints = {
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/chimpydev/swapbase",
-};
-
-// Fetch function to query the subgraphs
-const graphs = getGraphDimensions({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "volume",
-    UserFees: 0.3,
-    SupplySideRevenue: 0.25,
-    ProtocolRevenue: 0.05,
-    Revenue: 0.25,
-    Fees: 0.3,
-  },
-});
-
-const endpointsV3 = {
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/67101/swapbased-pcsv3-core/version/latest",
-};
-const graphsV3 = getChainVolume({
-  graphUrls: endpointsV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "volumeUSD",
-    dateField: "date",
-  },
-});
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const methodology = {
   UserFees: "User pays 0.30% fees on each swap.",
@@ -191,19 +136,26 @@ const getFetch =
   };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v2: {
       [CHAIN.BASE]: {
-        fetch: graphs(CHAIN.BASE),
+        fetch: async (_a, _b, options) =>
+          getUniV2LogAdapter({
+            factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
+          })(options),
         start: 1690495200,
-        customBackfill: customBackfill(CHAIN.BASE, graphs),
         meta: { methodology },
       },
     },
     v3: {
       [CHAIN.BASE]: {
-        fetch: graphsV3(CHAIN.BASE),
+        fetch: async (_a, _b, options) =>
+          getUniV3LogAdapter({
+            factory: "0xb5620F90e803C7F957A9EF351B8DB3C746021BEa",
+            swapEvent:
+              "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)",
+          })(options),
         start: 1690443269,
       },
     },
