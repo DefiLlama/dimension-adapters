@@ -1,18 +1,21 @@
-import { FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { httpGet } from '../../utils/fetchURL';
+import { FetchOptions, FetchV2 } from '../../adapters/types';
+import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import fetchURL from '../../utils/fetchURL';
 
 const volumeURL = 'https://api.stabble.org/stats/volume';
 
-async function fetch(options: FetchOptions) {
+const fetch: FetchV2 = async (options: FetchOptions) => {
+    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(options.endTimestamp);
+
     const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
-    const dailyVolume = await httpGet(url);
+    const dailyVolume = await fetchURL(url);
 
     return {
+        timestamp: dayTimestamp,
         dailyVolume: dailyVolume,
-        timestamp: options,
     }
-}
+};
 
 export default {
     version: 2,
