@@ -1,11 +1,16 @@
+import { FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
-async function fetch(timestamp: number) {
-    const dailyVolume = await httpGet('https://api.stabble.org/stats/volume?type=daily');
+const volumeURL = 'https://api.stabble.org/stats/volume';
+
+async function fetch(options: FetchOptions) {
+    const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
+    const dailyVolume = await httpGet(url);
+
     return {
         dailyVolume: dailyVolume,
-        timestamp: timestamp
+        timestamp: options,
     }
 }
 
@@ -14,7 +19,6 @@ export default {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
-            runAtCurrTime: true,
             start: 1717563162,
         }
     }
