@@ -1,23 +1,7 @@
-import { Chain } from "@defillama/sdk/build/general";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
-const abis = {
-  allTokens: "address[]:getAllTokens",
-};
-
-type TAddress = {
-  [s: string | Chain]: string;
-};
-
-type Swap = {
-  sender: string;
-  amountTokenIn: string;
-  amountNativeIn: string;
-  amountTokenOut: string;
-  amountNativeOut: string;
-  flashSwap: boolean;
-};
+import { burstMetrics } from "./burst";
+import { swapMetrics } from "./dex";
 
 const methodology = {
   Fees: "Swap fees paid by users of 0.03%",
@@ -28,49 +12,37 @@ const methodology = {
     "70% of collected swap fees are distributed to liquidity providers",
 };
 
-const FACTORIES: TAddress = {
-  [CHAIN.AVAX]: "0x754A0c42C35562eE7a41eb824d14bc1259820f01",
-  [CHAIN.BASE]: "0x10d11Eb1d5aB87E65518458F990311480b321061",
-  [CHAIN.ETHEREUM]: "0x820c889D5749847217599B43ab86FcC91781019f",
-};
-
-const scaleFactor = BigInt(10000);
-const factoryFee = BigInt(10); // 0.1%
-const lpFee = BigInt(20); // 0.2%
-
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
+  const { createBalances } = options;
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyVolume = createBalances();
 
-  const allTokens = await options.api.call({
-    target: FACTORIES[options.chain],
-    abi: abis.allTokens,
-  });
+  const swapMetricsResult = await swapMetrics(options);
 
-  const logs = await options.getLogs({
-    targets: allTokens,
-    eventAbi:
-      "event Swap(address indexed sender, uint256 amountTokenIn, uint256 amountNativeIn, uint256 amountTokenOut, uint256 amountNativeOut, bool flashSwap)",
-  });
+  dailyFees.addBalances(swapMetricsResult.dailyFees);
 
-  logs.map((tx: Swap) => {
-    const nativeAmount = BigInt(tx.amountNativeIn) + BigInt(tx.amountNativeOut);
-    const fee = (nativeAmount * lpFee) / scaleFactor;
-    const protocolRevenue = (nativeAmount * factoryFee) / scaleFactor;
-    dailyFees.addGasToken(fee + protocolRevenue);
-    dailyProtocolRevenue.addGasToken(protocolRevenue);
-    dailySupplySideRevenue.addGasToken(fee);
-    dailyVolume.addGasToken(nativeAmount);
-  });
+  dailySupplySideRevenue.addBalances(swapMetricsResult.dailySupplySideRevenue);
+
+  dailyProtocolRevenue.addBalances(swapMetricsResult.dailyProtocolRevenue);
+
+  dailyVolume.addBalances(swapMetricsResult.dailyVolume);
+
+  // No burst metrics for Ethereum
+  if (options.chain !== CHAIN.ETHEREUM) {
+    const burstMetricsResult = await burstMetrics(options);
+
+    dailyFees.addBalances(burstMetricsResult.dailyFees);
+    dailyProtocolRevenue.addBalances(burstMetricsResult.dailyProtocolRevenue);
+    dailyVolume.addBalances(burstMetricsResult.dailyVolume);
+  }
 
   return {
     dailyFees,
-    dailyVolume,
-    dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyVolume,
   };
 };
 
