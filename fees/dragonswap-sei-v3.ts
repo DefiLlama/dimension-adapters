@@ -23,8 +23,7 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
-        // dailyLPProvidersRevenue: (dailyFee * 0.7).toString(),
-        // dailyRevenue: (dailyFee * 0.3).toString(),
+        dailyRevenue: (dailyFee * 0.25).toString(),
       };
 
 };
