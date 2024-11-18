@@ -403,6 +403,18 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
         const outstandingTreasuryIncomeUSD = outstandingTreasuryIncome * priceInUsd / (10 ** reserve.reserve.decimals);
 
+        if (depositorInterestUSD < 0 || depositorInterestUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
         acc.outstandingTreasuryIncomeUSD += outstandingTreasuryIncomeUSD;
         acc.treasuryIncomeUSD += treasuryIncomeUSD;
         acc.depositorInterestUSD += depositorInterestUSD;
