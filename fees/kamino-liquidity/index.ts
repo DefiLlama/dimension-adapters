@@ -1,23 +1,23 @@
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 
 // Define the URL of the endpoint
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
 
 // Function to make the GET request
-const fetch: FetchV2 = async ({ endTimestamp }) =>  {
-    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
+const fetch = async (_: any, _tt: any, options: FetchOptions) =>  {
+    const dayTimestamp = options.startOfDay
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
+    const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
     // Calculate total and daily revenue
     const totalRevenue = historicalFeesRes['data']
     .filter(row => row.timestamp <= dayTimestamp)
     .reduce((acc, {KaminoLiquidityRevenueUsd}) => acc + KaminoLiquidityRevenueUsd, 0);
-    
+
     const dailyRevenue = historicalFeesRes['data']
-    .find(row => Math.abs(row.timestamp - dayTimestamp) < 3600*24 - 1)?.KaminoLiquidityRevenueUsd;
+        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityRevenueUsd;
 
     // Calculate total and daily fees
     const totalFees = historicalFeesRes['data']
@@ -25,8 +25,8 @@ const fetch: FetchV2 = async ({ endTimestamp }) =>  {
     .reduce((acc, {KaminoLiquidityFeesUsd}) => acc + KaminoLiquidityFeesUsd, 0);
 
     const dailyFees = historicalFeesRes['data']
-    .find(row => Math.abs(row.timestamp - dayTimestamp) < 3600*24 - 1)?.KaminoLiquidityFeesUsd;
-    
+        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityFeesUsd;
+
     return {
         timestamp: dayTimestamp,
         totalRevenue: `${totalRevenue}`,
@@ -41,11 +41,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            runAtCurrTime: true,
             start: 1697068700,
             meta: {
                 methodology
