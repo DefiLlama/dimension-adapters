@@ -58,7 +58,7 @@ const blacklisted = {
 }
 
 const v3Endpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
+  // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
@@ -265,6 +265,7 @@ const adapter: BreakdownAdapter = {
               dailyUserFees: res?.dailyUserFees || 0
             }
           } catch {
+            console.error("Error fetching v3 data: ", chain)
             return {
               totalVolume: 0,
               dailyVolume: 0,
@@ -322,7 +323,7 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
+const okuChains = [ CHAIN.ETHEREUM, CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
