@@ -39,11 +39,8 @@ const fetchTradeVolume = () =>
       const totalVolume = rows[0]?.tradeVolume;
       const timestamp = rows[0]?.timestamp;
 
-      console.log('Trade Volume:', totalVolume);
-      console.log('Timestamp:', timestamp);
-
       return {
-        totalVolume: totalVolume,
+        dailyVolume: totalVolume,
         timestamp: timestamp,
       };
     });
