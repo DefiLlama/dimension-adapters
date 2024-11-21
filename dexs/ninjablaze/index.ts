@@ -5,15 +5,13 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 
-async function getTotalVolume(
-  options: FetchOptions
-): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const res = await httpGet(`https://app-mainnet.blaze.ninja/api/stats/defillama?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`);
 
-  const totalVolume = options.createBalances()
-  totalVolume.addCGToken(ADDRESSES.injective.INJ, res.totalVolume * 10^18);
+  const dailyVolume = options.createBalances()
+  dailyVolume.add(ADDRESSES.injective.INJ, res.totalVolume * 1e18);
 
-  return { totalVolume: totalVolume }
+  return { dailyVolume }
 }
 
 const adapter: Adapter = {
@@ -21,8 +19,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.INJECTIVE]: {
       start: 60577920,
-      fetch: (options: FetchOptions) =>
-        getTotalVolume(options),
+      fetch,
     }
   },
 };
