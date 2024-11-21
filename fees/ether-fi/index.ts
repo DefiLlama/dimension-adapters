@@ -25,18 +25,14 @@ const getTotalSupply = async (options, target) => {
 const getStethFees = async (options, totalSteth) => {
   const stethRebaseLogs = await options.getLogs({
     target: STETH,
-    fromBlock: await options.getStartBlock(),
-    toBlock: await options.getEndBlock(),
     eventAbi: "event TokenRebased(uint256 indexed reportTimestamp,uint256 timeElapsed,uint256 preTotalShares,uint256 preTotalEther,uint256 postTotalShares,uint256 postTotalEther,uint256 sharesMintedAsFees)",
   });
-  for (const log of stethRebaseLogs) {
-    const exchangeRateBefore = Number(log.preTotalEther) / Number(log.preTotalShares); 
-    const exchangeRateAfter = Number(log.postTotalEther) / Number(log.postTotalShares);
-    const stethShares = totalSteth / exchangeRateBefore
-    const changeInSteth = (stethShares * exchangeRateAfter) - (stethShares * exchangeRateBefore);
-    return changeInSteth;
-  }
-  return 0;
+  const lastRebaseLog = stethRebaseLogs[0]
+  const exchangeRateBefore = Number(lastRebaseLog.preTotalEther) / Number(lastRebaseLog.preTotalShares); 
+  const exchangeRateAfter = Number(lastRebaseLog.postTotalEther) / Number(lastRebaseLog.postTotalShares);
+  const stethShares = totalSteth / exchangeRateBefore
+  const changeInSteth = (stethShares * exchangeRateAfter) - (stethShares * exchangeRateBefore);
+  return changeInSteth;
 };
 
 const getTotalSteth = async (options) => {
@@ -107,8 +103,6 @@ const getSsvRevenue = async (options: FetchOptions) => {
     target: SSV,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topic: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-    fromBlock: await options.getStartBlock() - 30 * 86400 / 12, //claimed every 31 days
-    toBlock: await options.getEndBlock(),
   })
   let ssv_revenue = BigInt(0);
   for (const log of logs) {
@@ -143,8 +137,6 @@ const fetch = async (options: FetchOptions) => {
   let totalStakeFees = BigInt(0);
   const protocolFeesLog = await options.getLogs({
     target: LIQUIDITY_POOL,
-    fromBlock: await options.getStartBlock(),
-    toBlock: await options.getEndBlock(),
     eventAbi: "event ProtocolFeePaid(uint128 protocolFees)",
   });
 
