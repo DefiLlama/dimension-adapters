@@ -6,7 +6,7 @@ const url = 'https://app.sentio.xyz/api/v1/analytics/zhpv96/spark-processor/sql/
 const apiKey = 'TLjw41s3DYbWALbwmvwLDM9vbVEDrD9BP';
 const data = {
   "sqlQuery": {
-    "sql": "SELECT tradeVolume, timestamp FROM `TradeVolume_raw` ORDER BY `timestamp` DESC LIMIT 1"
+    "sql": "SELECT tradeVolume, timestamp FROM `DailyVolume` ORDER BY `timestamp` DESC LIMIT 1"
   }
 };
 
