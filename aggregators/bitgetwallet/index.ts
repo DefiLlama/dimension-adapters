@@ -12,6 +12,7 @@ interface IVolumeall {
     date: string;
 }
 
+// to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
