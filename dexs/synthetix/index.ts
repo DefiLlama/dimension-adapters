@@ -2,7 +2,6 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 import { CHAIN } from "../../helpers/chains";
 
 const event_modified_positions = 'event PositionModified(uint indexed id,address indexed account,uint margin,int size,int tradeSize,uint lastPrice,uint fundingIndex,uint fee,int skew)';
-const event_postions_liq = 'event PositionLiquidated(uint id,address account,address liquidator,int size,uint price,uint flaggerFee,uint liquidatorFee,uint stakersFee)';
 
 const contracts: string[] = [
   '0x5374761526175B59f1E583246E20639909E189cE',
