@@ -16,7 +16,7 @@ const blockNumberGraph = {
     [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks" 
 }
 
-const headers = { 'sex-dev': 'ServerDev'}
+const headers = { 'sex-dev': 'ServerDev'} as any
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
@@ -113,12 +113,11 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1700323200,
+      fetch: graphs(endpoints)(CHAIN.ARBITRUM) as any,
+      start: '2023-11-18',
     },
     [CHAIN.ZETA]: {
-      fetch: graphs(endpoints)(CHAIN.ZETA),
-      start: 2631301,
+      fetch: graphs(endpoints)(CHAIN.ZETA) as any,
     }, 
   },
 };

@@ -27,7 +27,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphsAlgebraV3(CHAIN.BLAST),
-      start: 1596025,
     },
   },
 };

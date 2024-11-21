@@ -42,43 +42,43 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(42161),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.BSC]: {
       fetch: fetch(56),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(7565164),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.LINEA]: {
       fetch: fetch(59144),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.BASE]: {
       fetch: fetch(8453),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(10),
-      start: 1680278400,
+      start: '2023-03-31',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(250),
-      start: 1680278400,
+      start: '2023-03-31',
     },
   },
 };

@@ -38,7 +38,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchCetusStats,
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
         methodology,
       },

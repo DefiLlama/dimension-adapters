@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
     'alephium': {
       fetch: fetchVolume,
       runAtCurrTime: true,
-      start: 1654992851,
+      start: '2022-06-12',
     }
   }
 }

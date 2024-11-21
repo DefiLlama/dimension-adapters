@@ -91,7 +91,7 @@ const adapter: any = {
                 ...acc,
                 [chain]: {
                     fetch: fetch,
-                    start: 1704067200,
+                    start: '2024-01-01',
                 },
             };
         }, {}),

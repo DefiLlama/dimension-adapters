@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VELAS]: {
       fetch: graphs(CHAIN.VELAS),
-      start: 1666263553,
+      start: '2022-10-20',
       customBackfill: customBackfill(CHAIN.VELAS, graphs as unknown as IGraphs)
     },
   },

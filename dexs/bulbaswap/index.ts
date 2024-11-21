@@ -81,13 +81,13 @@ const adapter: BreakdownAdapter = {
     'v2': {
       [CHAIN.MORPH]: {
         fetch: fetchV2Data,
-        start: 1618435200,
+        start: '2021-04-14',
       },
     },
     'v3': {
       [CHAIN.MORPH]: {
         fetch: fetchV3Data,
-        start: 1618435200,
+        start: '2021-04-14',
       },
     },
   }

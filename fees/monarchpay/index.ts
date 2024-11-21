@@ -21,7 +21,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
-      start: 1694044800
+      start: '2023-09-07'
     },
   }
 }

@@ -49,7 +49,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IOTEX]: {
       fetch,
-      start: 29643703,
     },
   },
 };

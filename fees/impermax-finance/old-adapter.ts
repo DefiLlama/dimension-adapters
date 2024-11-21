@@ -53,7 +53,7 @@ const adapter: Adapter = {
     // [CHAIN.ETHEREUM]: {
     //   fetch: graphs()(CHAIN.ETHEREUM),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -61,7 +61,7 @@ const adapter: Adapter = {
     // [CHAIN.POLYGON]: {
     //   fetch: graphs()(CHAIN.POLYGON),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -69,7 +69,7 @@ const adapter: Adapter = {
     // [CHAIN.ARBITRUM]: {
     //   fetch: graphs()(CHAIN.ARBITRUM),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -77,7 +77,7 @@ const adapter: Adapter = {
     // [CHAIN.AVAX]: {
     //   fetch: graphs()(CHAIN.AVAX),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -85,7 +85,7 @@ const adapter: Adapter = {
     // [CHAIN.ERA]: {
     //   fetch: graphs()(CHAIN.ERA),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -93,7 +93,7 @@ const adapter: Adapter = {
     // [CHAIN.FANTOM]: {
     //   fetch: graphs()(CHAIN.FANTOM),
     //   runAtCurrTime: true,
-    //   start: 1698019200,
+    //   start: '2023-10-23',
     //   meta: {
     //     methodology
     //   }
@@ -101,7 +101,7 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: graphs()(CHAIN.BASE),
       runAtCurrTime: true,
-      start: 1698019200,
+      start: '2023-10-23',
       meta: {
         methodology
       }
@@ -109,7 +109,7 @@ const adapter: Adapter = {
     //[CHAIN.SCROLL]: {
     //  fetch: graphs()(CHAIN.SCROLL),
     //  runAtCurrTime: true,
-    //  start: 1698019200,
+    //  start: '2023-10-23',
     //  meta: {
     //    methodology
     //  }
@@ -117,7 +117,7 @@ const adapter: Adapter = {
     //[CHAIN.OPTIMISM]: {
     //  fetch: graphs()(CHAIN.OPTIMISM),
     //  runAtCurrTime: true,
-    //  start: 1698019200,
+    //  start: '2023-10-23',
     //  meta: {
     //    methodology
     //  }
@@ -125,7 +125,7 @@ const adapter: Adapter = {
     [CHAIN.REAL]: {
       fetch: graphs()(CHAIN.REAL),
       runAtCurrTime: true,
-      start: 1698019200,
+      start: '2023-10-23',
       meta: {
         methodology
       }

@@ -18,7 +18,7 @@ const adapter: BreakdownAdapter = {
     derivatives: {
       [CHAIN.CARDANO]: {
         fetch: fetchVolume,
-        start: 1717200000,
+        start: '2024-06-01',
       }
     },
   },

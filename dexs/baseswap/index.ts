@@ -76,7 +76,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: 1690495200,
+          start: '2023-07-28',
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },

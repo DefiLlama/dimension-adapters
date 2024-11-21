@@ -69,7 +69,7 @@ const fetch: FetchV2 = async ({ endTimestamp, createBalances }) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.NEAR]: {
-      start: 1727647200,
+      start: '2024-09-30',
       fetch,
       meta: {
         methodology: {

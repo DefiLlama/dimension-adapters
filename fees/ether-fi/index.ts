@@ -73,7 +73,7 @@ const adapter: Adapter = {
             "Ether.fi-Liquid vault charges an annualized fee and staking fees are earned by the protocol.",
         },
       },
-      start: 1710284400,
+      start: '2024-03-13',
     },
   },
 };

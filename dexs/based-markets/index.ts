@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1704009000,
+      start: '2023-12-31',
     },
   },
 };

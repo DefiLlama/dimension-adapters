@@ -68,7 +68,7 @@ const adapter_trade: any = {
   adapter: {
     [CHAIN.CORE]: {
       fetch: fetch(CHAIN.CORE),
-      start: 1713916800,
+      start: '2024-04-24',
     },
   },
 };

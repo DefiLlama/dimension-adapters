@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.BASE]: {
             fetch: fetch,
             // runAtCurrTime: true,
-            start: 1718169619,
+            start: '2024-06-12',
             meta: {
                 methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
             }
@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.ERA]: {
             fetch: fetch,
             // runAtCurrTime: true,
-            start: 1718169619,
+            start: '2024-06-12',
             meta: {
                 methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
             }

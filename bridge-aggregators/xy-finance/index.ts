@@ -179,7 +179,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: 1691625600, }
+      [chain]: { fetch, start: '2023-08-10', }
     }
   }, {})
 }

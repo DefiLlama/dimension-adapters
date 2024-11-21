@@ -46,22 +46,22 @@ const fetch = (chainId: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: 1686528000
+      fetch: fetch(CHAIN.BSC), start: '2023-06-12'
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: 1696636800
+      fetch: fetch(CHAIN.OP_BNB), start: '2023-10-07'
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: 1698796800
+      fetch: fetch(CHAIN.MANTA), start: '2023-11-01'
     },
     [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: 1717027200
+      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30'
     },
     [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: 1722297600
+      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30'
     },
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE), start: 1728446497
+      fetch: fetch(CHAIN.BASE), start: '2024-10-09'
     },
   },
 };

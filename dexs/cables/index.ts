@@ -24,11 +24,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1727647200,
+      start: '2024-09-30',
     },
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: 1727647200,
+      start: '2024-09-30',
     },
   },
 };

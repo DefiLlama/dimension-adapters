@@ -29,7 +29,7 @@ const adapter: Adapter = {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       // runAtCurrTime: true,
-      start: 1700956800,
+      start: '2023-11-26',
     },
   },
 };

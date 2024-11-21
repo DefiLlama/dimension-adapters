@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ZETA]: {
       fetch,
-      start: 1725844149,
+      start: '2024-09-09',
     },
   },
 };

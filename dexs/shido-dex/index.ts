@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SHIDO]: {
       fetch: fetchV2Data,
-      start: 1727308800,
+      start: '2024-09-26',
     }
   },
 };

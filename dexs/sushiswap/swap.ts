@@ -211,127 +211,127 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
 const adapters = {
   [CHAIN.ARBITRUM]: {
     fetch,
-    start: 1708849166,
+    start: '2024-02-25',
   },
   [CHAIN.ARBITRUM_NOVA]: {
     fetch,
-    start: 1708859455
+    start: '2024-02-25'
   },
   [CHAIN.AVAX]: {
     fetch,
-    start: 1708861373
+    start: '2024-02-25'
   },
   [CHAIN.BASE]: {
     fetch,
-    start: 1708860457
+    start: '2024-02-25'
   },
   [CHAIN.BLAST]: {
     fetch,
-    start: 1709257139
+    start: '2024-03-01'
   },
   [CHAIN.BOBA]: {
     fetch,
-    start: 1711114904
+    start: '2024-03-22'
   },
   [CHAIN.BOBA_BNB]: {
     fetch,
-    start: 1708869909
+    start: '2024-02-25'
   },
   [CHAIN.BSC]: {
     fetch,
-    start: 1708861767
+    start: '2024-02-25'
   },
   [CHAIN.BITTORRENT]: {
     fetch,
-    start: 1708849432
+    start: '2024-02-25'
   },
   [CHAIN.CELO]: {
     fetch,
-    start: 1708862981
+    start: '2024-02-25'
   },
   [CHAIN.CORE]: {
     fetch,
-    start: 1708868629
+    start: '2024-02-25'
   },
   [CHAIN.ETHEREUM]: {
     fetch,
-    start: 1708848791
+    start: '2024-02-25'
   },
   [CHAIN.FANTOM]: {
     fetch,
-    start: 1708862854
+    start: '2024-02-25'
   },
   // [CHAIN.FILECOIN]: {
   //   fetch,
-  //   start: 1708863300
+  //   start: '2024-02-25'
   // },
   [CHAIN.FUSE]: {
     fetch,
-    start: 1708842355
+    start: '2024-02-25'
   },
   [CHAIN.XDAI]: {
     fetch,
-    start: 1708862650
+    start: '2024-02-25'
   },
   // [CHAIN.HAQQ]: {
   //   fetch,
-  //   start: 1708838485
+  //   start: '2024-02-25'
   // },
   // [CHAIN.HARMONY]: {
   //   fetch,
-  //   start: 1708867604
+  //   start: '2024-02-25'
   // },
   [CHAIN.KAVA]: {
     fetch,
-    start: 1708864014
+    start: '2024-02-25'
   },
   [CHAIN.LINEA]: {
     fetch,
-    start: 1708861967
+    start: '2024-02-25'
   },
   [CHAIN.METIS]: {
     fetch,
-    start: 1708864370
+    start: '2024-02-25'
   },
   [CHAIN.MOONBEAM]: {
     fetch,
-    start: 1708866396
+    start: '2024-02-25'
   },
   [CHAIN.MOONRIVER]: {
     fetch,
-    start: 1708867026
+    start: '2024-02-25'
   },
   [CHAIN.OPTIMISM]: {
     fetch,
-    start: 1708860181
+    start: '2024-02-25'
   },
   [CHAIN.POLYGON]: {
     fetch,
-    start: 1708860721
+    start: '2024-02-25'
   },
   [CHAIN.POLYGON_ZKEVM]: {
     fetch,
-    start: 1708867809
+    start: '2024-02-25'
   },
   // [CHAIN.ROOTSTOCK]: {
   //   fetch,
-  //   start: 1716315751
+  //   start: '2024-05-21'
   // },
   [CHAIN.SCROLL]: {
     fetch,
-    start: 1708865967
+    start: '2024-02-25'
   },
   // [CHAIN.SKALE_EUROPA]: {
   //   fetch,
-  //   start: 1713803839
+  //   start: '2024-04-22'
   // },
   [CHAIN.THUNDERCORE]: {
     fetch,
-    start: 1708889900
+    start: '2024-02-25'
   },
   [CHAIN.ZETA]: {
     fetch,
-    start: 1708865999
+    start: '2024-02-25'
   },
 }
 

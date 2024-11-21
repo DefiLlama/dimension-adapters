@@ -201,8 +201,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   const pmmLogs = await getLogs({ target: "0x8D90113A1e286a5aB3e496fbD1853F265e5913c6", eventAbi: abis.FillOrder });
   const rfqv1Logs = await getLogs({ target: "0xfD6C2d2499b1331101726A8AC68CCc9Da3fAB54F", eventAbi: abis.FillOrderByRFQ });
   const rfqv2Logs = await getLogs({ target: "0x91c986709bb4fe0763edf8e2690ee9d5019bea4a", eventAbi: abis.FilledRFQ });
-  const ammV1Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", eventAbi: abis.Swapped});
-  const ammV2Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", topic: "0xc36ae6e11a161c28ae95fc0f8c0f56d3d0fb7f3a3524499c53fb6733ed86764d"});
+  const ammV1Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", eventAbi: abis.Swapped });
+  const ammV2Logs = await getLogs({ target: "0x4a14347083B80E5216cA31350a2D21702aC3650d", topic: "0xc36ae6e11a161c28ae95fc0f8c0f56d3d0fb7f3a3524499c53fb6733ed86764d" });
 
   [ammV1Logs, rfqv1Logs, pmmLogs].flat().forEach((log: any) => {
     dailyVolume.add(log.makerAssetAddr, log.makerAssetAmount);
@@ -233,10 +233,10 @@ const fetchL2 = async (timestamp: number, _: ChainBlocks, { createBalances, getL
   return { timestamp, dailyVolume };
 };
 
-const adaptersMultiChain : any = {}
-adaptersMultiChain[CHAIN.ETHEREUM] = {fetch, start: 1608048000}
+const adaptersMultiChain: any = {}
+adaptersMultiChain[CHAIN.ETHEREUM] = { fetch, start: '2020-12-15' }
 Object.keys(config).forEach(chain => {
-  adaptersMultiChain[chain] = { fetch: fetchL2, start: 0 }
+  adaptersMultiChain[chain] = { fetch: fetchL2 }
 })
 
 const adapter: BreakdownAdapter = {
@@ -244,10 +244,10 @@ const adapter: BreakdownAdapter = {
     tokenlon: {
       [CHAIN.ETHEREUM]: {
         fetch: fetchVolume(CHAIN.ETHEREUM),
-        start: 1608216488,
+        start: '2020-12-17',
       },
     },
-    "tokenlon-agg":adaptersMultiChain,
+    "tokenlon-agg": adaptersMultiChain,
   },
 };
 

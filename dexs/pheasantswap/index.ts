@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ENULS]: {
       fetch,
-      start: 1682294400,
+      start: '2023-04-24',
     },
   },
 };

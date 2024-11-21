@@ -38,15 +38,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 1710037587,
+      start: '2024-03-10',
     },
   },
 };

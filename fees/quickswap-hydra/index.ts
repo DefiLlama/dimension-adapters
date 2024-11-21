@@ -59,14 +59,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch(endpoints[CHAIN.POLYGON_ZKEVM]),
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
         methodology: "All treasuryFee, poolFee and keeperFee are collected",
       },
     },
     [CHAIN.MANTA]: {
       fetch: fetch(endpoints[CHAIN.MANTA]),
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
         methodology: "All treasuryFee, poolFee and keeperFee are collected",
       },

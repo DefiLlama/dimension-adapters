@@ -7,7 +7,7 @@ const adapter: SimpleAdapter= {
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: 1700000000,
+            start: '2023-11-14',
             meta: {
                 methodology: {
                     Fees: 'Traders pay opening and closing fees',

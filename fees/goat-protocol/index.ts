@@ -34,7 +34,7 @@ const adapter: Adapter = {
             meta: {
                 methodology: methodology
             },
-            start: 1730415601,
+            start: '2024-11-01',
         },
     },
 };

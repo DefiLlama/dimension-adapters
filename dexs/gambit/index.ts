@@ -55,8 +55,8 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ERA]: { fetch, start: 1690848000, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1698883200, },
+    [CHAIN.ERA]: { fetch, start: '2023-08-01', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-11-02', },
   },
   version: 2
 };

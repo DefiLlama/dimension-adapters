@@ -17,7 +17,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch: fetchLogs,
-      start: 1709395559,
+      start: '2024-03-02',
     },
   },
 };

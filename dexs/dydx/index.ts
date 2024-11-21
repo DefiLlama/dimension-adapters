@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1614211200,
+      start: '2021-02-25',
     },
   },
 };

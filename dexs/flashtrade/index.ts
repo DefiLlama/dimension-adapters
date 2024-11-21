@@ -20,7 +20,7 @@ const adapter: BreakdownAdapter = {
         perp: {
             [CHAIN.SOLANA]: {
                 fetch: fetchPerpVolume,
-                start: 1710028800 // start time llama collect
+                start: '2024-03-10' // start time llama collect
             }
         }
     },

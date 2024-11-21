@@ -133,7 +133,7 @@ const classic = Object.keys(endpointsClassic).reduce(
           }
         }
       },
-      start: 1711982400,
+      start: '2024-04-01',
       meta: {
         methodology: {
           Fees: "SushiSwap charges a flat 0.3% fee",
@@ -174,7 +174,6 @@ classic[CHAIN.FANTOM] = {
       dailyRevenue: vol * 0.003,
     }
   },
-  start: 0
 }
 
 export default classic

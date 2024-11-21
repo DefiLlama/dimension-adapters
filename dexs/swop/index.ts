@@ -82,7 +82,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.UNIT0]: {
       fetch: fetchUnit0,
-      start: 1699401600,
+      start: '2023-11-08',
     },
   }
 };

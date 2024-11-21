@@ -35,7 +35,7 @@ const adapters = (() => {
   });
 
   milkomeda.adapter[CHAIN.CARDANO] = {
-    start: 1638057600,
+    start: '2021-11-28',
     fetch: fetch,
   };
   return milkomeda;

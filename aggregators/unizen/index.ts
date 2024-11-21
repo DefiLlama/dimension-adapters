@@ -71,7 +71,7 @@ const adapter: SimpleAdapter = {
         [chain]: {
           fetch: fetch(chain),
           runAtCurrTime: true,
-          start: 1729356360, 
+          start: '2024-10-19', 
         },
       };
     }, {}),

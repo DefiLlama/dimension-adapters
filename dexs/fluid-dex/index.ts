@@ -76,7 +76,7 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 1729969200 },
+    [CHAIN.ETHEREUM]: { fetch, start: '2024-10-26' },
   },
 };
 

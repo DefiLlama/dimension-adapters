@@ -437,7 +437,7 @@ const adapter: BreakdownAdapter = {
     v5: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
-        start: 1688490168,
+        start: '2023-07-04',
       },
     },
   },

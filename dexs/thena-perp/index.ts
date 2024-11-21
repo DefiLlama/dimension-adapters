@@ -84,7 +84,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: 1702892400
+      start: '2023-12-18'
     }
   }
 }

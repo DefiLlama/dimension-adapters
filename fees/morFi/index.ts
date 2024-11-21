@@ -28,7 +28,7 @@ const adapters: Adapter = {
   adapter: {
     [CHAIN.MORPH]: {
       fetch: fetch(CHAIN.MORPH),
-      start: 1730177105,
+      start: '2024-10-29',
     },
   },
 };

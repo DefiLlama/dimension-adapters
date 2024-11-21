@@ -55,7 +55,7 @@ const adapter: Adapter = {
       runAtCurrTime: false,
       customBackfill: undefined,
       fetch: fetchSuilendStats,
-      start: 1709280000,
+      start: '2024-03-01',
       meta: {
         methodology,
       },

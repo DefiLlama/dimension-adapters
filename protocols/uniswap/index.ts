@@ -217,7 +217,7 @@ const adapter: BreakdownAdapter = {
           }
           return response as FetchResultGeneric
         },
-        start: 1541203200,
+        start: '2018-11-03',
         meta: {
           methodology
         },

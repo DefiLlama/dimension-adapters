@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
           dailyRevenue: dailyRevenue,
         }
       },
-      start: 1714608000,
+      start: '2024-05-02',
     },
   }
 }

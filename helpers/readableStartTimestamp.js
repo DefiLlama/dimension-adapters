@@ -12,6 +12,9 @@ function convertTimestamp(unixTimestamp) {
 
 // Function to process files in the given directory
 function processFiles(dir) {
+  if (dir.includes('node_modules')) {
+    return;
+  }
   fs.readdir(dir, (err, files) => {
     if (err) {
       console.error(`Error reading directory ${dir}:`, err);
@@ -59,6 +62,8 @@ function processFiles(dir) {
               });
             }
           });
+        } else if (stats.isDirectory()) {
+          processFiles(filePath);
         }
       });
     });

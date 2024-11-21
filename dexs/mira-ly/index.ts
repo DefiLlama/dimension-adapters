@@ -21,7 +21,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.FUEL]: {
       fetch: fetchVolume,
-      start: 1601424000,
+      start: '2020-09-30',
     }
   }
 }

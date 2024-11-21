@@ -39,7 +39,7 @@ const adapter: any = {
       ...acc,
       [chain]: {
         fetch: fetch,
-        start: 1652745600,
+        start: '2022-05-17',
       },
     };
   }, {}),

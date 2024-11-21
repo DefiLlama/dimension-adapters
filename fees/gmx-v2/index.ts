@@ -38,11 +38,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1690848000,
+      start: '2023-08-01',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1692835200,
+      start: '2023-08-24',
     },
   },
   isExpensiveAdapter: true,

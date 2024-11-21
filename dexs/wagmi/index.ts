@@ -7,23 +7,22 @@ const adapter: SimpleAdapter = {
   adapter: {
     // [CHAIN.ERA]: {
     //   fetch: fetchVolume(CHAIN.ERA), error: "Wagmi does not exist on Era",
-    //   start: 1681257600,
+    //   start: '2023-04-12',
     // },
     [CHAIN.FANTOM]: {
       fetch: fetchVolume,
-      start: 1681257600,
+      start: '2023-04-12',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume,
-      start: 18240112,
     },
     [CHAIN.METIS]: {
       fetch: fetchVolume,
-      start: 1702888970,
+      start: '2023-12-18',
     },
     [CHAIN.KAVA]: {
       fetch: fetchVolume,
-      start: 1694476800,
+      start: '2023-09-12',
     },
   },
 };

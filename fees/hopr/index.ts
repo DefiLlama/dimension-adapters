@@ -71,7 +71,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
-      start: 1693440000,
+      start: '2023-08-31',
       meta: {
         methodology
       }

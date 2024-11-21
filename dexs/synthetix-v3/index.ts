@@ -29,11 +29,11 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 1705104000,
+      start: '2024-01-13',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
-      start: 1719187200,
+      start: '2024-06-24',
     }
   }
 }

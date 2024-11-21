@@ -73,7 +73,7 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: 1582761600,
+        start: '2020-02-27',
       },
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {

@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1635811200,
+      start: '2021-11-02',
       runAtCurrTime: false,
       meta: {
         methodology:

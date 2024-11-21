@@ -35,7 +35,7 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue, };
 
       }) as any,
-      start: 1628553600,
+      start: '2021-08-10',
       runAtCurrTime: true,
     },
   },

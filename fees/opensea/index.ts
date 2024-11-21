@@ -38,7 +38,7 @@ const adapter: Adapter = {
     seaport: {
       [CHAIN.ETHEREUM]: {
         fetch: graphs(seaportEndpoints)(CHAIN.ETHEREUM),
-        start: 1655055510,
+        start: '2022-06-12',
       },
     }
   }

@@ -164,11 +164,11 @@ const adapter: BreakdownAdapter = {
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        start: 1718841600,
+        start: '2024-06-20',
       },
       [CHAIN.MANTLE]: {
         fetch: fetchPerps,
-        start: 1718841600,
+        start: '2024-06-20',
       },
       [CHAIN.SEI]: {
         fetch: fetchPerps,

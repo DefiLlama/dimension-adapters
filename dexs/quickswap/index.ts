@@ -106,31 +106,31 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
-        start: 1602118043,
+        start: '2020-10-08',
       },
     },
     v3: {
       [CHAIN.POLYGON]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON),
-        start: 1662425243,
+        start: '2022-09-06',
       },
       // [CHAIN.DOGECHAIN]: {
       //   fetch: graphsV3(CHAIN.DOGECHAIN),
-      //   start: 1660694400
+      //   start: '2022-08-17'
       // },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
-        start: 1679875200,
+        start: '2023-03-27',
       },
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
-        start: 1697690974,
+        start: '2023-10-19',
       },
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
         fetch: fetchLiquidityHub,
-        start: 1695042000,
+        start: '2023-09-18',
       },
     },
   },

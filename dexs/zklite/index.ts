@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
       fetch,
       runAtCurrTime: true,
       customBackfill: undefined,
-      start: 1712718123,
+      start: '2024-04-10',
     },
   }
 };

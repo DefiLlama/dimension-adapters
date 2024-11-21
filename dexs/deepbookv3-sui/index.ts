@@ -70,7 +70,7 @@ export default {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
-      start: 1727758800,
+      start: '2024-10-01',
       meta: {
         methodology,
       },

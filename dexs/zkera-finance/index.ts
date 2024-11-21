@@ -7,7 +7,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TELOS]: {
       fetch: fetchVolume,
-      start: 1627690586,
+      start: '2021-07-31',
     },
   },
 };

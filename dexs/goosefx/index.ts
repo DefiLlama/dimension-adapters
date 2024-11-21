@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
     adapter: {
       [CHAIN.SOLANA]: {
         fetch: fetch,
-        start: 1696982400,
+        start: '2023-10-11',
         customBackfill: customBackfill(CHAIN.SOLANA as CHAIN, () => fetch),
         runAtCurrTime: false,
         meta: {

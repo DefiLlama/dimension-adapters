@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.GODWOKEN_V1]: {
       fetch: v1graphs(CHAIN.GODWOKEN_V1 as Chain),
-      start: 1669248000,
+      start: '2022-11-24',
       customBackfill: customBackfill(CHAIN.GODWOKEN_V1 as Chain, v1graphs),
     },
   },

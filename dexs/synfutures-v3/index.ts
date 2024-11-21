@@ -97,11 +97,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetch(CHAIN.BLAST),
-      start: 1709197491,
+      start: '2024-02-29',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1719383967,
+      start: '2024-06-26',
     },
   },
 };

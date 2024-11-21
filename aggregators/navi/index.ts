@@ -33,7 +33,7 @@ const navi_aggregator: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchDailyVolume,
-      start: 1728111600,
+      start: '2024-10-05',
     },
   },
 };

@@ -51,21 +51,21 @@ const adapters: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: 1716868800,
+      start: '2024-05-28',
       meta: {
         methodology,
       },
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 1716868800,
+      start: '2024-05-28',
       meta: {
         methodology,
       },
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1716868800,
+      start: '2024-05-28',
       meta: {
         methodology,
       },

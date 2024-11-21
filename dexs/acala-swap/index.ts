@@ -46,7 +46,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ACALA]: {
       fetch: fetch,
-      start: 1671667200
+      start: '2022-12-22'
     },
   },
 };

@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchVolume,
-      start: 1708992000,
+      start: '2024-02-27',
     }
   },
   version: 2,

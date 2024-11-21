@@ -125,12 +125,12 @@ export default {
         [CHAIN.SOLANA]: {
             fetch: fetchSolana,
             runAtCurrTime: true,
-            start: 1663113600,
+            start: '2022-09-14',
         },
         [CHAIN.ECLIPSE]: {
             fetch: fetchEclipse,
             runAtCurrTime: true,
-            start: 1663113600,
+            start: '2022-09-14',
         }
     }
 }

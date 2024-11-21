@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FINDORA]: {
       fetch: graphs(CHAIN.FINDORA),
-      start: 1647684000,
+      start: '2022-03-19',
     },
   },
 };

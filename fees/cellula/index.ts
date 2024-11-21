@@ -62,7 +62,7 @@ const adapter: Adapter = {
           dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue
         }
       }) as FetchV2,
-      start: 1713052800,
+      start: '2024-04-14',
       meta: {
         methodology
       },

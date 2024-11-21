@@ -22,7 +22,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ECLIPSE]: {
       fetch: fetchVolume,
-      start: 1729382400,
+      start: '2024-10-20',
     }
   }
 }

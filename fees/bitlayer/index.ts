@@ -46,7 +46,7 @@ const adapter: Adapter = {
           dailyFees: dailyFees,
         };
       },
-      start: 1713089236,
+      start: '2024-04-14',
     },
   },
   protocolType: ProtocolType.CHAIN,

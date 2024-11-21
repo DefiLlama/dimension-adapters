@@ -333,19 +333,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: 1698796800,
+      start: '2023-11-01',
     },
     [CHAIN.BLAST]: {
       fetch: fetchVolumeBlast,
-      start: 1698796800,
+      start: '2023-11-01',
     },
     [CHAIN.MANTLE]: {
       fetch: fetchVolumeMantle,
-      start: 1698796800,
+      start: '2023-11-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolumeArbitrum,
-      start: 1698796800,
+      start: '2023-11-01',
     },
   },
 };

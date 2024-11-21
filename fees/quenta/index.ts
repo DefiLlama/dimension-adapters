@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IOTEX]: {
       fetch,
-      start: 1730160000,
+      start: '2024-10-29',
     },
   },
 };

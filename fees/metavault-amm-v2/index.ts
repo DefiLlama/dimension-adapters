@@ -63,14 +63,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology: "Fees collected from user trading fees",
       },
     },
     [CHAIN.SCROLL]: {
       fetch: fetch(endpoints[CHAIN.SCROLL]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology: "Fees collected from user trading fees",
       },
