@@ -1,23 +1,22 @@
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetch from "node-fetch";
 
 const url = 'https://app.sentio.xyz/api/v1/analytics/zhpv96/spark-processor/sql/execute';
 const apiKey = 'TLjw41s3DYbWALbwmvwLDM9vbVEDrD9BP';
-const data = {
-  "sqlQuery": {
-    "sql": "SELECT tradeVolume, timestamp FROM `DailyVolume` ORDER BY `timestamp` DESC LIMIT 1"
-  }
-};
 
-const fetchTradeVolume = () =>
+const fetchTradeVolume = ({ startTimestamp, endTimestamp }: FetchOptions) =>
   fetch(url, {
     method: 'POST',
     headers: {
       'api-key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      "sqlQuery": {
+        "sql": `SELECT tradeVolume, timestamp FROM DailyVolume WHERE timestamp >= ${startTimestamp} AND timestamp <= ${endTimestamp} ORDER BY timestamp DESC LIMIT 1`
+      }
+    }),
   })
     .then((response) => {
       if (!response.ok) {
@@ -27,30 +26,24 @@ const fetchTradeVolume = () =>
     })
     .then((result) => {
       const rows = result.result?.rows || [];
+      rows.forEach((row: any) => row.date = new Date(row.timestamp * 1000).toISOString());
 
-      if (rows.length === 0) {
-        console.warn('No trade volume data available.');
-        return {
-          totalVolume: null,
-          timestamp: null,
-        };
-      }
+      if (rows.length === 0)
+        throw new Error('No trade volume data available.');
 
-      const totalVolume = rows[0]?.tradeVolume;
-      const timestamp = rows[0]?.timestamp;
+      const dailyVolume = rows[0]?.tradeVolume;
 
       return {
-        dailyVolume: totalVolume,
-        timestamp: timestamp,
+        dailyVolume,
       };
     });
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.FUEL]: {
       fetch: fetchTradeVolume,
-      start: 1601424000,
+      start: "2024-11-06",
     },
   },
 };
