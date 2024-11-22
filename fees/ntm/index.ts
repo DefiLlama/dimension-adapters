@@ -32,7 +32,7 @@ const adapter: any = {
     ...all,
     [chain]: {
         fetch: fetchFeesAndRevenues,
-        start: 1684771200,
+        start: '2023-05-22',
         meta: {
           methodology: 'sums the fees of listing request & trending request.',
         }

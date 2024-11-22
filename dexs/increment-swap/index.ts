@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: 1650844800,
+      start: '2022-04-25',
     },
   },
 };

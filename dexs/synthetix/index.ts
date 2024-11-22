@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume,
-      start: 1682121600,
+      start: '2023-04-22',
     },
   }
 };

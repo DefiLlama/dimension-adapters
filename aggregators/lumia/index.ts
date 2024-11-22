@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
         ...acc,
         [key]: {
           fetch: fetch(value),
-          start: 1672531200, // 01.01.2023
+          start: '2023-01-01', // 01.01.2023
         },
       };
     }, {}),

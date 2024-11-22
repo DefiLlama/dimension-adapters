@@ -13,7 +13,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MINT]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
-      start: 1715942400,
+      start: '2024-05-17',
     },
   },
   protocolType: ProtocolType.CHAIN

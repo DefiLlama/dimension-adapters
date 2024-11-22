@@ -40,7 +40,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetchFees,
-      start: 0
     },
   },
 };

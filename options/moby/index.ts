@@ -18,7 +18,7 @@ export const moby_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchMobyVolumeData,
-      start: 1712102400
+      start: '2024-04-03'
     },
   },
 };

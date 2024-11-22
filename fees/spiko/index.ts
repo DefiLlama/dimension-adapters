@@ -85,12 +85,12 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      start: 1714514400,
+      start: '2024-05-01',
       fetch: (options: FetchOptions) =>
         getFundsFees(funds[CHAIN.ETHEREUM], options),
     },
     [CHAIN.POLYGON]: {
-      start: 1713564000,
+      start: '2024-04-20',
       fetch: (options: FetchOptions) =>
         getFundsFees(funds[CHAIN.POLYGON], options),
     },

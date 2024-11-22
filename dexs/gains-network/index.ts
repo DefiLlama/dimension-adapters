@@ -37,9 +37,9 @@ const fetch: any = async (
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: 1684972800 },
-    [CHAIN.POLYGON]: { fetch, start: 1684972800 },
-    [CHAIN.BASE]: { fetch, start: 1727351131 },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-05-25' },
+    [CHAIN.POLYGON]: { fetch, start: '2023-05-25' },
+    [CHAIN.BASE]: { fetch, start: '2024-09-26' },
   },
   isExpensiveAdapter: true,
 };

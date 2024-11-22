@@ -35,8 +35,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 0,
-      runAtCurrTime: true,
+            runAtCurrTime: true,
       customBackfill: undefined,
       meta: {
         methodology: {

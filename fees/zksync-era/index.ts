@@ -47,7 +47,7 @@ const adapter: Adapter = {
         return { timestamp, dailyFees, dailyRevenue, }
 
       }) as any,
-      start: 1679616000 // March 24, 2023
+      start: '2023-03-24' // March 24, 2023
     },
   },
   protocolType: ProtocolType.CHAIN

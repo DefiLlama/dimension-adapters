@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN_CASH]: {
       fetch: fetchAnyhedgeVolumeData,
-      start: 1654787405,
+      start: '2022-06-09',
       meta: {
           methodology
       }

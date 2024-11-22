@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: getVolume,
-            start: 1711965100,
+            start: '2024-04-01',
         },
     },
 };

@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch:  fethcEmpty,
-      start: async () => START_TIME,
+      start: START_TIME,
     }
   },
 };

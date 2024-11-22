@@ -50,7 +50,7 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   }
 }
 
-const options: any = { fetch, start: 1691193600 }
+const options: any = { fetch, start: '2023-08-05' }
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: options,

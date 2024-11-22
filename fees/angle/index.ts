@@ -223,23 +223,23 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: graph(endpoints)(CHAIN.ARBITRUM),
-            start: 1672531200,
+            start: '2023-01-01',
         },
         [CHAIN.AVAX]: {
             fetch: graph(endpoints)(CHAIN.AVAX),
-            start: 1672531200,
+            start: '2023-01-01',
         },
         [CHAIN.ETHEREUM]: {
             fetch: graph(endpoints)(CHAIN.ETHEREUM),
-            start: 1672531200,
+            start: '2023-01-01',
         },
         [CHAIN.OPTIMISM]: {
             fetch: graph(endpoints)(CHAIN.OPTIMISM),
-            start: 1672531200,
+            start: '2023-01-01',
         },
         [CHAIN.POLYGON]: {
             fetch: graph(endpoints)(CHAIN.POLYGON),
-            start: 1672531200,
+            start: '2023-01-01',
         },
     },
     version: 2

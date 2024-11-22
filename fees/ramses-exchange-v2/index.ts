@@ -28,7 +28,7 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATQTt3wRTgXy4canCh6t1yeczAz4ZuEkFQL2mrLXEMyQ'),
 };
 
 const v2Graphs = getGraphDimensions2({

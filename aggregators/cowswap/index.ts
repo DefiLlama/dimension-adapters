@@ -16,9 +16,9 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
 
 const adapter: any = {
   adapter: {
-    ethereum: { fetch, start: 1685491200, },
-    xdai: { fetch, start: 1685491200, },
-    arbitrum: { fetch, start: 1714142553, },
+    ethereum: { fetch, start: '2023-05-31', },
+    xdai: { fetch, start: '2023-05-31', },
+    arbitrum: { fetch, start: '2024-04-26', },
   },
 };
 

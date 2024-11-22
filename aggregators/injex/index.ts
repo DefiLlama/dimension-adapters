@@ -14,7 +14,7 @@ const adapter: any = {
   adapter: {
     injective: {
       fetch: fetchLogs,
-      start: 1716411599,
+      start: '2024-05-22',
     },
   },
 };

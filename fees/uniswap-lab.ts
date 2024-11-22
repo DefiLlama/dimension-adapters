@@ -20,7 +20,7 @@ const fetch = async (options: FetchOptions) => {
 const adapters: SimpleAdapter = {
   adapter: Object.keys(config).reduce((all, chain)=>({
     ...all,
-    [chain]: { fetch, start: 1696896000 }
+    [chain]: { fetch, start: '2023-10-10' }
   }), {}),
   version: 2
 }

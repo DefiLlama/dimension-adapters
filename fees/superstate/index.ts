@@ -62,7 +62,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: getFundsFees,
-      start: 1709247600,
+      start: '2024-03-01',
       runAtCurrTime: false,
     },
   },

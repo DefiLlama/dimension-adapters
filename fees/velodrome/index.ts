@@ -7,7 +7,7 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: fetchV1(),
-      start: 1677110400, // TODO: Add accurate timestamp
+      start: '2023-02-23', // TODO: Add accurate timestamp
     },
   },
 };

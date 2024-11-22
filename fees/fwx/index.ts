@@ -151,11 +151,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1698796800,
+      start: '2023-11-01',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1725408000,
+      start: '2024-09-04',
     },
   },
   version: 1,

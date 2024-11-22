@@ -44,11 +44,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchoptimism as any,
-      start: 1664582400,
+      start: '2022-10-01',
     },
     [CHAIN.BASE]: {
       fetch: fetchbase as any,
-      start: 1693449471,
+      start: '2023-08-31',
     },
   },
 };

@@ -6,6 +6,6 @@ export default {
     fetch: getUniV3LogAdapter({
       factory: "0x62B672E531f8c11391019F6fba0b8B6143504169",
     }),
-    start: 1697500800,
+    start: '2023-10-17',
   },
 };

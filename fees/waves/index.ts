@@ -37,7 +37,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.WAVES]: {
       fetch,
-      start: 1623024000
+      start: '2021-06-07'
     },
   },
   protocolType: ProtocolType.CHAIN

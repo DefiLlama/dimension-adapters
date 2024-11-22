@@ -22,7 +22,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphqlV3(CHAIN.LINEA),
-      start: 1707620640,
+      start: '2024-02-11',
     },
   },
   version: 2,

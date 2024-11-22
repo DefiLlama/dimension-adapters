@@ -8,7 +8,7 @@ const adapters: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ZETA]: {
       fetch: async (timestamp: number) => {return {timestamp, dailyFees: '0'}},
-      start: 1707177600,
+      start: '2024-02-06',
     }
   }
 }

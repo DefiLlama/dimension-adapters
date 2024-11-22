@@ -39,14 +39,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: 1653523200,
+      start: '2022-05-26',
       meta: {
         methodology
       }
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: 1636606800,
+      start: '2021-11-11',
       meta: {
         methodology
       }

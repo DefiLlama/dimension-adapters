@@ -101,7 +101,7 @@ const adapter: BreakdownAdapter = {
     "beamex-swap": {
       [CHAIN.MOONBEAN]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAN),
-        start: 1687421388,
+        start: '2023-06-22',
         meta: {
           methodology: {
             ...methodologyBeamex,
@@ -112,7 +112,7 @@ const adapter: BreakdownAdapter = {
     "beamex-perps": {
       [CHAIN.MOONBEAN]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAN),
-        start: 1687421388,
+        start: '2023-06-22',
         meta: {
           methodology: {
             ...methodologyBeamex,

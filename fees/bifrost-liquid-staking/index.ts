@@ -19,7 +19,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.BIFROST]: {
       fetch,
-      start: 1640995200,
+      start: '2022-01-01',
     },
   },
 };

@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
       [CHAIN.ICP]: {
         fetch: fetch,
-        start: 1713830400,
+        start: '2024-04-23',
         runAtCurrTime: true,
       }
     }

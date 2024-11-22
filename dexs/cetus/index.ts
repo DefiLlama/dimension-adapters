@@ -52,11 +52,11 @@ const adapter: SimpleAdapter = {
   adapter: {
       [CHAIN.APTOS]: {
         fetch: fetch(CHAIN.APTOS),
-        start: 1666224000,
+        start: '2022-10-20',
       },
       [CHAIN.SUI]: {
         fetch: fetch(CHAIN.SUI),
-        start: 1682985600,
+        start: '2023-05-02',
       }
   }
 };

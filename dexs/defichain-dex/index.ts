@@ -30,8 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.DEFICHAIN]: {
       fetch,
-      start: 0,
-      runAtCurrTime: true
+            runAtCurrTime: true
     },
   },
 };

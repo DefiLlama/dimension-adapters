@@ -12,7 +12,7 @@ const config = {
   [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
   arbitrum: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
   base: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff' },
-} as {[chain:string]:{exchange:string}}
+} as { [chain: string]: { exchange: string } }
 
 // https://github.com/0xProject/protocol/blob/development/packages/contract-artifacts/artifacts/IZeroEx.json
 const abi = {
@@ -77,11 +77,11 @@ const adaptersERC1155: any = {}
 const adaptersERC721: any = {}
 const adaptersERCLimit: any = {}
 Object.keys(config).forEach(chain => {
-  adaptersRFQ[chain] = { fetch: fetchRFQ, start: 0 }
-  adaptersOTC[chain] = { fetch: fetchOTC, start: 0 }
-  adaptersERC1155[chain] = { fetch: fetchERC1155, start: 0 }
-  adaptersERC721[chain] = { fetch: fetchERC721, start: 0 }
-  adaptersERCLimit[chain] = { fetch: fetchERCLimit, start: 0 }
+  adaptersRFQ[chain] = { fetch: fetchRFQ }
+  adaptersOTC[chain] = { fetch: fetchOTC }
+  adaptersERC1155[chain] = { fetch: fetchERC1155 }
+  adaptersERC721[chain] = { fetch: fetchERC721 }
+  adaptersERCLimit[chain] = { fetch: fetchERCLimit }
 })
 
 const adapter: BreakdownAdapter = {

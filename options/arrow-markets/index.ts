@@ -16,7 +16,7 @@ export const v2_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchArrowMarketsVolumeData,
-      start: 1707350400
+      start: '2024-02-08'
     },
   },
 };

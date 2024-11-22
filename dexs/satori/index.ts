@@ -127,37 +127,37 @@ const adapter: SimpleAdapter = {
         [CHAIN.POLYGON_ZKEVM]: {
             fetch:evm_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.ERA]: {
             fetch:era_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.LINEA]: {
             fetch:linea_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.SCROLL]: {
             fetch:scroll_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.BASE]: {
             fetch:base_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.ARBITRUM]: {
             fetch:arbitrum_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         },
         [CHAIN.XLAYER]: {
             fetch:xlayer_fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         }
     },
 };

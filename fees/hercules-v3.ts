@@ -38,7 +38,7 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-const adapter = { fetch, start: 1698983690, }
+const adapter = { fetch, start: '2023-11-03', }
 
 
 export default {

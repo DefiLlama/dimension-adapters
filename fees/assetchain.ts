@@ -28,7 +28,7 @@ const adapter: Adapter = {
         dailyFees.addCGToken('xend-finance', feesInRwa/1e18)
         return { dailyFees, dailyRevenue: dailyFees }
       },
-      start: 1598671449,
+      start: '2020-08-29',
     },
   },
   protocolType: ProtocolType.CHAIN

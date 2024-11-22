@@ -16,6 +16,7 @@ interface IStats {
   all_fees: number;
   borrowing_fee: number;
   rollover_fee: number;
+  cumul_fees: number; // all time chain fees
 
   // gTokens
   dai_stakers: number;
@@ -25,7 +26,7 @@ interface IStats {
   // GNS staking
   gns_stakers: number;
 }
-const requests: any = {}
+const requests: any = {};
 
 export async function fetchURLWithRetry(url: string, options: FetchOptions) {
   const start = options.startTimestamp;
@@ -35,8 +36,8 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
     requests[key] = queryDune("4192496", {
       start: start,
       end: end,
-    })
-  return requests[key]
+    });
+  return requests[key];
 }
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
@@ -48,7 +49,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
         chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers,
         chainStat.gns_stakers,
         chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers,
-        chainStat.all_fees + chainStat.rollover_fee + chainStat.borrowing_fee,
+        chainStat.cumul_fees,
       ]
     : [0, 0, 0, 0, 0];
 
@@ -66,15 +67,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1654214400,
+      start: '2022-06-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1672358400,
+      start: '2022-12-30',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 1727351131,
+      start: '2024-09-26',
     },
   },
   isExpensiveAdapter: true,

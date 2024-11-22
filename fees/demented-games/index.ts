@@ -48,7 +48,7 @@ const adapter: Adapter = {
     [CHAIN.FUSE]: {
       fetch,
       runAtCurrTime: true,
-      start: 1720396800,
+      start: '2024-07-08',
       meta: {
         methodology: {
           Fees: 'Sum of all fees from each game on the Demented Games platform.',

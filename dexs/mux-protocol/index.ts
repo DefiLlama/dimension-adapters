@@ -54,19 +54,19 @@ const adapter: any = {
   "mux-protocol": {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: 1680393600,
+      start: '2023-04-02',
     },
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: 1663459200,
+      start: '2022-09-18',
     },
     [CHAIN.AVAX]: {
       fetch: fetchVolume,
-      start: 1675555200,
+      start: '2023-02-05',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume,
-      start: 1678147200,
+      start: '2023-03-07',
     },
   }
 }

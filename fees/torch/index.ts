@@ -19,7 +19,7 @@ export default {
   version: 2,
   adapter: {
     [CHAIN.TON]: {
-      start: 1700000000,
+      start: '2023-11-14',
       meta: {
         methodology: {
           UserFees: 'User pays fee on each swap (depends on pool, 0.1% - 1%).',

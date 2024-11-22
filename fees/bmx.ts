@@ -61,14 +61,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs,
-      start: 1694304000,
+      start: '2023-09-10',
       meta: {
         methodology,
       },
     },
     [CHAIN.MODE]: {
       fetch: graphs,
-      start: 1720627435,
+      start: '2024-07-10',
       meta: {
         methodology,
       },

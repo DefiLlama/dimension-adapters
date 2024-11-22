@@ -44,7 +44,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      start: 1727417433,
+      start: '2024-09-27',
       fetch,
       meta: { methodology }
     },

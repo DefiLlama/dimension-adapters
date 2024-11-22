@@ -20,7 +20,7 @@ const adapter: Adapters.SimpleAdapter = {
   adapter: {
     [Chains.ARBITRUM]: {
       fetch: get_data,
-      start: async () => new Date(C.min_start_date).getTime() / 1000,
+      start: "2024-02-05",
       meta: {
         methodology: C.methodology,
         hallmarks: C.hallmarks,

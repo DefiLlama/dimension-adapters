@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,
-      start: 1630584906,
+      start: '2021-09-02',
     },
   },
 };

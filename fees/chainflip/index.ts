@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CHAINFLIP]: {
       fetch,
-      start: 1717113600, // First decent swap was 2024-05-31 09:22:30.000000
+      start: '2024-05-31', // First decent swap was 2024-05-31 09:22:30.000000
       runAtCurrTime: true,
       meta: {
         methodology: {

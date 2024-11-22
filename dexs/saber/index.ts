@@ -16,7 +16,6 @@ export default {
     "solana": {
       fetch: last24h,
       runAtCurrTime: true,
-      start: 0,
-    }
+          }
   }
 }

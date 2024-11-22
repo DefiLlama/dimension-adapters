@@ -22,7 +22,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch,
-      start: 1668812400,
+      start: '2022-11-19',
       meta: {
         methodology:
           "The Liquid Collective protocol charges a service fee set at 15.0% of network rewards, split amongst Node Operators, Platforms, Wallet & Custody Providers, Service Providers, the protocol's Slashing Coverage Treasury, and the Liquid Collective DAO, which comprises a broad and dispersed community of protocol participants",

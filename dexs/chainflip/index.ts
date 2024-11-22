@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CHAINFLIP]: {
       fetch,
-      start: 1700740800, // FLIP went live on 2023-11-23 12:00 UTC
+      start: '2023-11-23', // FLIP went live on 2023-11-23 12:00 UTC
       runAtCurrTime: true,
       meta: {
         methodology: {

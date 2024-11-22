@@ -78,15 +78,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 77678653,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 77678653,
     },
     [CHAIN.ETHEREUM]: {
         fetch: graph(CHAIN.ETHEREUM),
-        start: 77678653,
       },
   }
 };

@@ -83,11 +83,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) => fetch(ethereum_endpointId, options),
-      start: 1617228000,
+      start: '2021-04-01',
     },
     [CHAIN.AVAX]: {
       fetch: (options: FetchOptions) => fetch(avax_endpointId, options),
-      start: 1617228000,
+      start: '2021-04-01',
     },
   },
 };

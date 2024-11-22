@@ -31,7 +31,7 @@ const adapter: Adapter = {
   adapter: {
     massa: {
       fetch: fetchVolume,
-      start: 1713170000
+      start: '2024-04-15'
     },
   }
 }

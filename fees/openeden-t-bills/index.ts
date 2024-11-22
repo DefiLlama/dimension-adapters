@@ -52,12 +52,12 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
         fetch(VAULT_ADDRESSES[CHAIN.ETHEREUM], options),
-      start: 1697580000,
+      start: '2023-10-18',
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) =>
         fetch(VAULT_ADDRESSES[CHAIN.ARBITRUM], options),
-      start: 1707778800,
+      start: '2024-02-13',
     },
   },
 };

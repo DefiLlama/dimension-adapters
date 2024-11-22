@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
-            start: 1704758400,
+            start: '2024-01-09',
             fetch,
             meta:{
                 methodology: "api calls from grpahql"

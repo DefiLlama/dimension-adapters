@@ -19,7 +19,7 @@ export function blockscoutFeeAdapter(chain: string, url: string, CGToken?: strin
             timestamp: startOfDay, dailyFees,
           };
         },
-        start: 1575158400
+        start: '2019-12-01'
       },
     },
     protocolType: ProtocolType.CHAIN
