@@ -2,6 +2,7 @@
 import { api } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { ethers } from "ethers";
 const sdk = require('@defillama/sdk')
 
 const LIQUID_VAULT_ETH = "0xf0bb20865277aBd641a307eCe5Ee04E79073416C";
@@ -28,7 +29,7 @@ const getStethFees = async (options, totalSteth) => {
     eventAbi: "event TokenRebased(uint256 indexed reportTimestamp,uint256 timeElapsed,uint256 preTotalShares,uint256 preTotalEther,uint256 postTotalShares,uint256 postTotalEther,uint256 sharesMintedAsFees)",
   });
   const lastRebaseLog = stethRebaseLogs[0]
-  const exchangeRateBefore = Number(lastRebaseLog.preTotalEther) / Number(lastRebaseLog.preTotalShares); 
+  const exchangeRateBefore = Number(lastRebaseLog.preTotalEther) / Number(lastRebaseLog.preTotalShares);
   const exchangeRateAfter = Number(lastRebaseLog.postTotalEther) / Number(lastRebaseLog.postTotalShares);
   const stethShares = totalSteth / exchangeRateBefore
   const changeInSteth = (stethShares * exchangeRateAfter) - (stethShares * exchangeRateBefore);
@@ -102,20 +103,18 @@ const getSsvRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: SSV,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topic: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
   })
-  let ssv_revenue = BigInt(0);
+  let ssv_revenue = 0;
   for (const log of logs) {
-    if(log.to == "0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5")  {
-      if(log.from == "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8") {
-        ssv_revenue += log.value;
-      }
-      else {
-        ssv_revenue += log.value / BigInt(10) * BigInt(8);
-      }
+    if (log.from == "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8") {
+      ssv_revenue += +log.value;
+    }
+    else {
+      ssv_revenue += +log.value / 1e8;
     }
   }
-  return ssv_revenue;
+  return BigInt(ssv_revenue);
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -163,7 +162,7 @@ const fetch = async (options: FetchOptions) => {
 
   //liquid
   dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
-  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 *  0.02 / YEAR);
+  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * 0.02 / YEAR);
   dailyRev.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
   dailyRev.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * 0.02 / YEAR);
 
