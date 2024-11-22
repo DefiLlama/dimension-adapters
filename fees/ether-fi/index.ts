@@ -158,8 +158,8 @@ const fetch = async (options: FetchOptions) => {
 
   // add ssv revenue for running ssv validators
   const ssvRevenue = await getSsvRevenue(options);
-  dailyFees.add(SSV, ssvRevenue / BigInt(30));
-  dailyRev.add(SSV, ssvRevenue / BigInt(30));
+  dailyFees.add(SSV, ssvRevenue);
+  dailyRev.add(SSV, ssvRevenue);
 
   //liquid
   dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
