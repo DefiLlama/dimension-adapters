@@ -415,8 +415,7 @@ const getLiquidityRevenueFromTo = async (
 
     // add collected revenue in time frame to the to time point revenue.
     // to revenue = uncollected at that point + all collected revenue since from
-    const _revenueTo = BigNumber(revenueTo[index]);
-    _revenueTo.plus(collectedRevenue);
+    const _revenueTo = BigNumber(revenueTo[index]).plus(collectedRevenue);
 
     // get uncollected revenue in from -> to timespan
     dailyValues.add(
