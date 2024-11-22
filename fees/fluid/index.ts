@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { getBlock } from "@defillama/sdk/build/util/blocks";
+import { getBlock, getTimestamp } from "@defillama/sdk/build/util/blocks";
 import BigNumber from "bignumber.js";
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -284,14 +284,12 @@ const adapter: Adapter = {
 
 export default adapter;
 
-const getFeesFromTo = async (
-  options: FetchOptions
-): Promise<sdk.Balances> => {
-
+const getFeesFromTo = async (options: FetchOptions): Promise<sdk.Balances> => {
   const liquidityOperateLogs = (await options.getLogs({
     target: config.liquidity,
     onlyArgs: true,
-    eventAbi: "event LogOperate(address indexed user,address indexed token,int256 supplyAmount,int256 borrowAmount,address withdrawTo,address borrowTo,uint256 totalAmounts,uint256 exchangePricesAndConfig)",
+    eventAbi:
+      "event LogOperate(address indexed user,address indexed token,int256 supplyAmount,int256 borrowAmount,address withdrawTo,address borrowTo,uint256 totalAmounts,uint256 exchangePricesAndConfig)",
   })) as any[];
 
   const dailyFees = options.createBalances();
@@ -315,12 +313,12 @@ const getFeesFromTo = async (
     calls: vaults,
   })) as { borrowToken: string }[];
 
-
   for (const [index, vault] of vaults.entries()) {
     let borrowBalance = new BigNumber(0);
     let borrowToken = "";
     try {
-      const { constantVariables, totalSupplyAndBorrow } = vaultEntiresDataFrom[index];
+      const { constantVariables, totalSupplyAndBorrow } =
+        vaultEntiresDataFrom[index];
 
       borrowToken = constantVariables.borrowToken;
       borrowBalance = new BigNumber(totalSupplyAndBorrow.totalBorrowVault);
@@ -344,7 +342,8 @@ const getFeesFromTo = async (
       borrowBalance = borrowBalance.plus(new BigNumber(vaultOperate[3]));
     }
     try {
-      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultEntiresDataTo[index];
+      const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } =
+        vaultEntiresDataTo[index];
 
       dailyFees.add(
         borrowToken,
@@ -353,22 +352,36 @@ const getFeesFromTo = async (
         )
       );
     } catch (ex) {}
-
   }
 
   return dailyFees;
 };
 
-const getRevenueFromTo = async (
-  options: FetchOptions
-): Promise<number> => {
-  const LPRsevenueFromTo = await getLiquidityRevenueFromTo(options);
-  const vaultRevenueFromTo = await getVaultsMagnifierRevenueFromTo(options);
+const getRevenueFromTo = async (options: FetchOptions): Promise<number> => {
+  const lastBlockBeforeFromTimestamp = (
+    await getLastBlockBeforeTimestamp(options.api, options.fromTimestamp)
+  ).number;
+  const lastBlockBeforeToTimestamp = (
+    await getLastBlockBeforeTimestamp(options.api, options.toTimestamp)
+  ).number;
+
+  const LPRsevenueFromTo = await getLiquidityRevenueFromTo(
+    options,
+    lastBlockBeforeFromTimestamp,
+    lastBlockBeforeToTimestamp
+  );
+  const vaultRevenueFromTo = await getVaultsMagnifierRevenueFromTo(
+    options,
+    lastBlockBeforeFromTimestamp,
+    lastBlockBeforeToTimestamp
+  );
   return LPRsevenueFromTo + vaultRevenueFromTo;
 };
 
 const getLiquidityRevenueFromTo = async (
-  options: FetchOptions
+  options: FetchOptions,
+  lastBlockBeforeFromTimestamp: number,
+  lastBlockBeforeToTimestamp: number
 ) => {
   const { fromTimestamp, toTimestamp, api } = options;
   const tokens: string[] = await (await liquidityResolver(api)).listedTokens();
@@ -382,17 +395,18 @@ const getLiquidityRevenueFromTo = async (
   const revenueFrom: BigNumber[] = await getLiquidityUncollectedRevenueAt(
     api,
     fromTimestamp,
-    tokens
+    tokens,
+    lastBlockBeforeFromTimestamp
   );
 
-  const revenueTo:BigNumber[] = await getLiquidityUncollectedRevenueAt(
+  const revenueTo: BigNumber[] = await getLiquidityUncollectedRevenueAt(
     api,
     toTimestamp,
-    tokens
+    tokens,
+    lastBlockBeforeToTimestamp
   );
   const dailyValues = options.createBalances();
   for await (const [index, token] of tokens.entries()) {
-
     // consider case where collect revenue has been executed in the time frame
     const logs = collectRevenueLogs.filter((x) => x[0] == token);
     const collectedRevenue: BigNumber = logs.reduce((sum: BigNumber, x) => {
@@ -401,7 +415,7 @@ const getLiquidityRevenueFromTo = async (
 
     // add collected revenue in time frame to the to time point revenue.
     // to revenue = uncollected at that point + all collected revenue since from
-    const _revenueTo = BigNumber(revenueTo[index])
+    const _revenueTo = BigNumber(revenueTo[index]);
     _revenueTo.plus(collectedRevenue);
 
     // get uncollected revenue in from -> to timespan
@@ -419,30 +433,31 @@ const getLiquidityRevenueFromTo = async (
 const getLiquidityUncollectedRevenueAt = async (
   api: sdk.ChainApi,
   timestamp: number,
-  tokens: string[]
+  tokens: string[],
+  lastBlockBeforeTimestamp: number
 ) => {
   const timestampedApi = new sdk.ChainApi({
     chain: api.chain,
-    block: (await getBlock(api.chain, timestamp)).number - 1,
+    block: lastBlockBeforeTimestamp,
   });
 
   // check if token was listed at that timestamp at Liquidity, if not, revenue is 0
 
   // get liquidity packed storage slots data at timestamped Api block number
-  const totalAmounts: any[] = await (
+  const totalAmounts: any[] = (await (
     await liquidityResolver(timestampedApi)
-  ).getTotalAmounts(tokens) as any[];
+  ).getTotalAmounts(tokens)) as any[];
 
-  const exchangePricesAndConfig: any[] = await (
+  const exchangePricesAndConfig: any[] = (await (
     await liquidityResolver(timestampedApi)
-  ).getExchangePricesAndConfig(tokens) as any[];
+  ).getExchangePricesAndConfig(tokens)) as any[];
 
   const ee = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
   const findIndex = tokens.findIndex((x) => x.toLowerCase() === ee);
   const liquidityTokenBalance: string[] = await timestampedApi.multiCall({
     abi: "erc20:balanceOf",
     calls: tokens
-      .filter(e => e.toLowerCase() !== ee)
+      .filter((e) => e.toLowerCase() !== ee)
       .map((token) => ({ target: token, params: [config.liquidity] })),
   });
 
@@ -457,11 +472,10 @@ const getLiquidityUncollectedRevenueAt = async (
     liquidityTokenBalance.splice(findIndex, 0, eeBalance);
   }
 
-
   // // pass data into revenue resolver, available at current api block, which calculates revenue at the
   // // simulated timestamp based on storage slots data
-  const uncollectedRevenue: BigNumber[] = []
-  for(const [index, _token] of tokens.entries()) {
+  const uncollectedRevenue: BigNumber[] = [];
+  for (const [index, _token] of tokens.entries()) {
     try {
       const _uncollectedRevenue = await (
         await revenueResolver(api)
@@ -482,7 +496,9 @@ const getLiquidityUncollectedRevenueAt = async (
 };
 
 const getVaultsMagnifierRevenueFromTo = async (
-  options: FetchOptions
+  options: FetchOptions,
+  lastBlockBeforeFromTimestamp: number,
+  lastBlockBeforeToTimestamp: number
 ) => {
   const { fromTimestamp, toTimestamp, api } = options;
   if (toTimestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
@@ -497,19 +513,21 @@ const getVaultsMagnifierRevenueFromTo = async (
     api,
     fromTimestamp,
     vaults,
-    options
+    options,
+    lastBlockBeforeFromTimestamp
   );
 
   let toBalancesApi = await getVaultMagnifierUncollectedRevenueAt(
     api,
     toTimestamp,
     vaults,
-    options
+    options,
+    lastBlockBeforeToTimestamp
   );
 
   toBalancesApi = await getVaultMagnifierCollectedRevenueFromTo(
-      options,
-      vaults
+    options,
+    vaults
   );
 
   const revenueFrom = await fromBalancesApi.getUSDValue();
@@ -520,10 +538,10 @@ const getVaultsMagnifierRevenueFromTo = async (
 
 const getVaultMagnifierCollectedRevenueFromTo = async (
   options: FetchOptions,
-  vaults: string[],
+  vaults: string[]
 ) => {
   const values = options.createBalances();
-  const rebalanceEventLogs =  await options.getLogs({
+  const rebalanceEventLogs = await options.getLogs({
     targets: vaults,
     onlyArgs: true,
     flatten: false,
@@ -533,12 +551,11 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
       /// if `colAmt_` is negative then profit, meaning withdrawn from vault and sent to rebalancer address.
       /// if `debtAmt_` is positive then profit, meaning borrow from vault and sent to rebalancer address.
       "event LogRebalance(int colAmt_, int debtAmt_)",
-  })
+  });
 
   if (rebalanceEventLogs.length == 0) {
-    return values
+    return values;
   }
-
 
   // get collateral and borrow token of the vault
   const contractViews: any[] = await options.api.multiCall({
@@ -569,7 +586,8 @@ const getVaultMagnifierUncollectedRevenueAt = async (
   api: sdk.ChainApi,
   timestamp: number,
   vaults: string[],
-  options: FetchOptions
+  options: FetchOptions,
+  lastBlockBeforeTimestamp: number
 ) => {
   const values = options.createBalances();
   if (timestamp < config[api.chain].vaultResolverExistAfterTimestamp) {
@@ -577,19 +595,18 @@ const getVaultMagnifierUncollectedRevenueAt = async (
     return values;
   }
 
-  const targetBlock = (await getBlock(api.chain, timestamp)).number - 1;
-
   const timestampedApi = new sdk.ChainApi({
     chain: api.chain,
-    block: targetBlock,
+    block: lastBlockBeforeTimestamp,
   });
-  const vaultEntiresDataFrom: any[] = await (
+  const vaultEntiresDataFrom: any[] = (await (
     await vaultResolver(timestampedApi)
-  ).getVaultEntireData(vaults) as any[];
+  ).getVaultEntireData(vaults)) as any[];
 
   for (const [index, _vault] of vaults.entries()) {
     try {
-      const { totalSupplyAndBorrow , constantVariables} = vaultEntiresDataFrom[index];
+      const { totalSupplyAndBorrow, constantVariables } =
+        vaultEntiresDataFrom[index];
       const totalSupplyVault = new BigNumber(
         totalSupplyAndBorrow.totalSupplyVault
       );
@@ -619,5 +636,36 @@ const getVaultMagnifierUncollectedRevenueAt = async (
     }
   }
   return values;
+};
+
+const getLastBlockBeforeTimestamp = async (
+  api: sdk.ChainApi,
+  timestamp: number
+) => {
+  let block = await getBlock(api.chain, timestamp);
+
+  while (block.timestamp > timestamp) {
+    let blocksJumped = 1;
+    let lastTimestamp = await getTimestamp(
+      block.number - blocksJumped,
+      api.chain
+    );
+    while (lastTimestamp == block.timestamp) {
+      blocksJumped++;
+      lastTimestamp = await getTimestamp(
+        block.number - blocksJumped,
+        api.chain
+      );
+    }
+
+    const blockTime = (block.timestamp - lastTimestamp) / blocksJumped;
+    const targetDiff = block.timestamp - timestamp;
+    let jumpBlocks = Math.floor(((targetDiff / blockTime) * 8) / 10); // jump 80% of the block time
+    if (jumpBlocks == 0) jumpBlocks = 1;
+    block.number = block.number - jumpBlocks;
+    block.timestamp = await getTimestamp(block.number, api.chain);
+  }
+
+  return block;
 };
 // yarn test fees fluid
