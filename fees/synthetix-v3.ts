@@ -1,6 +1,13 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
+const methodology = {
+  UserFees: "Users pay fees to trade on derivatives markets.",
+  HoldersRevenue: "Fees are granted proportionally to LPs by tracking the profit and loss of the positions backed by Synthetix V3",
+  Revenue: "Fees paid by users and awarded to LPs",
+  Fees: "Fees generated from trades",
+}
+
 const contract_address = {
   [CHAIN.BASE]: "0x0a2af931effd34b81ebcc57e3d3c9b1e1de1c9ce",
   [CHAIN.ARBITRUM]: "0xd762960c31210Cf1bDf75b06A5192d395EEDC659"
@@ -44,6 +51,16 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-01-13',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchFees,
+      start: '2024-08-15',
+      meta: {
+        methodology
+      }
     },
   }
 }
