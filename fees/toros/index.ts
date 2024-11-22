@@ -146,10 +146,10 @@ const fetch = async ({ chain, getLogs, endTimestamp, startTimestamp }: FetchOpti
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: 1638446653, },
-    [CHAIN.POLYGON]: { fetch, start: 1627560253, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1679918653, },
-    [CHAIN.BASE]: { fetch, start: 1703073853, },
+    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', },
+    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', },
+    [CHAIN.BASE]: { fetch, start: '2023-12-20', },
   },
   version: 2
 }

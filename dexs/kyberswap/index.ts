@@ -221,8 +221,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
               totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
             };
           },
-          start: 0,
-        }
+                  }
         return acc
       }, {} as BaseAdapter)
 }

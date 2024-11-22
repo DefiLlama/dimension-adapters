@@ -63,13 +63,13 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch, start: 1662463922,
+      fetch, start: '2022-09-06',
     },
     [CHAIN.OPTIMISM]: {
-      fetch, start: 1641838619,
+      fetch, start: '2022-01-10',
     },
     [CHAIN.BASE]: {
-      fetch, start: 1691692525,
+      fetch, start: '2023-08-10',
     },
   },
 };

@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     fantom: {
       fetch: graphs("fantom"),
-      start: 1620864000,
+      start: '2021-05-13',
     },
   },
 };

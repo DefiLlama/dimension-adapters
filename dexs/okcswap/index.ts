@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: 1661126400,
+      start: '2022-08-22',
     },
   },
 };

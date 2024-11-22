@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ORAI]: {
       fetch,
-      start: 1722587676,
+      start: '2024-08-02',
     },
   },
 };

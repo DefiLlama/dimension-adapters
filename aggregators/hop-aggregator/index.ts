@@ -20,7 +20,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: 1714276800
+      start: '2024-04-28'
     },
   },
 };

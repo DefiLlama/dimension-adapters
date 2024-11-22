@@ -107,63 +107,63 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1714506194,
+      start: '2024-04-30',
       meta: {
         methodology,
       },
     },
     [CHAIN.SCROLL]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1714773760,
+      start: '2024-05-04',
       meta: {
         methodology,
       },
     },
     [CHAIN.BLAST]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717180581,
+      start: '2024-05-31',
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717195742,
+      start: '2024-06-01',
       meta: {
         methodology,
       },
     },
     [CHAIN.TAIKO]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717048139,
+      start: '2024-05-30',
       meta: {
         methodology,
       },
     },
     [CHAIN.XLAYER]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1713379405,
+      start: '2024-04-17',
       meta: {
         methodology,
       },
     },
     [CHAIN.ZORA]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719239283,
+      start: '2024-06-24',
       meta: {
         methodology,
       },
     },
     [CHAIN.BOBA]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719631449,
+      start: '2024-06-29',
       meta: {
         methodology,
       },
     },
     [CHAIN.ZKLINK]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719631449,
+      start: '2024-06-29',
       meta: {
         methodology,
       },

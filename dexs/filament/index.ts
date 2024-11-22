@@ -20,7 +20,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     sei: {
       fetch,
-      start: 100601154,
       runAtCurrTime: true,
     },
   },

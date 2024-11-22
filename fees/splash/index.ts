@@ -23,7 +23,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: 1717452000,
+      start: '2024-06-04',
       runAtCurrTime: true,
     },
   },

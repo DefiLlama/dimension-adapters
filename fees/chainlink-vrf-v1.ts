@@ -101,15 +101,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1675382400,
+      start: '2023-02-03',
     }
   }
 }

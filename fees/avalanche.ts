@@ -15,7 +15,7 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: 1609459200
+      start: '2021-01-01'
     },
   },
   protocolType: ProtocolType.CHAIN

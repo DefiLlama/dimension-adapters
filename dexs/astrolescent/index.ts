@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchVolume,
-      start: 1698624000,
+      start: '2023-10-30',
       customBackfill: customBackfill(CHAIN.RADIXDLT, () => fetchVolume),
       runAtCurrTime: false
     }

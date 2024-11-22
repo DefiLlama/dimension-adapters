@@ -63,13 +63,13 @@ const adapter: BreakdownAdapter = {
     classic: {
       [CHAIN.KAVA]: {
         fetch: graphs(CHAIN.KAVA as Chain),
-        start: 1659715200,
+        start: '2022-08-05',
       },
     },
     "stable-amm": {
       [CHAIN.KAVA]: {
         fetch: v1graphs(CHAIN.KAVA as Chain),
-        start: 1656547200,
+        start: '2022-06-30',
       },
     },
   }

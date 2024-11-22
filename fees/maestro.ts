@@ -33,7 +33,7 @@ async function fetch(timestamp: number, _1: any, options: FetchOptions) {
   return { timestamp, dailyFees, dailyRevenue: dailyFees, }
 }
 
-const chainAdapter = { fetch: fetch as any, start: 1656633600, }
+const chainAdapter = { fetch: fetch as any, start: '2022-07-01', }
 
 const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: 'MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36' })
@@ -48,7 +48,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: chainAdapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: 1656633600, // wrong?
+      start: '2022-07-01', // wrong?
     },
     [CHAIN.BASE]: chainAdapter,
     [CHAIN.TRON]: chainAdapter,

@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
-      start: 1667520000,
+      start: '2022-11-04',
     },
   },
 };

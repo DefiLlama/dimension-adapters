@@ -70,15 +70,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1675036800,
+      start: '2023-01-30',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1676332800,
+      start: '2023-02-14',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1675036800,
+      start: '2023-01-30',
     },
   }
 }

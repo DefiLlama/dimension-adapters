@@ -35,17 +35,17 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EOS]: {
       fetch: graph(CHAIN.EOS),
-      start: 1674345600,
+      start: '2023-01-22',
       runAtCurrTime: true,
     },
     [CHAIN.WAX]: {
       fetch: graph(CHAIN.WAX),
-      start: 1674345600,
+      start: '2023-01-22',
       runAtCurrTime: true,
     },
     // [CHAIN.BSC]: {
     //   fetch: graph(CHAIN.BSC),
-    //   start: 1674345600,
+    //   start: '2023-01-22',
     //   runAtCurrTime: true,
     // },
   },

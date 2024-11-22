@@ -20,8 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     near: {
       fetch,
-      start: 0,
-      runAtCurrTime: true,
+            runAtCurrTime: true,
     },
   },
 };

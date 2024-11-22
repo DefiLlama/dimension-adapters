@@ -8,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 
 const endpoints = {
-  [ETHEREUM]: sdk.graph.modifyEndpoint('C3ahLtmwYjrPsxgJpKtRieLFyT33FWSxfPcUFXFBo6KW'),
+  [ETHEREUM]: sdk.graph.modifyEndpoint('F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'),
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -60,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: 1608354000,
+        start: '2020-12-19',
         meta: {
           methodology: {
             UserFees: "Lido takes 10% fee on users staking rewards",

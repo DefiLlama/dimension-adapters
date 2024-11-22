@@ -69,12 +69,12 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.POLYGON]),
-      start: 1696370400,
+      start: '2023-10-04',
     },
     [CHAIN.STELLAR]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.STELLAR]),
-      start: 1696370400,
+      start: '2023-10-04',
     },
   },
 };

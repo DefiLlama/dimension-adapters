@@ -57,24 +57,20 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1693526400,
+      start: '2023-09-01',
     },
     // [CHAIN.BASE]: {
     //   fetch: fetch(CHAIN.BASE),
-    //   start: 0,
-    // },
+    //       // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 0,
-    },
+          },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 0,
-    },
+          },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 0,
-    },
+          },
   },
 };
 

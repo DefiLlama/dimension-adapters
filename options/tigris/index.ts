@@ -62,11 +62,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1663023600,
+      start: '2022-09-13',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1663023600,
+      start: '2022-09-13',
     }
   }
 }

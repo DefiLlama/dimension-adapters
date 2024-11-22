@@ -58,7 +58,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FLARE]: {
       fetch: fetch(endpoints[CHAIN.FLARE]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology: "Fees collected from user trading fees",
       },

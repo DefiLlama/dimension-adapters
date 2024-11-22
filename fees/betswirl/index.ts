@@ -219,22 +219,22 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [BSC]: {
-      start: 1658880000,
+      start: '2022-07-27',
       fetch: graphs()(BSC),
       meta,
     },
     [POLYGON]: {
-      start: 1658880000,
+      start: '2022-07-27',
       fetch: graphs()(POLYGON),
       meta,
     },
     [AVAX]: {
-      start: 1658880000,
+      start: '2022-07-27',
       fetch: graphs()(AVAX),
       meta,
     },
     [ARBITRUM]: {
-      start: 1658880000,
+      start: '2022-07-27',
       fetch: graphs()(ARBITRUM),
       meta,
     },

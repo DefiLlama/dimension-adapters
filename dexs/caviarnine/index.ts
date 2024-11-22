@@ -25,7 +25,7 @@ const adapters: BreakdownAdapter = {
     orderbook: {
       [CHAIN.RADIXDLT]: {
         fetch: fetchSpot,
-        start: 1698710400,
+        start: '2023-10-31',
         // runAtCurrTime: true
       }
     },
@@ -41,7 +41,7 @@ const adapters: BreakdownAdapter = {
             timestamp
           }
         },
-        start: 1698710400,
+        start: '2023-10-31',
         // runAtCurrTime: true
       }
     }

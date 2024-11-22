@@ -94,39 +94,39 @@ const chainSettings: any = {
     adapter: {
       [CHAIN.OPTIMISM]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.BASE]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.LINEA]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.ETHEREUM]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.MODE]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.FANTOM]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.MANTLE]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
       [CHAIN.BSC]: {
         fetch: fetchFees,
-        start: 1710979200,
+        start: '2024-03-21',
       },
     }
   }

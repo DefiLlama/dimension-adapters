@@ -60,14 +60,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch(endpoints[CHAIN.KAVA]),
-      start: 1692057600, // Tuesday, August 15, 2023 12:00:00 AM
+      start: '2023-08-15', // Tuesday, August 15, 2023 12:00:00 AM
       meta: {
         methodology: "Fees collected from user trading fees",
       },
     },
     [CHAIN.BASE]: {
       fetch: fetch(endpoints[CHAIN.BASE]),
-      start: 1715126400, //  Wednesday, May 8, 2024 12:00:00 AM
+      start: '2024-05-08', //  Wednesday, May 8, 2024 12:00:00 AM
       meta: {
         methodology: "Fees collected from user trading fees",
       },

@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
-      start: async () => 1706832000,
+      start: '2024-02-02',
       meta: {
         methodology: "All treasury, pool and keeper fees are collected",
       },

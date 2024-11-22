@@ -33,7 +33,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphs(CHAIN.BLAST),
-      start: 1596021,
     },
   },
 };

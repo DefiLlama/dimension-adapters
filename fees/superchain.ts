@@ -32,12 +32,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 0,
-    },
+          },
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 0,
-    },
+          },
   }
 }
 

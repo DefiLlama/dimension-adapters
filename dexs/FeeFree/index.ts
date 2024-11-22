@@ -80,11 +80,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ZORA]: {
       fetch: fetchVolume,
-      start: 1714060800,
+      start: '2024-04-25',
     },
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: 1714939200,
+      start: '2024-05-05',
     },
   }
 }

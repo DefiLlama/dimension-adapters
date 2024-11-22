@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OP_BNB]: {
       fetch: fetch as any,
-      start: 1691971200,
+      start: '2023-08-14',
       runAtCurrTime: true,
     },
   },

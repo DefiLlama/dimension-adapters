@@ -423,7 +423,7 @@ const getLiquidityUncollectedRevenueAt = async (
 ) => {
   const timestampedApi = new sdk.ChainApi({
     chain: api.chain,
-    block: (await getBlock(api.chain, timestamp)).number,
+    block: (await getBlock(api.chain, timestamp)).number - 1,
   });
 
   // check if token was listed at that timestamp at Liquidity, if not, revenue is 0
@@ -473,6 +473,7 @@ const getLiquidityUncollectedRevenueAt = async (
       );
       uncollectedRevenue.push(new BigNumber(_uncollectedRevenue));
     } catch (ex) {
+      uncollectedRevenue.push(new BigNumber(0));
       console.error(ex);
     }
   }
@@ -547,17 +548,19 @@ const getVaultMagnifierCollectedRevenueFromTo = async (
 
   rebalanceEventLogs.forEach((logs, index) => {
     logs.forEach((log: any) => {
-      if (log.colAmt.isNegative()) {
-        // add collateral token amount to balances
-        const colAmt = new BigNumber(log.colAmt_);
-        values.add(contractViews[index].supplyToken, colAmt.absoluteValue());
+      if (!!log) {
+        const colAmt = new BigNumber(log[0]);
+        const debtAmt = new BigNumber(log[1]);
+        if (colAmt.isNegative()) {
+          // add collateral token amount to balances
+          values.add(contractViews[index].supplyToken, colAmt.absoluteValue());
+        }
+        if (debtAmt.isPositive()) {
+          // add borrow token amount to balances
+          values.add(contractViews[index].borrowToken, debtAmt);
+        }
       }
-      if (log.debtAmt.isPositive()) {
-        // add borrow token amount to balances
-        const debtAmt = new BigNumber(log.debtAmt_);
-        values.add(contractViews[index].borrowToken, debtAmt);
-      }
-    })
+    });
   });
   return values;
 };
@@ -574,7 +577,7 @@ const getVaultMagnifierUncollectedRevenueAt = async (
     return values;
   }
 
-  const targetBlock = (await getBlock(api.chain, timestamp)).number;
+  const targetBlock = (await getBlock(api.chain, timestamp)).number - 1;
 
   const timestampedApi = new sdk.ChainApi({
     chain: api.chain,

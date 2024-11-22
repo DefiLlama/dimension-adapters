@@ -2,9 +2,9 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = 'https://app.bountive.fi';
-const endpoint = '/api/metrics/volumes/';
-const startTimestamp = 1709356735;// 02.03.2024
+const URL = 'https://api.bountive.fi';
+const endpoint = '/metrics/volume/';
+const startTimestamp = 1732077594;// 20.11.2024
 
 interface IAPIResponse {
     date: number;

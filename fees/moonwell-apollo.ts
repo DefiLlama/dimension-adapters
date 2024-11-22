@@ -44,7 +44,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONRIVER]: {
         fetch: graphs(endpoints)(CHAIN.MOONRIVER),
-        start: 1645747200,
+        start: '2022-02-25',
     },
   }
 }

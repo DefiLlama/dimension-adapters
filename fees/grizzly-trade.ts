@@ -62,7 +62,7 @@ const adapter: Adapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
-            start: 1689897600,
+            start: '2023-07-21',
             meta: {
                 methodology
             }

@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: v3Graphs(CHAIN.METIS),
-      start: 1680307200,
+      start: '2023-04-01',
       meta: {
         methodology: {
           ...methodology,

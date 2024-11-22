@@ -34,15 +34,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1677110400
+      start: '2023-02-23'
     },
     [CHAIN.MODE]: {
       fetch: fetchV2Volume,
-      start: 1715763701
+      start: '2024-05-15'
     },
     [CHAIN.BOB]: {
       fetch: fetchV2Volume,
-      start: 1715763701
+      start: '2024-05-15'
     }
   },
 };

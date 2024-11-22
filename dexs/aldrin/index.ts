@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 1643188527,
+      start: '2022-01-26',
       customBackfill: customBackfill(CHAIN.SOLANA as Chain, () => fetch)
     },
   },

@@ -38,7 +38,6 @@ const adapter: Adapter = {
 
         return { dailyFees, dailyRevenue };
       }) as FetchV2,
-      start: 18607509,
     },
   },
   version: 2,

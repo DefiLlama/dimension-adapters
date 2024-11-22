@@ -70,7 +70,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.WAVES]: {
             fetch,
-            start: 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
+            start: '2022-10-31' // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
 }

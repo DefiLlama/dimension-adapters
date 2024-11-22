@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume,
-      start: 1700179200, // Replace with actual start timestamp
+      start: '2023-11-17', // Replace with actual start timestamp
     },
   },
 };

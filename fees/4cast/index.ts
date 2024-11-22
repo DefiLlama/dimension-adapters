@@ -33,7 +33,7 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       runAtCurrTime: false,
-      start: 1721174400,
+      start: '2024-07-17',
     },
   },
 };

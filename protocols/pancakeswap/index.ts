@@ -241,7 +241,7 @@ const adapter: BreakdownAdapter = {
             timestamp: startTimestamp
           }
         },
-        start: 1680307200,
+        start: '2023-04-01',
       }
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
@@ -286,7 +286,7 @@ const adapter: BreakdownAdapter = {
 };
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
-  start: 1699488000,
+  start: '2023-11-09',
   // runAtCurrTime: true,
 }
 

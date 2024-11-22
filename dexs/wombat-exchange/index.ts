@@ -77,31 +77,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(CHAIN.BSC),
-      start: 1650243600,
+      start: '2022-04-18',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: 1679809928,
+      start: '2023-03-26',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: 1691290453,
+      start: '2023-08-06',
     },
     [CHAIN.SCROLL]: {
       fetch: fetchVolume(CHAIN.SCROLL),
-      start: 1697417581,
+      start: '2023-10-16',
     },
     [CHAIN.AVAX]: {
       fetch: fetchVolume(CHAIN.AVAX),
-      start: 1697493603,
+      start: '2023-10-17',
     },
     [CHAIN.BASE]: {
       fetch: fetchVolume(CHAIN.BASE),
-      start: 1697486905,
+      start: '2023-10-16',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: 1700173545,
+      start: '2023-11-16',
     },
   },
 };
