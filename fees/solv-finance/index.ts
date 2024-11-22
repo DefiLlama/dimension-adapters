@@ -6,38 +6,20 @@ import { request } from "graphql-request";
 import { Balances } from "@defillama/sdk";
 import { getConfig } from "../../helpers/cache";
 const feesConfig =
-  "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/main/solv-fees.json";
+  "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees.json";
 const graphUrl =
-  "https://raw.githubusercontent.com/solv-finance-dev/slov-protocol-defillama/refs/heads/main/solv-graph.json";
+  "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/refs/heads/main/solv-graph.json";
 const yields = 0.2;
 
-const chains: {
-  [chain: Chain]: { deployedAt: number };
-} = {
-  [CHAIN.ETHEREUM]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.BSC]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.ARBITRUM]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.MANTLE]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.MERLIN]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.CORE]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.SCROLL]: {
-    deployedAt: 1726531200,
-  },
-  [CHAIN.SOLANA]: {
-    deployedAt: 1726531200,
-  },
+const chains: { [chain: Chain]: { deployedAt: number } } = {
+  [CHAIN.ETHEREUM]: { deployedAt: 1726531200 },
+  [CHAIN.BSC]: { deployedAt: 1726531200 },
+  [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
+  [CHAIN.MANTLE]: { deployedAt: 1726531200 },
+  [CHAIN.MERLIN]: { deployedAt: 1726531200 },
+  [CHAIN.CORE]: { deployedAt: 1726531200 },
+  [CHAIN.SCROLL]: { deployedAt: 1726531200 },
+  [CHAIN.SOLANA]: { deployedAt: 1726531200 },
 };
 
 const fetch: FetchV2 = async (options) => {
@@ -55,15 +37,14 @@ const fetch: FetchV2 = async (options) => {
     return {}
 
 
-  const dailyFees = options.createBalances();
-  const feeRevenue = await feeRevenues(options, contracts);
-  dailyFees.addBalances(feeRevenue);
-
-  const dailyRevenue = options.createBalances();
-  const receivedRevenues = await revenues(options, contracts);
-  dailyRevenue.addBalances(receivedRevenues);
+  const dailyFees = await feeRevenues(options, contracts);
+  const dailyRevenue = await revenues(options, contracts);
+  const pureRevenueBalances = await pureRevenues(options, contracts);
 
   dailyRevenue.addBalances(dailyFees.clone(yields));
+
+  dailyFees.addBalances(pureRevenueBalances);
+  dailyRevenue.addBalances(pureRevenueBalances);
 
   return {
     dailyFees,
@@ -71,95 +52,75 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
+async function pureRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+  const pureRevenues = options.createBalances();
+
+  const receivedPureRevenue = await received(options, contracts, "receivedPureRevenue");
+  pureRevenues.addBalances(receivedPureRevenue);
+
+  const nativeTokenPureRevenue = await nativeToken(options, contracts, "nativeTokenPureRevenue");
+  pureRevenues.addBalances(nativeTokenPureRevenue);
+
+  return pureRevenues;
+}
+
 async function revenues(options: FetchOptions, contracts: any): Promise<Balances> {
   const dailyRevenues = options.createBalances();
 
-  const receivedRevenue = await receivedRevenues(options, contracts);
+  const receivedRevenue = await received(options, contracts, "receivedRevenue");
   dailyRevenues.addBalances(receivedRevenue);
 
-  const nativeTokenRevenue = await nativeTokenRevenues(options, contracts);
+  const nativeTokenRevenue = await nativeToken(options, contracts, "nativeTokenRevenue");
   dailyRevenues.addBalances(nativeTokenRevenue);
 
-  const solanaRevenue = await solanaRevenues(options, contracts);
+  const solanaRevenue = await solanas(options, contracts, "solanaRevenue");
   dailyRevenues.addBalances(solanaRevenue);
 
   return dailyRevenues;
 }
 
-async function receivedRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
-  const receivedRevenueConfig = contracts[options.chain]?.receivedRevenue;
-  if (!receivedRevenueConfig) {
-    return options.createBalances();
-  }
-
-  return addTokensReceived({
-    options,
-    targets: receivedRevenueConfig.address,
-    tokens: receivedRevenueConfig.token,
-  });
-}
-
-async function nativeTokenRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
-  const nativeTokenConfig = contracts[options.chain]?.nativeTokenRevenue;
-  if (!nativeTokenConfig) {
-    return options.createBalances();
-  }
-
-  return addGasTokensReceived({
-    multisig: nativeTokenConfig.address,
-    options,
-  });
-}
-
-async function solanaRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
-  const solanaRevenueConfig = contracts[options.chain]?.solanaRevenue;
-  if (!solanaRevenueConfig) {
-    return options.createBalances();
-  }
-
-  return await getSolanaReceived({ options, targets: solanaRevenueConfig });
-}
-
-
 async function feeRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
   const dailyFees = options.createBalances();
 
-  const protocolFees = await protocol(options, contracts);
+  const protocolFees = await received(options, contracts, "protocolFees");
   dailyFees.addBalances(protocolFees);
 
-  const poolFees = await pool(options, contracts);
+  const poolFees = await pool(options, contracts, "poolFees");
   dailyFees.addBalances(poolFees);
 
-  const nativeTokenFees = await nativeToken(options, contracts);
+  const nativeTokenFees = await nativeToken(options, contracts, "nativeTokenFees");
   dailyFees.addBalances(nativeTokenFees);
 
-  const solanaFees = await solanas(options, contracts);
+  const solanaFees = await solanas(options, contracts, "solanaFees");
   dailyFees.addBalances(solanaFees);
 
   return dailyFees;
 }
 
-async function protocol(
+async function received(
   options: FetchOptions,
-  contracts: any
+  contracts: any,
+  configKey: string
 ): Promise<Balances> {
-  if (!contracts[options.chain]["protocolFees"]) {
+  const protocolConfig = contracts[options.chain]?.[configKey];
+  if (!protocolConfig) {
     return options.createBalances();
   }
   return addTokensReceived({
     options,
-    targets: contracts[options.chain]["protocolFees"].address,
-    tokens: contracts[options.chain]["protocolFees"].token,
+    targets: protocolConfig.address,
+    tokens: protocolConfig.token,
   });
 }
 
-async function pool(options: FetchOptions, contracts: any): Promise<Balances> {
-  if (!contracts[options.chain]["poolFees"]) {
+async function pool(options: FetchOptions, contracts: any, configKey: string): Promise<Balances> {
+  const poolConfig = contracts[options.chain]?.[configKey];
+  if (!poolConfig) {
     return options.createBalances();
   }
 
   const pools = await getGraphData(
-    contracts[options.chain]["poolFees"],
+    poolConfig,
     options.chain
   );
   const shareConcretes = await concrete(pools, options);
@@ -279,17 +240,18 @@ async function concrete(slots: any[], options: FetchOptions): Promise<any> {
 
 async function nativeToken(
   options: FetchOptions,
-  contracts: any
+  contracts: any, configKey: string
 ): Promise<Balances> {
-  if (!contracts[options.chain]["nativeTokenFees"]) {
+  const nativeTokenConfig = contracts[options.chain]?.[configKey];
+  if (!nativeTokenConfig) {
     return options.createBalances();
   }
-  const multisig = contracts[options.chain]["nativeTokenFees"].address;
+  const multisig = nativeTokenConfig.address;
   return addGasTokensReceived({ multisig, options })
 }
 
-async function solanas(options: FetchOptions, contracts: any): Promise<Balances> {
-  const solanaFeesConfig = contracts[options.chain]?.solanaFees;
+async function solanas(options: FetchOptions, contracts: any, configKey: string): Promise<Balances> {
+  const solanaFeesConfig = contracts[options.chain]?.[configKey];
   if (!solanaFeesConfig) {
     return options.createBalances();
   }
