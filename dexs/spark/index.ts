@@ -14,7 +14,7 @@ const fetchTradeVolume = ({ startTimestamp, endTimestamp }: FetchOptions) =>
     },
     body: JSON.stringify({
       "sqlQuery": {
-        "sql": `SELECT tradeVolume, timestamp FROM DailyVolume WHERE timestamp >= ${startTimestamp} AND timestamp <= ${endTimestamp} ORDER BY timestamp DESC LIMIT 1`
+        "sql": `SELECT volume, timestamp FROM DailyVolume_raw WHERE timestamp >= ${startTimestamp} AND timestamp <= ${endTimestamp} ORDER BY timestamp DESC LIMIT 1`
       }
     }),
   })
@@ -31,7 +31,7 @@ const fetchTradeVolume = ({ startTimestamp, endTimestamp }: FetchOptions) =>
       if (rows.length === 0)
         throw new Error('No trade volume data available.');
 
-      const dailyVolume = rows[0]?.tradeVolume;
+      const dailyVolume = rows[0]?.volume;
 
       return {
         dailyVolume,
