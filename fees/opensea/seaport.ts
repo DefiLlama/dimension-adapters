@@ -32,10 +32,10 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
 
   logs.forEach(log => {
     if (log.consideration.length < 2) return;
-    const biggestValue = log.consideration.reduce((a: any, b: any) => a.amount > b.amount ? a : b).amount
+    const biggestValue = log.consideration.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
 
     log.consideration.forEach((consideration: any) => {
-      if (consideration.amount >= biggestValue) return; // this is sent to the NFT owner, rest are fees
+      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees
       dailyFees.add(consideration.token, consideration.amount)
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyRevenue.add(consideration.token, consideration.amount)
