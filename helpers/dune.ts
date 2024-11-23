@@ -115,7 +115,7 @@ export const queryDuneSql = (options: any, query: string) => {
   checkCanRunDuneQuery()
 
   return queryDune("3996608", {
-    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
+    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).split("TIME_RANGE").join(`block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   })
 }
