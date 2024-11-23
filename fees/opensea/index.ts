@@ -1,7 +1,8 @@
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetch } from "./seaport";
+import { fetch, config } from "./seaport";
 import disabledAdapter from "../../helpers/disabledAdapter";
+const seaportConfig = { fetch, start: '2022-06-12', }
 
 const adapter: Adapter = {
   version: 2,
@@ -14,12 +15,10 @@ const adapter: Adapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.ETHEREUM]: disabledAdapter
     },
-    seaport: {
-      [CHAIN.ETHEREUM]: {
-        fetch: fetch,
-        start: '2022-06-12',
-      },
-    }
+    seaport: Object.keys(config).reduce((acc, chain) => {
+      acc[chain] = seaportConfig
+      return acc
+    }, {}),
   }
 }
 
