@@ -102,6 +102,13 @@ export const queryDune = async (queryId: string, query_parameters: any = {}) => 
     } catch (e: any) {
       throw e;
     }
+  } else if(_status === "QUERY_STATE_FAILED"){
+    if(query_parameters.fullQuery){
+      console.log(`Dune query: ${query_parameters.fullQuery}`)
+    } else {
+      console.log("Dune parameters", query_parameters)
+    }
+    throw new Error(`Dune query failed: ${queryId}`)
   }
 }
 
