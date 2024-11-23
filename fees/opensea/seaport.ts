@@ -31,10 +31,11 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
   const logs = await getLogs({ targets: seaports, eventAbi: event_order_fulfilled, })
 
   logs.forEach(log => {
-    if (log.consideration.length < 2) return;
-    const biggestValue = log.consideration.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
+    const recipients = log.consideration.filter((i: any) => +i.itemType.toString() < 2) // exclude NFTs (ERC721 and ERC1155)
+    if (recipients.length < 2) return;
+    const biggestValue = recipients.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
 
-    log.consideration.forEach((consideration: any) => {
+    recipients.forEach((consideration: any) => {
       if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees
       dailyFees.add(consideration.token, consideration.amount)
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
