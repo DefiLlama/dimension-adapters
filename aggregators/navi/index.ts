@@ -18,7 +18,7 @@ const fetchDailyVolume = async ({ fromTimestamp, toTimestamp, startOfDay }: Fetc
               FROM \'swapEvent\'
               WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`
       },
-      version: 22
+      version: 16
     })
   }).then(response => response.data);
 
