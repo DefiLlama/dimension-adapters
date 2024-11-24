@@ -11,7 +11,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume: parseInt(res['dailyVolume']),
     totalVolume: parseInt(res['totalVolume']),
-    timestamp: options.startTimestamp,
   };
 };
 
