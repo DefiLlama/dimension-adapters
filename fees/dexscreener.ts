@@ -1,21 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
+import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
+import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
-import coreAssets from "../helpers/coreAssets.json";
-import { addTokensReceived, getSolanaReceived } from '../helpers/token';
-
-const USDC = {
-    ethereum: coreAssets.ethereum.USDC,
-    polygon: coreAssets.polygon.USDC_CIRCLE,
-    base: coreAssets.base.USDC,
-} as any
-
-const eth = async (options: FetchOptions) => {
-    const dailyFees = await addTokensReceived({ options, tokens: [USDC[options.chain]], target: '0xbf07aFF5114BAd83720A8b9Fc7585aFd2ef9E4C2' })
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-    }
-}
 
 // TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
@@ -25,17 +11,12 @@ const sol = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 2,
-    adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.POLYGON].reduce((all, chain) => ({
-        ...all,
-        [chain]: {
-            fetch: eth,
-                    }
-    }), {
+    adapter: {
+        ...generateCBCommerceExports('0xbf07aFF5114BAd83720A8b9Fc7585aFd2ef9E4C2'),
         [CHAIN.SOLANA]: {
             fetch: sol,
         }
-    }),
-    isExpensiveAdapter: true
+    }
 }
 
 export default adapter;
