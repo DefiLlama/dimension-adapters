@@ -32,6 +32,7 @@ const lpFee = BigInt(20); // 0.2%
 
 export async function swapMetrics(options: FetchOptions): Promise<{
   dailyFees: Balances;
+  dailyRevenue: Balances;
   dailySupplySideRevenue: Balances;
   dailyProtocolRevenue: Balances;
   dailyVolume: Balances;
@@ -41,6 +42,7 @@ export async function swapMetrics(options: FetchOptions): Promise<{
   const dailySupplySideRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailyVolume = createBalances();
+  const dailyRevenue = createBalances();
 
   const allTokens = await options.api.call({
     target: FACTORIES[options.chain],
@@ -58,6 +60,7 @@ export async function swapMetrics(options: FetchOptions): Promise<{
     const fee = (nativeAmount * lpFee) / scaleFactor;
     const protocolRevenue = (nativeAmount * factoryFee) / scaleFactor;
     dailyFees.addGasToken(fee + protocolRevenue);
+    dailyRevenue.addGasToken(protocolRevenue);
     dailyProtocolRevenue.addGasToken(protocolRevenue);
     dailySupplySideRevenue.addGasToken(fee);
     dailyVolume.addGasToken(nativeAmount);
@@ -65,6 +68,7 @@ export async function swapMetrics(options: FetchOptions): Promise<{
 
   return {
     dailyFees,
+    dailyRevenue,
     dailyVolume,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
