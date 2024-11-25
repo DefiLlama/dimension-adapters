@@ -1,5 +1,5 @@
-// https://juice-finance.gitbook.io/juice-finance/juice-protocol/fees#protocol-fees
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+// https://docs.juicebox.money/dao/jbx/#about-fees
+import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
@@ -17,15 +17,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 };
 
-const adapter: Adapter = {
-  adapter: {
+const adapter: BreakdownAdapter = {
+  breakdown: {
+    v3: {
     [CHAIN.ETHEREUM]: {
       fetch,
+      start: "2023-10-06",
             meta: {
         methodology:
           "2.5% of money raised in juicebox goes to buyback JBX upon withdrawal (money sent from one juicebox to another is not counted)",
       },
     },
+    }
   },
   version: 2,
 };
