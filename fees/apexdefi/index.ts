@@ -18,10 +18,13 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailyVolume = createBalances();
+  const dailyRevenue = createBalances();
 
   const swapMetricsResult = await swapMetrics(options);
 
   dailyFees.addBalances(swapMetricsResult.dailyFees);
+
+  dailyRevenue.addBalances(swapMetricsResult.dailyRevenue);
 
   dailySupplySideRevenue.addBalances(swapMetricsResult.dailySupplySideRevenue);
 
@@ -34,12 +37,14 @@ const fetch = async (options: FetchOptions) => {
     const burstMetricsResult = await burstMetrics(options);
 
     dailyFees.addBalances(burstMetricsResult.dailyFees);
+    dailyRevenue.addBalances(burstMetricsResult.dailyRevenue);
     dailyProtocolRevenue.addBalances(burstMetricsResult.dailyProtocolRevenue);
     dailyVolume.addBalances(burstMetricsResult.dailyVolume);
   }
 
   return {
     dailyFees,
+    dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
     dailyVolume,
