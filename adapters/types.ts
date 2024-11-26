@@ -192,3 +192,11 @@ export const whitelistedDimensionKeys = new Set([
 export interface IJSON<T> {
   [key: string]: T
 }
+
+export type GrixMetricsData = {
+  graphStatistics: {
+    uniqueUserCount: string;
+    totalNotionalValue: string;
+    totalTransactions: string;
+  };
+};
