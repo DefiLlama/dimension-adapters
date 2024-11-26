@@ -1,15 +1,7 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const getPoolDayDataQuery = gql`
-  {
-    poolDayDatas {
-      volumeUSD
-      date
-    }
-  }
-`;
 
 const graphQLClient = new GraphQLClient(
   "https://endurance-subgraph-v2.fusionist.io/subgraphs/name/catalist/exchange-v3-v103"
@@ -21,32 +13,35 @@ interface IPoolDayData {
   date: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = Math.floor(
-    new Date(timestamp * 1000).setUTCHours(0, 0, 0, 0) / 1000
-  );
-
+const fetch = async (_t: number, _: any, options: FetchOptions) => {
+  const dayId = Math.floor(options.startOfDay / 86400);
+  const getPoolDayDataQuery = gql`
+    {
+      pancakeDayData(id: ${dayId}) {
+        volumeUSD
+        date
+      }
+      factories {
+        totalVolumeUSD
+      }
+    }
+  `;
   const response = await getGQLClient().request<{
-    poolDayDatas: IPoolDayData[];
+    pancakeDayData: IPoolDayData;
+    factories: Array<{ totalVolumeUSD: string }>;
   }>(getPoolDayDataQuery);
 
-  const totalVolume = response.poolDayDatas.reduce(
-    (acc, data) => acc + Number(data.volumeUSD),
-    0
-  );
-  const dailyVolume = response.poolDayDatas.find(
-    (data) => data.date === dayTimestamp
-  )?.volumeUSD;
+  const totalVolume = response.factories[0].totalVolumeUSD;
+  const dailyVolume = response.pancakeDayData?.volumeUSD;
 
   return {
-    totalVolume: totalVolume.toFixed(2),
+    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? Number(dailyVolume).toFixed(2) : undefined,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.ACE]: {
       fetch: fetch,
