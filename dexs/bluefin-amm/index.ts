@@ -4,7 +4,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 
 
-const fetchSUI = async (timeStamp: number) => {
+const fetchSUI = async (timestamp: number) => {
     const exchangeInfo = await httpGet("https://swap.api.sui-prod.bluefin.io/api/v1/info");
     const pools = await httpGet("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
     let dailyVolume = 0;
@@ -15,7 +15,7 @@ const fetchSUI = async (timeStamp: number) => {
  return {
      totalVolume: exchangeInfo ? exchangeInfo.totalVolume : undefined,
      dailyVolume: dailyVolume,
-     timestamp: timeStamp,
+     timestamp: timestamp,
  }
 };
 
