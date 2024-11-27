@@ -42,11 +42,9 @@ const fetchVolumeInUsd = (
 const fetch: any = async (options: FetchOptions) => {
     const poolId = Object.values(pools).join(",");
 
-    // const dailyVolumeUrl = `https://deepbook-indexer.mainnet.mystenlabs.com/get_24hr_volume/${poolId}`;
-
-    const startTime = options.startTimestamp * 1000;
-    const endTime = options.endTimestamp * 1000
-    const historicalVolumeUrl = `https://deepbook-indexer.mainnet.mystenlabs.com/get_historical_volume/${poolId}/${startTime}/${endTime}`;
+    const startTime = options.startTimestamp; // times are in unix seconds
+    const endTime = options.endTimestamp; // times are in unix seconds
+    const historicalVolumeUrl = `https://deepbook-indexer.mainnet.mystenlabs.com/get_historical_volume/${poolId}?start_time=${startTime}&end_time=${endTime}`;
     const historicalVolumeResponse = await axios.get(historicalVolumeUrl);
     const historicalVolumeData = historicalVolumeResponse.data;
     const dailyVolume = options.createBalances()

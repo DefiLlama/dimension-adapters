@@ -6,13 +6,8 @@ import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50473/v2-base/version/latest",
-  [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/50473/v2-optimism/version/latest",
-  [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/50473/v2-arbitrum/version/latest",
-  [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/50473/v2-blast/version/latest",
-  [CHAIN.MODE]: "https://api.studio.thegraph.com/query/50473/v2-mode/version/latest",
-  [CHAIN.XLAYER]: "https://api.studio.thegraph.com/query/50473/v2-xlayer/version/latest",
-  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/50473/v2-linea/version/latest",
+  [CHAIN.PULSECHAIN]: "https://graph.9mm.pro/subgraphs/name/pulsechain/9mm",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/80328/9mmbasev2/version/latest",
 };
 
 // Fetch function to query the subgraphs
@@ -48,14 +43,9 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: graphs(chain as Chain),
         start: async () =>
-            chain === CHAIN.BASE ? 1690173000
-                : chain === CHAIN.OPTIMISM ? 1705993200
-                    : chain === CHAIN.ARBITRUM ? 1707885300
-                        : chain === CHAIN.BLAST ? 1709722800
-                            : chain === CHAIN.MODE ? 1712371653
-                              : chain === CHAIN.XLAYER ? 1712369493
-                                  : chain === CHAIN.LINEA ? 1725062400
-                                        : 0,
+            chain === CHAIN.PULSECHAIN ? 1698693960
+                : chain === CHAIN.BASE ? 1718210460
+                    : 0,
         customBackfill: customBackfill(chain, graphs),
         meta: {methodology},
       }
