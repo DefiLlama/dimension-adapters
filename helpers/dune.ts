@@ -102,6 +102,13 @@ export const queryDune = async (queryId: string, query_parameters: any = {}) => 
     } catch (e: any) {
       throw e;
     }
+  } else if(_status === "QUERY_STATE_FAILED"){
+    if(query_parameters.fullQuery){
+      console.log(`Dune query: ${query_parameters.fullQuery}`)
+    } else {
+      console.log("Dune parameters", query_parameters)
+    }
+    throw new Error(`Dune query failed: ${queryId}`)
   }
 }
 
@@ -115,7 +122,7 @@ export const queryDuneSql = (options: any, query: string) => {
   checkCanRunDuneQuery()
 
   return queryDune("3996608", {
-    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).replace("TIME_RANGE", `block_time >= from_unixtime(${options.startTimestamp})
+    fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).split("TIME_RANGE").join(`block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   })
 }

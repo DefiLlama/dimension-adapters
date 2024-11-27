@@ -34,12 +34,14 @@ const burstFactoryFee = BigInt(75); // 0.75%
 
 export async function burstMetrics(options: FetchOptions): Promise<{
   dailyFees: Balances;
+  dailyRevenue: Balances;
   dailyProtocolRevenue: Balances;
   dailyVolume: Balances;
 }> {
   const { createBalances } = options;
 
   let dailyFees = createBalances();
+  let dailyRevenue = createBalances();
   let dailyProtocolRevenue = createBalances();
   let dailyVolume = createBalances();
 
@@ -60,6 +62,7 @@ export async function burstMetrics(options: FetchOptions): Promise<{
     const creatorRewardsAmount = BigInt(log.creatorRewards);
     const totalFee = launchFeeAmount + creatorRewardsAmount;
     dailyFees.addGasToken(totalFee);
+    dailyRevenue.addGasToken(launchFeeAmount);
     dailyProtocolRevenue.addGasToken(launchFeeAmount);
   });
 
@@ -68,13 +71,15 @@ export async function burstMetrics(options: FetchOptions): Promise<{
     const fee = (nativeAmount * burstSwapFee) / scaleFactor;
     const protocolRevenue = (nativeAmount * burstFactoryFee) / scaleFactor;
     dailyFees.addGasToken(fee + protocolRevenue);
+    dailyRevenue.addGasToken(protocolRevenue);
     dailyProtocolRevenue.addGasToken(protocolRevenue);
     dailyVolume.addGasToken(nativeAmount);
   });
 
   return {
-    dailyFees: dailyFees,
-    dailyProtocolRevenue: dailyProtocolRevenue,
-    dailyVolume: dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyVolume,
   };
 }

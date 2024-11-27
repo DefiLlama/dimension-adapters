@@ -61,7 +61,7 @@ const endpointsClassic = {
   // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
   // [CHAIN.XDAI]: sdk.graph.modifyEndpoint('4a8hcsttqsmycmmeFcpffGMZhBDU4NhHfyHH6YNcnu7b'),
   // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('3tNHz9aTBa2KUthYZiZZxayYYpxXACverKRrkafhoBru'),
-  [CHAIN.BOBA]: sdk.graph.modifyEndpoint('EC3ZtCpCaV5GyyhyPNHs584wdGA72nud7qcuxWNTfPr4'),
+  // [CHAIN.BOBA]: sdk.graph.modifyEndpoint('EC3ZtCpCaV5GyyhyPNHs584wdGA72nud7qcuxWNTfPr4'),
   [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'),
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
