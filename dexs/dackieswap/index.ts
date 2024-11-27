@@ -4,7 +4,7 @@ import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/50473/exchange-clmm/version/latest",
+    "https://api.studio.thegraph.com/query/50473/v3-base/version/latest",
   [CHAIN.OPTIMISM]:
     "https://api.studio.thegraph.com/query/50473/v3-optimism/version/latest",
   [CHAIN.ARBITRUM]:
