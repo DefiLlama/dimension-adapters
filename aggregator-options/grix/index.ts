@@ -1,21 +1,24 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { GrixMetricsData } from "../../adapters/types";
+
+export type GrixMetricsData = {
+  graphStatistics: {
+    uniqueUserCount: string;
+    totalNotionalValue: string;
+    totalTransactions: string;
+  };
+};
 
 const fetchGrix = async () => {
   const url = `https://internal-api-dev.grix.finance/grixmetrics`;
 
-  try {
-    const grixMetricsResponse = await httpGet(url);
-    const grixMetricsData = parseGrixMetricsData(grixMetricsResponse);
+  const grixMetricsResponse = await httpGet(url);
+  const grixMetricsData = parseGrixMetricsData(grixMetricsResponse);
 
-    const stats = grixMetricsData ? extractStats(grixMetricsData) : null;
+  const stats = grixMetricsData ? extractStats(grixMetricsData) : null;
 
-    return { totalNotionalVolume: stats?.totalNotionalVolume };
-  } catch (e: any) {
-    throw e;
-  }
+  return { totalNotionalVolume: stats?.totalNotionalVolume };
 };
 
 const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
@@ -35,7 +38,7 @@ const grix_adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetchGrix,
       start: "2024-11-01",
-      runAtCurrTime: false, // currently we don't take the timestamp into account, should be changed soon
+      runAtCurrTime: true, // currently we don't take the timestamp into account, should be changed soon
       meta: {
         methodology:
           "The total value of the underlying assets for all options traded. It is calculated as the spot price (at the trade instance) multiplied by the contract size.",
