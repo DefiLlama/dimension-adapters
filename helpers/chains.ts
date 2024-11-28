@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  TARAXA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
