@@ -1,8 +1,10 @@
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import coreAssets from "../helpers/coreAssets.json";
 
-const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7"
+const usdt = coreAssets.ethereum.USDT
+const stablecoins = [usdt , coreAssets.ethereum.USDC]
 
 const mint_event =
   "event Mint( address indexed minter,address indexed benefactor,address indexed beneficiary,address collateral_asset,uint256 collateral_amount,uint256 usde_amount)";
@@ -12,7 +14,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     target: "0x2cc440b721d2cafd6d64908d6d8c4acc57f8afc3",
   });
   const in_flow = (await options.getLogs({
-    targets: [usdt],
+    targets: stablecoins,
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
@@ -23,7 +25,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     .some(a=>a.toLowerCase() === log[0].toLowerCase()))
 
   const out_flow = (await options.getLogs({
-    targets: [usdt],
+    targets: stablecoins,
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
@@ -32,7 +34,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
   }))[0]
 
   const extra_fees_to_distribute = (await options.getLogs({
-    targets: [usdt],
+    targets: stablecoins,
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
