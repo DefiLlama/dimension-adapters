@@ -24,7 +24,7 @@ const methodology = {
 
 
 const fetchNAVIStats = async ({ startTimestamp }: any) => {
-    const url = `${naviApiURL}?fromTimestamp=${startTimestamp}`
+    const url = `${naviApiURL}?fromTimestamp=${startTimestamp}&cf_pass=b35f13a110a4`
     const stats: DailyStats = (await fetchURL(url)).data;
 
     const dailyFees = stats.borrowInterestFee +
