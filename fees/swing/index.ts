@@ -51,7 +51,7 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         params: { startDate: unixTimestamp },
     });
 
-    const chainVolumes = dailyRes?.historicalVolumeByChain?.map((history: any) => {
+    const chainFeeVolumes = dailyRes?.collectedFeesByChain?.map((history: any) => {
         const chainVol = history?.volume.find((vol: any) => {
             return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
         })
@@ -60,12 +60,12 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
     });
 
     // calculate the total volume
-    const chainVolume = chainVolumes?.reduce((acc: number, curr: any) => {
+    const chainFeeVolume = chainFeeVolumes?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
 
     return {
-        dailyBridgeVolume: chainVolume || 0,
+        dailyFees: chainFeeVolume || 0,
         timestamp: unixTimestamp,
     };
 };
