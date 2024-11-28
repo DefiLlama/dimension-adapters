@@ -3,22 +3,29 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 export type GrixMetricsData = {
-  graphStatistics: {
-    uniqueUserCount: string;
-    totalNotionalValue: string;
-    totalTransactions: string;
-  };
+  totalNotionalVolume: string;
+  totalNotionalVolume24Hr: string;
 };
 
-const fetchGrix = async () => {
-  const url = `https://internal-api-dev.grix.finance/grixmetrics`;
+const fetchGrix = async (timestamp: number) => {
+  /** Timestamp representing the end of the 24 hour period */
+  const url = `https://internal-api-dev.grix.finance/volumeData?endTimestamp=${timestamp}`;
 
   const grixMetricsResponse = await httpGet(url);
   const grixMetricsData = parseGrixMetricsData(grixMetricsResponse);
 
-  const stats = grixMetricsData ? extractStats(grixMetricsData) : null;
+  if (!grixMetricsData) {
+    throw new Error("No data found when fetching Grix volume data");
+  }
 
-  return { totalNotionalVolume: stats?.totalNotionalVolume };
+  const totalNotionalVolume = Number(grixMetricsData.totalNotionalVolume);
+  const dailyNotionalVolume = Number(grixMetricsData.totalNotionalVolume24Hr);
+
+  return {
+    timestamp,
+    totalNotionalVolume,
+    dailyNotionalVolume,
+  };
 };
 
 const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
@@ -27,10 +34,6 @@ const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
   }
   return result ? (JSON.parse(result) as GrixMetricsData) : null;
 };
-
-const extractStats = (data: GrixMetricsData) => ({
-  totalNotionalVolume: Number(data.graphStatistics.totalNotionalValue),
-});
 
 const grix_adapter: SimpleAdapter = {
   version: 1,
