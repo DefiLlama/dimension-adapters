@@ -20,9 +20,8 @@ const avaxAdapter = univ2Adapter2(
 
 const apechainAdapter = univ2Adapter2(
   {
-    [CHAIN.APECHAIN]: sdk.graph.modifyEndpoint(
-      "QmUpkSrGVym7Qv2akaJkCm8HZzH2wyfdzuFoYW9mrX83eA"
-    ),
+    [CHAIN.APECHAIN]:
+      "https://api.goldsky.com/api/public/project_cloh4i8580dwo2nz7brhf4r6p/subgraphs/vapordex-v1-apechain/1.0.0/gn",
   },
   {} // Use default values
 );
