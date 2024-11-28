@@ -65,31 +65,31 @@ export default buildStablecoinAdapter('2',
     },
     {
         time: '2023-12', 
-        circulation: 24.1, 
+        circulation: 24.6, 
         allocated: 6.6 + 14.7, 
         tbillRate: 5.2
     },
     {
         time: '2023-11', 
-        circulation: 23.8, 
+        circulation: 24.5, 
         allocated: 7.2 + 14.6, 
         tbillRate: 5.25
     },
     {
         time: '2023-10', 
-        circulation: 24.5, 
+        circulation: 24.7, 
         allocated: 8.1 + 14.5, 
         tbillRate: 5.33
     },
     {
         time: '2023-09', 
-        circulation: 24.7, 
+        circulation: 24.9, 
         allocated: 9 + 13.9, 
         tbillRate: 5.32
     },
     {
         time: '2023-08', 
-        circulation: 25.9, 
+        circulation: 26.2, 
         allocated: 8.9 + 14.5, 
         tbillRate: 5.32
     },
@@ -101,7 +101,7 @@ export default buildStablecoinAdapter('2',
     },
     {
         time: '2023-06', 
-        circulation: 27.7, 
+        circulation: 27.4, 
         allocated: 5.4 + 18.5, 
         tbillRate: 5.17
     },
@@ -113,99 +113,99 @@ export default buildStablecoinAdapter('2',
     },
     {
         time: '2023-04', 
-        circulation: 30.4, 
+        circulation: 30.5, 
         allocated: 30.1,  // only held tbills at end of month
         tbillRate: 4.95
     },
     {
         time: '2023-03', 
-        circulation: 32.9, 
+        circulation: 32.5, 
         allocated: 28.5, // only held tbills at end of month
         tbillRate: 4.8
     },
     {
         time: '2023-02', 
-        circulation: 42.12, 
+        circulation: 42.4, 
         allocated: 31.7, // only held tbills at end of month
         tbillRate: 4.72 
     },
     {
         time: '2023-01', 
-        circulation: 42.6,  
+        circulation: 42.3,  
         allocated: 33.7, // only held tbills at end of month
         tbillRate: 4.59
     },
-    /*{
+    {
         time: '2022-12', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 44.5, 
+        allocated: 23.4 + 10.5, 
+        tbillRate: 4.3
     },
     {
         time: '2022-11', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 42.8, 
+        allocated: 12.8 + 19.4, 
+        tbillRate: 4.27
     },
     {
         time: '2022-10', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 43.5, 
+        allocated: 35.7, 
+        tbillRate: 4.06
     },
     {
         time: '2022-09', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 47.3, 
+        allocated: 38.3, 
+        tbillRate: 3.22
     },
     {
         time: '2022-08', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 52.3, 
+        allocated: 43.5, 
+        tbillRate: 2.88
     },
     {
         time: '2022-07', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 54.5, 
+        allocated: 42.4, 
+        tbillRate: 2.34
     },
-    {
+   /* { 
         time: '2022-06', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 55.6, 
+        allocated: , // no allocation info
+        tbillRate: 1.66
     },
     {
         time: '2022-05', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 54, 
+        allocated: , // no allocation info
+        tbillRate: 1.13
     },
     {
         time: '2022-04', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 49.3, 
+        allocated: , // no allocation info
+        tbillRate: 0.83
     },
     {
         time: '2022-03', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 51.4, 
+        allocated: , // no allocation info
+        tbillRate: 0.55
     },
     {
         time: '2022-02', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 53.5, 
+        allocated: , // no allocation info
+        tbillRate: 0.37
     },
     {
         time: '2022-01', 
-        circulation: 35.7, 
-        allocated: 8.8 + 21.3, 
-        tbillRate: 5.287 
+        circulation: 50, 
+        allocated: , // no allocation info
+        tbillRate: 0.24
     },*/
 
 ]);
