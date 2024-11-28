@@ -1,7 +1,7 @@
 //  Wagmi fee
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchFee } from "../../dexs/taraswap/logic";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
@@ -10,10 +10,29 @@ const methodology = {
   TotalFees: "Cumulative all-time Fees",
 };
 
+const v3Graphs = getGraphDimensions2({
+  graphUrls: {
+    [CHAIN.TARA]: "https://indexer.lswap.app/subgraphs/name/taraxa/uniswap-v3"
+  },
+  totalVolume: {
+    factory: "factories",
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    Fees: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 100, // 100% of fees are going to LPs
+    Revenue: 0, // Revenue is 100% of collected fees
+  },
+});
+
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.TARAXA]: {
-      fetch: fetchFee(CHAIN.TARAXA),
+    [CHAIN.TARA]: {
+      fetch: v3Graphs(CHAIN.TARA),
       start: "2023-11-25",
       meta: {
         methodology,
