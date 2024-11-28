@@ -23,12 +23,12 @@ const v3Graphs = getGraphDimensions2({
 });
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  Fees: "A 0.3% of each swap is collected as trading fees",
-  Revenue: "Protocol have no revenue",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders have no revenue.",
+  UserFees: "User pays trading fees for each swap.",
+  Fees: "Fees are dynamic according to market volume.",
+  Revenue: "Protocol receives a portion of swap fees",
+  ProtocolRevenue: "15% of all swap fees.",
+  SupplySideRevenue: "Users providing liquidity receive 85% of trading fees, or $BEAM emissions and 15% of trading fees depending on the pool.",
+  HoldersRevenue: "Holders of $BEAM receive trading fees and bribes from the reward pool that they vote for each week.",
 };
 
 const adapter: BreakdownAdapter = {
