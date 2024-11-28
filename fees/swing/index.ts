@@ -51,7 +51,7 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         params: { startDate: unixTimestamp },
     });
 
-    const chainFeeVolumes = dailyRes?.collectedFeesByChain?.map((history: any) => {
+    const chainFeeVolumes = dailyRes?.historicalFeeByChain?.map((history: any) => {
         const chainVol = history?.volume.find((vol: any) => {
             return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
         })
