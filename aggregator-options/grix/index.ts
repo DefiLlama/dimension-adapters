@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -7,9 +7,10 @@ export type GrixMetricsData = {
   totalNotionalVolume24Hr: string;
 };
 
-const fetchGrix = async (timestamp: number) => {
+
+const fetchGrix = async ({ endTimestamp}: FetchOptions) => {
   /** Timestamp representing the end of the 24 hour period */
-  const url = `https://internal-api-dev.grix.finance/volumeData?endTimestamp=${timestamp}`;
+  const url = `https://internal-api-dev.grix.finance/volumeData?endTimestamp=${endTimestamp}`;
 
   const grixMetricsResponse = await httpGet(url);
   const grixMetricsData = parseGrixMetricsData(grixMetricsResponse);
@@ -22,7 +23,6 @@ const fetchGrix = async (timestamp: number) => {
   const dailyNotionalVolume = Number(grixMetricsData.totalNotionalVolume24Hr);
 
   return {
-    timestamp,
     totalNotionalVolume,
     dailyNotionalVolume,
   };
@@ -36,7 +36,7 @@ const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
 };
 
 const grix_adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchGrix,
