@@ -1,6 +1,6 @@
 import { buildStablecoinAdapter} from "./tether/attestations-stablecoins";
 
-export default buildStablecoinAdapter('2',
+export default buildStablecoinAdapter('2', 30,
 // Based on https://www.circle.com/en/transparency
 [
     {
