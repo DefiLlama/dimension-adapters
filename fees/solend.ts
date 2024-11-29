@@ -19,6 +19,7 @@ interface DailyStats {
   protocolSpreadFees: string,
   protocolLiquidationTakeRate: string,
   liquidityProviderInterest: string,
+  closeFees: string,
   previous: string,
   next: string,
 }
