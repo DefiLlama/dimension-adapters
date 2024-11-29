@@ -30,11 +30,16 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
   const dailyVolume = createBalances();
   const data: any[] = await getLogs({
     target: contract[chain],
-    eventAbi: 'event LiFiTransferStarted(bytes32 indexed transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId,bool hasSourceSwaps,bool hasDestinationCall )'
+    topic: '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1'
   });
   data.forEach((e: any) => {
-    if (e.integrator === 'jumper.exchange' || e.integrator === 'jumper.exchange.gas') {
-      dailyVolume.add(e.sendingAssetId, e.minAmount);
+    const data = e.data.replace('0x', '');
+    const integrator = '0x' + data.slice(3 * 64, 4 * 64);
+    if ('0x0000000000000000000000000000000000000000000000000000000000000180' === integrator) {
+      const sendingAssetId = data.slice(5 * 64, 6 * 64);
+      const contract_address = '0x' + sendingAssetId.slice(24, sendingAssetId.length);
+      const minAmount = Number('0x' + data.slice(7 * 64, 8 * 64));
+      dailyVolume.add(contract_address, minAmount);
     }
   });
 
