@@ -29,7 +29,7 @@ const methodology = {
 }
 
 const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
-  const url = `${solendFeesURL}?ts=${endTimestamp}&span=24h`
+  const url = `${solendFeesURL}?ts=${endTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
