@@ -12,10 +12,14 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
         dailyFees += Number(pool.day.fee);
     }
     const totalFees=exchangeInfo.totalFee;
+    const dailyRevenue = dailyFees * 0.2;
+    const totalRevenue = totalFees * 0.2;
 
     return {
         dailyFees: dailyFees ? `${dailyFees}` : undefined,
         totalFees: totalFees ? `${totalFees}` : undefined,
+        dailyRevenue: dailyRevenue ? `${dailyRevenue}` : undefined,
+        totalRevenue: totalRevenue ? `${totalRevenue}` : undefined,
         timestamp: timestamp,
     };
 };
