@@ -36,13 +36,13 @@ const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
     parseInt(stats.liquidityProviderInterest) +
     parseFloat(stats.hostOriginationFees) +
     parseFloat(stats.hostFlashLoanFees) +
-    parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.hostOriginationFees) +
+    parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.protocolLiquidationTakeRate);
+    parseFloat(stats.protocolLiquidationTakeRate) +
+    parseFloat(stats.closeFees) 
 
-  const dailyRevenue = parseFloat(stats.protocolSpreadFees) +
+  const dailyRevenue = parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
