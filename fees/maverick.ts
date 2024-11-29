@@ -1,7 +1,7 @@
 //  Maverick v1 fee
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchFee } from "../dexs/maverick/maverick";
+import { fetchFeeV1, maverickV1Factories } from "../dexs/maverick/maverick-v1";
 
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
@@ -11,34 +11,23 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFee(CHAIN.ETHEREUM),
-      start: 1676851200,
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ERA]: {
-      fetch: fetchFee(CHAIN.ERA),
-      start: 1681257600,
-      meta: {
-        methodology,
-      },
-    },
     [CHAIN.BSC]: {
-      fetch: fetchFee(CHAIN.BSC),
-      start: 29241049,
-      meta: {
-        methodology,
-      },
+      fetch: fetchFeeV1(),
+      start: maverickV1Factories[CHAIN.BSC].startTimestamp,
     },
     [CHAIN.BASE]: {
-      fetch: fetchFee(CHAIN.BASE),
-      start: 1489614,
-      meta: {
-        methodology,
-      },
+      fetch: fetchFeeV1(),
+      start: maverickV1Factories[CHAIN.BASE].startTimestamp,
+    },
+    [CHAIN.ERA]: {
+      fetch: fetchFeeV1(),
+      start: maverickV1Factories[CHAIN.ERA].startTimestamp,
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchFeeV1(),
+      start: maverickV1Factories[CHAIN.ETHEREUM].startTimestamp,
     },
   },
 };

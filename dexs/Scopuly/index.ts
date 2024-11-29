@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STELLAR]: {
       fetch,
-      start: 1706572800,
+      start: '2024-01-30',
     },
   },
 };

@@ -1,19 +1,17 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import {
-  CHAIN,
-} from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
 const endpointsTrident: Record<string, string> = {
-  [CHAIN.POLYGON]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-polygon',
-  [CHAIN.OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-optimism',
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('BSdbRfU6PjWSdKjhpfUQ6EgUpzMxgpf5c1ugaVwBJFsQ'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('FEgRuH9zeTRMZgpVv5YavoFEcisoK6KHk3zgQRRBqt51'),
   //[CHAIN.KAVA]: 'https://pvt.graph.kava.io/subgraphs/name/sushi-v2/trident-kava',
   // [CHAIN.METIS]: 'https://andromeda.thegraph.metis.io/subgraphs/name/sushi-v2/trident-metis',
   // [CHAIN.BITTORRENT]: 'https://subgraphs.sushi.com/subgraphs/name/sushi-v2/trident-bttc',
-  [CHAIN.ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-arbitrum',
-  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-bsc',
-  [CHAIN.AVAX]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/trident-avalanche',
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('4x8H6ZoGfJykyZqAe2Kx2g5afsp17S9pn8GroRkpezhx'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('9TQaBw1sU3wi2kdevuygKhfhjP3STnwBe1jUnKxmNhmn'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NNTV3MgqSGtHMBGdMVLXzzDbKDKmsY87k3PsQ2knmC1'),
 }
 
 const VOLUME_FIELD = "volumeUSD";
@@ -25,19 +23,13 @@ const startTimeQueryTrident = {
 };
 
 const tridentQuery = gql`
-  query trident($timestampLow: Int, $timestampHigh: Int) {
-    factoryDaySnapshots(where: {date_gt: $timestampLow, date_lt: $timestampHigh}, first: 10) {
-      date
+  query trident($number: Int) {
+    factory(
+      id: "ALL"
+      block: { number: $number }
+    ) {
       volumeUSD
       feesUSD
-      factory {
-        type
-      }
-    }
-    factories(where: {type: "ALL"}) {
-      volumeUSD
-      feesUSD
-      type
     }
   }
 `
@@ -46,24 +38,37 @@ const trident = Object.keys(endpointsTrident).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: async (options: FetchOptions) => {
-        const res = await request(endpointsTrident[chain], tridentQuery, {
-          timestampHigh: options.endTimestamp,
-          timestampLow: options.startTimestamp,
+      fetch: async ({ getStartBlock, getEndBlock }: FetchOptions) => {
+        const [startBlock, endBlock] = await Promise.all([
+          getStartBlock(),
+          getEndBlock()
+        ])
+      try {
+        const beforeRes = await request(endpointsTrident[chain], tridentQuery, {
+          number: startBlock,
         });
-        const daily = res.factoryDaySnapshots.find((snapshot: any) => {
-          return snapshot.factory.type == "ALL"
-        })
+        const afterRes = await await request(endpointsTrident[chain], tridentQuery, {
+          number: endBlock,
+        });
+
         return {
-          totalVolume: res.factories[0]?.volumeUSD,
-          totalFees: res.factories[0]?.feesUSD,
-          totalUserFees: res.factories[0]?.feesUSD,
-          dailyVolume: daily?.volumeUSD || 0,
-          dailyFees: daily?.feesUSD || 0,
-          dailyUserFees: daily?.feesUSD || 0
+          totalVolume: afterRes.factory.volumeUSD,
+          totalFees: afterRes.factory.feesUSD,
+          totalUserFees: afterRes.factory.feesUSD,
+          dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
+          dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
+          dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
         }
+      } catch {
+        return {
+          dailyVolume: 0,
+          dailyFees: 0,
+          dailyUserFees: 0
+        }
+      }
+
       },
-      start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
+      start: '2024-04-01',
     },
   }),
   {}

@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain } from "@defillama/sdk/build/general";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
@@ -12,7 +11,10 @@ type ChainMap = {
 const historicalVolumeEndpoints: ChainMap = {
   [CHAIN.BSC]: "https://api.kiloex.io/common/queryTradeSummary",
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
-  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary"
+  [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
+  [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary",
+  [CHAIN.BSQUARED]: "https://b2api.kiloex.io/common/queryTradeSummary",
+  [CHAIN.BASE]: "https://baseapi.kiloex.io/common/queryTradeSummary",
 };
 
 interface IVolume {
@@ -44,13 +46,22 @@ const fetch = (chainId: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: 1686528000
+      fetch: fetch(CHAIN.BSC), start: '2023-06-12'
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: 1696636800
+      fetch: fetch(CHAIN.OP_BNB), start: '2023-10-07'
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: 1698796800
+      fetch: fetch(CHAIN.MANTA), start: '2023-11-01'
+    },
+    [CHAIN.TAIKO]: {
+      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30'
+    },
+    [CHAIN.BSQUARED]: {
+      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30'
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE), start: '2024-10-09'
     },
   },
 };

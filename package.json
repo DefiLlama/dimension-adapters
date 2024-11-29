@@ -8,6 +8,7 @@
     "ts-check": "tsc --project tsconfig.json",
     "ts-check-cli": "tsc --project tsconfig.cli.json",
     "use-token-labels": "node helpers/useTokenLabels.js",
+    "use-string-timestamp": "node helpers/readableStartTimestamp.js",
     "interactive": "node cli/interactive.js"
   },
   "repository": {

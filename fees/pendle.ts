@@ -103,23 +103,21 @@ const fetch = (chain: Chain) => {
     }
 
     const dailySupplySideFees = createBalances();
-    await Promise.all(
-      markets.map(async (market) => {
-        const allSwapEvent = await getLogs({
-          target: market,
-          eventAbi: ABI.marketSwapEvent,
-        });
+    const allSwapEvents = await getLogs({
+      targets: markets,
+      eventAbi: ABI.marketSwapEvent,
+      flatten: false,
+    });
 
-        for (const swapEvent of allSwapEvent) {
-          const netSyFee = swapEvent.netSyFee;
-          const netSyToReserve = swapEvent.netSyToReserve;
-          dailySupplySideFees.add(
-            marketToSy.get(market)!,
-            netSyFee - netSyToReserve
-          ); // excluding revenue fee
-        }
+    markets.forEach((market, i) => {
+      const token = marketToSy.get(market);
+      const logs = allSwapEvents[i]
+      logs.forEach((log: any) => {
+        const netSyFee = log.netSyFee;
+        const netSyToReserve = log.netSyToReserve;
+        dailySupplySideFees.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
       })
-    );
+    })
 
     const dailyRevenue = await addTokensReceived({
       options,
@@ -172,8 +170,8 @@ const fetch = (chain: Chain) => {
         assetAmountRevenue,
         isBridged
           ? {
-              skipChain: true,
-            }
+            skipChain: true,
+          }
           : undefined
       );
 
@@ -183,8 +181,8 @@ const fetch = (chain: Chain) => {
           assetAmountSupplySide,
           isBridged
             ? {
-                skipChain: true,
-              }
+              skipChain: true,
+            }
             : undefined
         );
       }
@@ -207,23 +205,23 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691733600,
+      start: '2023-08-11',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1711506087,
+      start: '2024-03-27',
     },
   },
 };

@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -16,7 +16,7 @@ const address: TAddress = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs,}: FetchOptions) => {
     const dailyFees = createBalances();
 
     (await getLogs({
@@ -25,32 +25,33 @@ const graph = (chain: Chain) => {
     })).map((e: any) => {
       dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000)
     })
-    return { dailyFees, dailyRevenue: dailyFees, timestamp, };
+    return { dailyFees, dailyRevenue: dailyFees, };
   }
 }
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 1680307200,
+      start: '2023-04-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 1689811200,
+      start: '2023-07-20',
     },
   }
 };

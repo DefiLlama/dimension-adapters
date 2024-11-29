@@ -58,76 +58,120 @@ const fetchFees = (chain: string) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1682121600,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
-      start: 1682121600,
+      fetch: fetchFees("ethereum"),
+      start: '2023-04-22',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
-      start: 1682121600,
+      fetch: fetchFees("polygon"),
+      start: '2023-04-22',
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetchFees(CHAIN.POLYGON_ZKEVM),
-      start: 1682121600,
+      fetch: fetchFees("polygon_zkevm"),
+      start: '2023-04-22',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
-      start: 1682121600,
+      fetch: fetchFees("optimism"),
+      start: '2023-04-22',
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchFees("arbitrum"),
+      start: '2023-04-22',
     },
     [CHAIN.BSC]: {
       fetch: fetchFees("binance"),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetchFees("moonbeam"),
-      start: 1682121600,
+      start: '2023-04-22',
+    },
+    [CHAIN.CELO]: {
+      fetch: fetchFees("celo"),
+      start: '2023-04-22',
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchFees("avalanche"),
+      start: '2023-04-22',
+    },
+    [CHAIN.FANTOM]: {
+      fetch: fetchFees("fantom"),
+      start: '2023-04-22',
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetchFees("mantle"),
+      start: '2023-04-22',
     },
     [CHAIN.ROLLUX]: {
-      fetch: fetchFees(CHAIN.ROLLUX),
-      start: 1682121600,
+      fetch: fetchFees("rollux"),
+      start: '2023-04-22',
     },
     [CHAIN.LINEA]: {
-      fetch: fetchFees(CHAIN.LINEA),
-      start: 1682121600,
+      fetch: fetchFees("linea"),
+      start: '2023-04-22',
     },
-     [CHAIN.MANTA]: {
+    [CHAIN.BASE]: {
+      fetch: fetchFees("base"),
+      start: '2023-04-22',
+    },
+    [CHAIN.KAVA]: {
+      fetch: fetchFees("kava"),
+      start: '2023-04-22',
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: fetchFees("op_bnb"),
+      start: '2023-04-22',
+    },
+    [CHAIN.MANTA]: {
       fetch: fetchFees("manta"),
-      start: 1682121600,
+      start: '2023-04-22',
     },
-     [CHAIN.AVAX]: {
-      fetch: fetchFees("avalanche"),
-      start: 1682121600,
-    },
-     [CHAIN.XDAI]: {
-      fetch: fetchFees("gnosis"),
-      start: 1682121600,
-    },
-     [CHAIN.MANTLE]: {
-      fetch: fetchFees("mantle"),
-      start: 1682121600,
-    },
-     [CHAIN.CELO]: {
-      fetch: fetchFees("celo"),
-      start: 1682121600,
-    },
-     [CHAIN.METIS]: {
+    [CHAIN.METIS]: {
       fetch: fetchFees("metis"),
-      start: 1682121600,
+      start: '2023-04-22',
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetchFees("gnosis"),
+      start: '2023-04-22',
+    },
+    [CHAIN.ASTRZK]: {
+      fetch: fetchFees("astar_zkevm"),
+      start: '2023-04-22',
     },
     [CHAIN.IMX]: {
       fetch: fetchFees("immutable_zkevm"),
-      start: 1682121600,
+      start: '2023-04-22',
     },
-     [CHAIN.ASTRZK]: {
-      fetch: fetchFees("astar_zkevm"),
-      start: 1682121600,
+    [CHAIN.SCROLL]: {
+      fetch: fetchFees("scroll"),
+      start: '2023-04-22',
     },
-     [CHAIN.BLAST]: {
+    [CHAIN.BLAST]: {
       fetch: fetchFees("blast"),
-      start: 1682121600,
+      start: '2023-04-22',
+    },
+    [CHAIN.XLAYER]: {
+      fetch: fetchFees("xlayer"),
+      start: '2023-04-22',
+    },
+    [CHAIN.MODE]: {
+      fetch: fetchFees("mode"),
+      start: '2023-04-22',
+    },
+    [CHAIN.TAIKO]: {
+      fetch: fetchFees("taiko"),
+      start: '2023-04-22',
+    },
+    [CHAIN.ROOTSTOCK]: {
+      fetch: fetchFees("rootstock"),
+      start: '2023-04-22',
+    },
+    [CHAIN.SEI]: {
+      fetch: fetchFees("sei"),
+      start: '2023-04-22',
+    },
+    [CHAIN.IOTAEVM]: {
+      fetch: fetchFees("iota_evm"),
+      start: '2023-04-22',
     },
   }
 }

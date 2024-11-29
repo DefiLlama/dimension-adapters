@@ -1,13 +1,13 @@
-import request, { gql } from "graphql-request";
-import { ChainEndpoints, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL";
 
+const FETCH_URL = 'https://api.myx.finance/v2/scan/defilama/trade-volume/stat_by_chain'
 
-// Subgraphs endpoints
-const endpoints: ChainEndpoints = {
-  [CHAIN.ARBITRUM]: "https://subgraph-arb.myx.finance/subgraphs/name/myx-subgraph",
-  [CHAIN.LINEA]: "https://subgraph-linea.myx.finance/subgraphs/name/myx-subgraph",
+type VolumeType = {
+  chainId: number,
+  volume: string
 }
 
 const methodology = {
@@ -15,37 +15,23 @@ const methodology = {
   DailyVolume: "Daily Volume from the sum of the open/close/liquidation of positions.",
 }
 
-interface IGraphResponse {
-  tradeVolume: {
-    volume: string,
-    id: 'string'
-  }
+const fetchApi = async (startTime: number, endTime: number) => {
+  const rs = await fetchURL(`${FETCH_URL}?startTime=${startTime}&endTime=${endTime}`)
+  const data: VolumeType[] = rs?.data ?? []
+
+  return data
 }
 
-const getFetch = async (optios: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((optios.endTimestamp * 1000)))
+const getFetch = async ({ fromTimestamp, toTimestamp, api }: FetchOptions) => {
+  const result = await fetchApi(fromTimestamp, toTimestamp)
 
-  const dailyData: IGraphResponse = await request(endpoints[optios.chain], gql`
-      query MyQuery {
-      tradeVolume(id: "${dayTimestamp}") {
-        volume
-        id
-      }
-    }
-  `)
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((fromTimestamp * 1000)))
 
-  const totalData: IGraphResponse = await request(endpoints[optios.chain], gql`
-    query MyQuery {
-      tradeVolume(id: "global") {
-        volume
-        id
-      }
-    }`
-  )
+  const volumeData: VolumeType = result.find((dataItem) => dataItem.chainId === api.chainId) ?? {} as VolumeType
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyData.tradeVolume?.volume || "0",
+    dailyVolume: volumeData?.volume ?? '0',
   }
 }
 
@@ -53,22 +39,34 @@ const getFetch = async (optios: FetchOptions) => {
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
+  [CHAIN.OP_BNB]: 1727443900,
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch,
-        start: startTimestamps[chain],
-        meta: {
-          methodology: methodology,
-        },
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: getFetch,
+      start: startTimestamps[CHAIN.ARBITRUM],
+      meta: {
+        methodology
       }
-    }
-  }, {})
+    },
+    [CHAIN.LINEA]: {
+      fetch: getFetch,
+      start: startTimestamps[CHAIN.LINEA],
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: getFetch,
+      start: startTimestamps[CHAIN.OP_BNB],
+      meta: {
+        methodology
+      }
+    },
+  }
 }
 
 export default adapter;

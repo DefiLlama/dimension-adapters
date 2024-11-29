@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { ARBITRUM, AVAX, BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
-    [BSC]: "https://api.thegraph.com/subgraphs/name/metavault-trade/grizzly-bnb-subgraph"
+    [BSC]: sdk.graph.modifyEndpoint('3CUU9roJ9PsMdijcBdaCBRHhTUBobLeDLyMW4QF2XNmn')
 }
 
 const methodology = {
@@ -61,7 +62,7 @@ const adapter: Adapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
-            start: 1689897600,
+            start: '2023-07-21',
             meta: {
                 methodology
             }

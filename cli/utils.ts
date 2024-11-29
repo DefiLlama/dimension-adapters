@@ -1,5 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { BaseAdapter, } from "../adapters/types";
+import { BaseAdapter, whitelistedDimensionKeys, } from "../adapters/types";
 import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
 export const ERROR_STRING = '------ ERROR ------'
@@ -24,6 +24,11 @@ export async function getLatestBlockRetry(chain: string) {
 
 export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
+    let keys = volumes.map((element) => Object.keys(element)).flat()
+    keys.forEach((key) => {
+        if (!whitelistedDimensionKeys.has(key))
+            throw new Error(`"${key}" is not a supported metric.Supported metrics can be found in adapters/types.ts`)
+    })
     volumes.forEach((element) => {
         const methodology = baseAdapter?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')
@@ -35,8 +40,8 @@ export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
         else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
         Object.entries(element).forEach(([attribute, value]) => {
             if (!exclude2Print.includes(attribute)) {
-                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any)  * 1e3).toISOString()})` : humanizeNumber(Number(value))
-                    console.info(`${camelCaseToSpaces(attribute)}: ${valueFormatted}`)
+                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any) * 1e3).toISOString()})` : humanizeNumber(Number(value))
+                console.info(`${camelCaseToSpaces(attribute === "timestamp" ? "endTimestamp" : attribute)}: ${valueFormatted}`)
                 if (valueFormatted !== undefined && typeof methodology === 'object' && methodology[attribute.slice(5)])
                     console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }

@@ -22,7 +22,7 @@ const fetch =
       const chainData = data.result.rows.find(
         (row: any) => chainsMap[row.blockchain] === chain
       );
-
+      if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`)
       return {
         dailyVolume: chainData.volume_24h,
         timestamp: unixTimestamp,
@@ -38,7 +38,7 @@ const adapter: any = {
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(chain),
           runAtCurrTime: true,
-          start: 1701734400,
+          start: '2023-12-05',
         },
       };
     }, {}),

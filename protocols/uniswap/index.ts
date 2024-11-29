@@ -1,24 +1,19 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultGeneric, BaseAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import * as sdk from "@defillama/sdk";
-import {getUniV2LogAdapter} from "../../helpers/uniswap"
-
-import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-} from "../../helpers/getUniSubgraph"
+import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from 'graphql-request';
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultGeneric } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
+import { getStartTimestamp } from "../../helpers/getStartTimestamp";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { httpPost } from '../../utils/fetchURL';
 
 const v1Endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ESnjgAG9NjfmHypk4Huu4PVvz55fUwpyrRqHF21thoLJ'),
 };
 
 const v2Endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v2-dev",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
 };
 
 const blacklisted = {
@@ -62,35 +57,24 @@ const blacklisted = {
   ]
 }
 
-const KEY = 'a265c39f5a123ab2d40b25dc352adc22'
-
 const v3Endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-optmism-regen",
+  // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
-  // [CHAIN.POLYGON]: "https://gateway-arbitrum.network.thegraph.com/api/"+KEY+"/subgraphs/id/3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
-  // [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
-  // [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax",
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-base",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
+  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
 };
 
-const VOLUME_USD = "volumeUSD";
-
 // fees results are in eth, needs to be converted to a balances objects
 const ETH_ADDRESS = "ethereum:" + ADDRESSES.null;
-const v1Graph = getGraphDimensions({
+const v1Graph = getGraphDimensions2({
   graphUrls: v1Endpoints,
   totalVolume: {
     factory: "uniswaps",
-  },
-  dailyVolume: {
-    field: "dailyVolumeInUSD",
-  },
-  dailyFees: {
-    factory: "exchangeHistoricalData",
-    field: "feeInEth"
   },
   feesPercent: {
     type: "fees",
@@ -103,7 +87,7 @@ const v1Graph = getGraphDimensions({
   }
 });
 
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
@@ -117,15 +101,11 @@ const v2Graph = getGraphDimensions({
   blacklistTokens: blacklisted
 });
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",
@@ -157,18 +137,6 @@ const startTimeV3:TStartTime = {
   [CHAIN.AVAX]: 1689033600,
   [CHAIN.BASE]: 1691280000,
   [CHAIN.ERA]: 1693440000
-}
-
-const v2Deployments = {
-  // ethereum: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
-  optimism: '0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf',
-  arbitrum: '0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9',
-  avax: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
-  base: '0x8909dc15e40173ff4699343b6eb8132c65e18ec6',
-  bsc: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
-  polygon: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
-  //celo: '0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f',
-  zora: '0x0F797dC7efaEA995bB916f268D919d0a1950eE3C'
 }
 
 const chainv2mapping: any = {
@@ -234,24 +202,22 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ETHEREUM]: {
         fetch: async (options) => {
           const response = await v1Graph(options.chain)(options);
-          const keys = [
-            "dailyUserFees",
-            "dailyProtocolRevenue",
-            "dailySupplySideRevenue",
-            "dailyHoldersRevenue",
-            "dailyRevenue",
-            "dailyFees",
-          ];
-          for (const key of keys) {
+          const keys = {
+            "dailyUserFees": options.createBalances(),
+            "dailyProtocolRevenue": options.createBalances(),
+            "dailySupplySideRevenue": options.createBalances(),
+            "dailyHoldersRevenue":  options.createBalances(),
+            "dailyRevenue":  options.createBalances(),
+            "dailyFees":  options.createBalances(),
+          };
+          for (const key of Object.keys(keys)) {
             if (typeof response[key] === 'string') {
-              response[key] = await sdk.Balances.getUSDString({
-                [ETH_ADDRESS]: response[key]
-              } as any)
+              keys[key].add(ETH_ADDRESS, Number(response[key]) * 1e18);
             }
           }
           return response as FetchResultGeneric
         },
-        start: 1541203200,
+        start: '2018-11-03',
         meta: {
           methodology
         },
@@ -281,14 +247,35 @@ const adapter: BreakdownAdapter = {
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
-          start: 0,
-        }
+                  }
         return acc
       }, {})
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: async (options: FetchOptions) => {
+          try {
+            const res = (await v3Graphs(chain as Chain)(options))
+            return {
+              totalVolume: res?.totalVolume || 0,
+              dailyVolume: res?.dailyVolume || 0,
+              totalFees: res?.totalFees || 0,
+              totalUserFees: res?.totalUserFees || 0,
+              dailyFees: res?.dailyFees || 0,
+              dailyUserFees: res?.dailyUserFees || 0
+            }
+          } catch {
+            console.error("Error fetching v3 data: ", chain)
+            return {
+              totalVolume: 0,
+              dailyVolume: 0,
+              totalFees: 0,
+              totalUserFees: 0,
+              dailyFees: 0,
+              dailyUserFees: 0
+            }
+          }
+        },
         start: startTimeV3[chain],
         meta: {
           methodology: {
@@ -301,13 +288,50 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter)
   }
 }
-// adapter.breakdown.v3.bsc.fetch = async ({ endTimestamp, getEndBlock }) => {
-//   const response = await v3Graphs(CHAIN.BSC)(endTimestamp, getEndBlock);
-//   const totalVolume = Number(response.totalVolume) - 10_000_000_000;
-//   return {
-//     ...response,
-//     totalVolume
-//   } as FetchResultGeneric
-// }
+
+interface IOkuResponse {
+  volume: number;
+  fees: number;
+}
+const fetchFromOku = async (options: FetchOptions) => {
+  try {
+    const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
+    const body = {
+      "params": [
+        options.startTimestamp * 1000, //start
+        options.endTimestamp * 1000, //end
+        3600000 //interval
+      ]
+    }
+    const response: IOkuResponse[] = (await httpPost(url, body)).result
+    const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
+    const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+    return {
+      dailyVolume,
+      dailyFees,
+    }
+  } catch (e) {
+    console.error(e)
+    return {}
+  }
+}
+const mappingChain = (chain: string) => {
+  if (chain === CHAIN.ERA) return "zksync"
+  if (chain === CHAIN.ROOTSTOCK) return "rootstock"
+  if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
+  if (chain === CHAIN.XDAI) return "gnosis"
+  return chain
+}
+
+const okuChains = [ CHAIN.ETHEREUM, CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
+
+okuChains.forEach(chain => {
+  adapter.breakdown.v3[chain] = {
+    fetch: fetchFromOku,
+        meta: {
+      methodology
+    }
+  }
+})
 
 export default adapter;

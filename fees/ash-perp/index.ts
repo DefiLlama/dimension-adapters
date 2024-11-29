@@ -1,25 +1,13 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import request from "graphql-request";
 
 const API_URL = 'https://statistic-api.ashperp.trade/graphql';
 
-interface IFee {
-  time: string;
-  v2_fees: number;
-  total_fees: number;
-}
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const startTs = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const endTs = startTs + 86400;
+const fetch = async ({ endTimestamp, startTimestamp}: FetchOptions) => {
     const feeQuery =`query Trading {
       trading {
-        getDailyFee(from: ${startTs}, to: ${endTs}){
+        getDailyFee(from: ${startTimestamp}, to: ${endTimestamp}){
           daily_fees
           daily_holders_revenue
           daily_protocol_revenue
@@ -34,19 +22,18 @@ const fetch = (chain: Chain) => {
       dailyRevenue: `${dailyRevenue}`,
       dailyHoldersRevenue: `${dailyFee.trading.getDailyFee.daily_holders_revenue}`,
       dailyProtocolRevenue: `${dailyFee.trading.getDailyFee.daily_protocol_revenue}`,
-      timestamp,
     };
   };
-};
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ELROND]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1706745600,
+      fetch,
+      start: '2024-02-01',
       runAtCurrTime: true,
     }
   },
   isExpensiveAdapter: true,
+  version: 2
 };
 export default adapter;

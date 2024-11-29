@@ -1,10 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 interface IPoolData {
   date: number;
@@ -16,44 +15,73 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/camelotlabs/camelot-amm-2"
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8zagLSufxk5cVhzkzai3tyABwJh53zxn9tmUYJcJxijG'),
+  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-apechain/api`,
+  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-gravity/api`,
+  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-rari/api`,
+  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-reya/api`,
+  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-xai/api`,
+  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv2-sanko/api`,
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-    const graphQuery = gql
-      `
-      {
-        uniswapDayData(id: ${dateId}) {
-          id
-          dailyFeeUSD
-        }
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const graphQuery = gql
+    `
+    {
+      pairDayDatas(where:{date_gte:${options.fromTimestamp}, date_lte:${options.endTimestamp}, reserveUSD_gt:1000}, orderBy:dailyFeeUSD, orderDirection:desc) {
+        id
+        dailyFeeUSD
+        reserveUSD
       }
-    `;
+    }
+  `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).uniswapDayData;
-    const dailyFeeUSD = graphRes;
-    const dailyFee = dailyFeeUSD?.dailyFeeUSD ? new BigNumber(dailyFeeUSD.dailyFeeUSD) : undefined
-    if (dailyFee === undefined) return { timestamp }
-    return {
-      timestamp,
-      dailyFees: dailyFee.toString(),
-      dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.4).toString(),
-      dailyProtocolRevenue: dailyFee.multipliedBy(0.05).toString(),
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.35).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.60).toString(),
-    };
+  const graphRes: IPoolData[] = (await request(endpoints[options.chain], graphQuery)).pairDayDatas;
+  const dailyFeeUSD = graphRes;
+  const dailyFee = dailyFeeUSD.reduce((acc, pool) => {
+    return acc.plus(pool.dailyFeeUSD);
+  }, new BigNumber(0));
+  return {
+    dailyFees: dailyFee.toString(),
+    dailyUserFees: dailyFee.toString(),
+    dailyRevenue: dailyFee.multipliedBy(0.4).toString(),
+    dailyProtocolRevenue: dailyFee.multipliedBy(0.05).toString(),
+    dailyHoldersRevenue: dailyFee.multipliedBy(0.35).toString(),
+    dailySupplySideRevenue: dailyFee.multipliedBy(0.60).toString(),
   };
+
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1668124800,
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.GRAVITY]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.RARI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.REYA]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.XDAI]: {
+      fetch: fetch,
+      start: '2022-11-11',
+    },
+    [CHAIN.SANKO]: {
+      fetch: fetch,
+      start: '2022-11-11',
     },
   },
 };

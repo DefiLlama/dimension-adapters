@@ -82,7 +82,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFees(CHAIN.ARBITRUM),
-      start: 1675036800,
+      start: '2023-01-30',
     },
   },
 };

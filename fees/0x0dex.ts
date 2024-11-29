@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResult } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 
 const OxOPoolETHAddress = "0x3d18AD735f949fEbD59BBfcB5864ee0157607616";
@@ -9,10 +9,10 @@ const discount = 0.0045;
 // Deposit Event
 const discountThreshold = 1000000 * (9 ** 18);
 
-const fetch: any = async (timestamp: number, _: any, { getLogs, api }: FetchOptions): Promise<FetchResult> => {
+const fetch: any = async ({ getLogs, api,}: FetchOptions) => {
     const logs = await getLogs({
         target: OxOPoolETHAddress,
-        eventAbi: "event Deposit (address sender, uint256 tokenAmount, uint256 ringIndex)"
+        eventAbi: "event Deposit (address sender, uint256 tokenAmount, uint256 ringIndex)", 
     })
     const senders = logs.map((log: any) => log.sender);
     const balances = await api.multiCall({ abi: 'erc20:balanceOf', calls: senders, target: OxOToken })
@@ -25,7 +25,6 @@ const fetch: any = async (timestamp: number, _: any, { getLogs, api }: FetchOpti
     dailyFees /= 1e18;
 
     return {
-        timestamp,
         dailyFees,
         // 100% of the revenue going to holders, hence, fees = revenue, fees = holdersRevenue
         dailyHoldersRevenue: dailyFees,
@@ -34,11 +33,12 @@ const fetch: any = async (timestamp: number, _: any, { getLogs, api }: FetchOpti
 };
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [ETHEREUM]: {
             fetch,
             runAtCurrTime: true,
-            start: 1685386800,
+            start: '2023-05-29',
             meta: {
                 methodology: {
                     Fees: "0x0 collects a 0.9% fee on deposits"

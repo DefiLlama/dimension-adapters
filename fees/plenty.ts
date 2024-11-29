@@ -23,7 +23,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: 1672531200,
+      start: '2023-01-01',
       runAtCurrTime: true,
     },
   },

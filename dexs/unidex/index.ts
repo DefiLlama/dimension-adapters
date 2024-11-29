@@ -1,9 +1,8 @@
-import { SimpleAdapter, FetchResultVolume, BreakdownAdapter } from "../../adapters/types";
+import { FetchResultVolume, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
-import { adapteraggderivative } from './unidex-agg-perp/index';
 import { adapter_dexs_agg } from './unidex-dexs-agg/index';
 
 type TChainIDs = { [key in Chain]?: number; };
@@ -66,37 +65,37 @@ const adapter: any = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1687422746,
+      start: '2023-06-22',
       meta: { methodology },
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: 1687422746,
+      start: '2023-06-22',
       meta: { methodology },
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1687422746,
+      start: '2023-06-22',
       meta: { methodology },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1687422746,
+      start: '2023-06-22',
       meta: { methodology },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 1687422746,
+      start: '2023-06-22',
       meta: { methodology },
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
-      start: 1687898060,
+      start: '2023-06-27',
       meta: { methodology },
     },
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
-      start: 1700104066,
+      start: '2023-11-16',
       meta: { methodology },
     },
   },
@@ -105,7 +104,6 @@ const adapter: any = {
 const adapterbreakdown: BreakdownAdapter = {
   breakdown: {
     "unidex": adapter["adapter"],
-    "unidex-agg-derivative": adapteraggderivative["adapter"],
     "unidex-dexs-agg": adapter_dexs_agg["adapter"],
   }
 };

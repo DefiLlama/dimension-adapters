@@ -3,6 +3,8 @@
 const config = {
   arbitrum: { contract: '0xb3879e95a4b8e3ee570c232b19d520821f540e48', },
   bsc: { contract: '0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0', },
+  //op_bnb: { contract: '0x5A5454A6030FB50ceb3eb78977D140198A27be5e' },
+  base: {contract: '0x9D93e5B2364070bC9837e91833F162430246DD57' },
 }
 
 import { ChainBlocks, FetchOptions } from "../../adapters/types";
@@ -37,6 +39,6 @@ const adapter: any = {
   adapter: {},
 };
 
-Object.keys(config).forEach((chain) => adapter.adapter[chain] = { fetch, start: 1690848000, });
+Object.keys(config).forEach((chain) => adapter.adapter[chain] = { fetch, start: '2023-08-01', });
 
 export default adapter;

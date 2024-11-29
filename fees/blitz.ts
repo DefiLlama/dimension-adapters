@@ -115,11 +115,12 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1710259200,
+      start: '2024-03-12',
     },
   },
 };

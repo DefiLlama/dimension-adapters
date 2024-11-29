@@ -1,9 +1,9 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 
 const fetch = (): any => {
-  return async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+  return async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
 
     const logs = await queryIndexer(`
@@ -32,7 +32,6 @@ const fetch = (): any => {
 
 
     return {
-      timestamp,
       dailyFees,
       dailySupplySideRevenue: dailySupplySideRevenue,
       dailyRevenue: dailyRevenue,
@@ -44,10 +43,11 @@ const fetch = (): any => {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(),
-        start: 1665014400,
+        start: '2022-10-06',
     },
   }
 }

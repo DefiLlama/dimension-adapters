@@ -1,11 +1,9 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-
 import {
-  getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph"
 
 const v3Endpoints = {
@@ -14,15 +12,11 @@ const v3Endpoints = {
 
 const VOLUME_USD = "volumeUSD";
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",
@@ -46,7 +40,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.METIS]: {
       fetch: v3Graphs(CHAIN.METIS),
-      start: 1680307200,
+      start: '2023-04-01',
       meta: {
         methodology: {
           ...methodology,

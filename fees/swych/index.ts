@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 
 export const SUBGRAPHS = {
-    pdex: "https://api.thegraph.com/subgraphs/name/crypnosis/swych-pdex-v1",
+    pdex: sdk.graph.modifyEndpoint('6tn8tNYxKCEM5bTceMfA5jeGm3gtCrUGDwbKN7QGGat4'),
 };
 
 const contractAddresses = {
@@ -105,7 +106,7 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
     return dailyFees;
 };
 
-const fetchFees = async (timestamp: number, _c: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchFees = async (options: FetchOptions) => {
     const dailyFees = await fetchTotalProtocolRevenue(options);
     const totalWithdrawalFeeData = await fetchWithdrawalFees(options.startOfDay);
     const tokenWithdrawalFees = [...new Set(totalWithdrawalFeeData.map((fee) => fee.token))];
@@ -116,17 +117,15 @@ const fetchFees = async (timestamp: number, _c: any, options: FetchOptions): Pro
         const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
-    return {
-        timestamp,
-        dailyFees: dailyFees,
-    }
+    return { dailyFees: dailyFees }
 };
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
-            start: 1701720000,
+            start: '2023-12-04',
             meta: {
                 methodology: {
                     Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',

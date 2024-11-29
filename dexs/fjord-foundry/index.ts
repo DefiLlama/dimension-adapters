@@ -67,7 +67,7 @@ const adapter: BreakdownAdapter = {
                 ...acc,
                 [chain]: {
                     fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
-                    start: 1702857600,
+                    start: '2023-12-18',
                 },
             }
         }, {}),
@@ -76,7 +76,7 @@ const adapter: BreakdownAdapter = {
                 ...acc,
                 [chain]: {
                     fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
-                    start: 1631836800,
+                    start: '2021-09-17',
                 },
             }
         }, {}),

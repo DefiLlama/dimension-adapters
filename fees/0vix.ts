@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -9,7 +10,7 @@ import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
   [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/0vix/ovix-lending-subgraph",
+    sdk.graph.modifyEndpoint('DRe1wuJiBQK3SWBQwah7sovvTRqBeqNrkzWNjjoWinh9'),
   [CHAIN.POLYGON_ZKEVM]:
     "https://api.studio.thegraph.com/query/30443/0vix-zkevm/v0.0.1",
 };
@@ -59,11 +60,11 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: 1648157552,
+      start: '2022-03-24',
     },
     // [CHAIN.POLYGON_ZKEVM]: {
     //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-    //   start: 1679923169,
+    //   start: '2023-03-27',
     // },
   },
 };

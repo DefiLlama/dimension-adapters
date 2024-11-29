@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: async () => getStartTimestamp(chain),
+        // start: async () => getStartTimestamp(chain),
         customBackfill: customBackfill(chain as Chain, fetch),
       }
     }

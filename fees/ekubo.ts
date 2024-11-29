@@ -13,22 +13,22 @@ function getDimension(responseRaw: any[], key: string, balances: any) {
   return balances
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) => {
+const fetch = async ({ createBalances }: FetchOptions) => {
   const dailyFees = getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h, "fees", createBalances())
   const dailyRevenue = getDimension((await fetchURL("https://mainnet-api.ekubo.org/overview")).revenueByToken_24h, "revenue", createBalances())
   return {
     dailyFees,
     dailyRevenue,
-    timestamp,
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1695168000
+      start: '2023-09-20'
     },
   }
 }

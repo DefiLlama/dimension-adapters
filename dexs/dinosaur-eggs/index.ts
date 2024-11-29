@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/dinosaur-eggs/swap"
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('63auEwyBju1rZWUNZ32k2qwrBQZSEU4XetvKh3ZCwHLA')
 }, {
   factoriesName: "swapFactories",
   dayData: "swapDayData"

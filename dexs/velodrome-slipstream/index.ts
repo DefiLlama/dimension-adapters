@@ -1,5 +1,5 @@
-import { FetchOptions, FetchResult, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 const sugar = '0xdE2aE25FB984dd60C77dcF6489Be9ee6438eC195';
@@ -22,49 +22,66 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResult> => {
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
   let chunkSize = 400;
-  let currentOffset = 630; // Slipstream launched after ~650 v2 pools were already created
+  let currentOffset = 0;
   const allForSwaps: IForSwap[] = [];
   let unfinished = true;
   let sugarContract = sugar;
 
   // before the new Sugar is deployed, we must use the old Sugar contract, and make one large Sugar call
-  if (timestamp < 1715160600) {
+  if (options.startOfDay < 1715160600) {
     chunkSize = 1800;
-    currentOffset = 0;
     sugarContract = sugarOld;
   }
 
   while (unfinished) {
-    const forSwaps: IForSwap[] = (await api.call({
+    const forSwapsUnfiltered: IForSwap[] = (await options.api.call({
       target: sugarContract,
-      params: [chunkSize, currentOffset], // Slipstream launched after ~650 v2 pools were already created
+      params: [chunkSize, currentOffset],
       abi: abis.forSwaps,
       chain: CHAIN.OPTIMISM,
-    })).filter(t => Number(t.type) > 0).map((e: any) => {
+    }));
+    
+    const forSwaps: IForSwap[] = forSwapsUnfiltered.filter(t => Number(t.type) > 0).map((e: any) => {
       return {
         lp: e.lp,
         token0: e.token0,
         token1: e.token1,
         pool_fee: e.pool_fee,
       }
-    })
+    });
 
-    unfinished = forSwaps.length !== 0;
+    unfinished = forSwapsUnfiltered.length !== 0;
     currentOffset += chunkSize;
     allForSwaps.push(...forSwaps);
   }
-  
+
   const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-  const logs: ILog[][] = await getLogs({
-    targets,
-    eventAbi: event_swap,
-    flatten: false,
-  })
+  let logs: ILog[][] = [];
+  const targetChunkSize = 5;
+  let currentTargetOffset = 0;
+  unfinished = true;
+
+  while (unfinished) {
+    let endOffset = currentTargetOffset + targetChunkSize;
+    if (endOffset >= targets.length) {
+      unfinished = false;
+      endOffset = targets.length;
+    }
+
+    let currentLogs: ILog[][] = await options.getLogs({
+      targets: targets.slice(currentTargetOffset, endOffset),
+      eventAbi: event_swap,
+      flatten: false,
+    })
+
+    logs.push(...currentLogs);
+    currentTargetOffset += targetChunkSize;
+  }
 
   logs.forEach((logs: ILog[], idx: number) => {
     const { token1, pool_fee } = allForSwaps[idx]
@@ -74,13 +91,14 @@ const fetch = async (timestamp: number, _: any, { api, getLogs, createBalances, 
     })
   })
 
-  return { dailyVolume, timestamp, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch as any,
-      start: 1709724600,
+      start: '2024-03-06',
     }
   }
 }

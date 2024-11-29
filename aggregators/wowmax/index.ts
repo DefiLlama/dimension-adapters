@@ -11,6 +11,9 @@ const chains = [
     CHAIN.CRONOS,
     CHAIN.MANTA,
     CHAIN.BLAST,
+    CHAIN.XLAYER,
+    CHAIN.METIS,
+    CHAIN.ARBITRUM
 ];
 
 const chainToId: Record<string, number> = {
@@ -22,6 +25,9 @@ const chainToId: Record<string, number> = {
     [CHAIN.CRONOS]: 25,
     [CHAIN.MANTA]: 169,
     [CHAIN.BLAST]: 81457,
+    [CHAIN.METIS]: 1088,
+    [CHAIN.XLAYER]: 196,
+    [CHAIN.ARBITRUM]: 42161,
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
@@ -48,7 +54,7 @@ const adapter: any = {
                 ...acc,
                 [chain]: {
                     fetch: fetch(chain),
-                    start: 1705104000,
+                    start: '2024-01-13',
                 },
             };
         }, {}),

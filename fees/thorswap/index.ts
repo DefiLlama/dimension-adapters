@@ -81,11 +81,12 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 const adapters: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.THORCHAIN]: {
       runAtCurrTime: true,
       fetch: fetchFees,
-      start: 1618099200,
+      start: '2021-04-11',
     }
   },
   isExpensiveAdapter: true

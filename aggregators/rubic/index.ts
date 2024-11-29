@@ -34,10 +34,15 @@ const chains: Record<string, string> = {
   [CHAIN.CELO]: 'celo',
   [CHAIN.OKEXCHAIN]: 'oke-x-chain',
   [CHAIN.CRONOS]: 'cronos',
-  [CHAIN.MODE]: 'mode'
+  [CHAIN.MODE]: 'mode',
+  [CHAIN.MERLIN]: 'merlin',
+  [CHAIN.CORE]: 'core',
+  [CHAIN.TAIKO]: 'taiko',
+  [CHAIN.ZKLINK]: 'zklink',
+  [CHAIN.BITLAYER]: 'bitlayer'
 };
 
-interface ApiResponce {
+interface ApiResponse {
   daily_volume_in_usd: string;
   daily_transaction_count: string;
   total_volume_in_usd: string;
@@ -45,13 +50,13 @@ interface ApiResponce {
 }
 
 const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-  const responce: ApiResponce = (
+  const response: ApiResponse = (
     await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
   );
 
   return {
-    dailyVolume: responce?.daily_volume_in_usd || '0',
-    totalVolume: responce?.total_volume_in_usd || '0',
+    dailyVolume: response?.daily_volume_in_usd || '0',
+    totalVolume: response?.total_volume_in_usd || '0',
     timestamp: options.startTimestamp,
   };
 };
@@ -59,14 +64,13 @@ const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchRes
 const adapter: SimpleAdapter = {
   adapter: {
     ...Object.entries(chains).reduce((acc, chain) => {
-      const key = chain[0];
-      const value = chain[1];
+      const [key, value] = chain;
 
       return {
         ...acc,
         [key]: {
           fetch: fetch(value),
-          start: 1672531200, // 01.01.2023
+          start: '2023-01-01', // 01.01.2023
         },
       };
     }, {}),

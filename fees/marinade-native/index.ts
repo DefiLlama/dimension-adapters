@@ -15,7 +15,7 @@ interface MarinadeAmounts {
   totalUserFees: string;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ createBalances }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).native
   const coin = 'So11111111111111111111111111111111111111112'
@@ -42,7 +42,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: Fetc
   totalUserFees.add(coin, amounts.totalUserFees);
 
   return {
-    timestamp: timestamp,
     totalFees,
     dailyFees,
     dailyUserFees,
@@ -57,10 +56,11 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: Fetc
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1689120000, // 2023-07-12T00:00:00Z
+      start: '2023-07-12', // 2023-07-12T00:00:00Z
       runAtCurrTime: true,
       meta: {
         methodology: {

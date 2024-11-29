@@ -1,32 +1,27 @@
+import * as sdk from "@defillama/sdk";
 import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints: ChainEndpoints = {
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/harleen-m/baseswap",
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('BWHCfpXMHFDx3u4E14hEwv4ST7SUyN89FKJ2RjzWKgA9'),
 };
 const v3Endpoints = {
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/baseswapfi/v3-base",
+  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/v3-base/prod/gn'
 };
 
 // Fetch function to query the subgraphs
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
   feesPercent: {
     type: "volume",
@@ -38,15 +33,11 @@ const v2Graph = getGraphDimensions({
   },
 });
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",
@@ -85,7 +76,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: 1690495200,
+          start: '2023-07-28',
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
@@ -93,7 +84,10 @@ const adapter: BreakdownAdapter = {
     }, {}),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: async (options)=>{
+          const res = await v3Graphs(chain as Chain)(options)
+          return Object.fromEntries(Object.entries(res).filter(t=>!t[0].startsWith("total")))
+        },
         start: startTimeV3[chain],
         meta: {
           methodology: v3Methodology,

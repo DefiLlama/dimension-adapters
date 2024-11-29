@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, ChainBlocks, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 const { request, gql } = require("graphql-request");
 
 
-const URL = 'https://api.thegraph.com/subgraphs/name/liquity/liquity'
+const URL = sdk.graph.modifyEndpoint('8wump5sEYBV7vG1sKaNrvbqhTAV4EPKCdPw4ygms3Dmd')
 interface IValue {
   totalBorrowingFeesPaid: string;
   totalRedemptionFeesPaid: string;
@@ -46,7 +47,7 @@ const adapter: Adapter = {
               dailyHoldersRevenue: dailyFees,
           };
         },
-        start: 1575158400
+        start: '2019-12-01'
     },
   }
 }

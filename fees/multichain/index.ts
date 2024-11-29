@@ -26,12 +26,12 @@ const fetch = async (timestamp: number) => {
 
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     ["anyswap"]: {
         fetch: fetch,
         runAtCurrTime: true,
-        start: 0,
-    },
+            },
   },
 }
 

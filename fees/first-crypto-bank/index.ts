@@ -4,7 +4,7 @@ import { queryIndexer } from "../../helpers/indexer";
 
 
 /** Calculate USD equivalent for a given ether amount */
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
 
@@ -24,14 +24,15 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
           AND block_time BETWEEN llama_replace_date_range;
           `, options);
   transactions.map((transaction: any) => dailyFees.addGasToken(transaction.eth_value))
-  return { timestamp, dailyFees, }
+  return { dailyFees, }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     ethereum: {
       fetch,
-      start: 1703203200,
+      start: '2023-12-22',
     },
   },
 }

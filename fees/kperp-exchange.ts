@@ -48,7 +48,6 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.KAVA]: {
       fetch: async (timestamp: number) => {return{timestamp}},
-      start: 2578000,
       meta: {
         methodology: 'All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.'
       }

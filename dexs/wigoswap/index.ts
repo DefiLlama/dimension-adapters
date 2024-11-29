@@ -1,13 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/wigoswap/exchange2"
-}, {
-  factoriesName: "wigoswapFactories",
-  dayData: "wigoDayData",
-  gasToken: "coingecko:fantom"
-});
-
-adapters.adapter.fantom.start = 1642982400;
-export default adapters;
+export default uniV2Exports({
+  [CHAIN.FANTOM]: { factory: '0xc831a5cbfb4ac2da5ed5b194385dfd9bf5bfcba7', },
+})

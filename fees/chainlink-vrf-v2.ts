@@ -1,4 +1,4 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { getBlock } from "../helpers/getBlock";
@@ -65,17 +65,10 @@ const gasTokenId: IGasTokenId = {
 
 
 const fetch = (chain: Chain, version: number) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs_1: ITx[] = (await sdk.getEventLogs({
+  return async ({ toTimestamp, getLogs }: FetchOptions) => {
+    const logs_1: ITx[] = (await getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: version === 1 ? [topic0_v1] : [topic0_v2],
-      chain: chain
     })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const amount_fullfill = logs_1.map((e: ITx) => {
@@ -91,7 +84,7 @@ const fetch = (chain: Chain, version: number) => {
       })
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp));
+    const prices = (await getPrices([linkAddress, gasToken], toTimestamp));
     const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
@@ -103,7 +96,6 @@ const fetch = (chain: Chain, version: number) => {
     return {
       dailyFees: dailyFees.toString(),
       dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
     }
 
   }
@@ -111,26 +103,27 @@ const fetch = (chain: Chain, version: number) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     }
   }
 }

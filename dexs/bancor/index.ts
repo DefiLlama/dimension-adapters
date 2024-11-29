@@ -63,15 +63,14 @@ const adapter: BreakdownAdapter = {
         fetch: graphs("ethereum"),
         runAtCurrTime: false,
         customBackfill: undefined,
-        start: 1570665600,
+        start: '2019-10-10',
       }
     },
     "v3": {
       [CHAIN.ETHEREUM]: {
         fetch: fetchV3,
         runAtCurrTime: true,
-        start: 0,
-      }
+              }
     }
   }
 }

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import axios from "axios";
 import {CHAIN} from "../../helpers/chains";
 import {getTimestampAtStartOfDayUTC} from "../../utils/date";
@@ -7,7 +8,7 @@ const STATUS = {
 };
 
 const SUBGRAPHS = {
-    pdex: "https://api.thegraph.com/subgraphs/name/crypnosis/swych-pdex-v1",
+    pdex: sdk.graph.modifyEndpoint('6tn8tNYxKCEM5bTceMfA5jeGm3gtCrUGDwbKN7QGGat4'),
 };
 
 const toBigInt = (value: string | number) => {
@@ -128,7 +129,7 @@ export default {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchVolumeStats,
-            start: 1701720000,
+            start: '2023-12-04',
             runAtCurrTime: false,
         },
     },

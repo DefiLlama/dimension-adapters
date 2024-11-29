@@ -22,6 +22,7 @@ const chains: TChains = {
   [CHAIN.MOONBEAN]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
+  [CHAIN.FRAXTAL]: 'Fraxtal',
 };
 
 interface IVolumeall {
@@ -63,7 +64,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => getStartTimestamp(chain),
+        // start: async () => getStartTimestamp(chain),
         customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }

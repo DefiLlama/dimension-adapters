@@ -6,7 +6,7 @@ import { queryIndexer } from "../../helpers/indexer";
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: (async (timestamp: number, _: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const { getFromBlock, getToBlock, createBalances, } = options
         const startblock = await getFromBlock()
         const endblock = await getToBlock()
@@ -32,15 +32,16 @@ const adapter: Adapter = {
         dailyRevenue.addGasToken(seqGas[0].sum * -1)
         dailyRevenue.addGasToken(fees * 1e18)
 
-        return { timestamp, dailyFees, dailyRevenue, };
+        return { dailyFees, dailyRevenue, };
 
       }) as any,
-      start: 1628553600,
+      start: '2021-08-10',
       runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  version: 2
 }
 
 export default adapter;

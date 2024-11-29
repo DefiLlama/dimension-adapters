@@ -21,7 +21,7 @@ const adapter: Adapter = {
         })
         return { dailyFees, dailyRevenue, }
       }) as FetchV2,
-      start: 1691539200,
+      start: '2023-08-09',
     },
   },
   version: 2,

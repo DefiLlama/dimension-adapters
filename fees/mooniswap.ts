@@ -10,6 +10,7 @@ const baseAdapter = getDexChainFees({
 });
 
 const adapter: Adapter = {
+  version: 2,
   adapter: baseAdapter
 };
 

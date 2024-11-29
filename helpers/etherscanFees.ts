@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { httpPost } from '../utils/fetchURL';
 
 
@@ -17,9 +17,10 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
 
 export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string) {
     const adapter: Adapter = {
+        version: 2,
         adapter: {
             [chain]: {
-                fetch: async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+                fetch: async (options: FetchOptions) => {
                     const amount = await getEtherscanFees(options, url)
                     const dailyFees = options.createBalances()
                     if (cgToken)
@@ -33,10 +34,10 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                     }
 
                     return {
-                        timestamp: options.startOfDay, dailyFees,
+                        dailyFees,
                     };
                 },
-                start: 1690761600
+                start: '2023-07-31'
             },
         },
         protocolType: ProtocolType.CHAIN

@@ -53,9 +53,10 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.BASE]: {
 			fetch: fetchData(CHAIN.BASE),
-			start: 1706313600,
+			start: '2024-01-27',
 		},
 	},
+	version: 1
 };
 
 export default adapter;

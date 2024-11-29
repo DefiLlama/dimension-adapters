@@ -23,31 +23,32 @@ const unitrollerBASE = "0x1DB2466d9F5e10D7090E7152B68d62703a2245F0";
 // };
 
 
-const fetchoptimism = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchoptimism = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getFees(unitrollerOP, options, {});
   // const dailyHoldersRevenue = await getDailyVeloRewards(options)
   // dailyHoldersRevenue.addBalances(dailyRevenue)
 
-  return { timestamp, dailyFees, dailyRevenue, };
+  return { dailyFees, dailyRevenue, };
 };
 
-const fetchbase = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchbase = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getFees(unitrollerBASE, options, {});
   // const dailyHoldersRevenue = await getDailyVeloRewards(options)
   // dailyHoldersRevenue.addBalances(dailyRevenue)
 
-  return { timestamp, dailyFees, dailyRevenue, };
+  return { dailyFees, dailyRevenue, };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchoptimism as any,
-      start: 1664582400,
+      start: '2022-10-01',
     },
     [CHAIN.BASE]: {
       fetch: fetchbase as any,
-      start: 1693449471,
+      start: '2023-08-31',
     },
   },
 };

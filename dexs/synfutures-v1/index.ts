@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 // SynFutures v1 volume
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,16 +7,16 @@ const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
   polygon: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/polygon-v1',
+    subgraph: sdk.graph.modifyEndpoint('AoQ1npLLN7fTJc96XjnL8MgwHAvzxFDuE27kWfdrVATD'),
   },
   ethereum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/ethereum-v1',
+    subgraph: sdk.graph.modifyEndpoint('HLqiPUB5pYH8VztXAcvMW6VTq6avHkW77mYnKe8ov44r'),
   },
   bsc: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/bsc-v1',
+    subgraph: sdk.graph.modifyEndpoint('9AuL6Mga3pzjYDoLEJHncC3rQMCHibaW8syCwJv1QMNW'),
   },
   arbitrum: {
-    subgraph: 'https://api.thegraph.com/subgraphs/name/synfutures/arbitrum-one-v1',
+    subgraph: sdk.graph.modifyEndpoint('HktZa8SikfXFpjjGZML578RTrsieQdVENJviucpokLwH'),
   },
 }
 
@@ -57,19 +58,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1628128417,
+      start: '2021-08-05',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1659750817,
+      start: '2022-08-06',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1628128417,
+      start: '2021-08-05',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1628128417,
+      start: '2021-08-05',
     },
   },
 };

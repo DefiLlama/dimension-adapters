@@ -53,6 +53,7 @@ const getFetch = (): Fetch => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),

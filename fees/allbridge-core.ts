@@ -92,7 +92,7 @@ const getTronLogs = async (address: string, eventName: string, minBlockTimestamp
   return res.data;
 }
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   let dailyFees = await (options.chain === CHAIN.TRON ? fetchFeesTron(options) : fetchFees(options));
   const dailyRevenue = dailyFees * 0.2;
   const dailySupplySideRevenue = dailyFees * 0.8;
@@ -100,7 +100,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
-    timestamp,
   };
 };
 
@@ -113,45 +112,46 @@ const meta = {
 };
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.BSC]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: 1687838400,
+      start: '2023-06-27',
       meta,
     },
     [CHAIN.AVAX]: {
       fetch,
-      start: 1698030000,
+      start: '2023-10-23',
       meta,
     },
     [CHAIN.BASE]: {
       fetch,
-      start: 1706798200,
+      start: '2024-02-01',
       meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch,
-      start: 1702868400,
+      start: '2023-12-18',
       meta,
     },
     [CHAIN.TRON]: {
       fetch,
-      start: 1685109600,
+      start: '2023-05-26',
       meta,
     },
   },

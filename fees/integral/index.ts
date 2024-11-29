@@ -43,6 +43,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapters: SimpleAdapter = {
+  version: 1,
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,

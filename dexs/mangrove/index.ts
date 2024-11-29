@@ -1,49 +1,100 @@
-import { Balances } from "@defillama/sdk";
-import { Adapter, FetchOptions, FetchResultV2, FetchResultVolume } from "../../adapters/types";
+import type { ChainApi } from "@defillama/sdk";
+import type {
+  Adapter,
+  BaseAdapter,
+  FetchOptions,
+  FetchResultV2,
+} from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-const api = "https://data.mangrove.exchange/volumes-per-pair/total/all";
+type ChainConfig = {
+  core: string;
+  start: number;
+};
+
+const mangrove: Record<string, ChainConfig> = {
+  [CHAIN.BLAST]: {
+    core: "0xb1a49C54192Ea59B233200eA38aB56650Dfb448C",
+    start: '2024-02-27',
+  },
+  [CHAIN.ARBITRUM]: {
+    core: "0x109d9CDFA4aC534354873EF634EF63C235F93f61",
+    start: '2024-07-22',
+  },
+};
+
+const abi = {
+  OfferSuccess:
+    "event OfferSuccess(bytes32 indexed olKeyHash, address indexed taker, uint indexed id, uint takerWants, uint takerGives)",
+  OfferSuccessWithPosthookData:
+    "event OfferSuccessWithPosthookData(bytes32 indexed olKeyHash,address indexed taker,uint indexed id,uint takerWants,uint takerGives,bytes32 posthookData)",
+  olKeys:
+    "function olKeys(bytes32 olKeyHash) external view returns (address outbound_tkn,address inbound_tkn,uint tickSpacing)",
+};
+
+async function getToken(
+  map: Map<string, string>,
+  olKeyHash: string,
+  api: ChainApi,
+  chain: string,
+): Promise<string> {
+  let token = map.get(olKeyHash.toLowerCase());
+  if (token) {
+    return token;
+  }
+  const apiToken = await api.call({
+    abi: abi.olKeys,
+    params: [olKeyHash],
+    target: mangrove[chain].core,
+  });
+  token = apiToken[0] as string;
+  map.set(olKeyHash.toLowerCase(), token);
+  return token;
+}
+
+async function fetch({
+  getLogs,
+  api,
+  chain,
+  createBalances,
+}: FetchOptions): Promise<FetchResultV2> {
+  const dailyVolume = createBalances();
+  const olKeys = new Map<string, string>();
+  const logs = await Promise.all([
+    getLogs({
+      eventAbi: abi.OfferSuccessWithPosthookData,
+      target: mangrove[chain].core,
+    }),
+    getLogs({
+      eventAbi: abi.OfferSuccess,
+      target: mangrove[chain].core,
+    }),
+  ]).then((r) => r.flat());
+  for (const log of logs) {
+    const olKeyHash = log.olKeyHash;
+    const token = await getToken(olKeys, olKeyHash, api, chain);
+    dailyVolume.add(token, log.takerWants);
+  }
+  return {
+    dailyVolume,
+  };
+}
 
 const adapter: Adapter = {
   version: 2,
-
   adapter: {
-    blast: {
-      meta: {
-        methodology: {
-          dailyVolume: "Sum of all offers taken in the last 24hrs",
+    ...Object.entries(mangrove).reduce((acc, [key, config]) => {
+      acc[key] = {
+        meta: {
+          methodology: {
+            dailyVolume: "Sum of all offers taken in the last 24hrs",
+          },
         },
-      },
-      fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
-        const startBlock = await options.getStartBlock();
-        const endBlock = await options.getEndBlock();
-
-        const url = `${api}/${startBlock}/${endBlock}`;
-
-        const dailyVolume = options.createBalances() as Balances;
-
-        const data = await fetch(url).then((res) => res.json());
-
-        const markets = Object.keys(data).map((key) => {
-          const [base, quote] = key.split("-");
-          const { totalValueInBase, totalValueInQuote } = data[key][0];
-          return {
-            base,
-            quote,
-            totalValueInBase,
-            totalValueInQuote,
-          };
-        });
-
-        for (const market of markets) {
-          const { base, quote, totalValueInBase, totalValueInQuote } = market;
-          dailyVolume.add(base, totalValueInBase);
-          // dailyVolume.add(quote, totalValueInQuote);
-        }
-
-        return { dailyVolume };
-      },
-      start: 1708992000,
-    },
+        fetch,
+        start: config.start,
+      };
+      return acc;
+    }, {} as BaseAdapter),
   },
 };
 

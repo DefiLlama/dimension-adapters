@@ -1,10 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter(
   {
     [CHAIN.BSC]:
-      "https://api.thegraph.com/subgraphs/name/miguelangelrm/kyotoswap-exchange",
+      sdk.graph.modifyEndpoint('B1VWKexyptT1ixDdHsxj3EJnAxvuje7ANT39rnfq9rRG'),
   },
   {
     factoriesName: "pancakeFactories",

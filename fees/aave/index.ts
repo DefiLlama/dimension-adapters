@@ -1,9 +1,7 @@
-import { Adapter } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
 import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON, CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
-
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { V1Reserve, V2Reserve, V3Reserve } from "./types"
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -35,26 +33,26 @@ const headers: THeader = {
 const ONE_DAY = 24 * 60 * 60;
 
 const v1Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-multy-raw",
+  [ETHEREUM]: sdk.graph.modifyEndpoint('GJfRcmN4YAzKW3VH2ZKzTcWXjgtvkpAYSwFh1LfHsEuh'),
 }
 
 const v2Endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/aave/protocol-v2",
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v2-avalanche',
-  [POLYGON]: "https://api.thegraph.com/subgraphs/name/aave/aave-v2-matic"
+  [ETHEREUM]: sdk.graph.modifyEndpoint('8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N'),
+  [AVAX]: sdk.graph.modifyEndpoint('EZvK18pMhwiCjxwesRLTg81fP33WnR6BnZe5Cvma3H1C'),
+  [POLYGON]: sdk.graph.modifyEndpoint('H1Et77RZh3XEf27vkAmJyzgCME2RSFLtDS2f4PPW6CGp')
 };
 
 //V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs
 const v3Endpoints = {
-  [POLYGON]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon',
-  [AVAX]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-avalanche',
-  [ARBITRUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-arbitrum',
-  [OPTIMISM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-optimism',
-  [FANTOM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-fantom',
-  [HARMONY]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-harmony',
-  [CHAIN.ETHEREUM]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3',
-  [CHAIN.BSC]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-bnb',
-  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/aave/protocol-v3-gnosis',
+  [POLYGON]: sdk.graph.modifyEndpoint('Co2URyXjnxaw8WqxKyVHdirq9Ahhm5vcTs4dMedAq211'),
+  [AVAX]: sdk.graph.modifyEndpoint('2h9woxy8RTjHu1HJsCEnmzpPHFArU33avmUh4f71JpVn'),
+  [ARBITRUM]: sdk.graph.modifyEndpoint('DLuE98kEb5pQNXAcKFQGQgfSQ57Xdou4jnVbAEqMfy3B'),
+  [OPTIMISM]: sdk.graph.modifyEndpoint('DSfLz8oQBUeU5atALgUFQKMTSYV9mZAVYp4noLSXAfvb'),
+  [FANTOM]: sdk.graph.modifyEndpoint('6L1vPqyE3xvkzkWjh6wUKc1ABWYYps5HJahoxhrv2PJn'),
+  [HARMONY]: sdk.graph.modifyEndpoint('FifJapBdCqT9vgNqJ5axmr6eNyUpUSaRAbbZTfsViNsT'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
@@ -93,9 +91,9 @@ const v1Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = timestamp
-      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       const todaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -149,7 +147,6 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       }, 0);
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
         dailyHoldersRevenue: '0',
@@ -198,9 +195,9 @@ const blacklisted_v2_symbol: TMap = {
 }
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = timestamp
-      const yesterdaysTimestamp = timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       let poolID = poolIDs.V2
       if (chain == "avax") {
@@ -299,7 +296,6 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
       }
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
       };
@@ -368,10 +364,9 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
 
 const v3Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-      const todaysTimestamp = _timestamp
-      const yesterdaysTimestamp = _timestamp - 60 * 60 * 24
+    return async ({ endTimestamp }: FetchOptions)  => {
+      const todaysTimestamp = endTimestamp
+      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
 
       const todaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, todaysTimestamp);
       const yesterdaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, yesterdaysTimestamp);
@@ -408,6 +403,18 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
         const outstandingTreasuryIncomeUSD = outstandingTreasuryIncome * priceInUsd / (10 ** reserve.reserve.decimals);
 
+        if (depositorInterestUSD < 0 || depositorInterestUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
         acc.outstandingTreasuryIncomeUSD += outstandingTreasuryIncomeUSD;
         acc.treasuryIncomeUSD += treasuryIncomeUSD;
         acc.depositorInterestUSD += depositorInterestUSD;
@@ -429,7 +436,6 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
       const dailyRev = feeBreakdown.treasuryIncomeUSD
 
       return {
-        timestamp,
         dailyFees: dailyFee.toString(),
         dailyRevenue: dailyRev.toString(),
       };
@@ -437,80 +443,81 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-const adapter: Adapter = {
+const adapter = {
   breakdown: {
 //v1 subgraph no longer responding
 //    v1: {
 //      [ETHEREUM]: {
 //        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-//        start: 1578459600
+//        start: '2020-01-08'
 //      },
 //    },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
-        start: 1606971600
+        start: '2020-12-03'
       },
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: 1606971600
+        start: '2020-12-03'
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: 1606971600
+        start: '2020-12-03'
       },
     },
     v3: {
       [AVAX]: {
         fetch: v3Graphs(v3Endpoints)(AVAX),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [POLYGON]: {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [ARBITRUM]: {
         fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [FANTOM]: {
         fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [CHAIN.ETHEREUM]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [CHAIN.BSC]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.BSC),
-        start: 1700222400
+        start: '2023-11-17'
       },
       [CHAIN.XDAI]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.XDAI),
-        start: 1696420800
+        start: '2023-10-04'
       },
       [CHAIN.METIS]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.METIS),
-        start: 1682164800
+        start: '2023-04-22'
       },
       [CHAIN.BASE]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.BASE),
-        start: 1691496000
+        start: '2023-08-08'
       },
       [CHAIN.SCROLL]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.SCROLL),
-        start: 1705741200
+        start: '2024-01-20'
       },
     }
-  }
+  },
+  version: 2
 }
 
 export default adapter;

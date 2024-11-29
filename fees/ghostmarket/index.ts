@@ -1,6 +1,5 @@
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import type { ChainEndpoints } from "../../adapters/types"
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types"
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
@@ -30,13 +29,11 @@ const methodology = {
 
 const apis = (apiUrls: ChainEndpoints) => {
   return (chain: CHAIN) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const url = await buildUrl(apiUrls[chain], todaysTimestamp);
+    return async ({ endTimestamp }: FetchOptions) => {
+      const url = await buildUrl(apiUrls[chain], endTimestamp);
       const data = (await fetchURL(url));
 
       return {
-        timestamp,
         dailyFees: String(data.dailyFees),
         totalFees: String(data.userFees),
         dailyUserFees: String(data.dailyFees),
@@ -55,53 +52,54 @@ const apis = (apiUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch: apis(endpoints)(CHAIN.NEO),
-      start: 1629813600,
+      start: '2021-08-24',
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: apis(endpoints)(CHAIN.BSC),
-      start: 1653868800,
+      start: '2022-05-30',
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
       fetch: apis(endpoints)(CHAIN.AVAX),
-      start: 1653868800,
+      start: '2022-05-30',
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: apis(endpoints)(CHAIN.POLYGON),
-      start: 1653868800,
+      start: '2022-05-30',
       meta: {
         methodology
       }
     },
     [CHAIN.ETHEREUM]: {
       fetch: apis(endpoints)(CHAIN.ETHEREUM),
-      start: 1652400000,
+      start: '2022-05-13',
       meta: {
         methodology
       }
     },
     [CHAIN.PHANTASMA]: {
       fetch: apis(endpoints)(CHAIN.PHANTASMA),
-      start: 1577664000,
+      start: '2019-12-30',
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch: apis(endpoints)(CHAIN.BASE),
-      start: 1691660245,
+      start: '2023-08-10',
       meta: {
         methodology
       }

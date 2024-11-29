@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch,
-      start: 1687824000,
+      start: '2023-06-27',
     },
   },
 };

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
@@ -20,7 +21,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.MOONBEAM]: "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-v3",
+  [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('2YnTZfQmenjvJ3bihewLGgAKnyqjrMWrStux8ZFE7ee6'),
 }
 
 const fetch = (chain: Chain) => {
@@ -75,10 +76,11 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: 1684397388,
+      start: '2023-05-18',
     },
   },
 };

@@ -1,28 +1,32 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
+import { gql, GraphQLClient } from "graphql-request";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/substanceexchangedevelop/coreprod",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('HETFHppem3dz1Yjjv53D7K98dm5t5TErgYAMPBFPHVpi'),
+  [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta"
 };
 
 const blockNumberGraph = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-one-blocks",
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('64DCU8nq48qdDABnobpDafsg7RF75Rx5soKrHiGA8mqp'),
+    [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks" 
 }
+
+const headers = { 'sex-dev': 'ServerDev'} as any
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
+    return async ({ toTimestamp }: FetchOptions) => {
 
-      if (chain === CHAIN.ARBITRUM) {
         // Get blockNumers
         const blockNumerQuery = gql`
         {
             blocks(
-              where: {timestamp_lte:${timestamp}}
+              where: {timestamp_lte:${toTimestamp}}
               orderBy: timestamp
               orderDirection: desc
               first: 1
@@ -35,7 +39,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         const last24hBlockNumberQuery = gql`
         {
             blocks(
-              where: {timestamp_lte:${timestamp - 24 * 60 * 60}}
+              where: {timestamp_lte:${toTimestamp - 24 * 60 * 60}}
               orderBy: timestamp
               orderDirection: desc
               first: 1
@@ -46,8 +50,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
 
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain]);
-        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
+                headers: chain === CHAIN.ZETA ? headers: null,
+        });
+        const graphQLClient = new GraphQLClient(graphUrls[chain], {
+      		headers: chain === CHAIN.ZETA ? headers: null,
+    	});
 
 
         const blockNumber = (
@@ -89,28 +97,28 @@ const graphs = (graphUrls: ChainEndpoints) => {
         const dailyFee = Number(totalFee) - (Number(last24hTotalFee) / 10 ** 6)
 
         return {
-          timestamp,
           dailyFees: dailyFee.toString(),
           totalFees: totalFee.toString(),
         };
       }
 
-
       return {
-        timestamp,
         dailyFees: "0",
         totalFees: "0",
       };
     };
-  };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1700323200,
+      fetch: graphs(endpoints)(CHAIN.ARBITRUM) as any,
+      start: '2023-11-18',
     },
+    [CHAIN.ZETA]: {
+      fetch: graphs(endpoints)(CHAIN.ZETA) as any,
+    }, 
   },
 };
 

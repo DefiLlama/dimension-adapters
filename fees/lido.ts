@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -7,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import BigNumber from "bignumber.js";
 
 const endpoints = {
-  [ETHEREUM]: "https://api.thegraph.com/subgraphs/name/messari/lido-ethereum",
+  [ETHEREUM]: sdk.graph.modifyEndpoint('F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'),
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -59,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: 1608354000,
+        start: '2020-12-19',
         meta: {
           methodology: {
             UserFees: "Lido takes 10% fee on users staking rewards",

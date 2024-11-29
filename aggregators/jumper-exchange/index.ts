@@ -18,7 +18,7 @@ const contract: IContract = {
   [CHAIN.FANTOM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.MODE]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.SCROLL]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.ZKSYNC]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  [CHAIN.ERA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.METIS]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
 }
 
@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: 1691625600, }
+      [chain]: { fetch, start: '2023-08-10', }
     }
   }, {})
 };

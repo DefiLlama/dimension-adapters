@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql, GraphQLClient } from "graphql-request";
@@ -6,20 +7,23 @@ import { Chain } from "@defillama/sdk/build/general";
 
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/substanceexchangedevelop/coreprod",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('HETFHppem3dz1Yjjv53D7K98dm5t5TErgYAMPBFPHVpi'),
+  [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta"
 };
 
 const blockNumberGraph = {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-one-blocks",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('64DCU8nq48qdDABnobpDafsg7RF75Rx5soKrHiGA8mqp'),
+  [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks"
 }
+
+const headers = { 'sex-dev': 'ServerDev' } as any
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
 
-      if (chain === CHAIN.ARBITRUM) {
-        // Get blockNumers
-        const blockNumerQuery = gql`
+      // Get blockNumers
+      const blockNumerQuery = gql`
         {
             blocks(
               where: {timestamp_lte:${timestamp}}
@@ -32,7 +36,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           }
         `;
-        const last24hBlockNumberQuery = gql`
+      const last24hBlockNumberQuery = gql`
         {
             blocks(
               where: {timestamp_lte:${timestamp - 24 * 60 * 60}}
@@ -46,20 +50,24 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
 
-        const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain]);
-        const graphQLClient = new GraphQLClient(graphUrls[chain]);
+      const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
+        headers: chain === CHAIN.ZETA ? headers : null,
+      });
+      const graphQLClient = new GraphQLClient(graphUrls[chain], {
+        headers: chain === CHAIN.ZETA ? headers : null,
+      });
 
 
-        const blockNumber = (
-          await blockNumberGraphQLClient.request(blockNumerQuery)
-        ).blocks[0].number;
-        const last24hBlockNumber = (
-          await blockNumberGraphQLClient.request(last24hBlockNumberQuery)
-        ).blocks[0].number;
+      const blockNumber = (
+        await blockNumberGraphQLClient.request(blockNumerQuery)
+      ).blocks[0].number;
+      const last24hBlockNumber = (
+        await blockNumberGraphQLClient.request(last24hBlockNumberQuery)
+      ).blocks[0].number;
 
 
-        // get total volume
-        const tradeVolumeQuery = gql`
+      // get total volume
+      const tradeVolumeQuery = gql`
             {
               protocolMetrics(block:{number:${blockNumber}}){
                 totalVolume
@@ -67,8 +75,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
             }
           `;
 
-        // get total volume 24 hours ago
-        const lastTradeVolumeQuery = gql`
+      // get total volume 24 hours ago
+      const lastTradeVolumeQuery = gql`
           {
             protocolMetrics(block:{number:${last24hBlockNumber}}){
               totalVolume
@@ -77,39 +85,35 @@ const graphs = (graphUrls: ChainEndpoints) => {
         `;
 
 
-        let tradeVolume = (
-          await graphQLClient.request(tradeVolumeQuery)
-        ).protocolMetrics[0].totalVolume
+      let tradeVolume = (
+        await graphQLClient.request(tradeVolumeQuery)
+      ).protocolMetrics[0].totalVolume
 
-        let last24hTradeVolume = (
-          await graphQLClient.request(lastTradeVolumeQuery)
-        ).protocolMetrics[0].totalVolume
+      let last24hTradeVolume = (
+        await graphQLClient.request(lastTradeVolumeQuery)
+      ).protocolMetrics[0].totalVolume
 
-        const totalVolume = Number(tradeVolume) / 10 ** 6
-        const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
-
-        return {
-          timestamp,
-          totalVolume: totalVolume.toString(),
-          dailyVolume: dailyVolume.toString(),
-        };
-      }
-
+      const totalVolume = Number(tradeVolume) / 10 ** 6
+      const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
 
       return {
         timestamp,
-        totalVolume: "0",
-        dailyVolume: "0",
+        totalVolume: totalVolume.toString(),
+        dailyVolume: dailyVolume.toString(),
       };
-    };
+    }
   };
 };
+
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1700323200,
+      fetch: graphs(endpoints)(CHAIN.ARBITRUM) as any,
+      start: '2023-11-18',
+    },
+    [CHAIN.ZETA]: {
+      fetch: graphs(endpoints)(CHAIN.ZETA) as any,
     },
   },
 };

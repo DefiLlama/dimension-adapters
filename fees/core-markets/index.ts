@@ -1,11 +1,7 @@
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
-
 
 const endpoint = "https://api.studio.thegraph.com/query/62472/core-analytics-082/version/latest";
 
@@ -48,11 +44,11 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchVolume = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
 
   const response: IGraphResponse = await request(endpoint, query, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp),
+    from: startTimestamp,
+    to: endTimestamp,
   });
 
   // Merging both responses
@@ -85,11 +81,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
   const totalProtocolRevenue = "0";
   const totalSupplySideRevenue = "0";
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
   return {
-    timestamp: dayTimestamp,
-
     dailyFees: _dailyFees ?? "0",
     totalFees: _totalFees ?? "0",
 
@@ -109,8 +101,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetchVolume,
-      start: async () => 236678,
     },
   },
+  version: 2
 };
 export default adapter;

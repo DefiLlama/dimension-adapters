@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import { Fetch, FetchResultOptions } from "../../adapters/types";
+import { Fetch, FetchOptions, FetchResultOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
@@ -34,8 +34,7 @@ const cumulativeStatsQuery = gql`
         }
     }`;
 
-const fetch: Fetch = async (timestamp) => {
-    const timestampFrom = timestamp - 60 * 60 * 24;
+const fetch: Fetch = async (timestamp, _: any, options: FetchOptions) => {
 
     const tradedNotional = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp });
     const tradedPremium = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp });
@@ -44,11 +43,15 @@ const fetch: Fetch = async (timestamp) => {
 
     // Fetching daily trades
     const tradeResponse = await request(SUBGRAPH_URL, tradeQuery, {
-        timestampFrom,
-        timestampTo: timestamp,
+        timestampFrom: options.fromTimestamp,
+        timestampTo: options.toTimestamp,
     }) as { trades: Trade[] };
 
-    tradeResponse.trades.forEach((trade: Trade) => {
+    tradeResponse.trades
+        .filter((i) => Number(i.notionalUp)/1e6 < 10_000_000)
+        .filter((i) => Number(i.notionalDown)/1e6 < 10_000_000)
+        .filter((i) => Number(i.premium)/1e6 < 10_000_000)
+        .forEach((trade: Trade) => {
         tradedNotional.add('usd', (Number(trade.notionalUp) + Number(trade.notionalDown)) / 1e6, { skipChain: true });
         tradedPremium.add('usd', Number(trade.premium) / 1e6, { skipChain: true });
     });
@@ -60,7 +63,7 @@ const fetch: Fetch = async (timestamp) => {
 
     // Building fetch result
     const fetchResult: FetchResultOptions = {
-        timestamp: timestampFrom,
+        timestamp: options.toTimestamp,
         dailyNotionalVolume: await tradedNotional.getUSDString(),
         dailyPremiumVolume: await tradedPremium.getUSDString(),
         // totalNotionalVolume:  BigInt.(statsResponse.protocolStatistics.cumulativeVolume) / 1e6,
@@ -74,7 +77,7 @@ const adapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
-            start: 1710440552
+            start: '2024-03-14'
         },
     }
 };

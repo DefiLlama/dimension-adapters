@@ -6,7 +6,7 @@ import {
 } from '../../helpers/getUniSubgraphVolume';
 
 const ENDPOINTS: { [key: string]: string } = {
-  [CHAIN.SCROLL]: 'https://api.studio.thegraph.com/query/54326/rollie-beta/0.0.1',
+  [CHAIN.SCROLL]: 'https://api.studio.thegraph.com/query/76203/rollie-finance/0.0.3/',
 };
 const USDC_DECIMALS: { [key: string]: number } = {
   [CHAIN.SCROLL]: 6,
@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SCROLL]: {
       fetch: getFetch(CHAIN.SCROLL),
-      start: 1715212800,
+      start: '2024-05-09',
     },
   },
 };

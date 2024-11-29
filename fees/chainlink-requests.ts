@@ -1,4 +1,4 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees } from "../adapters/types";
+import { SimpleAdapter, ChainBlocks, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { queryFlipside } from "../helpers/flipsidecrypto";
@@ -27,9 +27,7 @@ interface ILog {
 
 const chains: string[] = [...new Set([CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.AVAX])];
 
-const build_gas_query = (timestamp: number): string => {
-  const now = new Date(timestamp * 1e3)
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+const build_gas_query = (from: number, to: number): string => {
   return chains.map((chain: Chain) => `
     SELECT
       SUM(TX_FEE),
@@ -41,12 +39,10 @@ const build_gas_query = (timestamp: number): string => {
       txs.BLOCK_NUMBER > 1000000
       and logs.BLOCK_NUMBER > 1000000
       and logs.TOPICS[0] = '0x9e9bc7616d42c2835d05ae617e508454e63b30b934be8aa932ebc125e0e58a64'
-      AND logs.BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'`).join(" union all ")
+      AND logs.BLOCK_TIMESTAMP BETWEEN '${from * 1000}' AND '${to * 1000}'`).join(" union all ")
 }
 
-const build_link_query = (timestamp: number): string => {
-  const now = new Date(timestamp * 1e3)
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24)
+const build_link_query = (from: number, to: number): string => {
   return chains.map((chain: Chain) => `
     SELECT
       data,
@@ -57,13 +53,13 @@ const build_link_query = (timestamp: number): string => {
       ${chain === "avax" ? "avalanche" : chain}.core.fact_event_logs logs
     WHERE
       topics[0] = '0xd8d7ecc4800d25fa53ce0372f13a416d98907a7ef3d8d3bdd79cf4fe75529c65'
-      AND logs.BLOCK_TIMESTAMP BETWEEN '${dayAgo.toISOString()}' AND '${now.toISOString()}'`).join(" union all ")
+      AND logs.BLOCK_TIMESTAMP BETWEEN '${from * 1000}' AND '${to * 1000}'`).join(" union all ")
 }
 
 const fetchRequests = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const query_paid = build_link_query(timestamp)
-    const gas_query = build_gas_query(timestamp)
+  return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
+    const query_paid = build_link_query(fromTimestamp, toTimestamp)
+    const gas_query = build_gas_query(fromTimestamp, toTimestamp)
 
     const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 260))
       .map(([data, topics, transactionHash, chain]: [string, string[], string, string]) => {
@@ -90,7 +86,7 @@ const fetchRequests = (chain: Chain) => {
 
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp))
+    const prices = (await getPrices([linkAddress, gasToken], fromTimestamp))
     const linkPrice = prices[linkAddress].price
     const dailyFeesUsd = link_amount * linkPrice;
     const dailyGasUsd = gas_fees * prices[gasToken].price;
@@ -98,7 +94,6 @@ const fetchRequests = (chain: Chain) => {
     return {
       dailyFees: dailyFeesUsd.toString(),
       dailyRevenue: (dailyFeesUsd - dailyGasUsd).toString(),
-      timestamp
     }
   }
 
@@ -106,30 +101,31 @@ const fetchRequests = (chain: Chain) => {
 
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchRequests(CHAIN.ETHEREUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetchRequests(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchRequests(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchRequests(CHAIN.OPTIMISM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchRequests(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetchRequests(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
       runAtCurrTime: true,
     },
   },

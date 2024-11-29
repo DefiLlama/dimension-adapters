@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/spcdex-io/arbitrum-stats",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/spcdex-io/bsc-stats",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9ob9R8ufkfEXnqp1s3izXjwQgXEnkSi9KXazYC9LdBC4'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('EMyH7BU8sp2sBCAtfDCqfnXyiKDUf3NbPpU6bg6vdAaH'),
 }
 
 const historicalDataSwap = gql`

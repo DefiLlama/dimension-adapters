@@ -4,7 +4,7 @@ import { queryIndexer } from "../helpers/indexer";
 
 const BAL_TOKEN = '0xba100000625a3754423978a60c9317c58a424e3D';
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
 
@@ -77,14 +77,15 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
   const dailyHoldersRevenue = dailyFees.clone();
   dailyHoldersRevenue.resizeBy(0.04);
 
-  return { timestamp, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, }
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, }
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
-      start: 1669852800,
+      start: '2022-12-01',
     },
   },
 

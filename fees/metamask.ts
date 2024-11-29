@@ -38,8 +38,9 @@ const graph = (chain: Chain) => {
           TX_HASH
         from
           ${chain}.core.fact_transactions
-        WHERE to_address = '${address[chain]}'
-        and BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
+        WHERE
+        BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
+        and to_address = '${address[chain]}'
         and status = 'SUCCESS'
       `
 
@@ -78,19 +79,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 1672531200,
+      start: '2023-01-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 1672531200,
+      start: '2023-01-01',
       runAtCurrTime: true,
     }
   },

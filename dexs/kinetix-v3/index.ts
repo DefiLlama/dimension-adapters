@@ -1,22 +1,20 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { BreakdownAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
   [CHAIN.KAVA]:
     "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/v3-subgraph",
+  [CHAIN.BASE]:
+    "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpointsV3,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD",
   },
   feesPercent: {
     type: "fees",
@@ -30,6 +28,7 @@ const v3Graphs = getGraphDimensions({
 
 const startTimeV3: { [key: string]: number } = {
   [CHAIN.KAVA]: 1693267200,
+  [CHAIN.BASE]: 1715126400,
 };
 
 const v3 = Object.keys(endpointsV3).reduce(

@@ -55,7 +55,7 @@ query trades($timestampFrom: Int!, $timestampTo: Int!) {
 `
 
 const endpoints = {
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/opynfinance/gamma-mainnet",
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6CYUucsekksXD3BRvwz9MPgLcytmrJEKFi9bhRT3trnt'),
 };
 
 const fetch: Fetch = async (timestamp) => {
@@ -81,7 +81,7 @@ const adapter: BreakdownAdapter = {
         "gamma": {
             [CHAIN.ETHEREUM]: {
                 fetch,
-                start: 1609200000
+                start: '2020-12-29'
             }
         }
     }

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
@@ -11,7 +12,7 @@ import { CHAIN } from "../helpers/chains";
 const STABLE_FEES = 0.0001;
 const VOLATILE_FEES = 0.002;
 const endpoint =
-  "https://api.thegraph.com/subgraphs/name/thenaursa/thena-v1";
+  sdk.graph.modifyEndpoint('FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1');
 
 const getFees = () => {
   return async (timestamp: number): Promise<FetchResultFees> => {
@@ -76,7 +77,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFees(),
-      start: 1672790400,
+      start: '2023-01-04',
       meta: {
         methodology
       }

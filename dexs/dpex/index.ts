@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -5,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/dpex-io/core",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('2k6i4iv8DHfp7ZdimWZvc4jGY3NR5oPeAaDx43zszuUj'),
 }
 
 const historicalDataSwap = gql`

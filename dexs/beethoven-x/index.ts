@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
@@ -5,8 +6,8 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/beethovenxfi/beethovenx",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/beethovenxfi/beethovenx-optimism",
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4XKeW12D2RAhqefPYT3MLoT64p1JnT5TBLnYaNeSLA8k'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F5jeL2nMXZt5LU6kSway7Vi2PTUcqDbw1gMQEbrmiVdJ'),
 };
 
 interface IPool {
@@ -57,7 +58,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v2Graphs(chain),
-        start: 1633392000,
+        start: '2021-10-05',
       }
     }
   }, {})

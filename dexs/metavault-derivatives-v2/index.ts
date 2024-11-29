@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import {
   SimpleAdapter,
   FetchResultVolume,
@@ -12,7 +13,7 @@ const endpoints: ChainEndpoints = {
   [CHAIN.LINEA]:
     "https://api.studio.thegraph.com/query/55804/linea-trade/version/latest",
   [CHAIN.POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/sdcrypt0/polygon-trade",
+    sdk.graph.modifyEndpoint('GAvL1WKMAVDdnSk96qvmSCMwL6pxfhAVYkQw6AgZU3td'),
 };
 
 interface IReferralRecord {
@@ -67,14 +68,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },

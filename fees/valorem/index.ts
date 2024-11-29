@@ -105,6 +105,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [ARBITRUM]: {
       fetch: graphOptions(endpoints)(ARBITRUM),

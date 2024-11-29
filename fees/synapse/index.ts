@@ -27,7 +27,7 @@ const chains: TChains = {
   [CHAIN.AURORA]:"aurora",
   [CHAIN.HARMONY]:"harmony",
   [CHAIN.CANTO]:"canto",
-  [CHAIN.DOGECHAIN]:"dogechain",
+  // [CHAIN.DOGECHAIN]:"dogechain",
   [CHAIN.BASE]: "base",
 };
 
@@ -107,12 +107,13 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: 1629504000,
+        start: '2021-08-21',
         meta: {
           methodology
         }

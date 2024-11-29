@@ -1,26 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints = {
   [CHAIN.MANTLE]: "https://agni.finance/graph/subgraphs/name/agni/exchange-v3"
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD,
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -38,7 +28,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v3Graphs(CHAIN.MANTLE),
-      start: 1689724800,
+      start: '2023-07-19',
     },
   },
 };

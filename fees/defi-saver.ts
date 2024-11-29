@@ -1,7 +1,7 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const logsTranferERC20: any[] = await queryIndexer(`
         SELECT
@@ -16,14 +16,15 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
           AND block_time BETWEEN llama_replace_date_range;
           `, options);
   logsTranferERC20.map((p: any) => dailyFees.add(p.contract_address, p.value))
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
+  return { dailyFees, dailyRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
-      start: 1640995200,
+      start: '2022-01-01',
     }
   }
 }

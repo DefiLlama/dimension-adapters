@@ -21,7 +21,9 @@ const adapter: Adapter = {
           "Content-Type": "application/json",
           "user-agent": "insomnia/2022.5.0"
         })
-        const fees = Object.values(pairs.dashboard_pairs_rate_24.pairs).reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
+        const fees = Object.values(pairs.dashboard_pairs_rate_24.pairs)
+          .filter((p:any)=> Number(p.tvl) > 1000)
+          .reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
         return {
           timestamp: Date.now()/1e3,
           dailyFees: fees,
@@ -29,13 +31,12 @@ const adapter: Adapter = {
         };
       },
       runAtCurrTime: true,
-      start: 0,
-    }
+          }
   }), {} as any)
 };
 
 const breakdownAdapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     "dodo": adapter.adapter
   }

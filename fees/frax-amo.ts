@@ -1,5 +1,6 @@
+import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const query = (amo: string, timestamp: number) => gql`
@@ -37,19 +38,19 @@ const findRevenue = (timedData: any) =>
   Number(timedData.depositedAmount) +
   Number(timedData.profitTaken);
 
-const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
-  const { amos, graph, FRAX } = config[chain];
+const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+  const { amos, graph, FRAX } = config[options.chain];
   const client = getGQLClient(graph);
-  const dailyRevenue = createBalances();
-  const totalRevenue = createBalances();
-  const dailyFees = createBalances();
+  const dailyRevenue = options.createBalances();
+  const totalRevenue = options.createBalances();
 
   await Promise.all(
     amos.map(async (amo: string) => {
-      const data = (await client.request(query(amo, toTimestamp))).amos[0];
-      data.positions.map((p: any) => {
-        const latest = findRevenue(p.fraxAccountingPerDay[0]);
-        const previous = findRevenue(p.fraxAccountingPerDay[1]);
+      const data = (await client.request(query(amo, timestamp))).amos[0];
+      data.positions.map(({ fraxAccountingPerDay: days }: any) => {
+        if (days.length < 2) return 
+        const latest = findRevenue(days[0]);
+        const previous = findRevenue(days[1]);
         dailyRevenue.add(FRAX, latest - previous);
         totalRevenue.add(FRAX, latest);
       });
@@ -57,6 +58,7 @@ const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
   );
 
   return {
+    timestamp,
     dailyRevenue,
     totalRevenue,
     dailyFees: dailyRevenue,
@@ -70,7 +72,7 @@ const config: {
   [CHAIN.ETHEREUM]: {
     FRAX: "0x853d955aCEf822Db058eb8505911ED77F175b99e",
     graph:
-      "https://api.thegraph.com/subgraphs/name/frax-finance-data/amo-subgraph---mainnet",
+      sdk.graph.modifyEndpoint('5pkNZTvdKuik24p8xtHctfaHcmNghNqb4ANo2BfQVefZ'),
     amos: [
       // '0x49ee75278820f409ecd67063D8D717B38d66bd71', // curve
       // '0x629C473e0E698FD101496E5fbDA4bcB58DA78dC4', // twaamm
@@ -82,7 +84,7 @@ const config: {
   [CHAIN.ARBITRUM]: {
     FRAX: "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
     graph:
-      "https://api.thegraph.com/subgraphs/name/frax-finance-data/amo-subgraph---arbitrum",
+      sdk.graph.modifyEndpoint('4zJMfZFyGvqbKyyyeVs4qE15BaEuwr5DLLZiSLhJzBNs'),
     amos: [
       "0xCDeE1B853AD2E96921250775b7A60D6ff78fD8B4", // v3
     ],
@@ -95,11 +97,10 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: 0,
-      },
+              },
     };
   }, {}),
-  version: 2,
+  version: 1,
 };
 
 export default adapter;

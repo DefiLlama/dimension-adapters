@@ -1,3 +1,4 @@
+import BigNumber from "bignumber.js";
 import request from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
@@ -8,7 +9,20 @@ const info: { [key: string]: any } = {
   [CHAIN.BLAST]: {
     subgraph: "https://api.synfutures.com/thegraph/v3-blast",
   },
+  [CHAIN.BASE]: {
+    subgraph: "https://api.synfutures.com/thegraph/v3-base",
+  }
 };
+
+function convertDecimals(value: string | number, decimals: number) {
+  if (decimals > 18) {
+    return new BigNumber(value).multipliedBy(10 ** (decimals - 18)).toString();
+  } else if (decimals < 18) {
+    return new BigNumber(value).dividedToIntegerBy(10 ** (18 - decimals)).toString();
+  } else {
+    return value;
+  }
+}
 
 const fetch = (chain: Chain) => {
   return async (
@@ -17,6 +31,7 @@ const fetch = (chain: Chain) => {
     { createBalances, startOfDay }: FetchOptions
   ) => {
     const dailyVolume = createBalances();
+    const cumulativeVolume = createBalances();
     const to = getTimestampAtStartOfNextDayUTC(timestamp)
     const from = getTimestampAtStartOfDayUTC(timestamp)
     const graphQL = `{
@@ -24,6 +39,7 @@ const fetch = (chain: Chain) => {
             instrument {
                 quote {
                     id
+                    decimals
                 }
             }
             hourlyDataList(where: {timestamp_gte: ${from}, timestamp_lte: ${to - 1}}, orderBy: timestamp, orderDirection: desc) {
@@ -37,16 +53,41 @@ const fetch = (chain: Chain) => {
     for (const {
       hourlyDataList,
       instrument: {
-        quote: { id },
+        quote: { id, decimals },
       },
     } of data.amms) {
       for (const { volume } of hourlyDataList) {
-        dailyVolume.addToken(id, volume);
+        dailyVolume.addToken(id, convertDecimals(volume, decimals));
       }
     }
 
+    const totalVolumeGraphQl = `{
+        quoteDatas {
+          id
+          quote{
+            decimals
+          }
+          totalVolume
+        }
+    }`;
+
+    const totalVolumeData = await request(
+      info[chain].subgraph,
+      totalVolumeGraphQl
+    );
+
+    for (const {
+      id,
+      quote: { decimals },
+      totalVolume,
+    } of totalVolumeData.quoteDatas) {
+      cumulativeVolume.addToken(id, convertDecimals(totalVolume, decimals));
+    }
+
+
     return {
       dailyVolume,
+      totalVolume: cumulativeVolume,
       timestamp: startOfDay,
     };
   };
@@ -56,7 +97,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetch(CHAIN.BLAST),
-      start: 1709197491,
+      start: '2024-02-29',
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: '2024-06-26',
     },
   },
 };

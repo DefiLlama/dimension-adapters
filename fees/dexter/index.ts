@@ -35,9 +35,9 @@ const adapter: Adapter = {
         [CHAIN.PERSISTENCE]: {
             fetch,
             runAtCurrTime: true,
-            start: 0,
-        },
-    }
+                    },
+    },
+    version: 1
 };
 
 export default adapter;
