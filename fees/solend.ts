@@ -19,6 +19,7 @@ interface DailyStats {
   protocolSpreadFees: string,
   protocolLiquidationTakeRate: string,
   liquidityProviderInterest: string,
+  closeFees: string,
   previous: string,
   next: string,
 }
@@ -29,20 +30,20 @@ const methodology = {
 }
 
 const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
-  const url = `${solendFeesURL}?ts=${endTimestamp}&span=24h`
+  const url = `${solendFeesURL}?ts=${endTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
     parseInt(stats.liquidityProviderInterest) +
     parseFloat(stats.hostOriginationFees) +
     parseFloat(stats.hostFlashLoanFees) +
-    parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.hostOriginationFees) +
+    parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.protocolLiquidationTakeRate);
+    parseFloat(stats.protocolLiquidationTakeRate) +
+    parseFloat(stats.closeFees) 
 
-  const dailyRevenue = parseFloat(stats.protocolSpreadFees) +
+  const dailyRevenue = parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
