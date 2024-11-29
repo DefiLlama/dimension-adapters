@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import coreAssets from "../helpers/coreAssets.json";
 
 const usdt = coreAssets.ethereum.USDT
-const stablecoins = [usdt , coreAssets.ethereum.USDC]
+const stablecoins = [usdt, coreAssets.ethereum.USDC]
 
 const mint_event =
   "event Mint( address indexed minter,address indexed benefactor,address indexed beneficiary,address collateral_asset,uint256 collateral_amount,uint256 usde_amount)";
@@ -21,7 +21,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
       ethers.zeroPadValue("0x71e4f98e8f20c88112489de3dded4489802a3a87", 32),
       ethers.zeroPadValue("0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5", 32),
     ]] as any,
-  }))[0].filter((log:any[])=>!["0x71e4f98e8f20c88112489de3dded4489802a3a87", "0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5"]
+  })).flat().filter((log:any[])=>!["0x71e4f98e8f20c88112489de3dded4489802a3a87", "0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5"]
     .some(a=>a.toLowerCase() === log[0].toLowerCase()))
 
   const out_flow = (await options.getLogs({
@@ -31,7 +31,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
       ethers.zeroPadValue("0xf2fa332bd83149c66b09b45670bce64746c6b439", 32),
     ]] as any,
-  }))[0]
+  })).flat()
 
   const extra_fees_to_distribute = (await options.getLogs({
     targets: stablecoins,
@@ -40,7 +40,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null, [
       ethers.zeroPadValue("0xd0ec8cc7414f27ce85f8dece6b4a58225f273311", 32),
     ]] as any,
-  }))[0]
+  })).flat()
 
   const dailyFeesInflow = options.createBalances();
   const supplyRewards = options.createBalances();
