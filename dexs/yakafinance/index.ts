@@ -15,8 +15,7 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
             totalVolumeUSD
         }
     }`;
-    // const url = sdk.graph.modifyEndpoint('3J7Ry3oVQhhCmfEMpCwqa1aMtEmt66dU9fUuR31DTvx1');
-    const url = 'https://api.studio.thegraph.com/query/82132/yaka-finance/version/latest'
+    const url = sdk.graph.modifyEndpoint('3J7Ry3oVQhhCmfEMpCwqa1aMtEmt66dU9fUuR31DTvx1');
     const req = await request(url, query);
     return {
         dailyVolume: req.pancakeDayData.dailyVolumeUSD,
