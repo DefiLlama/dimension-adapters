@@ -18,7 +18,8 @@ const fetchBounceBitCedefiStats = async ({ startTimestamp }: any) => {
   const dailyFees = stats.find(stat => stat.timestamp === dayTimestamp)?.fee || 0;
 
   return {
-    dailyFees: dailyFees
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees * 0.3
   };
 };
 
