@@ -11,8 +11,8 @@ interface DailyStats {
   timestamp: number;
 }
 
-const fetchBounceBitCedefiStats = async ({ startTimestamp }: any) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(startTimestamp * 1000));
+const fetchBounceBitCedefiStats = async (timestamp: any) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
   const dailyFees = (()=> {
@@ -23,13 +23,14 @@ const fetchBounceBitCedefiStats = async ({ startTimestamp }: any) => {
   })();
 
   return {
+    timestamp,
     dailyFees: dailyFees,
     dailyRevenue: dailyFees * 0.3
   };
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.BOUNCE_BIT]: {
       runAtCurrTime: false,
