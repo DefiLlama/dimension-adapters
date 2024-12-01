@@ -15,7 +15,12 @@ const fetchBounceBitCedefiStats = async ({ startTimestamp }: any) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(startTimestamp * 1000));
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
-  const dailyFees = stats.find(stat => stat.timestamp === dayTimestamp)?.fee || 0;
+  const dailyFees = (()=> {
+    const idx = stats.findIndex(stat => stat.timestamp === dayTimestamp);
+    if (idx === -1) return 0;
+    if (idx === 0) return stats[0]?.fee || 0;
+    return (stats[idx]?.fee || 0) - (stats[idx - 1]?.fee || 0)
+  })();
 
   return {
     dailyFees: dailyFees,
