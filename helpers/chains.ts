@@ -190,6 +190,7 @@ export enum CHAIN {
   UNIT0 = "unit0",
   SHIDO = "shido",
   ACE = "ace",
+  BOUNCE_BIT = "bouncebit",
 }
 
 // Don´t use
