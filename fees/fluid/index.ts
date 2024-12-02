@@ -317,6 +317,14 @@ const getFeesFromTo = async (
 
   const dailyFees = options.createBalances();
 
+  if (!liquidityOperateLogs?.length) {
+    console.warn(
+      `COULD NOT FETCH LIQUIDITY OPERATE LOGS on ${options.api.chain}. SETTING FEES TO 0 (INCORRECT).`
+    );
+
+    return dailyFees;
+  }
+
   const fromApi = new sdk.ChainApi({
     chain: options.api.chain,
     block: lastBlockBeforeFromTimestamp,
@@ -377,12 +385,17 @@ const getFeesFromTo = async (
       const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } =
         vaultEntiresDataTo[index];
 
-      dailyFees.add(
-        borrowToken,
-        new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
-          borrowBalance
-        )
+      let diff = new BigNumber(totalSupplyAndBorrowTo.totalBorrowVault).minus(
+        borrowBalance
       );
+      if (diff.isNegative()) {
+        console.warn(
+          `FEES ARE NEGATIVE FOR ${options.api.chain}, vault ${vault}. SKIPPING FEES FOR THIS VAULT, MUST BE INCORRECT.`
+        );
+        continue;
+      }
+
+      dailyFees.add(borrowToken, diff);
     } catch (ex) {}
   }
 
