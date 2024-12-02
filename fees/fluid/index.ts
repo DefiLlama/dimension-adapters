@@ -37,6 +37,8 @@ const abis: any = {
   },
 };
 
+const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92";
+
 const revenueResolver = async (api: sdk.ChainApi) => {
   const block = await api.getBlock();
 
@@ -250,9 +252,24 @@ const methodologyFluid = {
 };
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
+  const lastBlockBeforeFromTimestamp = (
+    await getLastBlockBeforeTimestamp(options.api, options.fromTimestamp)
+  ).number;
+  const lastBlockBeforeToTimestamp = (
+    await getLastBlockBeforeTimestamp(options.api, options.toTimestamp)
+  ).number;
+
   return {
-    dailyFees: await getFeesFromTo(options),
-    dailyRevenue: await getRevenueFromTo(options),
+    dailyFees: await getFeesFromTo(
+      options,
+      lastBlockBeforeFromTimestamp,
+      lastBlockBeforeToTimestamp
+    ),
+    dailyRevenue: await getRevenueFromTo(
+      options,
+      lastBlockBeforeFromTimestamp,
+      lastBlockBeforeToTimestamp
+    ),
   };
 };
 const adapter: Adapter = {
@@ -284,8 +301,14 @@ const adapter: Adapter = {
 
 export default adapter;
 
-const getFeesFromTo = async (options: FetchOptions): Promise<sdk.Balances> => {
+const getFeesFromTo = async (
+  options: FetchOptions,
+  lastBlockBeforeFromTimestamp: number,
+  lastBlockBeforeToTimestamp: number
+): Promise<sdk.Balances> => {
   const liquidityOperateLogs = (await options.getLogs({
+    fromBlock: lastBlockBeforeFromTimestamp,
+    toBlock: lastBlockBeforeToTimestamp,
     target: config.liquidity,
     onlyArgs: true,
     eventAbi:
@@ -294,8 +317,15 @@ const getFeesFromTo = async (options: FetchOptions): Promise<sdk.Balances> => {
 
   const dailyFees = options.createBalances();
 
-  const fromApi = options.fromApi;
-  const toApi = options.toApi;
+  const fromApi = new sdk.ChainApi({
+    chain: options.api.chain,
+    block: lastBlockBeforeFromTimestamp,
+  });
+  const toApi = new sdk.ChainApi({
+    chain: options.api.chain,
+    block: lastBlockBeforeToTimestamp,
+  });
+
   const vaults: string[] = await (
     await vaultResolver(toApi)
   ).getAllVaultsAddresses();
@@ -335,7 +365,9 @@ const getFeesFromTo = async (options: FetchOptions): Promise<sdk.Balances> => {
     const vaultOperates = liquidityOperateLogs.filter(
       (x) =>
         x[0] == vault && // filter user must be vault
-        x[1] == borrowToken // filter token must be vault borrow token (ignore supply / withdraw)
+        x[1] == borrowToken && // filter token must be vault borrow token (ignore supply / withdraw)
+        x[5] != reserveContract // filter receiver must NOT be the reserve contract (which triggers rebalances, balancing out accrued fees)
+      // reserve contract rebalances are 100% fees, so we must not subtract those operate logs from the fees amount between from and to timestamps
     );
 
     for (const vaultOperate of vaultOperates) {
@@ -357,14 +389,11 @@ const getFeesFromTo = async (options: FetchOptions): Promise<sdk.Balances> => {
   return dailyFees;
 };
 
-const getRevenueFromTo = async (options: FetchOptions): Promise<number> => {
-  const lastBlockBeforeFromTimestamp = (
-    await getLastBlockBeforeTimestamp(options.api, options.fromTimestamp)
-  ).number;
-  const lastBlockBeforeToTimestamp = (
-    await getLastBlockBeforeTimestamp(options.api, options.toTimestamp)
-  ).number;
-
+const getRevenueFromTo = async (
+  options: FetchOptions,
+  lastBlockBeforeFromTimestamp: number,
+  lastBlockBeforeToTimestamp: number
+): Promise<number> => {
   const LPRsevenueFromTo = await getLiquidityRevenueFromTo(
     options,
     lastBlockBeforeFromTimestamp,
@@ -524,10 +553,13 @@ const getVaultsMagnifierRevenueFromTo = async (
     lastBlockBeforeToTimestamp
   );
 
-  toBalancesApi = await getVaultMagnifierCollectedRevenueFromTo(
+  const collectedRevenues = await getVaultMagnifierCollectedRevenueFromTo(
     options,
-    vaults
+    vaults,
+    lastBlockBeforeFromTimestamp,
+    lastBlockBeforeToTimestamp
   );
+  toBalancesApi.addBalances(collectedRevenues);
 
   const revenueFrom = await fromBalancesApi.getUSDValue();
   const revenueTo = await toBalancesApi.getUSDValue();
@@ -537,10 +569,14 @@ const getVaultsMagnifierRevenueFromTo = async (
 
 const getVaultMagnifierCollectedRevenueFromTo = async (
   options: FetchOptions,
-  vaults: string[]
+  vaults: string[],
+  lastBlockBeforeFromTimestamp: number,
+  lastBlockBeforeToTimestamp: number
 ) => {
   const values = options.createBalances();
   const rebalanceEventLogs = await options.getLogs({
+    fromBlock: lastBlockBeforeFromTimestamp,
+    toBlock: lastBlockBeforeToTimestamp,
     targets: vaults,
     onlyArgs: true,
     flatten: false,
