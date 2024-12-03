@@ -63,6 +63,9 @@ const chainConfig: IConfig = {
   },
   [CHAIN.MANTLE]: {
     treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+  },
+  [CHAIN.BASE]: {
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
   }
 };
 
@@ -223,6 +226,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.MANTLE),
       start: '2024-03-27',
     },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1731368987,
+    }
   },
 };
 
