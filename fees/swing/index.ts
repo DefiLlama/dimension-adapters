@@ -70,6 +70,16 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
     };
 };
 
+
+const meta = {
+    methodology: {
+        UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
+        Fees: "A 0.3% bridge fee is collected",
+        Revenue: "100% of the fee collected, 85%% of the fee collected to partners, 15% of the fee collected to treasury",
+        ProtocolRevenue: "A 15% of the fee collected to treasury",
+    }
+};
+
 const adapter: SimpleAdapter = {
     adapter: {
         ...Object.entries(chains).reduce((acc, chain) => {
@@ -79,11 +89,14 @@ const adapter: SimpleAdapter = {
                 ...acc,
                 [key]: {
                     fetch: fetchVolume,
-                    start: '2022-11-01', // 2022-11-01
+                    start: '2023-11-01', // 2023-11-01'
+                    meta
                 },
             };
         }, {}),
+
     },
+
     version: 1
 };
 
