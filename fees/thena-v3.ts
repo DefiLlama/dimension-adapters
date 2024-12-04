@@ -34,7 +34,7 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).fusionDayData;
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }
