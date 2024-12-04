@@ -12,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
   );
 
   return {
-    timestamp: dimensionsData.timestamp,
     dailyVolume: dimensionsData.dailyVolume,
     totalVolume: dimensionsData.totalVolume,
   };
@@ -24,7 +23,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.CHAINFLIP]: {
       fetch,
       start: "2023-11-23", // Protocol start date
-      runAtCurrTime: true,
       meta: {
         methodology: {
           Volume:

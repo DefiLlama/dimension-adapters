@@ -12,8 +12,6 @@ const fetch = async (options: FetchOptions) => {
   );
 
   return {
-    timestamp: dimensionsData.timestamp,
-
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
     dailyProtocolRevenue: dimensionsData.dailyProtocolRevenue,
     totalProtocolRevenue: dimensionsData.totalProtocolRevenue,
@@ -34,7 +32,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.CHAINFLIP]: {
       fetch,
       start: "2023-11-23", // Protocol start date
-      runAtCurrTime: true,
       meta: {
         methodology: {
           Revenue:
