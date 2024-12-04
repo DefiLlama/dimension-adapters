@@ -254,6 +254,7 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   const now = endTimestamp;
   const startOfDay = startTimestamp;
   const tokens = contracts[chain].map(i => i[0]);
+  if (chain === CHAIN.ARBITRUM) tokens.push('0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9')
   const decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens, chain });
 
   tokenDecimals = tokens.reduce((obj, token, index) => {
