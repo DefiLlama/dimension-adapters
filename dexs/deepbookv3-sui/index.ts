@@ -27,7 +27,7 @@ const fetchVolumeInUsd = (
     const quoteToken = coins[quoteTokenSymbol];
 
     if (!quoteToken) {
-      console.warn(`Base token for poolName ${poolName} not found`);
+      console.warn(`Quote token for poolName ${poolName} not found`);
       continue;
     }
 
