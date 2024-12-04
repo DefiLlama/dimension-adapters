@@ -196,7 +196,6 @@ export enum CHAIN {
   WORLD_CHAIN = "world-chain",
   B2_NETWORK = "b2-network",
   ARCHWAY = "archway-1",
-
 }
 
 // Don´t use

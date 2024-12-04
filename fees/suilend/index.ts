@@ -32,10 +32,11 @@ const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
   const userFees =
     stats.borrowInterestPaid +
     stats.borrowFees +
-    stats.protocolFees +
-    stats.liquidationProtocolFees;
+    stats.liquidationProtocolFees +
+    stats.liquidatorBonuses;
 
-  const dailyRevenue = stats.borrowInterestPaid +
+  const dailyRevenue = stats.borrowFees +
+    stats.protocolFees +
     stats.liquidationProtocolFees;
 
   return {

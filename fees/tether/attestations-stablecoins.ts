@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { findClosest } from "../../helpers/utils/findClosest"
+import { httpGet } from "../../utils/fetchURL";
 
 export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestations:number, attestations: {
     time: string, // time of report
@@ -14,7 +15,7 @@ export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestat
                 fetch: async ({ fromTimestamp, createBalances }: FetchOptions) => {
                     const dailyFees = createBalances()
 
-                    const stablecoinData = await fetch(`https://stablecoins.llama.fi/stablecoin/${stablecoinId}`).then(r=>r.json())
+                    const stablecoinData = await httpGet(`https://stablecoins.llama.fi/stablecoin/${stablecoinId}`)
 
                     const supply = (findClosest(fromTimestamp, stablecoinData.tokens.map((d: any)=>({...d, time: d.date*1e3})), 1.5 * 24 * 3600) as any).circulating.peggedUSD
 
