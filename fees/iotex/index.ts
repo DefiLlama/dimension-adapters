@@ -23,9 +23,6 @@ const adapter: Adapter = {
     [CHAIN.IOTEX]: {
       fetch,
       start: "2021-06-22",
-      meta: {
-        hallmarks: [],
-      },
     },
   },
   protocolType: ProtocolType.CHAIN,
