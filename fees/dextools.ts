@@ -27,7 +27,7 @@ Please make the payment exclusively to this address (ERC20 payments to the ERC20
 UQC2-PvRTlqkHfeUdDx80rVRnaW7WoNWlpq4LBx7oWVhKisC
 
 Submit the form immediately after payment to avoid losing its validity.
-The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts! 
+The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts!
 
 For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as the payment code. Entering the token creator's payment code without creating the token through the creator will mark your update request as spam.
 */
@@ -46,8 +46,14 @@ const tokens = {
     base: []
 } as any
 
+const target_even: any = {
+    [CHAIN.ETHEREUM]: '0x4f62c60468A8F4291fec23701A73a325b2540765',
+    [CHAIN.BSC]: '0x997Cc123cF292F46E55E6E63e806CD77714DB70f',
+    [CHAIN.BASE]: '0x997Cc123cF292F46E55E6E63e806CD77714DB70f',
+}
+
 const sol = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, target: 'GZ7GGigCJF5AUDky2kts5GAsHwdfkzuFXochCQy3cxfW' })
+    const dailyFees = await getSolanaReceived({ options, target: '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho' })
     return { dailyFees, dailyRevenue: dailyFees, }
 }
 
@@ -57,7 +63,7 @@ const adapter: Adapter = {
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
-            fetch: evmReceivedGasAndTokens('0x997Cc123cF292F46E55E6E63e806CD77714DB70f', tokens[chain]),
+            fetch: evmReceivedGasAndTokens(target_even[chain], tokens[chain]),
                     }
     }), {
         [CHAIN.SOLANA]: {
