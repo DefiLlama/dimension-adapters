@@ -24,12 +24,7 @@ const adapter: Adapter = {
       fetch,
       start: "2021-06-22",
       meta: {
-        hallmarks: [
-          [1671206400, "IoTeX introduces W3bstream"],
-          [1695830400, "IoTeX launches DePINscan"],
-          [1724428800, "IoTeX unveils 2.0"],
-          [1731600000, "IoTeX launches ioID"],
-        ],
+        hallmarks: [],
       },
     },
   },
