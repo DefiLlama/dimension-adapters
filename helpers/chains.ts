@@ -19,6 +19,7 @@ export enum CHAIN {
   OKEXCHAIN = "okexchain",
   OPTIMISM = "optimism",
   POLYGON = "polygon",
+  POLYNOMIAL = "polynomial",
   RONIN = "ronin",
   ROOTSTOCK = "rsk",
   XDAI = "xdai",
@@ -219,6 +220,7 @@ const LITECOIN = "litecoin";
 const DOGE = "doge";
 const ZKSYNC = "zksync";
 const MANTLE = "mantle";
+const POLYNOMIAL = "polynomial";
 // Don't use
 export {
   ARBITRUM,
@@ -242,4 +244,5 @@ export {
   RONIN,
   XDAI,
   ZKSYNC,
+  POLYNOMIAL,
 };
