@@ -1,41 +1,32 @@
+import { start } from "repl";
 import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-
-const URL_CONFIG = {
-  "sui": "https://dapi.api.sui-prod.bluefin.io/marketData",
-}
-
-const PRODUCT_CONFIG = {
-  "sui": ["ETH-PERP", "BTC-PERP", "SUI-PERP", "SOL-PERP", "APT-PERP", "AVAX-PERP", "SEI-PERP", "TIA-PERP", "ARB-PERP", "POL-PERP"],
-}
-
 interface Volume {
-  totalVolume: string | undefined,
-  dailyVolume: string | undefined,
-  timestamp: number,
+  totalVolume: string | undefined;
+  dailyVolume: string | undefined;
+  timestamp: number;
 }
 
-const fetchURL = (baseURL: string, product: string): string => {
-  return `${baseURL}?symbol=${product}`;
-}
-
-const computeVolume = async (timestamp: number, baseUrl: string, productIds: string[]): Promise<Volume> => {
-  const dailyVolume = (await Promise.all(productIds.map((productId: string) =>
-    httpGet(fetchURL(baseUrl, productId))
-  )))
-  .map((e: any) => (Number(e._24hrClosePrice) / 10 ** 18) * (Number(e._24hrVolume) / 10 ** 18))
-  .reduce((volume: number, sum: number) => sum + volume, 0);
+const computeVolume = async (
+  startTime: number,
+  endTime: number
+): Promise<Volume> => {
+  const dailyVolume = (
+    await httpGet(
+      `https://dapi.api.sui-prod.bluefin.io/marketData/volume?startTime=${startTime}&&endTime=${endTime}`
+    )
+  ).volume;
 
   return {
     totalVolume: undefined,
     dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: timestamp,
+    timestamp: endTime/1000,
   };
 };
 
 const fetchSUI = async (timeStamp: number) => {
-  return await computeVolume(timeStamp, URL_CONFIG.sui, PRODUCT_CONFIG.sui);
+  return await computeVolume((timeStamp - 86399) * 1000, timeStamp * 1000); //endpoint expects time in ms
 };
 
 const startTime = 1695600000; // 25th September when SUI trading starts
@@ -46,7 +37,7 @@ const adapter: BreakdownAdapter = {
       [CHAIN.SUI]: {
         fetch: fetchSUI,
         start: startTime,
-        runAtCurrTime: true
+        runAtCurrTime: false,
       },
     },
   },
