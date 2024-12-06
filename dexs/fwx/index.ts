@@ -20,7 +20,7 @@ const CHAIN_ID = {
 };
 
 const endpoints = {
-  tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
+  tradingVolume: `https://analytics.fwx.finance/api/trade/daily-trade-volume`,
   openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
