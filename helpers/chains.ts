@@ -193,7 +193,6 @@ export enum CHAIN {
   BOUNCE_BIT = "bouncebit",
   ZIRCUIT = "zircuit",
   WC = "wc",
-  WORLD_CHAIN = "world-chain",
   B2_NETWORK = "b2-network",
   ARCHWAY = "archway-1",
 }
