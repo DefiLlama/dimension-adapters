@@ -11,7 +11,7 @@ const chains: Record<string, string> = {
     [CHAIN.POLYGON]: 'polygon',
     [CHAIN.ARBITRUM]: 'arbitrum',
     [CHAIN.ARCHWAY]: 'archway-1',
-    [CHAIN.B2_NETWORK]: 'b2-network',
+    [CHAIN.BSQUARED]: 'b2-network',
     [CHAIN.BASE]: 'base',
     [CHAIN.BITCOIN]: 'bitcoin',
     [CHAIN.BITLAYER]: 'bitlayer',
