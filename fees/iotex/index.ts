@@ -11,9 +11,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
     totalFees,
-    totalRevenue: totalFees,
   };
 };
 
