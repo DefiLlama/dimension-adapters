@@ -1,22 +1,23 @@
-import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, ProtocolType } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const IOTEX_SUM_GAS_URL = "https://gateway1.iotex.me/analyzer/sumGasFeeIotx";
 
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = await getDailyFees(options.startTimestamp);
+const fetch = async (timestamp) => {
+  const dailyFees = await getDailyFees(timestamp);
   const totalFees = await getTotalFees();
 
   return {
     dailyFees,
     totalFees,
+    timestamp,
   };
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.IOTEX]: {
       fetch,
