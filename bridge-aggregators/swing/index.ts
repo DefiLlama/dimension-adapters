@@ -35,7 +35,7 @@ const chains: Record<string, string> = {
     [CHAIN.OSMOSIS]: 'osmosis-1',
     [CHAIN.SCROLL]: 'scroll',
     [CHAIN.TAIKO]: 'taiko',
-    [CHAIN.WORLD_CHAIN]: 'world-chain',
+    [CHAIN.WC]: 'world-chain',
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
