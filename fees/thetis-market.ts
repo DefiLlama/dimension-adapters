@@ -20,17 +20,21 @@ const fetch = async (timestamp: number) => {
 
     return {
       totalFees: totalFees.toString(),
-      totalRevenue: totalFees.times(80).dividedBy(100).toString(),
+      totalSupplySideRevenue: totalFees.times(80).dividedBy(100).toString(),
+      totalRevenue: totalFees.times(20).dividedBy(100).toString(),
       dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.times(80).dividedBy(100).toString(),
+      dailySupplySideRevenue: dailyFees.times(80).dividedBy(100).toString(),
+      dailyRevenue: dailyFees.times(20).dividedBy(100).toString(),
       timestamp: startTime,
     };
   }
 
   return {
     totalFees: 0,
+    totalSupplySideRevenue: 0,
     totalRevenue: 0,
     dailyFees: 0,
+    dailySupplySideRevenue: 0,
     dailyRevenue: 0,
 
     timestamp: startTime,
@@ -45,8 +49,9 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",
-          Revenue:
-            "Revenue is 80% of the total fees, which are distributed to LP stakers",
+          SupplySideRevenue:
+            "SupplySideRevenue is 80% of the total fees, which are distributed to LP stakers",
+          Revenue: "Revenue is 20% of the total fees",
         },
       },
     },
