@@ -20,18 +20,18 @@ const fetch = async (timestamp: number) => {
 
     return {
       totalFees: totalFees.toString(),
-      totalSupplySideRevenue: totalFees.times(80).dividedBy(100).toString(),
+      totalRevenue: totalFees.times(80).dividedBy(100).toString(),
       dailyFees: dailyFees.toString(),
-      dailySupplySideRevenue: dailyFees.times(80).dividedBy(100).toString(),
+      dailyRevenue: dailyFees.times(80).dividedBy(100).toString(),
       timestamp: startTime,
     };
   }
 
   return {
     totalFees: 0,
-    totalSupplySideRevenue: 0,
+    totalRevenue: 0,
     dailyFees: 0,
-    dailySupplySideRevenue: 0,
+    dailyRevenue: 0,
 
     timestamp: startTime,
   };
