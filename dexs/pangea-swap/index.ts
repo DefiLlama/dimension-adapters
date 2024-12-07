@@ -34,7 +34,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       runAtCurrTime: true,
-            customBackfill: undefined
     },
   },
 };

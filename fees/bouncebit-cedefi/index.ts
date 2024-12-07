@@ -33,8 +33,6 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.BOUNCE_BIT]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchBounceBitCedefiStats,
       start: "2024-11-11",
     },
