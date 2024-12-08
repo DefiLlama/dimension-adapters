@@ -33,7 +33,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: "2024-08-09",
+      start: "2024-11-26",
       meta: {
         methodology: {
           dailyVolume:

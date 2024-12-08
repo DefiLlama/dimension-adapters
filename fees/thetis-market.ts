@@ -1,8 +1,8 @@
 import BigNumber from "bignumber.js";
 import { Adapter } from "../adapters/types";
-import fetchURL from "../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 import { CHAIN } from "../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
+import fetchURL from "../utils/fetchURL";
 
 const endpoint = "https://api.thetis.market/indexer/v1/stats/";
 
@@ -45,7 +45,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: "2024-08-09",
+      start: "2024-11-26",
       meta: {
         methodology: {
           Fees: "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",
