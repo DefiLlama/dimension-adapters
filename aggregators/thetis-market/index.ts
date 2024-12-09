@@ -1,4 +1,3 @@
-import BigNumber from "bignumber.js";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -10,19 +9,10 @@ const fetch = async (timestamp: number) => {
   const startTime = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const endTime = startTime + 86400;
 
-  const volumeRes = await fetchURL(
-    `${endpoint}volume-daily?startTime=${startTime}&endTime=${endTime}`
-  );
-
-  if (volumeRes.length) {
-    return {
-      dailyVolume: new BigNumber(volumeRes[0].swap).dividedBy(1e18).toString(),
-      timestamp: startTime,
-    };
-  }
+  const [{ swap } = { swap: 0}] = [] = await fetchURL(`${endpoint}volume-daily?startTime=${startTime}&endTime=${endTime}`);
 
   return {
-    dailyVolume: 0,
+    dailyVolume: swap/1e18,
     timestamp: startTime,
   };
 };
