@@ -33,7 +33,11 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
         first: 1000
         orderDirection: asc
         orderBy: startTimestamp
-        where: { startTimestamp_gte: $fromTimestamp, startTimestamp_lte: $toTimestamp, volume_gt: 0 }
+        where: {
+          startTimestamp_gte: $fromTimestamp
+          startTimestamp_lte: $toTimestamp
+          volume_gt: 0
+        }
       ) {
         volume
         fees
@@ -88,9 +92,11 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
   return {
     timestamp,
     ...cumulative,
-    totalFees: cumulative.totalRevenue,
     ...daily,
-    dailyFees: daily.dailyRevenue,
+    dailySupplySideRevenue: daily.dailyPremiumVolume,
+    totalSupplySideRevenue: cumulative.totalPremiumVolume,
+    dailyHoldersRevenue: daily.dailyRevenue,
+    totalDailyHoldersRevenue: cumulative.totalRevenue,
   };
 }
 
