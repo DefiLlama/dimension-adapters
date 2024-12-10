@@ -12,7 +12,8 @@ const methodology = {
 }
 
 const fetch = async (timestamp: number) => {
-    const stats: DexData = (await fetchURL(`https://aws-api.javlis.com/api/javsphere/coin-volume`)).data;
+    const stats: DexData = await fetchURL(`https://aws-api.javlis.com/api/javsphere/coin-volume`);
+
     return {
         dailyVolume: `${stats.volume24}`,
         timestamp,
