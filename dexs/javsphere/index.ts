@@ -5,7 +5,6 @@ import { CHAIN } from "../../helpers/chains";
 type DexData = {
     volumeTotal: number,
     volume24: number,
-
 };
 
 const methodology = {
