@@ -36,7 +36,12 @@ const adapter: SimpleAdapter = {
     zilliqa: {
       fetch,
       runAtCurrTime: true,
-      start: '2024-12-07',
+      start: '2024-12-10',
+      meta: {
+        methodology: {
+          Volume: "Volume of all trades on Plunderswap at the start of the day (12:00:00 UTC) for the previous day"
+        }
+      }
     },
   },
 };
