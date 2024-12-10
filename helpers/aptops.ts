@@ -1,5 +1,5 @@
-import {httpGet, httpPost} from "../utils/fetchURL";
-import {GraphQLClient} from "graphql-request";
+import { httpGet, httpPost } from "../utils/fetchURL";
+import { GraphQLClient } from "graphql-request";
 
 export const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 
@@ -44,25 +44,31 @@ const blockRangeQuery = `query Block($firstBlock: bigint, $limit: Int) {
 }`;
 
 // Given a timestamp, returns the transaction version that is closest to that timestamp.
-const getVersionFromTimestamp = async (timestamp: Date) => {
-    let left = 0;
+const getVersionFromTimestamp = async (timestamp: Date, minBlock = 0) => {
+    let left = minBlock;
     let right = await graphQLClient.request(latestBlockQuery).then(r => Number(r.block_metadata_transactions[0].block_height));
-    let middle = Math.round(right / 2);
+    let middle;
     while (left + 100 < right) {
-        const middleBlock = await graphQLClient.request(blockQuery, {block: middle}).then(r => r.block_metadata_transactions[0]);
+        middle = Math.round((left + right) / 2);
+        const middleBlock = await graphQLClient.request(blockQuery, { block: middle }).then(r => r.block_metadata_transactions[0]);
         const middleBlockDate = new Date(middleBlock.timestamp);
-        if (middleBlockDate === timestamp) {
+        if (middleBlockDate.getTime() === timestamp.getTime()) {
             return Number(middleBlock.version);
         }
-        if (timestamp < middleBlockDate) {
+        if (timestamp.getTime() < middleBlockDate.getTime()) {
             right = middle;
         } else {
             left = middle + 1;
         }
-        middle = Math.round((left + right) / 2);
     }
-    const blocks: {timestamp: string, version: string}[] = await graphQLClient.request(blockRangeQuery, {firstBlock: left, limit: right - left}).then(r => r.block_metadata_transactions);
-    const mappedBlocks = blocks.map((e) => ({version: Number(e.version), delta: Math.abs(timestamp.getTime() - new Date(e.timestamp).getTime())}));
+    const blocks: { timestamp: string, version: string }[] = await graphQLClient.request(
+        blockRangeQuery,
+        { firstBlock: left, limit: right - left }
+    ).then(r => r.block_metadata_transactions);
+    const mappedBlocks = blocks.map((e) => ({
+        version: Number(e.version),
+        delta: Math.abs(timestamp.getTime() - new Date(e.timestamp).getTime())
+    }));
     mappedBlocks.sort((a, b) => a.delta - b.delta);
     return mappedBlocks[0].version;
 }
@@ -74,7 +80,7 @@ const getResources = async (account: string): Promise<any[]> => {
     do {
         let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
         if (cursor) url += '&start=' + cursor
-        const res = await httpGet(url, undefined, {withMetadata: true})
+        const res = await httpGet(url, undefined, { withMetadata: true })
         lastData = res.data
         data.push(...lastData)
         cursor = res.headers['x-aptos-cursor']
@@ -85,7 +91,7 @@ const getResources = async (account: string): Promise<any[]> => {
 async function view<T extends any[]>(functionStr: string, type_arguments: string[] = [], args: (string | boolean | number)[] = [], ledgerVersion?: bigint | number): Promise<T> {
     let path = `https://fullnode.mainnet.aptoslabs.com/v1/view`
     if (ledgerVersion !== undefined) path += `?ledger_version=${ledgerVersion.toString()}`
-    return (await httpPost(path, {"function": functionStr, "type_arguments": type_arguments, arguments: args})) as T
+    return (await httpPost(path, { "function": functionStr, "type_arguments": type_arguments, arguments: args })) as T
 }
 
 export {

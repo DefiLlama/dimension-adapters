@@ -8,6 +8,12 @@ const MAINNET_PACKAGE_ADDRESS = "0xface729284ae5729100b3a9ad7f7cc025ea09739cd6e7
 // The emojicoin module.
 const MODULE = "emojicoin_dot_fun";
 
+// Date at which the contract was deployed.
+const DEPLOYED_AT_DATE = '2024-11-20';
+
+// Block close to the start date but before it.
+const DEPLOYED_AT_BLOCK = 254000000;
+
 // Return type of the `registry_view` view function.
 type RegistryView = {
     cumulative_chat_messages: { value: string },
@@ -34,8 +40,8 @@ async function registryView(version?: number) {
 
 const fetch = async (options: FetchOptions) => {
     // Convert timestamps to versions.
-    const startVersion = await getVersionFromTimestamp(new Date(options.startTimestamp * 1000));
-    const endVersion = await getVersionFromTimestamp(new Date(options.endTimestamp * 1000));
+    const startVersion = await getVersionFromTimestamp(new Date(options.startTimestamp * 1000), DEPLOYED_AT_BLOCK);
+    const endVersion = await getVersionFromTimestamp(new Date(options.endTimestamp * 1000), DEPLOYED_AT_BLOCK);
 
     // Get the view results at the start and end bounds.
     const viewStart = await registryView(startVersion);
@@ -75,7 +81,7 @@ export default {
     adapter: {
         [CHAIN.APTOS]: {
             fetch,
-            start: '2024-11-19',
+            start: DEPLOYED_AT_DATE,
         },
     }
 };
