@@ -75,7 +75,7 @@ const meta = {
     methodology: {
         UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
         Fees: "A 0.3% bridge fee is collected",
-        Revenue: "100% of the fee collected, 85%% of the fee collected to partners, 15% of the fee collected to treasury",
+        Revenue: "100% of the fee collected, 85% of the fee collected to partners, 15% of the fee collected to treasury",
         ProtocolRevenue: "A 15% of the fee collected to treasury",
     }
 };
