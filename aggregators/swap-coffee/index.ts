@@ -15,7 +15,6 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp}) => {
         })
 
     return {
-        timestamp: endTimestamp,
         dailyVolume: statistics?.volume,
         dailyFees: statistics?.fees,
     };
