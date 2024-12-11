@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
       start: '2024-12-10',
       meta: {
         methodology: {
-          Volume: "Volume of all trades on Plunderswap at the start of the day (12:00:00 UTC) for the previous day"
+          Volume: "Volume of trades on Plunderswap at the start of the day (12:00:00 UTC) for the previous day"
         }
       }
     },
