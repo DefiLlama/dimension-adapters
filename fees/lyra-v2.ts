@@ -1,21 +1,18 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import axios from "axios";
+import { httpGet } from "../utils/fetchURL";
 
-async function getLyraV2Fees({endTimestamp}) {
-  const data = await axios.get(`https://api.lyra.finance/public/statistics?instrument_name=ALL&end_time=${endTimestamp*1e3}`, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+async function getLyraV2Fees(timestamp: number, _: any, { endTimestamp }: FetchOptions) {
+  const { result: { daily_fees}} = await httpGet(`https://api.lyra.finance/public/statistics?instrument_name=ALL&end_time=${endTimestamp*1e3}`);
 
   return {
-    dailyFees: data.data.result.daily_fees.toString(),
+    timestamp,
+    dailyFees: daily_fees,
   };
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.LYRA]: {
       fetch: getLyraV2Fees,
