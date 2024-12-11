@@ -50,32 +50,26 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(KanaChainID.ethereum),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.BSC]: {
       fetch: fetch(KanaChainID.bsc),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(KanaChainID.Avalanche),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(KanaChainID.Arbitrum),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(KanaChainID.polygon),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.ERA]: {
       fetch: fetch(KanaChainID.zkSync),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.APTOS]: {
@@ -88,17 +82,14 @@ const adapter: SimpleAdapter = {
           timestamp,
         };
       },
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.SUI]: {
       fetch: fetch(KanaChainID.sui),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(KanaChainID.solana),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
   },

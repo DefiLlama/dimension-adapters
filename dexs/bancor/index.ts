@@ -61,8 +61,6 @@ const adapter: BreakdownAdapter = {
     "v2.1": {
       [CHAIN.ETHEREUM]: {
         fetch: graphs("ethereum"),
-        runAtCurrTime: false,
-        customBackfill: undefined,
         start: '2019-10-10',
       }
     },
