@@ -12,11 +12,18 @@ interface IVolumeall {
 const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay, }: FetchOptions) => {
   const dailyVolume = createBalances()
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const nextDayTimestamp = dayTimestamp + 24 * 60 * 60  // Add 24 hours in seconds
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
   
-  // Find the entry closest to the start of day
-  const closestEntry = historicalVolume
-    .reduce((closest, current) => {
+  // First filter entries within the day
+  const dayEntries = historicalVolume.filter(entry => {
+    const entryTime = new Date(entry.time).getTime() / 1000;
+    return entryTime >= dayTimestamp && entryTime < nextDayTimestamp;
+  });
+
+  // Then find the closest entry to start of day from filtered entries
+  if (dayEntries.length > 0) {
+    const closestEntry = dayEntries.reduce((closest, current) => {
       const currentTime = new Date(current.time).getTime() / 1000;
       const closestTime = new Date(closest.time).getTime() / 1000;
       return Math.abs(currentTime - dayTimestamp) < Math.abs(closestTime - dayTimestamp) 
@@ -24,7 +31,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startO
         : closest;
     });
 
-  if (closestEntry) {
     dailyVolume.addCGToken("zilliqa", Number(closestEntry.value));
   }
 
