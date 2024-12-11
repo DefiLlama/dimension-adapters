@@ -49,7 +49,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       runAtCurrTime: true,
-      customBackfill: undefined,
       fetch: fetchMangoStats,
             meta: {
         methodology,

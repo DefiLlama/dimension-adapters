@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter2({
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('wN4QJb8MQXLwYwsEAVBAZpd112fYRkJPfetjS329ghh')
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
 }, {
   factoriesName: "factories",
-  dayData: "algebraDayData",
+  dayData: "fusionDayData",
   dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });

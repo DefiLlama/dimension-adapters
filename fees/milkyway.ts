@@ -36,7 +36,6 @@ const adapter: Adapter = {
   adapter: {
     osmosis: {
       fetch,
-      runAtCurrTime: false,
       // 2024-04-30T17:55:14:00Z
       start: '2024-04-30',
       meta: {

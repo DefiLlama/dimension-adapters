@@ -10,9 +10,8 @@ import {
 
 const endpoints = {
   [CHAIN.BLAST]:
-    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v2-subgraph/0.0.1/gn",
+    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v2-subgraph/latest/gn",
 };
-
 
 const graphs = getChainVolume({
   graphUrls: endpoints,
@@ -38,4 +37,3 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
-

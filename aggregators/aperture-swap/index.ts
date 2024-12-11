@@ -81,47 +81,38 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-07-18',
         },
         [CHAIN.ARBITRUM]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-07-10',
         },
         [CHAIN.AVAX]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-10-07',
         },
         [CHAIN.BASE]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-10-13',
         },
         [CHAIN.BSC]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-10-10',
         },
         [CHAIN.OPTIMISM]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-10-09',
         },
         [CHAIN.POLYGON]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-10-09',
         },
         [CHAIN.MANTA]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-09-19',
         },
         [CHAIN.SCROLL]: {
             fetch: fetch,
-            runAtCurrTime: false,
             start: '2023-12-16',
         }
     }

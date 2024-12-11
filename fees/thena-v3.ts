@@ -17,7 +17,7 @@ type IURL = {
 }
 
 const endpoints: IURL = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('wN4QJb8MQXLwYwsEAVBAZpd112fYRkJPfetjS329ghh')
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
 }
 
 const fetch = (chain: Chain) => {
@@ -27,14 +27,14 @@ const fetch = (chain: Chain) => {
     const graphQuery = gql
       `
       {
-        algebraDayData(id: ${dateId}) {
+        fusionDayData(id: ${dateId}) {
           id
           feesUSD
         }
       }
     `;
 
-    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).fusionDayData;
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     if (dailyFee === undefined) return { timestamp }

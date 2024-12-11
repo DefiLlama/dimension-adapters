@@ -16,7 +16,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      runAtCurrTime: false,
       start: '2023-04-06',
     },
   },

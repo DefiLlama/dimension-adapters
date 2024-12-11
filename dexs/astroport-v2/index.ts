@@ -34,27 +34,22 @@ const adapter: SimpleAdapter = {
     "terra2": {
       fetch: fetch("phoenix-1"),
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
     [CHAIN.INJECTIVE]: {
       fetch: fetch("injective-1"),
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
     neutron: {
       fetch: fetch("neutron-1"),
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
     [CHAIN.SEI]: {
       fetch: fetch("pacific-1"),
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
     [CHAIN.OSMOSIS]: {
       fetch: fetch("osmosis-1"),
       runAtCurrTime: true,
-      customBackfill: undefined,
           }
   },
 };
