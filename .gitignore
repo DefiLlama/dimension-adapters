@@ -1,7 +1,0 @@
-node_modules
-.vscode
-.DS_store
-.env
-.idea
-yarn.lock
-.gitignore
