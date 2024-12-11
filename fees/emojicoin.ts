@@ -71,6 +71,7 @@ const fetch = async (options: FetchOptions) => {
         dailyFees,
         totalFees,
         dailyRevenue: dailyFees,
+        totalRevenue: totalFees,
         dailyVolume,
         totalVolume,
     };
