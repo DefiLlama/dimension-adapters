@@ -8,6 +8,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 type ChainMap = {
   [chain: string | Chain]: string;
 }
+
 const historicalVolumeEndpoints: ChainMap = {
   [CHAIN.BSC]: "https://api.kiloex.io/common/queryTradeSummary",
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
