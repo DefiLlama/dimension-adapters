@@ -194,6 +194,7 @@ export enum CHAIN {
   BOUNCE_BIT = "bouncebit",
   ZIRCUIT = "zircuit",
   WC = "wc",
+  ARCHWAY = "archway-1",
 }
 
 // Don´t use

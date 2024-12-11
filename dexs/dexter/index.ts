@@ -20,7 +20,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     persistence: {
       fetch,
-      runAtCurrTime: false,
       start: '2023-03-27',
     },
   },

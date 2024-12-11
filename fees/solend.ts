@@ -61,8 +61,6 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchSolendStats,
       start: '2023-01-31',
       meta: {

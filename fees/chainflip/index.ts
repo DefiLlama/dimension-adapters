@@ -14,10 +14,12 @@ const fetch = async (options: FetchOptions) => {
   return {
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
     dailyProtocolRevenue: dimensionsData.dailyProtocolRevenue,
+    dailyRevenue: dimensionsData.dailyProtocolRevenue,
     totalProtocolRevenue: dimensionsData.totalProtocolRevenue,
 
     // Ingress, Egress, and Broker fees paid by the user per swap
     dailyUserFees: dimensionsData.dailyUserFees,
+    dailyFees: dimensionsData.dailyUserFees,
     totalUserFees: dimensionsData.totalUserFees,
 
     // Fees collected by the LP. This is a fixed percentage of swap value.

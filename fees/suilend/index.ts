@@ -53,8 +53,6 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchSuilendStats,
       start: '2024-03-01',
       meta: {

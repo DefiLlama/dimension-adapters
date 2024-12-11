@@ -26,7 +26,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
       start: '2023-01-03',
     },
   }

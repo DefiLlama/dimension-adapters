@@ -23,7 +23,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.FUSION]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
   }
 };
