@@ -63,9 +63,20 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const token0 = token0s[idx]
     const token1 = token1s[idx]
     const fee = fees[idx]/1e4
+
     logs.forEach((log: any) => {
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0) * fee, amount1: Number(log.amount1) * fee })
+      let amount0 = log.amount0In;
+      let amount1 = log.amount1Out;
+
+      if (Number(amount0) === 0) {
+        amount0 = log.amount0out;
+        amount1 = log.amount1In;
+      }
+
+      let fee0 = Number(amount0) * fee;
+      let fee1 = Number(amount1) * fee;
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
     })
   })
 
