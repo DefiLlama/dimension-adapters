@@ -44,11 +44,17 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         new Date(options.startOfDay * 1000)
     );
 
+    // get the end of the day timestamp 
+    const unixEndDayTimestamp = getUniqStartOfTodayTimestamp(
+        new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
+    );
+
+
     const dailyRes = await httpGet("https://swap.prod.swing.xyz/v0/metrics/stats", {
         headers: {
             'Content-Type': 'application/json',
         },
-        params: { startDate: unixTimestamp },
+        params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
     });
 
     const chainFeeVolumes = dailyRes?.historicalFeeByChain?.map((history: any) => {
