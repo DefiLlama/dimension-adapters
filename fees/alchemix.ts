@@ -1,4 +1,4 @@
-import type { FetchOptions, FetchResultV2 } from "../adapters/types";
+import type { FetchOptions, } from "../adapters/types";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getEnv } from "../helpers/env";
@@ -47,9 +47,9 @@ const timestampToDate = (timestamp: number): string => {
   return date.toISOString().split('T')[0];
 };
 
-const fetch = async ({ api, endTimestamp }: FetchOptions): Promise<FetchResultV2> => {
-  const recipient = CONFIG[api.chain]
-  const apiDate = timestampToDate(endTimestamp)
+const fetch = async (timestamp: number, _: any, { chain}: FetchOptions) => {
+  const recipient = CONFIG[chain]
+  const apiDate = timestampToDate(timestamp)
 
   const pinataHash = await getPinataHash('den_revenue.json')
   const { data } = await axios.get(ipfs + pinataHash)
@@ -61,11 +61,11 @@ const fetch = async ({ api, endTimestamp }: FetchOptions): Promise<FetchResultV2
     return sum +  usdValue;
   }, 0);
 
-  return { dailyFees: totalFeesUsdValue, dailyRevenue: totalFeesUsdValue }
+  return { timestamp, dailyFees: totalFeesUsdValue, dailyRevenue: totalFeesUsdValue }
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: { 
       fetch,
