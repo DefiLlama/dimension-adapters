@@ -42,7 +42,8 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.BASE,
     CHAIN.TON,
     CHAIN.TRON,
-    CHAIN.BITCOIN
+    CHAIN.BITCOIN,
+    CHAIN.SUI
 ];
 
 
