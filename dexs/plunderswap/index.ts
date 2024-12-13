@@ -13,10 +13,10 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startO
   const dailyVolume = createBalances()
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
-  
+
   // Format the timestamp without milliseconds
   const targetTime = new Date(dayTimestamp * 1000).toISOString().replace('.000Z', 'Z');
-  
+
   // Filter entries to find exact 00:00 UTC entry of the current day
   const dayEntries = historicalVolume.filter(entry => {
     return entry.time === targetTime;
@@ -32,8 +32,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startO
 const adapter: SimpleAdapter = {
   adapter: {
     zilliqa: {
-      fetch,
-      runAtCurrTime: true,
+      fetch: fetch,
       start: '2024-12-10',
       meta: {
         methodology: {
