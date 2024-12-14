@@ -10,6 +10,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   let last24HourVolume = 0;
   let fetchTimestamp = timestamp;
+  let last24HourFees = 0;
 
   // The second element in the array is the last 24 hour volume, while the first element is the current volume of the ongoing day
   if (globalOverview && globalOverview.daily_trading_volume.length > 1) {
@@ -19,6 +20,19 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     )
       .shiftedBy(-6)
       .toNumber();
+    const last24HourTradingFee = new BigNumber(
+      globalOverview.fees.trading_fee[1].value
+    )
+      .shiftedBy(-6)
+      .toNumber();
+    const last24HourFundingFee = new BigNumber(
+      globalOverview.fees.net_funding_fee[1].value
+    )
+      .shiftedBy(-6)
+      .toNumber();
+
+    last24HourFees = last24HourTradingFee + last24HourFundingFee;
+
     fetchTimestamp = Math.round(
       new Date(globalOverview.daily_trading_volume[1].date).getTime() / 1000
     );
@@ -26,6 +40,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   return {
     dailyVolume: last24HourVolume,
+    dailyRevenue: last24HourFees,
     timestamp: fetchTimestamp,
   };
 };
@@ -38,6 +53,14 @@ const adapter = {
         fetch,
         runAtCurrTime: true,
         start: "2024-12-13",
+        meta: {
+          methodology: {
+            dailyVolume:
+              "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
+            dailyRevenue:
+              "Revenue is calculated by summing the trading and funding fees of all perpetual trades settled on the protocol that day.",
+          },
+        },
       },
     },
   },
