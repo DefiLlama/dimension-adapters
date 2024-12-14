@@ -63,13 +63,13 @@ const fetchFeesByChain = () => {
       runAtCurrTime: true,
       fetch:  async (timestamp: number) => {
 
-        const url = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
-        const url2 = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
-        const url3 = `https://midgard.ninerealms.com/v2/pools?period=24h`
+        const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
+        const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
+        const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
         const [earnings, revenue, pools]: any = (await Promise.all([ // TODO: Cache all this requests. Equal for all chains
-          httpGet(url, { headers: {"x-client-id": "defillama"}}),
-          httpGet(url2, { headers: {"x-client-id": "defillama"}}),
-          httpGet(url3, { headers: {"x-client-id": "defillama"}}),
+          httpGet(earningsUrl, { headers: {"x-client-id": "defillama"}}),
+          httpGet(reserveUrl, { headers: {"x-client-id": "defillama"}}),
+          httpGet(poolsUrl, { headers: {"x-client-id": "defillama"}}),
         ]))
 
         const selectedEarningInterval = findInterval(timestamp, earnings.intervals);
