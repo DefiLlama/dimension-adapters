@@ -33,7 +33,7 @@ const classic = Object.keys(endpointsClassic).reduce(
     ...acc,
     [chain]: {
       fetch: graphsClassic(chain as Chain),
-      start: 1710806400,
+      start: '2024-03-19',
       meta: {
         methodology: {
           Fees: "GlyphExchange charges a flat 0.3% fee",

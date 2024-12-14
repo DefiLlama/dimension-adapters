@@ -6,7 +6,7 @@ const query = `
         managerFeeMinteds(
           where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { daoFee, tokenPriceAtLastFeeMint }
+        ) { daoFee, tokenPriceAtFeeMint }
       }`
 
 
@@ -72,7 +72,7 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 const calculateFees = (data: any): number =>
   data.reduce((acc: number, item: any) => {
     const daoFee = Number(item.daoFee);
-    const tokenPrice = Number(item.tokenPriceAtLastFeeMint);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
     const daoFeeInEth = daoFee / 1e18;
     const tokenPriceInEth = tokenPrice / 1e18;
     const result = daoFeeInEth * tokenPriceInEth;
@@ -94,10 +94,10 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: 1638446653, },
-    [CHAIN.POLYGON]: { fetch, start: 1627560253, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1679918653, },
-    [CHAIN.BASE]: { fetch, start: 1703073853, },
+    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', },
+    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', },
+    [CHAIN.BASE]: { fetch, start: '2023-12-20', },
   },
   version: 2
 }

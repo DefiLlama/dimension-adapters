@@ -26,9 +26,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ALGORAND]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    },
+          },
   }
 };
 

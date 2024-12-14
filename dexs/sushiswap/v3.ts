@@ -19,10 +19,10 @@ const endpointsV3 = {
     [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G1Q6dviDfMm6hVLvCqbfeB19kLmvs7qrnBvXeFndjhaU'),
     // [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'),
     [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
-    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/32073/v3-base/v0.0.1",
+    [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
     [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
     [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
-    // [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock/gn",
+    [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
     [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn",
     // [CHAIN.FILECOIN]: "https://sushi.laconic.com/subgraphs/name/sushiswap/v3-filecoin",
     [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/api/public/fc1ae952-7a36-44ac-9e9b-f46d70cedf7d/subgraphs/sushi-v3/v3-metis/v0.0.1/gn",
@@ -85,25 +85,14 @@ const v3 = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: async (options: FetchOptions) => {
-        try {
-          const res = (await v3Graphs(chain as Chain)(options))
-          return {
-            totalVolume: res?.totalVolume || 0,
-            dailyVolume: res?.dailyVolume || 0,
-            totalFees: res?.totalFees || 0,
-            totalUserFees: res?.totalUserFees || 0,
-            dailyFees: res?.dailyFees,
-            dailyUserFees: res?.dailyUserFees || 0
-          }
-        } catch {
-          return {
-            totalVolume: 0,
-            dailyVolume: 0,
-            totalFees: 0,
-            totalUserFees: 0,
-            dailyFees: 0,
-            dailyUserFees: 0
-          }
+        const res = (await v3Graphs(chain as Chain)(options))
+        return {
+          totalVolume: res.totalVolume,
+          dailyVolume: res.dailyVolume,
+          totalFees: res.totalFees,
+          totalUserFees: res.totalUserFees,
+          dailyFees: res.dailyFees,
+          dailyUserFees: res.dailyUserFees0
         }
       },
       start: startTimeV3[chain],

@@ -58,7 +58,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFees(),
-      start: 1680627600,
+      start: '2023-04-04',
     },
   },
 };

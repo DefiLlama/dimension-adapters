@@ -73,33 +73,33 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.AVAX]: {
         fetch: graphsV1(CHAIN.AVAX),
-        start: 1628467200,
+        start: '2021-08-09',
       },
       [CHAIN.BSC]: {
         fetch: graphsV1(CHAIN.BSC),
-        start: 1664841600,
+        start: '2022-10-04',
       },
       [CHAIN.ARBITRUM]: {
         fetch: graphsV1(CHAIN.ARBITRUM),
-        start: 1664841600,
+        start: '2022-10-04',
       },
     },
     v2: {
       [CHAIN.AVAX]: {
         fetch: graphsV2(CHAIN.AVAX),
-        start: 1668556800
+        start: '2022-11-16'
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchV2,
-        start: 1672012800
+        start: '2022-12-26'
       },
       [CHAIN.BSC]: {
         fetch: fetchV2,
-        start: 1677801600
+        start: '2023-03-03'
       },
       [CHAIN.ETHEREUM]: {
         fetch: fetchV2,
-        start: 1695513600
+        start: '2023-09-24'
       }
     }
   },

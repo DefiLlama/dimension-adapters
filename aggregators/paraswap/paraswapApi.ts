@@ -68,7 +68,7 @@ const adapter: Adapter = {
     ...all,
     [chain]:{
         fetch: fetch(chain),
-        start: 1647907200,
+        start: '2022-03-22',
     }
   }), {} as any)
 }

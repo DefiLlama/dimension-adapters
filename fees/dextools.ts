@@ -27,15 +27,14 @@ Please make the payment exclusively to this address (ERC20 payments to the ERC20
 UQC2-PvRTlqkHfeUdDx80rVRnaW7WoNWlpq4LBx7oWVhKisC
 
 Submit the form immediately after payment to avoid losing its validity.
-The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts! 
+The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts!
 
 For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as the payment code. Entering the token creator's payment code without creating the token through the creator will mark your update request as spam.
 */
 
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
-import { evmReceivedGasAndTokens } from '../helpers/token';
+import { evmReceivedGasAndTokens, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -47,18 +46,15 @@ const tokens = {
     base: []
 } as any
 
+const target_even: any = {
+    [CHAIN.ETHEREUM]: '0x4f62c60468A8F4291fec23701A73a325b2540765',
+    [CHAIN.BSC]: '0x997Cc123cF292F46E55E6E63e806CD77714DB70f',
+    [CHAIN.BASE]: '0x997Cc123cF292F46E55E6E63e806CD77714DB70f',
+}
+
 const sol = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const value = (await queryDune("3521814", {
-        start: options.startTimestamp,
-        end: options.endTimestamp,
-        receiver: 'GZ7GGigCJF5AUDky2kts5GAsHwdfkzuFXochCQy3cxfW'
-    }));
-    dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-    }
+    const dailyFees = await getSolanaReceived({ options, target: '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho' })
+    return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 const adapter: Adapter = {
@@ -67,13 +63,11 @@ const adapter: Adapter = {
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
-            fetch: evmReceivedGasAndTokens('0x997Cc123cF292F46E55E6E63e806CD77714DB70f', tokens[chain]),
-            start: 0,
-        }
+            fetch: evmReceivedGasAndTokens(target_even[chain], tokens[chain]),
+                    }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     })
     // missing tron and ton

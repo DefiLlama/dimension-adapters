@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
         const data = await httpGet(api)
         const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
         const dailyVolume = data.find((t:any)=> t.date.split('T')[0] === dateStr)?.volume
-        if (!dailyVolume || Number(dailyVolume) < 0 || Number((dailyVolume)) > 1_000_000_000) {
+        if (!dailyVolume || Number(dailyVolume) < 0 || Number((dailyVolume)) > 50_000_000_000) {
           throw new Error(`Invalid daily volume: ${dailyVolume}`)
         }
         return {

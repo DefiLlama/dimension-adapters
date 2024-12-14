@@ -14,6 +14,8 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
   return {
     dailyFees: dailyFees ? `${dailyFees}` : undefined,
     totalFees: totalFees ? `${totalFees}` : undefined,
+    dailyRevenue: dailyFees ? `${dailyFees}` : undefined,
+    totalRevenue: totalFees ? `${totalFees}` : undefined,
     timestamp: timestamp,
   };
 };
@@ -23,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
         fetch: fetch_sui,
-        start: 1700265600,
+        start: '2023-11-18',
         runAtCurrTime: true,
       },
   },

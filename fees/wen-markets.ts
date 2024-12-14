@@ -84,7 +84,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1716854400
+      start: '2024-05-28'
     },
   }
 };

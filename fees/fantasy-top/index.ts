@@ -16,7 +16,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BLAST]: {
             fetch: getFees,
-            start: 1714445967
+            start: '2024-04-30'
         },
     },
 };

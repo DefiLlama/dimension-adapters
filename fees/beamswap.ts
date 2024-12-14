@@ -32,13 +32,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: graphs(CHAIN.MOONBEAM),
-      start: getStartTimestamp({
-        endpoints,
-        chain: CHAIN.MOONBEAN,
-        dailyDataField: "uniswapDayDatas",
-        dateField: "date",
-        volumeField: "dailyVolumeUSD",
-      }),
     },
   },
 };

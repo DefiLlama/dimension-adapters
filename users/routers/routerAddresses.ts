@@ -2419,5 +2419,13 @@ export default (
       arbitrum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
     },
   },
+    {
+      id: "5195",
+      name: "GraFun",
+      addresses: {
+        bsc: ["0x8341b19a2A602eAE0f22633b6da12E1B016E6451"],
+        ethereum: ["0xb8540a7d74Cc4912443e8c4B2064B640FC763c4f"],
+      },
+    },
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);

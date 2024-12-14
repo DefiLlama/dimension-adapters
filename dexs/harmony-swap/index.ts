@@ -35,8 +35,7 @@ const adapters: SimpleAdapter = {
           };
         }
       },
-      start: 0,
-    },
+          },
   },
 };
 

@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HEDERA]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1664928000
+      start: '2022-10-05'
     },
   },
 };

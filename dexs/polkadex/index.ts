@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLKADEX]: {
       fetch: fetchVolume,
-      start: 1704292840
+      start: '2024-01-03'
     }
   }
 };

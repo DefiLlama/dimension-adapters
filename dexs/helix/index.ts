@@ -37,13 +37,13 @@ const adapter: BreakdownAdapter = {
     "helix": {
       [CHAIN.INJECTIVE]: {
         fetch: fetch,
-        start: 1676505600,
+        start: '2023-02-16',
       }
     },
     "helix-perp": {
       [CHAIN.INJECTIVE]: {
         fetch: fetchDerivative,
-        start: 1706313600,
+        start: '2024-01-27',
       }
     }
   }

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
   DEFAULT_DAILY_VOLUME_FIELD,
@@ -34,7 +34,13 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: graphs(chain as Chain),
+        fetch: async (option: FetchOptions) => {
+          const res = await graphs(chain as Chain)(option);
+          return {
+            dailyVolume: res?.dailyVolume || "0",
+            totalVolume: res?.totalVolume || "0",
+          }
+        },
         start: getStartTimestamp({
           endpoints: endpoints,
           chain,

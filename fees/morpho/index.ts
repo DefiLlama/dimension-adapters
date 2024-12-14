@@ -77,11 +77,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     ethereum: {
       fetch: fetchEthereum,
-      start: 1704197610,
+      start: '2024-01-02',
     },
     base: {
       fetch: fetchBase,
-      start: 1714743643,
+      start: '2024-05-03',
     },
   },
   version: 2,

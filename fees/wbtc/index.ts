@@ -31,7 +31,7 @@ export default {
                 return { dailyFees, dailyRevenue: dailyFees }
 
             },
-            start: 1543017600
+            start: '2018-11-24'
         }
     },
     version: 2

@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: graphs(chain as Chain),
         customBackfill: customBackfill(chain as Chain, graphs),
-        start: 1689638400,
+        start: '2023-07-18',
       }
     }
   }, {})

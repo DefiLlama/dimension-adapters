@@ -68,7 +68,7 @@ const getFees = () => {
       adapter: {
           [CHAIN.EON]: {
               fetch: getFees(),
-              start: 1698796800,
+              start: '2023-11-01',
 
           meta: {
             methodology: {

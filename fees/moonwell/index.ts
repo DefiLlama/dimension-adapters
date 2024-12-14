@@ -114,8 +114,7 @@ function moonwellExport(config: IJSON<string>) {
                 })
                 return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
             }),
-            start: 0,
-        }
+                    }
     })
     return { adapter: exportObject, version: 2 } as SimpleAdapter
 }

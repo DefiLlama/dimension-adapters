@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: 1627385129,
+      start: '2021-07-27',
     },
   },
 };

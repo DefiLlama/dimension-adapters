@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v2Graphs(chain),
-        start: 1633392000,
+        start: '2021-10-05',
       }
     }
   }, {})

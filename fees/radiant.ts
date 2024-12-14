@@ -29,10 +29,10 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: 1679097600, },
-    [CHAIN.BSC]: { fetch, start: 1679788800, },
-    [CHAIN.ETHEREUM]: { fetch, start: 1698796800, },
-    [CHAIN.BASE]: { fetch, start: 1719592253, },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-18', },
+    [CHAIN.BSC]: { fetch, start: '2023-03-26', },
+    [CHAIN.ETHEREUM]: { fetch, start: '2023-11-01', },
+    [CHAIN.BASE]: { fetch, start: '2024-06-28', },
   }
 }
 

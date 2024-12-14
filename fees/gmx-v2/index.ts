@@ -13,7 +13,7 @@ interface IFee {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number, _t: any, _: FetchOptions): Promise<FetchResultFees> => {
-    const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "3971843" : "3971936"))
+    const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "4385920" : "4385999"))
     // const queryId = chain === CHAIN.ARBITRUM ? "3186689" : "3186714";
     // const fees: IFee[] = (await fetchURLWithRetry(`https://api.dune.com/api/v1/query/${queryId}/results`)).result.rows;
     // const fees: IFee[] = require(`./${chain}.json`);
@@ -38,11 +38,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1690848000,
+      start: '2023-08-01',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1692835200,
+      start: '2023-08-24',
     },
   },
   isExpensiveAdapter: true,

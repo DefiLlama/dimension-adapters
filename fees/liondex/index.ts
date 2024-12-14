@@ -51,7 +51,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: 1686614400,
+      start: '2023-06-13',
       meta: {
         methodology,
       },

@@ -61,7 +61,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
-      start: 1677883020,
+      start: '2023-03-03',
       meta: {
         methodology,
       },

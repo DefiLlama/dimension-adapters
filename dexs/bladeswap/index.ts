@@ -40,7 +40,7 @@ const adapter: BreakdownAdapter = {
         v2: {
             [CHAIN.BLAST]: {
                 fetch,
-                start: 1709208245,
+                start: '2024-02-29',
             }
         },
         CL: adapters.adapter

@@ -1,34 +1,28 @@
-import { time } from 'console';
 import { CHAIN } from '../../helpers/chains'
-import { postURL } from '../../utils/fetchURL'
-
-const GRAPHQL_ENDPOINT = 'https://api5.storm.tg/graphql';
+import fetchURL from '../../utils/fetchURL'
+import { FetchResult } from "../../adapters/types";
 
 export default {
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: 1700000000,
+            start: '2023-11-14',
             meta: {
                 methodology: {
                     DailyVolume: 'Leverage trading volume',
                     DataSource: 'Data prepared by the project team by indexing blockchain data'
                 },
             },
-            fetch: async (timestamp: number) => {
-                const response = (await postURL(GRAPHQL_ENDPOINT, {
-                    query: `
-                    query VolumeDaily  {
-                        marketInfo {
-                          exchangedTradeVolume
-                        }
-                      }
-                      `
-                }));
+            fetch: async (timestamp: number): Promise<FetchResult> => {
+                const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${timestamp}`)
+
+                if (!response) {
+                    throw new Error('Error during API call')
+                }
 
                 return {
-                    dailyVolume: response.data.marketInfo.exchangedTradeVolume / 1e9,
-                    timestamp: new Date().getTime() / 1000
+                    dailyVolume: parseInt(response.exchangedDailyTradingVolume) / 1e9,
+                    timestamp: timestamp,
                 }
             },
         },

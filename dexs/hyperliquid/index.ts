@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     "hyperliquid": {
       fetch,
-      start: 1677283200,
+      start: '2023-02-25',
     },
   }
 };

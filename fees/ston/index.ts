@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.TON]: {
-      start: 1700000000,
+      start: '2023-11-14',
       meta: {
         methodology: {
           UserFees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",

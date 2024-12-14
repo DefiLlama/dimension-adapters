@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [BSC]: {
       fetch: graphs(endpoints)(BSC),
-      start: 1598671449,
+      start: '2020-08-29',
     },
   },
   protocolType: ProtocolType.CHAIN

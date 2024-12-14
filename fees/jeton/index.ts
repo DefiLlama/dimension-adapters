@@ -67,7 +67,7 @@ const adapter: Adapter = {
         ...acc,
         [key]: {
           fetch: fetch(key),
-          start: 1693785600,
+          start: '2023-09-04',
         },
       };
     }, {}),

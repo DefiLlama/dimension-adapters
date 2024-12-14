@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
             totalVolume: totalVol,
           };
         },
-        start: async () => getStartTime(chain),
+        // start: async () => getStartTime(chain),
       },
     };
   }, {} as BaseAdapter),

@@ -19,7 +19,12 @@ const chains = {
   [CHAIN.ETHEREUM]: {
     startBlock: 17977905,
     startTime: 1692793703,
-    subgraph: "https://graph.node.bean.money/subgraphs/name/basin"
+    subgraph: "https://graph.bean.money/basin_eth"
+  },
+  [CHAIN.ARBITRUM]: {
+    startBlock: 261000000,
+    startTime: 1728223509,
+    subgraph: "https://graph.bean.money/basin"
   }
 };
 
@@ -68,16 +73,13 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
 function volumeForCategory(chain: CHAIN, type: WellType) {
 
   return {
-    [chain]: {
-      fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
-        const block = await fetchParams.getEndBlock();
-        return await getVolumeStats(chain, type, block);
-      },
-      start: async () => chains[chain].startTime,
-      runAtCurrTime: false, // Backfill is allowed
-      meta: {
-        methodology
-      },
+    fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
+      const block = await fetchParams.getEndBlock();
+      return await getVolumeStats(chain, type, block);
+    },
+    start: async () => chains[chain].startTime,
+    meta: {
+      methodology
     }
   }
 }
@@ -87,7 +89,10 @@ function volumeForCategory(chain: CHAIN, type: WellType) {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    "spot": volumeForCategory(CHAIN.ETHEREUM, WellType.SPOT)
+    "spot": Object.keys(chains).reduce((acc, chain) => {
+      acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
+      return acc;
+    }, {})
   }
 };
 

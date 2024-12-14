@@ -50,7 +50,7 @@ export default {
         [CHAIN.SOLANA]: {
             fetch: fetch,
             runAtCurrTime: true,
-            start: 1714435200, // Apr 30 2024 - 00:00:00 UTC
+            start: '2024-04-30', // Apr 30 2024 - 00:00:00 UTC
         }
     }
 }

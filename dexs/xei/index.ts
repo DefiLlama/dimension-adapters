@@ -22,8 +22,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1716890175,
-                runAtCurrTime:false,
+                start: '2024-05-28',
                 // customBackfill:customBackfill(contract, chain)
             },
         }

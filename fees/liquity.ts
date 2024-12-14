@@ -47,7 +47,7 @@ const adapter: Adapter = {
               dailyHoldersRevenue: dailyFees,
           };
         },
-        start: 1575158400
+        start: '2019-12-01'
     },
   }
 }

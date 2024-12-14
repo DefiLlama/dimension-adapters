@@ -44,7 +44,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
-        start: 1633478400,
+        start: '2021-10-06',
     },
   },
 }

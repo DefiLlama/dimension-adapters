@@ -33,8 +33,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IMMUTABLEX]: {
       fetch: fetchFees,
-      start: 0,
-      meta: {
+            meta: {
         methodology: {
           Fees: "ETH paid to purchase fuel",
         }

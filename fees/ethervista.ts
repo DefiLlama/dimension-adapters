@@ -8,8 +8,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: evmReceivedGasAndTokens('0xca90d843288e35beeadfce14e5f906e3f1afc7cb', []),
-            start: 0,
-        },
+                    },
     }
 }
 

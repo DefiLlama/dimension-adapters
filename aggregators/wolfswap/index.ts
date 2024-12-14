@@ -25,13 +25,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
 
 const adapter: any = {
   adapter: {
-    polygon: { fetch, start: 1710972000, },
-    cronos: { fetch, start: 1711317600, },
-    cronos_zkevm: { fetch, start: 1718830800, },
-    base: { fetch, start: 1713128400, },
-    avax: { fetch, start: 1717189200, },
-    //sei: { fetch, start: 1717189200, },
-    blast: { fetch, start: 1709848800, },
+    polygon: { fetch, start: '2024-03-20', },
+    cronos: { fetch, start: '2024-03-24', },
+    cronos_zkevm: { fetch, start: '2024-06-19', },
+    base: { fetch, start: '2024-04-14', },
+    avax: { fetch, start: '2024-05-31', },
+    //sei: { fetch, start: '2024-05-31', },
+    blast: { fetch, start: '2024-03-07', },
   },
 };
 

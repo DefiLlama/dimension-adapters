@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, } from "../adapters/types";
-import { getTokenDiff } from "../helpers/token";
+import { getSolanaReceived, getTokenDiff } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
 const dispatcher: any = {
@@ -33,21 +33,11 @@ async function fetch(timestamp: number, _1: any, options: FetchOptions) {
   return { timestamp, dailyFees, dailyRevenue: dailyFees, }
 }
 
-const chainAdapter = { fetch: fetch as any, start: 1656633600, }
-
-import { queryDune } from "../helpers/dune";
+const chainAdapter = { fetch: fetch as any, start: '2022-07-01', }
 
 const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const value = (await queryDune("3521814", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-    receiver: 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'
-  }));
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-
-  return { dailyFees, dailyRevenue: dailyFees }
-
+  const dailyFees = await getSolanaReceived({ options, target: 'MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36' })
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 
@@ -58,7 +48,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: chainAdapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: 1656633600, // wrong?
+      start: '2022-07-01', // wrong?
     },
     [CHAIN.BASE]: chainAdapter,
     [CHAIN.TRON]: chainAdapter,

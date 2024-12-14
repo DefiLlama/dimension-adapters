@@ -73,7 +73,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
-      start: 1709247600,
+      start: '2024-03-01',
       meta: {
         methodology:
           "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",
