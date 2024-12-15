@@ -1,47 +1,57 @@
 import axios from "axios";
 import BigNumber from "bignumber.js";
-import { FetchResult } from "../../adapters/types";
+import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const perpsInfoApi = `https://backend.prod.mars-dev.net/v2/perps_overview?chain=neutron&days=2&response_type=global`;
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const { fromApi } = options;
+  const perpsInfoApi = `https://backend.prod.mars-dev.net/v2/perps_overview?chain=neutron&days=30&response_type=global`;
   const perpsVolumeData = await axios(perpsInfoApi);
   const globalOverview = perpsVolumeData.data.global_overview;
+  const fromTimestamp = fromApi.timestamp ?? Math.floor(Date.now() / 1000);
 
   let last24HourVolume = 0;
-  let fetchTimestamp = timestamp;
+  let fetchTimestamp = fromTimestamp;
   let last24HourFees = 0;
   let last24HourRevenue = 0;
   let last24HoursShortOpenInterest = 0;
   let last24HoursLongOpenInterest = 0;
   let last24HoursTotalOpenInterest = 0;
 
-  // The second element in the array is the last 24 hour volume, while the first element is the current volume of the ongoing day
-  if (globalOverview && globalOverview.daily_trading_volume.length > 1) {
-    // Volume is returned in uusd which has 6 decimals
-    last24HourVolume = convertToUsd(
-      globalOverview.daily_trading_volume[1].value
-    );
-    const last24HourTradingFee = convertToUsd(
-      globalOverview.fees.trading_fee[1].value
-    );
-    const last24HourFundingFee = convertToUsd(
-      globalOverview.fees.net_funding_fee[1].value
-    );
-    last24HourFees = last24HourTradingFee + last24HourFundingFee;
-    last24HourRevenue = last24HourFees * 0.25;
-    last24HoursShortOpenInterest = convertToUsd(
-      globalOverview.open_interest.short[1].value
-    );
-    last24HoursLongOpenInterest = convertToUsd(
-      globalOverview.open_interest.long[1].value
-    );
-    last24HoursTotalOpenInterest = convertToUsd(
-      globalOverview.open_interest.total[1].value
-    );
-    fetchTimestamp = Math.round(
-      new Date(globalOverview.daily_trading_volume[1].date).getTime() / 1000
-    );
+  // Check for the last timestamp that is less than or equal to the fetched timestamp
+  if (globalOverview) {
+    let foundLatestData = false;
+
+    globalOverview.daily_trading_volume.forEach((volumeData, index) => {
+      const dataTimestamp = Math.round(
+        new Date(volumeData.date).getTime() / 1000
+      );
+      if (dataTimestamp <= fromTimestamp && !foundLatestData) {
+        last24HourVolume = convertToUsd(volumeData.value);
+        fetchTimestamp = dataTimestamp;
+
+        const last24HourTradingFee = convertToUsd(
+          globalOverview.fees.trading_fee[index].value
+        );
+        const last24HourFundingFee = convertToUsd(
+          globalOverview.fees.net_funding_fee[index].value
+        );
+        last24HourFees = last24HourTradingFee + last24HourFundingFee;
+        last24HourRevenue = last24HourFees * 0.25;
+        last24HoursShortOpenInterest = convertToUsd(
+          globalOverview.open_interest.short[index].value
+        );
+        last24HoursLongOpenInterest = convertToUsd(
+          globalOverview.open_interest.long[index].value
+        );
+        last24HoursTotalOpenInterest = convertToUsd(
+          globalOverview.open_interest.total[index].value
+        );
+
+        console.log(volumeData.date);
+        foundLatestData = true;
+      }
+    });
   }
 
   return {
