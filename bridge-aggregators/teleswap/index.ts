@@ -38,7 +38,7 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyBridgeVolume: chainVolume?.dailyVolume || 0,
-    totalVolume: chainVolume?.totalVolume || 0,
+    totalBridgeVolume: chainVolume?.totalVolume || 0,
     timestamp: unixTimestamp,
   };
 };
