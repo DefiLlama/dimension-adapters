@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
-import axios from "axios";
 import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 
 const CHAINS: Array<CHAIN> = [
@@ -35,16 +35,17 @@ interface IVolumeBridge {
 
 async function queryDataByApi(timestamp:string, path:string){
     const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st";
-    let info = await  axios.get(`${historicalVolumeEndpoint}${path}`);
-    const data  : IVolumeBridge[] = (info?.data)?.data.list;
+    let info = await  httpGet(`${historicalVolumeEndpoint}${path}`);
+    const data  : IVolumeBridge[] = (info)?.data.list;
     return data
 }
 
-const fetch = async (timestamp: number, block: any, options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const path = `/getOrderDayList?bridge=1&chain=${options.chain}&timestamp=${timestamp}`
-    const data = await queryDataByApi(timestamp.toString(), path)
-    let dailyVolume = data.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+const fetch = async (_t: number, _b: any, options: FetchOptions) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
+    const path = `/getOrderDayList?bridge=1&chain=${options.chain}&timestamp=${dayTimestamp}`
+    const data = await queryDataByApi(dayTimestamp.toString(), path)
+    const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
+    let dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
     dailyVolume = dailyVolume || "0";
     return {
         dailyBridgeVolume: dailyVolume,
@@ -57,12 +58,12 @@ const adapter: any = {
     adapter:  {
         ...CHAINS.map(chain => {
             return {
-                
+
                     [chain]: {
                         fetch: fetch,
                         start: '2024-01-01'
                     }
-                
+
             }
         }).reduce((acc, item) => {
             return {
