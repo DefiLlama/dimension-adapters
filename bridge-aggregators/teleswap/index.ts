@@ -9,7 +9,7 @@ const chains: Record<string, string> = {
   [CHAIN.SUI]: 'sui',
   [CHAIN.TRON]: 'tron',
   [CHAIN.BASE]: 'base',
-  // [CHAIN.BSC]: 'bsc',
+  [CHAIN.BSC]: 'bsc',
   [CHAIN.TARA]: 'tara',
   [CHAIN.AVAX]: 'avax',
   [CHAIN.LITECOIN]: 'litecoin',
