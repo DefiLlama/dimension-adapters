@@ -4,11 +4,10 @@ import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const { fromApi } = options;
+  const { fromTimestamp } = options;
   const perpsInfoApi = `https://backend.prod.mars-dev.net/v2/perps_overview?chain=neutron&days=30&response_type=global`;
   const perpsVolumeData = await axios(perpsInfoApi);
   const globalOverview = perpsVolumeData.data.global_overview;
-  const fromTimestamp = fromApi.timestamp ?? Math.floor(Date.now() / 1000);
 
   let last24HourVolume = 0;
   let fetchTimestamp = fromTimestamp;
