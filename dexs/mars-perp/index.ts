@@ -47,8 +47,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         last24HoursTotalOpenInterest = convertToUsd(
           globalOverview.open_interest.total[index].value
         );
-
-        console.log(volumeData.date);
         foundLatestData = true;
       }
     });
