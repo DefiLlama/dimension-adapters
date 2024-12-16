@@ -19,8 +19,8 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     totalPremiumVolume: totalVolume,
     dailyPremiumVolume: last24HourVolume,
     timestamp: timestamp,
-    dailyNotionalVolume: 0,
-    totalNotionalVolume: 0,
+    dailyNotionalVolume: last24HourVolume,
+    totalNotionalVolume: totalVolume,
   };
 };
 
