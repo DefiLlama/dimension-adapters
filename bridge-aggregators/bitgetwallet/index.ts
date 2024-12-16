@@ -46,7 +46,7 @@ const fetch = async (_t: number, _b: any, options: FetchOptions) => {
     const data = await queryDataByApi(dayTimestamp.toString(), path)
     const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
     let dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
-    dailyVolume = dailyVolume || "0";
+    dailyVolume = dailyVolume || undefined;
     return {
         dailyBridgeVolume: dailyVolume,
         timestamp: options.endTimestamp,
