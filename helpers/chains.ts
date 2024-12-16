@@ -196,6 +196,7 @@ export enum CHAIN {
   WC = "wc",
   ARCHWAY = "archway-1",
   NEUTRON = "neutron",
+  CORN = "corn",
 }
 
 // Don´t use
