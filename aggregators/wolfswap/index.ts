@@ -12,7 +12,7 @@ const contracts = {
   avax: '0x643dEB007DfA43c0D7BeA2155E97E61279d9a56F',
   sei: '0x1AD805e80b59C802f9D8059f904DCA6AC153de30',
   blast: '0xb86a6e5702C327c5C051Bf5323Cb2bAb5E628d0c',
-  sonic: '0x222680A4fCcFE131acAf7a26301FC929364a881E'
+  sonic: '0x222680A4fCcFE131acAf7a26301FC929364a881E',
 }
 
 const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
@@ -33,7 +33,7 @@ const adapter: any = {
     avax: { fetch, start: '2024-05-31', },
     //sei: { fetch, start: '2024-05-31', },
     blast: { fetch, start: '2024-03-07', },
-    sonic: { fetch, start '2024-12-16', }
+    sonic: { fetch, start '2024-12-16', },
   },
 };
 
