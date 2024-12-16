@@ -54,6 +54,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume: last24HourVolume,
     dailyProtocolRevenue: last24HourRevenue,
+    dailyRevenue: last24HourRevenue,
     dailyFees: last24HourFees,
     dailyShortOpenInterest: last24HoursShortOpenInterest,
     dailyLongOpenInterest: last24HoursLongOpenInterest,
