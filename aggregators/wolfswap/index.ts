@@ -33,7 +33,7 @@ const adapter: any = {
     avax: { fetch, start: '2024-05-31', },
     //sei: { fetch, start: '2024-05-31', },
     blast: { fetch, start: '2024-03-07', },
-    sonic: { fetch, start '2024-12-16', },
+    sonic: { fetch, start: '2024-12-16', },
   },
 };
 
