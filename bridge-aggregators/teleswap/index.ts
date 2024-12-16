@@ -20,18 +20,20 @@ const chains: Record<string, string> = {
   [CHAIN.SOLANA]: 'solana',
 };
 
+let data: any;
 const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
   const unixTimestamp = getUniqStartOfTodayTimestamp(
     new Date(options.startOfDay * 1000)
   );
+  if (!data) {
+    data = await httpGet('https://api.teleswap.io/stats/volume', {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 
-  const response = await httpGet('https://api.teleswap.io/stats/volume', {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  const chainVolume = response?.find(
+  const chainVolume = data?.find(
     (item: any) =>
       item.chain.toLowerCase() === chains[options.chain].toLowerCase()
   );
