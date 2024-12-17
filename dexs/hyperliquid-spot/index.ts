@@ -1,21 +1,21 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
-import { httpGet, httpPost } from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 
 const URL = "https://api.hyperliquid.xyz/info";
 
 interface Response {
-  totalVolume?: number;
-  dailyVolume?: number;
+  dayNtlVlm: string;
 }
 
 const fetch = async (timestamp: number) => {
-  const {totalVolume, dailyVolume}: Response = (await httpPost(URL, {"type": "globalStats"}));
+  const respose: Response[] = (await httpPost(URL, {"type": "spotMetaAndAssetCtxs"}))[1];
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const dailyVolume = respose.reduce((acc, item) => {
+    return acc + Number(item.dayNtlVlm);
+  },0);
 
   return {
-    totalVolume: totalVolume?.toString(),
     dailyVolume: dailyVolume?.toString(),
     timestamp: dayTimestamp,
   };
