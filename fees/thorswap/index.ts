@@ -55,6 +55,10 @@ const findInterval = (timestamp: number, intervals) => {
   return null;
 };
 
+let earnings: any;
+let revenue: any;
+let pools: any;
+
 const fetchFeesByChain = () => {
   const adapter = {}
   const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH']
@@ -66,12 +70,15 @@ const fetchFeesByChain = () => {
         const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
         const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
         const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
-        const [earnings, revenue, pools]: any = (await Promise.all([ // TODO: Cache all this requests. Equal for all chains
-          httpGet(earningsUrl, { headers: {"x-client-id": "defillama"}}),
-          httpGet(reserveUrl, { headers: {"x-client-id": "defillama"}}),
-          httpGet(poolsUrl, { headers: {"x-client-id": "defillama"}}),
-        ]))
-
+        if (!earnings) {
+          earnings = await httpGet(earningsUrl, { headers: {"x-client-id": "defillama"}});
+        }
+        if (!revenue) {
+          revenue = await httpGet(reserveUrl, { headers: {"x-client-id": "defillama"}});
+        }
+        if (!pools) {
+          pools = await httpGet(poolsUrl, { headers: {"x-client-id": "defillama"}});
+        }
         const selectedEarningInterval = findInterval(timestamp, earnings.intervals);
         const selectedRevenueInterval = findInterval(timestamp, revenue.intervals);
 
