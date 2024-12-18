@@ -6,7 +6,7 @@ import { getFluidDailyRevenue } from "./revenue";
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   const [dailyFees, dailyRevenue] = await Promise.all([
-    getFluidDailyFees(options, fromBlock, toBlock),
+    getFluidDailyFees(options),
     getFluidDailyRevenue(options, fromBlock, toBlock)
   ])
   return { dailyFees, dailyRevenue };
