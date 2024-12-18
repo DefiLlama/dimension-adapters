@@ -51,7 +51,7 @@ const CONFIG = {
   [CHAIN.BASE]: {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
     torosManagerAddress: "0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879",
-    easyswapperAddresses: ["0xe10ed1e5354eed0f7c9d2e16250ba8996c12db7a", "0xa907504d7a4c415b4e6e1d0866d96afe8202f0e5"],
+    easyswapperAddresses: ["0xe10ed1e5354eed0f7c9d2e16250ba8996c12db7a", "0xf067575eb60c7587c11e867907aa7284833704d1"],
   },
 };
 
