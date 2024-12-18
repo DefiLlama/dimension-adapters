@@ -83,7 +83,7 @@ export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBa
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
 
-    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: ['0x4d93b232a24e82b284ced7461bf4deacffe66759d5c24513e6f29e571ad78d15', parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true });
+    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: ['0x4d93b232a24e82b284ced7461bf4deacffe66759d5c24513e6f29e571ad78d15', parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
     
     const borrowBalances = liquidityLogs
       .filter((log) => log[5] !== reserveContract)
