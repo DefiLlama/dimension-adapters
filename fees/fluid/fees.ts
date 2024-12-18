@@ -41,7 +41,7 @@ export const getVaultsResolver = async (api: ChainApi) => {
 
   return {
     getAllVaultsAddresses: async () => api.call({ target: address, abi: abi.getAllVaultsAddresses }),
-    getVaultEntireData: async (vaults: string []) => api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
+    getVaultEntireData: async (vaults: string []) => api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData, permitFailure: true })
   }
 }
 
