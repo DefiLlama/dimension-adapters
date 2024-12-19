@@ -185,7 +185,7 @@ const fetchV2 = async (options: FetchOptions) => {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     });
     const dailyVolume = response.v2HistoricalProtocolVolume.find((item) => item.timestamp === options.startOfDay)?.value;
-    return {dailyVolume: dailyVolume}
+    return { dailyVolume, dailyFees: Number(dailyVolume) * 0.003 };
   } catch (e) {
     console.error(e)
     return {
@@ -323,7 +323,26 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-const okuChains = [ CHAIN.ETHEREUM, CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
+const okuChains = [
+  CHAIN.ETHEREUM,
+  CHAIN.SEI,
+  CHAIN.ERA,
+  CHAIN.TAIKO,
+  CHAIN.SCROLL,
+  CHAIN.ROOTSTOCK,
+  CHAIN.FILECOIN,
+  CHAIN.BOBA,
+  CHAIN.MOONBEAM,
+  CHAIN.MANTA,
+  CHAIN.MANTLE,
+  CHAIN.LINEA,
+  CHAIN.POLYGON_ZKEVM,
+  CHAIN.BLAST,
+  CHAIN.XDAI,
+  CHAIN.BOB,
+  CHAIN.LISK,
+  CHAIN.CORN,
+]
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {

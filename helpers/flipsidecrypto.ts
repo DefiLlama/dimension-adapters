@@ -4,6 +4,7 @@ import { httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
 
 const token = {} as IJSON<string>
+const isRestrictedMode = getEnv('FLIPSIDE_RESTRICTED_MODE') === 'true'
 const FLIPSIDE_API_KEYS = getEnv('FLIPSIDE_API_KEY')?.split(',') ?? ["f3b65679-a179-4983-b794-e41cf40103ed"]
 let API_KEY_INDEX = 0;
 const MAX_RETRIES = 20;
@@ -19,6 +20,7 @@ async function randomDelay() {
 }
 
 export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
+  checkCanFlipSideQuery();
   if (!query[sqlQuery]) {
     query[sqlQuery] = _queryFlipside(sqlQuery, maxAgeMinutes)
   }
@@ -177,4 +179,11 @@ async function _queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
       maxTimeout: 1000 * 60 * 5
     }
   );
+}
+
+export function checkCanFlipSideQuery() {
+  if (!isRestrictedMode) return;
+  const currentHour = new Date().getUTCHours();
+  if (currentHour >= 1 && currentHour <= 3) return; // 1am - 3am - any time other than this, throw error
+  throw new Error(`Current hour is ${currentHour}. In restricted mode, can run flipsside queries only between 1am - 3am UTC`);
 }
