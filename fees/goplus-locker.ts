@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
+import { addTokensReceived } from "../helpers/token";
 import ADDRESSES from '../helpers/coreAssets.json';
 
 const CHAIN_CONFIG = {
@@ -23,22 +23,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyFees.addBalances(options.api.getBalancesV2());
   dailyFees.subtract(options.fromApi.getBalancesV2());
 
-  if( options.chain in CHAIN_CONFIG) {
-    let startBlock = CHAIN_CONFIG[ options.chain as keyof typeof CHAIN_CONFIG].start;
-    const transfer_logs = await queryIndexer(`
-      SELECT
-        encode(data, 'hex') AS data,
-        encode(contract_address, 'hex') as contract_address
-      FROM
-        ethereum.event_logs
-      WHERE
-        block_number > ${startBlock}
-        AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-        AND topic_2 = '\\x000000000000000000000000${feeTo.replace("0x", "").toLowerCase()}'
-        AND block_time BETWEEN llama_replace_date_range;
-        `, options);
-    transfer_logs.map((a: any) => dailyFees.add('0x' + a.contract_address, Number('0x' + a.data)));
-  }
+  await addTokensReceived({ balances: dailyFees, target: feeTo, options, })
 
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
