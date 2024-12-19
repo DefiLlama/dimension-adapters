@@ -1,37 +1,24 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-interface IGraph {
-	totalFees: string;
-	id: string;
-}
-
-const URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb/0.0.2/';
-const assets = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
-const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-	const dailyFees = createBalances();
-	for (const asset of assets) {
-		const query = gql`
-    	{
-				dayAssetData(id: "${dayTimestamp * 1000}-${asset.toLowerCase()}") {
-					totalFees
-				}
-			}`;
-		const { totalFees }: IGraph = (await request(URL, query)).dayAssetData;
-		dailyFees.add(asset, totalFees);
-	}
+const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
+	const logs = await getLogs({ eventAbi: abi.FeePaid, target: '0xebbae847ae3eac6a09f228d8bf921db2d5f4d43d' })
+	const dailyFees = createBalances()
+	logs.forEach((log: any) => {
+		dailyFees.add(log.asset, log.fee)
+	})
 	return {
 		dailyFees,
-		timestamp: dayTimestamp,
 	};
 }
 
+const abi = {
+	"FeePaid": "event FeePaid(uint256 indexed orderId, address indexed user, address indexed asset, string market, uint256 fee, uint256 poolFee, uint256 stakingFee, uint256 treasuryFee, uint256 keeperFee, bool isLiquidation)",
+	"PositionIncreased": "event PositionIncreased(uint256 indexed orderId, address indexed user, address indexed asset, string market, bool isLong, uint256 size, uint256 margin, uint256 price, uint256 positionMargin, uint256 positionSize, uint256 positionPrice, int256 fundingTracker, uint256 fee)",
+}
+
 const adapter: SimpleAdapter = {
-	version: 1,
+	version: 2,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
 			fetch,
