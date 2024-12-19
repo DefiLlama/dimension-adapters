@@ -198,6 +198,7 @@ export enum CHAIN {
   NEUTRON = "neutron",
   CORN = "corn",
   SAPPHIRE = "sapphire",
+  VANA = "vana",
 }
 
 // Don´t use
