@@ -8,8 +8,8 @@ const CHAIN_CONFIG = {
   [CHAIN.BSC]: { start: 42387186 },
   [CHAIN.BASE]: { start: 20014325 },
   [CHAIN.ARBITRUM]: { start: 279127453 },
-  // [CHAIN.GRAVITY]: { start: 23719062 },
-  // [CHAIN.MORPH]: { start: 1125634 }
+  [CHAIN.GRAVITY]: { start: 23719062 },
+  [CHAIN.MORPH]: { start: 1125634 }
 }
 
 const fetch: any = async (options: FetchOptions) => {
