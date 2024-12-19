@@ -56,11 +56,11 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   let module: Adapter = (await import(passedFile)).default
   const adapterVersion = module.version
   let endTimestamp = endCleanDayTimestamp
-  if (adapterVersion === 2) {
-    endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
-  } else {
-    checkIfFileExistsInMasterBranch(file)
-  }
+  // if (adapterVersion === 2) {
+  //   endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
+  // } else {
+  //   checkIfFileExistsInMasterBranch(file)
+  // }
 
   console.info(`Start Date:\t${new Date((endTimestamp - 3600*24)*1e3).toUTCString()}`)
   console.info(`End Date:\t${new Date(endTimestamp*1e3).toUTCString()}`)
