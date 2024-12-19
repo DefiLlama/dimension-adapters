@@ -195,6 +195,7 @@ export enum CHAIN {
   ZIRCUIT = "zircuit",
   WC = "wc",
   ARCHWAY = "archway-1",
+  VINUCHAIN = "vinu",
   NEUTRON = "neutron",
   CORN = "corn",
   SAPPHIRE = "sapphire",
