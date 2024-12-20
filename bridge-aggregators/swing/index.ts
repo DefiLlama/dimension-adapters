@@ -3,6 +3,7 @@ import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
+const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
     [CHAIN.ETHEREUM]: 'ethereum',
@@ -49,16 +50,16 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
     );
 
-    const dailyRes = await httpGet("https://swap.prod.swing.xyz/v0/metrics/stats", {
+    const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
             'Content-Type': 'application/json',
         },
         params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
     });
 
-    const chainVolumes = dailyRes?.historicalVolumeByChain?.map((history: any) => {
-        const chainVol = history?.volume.find((vol: any) => {
-            return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
+    const chainVolumes = dailyRes?.historicalVolumeCrossChainChain?.map((history: any) => {
+        const chainVol = history?.volume?.find((vol: any) => {
+            return vol?.chainSlug?.toLowerCase() === chains[options.chain].toLowerCase();
         })
 
         return chainVol;
