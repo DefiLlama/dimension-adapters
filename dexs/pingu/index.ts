@@ -1,43 +1,27 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import * as sdk from "@defillama/sdk";
 
-interface IGraph {
-	volumeEth: string;
-	volumeUsdc: string;
-	id: string;
-}
-
-const URL = 'https://api.studio.thegraph.com/query/75208/pingu-sg-v2/0.0.1/';
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-	const chain = CHAIN.ARBITRUM;
-	const balances = new sdk.Balances({ chain, timestamp })
-	const query = gql`
-    {
-			dayData(id: ${dayTimestamp * 1000}) {
-				volumeEth
-				volumeUsdc
-			}
-		}`;
-	const response: IGraph = (await request(URL, query)).dayData;
-	const element = response;
-	balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, element.volumeUsdc);
-	balances._add(ADDRESSES.arbitrum.WETH, element.volumeEth);
-
+const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
+	const logs = await getLogs({ eventAbi: abi.PositionIncreased, target: '0xebbae847ae3eac6a09f228d8bf921db2d5f4d43d' })
+	const dailyFees = createBalances()
+	logs.forEach((log: any) => {
+		dailyFees.add(log.asset, log.positionSize)
+	})
 	return {
-		dailyVolume: await balances.getUSDString(),
-		timestamp: dayTimestamp,
+		dailyFees,
 	};
 }
 
+const abi = {
+	"FeePaid": "event FeePaid(uint256 indexed orderId, address indexed user, address indexed asset, string market, uint256 fee, uint256 poolFee, uint256 stakingFee, uint256 treasuryFee, uint256 keeperFee, bool isLiquidation)",
+	"PositionIncreased": "event PositionIncreased(uint256 indexed orderId, address indexed user, address indexed asset, string market, bool isLong, uint256 size, uint256 margin, uint256 price, uint256 positionMargin, uint256 positionSize, uint256 positionPrice, int256 fundingTracker, uint256 fee)",
+}
+
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
-			fetch: fetch,
+			fetch,
 			start: '2024-01-10',
 		},
 	},
