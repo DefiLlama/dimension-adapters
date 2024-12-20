@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
+const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
   [CHAIN.SOLANA]: 'solana',
   [CHAIN.ETHEREUM]: 'ethereum',
@@ -40,7 +41,6 @@ const chains: Record<string, string> = {
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  // get the start of the day timestamp
   const unixTimestamp = getUniqStartOfTodayTimestamp(
     new Date(options.startOfDay * 1000)
   );
@@ -50,23 +50,23 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
   );
 
-  const dailyRes = await httpGet("https://swap.prod.swing.xyz/v0/metrics/stats", {
+  const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
     headers: {
       'Content-Type': 'application/json',
     },
     params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
   });
 
-  const chainVolumes = dailyRes?.historicalVolumeByChain?.map((history: any) => {
-    const chainVol = history?.volume.find((vol: any) => {
-      return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
+  const sameChainVolumes = dailyRes?.historicalVolumeSamechain?.map((history: any) => {
+    const chainVol = history?.volume?.find((vol: any) => {
+      return vol?.chainSlug?.toLowerCase() === chains[options.chain].toLowerCase();
     })
 
     return chainVol;
   });
 
   // calculate the total volume
-  const chainVol = chainVolumes?.reduce((acc: number, curr: any) => {
+  const chainVol = sameChainVolumes?.reduce((acc: number, curr: any) => {
     return acc + Number(curr?.value || 0);
   }, 0);
 
