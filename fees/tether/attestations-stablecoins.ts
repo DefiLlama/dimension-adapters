@@ -20,7 +20,7 @@ export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestat
                     const supply = (findClosest(fromTimestamp, stablecoinData.tokens.map((d: any)=>({...d, time: d.date*1e3})), 1.5 * 24 * 3600) as any).circulating.peggedUSD
 
                     const closestAttestation = findClosest(fromTimestamp, attestations)
-                    if (new Date(closestAttestation.time).getTime() > fromTimestamp * 1e3 - 1.2 * daysBetweenAttestations * 24 * 3600e3) {
+                    if (new Date(closestAttestation.time).getTime() - 1.2 * daysBetweenAttestations * 24 * 3600e3 > fromTimestamp * 1e3) {
                         throw new Error("Trying to refill with no attestations, pls add attestations")
                     }
 
