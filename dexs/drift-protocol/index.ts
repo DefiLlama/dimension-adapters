@@ -12,33 +12,28 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
+let duneFetch;
 
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startOfDay;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4117889", {
-      start: start,
-      end: start + 24 * 60 * 60,
-    })
-  return requests[key]
-}
-
-async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = volumeResponse[0].perpetual_volume;
-  const dailyFees = volumeResponse[0].total_taker_fee;
-  const dailyRevenue = volumeResponse[0].total_revenue;
-  return { dailyVolume, dailyFees, dailyRevenue };
+async function getPerpDimensions(
+  options: FetchOptions,
+): Promise<DimentionResult> {
+  if (!duneFetch) duneFetch = await queryDune("3782153");
+  const res = await duneFetch;
+  const [{ perpetual_volume, total_revenue, total_taker_fee }] = res;
+  return {
+    dailyVolume: perpetual_volume,
+    dailyFees: total_taker_fee,
+    dailyRevenue: total_revenue,
+  };
 }
 
-async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = volumeResponse[0].spot_volume;
+async function getSpotDimensions(
+  options: FetchOptions,
+): Promise<DimentionResult> {
+  if (!duneFetch) duneFetch = await queryDune("3782153");
+  const res = await duneFetch;
+  const [{ perpetual_volume, total_volume }] = res;
+  const dailyVolume = total_volume - perpetual_volume;
   return { dailyVolume };
 }
 
@@ -63,14 +58,16 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("spot", options),
-        start: '2023-07-25',
+        fetch: (_t: any, _tt: any, options: FetchOptions) =>
+          fetch("spot", options),
+        start: "2023-07-25",
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("perp", options),
-        start: '2023-07-25',
+        fetch: (_t: any, _tt: any, options: FetchOptions) =>
+          fetch("perp", options),
+        start: "2023-07-25",
       },
     },
   },
