@@ -27,6 +27,21 @@ export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90
 }
 let FLIPSIDE_API_KEY: string = FLIPSIDE_API_KEYS[API_KEY_INDEX]
 
+function switchToNextAPIKey(e: any, callback: any) {
+  if(e?.response?.statusText === 'Payment Required' || e?.response?.statusText === 'Unauthorized') {
+    if (API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)) {
+      API_KEY_INDEX++;
+      FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX];
+      console.info(`Switching to new API key: ${FLIPSIDE_API_KEY}`);
+      return callback()
+    } else {
+      const error = new Error(`Payment Required`)
+      throw error;
+    }
+  }
+  throw e;
+}
+
 // query status
 async function createRequire(sqlQuery: string, maxAgeMinutes: number): Promise<string | undefined> {
   try {
@@ -63,18 +78,7 @@ async function createRequire(sqlQuery: string, maxAgeMinutes: number): Promise<s
       }
 
   } catch (e: any) {
-    if(e?.response?.statusText === 'Payment Required' || e?.response?.statusText === 'Unauthorized') {
-      if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)) {
-        API_KEY_INDEX++;
-        FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX];
-        console.info(`Switching to new API key: ${FLIPSIDE_API_KEY}`);
-        return createRequire(sqlQuery, maxAgeMinutes)
-      } else {
-        const error = new Error(`Payment Required`)
-        throw error;
-      }
-    }
-    throw e;
+    return switchToNextAPIKey(e, () => createRequire(sqlQuery, maxAgeMinutes))
   }
 }
 
@@ -108,18 +112,7 @@ async function queryStatus(queryID: string) {
     await randomDelay()
     return queryStatus(queryID)
   } catch (e: any) {
-    if(e?.response?.statusText === 'Payment Required' || e?.response?.statusText === 'Unauthorized') {
-      if (API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)) {
-        API_KEY_INDEX++;
-        FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX];
-        console.info(`Switching to new API key: ${FLIPSIDE_API_KEY}`);
-        return queryStatus(queryID)
-      } else {
-        const error = new Error(`Payment Required`)
-        throw error;
-      }
-    }
-    throw e;
+    return switchToNextAPIKey(e, () => queryStatus(queryID))
   }
 }
 
@@ -179,18 +172,7 @@ async function queryResults(queryID: string) {
     }
     return fullRows
   } catch (e: any) {
-    if(e?.response?.statusText === 'Payment Required' || e?.response?.statusText === 'Unauthorized') {
-      if(API_KEY_INDEX < (FLIPSIDE_API_KEYS.length-1)) {
-        API_KEY_INDEX++;
-        FLIPSIDE_API_KEY = FLIPSIDE_API_KEYS[API_KEY_INDEX];
-        console.info(`Switching to new API key: ${FLIPSIDE_API_KEY}`);
-        return queryResults(queryID)
-      } else {
-        const error = new Error(`Payment Required`)
-        throw error;
-      }
-    }
-    throw e;
+    return switchToNextAPIKey(e, () => queryResults(queryID))
   }
 }
 
