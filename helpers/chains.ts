@@ -201,6 +201,7 @@ export enum CHAIN {
   SAPPHIRE = "sapphire",
   VANA = "vana",
   SONIC = "sonic",
+  HYPERLIQUID = "hyperliquid",
 }
 
 // Don´t use
