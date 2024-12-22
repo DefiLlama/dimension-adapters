@@ -200,6 +200,7 @@ export enum CHAIN {
   CORN = "corn",
   SAPPHIRE = "sapphire",
   VANA = "vana",
+  SONIC = "sonic",
 }
 
 // Don´t use
