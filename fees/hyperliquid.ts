@@ -10,9 +10,14 @@ const fetchFees = async (options: FetchOptions) => {
     const endCumFees: any = findClosest(options.endTimestamp, data, 3600)
     dailyFees.addCGToken("usd-coin", (endCumFees.total_fees - startCumFees.total_fees)/1e6)
 
+    const totalFees = options.createBalances();
+    totalFees.addCGToken("usd-coin", endCumFees.total_fees/1e6)
+
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        totalFees,
+        totalRevenue: totalFees,
     }
 }
 
