@@ -9,9 +9,8 @@ const eclipseStatsApiEndpoint =
 
 type StatsApiResponse = {
   data: {
-    volume24: {
-      value: number;
-    };
+    volume24: { value: number; };
+    fees24: { value: number; };
   };
 };
 
@@ -24,6 +23,7 @@ const fetch = async (
   );
   return {
     dailyVolume: fullSnapResponse.data.volume24.value,
+    dailyFees: fullSnapResponse.data.fees24.value,
     timestamp,
   };
 };
