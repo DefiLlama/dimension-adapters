@@ -1,9 +1,8 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import * as sdk from "@defillama/sdk";
 
 interface IGraph {
 	volume: string;
@@ -12,10 +11,9 @@ interface IGraph {
 
 const URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb/0.0.2/';
 const assets = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-	const chain = CHAIN.ARBITRUM;
-	const balances = new sdk.Balances({ chain, timestamp });
+	const dailyVolume = createBalances()
 	for (const asset of assets) {
 		const query = gql`
     	{
@@ -25,11 +23,10 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 			}`;
 		const response: IGraph = (await request(URL, query)).dayAssetData;
 		const element = response;
-		const realAsset = asset === ADDRESSES.null ? ADDRESSES.arbitrum.WETH : asset;
-		balances._add(realAsset, element.volume);
+		dailyVolume.add(asset, element.volume);
 	}
 	return {
-		dailyVolume: await balances.getUSDString(),
+		dailyVolume,
 		timestamp: dayTimestamp,
 	};
 }
