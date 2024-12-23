@@ -12,6 +12,9 @@ const FEE_COLLECTOR_CONTRACT = "0x00000000000000000000000000000000000ec550";
 async function fetch(options: FetchOptions) {
   const dailyFees  = await getTokenDiff({ target: FEE_COLLECTOR_CONTRACT, options, tokens: [], includeGasToken: true })
 
+  // in case the team moves hbar out of the contract
+  dailyFees.removeNegativeBalances()
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
