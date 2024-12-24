@@ -31,7 +31,7 @@ const v2Graphs = getGraphDimensions2({
     type: "fees",
     HoldersRevenue: 92,
     UserFees: 100,
-    Revenue: 92,
+    Revenue: 100,
     SupplySideRevenue: 0,
     ProtocolRevenue: 8,
   },
