@@ -1,6 +1,7 @@
 import axios from "axios";
 import { FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 const ROUTE_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
 
@@ -182,37 +183,32 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
   ]).then(([rp4Logs, rp5Logs]) => [...rp4Logs, ...rp5Logs])
 
   if (useSushiAPIPrice(chain)) {
-    const [tokensQuery, pricesQuery] = await Promise.all([
-      axios.get(`https://tokens.sushi.com/v0/${CHAIN_ID[chain]}`)
-        .then(response => response.data),
-      axios.get(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)
-        .then(response => Object.entries(response.data).reduce(
-          (acc, [key, value]) => {
-            acc[key.toLowerCase()] = value
-            return acc
-          },
-          {},
-        )),
-    ])
+    const dailyVolume = createBalances()
+    const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]) => {
+      acc[key.toLowerCase()] = value
+      return acc
+    });
+    const tokensIn =  [...new Set(logs.map(log => log.tokenIn.toLowerCase()))]
+    const tokensInfo = (await Promise.all(tokensIn.map(token => httpGet(`https://api.sushi.com/token/v1/${CHAIN_ID[chain]}/${token}`)))).flat();
 
-    const tokens = tokensQuery.reduce((tokens, token) => {
+    const tokens = tokensInfo.reduce((tokens, token) => {
       const address = token.address.toLowerCase()
       tokens[address] = {
         ...token,
-        price: pricesQuery[address] ?? 0
+        price: tokenPrice[address] ?? 0
       }
 
       return tokens
-    }, {})
-
-    let dailyVolume = 0
+    }, {});
 
     logs.forEach((log) => {
-      const token = tokens[
-        log.tokenIn === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? WNATIVE_ADDRESS[chain] : log.tokenIn.toLowerCase()
-      ]
-
-      if (token) dailyVolume += Number(log.amountIn) * token.price / 10 ** token.decimals
+      const token = tokens[log.tokenIn.toLowerCase()]
+      if (token && log.tokenIn !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
+        dailyVolume.addUSDValue(_dailyVolume)
+      } else {
+        dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
+      }
     })
 
     return { dailyVolume }
