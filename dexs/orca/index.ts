@@ -4,7 +4,7 @@ import { httpGet } from '../../utils/fetchURL';
 const statsApiEndpoint = "https://stats-api.mainnet.orca.so/api/whirlpools";
 const eclipseStatsApiEndpoint = "https://stats-api-eclipse.mainnet.orca.so/api/whirlpools";
 const FEE_RATE_DENOMINATOR = 1_000_000;
-const FEE_RATE_THRESHOLD = 0.0016; // Threshold for when a pool's LPs are charged a protocol fee
+const FEE_RATE_THRESHOLD = 0; // 
 const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climat fund 
 
 interface WhirlpoolReward {
