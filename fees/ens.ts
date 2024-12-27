@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const abi_event = {
-  nameRegistered: "event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 cost,uint256 expires)",
+  nameRegistered: "event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 baseCost,uint256 premium,uint256 expires)",
   nameRenewed: "event NameRenewed(string name,bytes32 indexed label,uint256 cost,uint256 expires)",
 };
 
@@ -34,8 +34,8 @@ const adapter: Adapter = {
           }
         })
         registeredLogs.map((tx: any) => {
-          if (Number(tx.cost) / 1e18 < 10) {
-            dailyFees.addGasToken(tx.cost)
+          if (Number(tx.baseCost) / 1e18 < 10) {
+            dailyFees.addGasToken(tx.baseCost)
           }
         })
         return { dailyFees, dailyRevenue: dailyFees, }
