@@ -28,8 +28,15 @@ const adapter: Adapter = {
           targets: [address_v4, address_v5],
           eventAbi: abi_event.nameRenewed,
         })
-        registeredLogs.concat(renewedLogs).map((tx: any) => {
-          dailyFees.addGasToken(tx.cost)
+        renewedLogs.map((tx: any) => {
+          if (Number(tx.const) / 1e18 < 10) {
+            dailyFees.addGasToken(tx.cost)
+          }
+        })
+        registeredLogs.map((tx: any) => {
+          if (Number(tx.cost) / 1e18 < 10) {
+            dailyFees.addGasToken(tx.cost)
+          }
         })
         return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
