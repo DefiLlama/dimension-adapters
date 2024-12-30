@@ -3,6 +3,7 @@ import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
+const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
     [CHAIN.ETHEREUM]: 'ethereum',
@@ -50,7 +51,7 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
     );
 
 
-    const dailyRes = await httpGet("https://swap.prod.swing.xyz/v0/metrics/stats", {
+    const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
             'Content-Type': 'application/json',
         },

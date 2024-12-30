@@ -45,12 +45,16 @@ export const getVaultsResolver = async (api: ChainApi) => {
   }
 }
 
-export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBalances }: FetchOptions, fromBlock: number, toBlock: number) => {
-  const dailyFees = createBalances();
-  const liquidityLogs = await getLogs({ fromBlock, toBlock, target: LIQUIDITY, onlyArgs: true, eventAbi: EVENT_ABI.logOperate });
-  const vaults: string[] = await (await getVaultsResolver(api)).getAllVaultsAddresses();
+const parseInTopic = (address: string): string => {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+      throw new Error('Invalid EVM address');
+  }
+  return `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
+}
 
-  if (!liquidityLogs.length) return dailyFees
+export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const vaults: string[] = await (await getVaultsResolver(api)).getAllVaultsAddresses();
 
   const [vaultDatasFrom, vaultDatasTo, vaultBorrowDatas] = await Promise.all([
     (await getVaultsResolver(fromApi)).getVaultEntireData(vaults),
@@ -58,36 +62,36 @@ export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBa
     toApi.multiCall({ calls: vaults, abi: ABI.vault.constantsView })
   ])
 
-  vaults.map((vault, i) => {
+  for (const [i, vault] of vaults.entries()) {
     const vaultDataFrom = vaultDatasFrom[i];
     const vaultDataTo = vaultDatasTo[i];
     const borrowData = vaultBorrowDatas[i];
     // Skip the current vault if any required data is missing
-    if (!vaultDataFrom || !vaultDataTo || !borrowData) return;
+    if (!vaultDataFrom || !vaultDataTo || !borrowData) continue;
+
+    const vaultFrom = vaultDataFrom.vault
+    const vaultTo = vaultDataTo.vault
+
+    if (!vaultFrom || !vaultTo || vaultFrom !== vault || vaultTo !== vault) continue
 
     const { borrowToken } = borrowData;
-    const { totalSupplyAndBorrow: totalSupplyAndBorrowFrom, constantVariables } = vaultDataFrom;
+    const { totalSupplyAndBorrow: totalSupplyAndBorrowFrom } = vaultDataFrom;
     const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultDataTo;
-    const token = constantVariables.borrowToken ?? borrowToken;
 
-    if (!token) return;
-    
+    if (!borrowToken) continue;
+
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
-
-    const vaultOperates = liquidityLogs.filter(
-      ([vaultOperate, tokenUsed, , , , receiver]) =>
-        vaultOperate === vault && tokenUsed === token && receiver !== reserveContract
-    );
-
-    const borrowBalance = vaultOperates.reduce(
-      (balance, [, , , amount]) => balance + Number(amount || 0),
-      initialBalance
-    );
-
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
-    const fees = borrowBalanceTo > borrowBalance ? borrowBalanceTo - borrowBalance : 0;
-    dailyFees.add(token, fees);
-  });
+
+    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: ['0x4d93b232a24e82b284ced7461bf4deacffe66759d5c24513e6f29e571ad78d15', parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
+    
+    const borrowBalances = liquidityLogs
+      .filter((log) => log[5] !== reserveContract)
+      .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance)
+    
+    const fees = borrowBalanceTo > borrowBalances ? borrowBalanceTo - borrowBalances : 0n
+    dailyFees.add(borrowToken, fees)
+  }
 
   return dailyFees;
 };

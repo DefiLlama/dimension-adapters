@@ -101,7 +101,7 @@ const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, token
   );
 }
 
-const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalances, fromTimestamp, toTimestamp }: FetchOptions, fromBlock: number, toBlock: number) => {
+const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalances, fromTimestamp, toTimestamp }: FetchOptions) => {
   const dailyValues = createBalances();
   const collectedLiquidityLogs = await getLogs({ target: LIQUIDITY, eventAbi: EVENT_ABI.logCollectRevenue });
   const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
@@ -152,9 +152,9 @@ const getVaultUncollectedRevenues = async (api: ChainApi, createBalances: Create
   return values;
 };
 
-const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs, vaults: string [], fromBlock: number, toBlock: number) => {
+const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs, vaults: string []) => {
   const values = createBalances()
-  const rebalanceEventLogs: any [] = await getLogs({ fromBlock, toBlock, targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance})
+  const rebalanceEventLogs: any [] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance})
   
   if (rebalanceEventLogs.length == 0) return values;
 
@@ -174,7 +174,7 @@ const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBa
   return values
 }
 
-const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs, fromTimestamp, toTimestamp }: FetchOptions, fromBlock: number, toBlock: number) => {
+const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs, fromTimestamp, toTimestamp }: FetchOptions) => {
   if (toTimestamp < CONFIG_FLUID[api.chain].vaultResolverExistAfterTimestamp) return 0
 
   const vaults: string[] = await (await getVaultsResolver(api)).getAllVaultsAddresses();
@@ -182,7 +182,7 @@ const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs,
   const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] = await Promise.all([
     getVaultUncollectedRevenues(fromApi, createBalances, vaults, fromTimestamp),
     getVaultUncollectedRevenues(toApi, createBalances, vaults, toTimestamp),
-    getVaultCollectedRevenues(api, createBalances, getLogs, vaults, fromBlock, toBlock)
+    getVaultCollectedRevenues(api, createBalances, getLogs, vaults)
   ])
 
   vaultUncollectedBalancesTo.addBalances(vaultCollected)
@@ -191,10 +191,10 @@ const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs,
   return revenueTo > revenueFrom ? revenueTo - revenueFrom : 0
 }
 
-export const getFluidDailyRevenue = async (options: FetchOptions, fromBlock: number, toBlock: number) => {
+export const getFluidDailyRevenue = async (options: FetchOptions) => {
   const [liquidityRevenues, vaultRevenues] = await Promise.all([
-    getLiquidityRevenues(options, fromBlock, toBlock),
-    getVaultsRevenues(options, fromBlock, toBlock)
+    getLiquidityRevenues(options),
+    getVaultsRevenues(options)
   ])
   
   return liquidityRevenues + vaultRevenues
