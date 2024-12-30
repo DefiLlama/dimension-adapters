@@ -97,7 +97,7 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
           runAtCurrTime: true,
           start: 1735217146,
         },
-        [CHAIN.ZKSYNC]: {
+        [CHAIN.ERA]: {
           fetch: fetch,
           runAtCurrTime: true,
           start: 1662595200,
