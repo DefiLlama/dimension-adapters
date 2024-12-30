@@ -24,7 +24,7 @@ const graph = (chain: Chain) => {
         const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
-            totalVolume: `${totalVolume}`,
+            totalVolume: totalVolume ? `${totalVolume}` : undefined,
             dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
             timestamp: dayTimestamp,
         };
@@ -41,7 +41,6 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.BITCOIN,
     CHAIN.CELO,
     CHAIN.CORE,
-    CHAIN.DOGECHAIN,
     CHAIN.ETHEREUM,
     CHAIN.FANTOM,
     CHAIN.HECO,
@@ -52,7 +51,6 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.MANTLE,
     CHAIN.MORPH,
     CHAIN.NEAR,
-    CHAIN.OKEXCHAIN,
     CHAIN.OP_BNB,
     CHAIN.OPTIMISM,
     CHAIN.SOLANA,
