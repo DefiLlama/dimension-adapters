@@ -16,14 +16,12 @@ interface IVolumeall {
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-        const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data.list;
+        const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
-        const totalVolume = historicalVolume
-            .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+        const totalVolume = historicalVolume?.filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
             .reduce((acc, { volume }) => acc + Number(volume), 0)
 
-        const dailyVolume = historicalVolume
-            .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+        const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
             totalVolume: `${totalVolume}`,
