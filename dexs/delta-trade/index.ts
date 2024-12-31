@@ -2,11 +2,11 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
-const api = "https://api.deltatrade.ai/api/home/data";
+const api = 'https://api.deltatrade.ai/api/home/data'
 
-const fetch = async () => {
+async function fetchVolume(chain: string) {
   const timestamp = getUniqStartOfTodayTimestamp();
-  const res = await httpGet(api);
+  const res = await httpGet(`${api}?chain=${chain}`);
   const { total_24h, total } = res.data;
 
   return {
@@ -19,8 +19,12 @@ const fetch = async () => {
 const adapter: SimpleAdapter = {
   adapter: {
     near: {
-      fetch,
-            runAtCurrTime: true,
+      fetch: () => fetchVolume('near'),
+      runAtCurrTime: true,
+    },
+    solana: {
+      fetch: () => fetchVolume('solana'),
+      runAtCurrTime: true,
     },
   },
 };
