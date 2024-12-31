@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
 const fethcFeesSolana = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, target: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF' })
+  const dailyFees = await getSolanaReceived({ options, target: '4TTaKEKLjh1WJZttu1kvDtZt9N4G854C6ZKPAprZFRuy' })
   return { dailyFees, dailyRevenue: dailyFees, }
 }
 
