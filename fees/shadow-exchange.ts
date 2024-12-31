@@ -46,7 +46,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.AVAX]: {
+    [CHAIN.SONIC]: {
       fetch: v2Graphs(SONIC),
       start: startTimeV2[CHAIN.SONIC],
       meta: {
