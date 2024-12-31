@@ -29,6 +29,7 @@ const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 
 // token
 const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
+const cake = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
 const eth = "0x2170Ed0880ac9A755fd29B2688956BD959F933F8";
 const wbeth = "0xa2e3356610840701bdf5611a53974510ae27e2e1";
@@ -70,16 +71,6 @@ const fetch = async (options: FetchOptions) => {
       "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
       newTreasury,
     ],
-  });
-
-  // BNB Liquid Staking Fee - ListaStakeManager
-  const bnbLiquidStakingFeeOld = await options.getLogs({
-    target: slisBNB,
-    topics: [transferHash, zeroAddress, oldTreasury],
-  });
-  const bnbLiquidStakingFeeNew = await options.getLogs({
-    target: slisBNB,
-    topics: [transferHash, zeroAddress, newTreasury],
   });
 
   // BNB provide Fee - MasterVault
@@ -195,9 +186,20 @@ const fetch = async (options: FetchOptions) => {
     //   "event Transfer(address indexed from, address indexed to, uint256 value)",
   });
 
-  // todo: 12/25 add PCS income
+  // LP staking rewards
+  const lpStakeRewardsFromHash =
+    "0x00000000000000000000000062dfec5c9518fe2e0ba483833d1bad94ecf68153";
+  const lpStakeRewardsToHash =
+    "0x00000000000000000000000085ce862c5bb61938ffcc97da4a80c8aae43c6a27";
+  const lpStakingCakeRewards = await options.getLogs({
+    target: cake,
+    topics: [transferHash, lpStakeRewardsFromHash, lpStakeRewardsToHash],
+  });
+  const lpStakingListaRewards = await options.getLogs({
+    target: lista,
+    topics: [transferHash, lpStakeRewardsFromHash, lpStakeRewardsToHash],
+  });
 
-  // new version start
   [...ethStakingEthOld, ...ethStakingEthNew].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(eth, amount);
@@ -205,10 +207,6 @@ const fetch = async (options: FetchOptions) => {
   [...ethStakingWbethOld, ...ethStakingWbethNew].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(wbeth, amount);
-  });
-  [...bnbLiquidStakingFeeOld, ...bnbLiquidStakingFeeNew].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(slisBNB, amount);
   });
 
   [...bnbLiquidStakingProfitOld, ...bnbLiquidStakingProfitNew].forEach(
@@ -255,6 +253,14 @@ const fetch = async (options: FetchOptions) => {
   [...validatorRewards].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(bnb, amount);
+  });
+  [...lpStakingListaRewards].forEach((log) => {
+    const amount = Number(log.data);
+    dailyFees.add(lista, amount);
+  });
+  [...lpStakingCakeRewards].forEach((log) => {
+    const amount = Number(log.data);
+    dailyFees.add(cake, amount);
   });
 
   return {

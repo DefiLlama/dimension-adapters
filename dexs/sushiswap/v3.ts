@@ -32,6 +32,7 @@ const endpointsV3 = {
     [CHAIN.LINEA]: sdk.graph.modifyEndpoint('E2vqqvSzDdUiPP1r7PFnPKZQ34pAhNZjc6rEcdj3uE5t'),
     [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
     // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
+    [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -78,6 +79,7 @@ const startTimeV3: {[key: string]: number} = {
     [CHAIN.LINEA]: 1711982400,
     [CHAIN.SCROLL]: 1711982400,
     [CHAIN.SKALE_EUROPA]: 1711982400,
+    [CHAIN.SONIC]: 1711982400,
 }
 
 const v3 = Object.keys(endpointsV3).reduce(

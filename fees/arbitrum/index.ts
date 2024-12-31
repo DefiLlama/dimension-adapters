@@ -6,7 +6,7 @@ import { queryIndexer } from "../../helpers/indexer";
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: (async (options: FetchOptions) => {
+      fetch: (async (_t: number, _b: any, options: FetchOptions) => {
         const { getFromBlock, getToBlock, createBalances, } = options
         const startblock = await getFromBlock()
         const endblock = await getToBlock()
@@ -41,7 +41,7 @@ const adapter: Adapter = {
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
-  version: 2
+  version: 1
 }
 
 export default adapter;
