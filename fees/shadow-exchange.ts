@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../adapters/types";
-import { SONIC, CHAIN } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
