@@ -16,7 +16,7 @@ const startTimeV2: TStartTime = {
 
 const v2Endpoints = {
   [CHAIN.SONIC]:
-    sdk.graph.modifyEndpoint('QmQUpw87hb34A97MJZJcFNDfG9sP3ekSMojNKxVfPH8Ukw'),
+    sdk.graph.modifyEndpoint('HGyx7TCqgbWieay5enLiRjshWve9TjHwiug3m66pmLGR'),
 };
 
 const VOLUME_USD = "volumeUSD";
@@ -24,7 +24,7 @@ const VOLUME_USD = "volumeUSD";
 const v2Graphs = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
-    factory: "factories",
+    factory: "legacyFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
   feesPercent: {
