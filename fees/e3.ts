@@ -83,17 +83,17 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.FANTOM]: {
 			fetch: graph(CHAIN.FANTOM),
-			start: 1681130543,
+			start: '2023-04-10',
 			meta: { methodology }
 		},
 		[CHAIN.ARBITRUM]: {
 			fetch: graph(CHAIN.ARBITRUM),
-			start: 1686459416,
+			start: '2023-06-11',
 			meta: { methodology }
 		},
 		[CHAIN.BASE]: {
 			fetch: graph(CHAIN.BASE),
-			start: 1691547000,
+			start: '2023-08-09',
 			meta: { methodology }
 		}
 	}

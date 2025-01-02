@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: 1677934513,
+      start: '2023-03-04',
     },
   },
 };

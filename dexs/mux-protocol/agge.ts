@@ -76,7 +76,7 @@ const adapteragges: any = {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: 1708387200,
+        start: '2024-02-20',
       }
     }
   }, {})

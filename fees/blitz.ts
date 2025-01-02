@@ -120,7 +120,7 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1710259200,
+      start: '2024-03-12',
     },
   },
 };

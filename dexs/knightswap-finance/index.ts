@@ -25,11 +25,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: 1635379200,
+      start: '2021-10-28',
     },
     [CHAIN.FANTOM]: {
       fetch: v2Graph(CHAIN.FANTOM),
-      start: 1637798400,
+      start: '2021-11-25',
     },
   },
 };

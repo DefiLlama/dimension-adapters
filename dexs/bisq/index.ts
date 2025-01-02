@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: 1525651200,
+      start: '2018-05-07',
     },
   },
 };

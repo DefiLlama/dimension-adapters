@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.METIS]: {
       fetch,
-      start: 1661900400,
+      start: '2022-08-31',
     },
   },
 };

@@ -117,15 +117,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,
-      start: 1699563104,
+      start: '2023-11-09',
     },
-    [CHAIN.BASE]: { fetch: fetchBase, start: 1711054304 },
-    [CHAIN.ARBITRUM]: { fetch: fetchArbitrum, start: 1699476704 },
-    [CHAIN.POLYGON]: { fetch: fetchPolygon, start: 1699390304 },
-    [CHAIN.BSC]: { fetch: fetchBNB, start: 1699476704 },
-    [CHAIN.AVAX]: { fetch: fetchAVALANCHE, start: 1699476704 },
-    [CHAIN.OPTIMISM]: { fetch: fetchOPTIMISM, start: 1699390304 },
-    [CHAIN.BLAST]: { fetch: fetchBLAST, start: 1716497504 },
+    [CHAIN.BASE]: { fetch: fetchBase, start: '2024-03-21' },
+    [CHAIN.ARBITRUM]: { fetch: fetchArbitrum, start: '2023-11-08' },
+    [CHAIN.POLYGON]: { fetch: fetchPolygon, start: '2023-11-07' },
+    [CHAIN.BSC]: { fetch: fetchBNB, start: '2023-11-08' },
+    [CHAIN.AVAX]: { fetch: fetchAVALANCHE, start: '2023-11-08' },
+    [CHAIN.OPTIMISM]: { fetch: fetchOPTIMISM, start: '2023-11-07' },
+    [CHAIN.BLAST]: { fetch: fetchBLAST, start: '2024-05-23' },
   },
 };
 

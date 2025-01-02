@@ -12,7 +12,7 @@ const adapters: SimpleAdapter = {
         
                 return { dailyFees, dailyRevenue: dailyFees }
             },
-            start: 1706746140
+            start: '2024-02-01'
         },
     },
     version: 2

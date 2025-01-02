@@ -100,27 +100,27 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
         getVaultsFees(options, contracts[CHAIN.ETHEREUM]),
-      start: 1693039022,
+      start: '2023-08-26',
     },
     // [CHAIN.POLYGON]: {
     //   fetch: (options: FetchOptions) =>
     //     getVaultsFees(options, contracts[CHAIN.POLYGON]),
-    //   start: 1693039022,
+    //   start: '2023-08-26',
     // },
     // [CHAIN.OPTIMISM]: {
     //   fetch: (options: FetchOptions) =>
     //     getVaultsFees(options, contracts[CHAIN.OPTIMISM]),
-    //   start: 1693039022,
+    //   start: '2023-08-26',
     // },
     // [CHAIN.BASE]: {
     //   fetch: (options: FetchOptions) =>
     //     getVaultsFees(options, contracts[CHAIN.BASE]),
-    //   start: 1693039022,
+    //   start: '2023-08-26',
     // },
     // [CHAIN.ARBITRUM]: {
     //   fetch: (options: FetchOptions) =>
     //     getVaultsFees(options, contracts[CHAIN.ARBITRUM]),
-    //   start: 1693039022,
+    //   start: '2023-08-26',
     // },
   },
   version: 2,

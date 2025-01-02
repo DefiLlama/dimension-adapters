@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ONUS]: {
       fetch: async (timestamp: number) => { return { timestamp } },
-      start: 1685577600,
+      start: '2023-06-01',
     },
   },
 };

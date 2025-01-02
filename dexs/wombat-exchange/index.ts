@@ -26,19 +26,19 @@ type TEndpoint = {
 // Updated using studio
 const endpoints: TEndpoint = {
   [CHAIN.BSC]:
-    sdk.graph.modifyEndpoint('DPuFUNkRpW5AG2HBWyRhzvYCodocb1H8vjVLijyEJyGE'),
+    sdk.graph.modifyEndpoint('3jEHqbiN3BQn7pyMDzkDcBwm5EYFtpMpXaeryRDGPKA7'),
   [CHAIN.ARBITRUM]:
-    sdk.graph.modifyEndpoint('HADLg9LFYHJupr3xvWdmp7piPpwjGEwjbCknkSVrfyDQ'),
+    sdk.graph.modifyEndpoint('5YPaz7z5iYgboKtoShdvZYPohUKtrDLibcLSLzaC424M'),
   [CHAIN.ETHEREUM]:
-    sdk.graph.modifyEndpoint('3S2iHctknomx91fcAcyqrPvCcGfnuhKdEKBs2xThoCvJ'),
+    sdk.graph.modifyEndpoint('CzchnYPzkEoc75nPMEN3ydtSdxZ5fqhQhCmCz3tvHn8V'),
   [CHAIN.SCROLL]:
-    "https://api.studio.thegraph.com/query/56564/wombat-exchange-scroll/version/latest",
+      sdk.graph.modifyEndpoint('8RfP8c7r9WY2EBHopY52khqniHtzhTbEfj5hTF1esetS'),
   [CHAIN.AVAX]:
-    sdk.graph.modifyEndpoint('6PbnpSVfrWgVeRiTbbM4yFNAiYacLjGLg1ztzasxqxGf'),
+    sdk.graph.modifyEndpoint('CoQESay2omXqeXf2irxDoPnggR9ULC9SeM7jPeSNgEVT'),
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/56564/wombat-exchange-base/version/latest",
+      sdk.graph.modifyEndpoint('9VTwC8JsHkdgJPjG1RZC7v2trmpq57JKrY4Vj74rSHoM'),
   [CHAIN.OPTIMISM]:
-    sdk.graph.modifyEndpoint('4phYPx7RdkSSKFuoFBRZFFbPMkRCnYLfi8bENyQf4NA6'),
+    sdk.graph.modifyEndpoint('56EaG7Hfw4oPK6CaatX9vuhKFKqh7ztThEkJ7Ya1yh2t'),
 };
 
 const fetchVolume = (chain: Chain) => {
@@ -77,31 +77,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume(CHAIN.BSC),
-      start: 1650243600,
+      start: '2022-04-18',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: 1679809928,
+      start: '2023-03-26',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: 1691290453,
+      start: '2023-08-06',
     },
     [CHAIN.SCROLL]: {
       fetch: fetchVolume(CHAIN.SCROLL),
-      start: 1697417581,
+      start: '2023-10-16',
     },
     [CHAIN.AVAX]: {
       fetch: fetchVolume(CHAIN.AVAX),
-      start: 1697493603,
+      start: '2023-10-17',
     },
     [CHAIN.BASE]: {
       fetch: fetchVolume(CHAIN.BASE),
-      start: 1697486905,
+      start: '2023-10-16',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: 1700173545,
+      start: '2023-11-16',
     },
   },
 };

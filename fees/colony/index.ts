@@ -151,7 +151,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
           methodology
       }

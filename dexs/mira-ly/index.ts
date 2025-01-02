@@ -8,7 +8,7 @@ const fetchVolume = async (timestamp: number) => {
   const response = (await httpPost(url, body)).pools
     .map((e => e.details))
   const dailyVolume = response.reduce((acc: any, item: any) => {
-    return acc + Number(item.volume)
+    return acc + Number(item?.volume || 0)
   }, 0)
   return {
     dailyVolume: dailyVolume,
@@ -21,7 +21,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.FUEL]: {
       fetch: fetchVolume,
-      start: 1601424000,
+      start: '2020-09-30',
     }
   }
 }

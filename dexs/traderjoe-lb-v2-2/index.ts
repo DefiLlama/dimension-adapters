@@ -57,12 +57,10 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchVolume,
-      start: 0,
-    },
+          },
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: 0,
-    },
+          },
   }
 }
 export default adapters

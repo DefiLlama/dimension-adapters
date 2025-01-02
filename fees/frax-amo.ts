@@ -97,8 +97,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: 0,
-      },
+              },
     };
   }, {}),
   version: 1,

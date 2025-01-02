@@ -22,7 +22,6 @@ export default {
     [BSC]: {
       fetch: graphs,
       runAtCurrTime: true,
-      start: 0
     },
   },
 } as Adapter;

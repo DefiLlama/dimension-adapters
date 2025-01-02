@@ -168,7 +168,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1670716800,
+      start: '2022-12-11',
       meta: {
         methodology,
       },

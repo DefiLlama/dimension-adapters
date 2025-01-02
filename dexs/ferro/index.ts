@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(CHAIN.CRONOS),
-      start: 1661731973,
+      start: '2022-08-29',
     },
   },
 };

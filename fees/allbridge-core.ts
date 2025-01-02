@@ -116,42 +116,42 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.BSC]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: 1684022400,
+      start: '2023-05-14',
       meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: 1687838400,
+      start: '2023-06-27',
       meta,
     },
     [CHAIN.AVAX]: {
       fetch,
-      start: 1698030000,
+      start: '2023-10-23',
       meta,
     },
     [CHAIN.BASE]: {
       fetch,
-      start: 1706798200,
+      start: '2024-02-01',
       meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch,
-      start: 1702868400,
+      start: '2023-12-18',
       meta,
     },
     [CHAIN.TRON]: {
       fetch,
-      start: 1685109600,
+      start: '2023-05-26',
       meta,
     },
   },

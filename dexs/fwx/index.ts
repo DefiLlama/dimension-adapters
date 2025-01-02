@@ -20,7 +20,7 @@ const CHAIN_ID = {
 };
 
 const endpoints = {
-  tradingVolume: `https://app.fwx.finance/api/v2/trade/volume`,
+  tradingVolume: `https://analytics.fwx.finance/api/trade/daily-trade-volume`,
   openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
@@ -86,11 +86,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1701907200,
+      start: '2023-12-07',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1725408000,
+      start: '2024-09-04',
     },
   },
 };

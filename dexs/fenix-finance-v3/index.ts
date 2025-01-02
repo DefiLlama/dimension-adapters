@@ -1,12 +1,10 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {
-  getChainVolume,
-} from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 const endpointsAlgebraV3 = {
   [CHAIN.BLAST]:
-    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v3-dex/ce3738b/gn",
+    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v3-dex/latest/gn",
 };
 
 const graphsAlgebraV3 = getChainVolume({
@@ -27,10 +25,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphsAlgebraV3(CHAIN.BLAST),
-      start: 1596025,
     },
   },
 };
 
 export default adapter;
-

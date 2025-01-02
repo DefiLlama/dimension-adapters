@@ -38,7 +38,7 @@ const adapter_agg = {
   adapter: {},
 };
 
-Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: 1690848000, });
+Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: '2023-08-01', });
 
 const adapter: SimpleAdapter = {
   adapter: adapter_agg.adapter,

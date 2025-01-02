@@ -19,11 +19,11 @@ const fetch = getChainVolume2({
 const volumeAdapter: BaseAdapter = {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: 1655164800,
+        start: '2022-06-14',
     },
     [CHAIN.SMARTBCH]: {
         fetch: fetch(CHAIN.SMARTBCH),
-        start: 1646697600,
+        start: '2022-03-08',
     },
 }
 

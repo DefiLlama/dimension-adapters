@@ -4,7 +4,8 @@ import { CHAIN } from "../helpers/chains";
 import type { FetchV2, Adapter } from "../adapters/types";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/77001/grafun-prod/v1.0.5"
+  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/77001/grafun-prod/v1.0.5",
+  [CHAIN.ETHEREUM]: "https://api.studio.thegraph.com/query/77001/grafun-eth/version/latest",
 }
 
 const query = `
@@ -41,7 +42,11 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      start: 1727417433,
+      start: '2024-09-27',
+      fetch,
+    },
+    [CHAIN.ETHEREUM]: {
+      start: "2024-11-28",
       fetch,
     },
   },

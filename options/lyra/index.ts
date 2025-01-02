@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: subgraph(chain as Chain),
-        start: 1656154800,
+        start: '2022-06-25',
       },
     };
   }, {}),

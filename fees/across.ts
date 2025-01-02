@@ -82,10 +82,10 @@ const graph = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: graph, start: 1682840443, },
-    [CHAIN.ARBITRUM]: { fetch: graph, start: 1682840443, },
-    [CHAIN.OPTIMISM]: { fetch: graph, start: 1682840443, },
-    [CHAIN.POLYGON]: { fetch: graph, start: 1682840443, },
+    [CHAIN.ETHEREUM]: { fetch: graph, start: '2023-04-30', },
+    [CHAIN.ARBITRUM]: { fetch: graph, start: '2023-04-30', },
+    [CHAIN.OPTIMISM]: { fetch: graph, start: '2023-04-30', },
+    [CHAIN.POLYGON]: { fetch: graph, start: '2023-04-30', },
   },
 };
 

@@ -60,11 +60,11 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: 1648157552,
+      start: '2022-03-24',
     },
     // [CHAIN.POLYGON_ZKEVM]: {
     //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM),
-    //   start: 1679923169,
+    //   start: '2023-03-27',
     // },
   },
 };

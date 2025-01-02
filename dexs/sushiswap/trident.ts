@@ -68,7 +68,7 @@ const trident = Object.keys(endpointsTrident).reduce(
       }
 
       },
-      start: 1711982400,
+      start: '2024-04-01',
     },
   }),
   {}

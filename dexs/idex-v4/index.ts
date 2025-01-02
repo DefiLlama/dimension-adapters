@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     idex: {
       fetch,
-      start: 1721312070,
+      start: '2024-07-18',
       runAtCurrTime: true,
     },
   },

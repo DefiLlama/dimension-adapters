@@ -27,12 +27,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
     },
     [CHAIN.WEMIX]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
     }
   },

@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [ARBITRUM]: {
             fetch,
-            start: 1727740800,
+            start: '2024-10-01',
         },
     },
 };

@@ -64,13 +64,13 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.SOLANA]: {
         fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("spot", options),
-        start: 1690239600,
+        start: '2023-07-25',
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
         fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("perp", options),
-        start: 1690239600,
+        start: '2023-07-25',
       },
     },
   },

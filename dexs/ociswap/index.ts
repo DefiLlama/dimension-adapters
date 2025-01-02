@@ -39,14 +39,14 @@ const adapters: BreakdownAdapter = {
         basic: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('basic'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('precision'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         }

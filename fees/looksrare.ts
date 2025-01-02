@@ -40,7 +40,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch,
-      start: 1640775864,
+      start: '2021-12-29',
     },
   }
 }

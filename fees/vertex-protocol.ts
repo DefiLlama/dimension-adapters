@@ -174,22 +174,22 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1682514000,
+      start: '2023-04-26',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1682514000,
+      start: '2023-04-26',
     },
     [CHAIN.SEI]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1723547681,
+      start: '2024-08-13',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1725476671,
+      start: '2024-09-04',
     },
   },
 };

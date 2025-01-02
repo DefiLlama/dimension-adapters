@@ -40,7 +40,7 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.MOONBEAN]: {
         fetch: v3Graphs(CHAIN.MOONBEAN),
-        start: 1684397388,
+        start: '2023-05-18',
         customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
         meta: {
           methodology: {

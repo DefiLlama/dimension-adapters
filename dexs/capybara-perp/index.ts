@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch: getFetch(CHAIN.KLAYTN),
-      start: 1727568000,
+      start: '2024-09-29',
     },
   },
 };

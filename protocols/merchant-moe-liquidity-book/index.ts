@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: graph,
-      start: 1711929600
+      start: '2024-04-01'
     }
   }
 }

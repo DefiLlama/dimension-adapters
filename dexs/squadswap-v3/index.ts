@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v3Graphs(CHAIN.BSC),
-      start: 1704758400
+      start: '2024-01-09'
     },
   },
 };

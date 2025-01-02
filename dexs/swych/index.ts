@@ -129,8 +129,7 @@ export default {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchVolumeStats,
-            start: 1701720000,
-            runAtCurrTime: false,
+            start: '2023-12-04',
         },
     },
 };

@@ -110,7 +110,7 @@ export default {
   adapter: {
     [ARBITRUM]: {
       fetch,
-      start: 1705715264,
+      start: '2024-01-20',
       runAtCurrTime: true,
     },
   },

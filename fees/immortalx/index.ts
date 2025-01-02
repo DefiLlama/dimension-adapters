@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetch(CHAIN.CELO),
-      start: 1690848000,
+      start: '2023-08-01',
     },
   },
   version: 2

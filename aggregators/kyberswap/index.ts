@@ -41,63 +41,63 @@ const adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.BLAST]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     /*[CHAIN.BITTORRENT]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },*/
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1632268800,
+      start: '2021-09-22',
     },
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: 1632268800,
+      start: '2021-09-22',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1622544000,
+      start: '2021-06-01',
     },
     [CHAIN.LINEA]: {
       fetch: fetch,
-      start: 1632268800,
+      start: '2021-09-22',
     },
     [CHAIN.SCROLL]: {
       fetch: fetch,
-      start: 1632268800,
+      start: '2021-09-22',
     },
     [CHAIN.ERA]: {
       fetch: fetch,
-      start: 1632268800,
+      start: '2021-09-22',
     },
   },
 };

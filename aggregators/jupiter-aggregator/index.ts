@@ -20,7 +20,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1681599600,
+      start: '2023-04-16',
       meta: {
         methodology: {
           totalVolume:

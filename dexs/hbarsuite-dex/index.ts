@@ -74,7 +74,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      start: async () => 1672531200,
+      start: '2023-01-01',
       meta: {
         methodology
       },

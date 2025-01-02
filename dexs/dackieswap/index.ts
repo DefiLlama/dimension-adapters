@@ -4,7 +4,7 @@ import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/50473/exchange-clmm/version/latest",
+    "https://api.studio.thegraph.com/query/50473/v3-base/version/latest",
   [CHAIN.OPTIMISM]:
     "https://api.studio.thegraph.com/query/50473/v3-optimism/version/latest",
   [CHAIN.ARBITRUM]:
@@ -43,31 +43,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: v3Graph(CHAIN.BASE),
-      start: async () => v3StartTimes[CHAIN.BASE]
+      start: v3StartTimes[CHAIN.BASE]
     },
     [CHAIN.OPTIMISM]: {
       fetch: v3Graph(CHAIN.OPTIMISM),
-      start: async () => v3StartTimes[CHAIN.OPTIMISM]
+      start: v3StartTimes[CHAIN.OPTIMISM]
     },
     [CHAIN.ARBITRUM]: {
       fetch: v3Graph(CHAIN.ARBITRUM),
-      start: async () => v3StartTimes[CHAIN.ARBITRUM]
+      start: v3StartTimes[CHAIN.ARBITRUM]
     },
     [CHAIN.BLAST]: {
       fetch: v3Graph(CHAIN.BLAST),
-      start: async () => v3StartTimes[CHAIN.BLAST]
+      start: v3StartTimes[CHAIN.BLAST]
     },
     [CHAIN.MODE]: {
       fetch: v3Graph(CHAIN.MODE),
-      start: async () => v3StartTimes[CHAIN.MODE]
+      start: v3StartTimes[CHAIN.MODE]
     },
     [CHAIN.XLAYER]: {
       fetch: v3Graph(CHAIN.XLAYER),
-      start: async () => v3StartTimes[CHAIN.XLAYER]
+      start: v3StartTimes[CHAIN.XLAYER]
     },
     [CHAIN.LINEA]: {
       fetch: v3Graph(CHAIN.LINEA),
-      start: async () => v3StartTimes[CHAIN.LINEA]
+      start: v3StartTimes[CHAIN.LINEA]
     },
   },
   version: 2

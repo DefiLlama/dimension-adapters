@@ -58,7 +58,7 @@ const blacklisted = {
 }
 
 const v3Endpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
+  // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
@@ -185,7 +185,7 @@ const fetchV2 = async (options: FetchOptions) => {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     });
     const dailyVolume = response.v2HistoricalProtocolVolume.find((item) => item.timestamp === options.startOfDay)?.value;
-    return {dailyVolume: dailyVolume}
+    return { dailyVolume, dailyFees: Number(dailyVolume) * 0.003 };
   } catch (e) {
     console.error(e)
     return {
@@ -217,7 +217,7 @@ const adapter: BreakdownAdapter = {
           }
           return response as FetchResultGeneric
         },
-        start: 1541203200,
+        start: '2018-11-03',
         meta: {
           methodology
         },
@@ -247,8 +247,7 @@ const adapter: BreakdownAdapter = {
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
-          start: 0,
-        }
+                  }
         return acc
       }, {})
     },
@@ -266,6 +265,7 @@ const adapter: BreakdownAdapter = {
               dailyUserFees: res?.dailyUserFees || 0
             }
           } catch {
+            console.error("Error fetching v3 data: ", chain)
             return {
               totalVolume: 0,
               dailyVolume: 0,
@@ -323,13 +323,31 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-const okuChains = [ CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
+const okuChains = [
+  CHAIN.ETHEREUM,
+  CHAIN.SEI,
+  CHAIN.ERA,
+  CHAIN.TAIKO,
+  CHAIN.SCROLL,
+  CHAIN.ROOTSTOCK,
+  CHAIN.FILECOIN,
+  CHAIN.BOBA,
+  CHAIN.MOONBEAM,
+  CHAIN.MANTA,
+  CHAIN.MANTLE,
+  CHAIN.LINEA,
+  CHAIN.POLYGON_ZKEVM,
+  CHAIN.BLAST,
+  CHAIN.XDAI,
+  CHAIN.BOB,
+  CHAIN.LISK,
+  CHAIN.CORN,
+]
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
     fetch: fetchFromOku,
-    start: 0,
-    meta: {
+        meta: {
       methodology
     }
   }
