@@ -18,6 +18,7 @@ const endpoints = {
   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
   [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/api/public/9e9d6e8a-be9d-42d1-9747-3a8f001214c5/subgraphs/woonetwork/woofi-mantle/v0.0.1/gn",
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
 };
 
 type TStartTime = {
@@ -35,6 +36,7 @@ const startTime: TStartTime = {
   [CHAIN.LINEA]: 1691625600,
   [CHAIN.BASE]: 1692057600,
   [CHAIN.MANTLE]: 1706659200,
+  [CHAIN.SONIC]: 1734480000,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
