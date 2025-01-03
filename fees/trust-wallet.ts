@@ -184,6 +184,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetchFees,
+        start: '2023-05-18',
       },
     };
   }, {}),
