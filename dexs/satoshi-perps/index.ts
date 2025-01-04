@@ -32,7 +32,6 @@ interface IGraphResponse {
     liquidation: string,
     margin: string,
     mint: string,
-    swap: string,
   }>
 }
 interface IGraphResponseOI {
@@ -46,9 +45,7 @@ interface IGraphResponseOI {
 const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: chain === CHAIN.CORE
-      ? String(dayTimestamp)
-      : String(dayTimestamp) + ':daily',
+    id: String(dayTimestamp) + ':daily',
     period: 'daily',
   })
   const totalData: IGraphResponse = await request(endpoints[chain], query, {
@@ -61,9 +58,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 
   if (query === historicalDataDerivatives) {
     const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
-      id: chain === CHAIN.CORE
-      ? String(dayTimestamp)
-      : String(dayTimestamp) + ':daily',
+      id: String(dayTimestamp),
       period: 'daily',
     });
     dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
