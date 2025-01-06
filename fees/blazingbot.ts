@@ -90,11 +90,9 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
-      runAtCurrTime: true,
       start: '2024-11-23',
     },
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;
