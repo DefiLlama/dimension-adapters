@@ -93,6 +93,7 @@ const adapter: SimpleAdapter = {
       start: '2024-11-23',
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
