@@ -40,7 +40,7 @@ const fetch = async (timestamp: number) => {
 
     return {
         dailyVolume: totalDailyVolumeInUSD + stats.volume24,
-        totalVolume: totalVolumeInUSD + stats.volume24,
+        totalVolume: totalVolumeInUSD + stats.volumeTotal,
         timestamp,
     };
 };
