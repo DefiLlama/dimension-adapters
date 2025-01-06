@@ -237,6 +237,7 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
   })
 
   logs.forEach((log) => {
+    if (log.data == '0x') return
     balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
