@@ -8,7 +8,7 @@ import { CHAIN } from "../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
 
 const event_swap =
-  "event EisenSwapCompleted(address sender, address fromAssetId, address toAssetId, address receiver, uint256 fromAmount, uint256 toAmount, uint256 expectedToAmount, uint256 fee);";
+  "event EisenSwapCompleted(address sender, address fromAssetId, address toAssetId, address receiver, uint256 fromAmount, uint256 toAmount, uint256 expectedToAmount, uint256 fee)";
 
 type ROUTER = {
   [c: string]: string[];
