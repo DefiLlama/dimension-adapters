@@ -1,5 +1,5 @@
 import type { SimpleAdapter } from '../../adapters/types'
-import { httpPost } from '../../utils/fetchURL';
+import { httpGet } from '../../utils/fetchURL';
 import {CHAIN} from "../../helpers/chains";
 
 const API_SERVICE_URL = 'https://api.cvex.trade/v1/statistics/fee'
