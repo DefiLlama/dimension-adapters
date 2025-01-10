@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY } from "./config";
+import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsResolver } from './fees';
 
 type CreateBalances = () => sdk.Balances
@@ -103,28 +103,28 @@ const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, token
 
 const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalances, fromTimestamp, toTimestamp }: FetchOptions) => {
   const dailyValues = createBalances();
-  const collectedLiquidityLogs = await getLogs({ target: LIQUIDITY, eventAbi: EVENT_ABI.logCollectRevenue });
   const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
-  
+
   // Fetch uncollected revenues for the "from" and "to" timestamps
   const [revenuesFrom, revenuesTo] = await Promise.all([
     getUncollectedLiquidities(fromApi, fromTimestamp, tokens),
     getUncollectedLiquidities(toApi, toTimestamp, tokens)
   ]);
 
-  tokens.forEach((token, i) => {
+  for (const [i, token] of tokens.entries()) {
     // Default to 0 if revenues are missing
-    const collectedRevenue = collectedLiquidityLogs
-      .filter(([logToken]) => logToken.toLowerCase() === token)
-      .reduce((sum, [, amount]) => sum + (amount ? Number(amount) : 0), 0);
+    const collectedRevenueLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics:[TOPIC0.logCollectRevenue, parseInTopic(token)], eventAbi: EVENT_ABI.logCollectRevenue, skipCacheRead: true })
+    const collectedRevenue = collectedRevenueLogs.reduce((sum, log) => {
+      const amount = log.amount ? Number(log.amount) : 0;
+      return sum + amount;
+    }, 0);
 
     const revenueTo = (revenuesTo[i] !== undefined ? Number(revenuesTo[i]) : 0) + collectedRevenue;
     const revenueFrom = revenuesFrom[i] !== undefined ? Number(revenuesFrom[i]) : 0;
     const netRevenue = Math.max(0, revenueTo - revenueFrom);
 
-    dailyValues.add(token, netRevenue);
-  });
-
+    dailyValues.add(token, netRevenue)
+  }
   return dailyValues.getUSDValue();
 };
 
@@ -134,7 +134,7 @@ const getVaultUncollectedRevenues = async (api: ChainApi, createBalances: Create
 
   const vaultDatas = await ((await getVaultsResolver(api)).getVaultEntireData(vaults))
 
-  vaultDatas.forEach((data, index) => {
+  vaultDatas.forEach((data) => {
     if (!data || !data.totalSupplyAndBorrow || !data.constantVariables) return
 
     const { totalSupplyAndBorrow, constantVariables } = data;
@@ -154,8 +154,7 @@ const getVaultUncollectedRevenues = async (api: ChainApi, createBalances: Create
 
 const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs, vaults: string []) => {
   const values = createBalances()
-  const rebalanceEventLogs: any [] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance})
-  
+  const rebalanceEventLogs: any [] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance })
   if (rebalanceEventLogs.length == 0) return values;
 
   const contractViews = await api.multiCall({ abi: ABI.vault.constantsView, calls: vaults })
