@@ -1,14 +1,11 @@
 import {
-  ChainBlocks,
   FetchOptions,
-  FetchResultFees,
   SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
 
 const event_swap =
-  "event EisenSwapCompleted(address sender, address fromAssetId, address toAssetId, address receiver, uint256 fromAmount, uint256 toAmount, uint256 expectedToAmount, uint256 fee)";
+  "event EisenSwapCompleted(address indexed sender, address indexed fromAssetId, address indexed toAssetId, address receiver, uint256 fromAmount, uint256 toAmount, uint256 expectedToAmount, uint256 fee)"
 
 type ROUTER = {
   [c: string]: string[];
@@ -25,41 +22,34 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.ZIRCUIT]: ["0x6bD912872B9e704a70f10226ab01A2Db87D0dd1C"],
 };
 
-const graph = (chain: Chain): any => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    { getLogs, createBalances }: FetchOptions
-  ): Promise<FetchResultFees> => {
-    const router = ROUTER_ADDRESS[chain];
-    const dailyFees = createBalances();
-    const logs = await getLogs({
-      targets: router,
-      eventAbi: event_swap,
-    });
-    logs.forEach((i) => dailyFees.add(i.toAssetId, i.fee));
+const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
+  const router = ROUTER_ADDRESS[chain];
+  const dailyFees = createBalances();
+  const logs = await getLogs({
+    targets: router,
+    eventAbi: event_swap,
+  });
 
-    return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyFees,
-      dailyHoldersRevenue: 0,
-      dailySupplySideRevenue: 0,
-      timestamp,
-    };
+  logs.forEach((i) => dailyFees.add(i.toAssetId, i.fee));
+
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: "2024-11-23" },
-    [CHAIN.BLAST]: { fetch: graph(CHAIN.BLAST), start: "2024-05-10" },
-    [CHAIN.CORE]: { fetch: graph(CHAIN.CORE), start: "2024-10-01" },
-    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: "2024-03-17" },
-    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: "2024-06-18" },
-    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: "2024-05-24" },
-    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: "2023-10-16" },
-    [CHAIN.TAIKO]: { fetch: graph(CHAIN.TAIKO), start: "2024-10-01" },
-    [CHAIN.ZIRCUIT]: { fetch: graph(CHAIN.ZIRCUIT), start: "2024-12-06" },
+    [CHAIN.BASE]: { fetch, start: "2024-11-23" },
+    [CHAIN.BLAST]: { fetch, start: "2024-05-10" },
+    [CHAIN.CORE]: { fetch, start: "2024-10-01" },
+    [CHAIN.MODE]: { fetch, start: "2024-03-17" },
+    [CHAIN.LINEA]: { fetch, start: "2024-06-18" },
+    [CHAIN.MANTLE]: { fetch, start: "2024-05-24" },
+    [CHAIN.SCROLL]: { fetch, start: "2023-10-16" },
+    [CHAIN.TAIKO]: { fetch, start: "2024-10-01" },
+    [CHAIN.ZIRCUIT]: { fetch, start: "2024-12-06" },
   },
 };
 
