@@ -1,7 +1,7 @@
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ABI, EVENT_ABI, LIQUIDITY } from "./config";
+import { ABI, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 
 const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92"
 
@@ -45,13 +45,6 @@ export const getVaultsResolver = async (api: ChainApi) => {
   }
 }
 
-const parseInTopic = (address: string): string => {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
-      throw new Error('Invalid EVM address');
-  }
-  return `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
-}
-
 export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
   const dailyFees = createBalances();
   const vaults: string[] = await (await getVaultsResolver(api)).getAllVaultsAddresses();
@@ -83,7 +76,7 @@ export const getFluidDailyFees = async ({ api, fromApi, toApi, getLogs, createBa
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
 
-    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: ['0x4d93b232a24e82b284ced7461bf4deacffe66759d5c24513e6f29e571ad78d15', parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
+    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
     
     const borrowBalances = liquidityLogs
       .filter((log) => log[5] !== reserveContract)

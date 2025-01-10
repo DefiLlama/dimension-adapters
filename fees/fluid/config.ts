@@ -65,7 +65,20 @@ export const EVENT_ABI: any = {
   logRebalance: "event LogRebalance(int colAmt_, int debtAmt_)"
 }
 
+export const TOPIC0: any = {
+  logOperate: '0x4d93b232a24e82b284ced7461bf4deacffe66759d5c24513e6f29e571ad78d15',
+  logCollectRevenue: '0x7ded56fbc1e1a41c85fd5fb3d0ce91eafc72414b7f06ed356c1d921823d4c37c',
+  logRebalance: '0x9a85dfb89c634cdc63db5d8cedaf8f9cfa4926df888bad563d70b7314a33a0ae'
+}
+
 export const METHODOLOGY_FLUID = {
   Fees: "Interest paid by borrowers",
   Revenue: "Percentage of interest going to treasury",
 };
+
+export const parseInTopic = (address: string): string => {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+      throw new Error('Invalid EVM address');
+  }
+  return `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
+}
