@@ -4,15 +4,18 @@ import {CHAIN} from "../../helpers/chains";
 
 const API_SERVICE_URL = 'https://api.cvex.trade/v1/statistics/fee'
 
-const api = (url: string, ts: any) =>
-  httpPost(url, { timestamp: ts },
-    { headers: { 'Content-Type': 'application/json', } }
-  ).then(res => {
-    if (res.error)
-      throw new Error(res.error.message)
+const buildUrl = (baseUrl: string, params: Record<string, any>) => {
+  const query = new URLSearchParams(params).toString();
+  return `${baseUrl}?${query}`;
+};
 
-    return res
+const api = (url: string, ts: any) => {
+  const fullUrl = buildUrl(url, { timestamp: ts });
+  return httpGet(fullUrl).then(res => {
+    if (res.error) throw new Error(res.error.message);
+    return res;
   });
+};
 
 const adapter: SimpleAdapter = {
   adapter: {
