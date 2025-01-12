@@ -136,10 +136,10 @@ const adapter: Adapter = {
         fetch: graph,
         start: '2023-03-07',
       },
-      [CHAIN.ETHEREUM]: {
-        fetch: graph,
-        start: '2023-09-24',
-      },
+      // [CHAIN.ETHEREUM]: {
+      //   fetch: graph,
+      //   start: '2023-09-24',
+      // },
     },
   },
 };
