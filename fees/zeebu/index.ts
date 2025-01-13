@@ -108,7 +108,7 @@ export default {
       start: 1728518400,
       meta: {
         methodology: {
-          Fees: "1% Invoice settlement fees paid by Merchant and Customer",
+          Fees: "2% collectively paid by merchant and customer",
           UserFees : "Daily fees"
           Revenue: "Invoice fees",
           HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
@@ -120,7 +120,7 @@ export default {
       start: 1688083200,
       meta: {
         methodology: {
-          Fees: "1% Invoice settlement fees paid by Merchant and Customer",
+          Fees: "2% collectively paid by merchant and customer",
           Revenue: "Invoice fees",
           HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
         }
@@ -130,145 +130,3 @@ export default {
   },
   version: 2,
 } as Adapter;
-
-/**
- * Function to fetch fees for a specific chain
- */
-function fetchFeesForChain(chain: string, contracts: string[]): FetchV2 {
-  return async ({ getLogs, createBalances }) => {
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-
-    for (const contract of contracts) {
-      // Fetch logs for each contract
-      const logs = await getLogs({
-        target: contract,
-        eventAbi: EVENT_ABI,
-      });
-
-      logs.map((e: any) => {
-        console.log(`Contract: ${contract}, Fee: ${e.fee}`);
-        // Add fees to daily balances
-        dailyFees.addGasToken(e.fee);
-        dailyRevenue.addGasToken(e.fee);
-      });
-    }
-
-    return { dailyFees, dailyRevenue };
-  };
-}
-
-/**
- * Function to fetch stats for a specific chain
- */
-function fetchStatsForChain(chain: string, contracts: string[]): FetchV2 {
-  return async ({ getLogs }) => {
-    let dailyVolume = 0;
-    let totalVolume = 0;
-    let dailyFees = 0;
-    let totalFees = 0;
-
-    for (const contract of contracts) {
-      // Fetch logs for each contract
-      const logs = await getLogs({
-        target: contract,
-        eventAbi: EVENT_ABI,
-      });
-
-      // Process each event log
-      logs.map((e: any) => {
-        const volume = e.amount; // Use tokenValue or amount as the metric
-        const fee = e.fee; // Extract fee field (in Zeebu tokens)
-
-        const volumeInZeebu = parseFloat(volume) / 1e18; // Convert volume to Zeebu tokens
-        const feeInZeebu = parseFloat(fee) / 1e18; // Convert fee to Zeebu tokens
-
-        dailyVolume += volumeInZeebu; // Sum up daily volume
-        totalVolume += volumeInZeebu; // Sum up total volume
-        dailyFees += feeInZeebu; // Sum up daily fees
-        totalFees += feeInZeebu; // Sum up total fees
-      });
-    }
-
-    // Convert fees and volumes to USD using Zeebu token price
-    const zeebuPrice = 1;//await getTokenPrice("zeebu", chain); // Replace 'zeebu' with actual token ID
-    const dailyVolumeUSD = dailyVolume * zeebuPrice;
-    const totalVolumeUSD = totalVolume * zeebuPrice;
-    const dailyFeesUSD = dailyFees * zeebuPrice;
-    const totalFeesUSD = totalFees * zeebuPrice;
-
-    return {
-      dailyVolume: dailyVolumeUSD, // Return daily volume in USD
-      totalVolume: totalVolumeUSD, // Return total volume in USD
-      dailyFees: dailyFeesUSD, // Return daily fees in USD
-      totalFees: totalFeesUSD, // Return total fees in USD
-      dailyRevenue: dailyFeesUSD, // Assume revenue = fees (if this applies)
-    };
-  };
-}
-
-/**
- * Fetch statistics for a specific chain
- * @param chain - Blockchain chain
- * @param contracts - List of contract addresses
- * @param startBlock - Starting block to fetch logs
- */
-function fetchStatsForChain2(chain: string, contracts: string[], startBlock: number): FetchV2 {
-  console.log(chain,contracts,startBlock);
-  return async ({ getLogs }) => {
-    let dailyVolume = 0;
-    let totalVolume = 0;
-    let dailyFees = 0;
-    let totalFees = 0;
-
-    const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
-    const oneDayAgo = currentTimestamp - 24 * 60 * 60; // 24 hours ago
-
-    for (const contract of contracts) {
-      // Fetch all logs from the start block
-      const logs = await getLogs({
-        target: contract,
-        eventAbi: EVENT_ABI,
-        fromBlock: startBlock,
-      });
-
-      logs.map((e: any) => {
-        const volume = e.tokenValue || e.amount; // Use tokenValue or amount as volume
-        const fee = e.fee; // Use fee field
-
-        const volumeInUSD = parseFloat(volume) / 1e18; // Convert to Zeebu tokens
-        const feeInUSD = parseFloat(fee) / 1e18; // Convert fee to Zeebu tokens
-
-        totalVolume += volumeInUSD; // Add to total volume
-        totalFees += feeInUSD; // Add to total fees
-
-        // Check if the log is within the last 24 hours
-        if (e.blockTime >= oneDayAgo) {
-          dailyVolume += volumeInUSD; // Add to daily volume
-          dailyFees += feeInUSD; // Add to daily fees
-        }
-      });
-    }
-
-    // Convert values to USD using Zeebu token price
-    const dailyVolumeUSD = dailyVolume ;
-    const totalVolumeUSD = totalVolume ;
-    const dailyFeesUSD = dailyFees ;
-    const totalFeesUSD = totalFees ;
-
-    console.log({
-      chain : chain,
-      dailyVolume: dailyVolumeUSD,
-      totalVolume: totalVolumeUSD,
-      dailyFees: dailyFeesUSD,
-      totalFees: totalFeesUSD,
-    });
-
-    return {
-      dailyVolume: dailyVolumeUSD,
-      totalVolume: totalVolumeUSD,
-      dailyFees: dailyFeesUSD,
-      totalFees: totalFeesUSD,
-    };
-  };
-}
