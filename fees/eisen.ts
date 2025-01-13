@@ -30,8 +30,13 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
     eventAbi: event_swap,
   });
 
-  logs.forEach((i) => dailyFees.add(i.toAssetId, i.fee));
-
+  logs.forEach((i) => {
+    if (i.toAssetId.toLowerCase() === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'.toLowerCase()) {
+      dailyFees.addGasToken(i.fee);
+    } else {
+      dailyFees.add(i.toAssetId, i.fee)
+    }
+  });
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyFees,
