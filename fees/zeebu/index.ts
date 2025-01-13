@@ -109,7 +109,7 @@ export default {
       meta: {
         methodology: {
           Fees: "2% collectively paid by merchant and customer",
-          UserFees : "Daily fees"
+          UserFees : "Daily fees",
           Revenue: "Invoice fees",
           HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
         }
