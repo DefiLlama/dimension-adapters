@@ -1,11 +1,5 @@
 import {
-  BreakdownAdapter,
-  Fetch,
-  FetchOptions,
-  FetchResult,
-  FetchResultV2,
-  FetchV2,
-  SimpleAdapter
+  FetchOptions, SimpleAdapter
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
