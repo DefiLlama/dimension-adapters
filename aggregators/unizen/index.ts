@@ -76,7 +76,6 @@ const adapter: SimpleAdapter = {
       };
     }, {}),
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;

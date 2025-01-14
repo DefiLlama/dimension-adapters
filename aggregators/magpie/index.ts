@@ -103,7 +103,6 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
           start: 1662595200,
         },
       },
-      // isExpensiveAdapter: true,
     };
 
 export default adapter;
