@@ -37,6 +37,16 @@ const tokens = [
     geckoId: "coingecko:usd-coin",
     decimals: 6,
   },
+  {
+    ticker: "solvBTC",
+    geckoId: "coingecko:bitcoin",
+    decimals: 18,
+  },
+  {
+    ticker: "sUSDe",
+    geckoId: "coingecko:ethena-staked-usde",
+    decimals: 18,
+  },
 ];
 
 const fetchFeeData = async (url: string, timestamp: number) => {
@@ -147,6 +157,47 @@ const fetchOnBase: FetchV2 = async ({ startTimestamp }) => {
   };
 };
 
+const fetchOnEthereum: FetchV2 = async ({ startTimestamp }) => {
+  const monthStartTimeStamp = getTimestampAtStartOfMonth(startTimestamp);
+  const monthEndTimestamp = getTimestampAtStartOfNextMonth(startTimestamp);
+
+  const graphQlUrl = "https://d2.finance/subgraphs/name/smartosc/ethereum-d2";
+  const result = await fetchFeeData(graphQlUrl, startTimestamp);
+  const tokenPrices = await fetchTokenPrices(startTimestamp);
+
+  let totalAmount = 0;
+  let monthlyAmount = 0;
+  for (let data of result) {
+    const token = tokens.find((token) => token.ticker === data.token);
+    if (token) {
+      const price = tokenPrices[token.geckoId].price;
+      const amountInDollar = Number(
+        BigNumber(data.amount)
+          .times(price)
+          .dividedBy(BigNumber(10).pow(token.decimals))
+      );
+      totalAmount += amountInDollar;
+      if (
+        data.blockTimestamp >= monthStartTimeStamp &&
+        data.blockTimestamp < monthEndTimestamp
+      ) {
+        monthlyAmount += amountInDollar;
+      }
+    }
+  }
+
+  const monthFee = monthlyAmount / 30;
+
+  return {
+    dailyFees: monthFee,
+    dailyRevenue: monthFee,
+    dailyProtocolRevenue: monthFee,
+    totalFees: totalAmount,
+    totalRevenue: totalAmount,
+    totalProtocolRevenue: totalAmount,
+  };
+};
+
 export default {
   version: 2,
   adapter: {
@@ -158,6 +209,11 @@ export default {
     [CHAIN.BASE]: {
       fetch: fetchOnBase,
       start: "2024-10-31",
+      runAtCurrTime: true,
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchOnEthereum,
+      start: "2025-01-09",
       runAtCurrTime: true,
     },
   },
