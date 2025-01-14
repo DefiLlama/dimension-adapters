@@ -5,7 +5,6 @@ import { Balances } from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { ethers, getAddress } from 'ethers';
 
 const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
 const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
@@ -48,28 +47,17 @@ subgraphEndpoints[CHAIN.BASE] = "https://base.subgraph.jaspervault.io";
 subgraphEndpoints[CHAIN.BITLAYER] = "https://subgraphs.jaspervault.io/subgraphs/jaspervault-bitlayer";
 
 function getDecimals(token_address: string) {
-  let decimalPlaces = 0;
-  if (token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee") {
-    decimalPlaces = 18
-  }
-  else {
-    if (tokenDecimals[token_address.toLowerCase()] != undefined) {
-      decimalPlaces = tokenDecimals[token_address.toLowerCase()]
-    }
-    else {
-      const checksumAddress = getAddress(token_address);
-      if (tokenDecimals[checksumAddress] != undefined) {
-        decimalPlaces = tokenDecimals[checksumAddress]
-      }
-      else {
-        return 0;
-      }
-    }
-  }
-  return decimalPlaces;
+  token_address = token_address.toLowerCase()
+  if (token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+    return 18
+
+  if (tokenDecimals[token_address] != undefined)
+    return tokenDecimals[token_address]
+  return 0;
 }
+
 // event logs can be found here: https://github.com/DefiLlama/dimension-adapters/pull/1492#issuecomment-2118112517
-function calculateNotionalVolume(balances: Balances, orders: any[]) {
+function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain) {
   for (const order of orders) {
     let orderDetails = order.callOrder || order.putOrder;
     if (!orderDetails) {
@@ -81,7 +69,7 @@ function calculateNotionalVolume(balances: Balances, orders: any[]) {
       if (order.callOrder) {
         let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
         if (decimals_strikeAsset == 0) {
-          console.error("No decimals data found for strikeAsset", orderDetails.strikeAsset);
+          console.error("No decimals data found for strikeAsset", orderDetails.strikeAsset, chain);
           continue;
         }
         let decimals_underlyingAsset = getDecimals(orderDetails.underlyingAsset);
@@ -103,7 +91,7 @@ function calculateNotionalVolume(balances: Balances, orders: any[]) {
       if (order.callOrder) {
         let decimals_strikeAsset: number = getDecimals(orderDetails.strikeAsset);
         if (decimals_strikeAsset == 0) {
-          console.error("No decimals data found for strikeAsset", orderDetails.strikeAsset);
+          console.error("No decimals data found for strikeAsset", orderDetails.strikeAsset, chain);
           continue;
         }
         let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
@@ -114,7 +102,7 @@ function calculateNotionalVolume(balances: Balances, orders: any[]) {
       else if (order.putOrder) {
         let decimals_lockAsset: number = getDecimals(orderDetails.lockAsset);
         if (decimals_lockAsset == 0) {
-          console.error("No decimals data found for lockAsset", orderDetails.lockAsset);
+          console.error("No decimals data found for lockAsset", orderDetails.lockAsset, chain);
           continue;
         }
         let notionalValue = new BigNumber(orderDetails.lockAmount).dividedBy(new BigNumber(10).pow(decimals_lockAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
@@ -267,32 +255,6 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   const now = endTimestamp;
   const startOfDay = startTimestamp;
   const tokens = contracts[chain].map(i => i[0]);
-  let decimals;
-  if (chain === CHAIN.BITLAYER) {
-    const provider = new ethers.JsonRpcProvider('https://rpc.bitlayer.org');
-    const erc20Interface = new ethers.Interface([
-      'function decimals() view returns (uint8)'
-    ]);
-    decimals = await Promise.all(
-      tokens.map(async (token) => {
-        const contract = new ethers.Contract(token, erc20Interface, provider);
-        try {
-          const decimal = await contract.decimals();
-          return Number(decimal);
-        } catch (e) {
-          console.error(`Error fetching decimals for token ${token}:`, e);
-          return 18;
-        }
-      })
-    );
-  } else {
-    decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens, chain });
-  }
-
-  tokenDecimals = tokens.reduce((obj, token, index) => {
-    obj[token] = decimals[index];
-    return obj;
-  }, {});
 
   const [
     dailyCallData, dailyCallDataV2, dailyPutData, dailyPutDataV2, dailyPremiumData,
@@ -312,7 +274,26 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   // const totalNotionalVolume = createBalances()
   // const totalPremiumVolume = createBalances()
 
-  calculateNotionalVolume(dailyNotionalVolume, [...dailyCallData.callOrderEntities, ...dailyCallDataV2.callOrderEntities, ...dailyPutData.putOrderEntities, ...dailyPutDataV2.putOrderEntities]);
+  const tokenSet= new Set<string>()
+  const allOrders =  [...dailyCallData.callOrderEntities, ...dailyCallDataV2.callOrderEntities, ...dailyPutData.putOrderEntities, ...dailyPutDataV2.putOrderEntities]
+  allOrders.forEach((order: any)=>{
+    const fields = ['callOrder', 'putOrder']
+    for (const field of fields) {
+      const { strikeAsset, underlyingAsset, lockAsset } = order[field] ?? {}
+      if (strikeAsset) tokenSet.add(strikeAsset.toLowerCase())
+      if (underlyingAsset) tokenSet.add(underlyingAsset.toLowerCase())
+      if (lockAsset) tokenSet.add(lockAsset.toLowerCase())
+    }
+    if (order.strikeAsset) tokenSet.add(order.strikeAsset)
+  })
+
+  let decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens, });
+
+  tokens.map((token, index) => {
+    tokenDecimals[token.toLowerCase()] = decimals[index];
+  });
+
+  calculateNotionalVolume(dailyNotionalVolume,allOrders, chain);
   calculatePremiumVolume(dailyPremiumVolume, dailyPremiumData.optionPremiums);
   // calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
   // calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
