@@ -5,9 +5,13 @@ import { Balances } from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { getAddress } from 'ethers';
+import { ethers, getAddress } from 'ethers';
 
+const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
+const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
+const UNI_arbitrum = '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'
 const cbBTC_base = '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf'
+const USDT_btr = '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2'
 type TokenContracts = {
   [key in Chain]: string[][];
 };
@@ -19,20 +23,29 @@ const contracts: TokenContracts = {
     [ADDRESSES.arbitrum.USDC],
     [ADDRESSES.arbitrum.USDT],
     [ADDRESSES.arbitrum.ARB],
+    [ADDRESSES.arbitrum.LINK],
+    [UNI_arbitrum],
+    [WSOL_arbitrum],
+    [iBTC_arbitrum]
   ],
   [CHAIN.BASE]: [
     [ADDRESSES.base.USDC],
     [cbBTC_base],
-  ]
+  ],
+  [CHAIN.BITLAYER]: [
+    [USDT_btr]
+  ],
 }
 const chainsStartTimes: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1715175000,
   [CHAIN.BASE]: 1723001211,
+  [CHAIN.BITLAYER]: 1723001211,
 }
 let tokenDecimals = {}
 const subgraphEndpoints: ChainEndpoints = {}
 subgraphEndpoints[CHAIN.ARBITRUM] = "https://arb.subgraph.jaspervault.io";
 subgraphEndpoints[CHAIN.BASE] = "https://base.subgraph.jaspervault.io";
+subgraphEndpoints[CHAIN.BITLAYER] = "https://subgraphs.jaspervault.io/subgraphs/jaspervault-bitlayer";
 
 function getDecimals(token_address: string) {
   let decimalPlaces = 0;
@@ -254,8 +267,27 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   const now = endTimestamp;
   const startOfDay = startTimestamp;
   const tokens = contracts[chain].map(i => i[0]);
-  if (chain === CHAIN.ARBITRUM) tokens.push('0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9')
-  const decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens, chain });
+  let decimals;
+  if (chain === CHAIN.BITLAYER) {
+    const provider = new ethers.JsonRpcProvider('https://rpc.bitlayer.org');
+    const erc20Interface = new ethers.Interface([
+      'function decimals() view returns (uint8)'
+    ]);
+    decimals = await Promise.all(
+      tokens.map(async (token) => {
+        const contract = new ethers.Contract(token, erc20Interface, provider);
+        try {
+          const decimal = await contract.decimals();
+          return Number(decimal);
+        } catch (e) {
+          console.error(`Error fetching decimals for token ${token}:`, e);
+          return 18;
+        }
+      })
+    );
+  } else {
+    decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens, chain });
+  }
 
   tokenDecimals = tokens.reduce((obj, token, index) => {
     obj[token] = decimals[index];
@@ -292,8 +324,6 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
     // totalPremiumVolume,
   }
 }
-
-
 
 const adapter: Adapter = {
   version: 2,
