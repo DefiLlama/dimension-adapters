@@ -23,6 +23,7 @@ const addresses: TAddress = {
   [CHAIN.SONIC]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
   [CHAIN.BASE]: "0x55b867a955e4384bcac03ef7f2e492f68016c152",
   [CHAIN.SONEIUM]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
+  [CHAIN.INK]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5"
 };
 
 const methodology = {
@@ -203,6 +204,13 @@ const adapter: Adapter = {
         methodology,
       },
     },
+    [CHAIN.INK]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-05-30',
+      meta: {
+        methodology
+      }
+    }
   },
 };
 
