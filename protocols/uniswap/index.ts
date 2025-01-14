@@ -63,7 +63,7 @@ const v3Endpoints = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
   [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
+  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
@@ -256,6 +256,7 @@ const adapter: BreakdownAdapter = {
         fetch: async (options: FetchOptions) => {
           try {
             const res = (await v3Graphs(chain as Chain)(options))
+            // console.log("res", res)
             return {
               totalVolume: res?.totalVolume || 0,
               dailyVolume: res?.dailyVolume || 0,
@@ -342,6 +343,7 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.LISK,
   CHAIN.CORN,
+  CHAIN.BSC
 ]
 
 okuChains.forEach(chain => {
