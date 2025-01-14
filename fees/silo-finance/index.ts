@@ -209,19 +209,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ETHEREUM]),
-      start: 1660150409,
+      start: '2022-08-10',
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ARBITRUM]),
-      start: 1683046409,
+      start: '2023-05-02',
     },
     [CHAIN.OPTIMISM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.OPTIMISM]),
-      start: 1716656009,
+      start: '2024-05-25',
     },
     [CHAIN.BASE]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.BASE]),
-      start: 1719420809,
+      start: '2024-06-26',
     },
   },
   version: 2,

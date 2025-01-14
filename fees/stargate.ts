@@ -143,51 +143,51 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     // [CHAIN.FANTOM]: {
     //   fetch: fetch(CHAIN.FANTOM),
-    //   start: 1661990400,
+    //   start: '2022-09-01',
     // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.LINEA]: {
       fetch: fetch(CHAIN.LINEA),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1661990400,
+      start: '2022-09-01',
     },
     [CHAIN.KAVA]: {
       fetch: fetch(CHAIN.KAVA),
-      start: 1661990400,
+      start: '2022-09-01',
     },
   },
 };

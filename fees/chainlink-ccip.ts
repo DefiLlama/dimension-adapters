@@ -118,31 +118,31 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.BSC]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.AVAX]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     }
   }
 }

@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1673568000
+      start: '2023-01-13'
     },
   },
 };

@@ -27,11 +27,11 @@ const abi: { [event: string]: string } = {
 };
 
 const chains: { [chain: string]: { id: number; start: number } } = {
-  [CHAIN.ETHEREUM]: { id: 1, start: 1686268800 },
-  [CHAIN.ARBITRUM]: { id: 42161, start: 1686268800 },
-  [CHAIN.MANTLE]: { id: 5000, start: 1711506087 },
-  [CHAIN.BSC]: { id: 56, start: 1686268800 },
-  [CHAIN.OPTIMISM]: { id: 10, start: 1691733600 },
+  [CHAIN.ETHEREUM]: { id: 1, start: '2023-06-09' },
+  [CHAIN.ARBITRUM]: { id: 42161, start: '2023-06-09' },
+  [CHAIN.MANTLE]: { id: 5000, start: '2024-03-27' },
+  [CHAIN.BSC]: { id: 56, start: '2023-06-09' },
+  [CHAIN.OPTIMISM]: { id: 10, start: '2023-08-11' },
 };
 
 async function amm(

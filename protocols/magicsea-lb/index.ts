@@ -54,7 +54,7 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
 
 const adapter: SimpleAdapter = {
 	adapter: {
-		[CHAIN.IOTAEVM]: { fetch, start: 1681130543, },
+		[CHAIN.IOTAEVM]: { fetch, start: '2023-04-10', },
 	}
 };
 

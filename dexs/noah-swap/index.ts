@@ -37,7 +37,7 @@ const adapters: SimpleAdapter  = {
   adapter: {
     [CHAIN.EOS_EVM]: {
       fetch: fetchVolume,
-      start: 1699315200
+      start: '2023-11-07'
     }
   }
 }

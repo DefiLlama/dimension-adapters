@@ -24,7 +24,7 @@ const adapter: Adapter = {
 					timestamp: volumeData.timeStamp,
 				};
 			},
-			start: 1712265900,
+			start: '2024-04-04',
 		},
 		ethereum: {
 			fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -40,7 +40,7 @@ const adapter: Adapter = {
 					timestamp: volumeData.timeStamp,
 				};
 			},
-			start: 1712265900,
+			start: '2024-04-04',
 		}
 	},
 };

@@ -113,7 +113,7 @@ const adapter: Adapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: 1629504000,
+        start: '2021-08-21',
         meta: {
           methodology
         }

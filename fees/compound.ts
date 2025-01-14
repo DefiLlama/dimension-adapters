@@ -11,7 +11,7 @@ import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from
 
 const endpoints = {
   [ETHEREUM]:
-    sdk.graph.modifyEndpoint('Rh7h4KeZCnJZoBv3nZ4K8occAXEnwxRkR6pTKDsN3Fj')
+    sdk.graph.modifyEndpoint('4TbqVA8p2DoBd5qDbPMwmDZv3CsJjWtxo8nVSqF2tA9a')
 }
 
 
@@ -62,7 +62,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
         fetch: graphs(endpoints)(ETHEREUM),
-        start: 1557201600,
+        start: '2019-05-07',
     },
   }
 }

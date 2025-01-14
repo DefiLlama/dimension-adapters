@@ -55,7 +55,7 @@ const adapter: Adapter = {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         // [BSC]: {
         //     fetch: graphs(endpoints)(BSC),
-        //     start: 1670659200,
+        //     start: '2022-12-10',
         //     meta: {
         //         methodology: {
         //             Fees: "All mint, burn, margin and liquidation and swap fees are collected",
@@ -66,7 +66,7 @@ const adapter: Adapter = {
         // },
         [ARBITRUM]: {
             fetch: async (timestamp: number) => {return {timestamp}},
-            start: 1678147200,
+            start: '2023-03-07',
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

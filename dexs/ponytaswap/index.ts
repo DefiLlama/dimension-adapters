@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.RPG]: {
       fetch,
-      start: 1678060800
+      start: '2023-03-06'
     },
   },
 };

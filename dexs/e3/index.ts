@@ -40,9 +40,9 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
 
 const adapter: SimpleAdapter = {
 	adapter: {
-		[CHAIN.FANTOM]: { fetch, start: 1681130543, },
-		[CHAIN.ARBITRUM]: { fetch, start: 1686459416, },
-		[CHAIN.BASE]: { fetch, start: 1691547000, }
+		[CHAIN.FANTOM]: { fetch, start: '2023-04-10', },
+		[CHAIN.ARBITRUM]: { fetch, start: '2023-06-11', },
+		[CHAIN.BASE]: { fetch, start: '2023-08-09', }
 	}
 };
 

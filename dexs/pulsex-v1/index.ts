@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.PULSECHAIN]: {
       fetch: fetchVolume(CHAIN.PULSECHAIN),
-      start: 1684540800,
+      start: '2023-05-20',
     },
   },
 };

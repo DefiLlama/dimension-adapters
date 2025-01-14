@@ -28,7 +28,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: v3Graphs(CHAIN.POLYGON),
-      start: 1688256000,
+      start: '2023-07-02',
     }
   }
 }

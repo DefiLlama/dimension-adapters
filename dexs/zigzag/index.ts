@@ -40,8 +40,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ZKSYNC]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1679443200,
+      start: '2023-03-22',
     },
   }
 };

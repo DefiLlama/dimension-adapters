@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     solana: {
       fetch,
-      start: 1657756800,
+      start: '2022-07-14',
       runAtCurrTime: true,
     },
   },

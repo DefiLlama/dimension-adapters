@@ -28,7 +28,7 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: getFees,
-      start: 1712727843,
+      start: '2024-04-10',
     },
   },
 };

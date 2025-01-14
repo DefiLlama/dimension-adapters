@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN_CASH]: {
       fetch: fetchCauldronVolume,
-      start: 1688198180,
+      start: '2023-07-01',
       meta: {
           methodology
       }

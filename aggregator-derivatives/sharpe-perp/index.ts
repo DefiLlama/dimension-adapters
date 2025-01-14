@@ -20,7 +20,7 @@ export default {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
-            start: 1711963031
+            start: '2024-04-01'
         },
     },
     version: 2

@@ -38,7 +38,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM_NOVA]: {
       fetch: fetch,
-      start: 1691971200,
+      start: '2023-08-14',
     }
   },
   protocolType: ProtocolType.CHAIN,

@@ -16,7 +16,7 @@ const methodology = {
 
 const endpointsPerps: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/chimpydev/swapbased-perps-core",
+    "https://api.studio.thegraph.com/query/67101/swapbased-perps-core/version/latest",
 };
 
 const historicalDataSwap = gql`
@@ -144,7 +144,7 @@ const adapter: BreakdownAdapter = {
           getUniV2LogAdapter({
             factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
           })(options),
-        start: 1690495200,
+        start: "2023-07-28",
         meta: { methodology },
       },
     },
@@ -156,13 +156,13 @@ const adapter: BreakdownAdapter = {
             swapEvent:
               "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)",
           })(options),
-        start: 1690443269,
+        start: "2023-07-27",
       },
     },
     perps: {
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-        start: 1688913853,
+        start: "2023-07-09",
       },
     },
   },

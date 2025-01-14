@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MIXIN]: {
       fetch,
-      start: 1600704000,
+      start: '2020-09-21',
     },
   }
 };

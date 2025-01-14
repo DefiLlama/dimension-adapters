@@ -24,7 +24,7 @@ const adapter: Adapter = {
         const dailyFees = dayItem?.fee || 0;
         return { dailyFees, timestamp: options.startOfDay };
       }) as any,
-      start: 1704560436
+      start: '2024-01-06'
     },
   },
 

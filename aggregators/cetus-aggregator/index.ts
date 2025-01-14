@@ -15,7 +15,7 @@ const adapter_agge: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: 1721260800,
+      start: '2024-07-18',
     },
   },
 };

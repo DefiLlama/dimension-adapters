@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
     venom: {
       fetch,
       runAtCurrTime: true,
-      start: 1713139200, // 2024-04-15T00:00:00.000Z
+      start: '2024-04-15', // 2024-04-15T00:00:00.000Z
     },
   },
   version: 1,

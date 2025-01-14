@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ONUS]: {
       fetch,
-      start: 1680307200,
+      start: '2023-04-01',
     },
   },
 }

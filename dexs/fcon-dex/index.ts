@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.MANTLE]: {
       fetch: async (timestamp: number) => {return {timestamp}},
-      start: 1691280000,
+      start: '2023-08-06',
     },
   },
 };

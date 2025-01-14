@@ -10,7 +10,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS }),
-      start: 1670544000,
+      start: '2022-12-09',
     },
   }
 };

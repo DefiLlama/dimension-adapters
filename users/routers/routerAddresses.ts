@@ -2420,10 +2420,11 @@ export default (
     },
   },
     {
-      id: "5158",
-      name: "grafun",
+      id: "5195",
+      name: "GraFun",
       addresses: {
         bsc: ["0x8341b19a2A602eAE0f22633b6da12E1B016E6451"],
+        ethereum: ["0xb8540a7d74Cc4912443e8c4B2064B640FC763c4f"],
       },
     },
   ] as ProtocolAddresses[]

@@ -1,40 +1,44 @@
-import fetchURL from '../../utils/fetchURL'
+import postURL from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async () => {
-    const swapVolumeApiResult = await fetchURL(
-        'https://api.pixelswap.io/apis/pairs',
-    );
-    const depositAndWithdrawVolumeResult = await fetchURL(
-        'https://api.pixelswap.io/apis/tokens',
-    );
-    const swapvolumeResult = swapVolumeApiResult.data.pairs;
-    const depositAndWithdrawVolume = depositAndWithdrawVolumeResult.data.tokens;
+const endpoint = "https://api.pixelswap.io/apis/pairs/tokens/volume?"
+
+
+const fetch = async (options: FetchOptions) => {
+    const startTime = new Date(options.startTimestamp * 1000).toISOString().split(".")[0]
+    const endTime = new Date(options.endTimestamp * 1000).toISOString().split(".")[0]
+    const res = await postURL(`${endpoint}since=${startTime}&until=${endTime}`)
+
+    const swapVolume = res.data.pairs;
+    const depositWithdraw = res.data.tokens;
     let dailyVolumeResult = 0;
-    let totalVolumeResult = 0;
-    swapvolumeResult.forEach(pairs => {
-        dailyVolumeResult += Number(pairs.volume.dailyVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
-        totalVolumeResult += Number(pairs.volume.totalVolume / (Math.pow(10, Number(pairs.token1.decimals))) * pairs.token1.usdPrice);
-    });
 
-    depositAndWithdrawVolume.forEach(token => {
-        dailyVolumeResult += Number(token.volume.dailyVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
-        totalVolumeResult += Number(token.volume.totalVolume / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
-    });
-
+    swapVolume.forEach(pair => {
+        if (pair.volumeInRange != 0) { 
+            dailyVolumeResult += Number(pair.volumeInRange / (Math.pow(10, Number(pair.pairDetails.token1.decimals))) * pair.pairDetails.token1.usdPrice);
+        }
+    })
+    depositWithdraw.forEach(token => {
+        if (token.volumeInRange != 0) { 
+            dailyVolumeResult += Number(token.volumeInRange / (Math.pow(10, Number(token.decimals))) * token.usdPrice);
+        }
+    })
     return {
         dailyVolume: dailyVolumeResult,
-        totalVolume: totalVolumeResult,
-    }
-}
+        timestamp: options.startTimestamp,
+    };
+};
 
-const adapter = {
+
+const adapter: any = {
+    version: 2,
     adapter: {
-        ton: {
+        [CHAIN.TON]: {
             fetch,
-            start: 1726034340,
+            start: '2024-09-11',
         },
-        runAtCurrTime: true,
     },
-}
+};
 
-export default adapter
+export default adapter;

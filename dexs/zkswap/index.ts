@@ -26,7 +26,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: graph(CHAIN.ERA),
-      start: 1700524800,
+      start: '2023-11-21',
     }
   }
 }

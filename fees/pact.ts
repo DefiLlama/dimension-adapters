@@ -19,7 +19,7 @@ const adapters: SimpleAdapter = {
   adapter:{
     [CHAIN.ALGORAND]: {
       fetch: fetchFees,
-      start: 1693699200,
+      start: '2023-09-03',
       runAtCurrTime: true
     }
   }

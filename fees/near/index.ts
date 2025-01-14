@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEAR]: {
       fetch: fetchFees,
-      start: 1595289600
+      start: '2020-07-21'
     }
   },
   protocolType: ProtocolType.CHAIN

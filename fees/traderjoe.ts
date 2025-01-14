@@ -92,7 +92,7 @@ const adapter: Adapter = {
             timestamp: options.startOfDay,
           };
         },
-        start: 1672012800,
+        start: '2022-12-26',
       },
       [CHAIN.BSC]: {
         fetch: async (_t: any, _tt: any, options: FetchOptions) => {
@@ -106,7 +106,7 @@ const adapter: Adapter = {
             timestamp: options.startOfDay,
           };
         },
-        start: 1664841600,
+        start: '2022-10-04',
       },
       [CHAIN.AVAX]: {
         fetch: async (_t: any, _tt: any, options: FetchOptions) => {
@@ -120,26 +120,26 @@ const adapter: Adapter = {
             timestamp: options.startOfDay,
           };
         },
-        start: 1669420800,
+        start: '2022-11-26',
       },
     },
     v2: {
       [CHAIN.AVAX]: {
         fetch: graph,
-        start: 1669420800,
+        start: '2022-11-26',
       },
       [CHAIN.ARBITRUM]: {
         fetch: graph,
-        start: 1672012800,
+        start: '2022-12-26',
       },
       [CHAIN.BSC]: {
         fetch: graph,
-        start: 1678147200,
+        start: '2023-03-07',
       },
-      [CHAIN.ETHEREUM]: {
-        fetch: graph,
-        start: 1695513600,
-      },
+      // [CHAIN.ETHEREUM]: {
+      //   fetch: graph,
+      //   start: '2023-09-24',
+      // },
     },
   },
 };

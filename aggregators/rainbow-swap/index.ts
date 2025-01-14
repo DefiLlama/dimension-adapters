@@ -2,8 +2,8 @@ import {Fetch, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const URL = 'https://api.blackbot.technology';
-const endpoint = '/rainbow/analytics/volumes';
+const URL = 'https://api.rainbow.ag';
+const endpoint = '/analytics/volumes';
 const start = 1720645200;// 11.07.2024
 
 interface IAPIResponse {

@@ -87,7 +87,7 @@ const adapter: BreakdownAdapter = {
     "stable-amm": {
       [CHAIN.MOONBEAN]: {
         fetch: v1graphs(CHAIN.MOONBEAN),
-        start: 1656914570,
+        start: '2022-07-04',
         customBackfill: customBackfill(CHAIN.MOONBEAN, v1graphs),
         meta: {
           methodology: {

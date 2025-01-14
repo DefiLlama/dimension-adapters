@@ -96,7 +96,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch: fetchProtocolFees,
-      start: 1725741586,
+      start: '2024-09-07',
       meta: {
         methodology,
       },

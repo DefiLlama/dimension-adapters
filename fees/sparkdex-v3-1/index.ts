@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import type { ChainEndpoints, FetchV2 } from "../../adapters/types";
+import type { ChainEndpoints, Fetch, FetchOptions, FetchV2 } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -17,8 +17,8 @@ interface IFeeStat {
 }
 
 const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+  const fetch: Fetch = async (_t: any, _:any, options: FetchOptions) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
 
     const graphQuery = gql`
     query MyQuery {
@@ -30,7 +30,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
     }
   `;
 
-    const graphRes = await request(graphUrls[chain], graphQuery);
+    const graphRes = await request(graphUrls[options.chain], graphQuery);
     const feeStats: IFeeStat[] = graphRes.feeStats;
 
     let dailyFeeUSD = BigInt(0);
@@ -58,11 +58,11 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.FLARE]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
+      start: '2024-07-02',
       meta: {
         methodology,
       },

@@ -24,7 +24,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: 1695081600,
+      start: '2023-09-19',
     },
   }
 }

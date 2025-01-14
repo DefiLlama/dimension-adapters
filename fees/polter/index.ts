@@ -153,7 +153,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: fetch,
-      start: 1706546953, // Jan-29-2024 04:49:13 PM +UTC
+      start: '2024-01-29', // Jan-29-2024 04:49:13 PM +UTC
       meta: {
         methodology: {
           Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
@@ -163,7 +163,7 @@ const adapter: Adapter = {
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 19746482, // Sep-14-2024 02:51:51 AM +UTC
+      start: '2024-09-14', // Sep-14-2024 02:51:51 AM +UTC
       meta: {
         methodology: {
           Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
