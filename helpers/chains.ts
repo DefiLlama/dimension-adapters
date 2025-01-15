@@ -156,7 +156,7 @@ export enum CHAIN {
   SVM = "svm",
   ASTRZK = "astrzk",
   LYRA = "lyra",
-  BITLAYER = "btr",
+  BITLAYER = "bitlayer",
   XLAYER = "xlayer",
   MERLIN = "merlin",
   CHILIZ = "chiliz",
