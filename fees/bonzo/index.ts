@@ -32,6 +32,7 @@ const fetch = async () => {
         dailyFees,
         dailyUserFees,
         dailyProtocolRevenue,
+        dailyRevenue: dailyProtocolRevenue,
         dailySupplySideRevenue,
     };
 }
