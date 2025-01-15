@@ -1,14 +1,10 @@
 import { Adapter, FetchOptions, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
-import { Balances, log } from "@defillama/sdk";
+import { Balances, } from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import * as _env from '../../helpers/env'
-
-// to trigger inclusion of the env.ts file
-log(_env.getEnv('BITLAYER_RPC'), 'bitlayer')
 
 const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
 const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
