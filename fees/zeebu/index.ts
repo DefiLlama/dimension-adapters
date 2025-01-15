@@ -56,7 +56,7 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
         }
       `;
 
-      try {
+      
         // Fetch total fees
         const totalFeesResponse = await request(graphUrls[chain], totalFeesQuery, { });
         const totalFees = totalFeesResponse.overallVolumeFeesAggregates.reduce(
@@ -83,18 +83,6 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
         const totalSupplySideRevenue = totalFees * 0.6 / 100;
 
         return {dailyFees, totalFees, dailyUserFees, totalUserFees, dailyRevenue, totalRevenue, dailyHoldersRevenue, totalHoldersRevenue };
-      } catch (error) {
-        console.error(`Error fetching data for chain ${chain}:`, error.message);
-        return {
-          dailyFees: 0,
-          totalFees: 0,
-          dailyUserFees : 0, 
-          totalUserFees : 0, 
-          dailyRevenue : 0, 
-          totalRevenue : 0, 
-          dailyHoldersRevenue : 0, 
-          totalHoldersRevenue : 0
-        };
       }
     };
   };
