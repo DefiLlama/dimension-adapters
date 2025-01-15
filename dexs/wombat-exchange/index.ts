@@ -43,9 +43,9 @@ const endpoints: TEndpoint = {
 
 const fetchVolume = (chain: Chain) => {
   return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const { startTimestamp} = options;
+    const { startOfDay} = options;
     const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(startTimestamp * 1000)
+        new Date(startOfDay * 1000)
     );
     const todaysBlock = await getBlock(dayTimestamp, chain, {});
     const dayID = dayTimestamp / 86400;
