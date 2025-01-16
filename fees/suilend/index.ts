@@ -16,6 +16,7 @@ interface DailyStats {
   protocolFees: number;
   liquidatorBonuses: number;
   liquidationProtocolFees: number;
+  stakingRevenue: number;
   previous: string;
   next: string;
 }
@@ -37,7 +38,8 @@ const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
 
   const dailyRevenue = stats.borrowFees +
     stats.protocolFees +
-    stats.liquidationProtocolFees;
+    stats.liquidationProtocolFees
+    + stats.stakingRevenue;
 
   return {
     dailyFees: userFees,
