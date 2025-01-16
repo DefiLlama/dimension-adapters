@@ -33,7 +33,6 @@ export const ENV_KEYS = new Set([
   'ALCHEMIX_KEY',
   'ALCHEMIX_SECRET',
   'FLIPSIDE_RESTRICTED_MODE',
-  'STARBASE_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
