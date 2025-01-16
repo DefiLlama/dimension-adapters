@@ -94,7 +94,7 @@ const fetchLiquidityHub = async (timestamp: number) => {
 
   return {
     dailyVolume: `${dailyVolume}`,
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume ? `${totalVolume}` : undefined,
     timestamp: timestamp,
   };
 };
