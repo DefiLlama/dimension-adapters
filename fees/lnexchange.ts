@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
-import BigNumber from "bignumber.js";
 import { httpPost } from "../utils/fetchURL";
 
 const fetchFees = async (options: FetchOptions) => {
@@ -12,8 +11,8 @@ const fetchFees = async (options: FetchOptions) => {
     }
   );
 
-  const dailyFees = new BigNumber(respose.data.dailyFees).toString();
-  const totalFees = new BigNumber(respose.data.totalFees).toString();
+  const dailyFees = respose.data.dailyFees;
+  const totalFees = respose.data.totalFees;
 
   return {
     dailyFees,
