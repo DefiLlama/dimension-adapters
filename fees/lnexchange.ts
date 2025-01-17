@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { httpPost } from "../utils/fetchURL";
+
 const fetchFees = async (options: FetchOptions) => {
   const respose = await httpPost(
     `https://test-futures-api.ln.exchange/napi/common/getTradeFee`,
@@ -25,7 +26,7 @@ const fetchFees = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.LNEXCHANGE]: {
+    [CHAIN.BITCOIN]: {
       fetch: fetchFees,
       start: "2024-10-20",
     },

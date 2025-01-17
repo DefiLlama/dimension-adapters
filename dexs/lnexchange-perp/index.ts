@@ -2,6 +2,7 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
+import { CHAIN } from "../../helpers/chains";
 
 const URL =
   "https://test-futures-api.ln.exchange/napi/common/getDayTradeAmount";
@@ -25,7 +26,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    lnexchange: {
+    [CHAIN.BITCOIN]: {
       fetch,
       start: "2024-10-20",
     },
