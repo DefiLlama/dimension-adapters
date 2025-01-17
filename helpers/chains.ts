@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
@@ -18,6 +19,7 @@ export enum CHAIN {
   OKEXCHAIN = "okexchain",
   OPTIMISM = "optimism",
   POLYGON = "polygon",
+  POLYNOMIAL = "polynomial",
   RONIN = "ronin",
   ROOTSTOCK = "rsk",
   XDAI = "xdai",
@@ -189,6 +191,19 @@ export enum CHAIN {
   UNIT0 = "unit0",
   SHIDO = "shido",
   ACE = "ace",
+  BOUNCE_BIT = "bouncebit",
+  ZIRCUIT = "zircuit",
+  WC = "wc",
+  ARCHWAY = "archway-1",
+  VINUCHAIN = "vinu",
+  NEUTRON = "neutron",
+  CORN = "corn",
+  SAPPHIRE = "sapphire",
+  VANA = "vana",
+  SONIC = "sonic",
+  HYPERLIQUID = "hyperliquid",
+  SONEIUM = "soneium",
+  INK = "ink",
 }
 
 // Don´t use
@@ -213,6 +228,7 @@ const LITECOIN = "litecoin";
 const DOGE = "doge";
 const ZKSYNC = "zksync";
 const MANTLE = "mantle";
+const POLYNOMIAL = "polynomial";
 // Don't use
 export {
   ARBITRUM,
@@ -236,4 +252,5 @@ export {
   RONIN,
   XDAI,
   ZKSYNC,
+  POLYNOMIAL,
 };

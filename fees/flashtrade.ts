@@ -51,7 +51,6 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             runAtCurrTime: true,
-            customBackfill: undefined,
             fetch: fetchFlashStats,
                         meta: {
                 methodology,

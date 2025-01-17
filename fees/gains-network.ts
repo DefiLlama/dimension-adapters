@@ -63,19 +63,51 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
   };
 };
 
+const fetchApechain = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+  // Dune does not currently support Apechain. Using events until support is added.
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
+  const APE = "0x48b62137edfa95a428d35c09e44256a739f6b557"; // wAPE
+
+  const [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]: any = await Promise.all(
+    [
+      "event GovFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event ReferralFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event TriggerFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GnsOtcFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GTokenFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event BorrowingFeeCharged(address indexed trader, uint32 indexed index, uint8 indexed collateralIndex, uint256 amountCollateral)",
+    ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
+  );
+
+  [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(APE, i.amountCollateral));
+  [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
+  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
+  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+
+  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
+};
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: '2022-06-03',
+      start: "2022-06-03",
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: '2022-12-30',
+      start: "2022-12-30",
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: '2024-09-26',
+      start: "2024-09-26",
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetchApechain,
+      start: "2024-11-19",
     },
   },
   isExpensiveAdapter: true,

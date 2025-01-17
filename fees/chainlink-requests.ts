@@ -27,21 +27,6 @@ interface ILog {
 
 const chains: string[] = [...new Set([CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.AVAX])];
 
-const build_gas_query = (from: number, to: number): string => {
-  return chains.map((chain: Chain) => `
-    SELECT
-      SUM(TX_FEE),
-      '${chain}' as chain
-    from
-      ${chain === "avax" ? "avalanche" : chain}.core.fact_event_logs logs
-      JOIN ${chain === "avax" ? "avalanche" : chain}.core.fact_transactions txs ON txs.tx_hash = logs.tx_hash
-    WHERE
-      txs.BLOCK_NUMBER > 1000000
-      and logs.BLOCK_NUMBER > 1000000
-      and logs.TOPICS[0] = '0x9e9bc7616d42c2835d05ae617e508454e63b30b934be8aa932ebc125e0e58a64'
-      AND logs.BLOCK_TIMESTAMP BETWEEN '${from * 1000}' AND '${to * 1000}'`).join(" union all ")
-}
-
 const build_link_query = (from: number, to: number): string => {
   return chains.map((chain: Chain) => `
     SELECT
@@ -52,14 +37,14 @@ const build_link_query = (from: number, to: number): string => {
     from
       ${chain === "avax" ? "avalanche" : chain}.core.fact_event_logs logs
     WHERE
-      topics[0] = '0xd8d7ecc4800d25fa53ce0372f13a416d98907a7ef3d8d3bdd79cf4fe75529c65'
-      AND logs.BLOCK_TIMESTAMP BETWEEN '${from * 1000}' AND '${to * 1000}'`).join(" union all ")
+      block_number > 10000000
+      and logs.BLOCK_TIMESTAMP BETWEEN '${from * 1000}' AND '${to * 1000}'
+      and topics[0] = '0xd8d7ecc4800d25fa53ce0372f13a416d98907a7ef3d8d3bdd79cf4fe75529c65'`).join(" union all ")
 }
 
 const fetchRequests = (chain: Chain) => {
   return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
     const query_paid = build_link_query(fromTimestamp, toTimestamp)
-    const gas_query = build_gas_query(fromTimestamp, toTimestamp)
 
     const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 260))
       .map(([data, topics, transactionHash, chain]: [string, string[], string, string]) => {
@@ -76,24 +61,15 @@ const fetchRequests = (chain: Chain) => {
       const payments = Number('0x'+data.slice(128, 192)) / 10 ** 18;
       return payments;
     }).reduce((a: number, b: number) => a + b, 0);
-    const ethGas = await queryFlipside(gas_query, 260)
-
-    const gas_fees = ethGas.map(([fee, chain]: [string, string]) => {
-      return {
-        fee, chain
-      } as any
-    }).filter((e: any) => e.chain === chain).map((e: any) => Number(e.fee)).reduce((a: number, b: number) => a + b, 0);
 
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
     const prices = (await getPrices([linkAddress, gasToken], fromTimestamp))
     const linkPrice = prices[linkAddress].price
     const dailyFeesUsd = link_amount * linkPrice;
-    const dailyGasUsd = gas_fees * prices[gasToken].price;
 
     return {
-      dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: (dailyFeesUsd - dailyGasUsd).toString(),
+      dailyFees: dailyFeesUsd.toString()
     }
   }
 

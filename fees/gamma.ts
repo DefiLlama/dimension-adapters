@@ -173,6 +173,30 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("iota_evm"),
       start: '2023-04-22',
     },
+    [CHAIN.CORE]: {
+      fetch: fetchFees("core"),
+      start: '2023-04-22',
+    },
+    [CHAIN.ZIRCUIT]: {
+      fetch: fetchFees("zircuit"),
+      start: '2023-04-22',
+    },
+    [CHAIN.WC]: {
+      fetch: fetchFees("worlchain"),
+      start: '2023-04-22',
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetchFees("apechain"),
+      start: '2023-04-22',
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetchFees("sonic"),
+      start: '2023-04-22',
+    },
+    [CHAIN.BOB]: {
+      fetch: fetchFees("bob"),
+      start: '2023-04-22',
+    },
   }
 }
 

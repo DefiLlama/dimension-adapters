@@ -92,8 +92,17 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
           runAtCurrTime: true,
           start: '2022-09-08',
         },
+        [CHAIN.SONIC]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1735217146,
+        },
+        [CHAIN.ERA]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1662595200,
+        },
       },
-      // isExpensiveAdapter: true,
     };
 
 export default adapter;

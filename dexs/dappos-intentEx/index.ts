@@ -1,21 +1,23 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet, httpPost } from "../../utils/fetchURL";
 
-const URL = "https://api.hyperliquid.xyz/info";
+const URL = "https://trade-info.dappos.com/market/archive?timestamp=";
 
 interface Response {
-  totalVolume?: number;
-  dailyVolume?: number;
+  daily_trade_volume: string;
 }
 
 const fetch = async (timestamp: number) => {
-  const {totalVolume, dailyVolume}: Response = (await httpPost(URL, {"type": "globalStats"}));
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const url = `${URL}${dayTimestamp}`
+  const respose: Response[] = await httpGet(url);
+  const dailyVolume = respose.reduce((acc, item) => {
+    return acc + Number(item.daily_trade_volume);
+  }, 0);
 
   return {
-    totalVolume: totalVolume?.toString(),
     dailyVolume: dailyVolume?.toString(),
     timestamp: dayTimestamp,
   };
@@ -23,9 +25,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "hyperliquid": {
+    [CHAIN.OP_BNB]: {
       fetch,
-      start: '2023-02-25',
+      start: '2025-01-01',
     },
   }
 };

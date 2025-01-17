@@ -1,6 +1,6 @@
 import { buildStablecoinAdapter} from "./attestations-stablecoins";
 
-export default buildStablecoinAdapter('1',
+export default buildStablecoinAdapter('1', 30* 3,
 // Based on https://tether.to/en/transparency/?tab=reports
 [
     {

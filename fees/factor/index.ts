@@ -38,7 +38,6 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2024-05-03',
-      runAtCurrTime: false,
     },
   },
 };

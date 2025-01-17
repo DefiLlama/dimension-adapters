@@ -28,7 +28,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.CRONOS]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
       start: '2023-01-04',
     },
   }

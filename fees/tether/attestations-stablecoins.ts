@@ -1,7 +1,8 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { findClosest } from "../../helpers/utils/findClosest"
+import { httpGet } from "../../utils/fetchURL";
 
-export function buildStablecoinAdapter(stablecoinId: string, attestations: {
+export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestations:number, attestations: {
     time: string, // time of report
     circulation: number, // billions of USDC in circulation
     allocated: number, // billions in tbills + repos + money market funds (DON'T INCLUDE CASH!)
@@ -14,12 +15,12 @@ export function buildStablecoinAdapter(stablecoinId: string, attestations: {
                 fetch: async ({ fromTimestamp, createBalances }: FetchOptions) => {
                     const dailyFees = createBalances()
 
-                    const stablecoinData = await fetch(`https://stablecoins.llama.fi/stablecoin/${stablecoinId}`).then(r=>r.json())
+                    const stablecoinData = await httpGet(`https://stablecoins.llama.fi/stablecoin/${stablecoinId}`)
 
                     const supply = (findClosest(fromTimestamp, stablecoinData.tokens.map((d: any)=>({...d, time: d.date*1e3})), 1.5 * 24 * 3600) as any).circulating.peggedUSD
 
                     const closestAttestation = findClosest(fromTimestamp, attestations)
-                    if (new Date(closestAttestation.time).getTime() > fromTimestamp * 1e3 - 30 * 24 * 3600e3) {
+                    if (new Date(closestAttestation.time).getTime() - 1.2 * daysBetweenAttestations * 24 * 3600e3 > fromTimestamp * 1e3) {
                         throw new Error("Trying to refill with no attestations, pls add attestations")
                     }
 
