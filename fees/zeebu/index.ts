@@ -60,7 +60,7 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
         // Fetch total fees
         const totalFeesResponse = await request(graphUrls[chain], totalFeesQuery, { });
         const totalFees = totalFeesResponse.overallVolumeFeesAggregates.reduce(
-          (sum, item) => sum + parseFloat(((item.totalFees * 2)/1e18) || 0),
+          (sum, item) => sum + parseFloat(((item.totalFees * 1)/1e18) || 0),
           0
         );
 
@@ -69,7 +69,7 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
         const aggregates = graphRes.dayVolumeFeesAggregates;
 
         // Aggregate daily fees and daily volume
-        const dailyFees = aggregates.reduce((sum, agg) => sum + parseFloat(((agg.dailyFees * 2)/1e18) || 0), 0);
+        const dailyFees = aggregates.reduce((sum, agg) => sum + parseFloat(((agg.dailyFees * 1)/1e18) || 0), 0);
         const dailyUserFees = dailyFees;
         const totalUserFees = totalFees;
 
