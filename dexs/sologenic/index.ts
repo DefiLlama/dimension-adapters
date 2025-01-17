@@ -27,7 +27,12 @@ export default {
   adapter: {
     [CHAIN.RIPPLE]: {
       fetch: fetchVolume,
-      start: 0,
+      runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Volume: "Trading volume for the Sologenic DEX token, aggregation of trades on the Sologenic DEX"
+        }
+      }
     },
   },
 };
