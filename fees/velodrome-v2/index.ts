@@ -96,7 +96,7 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
     })
   }
 
-  return { dailyBribesRevenue: dailyBribes } as any
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyBribesRevenue: dailyBribes } as any
 }
 
 export default uniV2Exports({
