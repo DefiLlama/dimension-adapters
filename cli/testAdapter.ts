@@ -84,7 +84,6 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
     })
-    console.log(volumes);
     printVolumes(volumes, adapter)
     console.info("\n")
   } else if ("breakdown" in module) {
