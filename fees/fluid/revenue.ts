@@ -64,9 +64,10 @@ const revenueResolver = async (api: ChainApi) => {
     calcRevenueSimulatedTime: async (totalAmounts: string, exchangePricesAndConfig: string, liquidityTokenBalance: string, timestamp: number) => {
       const blockTimestamp = await getTimestamp(await api.getBlock(), api.chain);
       if(blockTimestamp > timestamp) {
-        // calcRevenueSimulatedTime() method does not support the case where block.timestamp > input param timestamp
-        // difference here should be negligible, although advanced handling would be possible if needed via checking the actual time difference
-        // and processing further accordingly.
+        // calcRevenueSimulatedTime() method does not support the case where lastUpdateTimestamp (included in exchangePricesAndConfig) is > simulated block.timestamp ("timestamp"). 
+        // making the timestamp at least be block.timestamp guarantees that this can never be the case, as `exchangePricesAndConfig` is fetched at that block.timestamp.
+        // difference here should be very negligible (yield accrual for time difference), although advanced handling would be possible if needed via checking the actual time
+        // difference and processing further accordingly.
         timestamp = blockTimestamp;
       }
       return await api.call({ target: address, params: [totalAmounts, exchangePricesAndConfig, liquidityTokenBalance, timestamp], abi: abi.calcRevenueSimulatedTime, permitFailure: true });
