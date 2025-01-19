@@ -1,5 +1,5 @@
-import fetch from 'node-fetch';
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 // Retrieves volume for trading in SOLO for the last 24hrs in a rolling window (should be called at about the same time every day for reliable data)
 const fetchVolume: any = async () => {
@@ -13,11 +13,8 @@ const fetchVolume: any = async () => {
   const url="https://apiv2.sologenic.org/tickers/24h?symbols="+symbols;
   const headers = { "Network": "mainnet" };
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: headers
-  });
-  const data = await response.json();
+  const response = await httpGet(url, { headers: headers});
+  const data = await response;
   const d = data[Object.keys(data)[0]];
   return { dailyVolume: d.volume }
 }
