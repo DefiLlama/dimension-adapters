@@ -98,7 +98,6 @@ const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, token
       const tokenBalance = liquidityTokenBalance[index];
   
       if (totalAmount === undefined || exchangePriceConfig === undefined || tokenBalance === undefined) return 0;
-
       const _uncollectedRevenue = await (await revenueResolver(api)).calcRevenueSimulatedTime(
         totalAmount,
         exchangePriceConfig,
@@ -205,6 +204,5 @@ export const getFluidDailyRevenue = async (options: FetchOptions) => {
     getLiquidityRevenues(options),
     getVaultsRevenues(options)
   ])
-
   return liquidityRevenues + vaultRevenues
 }
