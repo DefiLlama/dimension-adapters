@@ -1,4 +1,5 @@
 import * as sdk from "@defillama/sdk";
+import { getTimestamp } from "@defillama/sdk/build/util";
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -60,7 +61,14 @@ const revenueResolver = async (api: ChainApi) => {
   }
 
   return {
-    calcRevenueSimulatedTime: async (totalAmounts: string, exchangePricesAndConfig: string, liquidityTokenBalance: string, timestamp: number) => await api.call({ target: address, params: [totalAmounts, exchangePricesAndConfig, liquidityTokenBalance, timestamp], abi: abi.calcRevenueSimulatedTime, permitFailure: true })
+    calcRevenueSimulatedTime: async (totalAmounts: string, exchangePricesAndConfig: string, liquidityTokenBalance: string, timestamp: number) => {
+      const blockTimestamp = await getTimestamp(await api.getBlock(), api.chain);
+      if(blockTimestamp > timestamp) {
+        timestamp = blockTimestamp;
+        console.log("adjusted timestamp to avoid error ON REVENUERESOLVER: blockTimestamp > timestamp");
+      }
+      return await api.call({ target: address, params: [totalAmounts, exchangePricesAndConfig, liquidityTokenBalance, timestamp], abi: abi.calcRevenueSimulatedTime, permitFailure: true });
+    }
   }
 }
 
@@ -70,24 +78,36 @@ const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, token
     (await liquidityResolver(api)).getExchangePricesAndConfig(tokens),
   ]);
 
+  console.log("getUncollectedLiquidities");
+  console.log("tokens", tokens);
+
   const liquidityTokenBalance: string[] = await api.multiCall({
     calls: tokens.filter((token) => token !== NATIVE_TOKEN).map((token) => ({ target: token, params: [LIQUIDITY] })),
     abi: "erc20:balanceOf",
   });
+  console.log(liquidityTokenBalance, "liquidityTokenBalance 1");
 
   if (tokens.includes(NATIVE_TOKEN)) {
     const { output: nativeBalance } = (await sdk.api.eth.getBalance({ target: LIQUIDITY, chain: api.chain, block: await api.getBlock() }))
     const eeIndex = tokens.indexOf(NATIVE_TOKEN);
     liquidityTokenBalance.splice(eeIndex, 0, nativeBalance);
   }
+  console.log(liquidityTokenBalance, "liquidityTokenBalance 2");
 
   return Promise.all(
     tokens.map(async (_, index) => {
       const totalAmount = totalAmounts[index];
       const exchangePriceConfig = exchangePricesAndConfig[index];
       const tokenBalance = liquidityTokenBalance[index];
+      console.log("\n-----------------");
+      console.log(index, "index");
+      console.log(totalAmount, "totalAmount");
+      console.log(exchangePriceConfig, "exchangePriceConfig");
+      console.log(tokenBalance, "tokenBalance");
   
       if (totalAmount === undefined || exchangePriceConfig === undefined || tokenBalance === undefined) return 0;
+
+      console.log("calling with", [totalAmount, exchangePriceConfig, tokenBalance, timestamp]);
   
       const _uncollectedRevenue = await (await revenueResolver(api)).calcRevenueSimulatedTime(
         totalAmount,
@@ -95,6 +115,8 @@ const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, token
         tokenBalance,
         timestamp
       );
+      console.log("\n-----------------");
+      console.log(_uncollectedRevenue, "_uncollectedRevenue");
   
       return _uncollectedRevenue ?? 0;
     })
@@ -105,11 +127,16 @@ const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalanc
   const dailyValues = createBalances();
   const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
 
-  // Fetch uncollected revenues for the "from" and "to" timestamps
-  const [revenuesFrom, revenuesTo] = await Promise.all([
-    getUncollectedLiquidities(fromApi, fromTimestamp, tokens),
-    getUncollectedLiquidities(toApi, toTimestamp, tokens)
-  ]);
+  console.log("FROM-------------------")
+  const revenuesFrom = await getUncollectedLiquidities(fromApi, fromTimestamp, tokens);
+  const revenuesTo = await getUncollectedLiquidities(toApi, toTimestamp, tokens);
+  console.log("TO-------------------")
+
+  // // Fetch uncollected revenues for the "from" and "to" timestamps
+  // const [revenuesFrom, revenuesTo] = await Promise.all([
+  //   getUncollectedLiquidities(fromApi, fromTimestamp, tokens),
+  //   getUncollectedLiquidities(toApi, toTimestamp, tokens)
+  // ]);
 
   for (const [i, token] of tokens.entries()) {
     // Default to 0 if revenues are missing
@@ -119,11 +146,19 @@ const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalanc
       return sum + amount;
     }, 0);
 
+    console.log(collectedRevenue, "collectedRevenue");
+    console.log(revenuesTo[i], "revenuesTo[i]");
+    console.log(revenuesFrom[i], "revenuesFrom[i]");
     const revenueTo = (revenuesTo[i] !== undefined ? Number(revenuesTo[i]) : 0) + collectedRevenue;
     const revenueFrom = revenuesFrom[i] !== undefined ? Number(revenuesFrom[i]) : 0;
     const netRevenue = Math.max(0, revenueTo - revenueFrom);
 
+    const usdValueBefore = await dailyValues.getUSDValue();
+
     dailyValues.add(token, netRevenue)
+    const usdValueAfter = await dailyValues.getUSDValue();
+    console.log("added for token", token);
+    console.log((usdValueAfter - usdValueBefore).toString());
   }
   return dailyValues.getUSDValue();
 };
@@ -196,5 +231,8 @@ export const getFluidDailyRevenue = async (options: FetchOptions) => {
     getVaultsRevenues(options)
   ])
   
+  console.log("liquidityRevenues", liquidityRevenues, options.api.chain)
+  console.log("vaultRevenues", vaultRevenues, options.api.chain)
+
   return liquidityRevenues + vaultRevenues
 }
