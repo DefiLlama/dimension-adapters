@@ -30,6 +30,14 @@ const adapter: SimpleAdapter = {
       fetch,
       start: "2024-10-20",
     },
+    [CHAIN.BSC]: {
+      fetch,
+      start: "2024-10-20",
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: "2024-10-20",
+    },
   },
 };
 

@@ -4,8 +4,7 @@ import { httpPost } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 
-const URL =
-  "https://test-spots-api.ln.exchange/napi/common/getDayTradeAmount";
+const URL = "https://test-spots-api.ln.exchange/napi/common/getDayTradeAmount";
 
 interface Response {
   dayNtlVlm: number;
@@ -27,6 +26,14 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
+      fetch,
+      start: "2024-08-30",
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: "2024-08-30",
+    },
+    [CHAIN.BASE]: {
       fetch,
       start: "2024-08-30",
     },

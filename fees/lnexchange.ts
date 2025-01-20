@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchPerpFees = async (options: FetchOptions) => {
   const respose = await httpPost(
     `https://test-futures-api.ln.exchange/napi/common/getTradeFee`,
     {
@@ -26,7 +26,15 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.BITCOIN]: {
-      fetch: fetchFees,
+      fetch: fetchPerpFees,
+      start: "2024-10-20",
+    },
+    [CHAIN.BSC]: {
+      fetch: fetchPerpFees,
+      start: "2024-10-20",
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchPerpFees,
       start: "2024-10-20",
     },
   },
