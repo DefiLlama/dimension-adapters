@@ -1,20 +1,6 @@
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-
-async function fetchPrice(): Promise<number> {
-    try {
-      const response = await fetch('https://min-api.cryptocompare.com/data/generateAvg?fsym=ICP&tsym=USD&e=coinbase');
-      
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      
-      const data = await response.json();
-      
-      return data.RAW.PRICE;
-    } catch (error) {
-        throw new Error('There was a problem with the fetch operation:');
-    }
-  }
+import { httpGet } from "../utils/fetchURL";
 
 function parsePrometheusMetrics(data: string): Map<string, string> {
     const lines = data.split('\n');
@@ -24,7 +10,7 @@ function parsePrometheusMetrics(data: string): Map<string, string> {
         if (line.startsWith('#')) {
             continue;
         } else {
-            const [name, value, timestamp] = line.split(' ');
+            const [name, value, _t] = line.split(' ');
             metrics.set(name, value);
         }
     }
@@ -33,40 +19,24 @@ function parsePrometheusMetrics(data: string): Map<string, string> {
 }
 
 async function fetchAndParseMetrics(url: string): Promise<Map<string, string>> {
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const rawData = await response.text();
-        return parsePrometheusMetrics(rawData);
-    } catch (error) {
-        console.error('Error fetching metrics:', error);
-        throw error;
-    }
+    const response = await httpGet(url);
+    return parsePrometheusMetrics(response);
 }
 
-async function fetchMetrics() {
+async function fetchMetrics(options: FetchOptions) {
     const URL = "https://tsbvt-pyaaa-aaaar-qafva-cai.raw.icp0.io/metrics";
-
     const res = await fetchAndParseMetrics(URL);
-
-    const icp_price = await fetchPrice();
-
     const E8S = 100000000;
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
 
-    const fees = Number(res.get("fees")) / E8S * icp_price || "0";  
-    const revenue = Number(res.get("revenue")) / E8S * icp_price|| "0";
-
+    dailyFees.addCGToken("internet-computer", Number(res.get("fees")) / E8S);
+    dailyRevenue.addCGToken("internet-computer", Number(res.get("revenue")) / E8S)
     return {
-        dailyUserFees: fees,
-        dailyFees: fees,
-        dailyRevenue: revenue,
-        dailyProtocolRevenue: revenue,
+        dailyUserFees: dailyFees,
+        dailyFees: dailyFees,
+        dailyRevenue: dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     };
 }
 
@@ -76,6 +46,7 @@ export default {
         [CHAIN.ICP]: {
         fetch: fetchMetrics,
         start: '2025-01-16',
+        runAtCurrTime: true,
         meta: {
             methodology: {
             UserFees: "WaterNeuron takes 10% fee on users staking rewards",
@@ -88,7 +59,3 @@ export default {
         },
     },
 };
-
-(async () => {
-    fetchMetrics();
-})();
