@@ -63,6 +63,9 @@ const chainConfig: IConfig = {
   },
   [CHAIN.MANTLE]: {
     treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+  },
+  [CHAIN.BASE]: {
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
   }
 };
 
@@ -103,23 +106,21 @@ const fetch = (chain: Chain) => {
     }
 
     const dailySupplySideFees = createBalances();
-    await Promise.all(
-      markets.map(async (market) => {
-        const allSwapEvent = await getLogs({
-          target: market,
-          eventAbi: ABI.marketSwapEvent,
-        });
+    const allSwapEvents = await getLogs({
+      targets: markets,
+      eventAbi: ABI.marketSwapEvent,
+      flatten: false,
+    });
 
-        for (const swapEvent of allSwapEvent) {
-          const netSyFee = swapEvent.netSyFee;
-          const netSyToReserve = swapEvent.netSyToReserve;
-          dailySupplySideFees.add(
-            marketToSy.get(market)!,
-            netSyFee - netSyToReserve
-          ); // excluding revenue fee
-        }
+    markets.forEach((market, i) => {
+      const token = marketToSy.get(market);
+      const logs = allSwapEvents[i]
+      logs.forEach((log: any) => {
+        const netSyFee = log.netSyFee;
+        const netSyToReserve = log.netSyToReserve;
+        dailySupplySideFees.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
       })
-    );
+    })
 
     const dailyRevenue = await addTokensReceived({
       options,
@@ -172,8 +173,8 @@ const fetch = (chain: Chain) => {
         assetAmountRevenue,
         isBridged
           ? {
-              skipChain: true,
-            }
+            skipChain: true,
+          }
           : undefined
       );
 
@@ -183,8 +184,8 @@ const fetch = (chain: Chain) => {
           assetAmountSupplySide,
           isBridged
             ? {
-                skipChain: true,
-              }
+              skipChain: true,
+            }
             : undefined
         );
       }
@@ -207,24 +208,28 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1686268800,
+      start: '2023-06-09',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691733600,
+      start: '2023-08-11',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1711506087,
+      start: '2024-03-27',
     },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: 1731368987,
+    }
   },
 };
 
@@ -233,10 +238,23 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   sys: string[];
   marketToSy: Map<string, string>;
 }> {
-  const { results } = await getConfig(
-    "pendle/v2/revenue-" + api.chain,
-    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
-  );
+  // Should only cache api by week
+  const weekId = Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 7);
+
+  let results: any[] = [];
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { results: newResults } = await getConfig(
+      `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
+      `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
+    );
+    results = results.concat(newResults);
+    skip += 100;
+    hasMore = newResults.length === 100;
+  }
+
   const markets = results.map((d: any) => d.lp.address);
   const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
   const sys = Array.from(sySet);

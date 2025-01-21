@@ -35,7 +35,6 @@ const adapter: SimpleAdapter = {
     ['merlin']: {
       fetch: fetch(),
       runAtCurrTime: true,
-      start: 9142115,
     }
   },
 };

@@ -1,31 +1,11 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import type { ChainEndpoints } from "../../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { CHAIN } from "../../helpers/chains";
-import { fetch } from "./seaport";
+import { fetch, config } from "./seaport";
 import disabledAdapter from "../../helpers/disabledAdapter";
-
-const seaportEndpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('kGCuz7xhxMuyRSk8QdnUgijUEqgvhGwkzAVHkbYedCk'),
-}
-
-const graphs = (_: ChainEndpoints) => {
-  return (_: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const fees = await fetch(timestamp);
-      return {
-        ...fees,
-        timestamp: todaysTimestamp,
-      }
-    };
-  };
-};
+const seaportConfig = { fetch, start: '2022-06-12', }
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -35,12 +15,10 @@ const adapter: Adapter = {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.ETHEREUM]: disabledAdapter
     },
-    seaport: {
-      [CHAIN.ETHEREUM]: {
-        fetch: graphs(seaportEndpoints)(CHAIN.ETHEREUM),
-        start: 1655055510,
-      },
-    }
+    seaport: Object.keys(config).reduce((acc, chain) => {
+      acc[chain] = seaportConfig
+      return acc
+    }, {}),
   }
 }
 

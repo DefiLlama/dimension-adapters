@@ -4,11 +4,11 @@ import { queryDune } from "../helpers/dune";
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const value = (await queryDune("4006384", {
+  const value = (await queryDune("4313339", {
     start: options.startTimestamp,
     end: options.endTimestamp,
   }));
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
+  dailyFees.add('So11111111111111111111111111111111111111112', value[0].total_sol_revenue * 1e9);
 
   return { dailyFees, dailyRevenue: dailyFees }
 
@@ -19,7 +19,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 0,
     },
   },
   isExpensiveAdapter: true

@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch: fetchVolume(CHAIN.KLAYTN),
-      start: 1715752335
+      start: '2024-05-15'
     }
   }
 };

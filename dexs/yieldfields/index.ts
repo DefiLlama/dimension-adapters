@@ -25,11 +25,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [BSC]: {
       fetch: graphs(BSC),
-      start: getStartTimestamp({
-        endpoints,
-        chain: BSC,
-        dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-      }),
     },
   },
 };

@@ -1,9 +1,5 @@
-import { ethers } from "ethers";
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchOptions, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { promises } from "dns";
-import { getBlock } from "../../helpers/getBlock";
 import { addTokensReceived } from "../../helpers/token";
 
 const supportedERC20Tokens: Record<string, string[]> = {
@@ -42,15 +38,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
   },
 };

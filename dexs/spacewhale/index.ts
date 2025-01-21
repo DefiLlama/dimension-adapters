@@ -38,7 +38,7 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.ARBITRUM]: {
 			fetch: fetch,
-			start: async () => 1712109600,
+			start: '2024-04-03',
 		},
 	},
 };

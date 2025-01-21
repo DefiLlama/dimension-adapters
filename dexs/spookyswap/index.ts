@@ -45,11 +45,10 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.EON]: {
       fetch: graphsV3(CHAIN.EON),
-      start:  1698969600
+      start: '2023-11-03'
     },
     // [CHAIN.BITTORRENT]: {
     //   fetch: graphsV3(CHAIN.BITTORRENT),
-    //   start:  23534368
     // },
   },
 };

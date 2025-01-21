@@ -122,7 +122,7 @@ const adapter: SimpleAdapter = {
           timestamp,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.ARBITRUM]: {
       // runAtCurrTime: true,
@@ -137,7 +137,7 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.OP_BNB]: {
       // runAtCurrTime: true,
@@ -152,7 +152,7 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.BASE]: {
       // runAtCurrTime: true,
@@ -167,7 +167,7 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
   },
 };

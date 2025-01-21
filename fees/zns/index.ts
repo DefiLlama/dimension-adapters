@@ -18,8 +18,12 @@ const addresses: TAddress = {
   [CHAIN.TAIKO]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
   [CHAIN.XLAYER]: "0x71709a5f1831ba48c414375fb6a58662a40c01b5",
   [CHAIN.ZORA]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
-  [CHAIN.BOBA]: "0xf1D09DA87c50820eD3b924aFf3C37058eD6eA40e",
-  [CHAIN.ZKLINK]: "0xe0971a2B6E34bd060866081aE879630e83C4A0BD",
+  // [CHAIN.BOBA]: "0xf1D09DA87c50820eD3b924aFf3C37058eD6eA40e",
+  // [CHAIN.ZKLINK]: "0xe0971a2B6E34bd060866081aE879630e83C4A0BD",
+  [CHAIN.SONIC]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
+  [CHAIN.BASE]: "0x55b867a955e4384bcac03ef7f2e492f68016c152",
+  [CHAIN.SONEIUM]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
+  [CHAIN.INK]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5"
 };
 
 const methodology = {
@@ -29,11 +33,23 @@ const methodology = {
 
 const ABI = {
   priceToRegister: {
-    inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
-    name: "priceToRegister",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
+    "inputs": [
+        {
+            "internalType": "uint16",
+            "name": "len",
+            "type": "uint16"
+        }
+    ],
+    "name": "priceToRegister",
+    "outputs": [
+        {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+        }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   priceToRenew: {
     inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
@@ -60,7 +76,6 @@ const fetchLogsAndCalculateFees = async (
     eventAbi: abi_event.renewedDomain,
   });
   const lens = [1,2,3,4,5]
-
   const znsPriceRegistor = await options.api.multiCall({
     abi: ABI.priceToRegister,
     calls: lens.map(len=>({
@@ -107,67 +122,95 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1714506194,
+      start: '2024-04-30',
       meta: {
         methodology,
       },
     },
     [CHAIN.SCROLL]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1714773760,
+      start: '2024-05-04',
       meta: {
         methodology,
       },
     },
     [CHAIN.BLAST]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717180581,
+      start: '2024-05-31',
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717195742,
+      start: '2024-06-01',
       meta: {
         methodology,
       },
     },
     [CHAIN.TAIKO]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1717048139,
+      start: '2024-05-30',
       meta: {
         methodology,
       },
     },
     [CHAIN.XLAYER]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1713379405,
+      start: '2024-04-17',
       meta: {
         methodology,
       },
     },
     [CHAIN.ZORA]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719239283,
+      start: '2024-06-24',
       meta: {
         methodology,
       },
     },
-    [CHAIN.BOBA]: {
+    // [CHAIN.BOBA]: {
+    //   fetch: fetchLogsAndCalculateFees,
+    //   start: '2024-06-29',
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
+    // [CHAIN.ZKLINK]: {
+    //   fetch: fetchLogsAndCalculateFees,
+    //   start: '2024-06-29',
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
+    [CHAIN.SONIC]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719631449,
+      start: '2024-05-30',
       meta: {
         methodology,
       },
     },
-    [CHAIN.ZKLINK]: {
+    [CHAIN.BASE]: {
       fetch: fetchLogsAndCalculateFees,
-      start: 1719631449,
+      start: '2024-05-30',
       meta: {
         methodology,
       },
     },
+    [CHAIN.SONEIUM]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-06-24',
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.INK]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-05-30',
+      meta: {
+        methodology
+      }
+    }
   },
 };
 

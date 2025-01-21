@@ -37,15 +37,12 @@ const address_bribe: TAddress = {
 //all revenue is from bribes and is given to governance token holders 100%
 
 const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, getFromBlock, getToBlock }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     if (chain=='ETHEREUM'){
       (await getLogs({
         target:reward_eth_pendle ,
         eventAbi: event_pendle_fee,
-        fromBlock,
-        toBlock
       })).map((e: any) => {
         // check if it is penpie
           if (e.user === '0x6e799758cee75dae3d84e09d40dc416ecf713652') {
@@ -56,8 +53,6 @@ const graph = (chain: Chain) => {
     (await getLogs({
       target: address_reward[chain],
       eventAbi: event_paid_stream,
-      fromBlock,
-      toBlock
     })).map((e: any) => {
       if (exclude[chain].includes(e._rewardToken)) {
         return
@@ -67,8 +62,6 @@ const graph = (chain: Chain) => {
     (await getLogs({
       target: address_bribe[chain],
       eventAbi: event_paid_bribe,
-      fromBlock,
-      toBlock
     })).map((e: any) => {
       if (exclude[chain].includes(e.token)) {
         return
@@ -85,15 +78,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 77678653,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 77678653,
     },
     [CHAIN.ETHEREUM]: {
         fetch: graph(CHAIN.ETHEREUM),
-        start: 77678653,
       },
   }
 };

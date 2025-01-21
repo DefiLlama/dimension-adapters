@@ -23,22 +23,18 @@ const abis = {
 
 const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain }: FetchOptions) => {
   const dailyVolume = createBalances()
-  try {
     const logs = await getLogs({ targets: config[chain].DODOFeeRouteProxys, eventAbi: abis.OrderHistory, })
-    logs.forEach((log: any) => {
-      dailyVolume.add(log.toToken, log.returnAmount)
-    })
-    return { timestamp, dailyVolume }
-  } catch (e) {
-    return { timestamp, dailyVolume }
-  }
+  logs.forEach((log: any) => {
+    dailyVolume.add(log.toToken, log.returnAmount)
+  })
+  return { timestamp, dailyVolume }
 };
 
 const adapter_agg = {
   adapter: {},
 };
 
-Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: 1690848000, });
+Object.keys(config).forEach((chain) => adapter_agg.adapter[chain] = { fetch, start: '2023-08-01', });
 
 const adapter: SimpleAdapter = {
   adapter: adapter_agg.adapter,

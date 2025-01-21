@@ -80,7 +80,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   totalHoldersRevenue.addBalances(earlystageResult.totalHoldersRevenue)
 
   dailyHoldersRevenue.addBalances(caiResult.dailyHoldersRevenue)
-  totalHoldersRevenue.addBalances(caiResult.totalHoldersRevenue)
+  // totalHoldersRevenue.addBalances(caiResult.totalHoldersRevenue)
 
   dailyHoldersRevenue.addBalances(validatorProgramResult.dailyHoldersRevenue)
   totalHoldersRevenue.addBalances(validatorProgramResult.totalHoldersRevenue)
@@ -93,7 +93,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   totalProtocolRevenue.addBalances(earlystageResult.totalProtocolRevenue)
 
   dailyProtocolRevenue.addBalances(caiResult.dailyProtocolRevenue)
-  totalProtocolRevenue.addBalances(caiResult.totalProtocolRevenue)
+  // totalProtocolRevenue.addBalances(caiResult.totalProtocolRevenue)
 
   dailyProtocolRevenue.addBalances(validatorProgramResult.dailyProtocolRevenue)
   totalProtocolRevenue.addBalances(validatorProgramResult.totalProtocolRevenue)
@@ -123,26 +123,26 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   totalFees.addBalances(totalSupplySideRevenue)
 
   return {
-    timestamp: dexResult.timestamp,
-    block: dexResult.block,
+    // timestamp: dexResult.timestamp,
+    // block: dexResult.block,
 
     dailyVolume: dexResult.dailyVolume,
-    totalVolume: dexResult.totalVolume,
+    // totalVolume: dexResult.totalVolume,
 
     dailyFees,
-    totalFees,
+    // totalFees,
 
     dailyRevenue,
-    totalRevenue,
+    // totalRevenue,
 
     dailyHoldersRevenue,
-    totalHoldersRevenue,
+    // totalHoldersRevenue,
 
     dailyProtocolRevenue,
-    totalProtocolRevenue,
+    // totalProtocolRevenue,
 
     dailySupplySideRevenue,
-    totalSupplySideRevenue
+    // totalSupplySideRevenue
   }
 }
 
@@ -151,7 +151,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
           methodology
       }

@@ -29,7 +29,12 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
 }) {
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
-    const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+    let markets
+    try {
+        markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+    } catch (error) {
+        return { dailyFees, dailyRevenue }
+    }
     const liquidationIncentiveMantissa = await api.call({ target: market, abi: comptrollerABI.liquidationIncentiveMantissa, })
     const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
     const exchangeRatesCurrent = await api.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, permitFailure: true, });
@@ -109,8 +114,7 @@ function moonwellExport(config: IJSON<string>) {
                 })
                 return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
             }),
-            start: 0,
-        }
+                    }
     })
     return { adapter: exportObject, version: 2 } as SimpleAdapter
 }

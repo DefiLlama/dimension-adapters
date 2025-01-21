@@ -1,16 +1,18 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { getSolanaReceived } from "../helpers/token";
 
 const fetch: any = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const value = (await queryDune("3997872", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  }));
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-  
-  return { dailyFees, dailyRevenue: dailyFees }
+  const targets = [
+    'F34kcgMgCF7mYWkwLN3WN7KrFprr2NbwxuLvXx4fbztj',
+    '96aFQc9qyqpjMfqdUeurZVYRrrwPJG2uPV6pceu4B1yb',
+
+    // older addresses I think
+    // 'HEPL5rTb6n1Ax6jt9z2XMPFJcDe9bSWvWQpsK7AMcbZg',
+    // 'K1LRSA1DSoKBtC5DkcvnermRQ62YxogWSCZZPWQrdG5',
+  ]
+  const dailyFees = await getSolanaReceived({ options, targets })
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 const adapter: SimpleAdapter = {
@@ -18,8 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 0,
-    },
+          },
   },
   isExpensiveAdapter: true
 };

@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetchVolume(CHAIN.ERA),
-      start: 1684842780,
+      start: '2023-05-23',
     },
   },
 };

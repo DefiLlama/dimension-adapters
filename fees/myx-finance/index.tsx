@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResultFees, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter,  FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -30,25 +30,25 @@ const fetchApi = async (type: FetchType, startTime: number, endTime: number) => 
   return data
 }
 
-const fetchFees = async (_t: any, _b: any, optios: FetchOptions) => {
-  const start = optios.startOfDay;
-  const end = start + 86400;
-  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, start, end)
-  const dailyFees = dailyAlls.find((daily: Data)=> daily.chainId === optios.toApi.chainId)
+const fetchFees = async (_t: any, _tts: any, { fromTimestamp, toTimestamp, api }: FetchOptions) => {
+  const chainId = api.chainId
+  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, fromTimestamp, toTimestamp )
+  const dailyFees = dailyAlls.find((daily: Data)=> daily.chainId === chainId)
 
-  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, start, end)
-  const totalFees = totalAlls.find((daily: Data)=> daily.chainId === optios.toApi.chainId)
+  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, fromTimestamp, toTimestamp )
+  const totalFees = totalAlls.find((daily: Data)=> daily.chainId === chainId)
 
   return {
+    timestamp: toTimestamp,
     totalFees: totalFees?.tradingFee,
     dailyFees: dailyFees?.tradingFee,
-    timestamp: optios.startTimestamp
   }
 }
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
+  [CHAIN.OP_BNB]: 1727443900
 }
 
 const adapter: SimpleAdapter = {
@@ -64,6 +64,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.LINEA]: {
       fetch: fetchFees,
       start: startTimestamps[CHAIN.LINEA],
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.OP_BNB]: {
+      fetch: fetchFees,
+      start: startTimestamps[CHAIN.OP_BNB],
       meta: {
         methodology
       }

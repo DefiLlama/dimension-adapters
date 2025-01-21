@@ -59,15 +59,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: 1699520408,
+      start: '2023-11-09',
     },
     // [CHAIN.POLYGON_ZKEVM]: {
     //   fetch: graphs(endpoints)(CHAIN.POLYGON_ZKEVM), // error the graph is not available
-    //   start: 1679921168,
+    //   start: '2023-03-27',
     // },
     [CHAIN.MANTA]: {
       fetch: graphs(endpoints)(CHAIN.MANTA),
-      start: 1698838028,
+      start: '2023-11-01',
     },
   },
 };

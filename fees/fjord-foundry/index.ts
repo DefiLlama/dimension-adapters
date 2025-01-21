@@ -26,7 +26,7 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalFees = (await fetchURL(feeEndpoint))
 
-    const chainData = historicalFees.stats.find(cd => cd.chainId === chainId);
+    const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
 
     const totalFee = chainData.stats
         .filter(item => item.timestamp <= dayTimestamp)
@@ -77,7 +77,7 @@ const adapter: BreakdownAdapter = {
                 ...acc,
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
-                    start: 1702857600,
+                    start: '2023-12-18',
                     meta: {
                         methodology,
                     },
@@ -89,7 +89,7 @@ const adapter: BreakdownAdapter = {
                 ...acc,
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
-                    start: 1631836800,
+                    start: '2021-09-17',
                     meta: {
                         methodology,
                     },

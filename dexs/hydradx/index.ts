@@ -25,8 +25,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYDRADX]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1692662400,
+      start: '2023-08-22',
     },
   }
 };

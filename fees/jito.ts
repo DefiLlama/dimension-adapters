@@ -1,34 +1,37 @@
-import { time } from "console"
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { queryDune } from "../helpers/dune"
+import { getSolanaReceived } from "../helpers/token"
 
-const fetchFees = async (_a:any, _: any,options: FetchOptions) => {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const result = await queryDune("3740661");
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
-  const day = result.find((r: any) => r.day === dateStr)
-  dailyFees.add('So11111111111111111111111111111111111111112', day.sol_tip * 1e9)
-  dailyRevenue.add('So11111111111111111111111111111111111111112', day.sol_tip * 1e9)
-  dailyRevenue.resizeBy(0.04)
+const fetchFees = async (options: FetchOptions) => {
+
+  const targets = [
+    '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
+    'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
+    'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
+    'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
+    'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
+    'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
+    'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+    '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
+  ]
+
+  const dailyFees = await getSolanaReceived({ options, targets, })
 
   return {
-    timestamp: options.startOfDay,
     dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue: dailyFees.clone(0.04),
   }
 }
 
 const adapter: SimpleAdapter = {
-  // version: 2,
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: 1714435200,
+      start: '2024-04-30',
     }
   },
   isExpensiveAdapter: true
 }
 
-export  default adapter
+export default adapter

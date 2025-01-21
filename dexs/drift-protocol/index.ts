@@ -21,7 +21,7 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
   const start = options.startOfDay;
   const key = `${url}-${start}`;
   if (!requests[key])
-    requests[key] = queryDune("4059377", {
+    requests[key] = queryDune("4117889", {
       start: start,
       end: start + 24 * 60 * 60,
     })
@@ -29,13 +29,15 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
 }
 
 async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4059377", options)
+  const volumeResponse = await fetchURLWithRetry("4117889", options)
   const dailyVolume = volumeResponse[0].perpetual_volume;
-  return { dailyVolume };
+  const dailyFees = volumeResponse[0].total_taker_fee;
+  const dailyRevenue = volumeResponse[0].total_revenue;
+  return { dailyVolume, dailyFees, dailyRevenue };
 }
 
 async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4059377", options)
+  const volumeResponse = await fetchURLWithRetry("4117889", options)
   const dailyVolume = volumeResponse[0].spot_volume;
   return { dailyVolume };
 }
@@ -62,13 +64,13 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.SOLANA]: {
         fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("spot", options),
-        start: 1690239600,
+        start: '2023-07-25',
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
         fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("perp", options),
-        start: 1690239600,
+        start: '2023-07-25',
       },
     },
   },

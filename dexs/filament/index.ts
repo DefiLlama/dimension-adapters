@@ -35,7 +35,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     sei: {
       fetch,
-      start: 126044642,
       runAtCurrTime: true,
     },
   },

@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.IMX]: {
       fetch: graphs(CHAIN.IMX),
-      start: 1708041600
+      start: '2024-02-16'
     },
   },
 };

@@ -1,11 +1,13 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const v1 = univ2Adapter(
+// Create AVAX adapter with custom fields
+const avaxAdapter = univ2Adapter2(
   {
-    [CHAIN.AVAX]:
-      sdk.graph.modifyEndpoint('B6Tur5gXGCcswG8rEtmwfjBqeyDXCDUQSwM9wUXHoui5'),
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint(
+      "B6Tur5gXGCcswG8rEtmwfjBqeyDXCDUQSwM9wUXHoui5"
+    ),
   },
   {
     factoriesName: "dexAmmProtocols",
@@ -16,5 +18,19 @@ const v1 = univ2Adapter(
   }
 );
 
-v1.adapter.avax.start = 1663545600;
-export default v1.adapter;
+const apechainAdapter = univ2Adapter2(
+  {
+    [CHAIN.APECHAIN]:
+      "https://api.goldsky.com/api/public/project_cloh4i8580dwo2nz7brhf4r6p/subgraphs/vapordex-v1-apechain/1.0.0/gn",
+  },
+  {} // Use default values
+);
+
+const adapter = {
+  ...avaxAdapter.adapter,
+  ...apechainAdapter.adapter,
+};
+
+adapter.avax.start = 1663545600;
+adapter.apechain.start = 2519744;
+export default adapter;

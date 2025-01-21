@@ -11,14 +11,14 @@ interface IMobyVolumeResponse {
 
 // endTime is in ms
 export const mobyVolumeEndpoint = (endTime: number) => {
-  return `https://u63601xvgc.execute-api.ap-northeast-2.amazonaws.com/prod/getVolumeData?end_time=${endTime}`;
+  return `https://lambda-api.moby.trade/getVolumeData?end_time=${endTime}`;
 }
 
 export const moby_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchMobyVolumeData,
-      start: 1712102400
+      start: '2024-04-03'
     },
   },
 };

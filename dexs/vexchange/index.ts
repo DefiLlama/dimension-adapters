@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VECHAIN]: {
       fetch,
-      start: 1673827200,
+      start: '2023-01-16',
       runAtCurrTime: true
     },
   },

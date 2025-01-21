@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
     solana: {
       fetch: graphs,
       runAtCurrTime: true,
-      start: 1660521600,
+      start: '2022-08-15',
     },
   },
 };

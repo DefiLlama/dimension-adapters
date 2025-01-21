@@ -26,12 +26,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEON]: {
       fetch: graphs(CHAIN.NEON),
-      start: 1689613200, // 17TH JULY 5PM GMT
+      start: '2023-07-17', // 17TH JULY 5PM GMT
       customBackfill: customBackfill(CHAIN.NEON as Chain, graphs),
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: 1690850000, // 1ST AUG 12:33 AM GMT
+      start: '2023-08-01', // 1ST AUG 12:33 AM GMT
       customBackfill: customBackfill(CHAIN.BASE as Chain, graphs),
     }
   }

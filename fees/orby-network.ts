@@ -65,7 +65,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch: graphs(endpoints),
-      start: 1706837536,
+      start: '2024-02-02',
     },
   },
 };

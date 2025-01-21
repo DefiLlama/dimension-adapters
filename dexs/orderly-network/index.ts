@@ -11,7 +11,7 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     "orderly-network": {
       [CHAIN.NEAR]: {
-        start: 1669977923,
+        start: '2022-12-02',
         fetch: async(__t: number, _: any, { startOfDay }: FetchOptions) => {
           try {
             const data = await httpGet(apiNear) // error
@@ -32,7 +32,7 @@ const adapter: BreakdownAdapter = {
     },
     "orderly-network-derivatives": {
       [CHAIN.ARBITRUM]: {
-        start: 1698278400,
+        start: '2023-10-26',
         fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) =>{
           const data = await httpGet(apiEVM)
           const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000))

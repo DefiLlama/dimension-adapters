@@ -19,11 +19,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   let pairs = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A' })
   let token0s = await api.multiCall({ abi: 'address:token0', calls: pairs })
   let token1s = await api.multiCall({ abi: 'address:token1', calls: pairs })
-  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s })
-  api.log(res.pairs.length, 'pairs out of', pairs.length, chain, 'aerodrome')
+
+  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s, minUSDValue: 2000, maxPairSize: 1000 })
   pairs = res.pairs
   token0s = res.token0s
   token1s = res.token1s
+
   const fees = await api.multiCall({ abi: 'uint256:fee', calls: pairs })
 
   let logs: ILog[][] = await getLogs({ targets: pairs, eventAbi: event_swap, flatten: false, })
@@ -45,7 +46,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,
-      start: 1714743000,
+      start: '2024-05-03',
     }
   }
 }

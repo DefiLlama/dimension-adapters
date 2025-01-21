@@ -157,8 +157,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getUniV2LogAdapter(chainConfig),
-      start: 0,
-    }
+          }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }
@@ -168,8 +167,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getUniV3LogAdapter(chainConfig),
-      start: 0,
-    }
+          }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }

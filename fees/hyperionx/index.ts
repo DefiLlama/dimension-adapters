@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKFAIR]: {
       fetch: graphs(CHAIN.ZKFAIR),
-      start: 1706659200,
+      start: '2024-01-31',
     },
   },
   version: 2

@@ -109,27 +109,27 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: 1696291200,
+      start: '2023-10-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: 1696204800,
+      start: '2023-10-02',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: 1696291200,
+      start: '2023-10-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: 1697155200,
+      start: '2023-10-13',
     },
     [CHAIN.BASE]: {
       fetch: fetchVolume(CHAIN.BASE),
-      start: 1696809600,
+      start: '2023-10-09',
     },
     [CHAIN.XDAI]: {
       fetch: fetchVolume(CHAIN.XDAI),
-      start: 1696550400,
+      start: '2023-10-06',
     },
   }
 };

@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MANTLE]: {
       fetch: v3Graphs(CHAIN.MANTLE),
-      start: 1689724800,
+      start: '2023-07-19',
     },
   },
 };

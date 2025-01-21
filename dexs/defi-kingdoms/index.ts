@@ -19,10 +19,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.HARMONY]: {
-      start: async () => {
-        const data = (await httpGet(API)) as IAPIResponse
-        return new Date(data.items[0].timestamp).getTime() / 1000
-      },
       fetch: async (timestamp: number) => {
         const data = (await httpGet(API)) as IAPIResponse
         const cleanTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))

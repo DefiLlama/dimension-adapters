@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const query = (amo: string, timestamp: number) => gql`
@@ -38,19 +38,19 @@ const findRevenue = (timedData: any) =>
   Number(timedData.depositedAmount) +
   Number(timedData.profitTaken);
 
-const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
-  const { amos, graph, FRAX } = config[chain];
+const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+  const { amos, graph, FRAX } = config[options.chain];
   const client = getGQLClient(graph);
-  const dailyRevenue = createBalances();
-  const totalRevenue = createBalances();
-  const dailyFees = createBalances();
+  const dailyRevenue = options.createBalances();
+  const totalRevenue = options.createBalances();
 
   await Promise.all(
     amos.map(async (amo: string) => {
-      const data = (await client.request(query(amo, toTimestamp))).amos[0];
-      data.positions.map((p: any) => {
-        const latest = findRevenue(p.fraxAccountingPerDay[0]);
-        const previous = findRevenue(p.fraxAccountingPerDay[1]);
+      const data = (await client.request(query(amo, timestamp))).amos[0];
+      data.positions.map(({ fraxAccountingPerDay: days }: any) => {
+        if (days.length < 2) return 
+        const latest = findRevenue(days[0]);
+        const previous = findRevenue(days[1]);
         dailyRevenue.add(FRAX, latest - previous);
         totalRevenue.add(FRAX, latest);
       });
@@ -58,6 +58,7 @@ const fetch = async ({ createBalances, chain, toTimestamp }: FetchOptions) => {
   );
 
   return {
+    timestamp,
     dailyRevenue,
     totalRevenue,
     dailyFees: dailyRevenue,
@@ -96,11 +97,10 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: 0,
-      },
+              },
     };
   }, {}),
-  version: 2,
+  version: 1,
 };
 
 export default adapter;

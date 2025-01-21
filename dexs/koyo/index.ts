@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BOBA]: {
       fetch: graphs(CHAIN.BOBA),
-      start: 1655104044,
+      start: '2022-06-13',
       customBackfill: customBackfill(CHAIN.BOBA, graphs),
     },
   },

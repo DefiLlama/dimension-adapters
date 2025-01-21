@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch: fetch(chain as CHAIN),
-                start: 1698796799,
+                start: '2023-11-01',
                 meta: {
                     methodology: {
                         Fees: "Users pay 0.3% for each swap along with a base fee",

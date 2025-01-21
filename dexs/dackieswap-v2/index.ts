@@ -6,7 +6,7 @@ import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50473/subgraphs-exchange-v2/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/50473/v2-base/version/latest",
   [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/50473/v2-optimism/version/latest",
   [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/50473/v2-arbitrum/version/latest",
   [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/50473/v2-blast/version/latest",

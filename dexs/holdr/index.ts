@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),
-      start: 1672531200,
+      start: '2023-01-01',
       customBackfill: customBackfill(CHAIN.AURORA as Chain, v1graphs),
     },
   },

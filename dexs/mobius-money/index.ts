@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: graphs(CHAIN.CELO),
-      start: 1636514733,
+      start: '2021-11-10',
     },
   },
 };

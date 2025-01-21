@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     "dydx": {
       fetch: fetchFees,
-      start: 1699747200,
+      start: '2023-11-12',
     }
   }
 }
