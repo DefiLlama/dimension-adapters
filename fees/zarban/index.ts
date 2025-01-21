@@ -27,7 +27,7 @@ export default {
         for (const dailySnapshot of financialsDailySnapshots) {
           dailyRevenue.addUSDValue(BigInt(dailySnapshot.dailyTotalRevenueUSD.split('.')[0]));
         }
-        return { dailyRevenue }
+        return { dailyRevenue, dailyFees: dailyRevenue }
       }) as FetchV2,
       start: 77669795,
     },
