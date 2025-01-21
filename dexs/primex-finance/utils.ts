@@ -46,8 +46,13 @@ const config: { [chain: string]: ChainConfig } = {
     ],
     start: '2023-12-17',
   },
+  [CHAIN.BASE]: {
+    swapManager: ["0xFFdf60c0f83be68C906fb5B8c481A719845bb0a0"],
+    positionManager: ["0x01ED183275956dBd0064B789B778cA0921e695E9"],
+    batchManager: ["0x09641d48cF6644c9059004bA8605a76C6334700A",],
+    start: "2024-12-06",
+  },
 };
-
 const topics = {
   swap: "0x5fcf6637f014854f918b233372226c5492e6a5157e517674a8588675550c40c6",
   openPosition:
