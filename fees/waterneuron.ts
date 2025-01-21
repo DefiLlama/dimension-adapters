@@ -36,7 +36,6 @@ async function fetchMetrics(options: FetchOptions) {
         dailyUserFees: dailyFees,
         dailyFees: dailyFees,
         dailyRevenue: dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
         dailyHoldersRevenue: dailyRevenue,
     };
 }
