@@ -36,7 +36,7 @@ async function fetchMetrics(options: FetchOptions) {
         dailyUserFees: dailyFees,
         dailyFees: dailyFees,
         dailyRevenue: dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyHoldersRevenue: dailyRevenue,
     };
 }
 
@@ -44,18 +44,18 @@ export default {
     version: 2,
     adapter: {
         [CHAIN.ICP]: {
-        fetch: fetchMetrics,
-        start: '2025-01-16',
-        runAtCurrTime: true,
-        meta: {
-            methodology: {
-            UserFees: "WaterNeuron takes 10% fee on users staking rewards",
-            Fees: "Staking rewards earned by all staked ICP",
-            Revenue: "Staking rewards",
-            ProtocolRevenue: "WaterNeuron applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
-            SupplySideRevenue: "Staking rewards earned by nICP holders"
+            fetch: fetchMetrics,
+            start: '2025-01-16',
+            runAtCurrTime: true,
+            meta: {
+                methodology: {
+                    UserFees: "WaterNeuron takes 10% fee on users staking rewards",
+                    Fees: "Staking rewards earned by all staked ICP",
+                    Revenue: "Staking rewards",
+                    ProtocolRevenue: "WaterNeuron applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
+                    SupplySideRevenue: "Staking rewards earned by nICP holders"
+                }
             }
-        }
         },
     },
 };
