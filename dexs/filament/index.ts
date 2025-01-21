@@ -2,9 +2,10 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
-const api = "https://orderbook.filament.finance/sei/api/v1/orderbook/tradeVolumeStats/BTC";
+const assets = ["BTC", "ETH", "SOL", "TRUMP"];
 
-const fetch = async () => {
+const fetchForAsset = async (asset: string) => {
+  const api = `https://orderbookv5.filament.finance/k8s/api/v1/orderbook/tradeVolumeStats/${asset}`;
   const timestamp = getUniqStartOfTodayTimestamp();
   const res = await httpGet(api);
   const { allTimeVolume, volumeIn24Hours } = res;
@@ -16,11 +17,25 @@ const fetch = async () => {
   };
 };
 
+const fetch = async () => {
+  const results = await Promise.all(
+    assets.map(async (asset) => ({
+      asset,
+      ...(await fetchForAsset(asset)),
+    }))
+  );
+
+  return results.reduce((acc, { asset, ...data }) => {
+    acc[asset] = data;
+    return acc;
+  }, {} as Record<string, { timestamp: number; dailyVolume: number; totalVolume: number }>);
+};
+
 const adapter: SimpleAdapter = {
   adapter: {
     sei: {
       fetch,
-      start: 100601154,
+      start: 126044642,
       runAtCurrTime: true,
     },
   },
