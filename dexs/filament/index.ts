@@ -26,25 +26,17 @@ const fetchForAsset = async (asset: string) => {
   };
 };
 
-const fetch = async () => {
+const fetch = async (timestamp:  number) => {
   const results = await Promise.all(
     assets.map(async (asset) => {
-      try {
         return { asset, ...(await fetchForAsset(asset)) };
-      } catch (error) {
-        console.error(`Error fetching ${asset}:`, error);
-        return null;
-      }
     })
   );
-
-  return results.reduce((acc, item) => {
-    if (item) {
-      const { asset, ...data } = item;
-      acc[asset] = data;
-    }
-    return acc;
-  }, {} as Record<string, { timestamp: number; dailyVolume: number; totalVolume: number }>);
+  return {
+    timestamp: timestamp,
+    dailyVolume: results.reduce((acc, item) => acc + item.dailyVolume, 0),
+    totalVolume: results.reduce((acc, item) => acc + item.totalVolume, 0),
+  }
 };
 
 const adapter: SimpleAdapter = {
