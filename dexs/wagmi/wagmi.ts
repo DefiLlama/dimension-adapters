@@ -10,16 +10,15 @@ import { FetchOptions } from "../../adapters/types";
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/4540/wagmi-zksync-era/version/latest",
+      "https://api.studio.thegraph.com/query/53494/wagmi-zksync-era/version/latest",
     blocks:
       "https://api.studio.thegraph.com/query/4540/zksync-era-blocks/v0.0.1",
   },
   [CHAIN.FANTOM]: {
-    subgraph: sdk.graph.modifyEndpoint(
-      "BtyzJrSwED7QFDBhC68myEJ851KJ47vRD11vkenPwgQz"
-    ),
+    subgraph:
+      "https://api.studio.thegraph.com/query/53494/v3-fantom/version/latest",
     blocks: sdk.graph.modifyEndpoint(
-      "BjhETUnXsKV77w7P6GWNxWik762YDmV54nkMRG4ekk2W"
+      "GxTjovT2QA2C4ycYHHVbxtepmMJuGL1tYvhBFLb7MZVj"
     ),
   },
   [CHAIN.KAVA]: {

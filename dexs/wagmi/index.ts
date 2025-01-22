@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SONIC]: {
       fetch: fetchVolume,
-      start: "2024-09-12",
+      start: "2023-12-18",
     },
   },
 };
