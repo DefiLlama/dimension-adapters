@@ -11,18 +11,22 @@ const adapter: SimpleAdapter = {
     // },
     [CHAIN.FANTOM]: {
       fetch: fetchVolume,
-      start: '2023-04-12',
+      start: "2023-04-12",
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume,
     },
     [CHAIN.METIS]: {
       fetch: fetchVolume,
-      start: '2023-12-18',
+      start: "2023-12-18",
     },
     [CHAIN.KAVA]: {
       fetch: fetchVolume,
-      start: '2023-09-12',
+      start: "2023-09-12",
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetchVolume,
+      start: "2024-09-12",
     },
   },
 };

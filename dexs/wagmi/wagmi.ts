@@ -15,10 +15,12 @@ export const LINKS: { [key: string]: any } = {
       "https://api.studio.thegraph.com/query/4540/zksync-era-blocks/v0.0.1",
   },
   [CHAIN.FANTOM]: {
-    subgraph:
-      sdk.graph.modifyEndpoint('BtyzJrSwED7QFDBhC68myEJ851KJ47vRD11vkenPwgQz'),
-    blocks:
-      sdk.graph.modifyEndpoint('BjhETUnXsKV77w7P6GWNxWik762YDmV54nkMRG4ekk2W'),
+    subgraph: sdk.graph.modifyEndpoint(
+      "BtyzJrSwED7QFDBhC68myEJ851KJ47vRD11vkenPwgQz"
+    ),
+    blocks: sdk.graph.modifyEndpoint(
+      "BjhETUnXsKV77w7P6GWNxWik762YDmV54nkMRG4ekk2W"
+    ),
   },
   [CHAIN.KAVA]: {
     subgraph: "https://kava.graph.wagmi.com/subgraphs/name/v3",
@@ -26,12 +28,19 @@ export const LINKS: { [key: string]: any } = {
   },
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
-    blocks:
-      sdk.graph.modifyEndpoint('9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC'),
+    blocks: sdk.graph.modifyEndpoint(
+      "9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC"
+    ),
   },
   [CHAIN.METIS]: {
     subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",
     blocks: "https://metis.graph.wagmi.com/subgraphs/name/blocks",
+  },
+  [CHAIN.SONIC]: {
+    subgraph: "https://sonic.graph.wagmi.com/subgraphs/name/v3",
+    blocks: sdk.graph.modifyEndpoint(
+      "6LJ3ThDWXaQrHGPL3KHFMcZiJpbKd1qSs9QAvgd9X89Z"
+    ),
   },
 };
 
@@ -69,8 +78,8 @@ const getData = async (chain: Chain, timestamp: number) => {
   const totalVolume = Number(data.factories[0].totalVolumeUSD);
   const totalFee = Number(data.factories[0].totalFeesUSD);
 
-  const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? '0');
-  const dailyFees = Number(data.uniswapDayData?.feesUSD ?? '0');
+  const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? "0");
+  const dailyFees = Number(data.uniswapDayData?.feesUSD ?? "0");
 
   return {
     dailyFees: `${dailyFees}`,
@@ -84,12 +93,12 @@ const getData = async (chain: Chain, timestamp: number) => {
 };
 
 export const fetchVolume = async (options: FetchOptions) => {
-    const data = await getData(options.chain, options.startOfDay);
-    return {
-      totalVolume: data.totalVolume,
-      dailyVolume: data.dailyVolume,
-      timestamp: data.timestamp,
-    };
+  const data = await getData(options.chain, options.startOfDay);
+  return {
+    totalVolume: data.totalVolume,
+    dailyVolume: data.dailyVolume,
+    timestamp: data.timestamp,
+  };
 };
 
 export const fetchFee = (chain: string) => {
