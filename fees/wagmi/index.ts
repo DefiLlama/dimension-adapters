@@ -21,14 +21,14 @@ const adapter: SimpleAdapter = {
     // },
     [CHAIN.FANTOM]: {
       fetch: fetchFee(CHAIN.FANTOM),
-      start: '2023-04-12',
+      start: "2023-04-12",
       meta: {
         methodology,
       },
     },
     [CHAIN.KAVA]: {
       fetch: fetchFee(CHAIN.KAVA),
-      start: '2023-09-12',
+      start: "2023-09-12",
       meta: {
         methodology,
       },
@@ -39,13 +39,20 @@ const adapter: SimpleAdapter = {
         methodology,
       },
     },
-    // [CHAIN.METIS]: {
-    //   fetch: fetchFee(CHAIN.METIS),
-    //   start: '2023-12-18',
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
+    [CHAIN.METIS]: {
+      fetch: fetchFee(CHAIN.METIS),
+      start: "2023-12-18",
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetchFee(CHAIN.SONIC),
+      start: "2023-12-18",
+      meta: {
+        methodology,
+      },
+    },
   },
 };
 
