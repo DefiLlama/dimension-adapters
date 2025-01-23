@@ -29,14 +29,6 @@ const adapter: Adapter = {
       fetch: fetchPerpFees,
       start: "2024-10-20",
     },
-    [CHAIN.BSC]: {
-      fetch: fetchPerpFees,
-      start: "2024-10-20",
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchPerpFees,
-      start: "2024-10-20",
-    },
   },
 };
 export default adapter;
