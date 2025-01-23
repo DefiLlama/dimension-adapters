@@ -13,7 +13,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SONEIUM]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
-      start: '2020-08-29',
+      start: '2024-12-29',
     },
   },
   protocolType: ProtocolType.CHAIN
