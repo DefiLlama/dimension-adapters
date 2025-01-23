@@ -4,8 +4,7 @@ import { httpPost } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 
-const URL =
-  "https://test-spots-api.ln.exchange/napi/common/getDayTradeAmount";
+const URL = "https://test-spots-api.ln.exchange/napi/common/getDayTradeAmount";
 
 interface Response {
   dayNtlVlm: number;
