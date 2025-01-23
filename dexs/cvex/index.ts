@@ -1,19 +1,8 @@
 import type { SimpleAdapter } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL';
-import {CHAIN} from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const API_SERVICE_URL = 'https://api.cvex.trade/v1/statistics/volume'
-
-const getStartOfDayUTC = (): number => {
-  const now = new Date();
-  const startOfDay = Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      0, 0, 0, 0
-  );
-  return Math.floor(startOfDay / 1000);
-};
 
 const api = async (url: string) => {
   const res = await httpGet(url);
@@ -22,14 +11,15 @@ const api = async (url: string) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       start: 1736328600,
+      runAtCurrTime: true,
       fetch: async () => {
         const data = await api(API_SERVICE_URL)
 
         return {
-          timestamp: getStartOfDayUTC(),
           dailyVolume: data.daily_volume,
           totalVolume: data.total_volume,
         }
