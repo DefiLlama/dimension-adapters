@@ -11,7 +11,7 @@ const CHAINS: TChain = {
 };
 
 const fetch = async (_a, _b, options: FetchOptions) => {
-  const response = await axios.get(`https://api-analysis-dev.starbase.ag/api/combine/defillama/volume`, {
+  const response = await axios.get(`https://api-analysis.starbase.ag/api/combine/defillama/volume`, {
     headers: {
       "X-External-API-Key": getEnv("STARBASE_API_KEY"),
     }
