@@ -1,5 +1,5 @@
 import { getEnv } from "../../helpers/env";
-import axios from "axios";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
@@ -11,13 +11,13 @@ const CHAINS: TChain = {
 };
 
 const fetch = async (_a, _b, options: FetchOptions) => {
-  const response = await axios.get(`https://api-analysis.starbase.ag/api/combine/defillama/volume`, {
+  const response = await httpGet(`https://api-analysis.starbase.ag/api/combine/defillama/volume`, {
     headers: {
       "X-External-API-Key": getEnv("STARBASE_API_KEY"),
     }
   })
   const data = response.data;
-  const negativeVolume = data.volume24h? - data.volume24h : undefined; 
+  const negativeVolume = data.volume24h ? data.volume24h : undefined;
   return {
     dailyVolume: negativeVolume,
   };
