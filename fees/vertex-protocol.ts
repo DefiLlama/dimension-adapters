@@ -30,6 +30,7 @@ const archiveArbitrumUrl = "https://archive.prod.vertexprotocol.com/v1";
 const archiveMantleUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
 const archiveSeiUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
 const archiveBaseUrl = "https://archive.base-prod.vertexprotocol.com/v1";
+const archiveSonicUrl = "https://archive.sonic-prod.vertexprotocol.com/v1";
 
 type TURL = {
   [s: string]: string;
@@ -40,6 +41,7 @@ const url: TURL = {
   [CHAIN.MANTLE]: archiveMantleUrl,
   [CHAIN.SEI]: archiveSeiUrl,
   [CHAIN.BASE]: archiveBaseUrl,
+  [CHAIN.SONIC]: archiveSonicUrl,
 };
 
 const query = async (
@@ -174,22 +176,27 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: '2023-04-26',
+      start: "2023-04-26",
     },
     [CHAIN.MANTLE]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: '2023-04-26',
+      start: "2023-04-26",
     },
     [CHAIN.SEI]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: '2024-08-13',
+      start: "2024-08-13",
     },
     [CHAIN.BASE]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: '2024-09-04',
+      start: "2024-09-04",
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetch,
+      runAtCurrTime: true,
+      start: "2024-12-18",
     },
   },
 };

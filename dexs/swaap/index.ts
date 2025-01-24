@@ -6,7 +6,7 @@ import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 interface ChainConfig{
     api: string,
-    start: number,
+    start: string,
     id: string,
     firstDayVolume: number
 }
