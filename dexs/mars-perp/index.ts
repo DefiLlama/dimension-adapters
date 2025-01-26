@@ -26,16 +26,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         new Date(volumeData.date).getTime() / 1000
       );
       if (dataTimestamp <= fromTimestamp && !foundLatestData) {
+        const nextIndex = index + 1;
         last24HourVolume = convertToUsd(volumeData.value);
         fetchTimestamp = dataTimestamp;
 
-        const last24HourTradingFee = convertToUsd(
-          globalOverview.fees.trading_fee[index].value
+        last24HourFees = convertToUsd(
+          globalOverview.fees.trading_fee[index].value -
+            Number(globalOverview.fees.trading_fee[nextIndex].value ?? 0)
         );
-        const last24HourFundingFee = convertToUsd(
-          globalOverview.fees.net_funding_fee[index].value
-        );
-        last24HourFees = last24HourTradingFee + last24HourFundingFee;
+
         last24HourRevenue = last24HourFees * 0.25;
         last24HoursShortOpenInterest = convertToUsd(
           globalOverview.open_interest.short[index].value
@@ -76,7 +75,7 @@ const adapter = {
             dailyVolume:
               "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
             dailyFees:
-              "Fees are the sum of the trading and funding fees of all perpetual trades settled on the protocol that day.",
+              "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
             dailyProtocolRevenue:
               "The daily revenue going to the protocol is 25% of the daily fees.",
             dailyShortOpenInterest:

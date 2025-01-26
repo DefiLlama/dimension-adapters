@@ -19,6 +19,7 @@ const chainToId: Record<string, number> = {
   [CHAIN.BLAST]: 81457,
   [CHAIN.POLYGON_ZKEVM]: 1101,
   [CHAIN.BITTORRENT]: 199,
+  [CHAIN.SONIC]: 146,
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -96,6 +97,10 @@ const adapter = {
       start: '2021-09-22',
     },
     [CHAIN.ERA]: {
+      fetch: fetch,
+      start: '2021-09-22',
+    },
+    [CHAIN.SONIC]: {
       fetch: fetch,
       start: '2021-09-22',
     },

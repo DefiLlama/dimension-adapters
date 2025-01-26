@@ -204,6 +204,7 @@ export enum CHAIN {
   HYPERLIQUID = "hyperliquid",
   SONEIUM = "soneium",
   INK = "ink",
+  RIPPLE = "ripple",
 }
 
 // Don´t use
