@@ -4,7 +4,7 @@ import { postURL } from "../../utils/fetchURL"
 
 const GRAPHQL_ENDPOINT = 'https://api.studio.thegraph.com/query/93681/zarban-subgraph/version/latest';
 
-const getDailyRevenueQuery = (startTimestamp: number, endTimestamp: number) => `
+const getRevenueQuery = (startTimestamp: number, endTimestamp: number) => `
 query {
   financialsDailySnapshots(where: {timestamp_gte: ${startTimestamp.toString()}, timestamp_lte: ${endTimestamp.toString()}}) {
     dailyTotalRevenueUSD
@@ -23,8 +23,8 @@ export default {
       fetch: (async ({ createBalances, startTimestamp, endTimestamp }) => {
 
         const financialsDailySnapshots = (await postURL(GRAPHQL_ENDPOINT, {
-          query: getDailyRevenueQuery(startTimestamp, endTimestamp),
-          operationName: 'getDailyRevenue'
+          query: getRevenueQuery(startTimestamp, endTimestamp),
+          operationName: 'getRevenue'
         })).data.financialsDailySnapshots;
 
         const dailyRevenue = createBalances()
