@@ -12,6 +12,40 @@ const META_AGGREGATOR_ADDRESS = {
   [CHAIN.MANTLE]: '0xC3c038FCD83E37A670D5461B87dCdc4Cc06cF3fC',
 }
 
+const FUEL_SUBGRAPH_URL = 'https://endpoint.sentio.xyz/1delta/fuel-subgraph/volume'
+const FUEL_SUBGRAPH_API_KEY = 'mHWELZ01Oo3BRfGb0WrhFvryge78baQVT'
+
+const createFuelVolumeFetcher = () => {
+  return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
+    return fetch(FUEL_SUBGRAPH_URL, {
+      method: 'POST',
+      headers: {
+        'api-key': FUEL_SUBGRAPH_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        "startTimestamp": startTimestamp,
+        "endTimestamp": endTimestamp
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+        return response.json();
+      })
+      .then((result) => {
+        const rows = result.syncSqlResponse.result?.rows || []
+
+        const dailyVolume = rows.reduce((acc: number, row) => acc + Number(row.volumeUsd), 0)
+  
+        return {
+          dailyVolume,
+        }
+      })
+  }
+}
+
 const createEVMVolumeFetcher = (chain: string) => {
   return async ({ getFromBlock, getToBlock, createBalances, api }: FetchOptions) => {
     const dailyVolume = createBalances()
@@ -68,6 +102,7 @@ const adapter: Adapter = {
         { fetch: createEVMVolumeFetcher(chain), start: '2025-01-25' }
       ])
     ),
+    [CHAIN.FUEL]: { fetch: createFuelVolumeFetcher(), start: '2025-01-20' }
   },
 }
 
