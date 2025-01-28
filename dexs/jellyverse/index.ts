@@ -7,7 +7,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.SEI]: "https://graph.mainnet.jellyverse.org/subgraphs/name/jelly/verse"
+  [CHAIN.SEI]: "https://graph.jellyverse.org/"
 };
 
 interface IPool {
