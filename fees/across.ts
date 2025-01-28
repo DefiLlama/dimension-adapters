@@ -1,14 +1,11 @@
-import {
-  FetchOptions,
-  SimpleAdapter,
-} from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const abis = {
   FundsDeposited:
     "event FundsDeposited(uint256 amount, uint256 originChainId, uint256 indexed destinationChainId, int64 relayerFeePct, uint32 indexed depositId, uint32 quoteTimestamp, address originToken, address recipient, address indexed depositor, bytes message)",
   V3FundsDeposited:
-    "event V3FundsDeposited(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint32 depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, address indexed depositor, address recipient, address exclusiveRelayer, bytes message)",
+    "event V3FundsDeposited(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint32 indexed depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, address indexed depositor, address recipient, address exclusiveRelayer, bytes message)",
   FilledRelay:
     "event FilledRelay(uint256 amount, uint256 totalFilledAmount, uint256 fillAmount, uint256 repaymentChainId, uint256 indexed originChainId, uint256 destinationChainId, int64 relayerFeePct, int64 realizedLpFeePct, uint32 indexed depositId, address destinationToken, address relayer, address indexed depositor, address recipient, bytes message, (address recipient, bytes message, int64 relayerFeePct, bool isSlowRelay, int256 payoutAdjustmentPct) updatableRelayData)",
   FilledV3Relay:
@@ -27,6 +24,8 @@ const address: any = {
 };
 const graph = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
+  // const dailyVolume = createBalances();
+
   const logs_fund_disposit = (
     await getLogs({
       target: address[chain],
@@ -53,39 +52,43 @@ const graph = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     topic: topic0_filled_replay_v3,
   });
 
-  logs_fund_disposit.map((a: any) =>
-    dailyFees.add(a.originToken, Number(a.amount * a.relayerFeePct) / 1e18),
-  );
+  logs_fund_disposit.map((a: any) => {
+    dailyFees.add(a.originToken, Number(a.amount * a.relayerFeePct) / 1e18);
+    // dailyVolume.add(a.originToken, Number(a.amount));
+  });
 
-  logs_fund_disposit_v3.map((a: any) =>
-    dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount)),
-  );
+  logs_fund_disposit_v3.map((a: any) => {
+    dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount));
+    // dailyVolume.add(a.outputToken, Number(a.outputAmount));
+  });
 
-  logs_filled_replay.map((a: any) =>
+  logs_filled_replay.map((a: any) => {
     dailyFees.add(
       a.destinationToken,
-      (Number(a.amount) * Number(a.relayerFeePct + a.realizedLpFeePct)) /
-      1e18,
-    ),
-  );
+      (Number(a.amount) * Number(a.relayerFeePct + a.realizedLpFeePct)) / 1e18,
+    );
+    // dailyVolume.add(a.originToken, Number(a.amount))
+  });
 
-  logs_filled_replay_v3.map((a: any) =>
-    dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount)),
-  );
+  logs_filled_replay_v3.map((a: any) => {
+    dailyFees.add(a.outputToken, Number(a.inputAmount - a.outputAmount));
+    // dailyVolume.add(a.inputToken, Number(a.inputAmount));
+  });
 
   return {
     dailyFees,
     dailySupplySideRevenue: dailyFees,
+    // dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: graph, start: '2023-04-30', },
-    [CHAIN.ARBITRUM]: { fetch: graph, start: '2023-04-30', },
-    [CHAIN.OPTIMISM]: { fetch: graph, start: '2023-04-30', },
-    [CHAIN.POLYGON]: { fetch: graph, start: '2023-04-30', },
+    [CHAIN.ETHEREUM]: { fetch: graph, start: "2023-04-30" },
+    [CHAIN.ARBITRUM]: { fetch: graph, start: "2023-04-30" },
+    [CHAIN.OPTIMISM]: { fetch: graph, start: "2023-04-30" },
+    [CHAIN.POLYGON]: { fetch: graph, start: "2023-04-30" },
   },
 };
 
