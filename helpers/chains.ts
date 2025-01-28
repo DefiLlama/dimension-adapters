@@ -208,6 +208,7 @@ export enum CHAIN {
   ZERO = "zero_network",
   SHAPE = "shape",
   ABSTRACT = "abstract",
+  REDSTONE = "redstone",
 }
 
 // Don´t use
