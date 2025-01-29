@@ -13,7 +13,9 @@ const chains = [
     CHAIN.BLAST,
     CHAIN.XLAYER,
     CHAIN.METIS,
-    CHAIN.ARBITRUM
+    CHAIN.ARBITRUM,
+    CHAIN.ZETA,
+    CHAIN.SONEIUM,
 ];
 
 const chainToId: Record<string, number> = {
@@ -28,6 +30,8 @@ const chainToId: Record<string, number> = {
     [CHAIN.METIS]: 1088,
     [CHAIN.XLAYER]: 196,
     [CHAIN.ARBITRUM]: 42161,
+    [CHAIN.ZETA]: 7000,
+    [CHAIN.SONEIUM]: 1868,
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {

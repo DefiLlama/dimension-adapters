@@ -204,6 +204,12 @@ export enum CHAIN {
   HYPERLIQUID = "hyperliquid",
   SONEIUM = "soneium",
   INK = "ink",
+  RIPPLE = "ripple",
+  ZERO = "zero_network",
+  SHAPE = "shape",
+  ABSTRACT = "abstract",
+  REDSTONE = "redstone",
+  PLUME = "plume",
 }
 
 // Don´t use
