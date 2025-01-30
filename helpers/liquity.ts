@@ -46,7 +46,7 @@ export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Con
 
     dailyFees.addBalances(dailyRevenue)
 
-    return { dailyRevenue, dailyFees, }
+    return { dailyRevenue, dailyFees, dailyHoldersRevenue: dailyRevenue, }
   }
   return fetch
 }
