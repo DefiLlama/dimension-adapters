@@ -5,7 +5,10 @@ import { getSolanaReceived } from "../helpers/token"
 
 const fethcFeesSolana = async (options: FetchOptions) => {
   // limit order fees
-  const dailyFees = await getSolanaReceived({ options, target: '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc' })
+  const dailyFees = await getSolanaReceived({ options, targets: [
+    'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
+    ,'27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
+  ]})
   return { dailyFees, dailyRevenue: dailyFees }
 }
 
