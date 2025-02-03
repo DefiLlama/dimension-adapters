@@ -72,15 +72,13 @@ async function getFeeRevenueData(
 
   const dailyFees = (toNumber(response.today?.feeRevenueUSD || '0') - toNumber(response.yesterday?.feeRevenueUSD || '0'));
   const dailyProtocolFees = (toNumber(response.today?.protocolFeeRevenueUSD || '0')  - toNumber(response.yesterday?.protocolFeeRevenueUSD || '0'));
-  const dailyMakerRebates = dailyFees - dailyProtocolFees;
-  // const dailyPremiums = toNumber(factoryDayData?.premiumsUSD || 0);
-  // const dailyExercisePayouts = toNumber(factoryDayData?.exercisePayoutsUSD || 0);
 
   const totalFees = (toNumber(response.factories[0]?.feeRevenueUSD || '0'));
   const totalProtocolFees = (toNumber(response.factories[0]?.protocolFeeRevenueUSD || '0'));
-  const totalMakerRebates = totalFees - totalProtocolFees;
-  // const totalPremiums = toNumber(factories[0]?.premiumsUSD || '0');
-  // const totalExercisePayouts = toNumber(factories[0]?.exercisePayoutsUSD || '0');
+
+  if (dailyFees < 0) {
+    throw new Error("Daily fees cannot be negative");
+  }
 
   return {
     timestamp: timestamp,
