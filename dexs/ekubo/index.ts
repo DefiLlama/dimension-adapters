@@ -21,7 +21,8 @@ const fetch = async (timestamp: number) => {
 const tokenMap: any = {
   '1248875146012964071876423320777688075155124985543': '0xdac17f958d2ee523a2206206994597c13d831ec7',
   '917551056842671309452305380979543736893630245704': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-  '262709962604544': '0x0000000000000000000000000000000000000000'
+  '262709962604544': '0x0000000000000000000000000000000000000000',
+  '1163022888421719912899836930504565803122825180095': '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'
 }
 
 const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
@@ -29,6 +30,7 @@ const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
   const response: any[] = (await httpGet('https://eth-mainnet-api.ekubo.org/overview/volume')).volumeByTokenByDate
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   response.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
+    if (!tokenMap[t.token]) return;
     dailyVolume.add(tokenMap[t.token], t.volume)
   })
 
