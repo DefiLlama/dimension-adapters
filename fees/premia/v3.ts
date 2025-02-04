@@ -1,6 +1,7 @@
 import { FetchResultFees } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import { ethers } from "ethers";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
 
 function get2Days(array: Array<any>, key: string): [string, string] {
@@ -41,8 +42,9 @@ async function getFeeRevenueData(
   url: string,
   timestamp: number
 ): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const dailyId = Math.floor(timestamp / 86400);
+  const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const fromTimestamp = startOfDay - (60 * 60 * 24);
+  const dailyId = Math.floor(startOfDay / 86400);
   const yesterdayId = Math.floor(fromTimestamp / 86400);
   const query = gql`
   {
