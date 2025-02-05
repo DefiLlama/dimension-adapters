@@ -23,7 +23,6 @@ function fetch(chainId: number) {
   };
 }
 
-// TODO: Choose correct start timestamps
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
