@@ -4,11 +4,11 @@ import { Adapter, Fetch, FetchResultVolume } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 
 function fetch(chainId: number): Fetch {
-  return async (timestamp: number, _, options): Promise<FetchResultVolume> => {
+  return async (endTimestamp: number, _, options): Promise<FetchResultVolume> => {
     const totalVolume = options.createBalances();
     const dailyVolume = options.createBalances();
     const res = await httpGet(
-      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${timestamp}`,
+      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${endTimestamp}`,
       {
         headers: {
           Authorization: `Bearer ${getEnv("ENSO_API_KEY")}`,
@@ -22,7 +22,7 @@ function fetch(chainId: number): Fetch {
     return {
       totalVolume,
       dailyVolume,
-      timestamp,
+      timestamp: endTimestamp,
     };
   };
 }
