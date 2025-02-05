@@ -42,10 +42,6 @@ const adapter: Adapter = {
       fetch: fetch(137),
       start: "2023-09-05",
     },
-    //[CHAIN.ZKSYNC]: {
-    //  fetch: fetch(324),
-    //  start: "2023-03-31",
-    //},
     [CHAIN.BASE]: {
       fetch: fetch(8453),
       start: "2023-12-24",
@@ -54,10 +50,6 @@ const adapter: Adapter = {
       fetch: fetch(42161),
       start: "2023-09-11",
     },
-    //[CHAIN.AVAX]: {
-    //  fetch: fetch(43114),
-    //  start: "2023-03-31",
-    //},
     [CHAIN.LINEA]: {
       fetch: fetch(59144),
       start: "2023-12-15",
