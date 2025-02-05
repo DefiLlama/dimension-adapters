@@ -117,6 +117,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 const adapters: SimpleAdapter = {
   version: 2,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch as any,
