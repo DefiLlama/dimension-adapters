@@ -24,7 +24,8 @@ const addresses: TAddress = {
   [CHAIN.BASE]: "0x55b867a955e4384bcac03ef7f2e492f68016c152",
   [CHAIN.SONEIUM]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
   [CHAIN.INK]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
-  [CHAIN.ABSTRACT]: '0xe0971a2b6e34bd060866081ae879630e83c4a0bd'
+  [CHAIN.ABSTRACT]: '0xe0971a2b6e34bd060866081ae879630e83c4a0bd',
+  [CHAIN.PLUME]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D'
 };
 
 const methodology = {
@@ -156,13 +157,13 @@ const adapter: Adapter = {
         methodology,
       },
     },
-    [CHAIN.XLAYER]: {
-      fetch: fetchLogsAndCalculateFees,
-      start: '2024-04-17',
-      meta: {
-        methodology,
-      },
-    },
+    // [CHAIN.XLAYER]: {
+    //   fetch: fetchLogsAndCalculateFees,
+    //   start: '2024-04-17',
+    //   meta: {
+    //     methodology,
+    //   },
+    // },
     [CHAIN.ZORA]: {
       fetch: fetchLogsAndCalculateFees,
       start: '2024-06-24',
@@ -218,7 +219,14 @@ const adapter: Adapter = {
       meta: {
         methodology
       }
-    }
+    },
+    [CHAIN.PLUME]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-06-24',
+      meta: {
+        methodology
+      }
+    },
   },
 };
 
