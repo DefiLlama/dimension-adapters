@@ -26,19 +26,19 @@ const adapter: any = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: "2023-03-31",
+      start: "2023-06-22",
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(10),
-      start: "2023-03-31",
+      start: "2023-09-19",
     },
-    //[CHAIN.BSC]: {
-    //  fetch: fetch(56),
-    //  start: "2023-03-31",
-    //},
+    [CHAIN.BSC]: {
+      fetch: fetch(56),
+      start: "2023-09-20",
+    },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: "2023-03-31",
+      start: "2023-09-05",
     },
     //[CHAIN.ZKSYNC]: {
     //  fetch: fetch(324),
@@ -46,11 +46,11 @@ const adapter: any = {
     //},
     [CHAIN.BASE]: {
       fetch: fetch(8453),
-      start: "2023-03-31",
+      start: "2023-12-24",
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(42161),
-      start: "2023-03-31",
+      start: "2023-09-11",
     },
     //[CHAIN.AVAX]: {
     //  fetch: fetch(43114),
@@ -58,7 +58,7 @@ const adapter: any = {
     //},
     [CHAIN.LINEA]: {
       fetch: fetch(59144),
-      start: "2023-03-31",
+      start: "2023-12-15",
     },
   },
 };
