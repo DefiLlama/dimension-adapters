@@ -8,7 +8,6 @@ const fetchFees = async (options: FetchOptions) => {
         target: "0x51Bba15255406Cfe7099a42183302640ba7dAFDC",
         eventAbi: "event PoolFeesReceived (bytes32 indexed _poolId, uint256 _amount0, uint256 _amount1)"
     })
-    console.log(logs)
     logs.forEach(log=>{
         dailyFees.add(nullAddress, log._amount0) // ignoring token received fees for now
     })
