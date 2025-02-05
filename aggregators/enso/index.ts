@@ -1,13 +1,14 @@
-import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { Adapter, FetchResultVolume } from "../../adapters/types";
+import { Adapter, FetchResultV2, FetchV2 } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 
-function fetch(chainId: number) {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
+function fetch(chainId: number): FetchV2 {
+  return async ({ endTimestamp, createBalances }): Promise<FetchResultV2> => {
+    const totalVolume = createBalances();
+    const dailyVolume = createBalances();
     const res = await httpGet(
-      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${timestamp}`,
+      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${endTimestamp}`,
       {
         headers: {
           Authorization: `Bearer ${getEnv("ENSO_API_KEY")}`,
@@ -15,15 +16,18 @@ function fetch(chainId: number) {
       },
     );
 
+    totalVolume.addUSDValue(res.totalVolume);
+    dailyVolume.addUSDValue(res.dailyVolume);
+
     return {
-      totalVolume: new BigNumber(res.totalVolume).toFixed(2),
-      dailyVolume: new BigNumber(res.dailyVolume).toFixed(2),
-      timestamp: timestamp,
+      totalVolume,
+      dailyVolume,
     };
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
