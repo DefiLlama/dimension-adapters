@@ -6,6 +6,7 @@ const CONTROLLER = '0x17bA239f2815BA01152522521737275a2439216f'
 const EXECUTED_EVENT_ABI = 'event Executed(uint256 indexed proposalIdx, uint256 totalVotes, uint256 voteTokenTotalSupply)'
 const GET_PROPOSAL_ABI = 'function getProposal(uint256 _proposalIdx) view returns (address _target, uint256 _action, uint256 _totalVotes, address _vetoApprover, bool _executed, uint256 _deadline)'
 const POOL_WHITELISTED_ABI = 'function poolWhitelisted(address) view returns (bool)'
+const NEWSUBPOOL_EVENT_ABI = 'event NewSubPool(address loanCcyToken, address collCcyToken, uint256 loanTenor, uint256 maxLoanPerColl, uint256 r1, uint256 r2, uint256 liquidityBnd1, uint256 liquidityBnd2, uint256 minLoan, uint256 creatorFee, address poolController, uint96 rewardCoefficient)'
 const GET_POOL_INFO_ABI = 'function getPoolInfo() external view returns (address _loanCcyToken, address _collCcyToken, uint256 _maxLoanPerColl, uint256 _minLoan, uint256 _loanTenor, uint256 _totalLiquidity, uint256 _totalLpShares, uint96 _rewardCoefficient, uint256 _loanIdx)'
 const BORROW_EVENT_ABI = 'event Borrow(address indexed borrower, uint256 loanIdx, uint256 collateral, uint256 loanAmount, uint256 repaymentAmount, uint256 totalLpShares, uint256 indexed expiry, uint256 indexed referralCode)'
 
@@ -19,18 +20,23 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
 
   // Retrieve pool info for whitelisted pools
   const poolInfos = await api.multiCall({ abi: GET_POOL_INFO_ABI, calls: whitelistedPools })
-  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
 
   await Promise.all(whitelistedPools.map(async (pool, idx) => {
+    // Creator fee is determined at the time of pool creation
+    // It's expressed in wei, so we need to divide by 10^18 to get the actual fee
+    const subPoolLogs = await getLogs({ target: pool, eventAbi: NEWSUBPOOL_EVENT_ABI, fromBlock: 5000 })
+    const creatorFee = subPoolLogs[0].creatorFee
     const logs = await getLogs({ target: pool, eventAbi: BORROW_EVENT_ABI, })
 
-    logs.forEach(log =>
-      dailyVolume.addToken(poolInfos[idx]._collCcyToken, log.collateral)
-    )
+    logs.forEach(log => {
+      const fee = BigInt(poolInfos[idx]._collCcyToken) * BigInt(creatorFee) / (BigInt(10) ** BigInt(18))
+      dailyFees.addToken(fee.toString(), log.collateral)
+    })
   }))
 
 
-  return { dailyVolume };
+  return { dailyFees };
 }
 
 const adapter: SimpleAdapter = {
