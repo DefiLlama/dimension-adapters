@@ -1,14 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { Adapter, FetchResultV2, FetchV2 } from "../../adapters/types";
+import { Adapter, Fetch, FetchResultVolume } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 
-function fetch(chainId: number): FetchV2 {
-  return async ({ endTimestamp, createBalances }): Promise<FetchResultV2> => {
-    const totalVolume = createBalances();
-    const dailyVolume = createBalances();
+function fetch(chainId: number): Fetch {
+  return async (timestamp: number, _, options): Promise<FetchResultVolume> => {
+    const totalVolume = options.createBalances();
+    const dailyVolume = options.createBalances();
     const res = await httpGet(
-      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${endTimestamp}`,
+      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${timestamp}`,
       {
         headers: {
           Authorization: `Bearer ${getEnv("ENSO_API_KEY")}`,
@@ -22,12 +22,12 @@ function fetch(chainId: number): FetchV2 {
     return {
       totalVolume,
       dailyVolume,
+      timestamp,
     };
   };
 }
 
 const adapter: Adapter = {
-  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
