@@ -41,7 +41,7 @@ interface IGraphResponse {
 async function getFeeRevenueData(
   url: string,
   timestamp: number
-): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
+): Promise<FetchResultFees & { totalHoldersRevenue: string }> {
   const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const fromTimestamp = startOfDay - (60 * 60 * 24);
   const dailyId = Math.floor(startOfDay / 86400);
@@ -94,7 +94,7 @@ async function getFeeRevenueData(
     totalUserFees: totalFees.toString(),
     totalRevenue: (totalFees * .5).toString(),
     totalProtocolRevenue: (totalProtocolFees * 0.2).toString(),
-    totalDailyHoldersRevenue: (totalProtocolFees * 0.4).toString(),
+    totalHoldersRevenue: (totalProtocolFees * 0.4).toString(),
     // totalSupplySideRevenue: (totalMakerRebates).toString(),
   };
 }

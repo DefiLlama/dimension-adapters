@@ -25,7 +25,7 @@ const v2StartTimes: { [chain: string]: number } = {
 
 const v3Endpoints: ChainEndpoints = {
   [CHAIN.ARBITRUM]:
-    "https://subgraph.satsuma-prod.com/ff98ead2206f/premia/premia-v3-arbitrum/api",
+    "https://subgraph.satsuma-prod.com/5d8f840fce6d/premia/premia-v3-arbitrum/api",
 }
 
 const v3StartTimes: { [chain: string]: number } = {
