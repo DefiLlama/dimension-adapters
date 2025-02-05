@@ -1,28 +1,30 @@
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { FetchResultVolume } from "../../adapters/types";
+import { Adapter, FetchResultVolume } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 
 function fetch(chainId: number) {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const res = await httpGet(
-      `https://api.enso.finance/api/v1/volume/${chainId}`,
+      `https://api.enso.finance/api/v1/volume/${chainId}?timestamp=${timestamp}`,
       {
         headers: {
           Authorization: `Bearer ${getEnv("ENSO_API_KEY")}`,
         },
       },
     );
+
     return {
-      totalVolume: new BigNumber(res.value).toFixed(2),
+      totalVolume: new BigNumber(res.totalVolume).toFixed(2),
+      dailyVolume: new BigNumber(res.dailyVolume).toFixed(2),
       timestamp: timestamp,
     };
   };
 }
 
 // TODO: Choose correct start timestamps
-const adapter: any = {
+const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
