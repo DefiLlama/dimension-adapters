@@ -210,6 +210,7 @@ export enum CHAIN {
   ABSTRACT = "abstract",
   REDSTONE = "redstone",
   PLUME = "plume",
+  PENUMBRA = "penumbra",
 }
 
 // Don´t use
