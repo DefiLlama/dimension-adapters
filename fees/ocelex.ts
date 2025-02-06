@@ -8,8 +8,8 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
 
-const LYNX = "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af";
-const bveLYNX = "0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b";
+const OCX = "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af";
+const bveOCX = "0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b";
 interface IPoolData {
   id: number;
   feesUSD: string;
@@ -52,7 +52,7 @@ export const fees_bribes = async ({
     eventAbi: event_reward_added,
   });
   logs.map((e: any) => {
-    if (e.rewardToken.toLowerCase() === bveLYNX) dailyFees.add(LYNX, e.reward);
+    if (e.rewardToken.toLowerCase() === bveOCX) dailyFees.add(OCX, e.reward);
     else dailyFees.add(e.rewardToken, e.reward);
   });
   return dailyFees;
