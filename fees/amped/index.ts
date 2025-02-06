@@ -35,7 +35,7 @@ const getFetch = (endpoint: string) => async (timestamp: number) => {
   );
 
   const dailyData: IGraphResponse = await request(endpoint, historicalDataQuery, {
-    id: "daily:" + String(dayTimestamp),
+    id: String(dayTimestamp) + ":daily" ,
     period: "daily",
   });
   const totalData: IGraphResponse = await request(endpoint, historicalDataQuery, {
