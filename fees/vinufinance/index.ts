@@ -30,11 +30,10 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
     const logs = await getLogs({ target: pool, eventAbi: BORROW_EVENT_ABI, })
 
     logs.forEach(log => {
-      const fee = BigInt(poolInfos[idx]._collCcyToken) * BigInt(creatorFee) / (BigInt(10) ** BigInt(18))
-      dailyFees.addToken(fee.toString(), log.collateral)
+      const fee = BigInt(log.collateral) * BigInt(creatorFee) / (BigInt(10) ** BigInt(18))
+      dailyFees.addToken(poolInfos[idx]._collCcyToken, fee)
     })
-  }))
-
+  }));
 
   return { dailyFees };
 }
