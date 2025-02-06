@@ -54,30 +54,26 @@ const getFetch =
           period: "total",
         });
 
+        const dailyVolume = dailyData.volumeStats.length == 1
+          ? Number(
+            Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
+            )
+          ) * 10 ** -30
+          : undefined;
+
+        const totalVolume = totalData.volumeStats.length == 1
+          ? Number(
+            Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
+            )
+          ) * 10 ** -30
+          : undefined;
+
         return {
           timestamp: dayTimestamp,
-          dailyVolume:
-            dailyData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
-          totalVolume:
-            totalData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
+          dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
+          totalVolume: totalVolume !== undefined ? String(totalVolume) : undefined,
         };
       };
 
@@ -95,6 +91,16 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
+          meta: {
+            methodology: {
+              Fees: "Trading fees vary based on liquidity and market conditions",
+              UserFees: "Users pay variable trading fees",
+              Revenue: "No revenue is taken by the protocol",
+              HoldersRevenue: "No revenue is distributed to token holders",
+              ProtocolRevenue: "Protocol does not take any revenue",
+              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
+            },
+          },
         },
       };
     }, {}),
@@ -104,6 +110,16 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
+          meta: {
+            methodology: {
+              Fees: "Trading fees vary based on liquidity and market conditions",
+              UserFees: "Users pay variable trading fees",
+              Revenue: "No revenue is taken by the protocol",
+              HoldersRevenue: "No revenue is distributed to token holders",
+              ProtocolRevenue: "Protocol does not take any revenue",
+              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
+            },
+          },
         },
       };
     }, {}),
