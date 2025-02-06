@@ -53,7 +53,9 @@ const getFetch =
   (query: string) =>
   (chain: string): Fetch =>
   async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const dayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1000)
+    );
     const dailyData = await request(endpoints[chain], query, {
       id: dayTimestamp.toString(),
     });
@@ -72,26 +74,37 @@ const getFetch =
       });
 
       if (tradingStats.tradingStat) {
-        dailyLongOpenInterest = Number(tradingStats.tradingStat.longOpenInterest || 0);
-        dailyShortOpenInterest = Number(tradingStats.tradingStat.shortOpenInterest || 0);
+        dailyLongOpenInterest = Number(
+          tradingStats.tradingStat.longOpenInterest || 0
+        );
+        dailyShortOpenInterest = Number(
+          tradingStats.tradingStat.shortOpenInterest || 0
+        );
         dailyOpenInterest = dailyLongOpenInterest + dailyShortOpenInterest;
       }
     }
 
     const DECIMALS = 30;
-    
+
     return {
       timestamp: dayTimestamp,
-      dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -DECIMALS) : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -DECIMALS) : undefined,
-      dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -DECIMALS) : undefined,
+      dailyLongOpenInterest: dailyLongOpenInterest
+        ? String(dailyLongOpenInterest * 10 ** -DECIMALS)
+        : undefined,
+      dailyShortOpenInterest: dailyShortOpenInterest
+        ? String(dailyShortOpenInterest * 10 ** -DECIMALS)
+        : undefined,
+      dailyOpenInterest: dailyOpenInterest
+        ? String(dailyOpenInterest * 10 ** -DECIMALS)
+        : undefined,
       dailyVolume: dailyData.volumeStat
         ? String(
             Number(
               Object.values(dailyData.volumeStat).reduce((sum, element) =>
                 String(Number(sum) + Number(element))
               )
-            ) * 10 ** -DECIMALS
+            ) *
+              10 ** -DECIMALS
           )
         : undefined,
       totalVolume: totalData.volumeStat
@@ -100,15 +113,15 @@ const getFetch =
               Object.values(totalData.volumeStat).reduce((sum, element) =>
                 String(Number(sum) + Number(element))
               )
-            ) * 10 ** -DECIMALS
+            ) *
+              10 ** -DECIMALS
           )
         : undefined,
     };
   };
 
 const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.ARBITRUM]: 1630368000,
-  [CHAIN.AVAX]: 1640131200,
+  [CHAIN.SONEIUM]: 1075852,
 };
 const adapter: BreakdownAdapter = {
   breakdown: {
