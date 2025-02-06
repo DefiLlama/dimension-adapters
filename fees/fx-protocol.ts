@@ -30,14 +30,13 @@ const graph = (graphUrls: ChainEndpoints) => {
         graphUrls[chain],
         graphQuery
       );
-
       if (!snapshot) {
         dailyRevenue.addCGToken("wrapped-steth", 0);
-        dailyRevenueFxV2.addCGToken("wrapped-steth-fx-v2", 0);
+        dailyRevenueFxV2.addCGToken("wrapped-steth", 0);
       } else {
         dailyRevenue.addCGToken("wrapped-steth", snapshot.wstETHRevenue * 1e18);
         dailyRevenueFxV2.addCGToken(
-          "wrapped-steth-fx-v2",
+          "wrapped-steth",
           snapshot.wstETHRevenueFxV2 * 1e18
         );
       }
