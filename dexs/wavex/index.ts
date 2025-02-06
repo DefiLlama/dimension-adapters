@@ -121,7 +121,7 @@ const getFetch =
   };
 
 const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.SONEIUM]: 1075852,
+  [CHAIN.SONEIUM]: 1735286448,
 };
 const adapter: BreakdownAdapter = {
   breakdown: {
