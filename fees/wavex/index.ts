@@ -5,11 +5,14 @@ import axios from "axios";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: any = {
-  [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app/",
+  [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app",
 };
 
 const methodology = {
   Fees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%), deposit and withdraw (based on the total asset amount in the LP pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  SupplySideRevenue: "50% of all collected fees goes to WLP holders",
+  ProtocolRevenue:
+    "Until waveX’s tokenomics and governance framework are fully established, the remaining 50% of fees will go to the Treasury.",
 };
 
 const fetch: FetchV2 = async ({ chain, endTimestamp }) => {
@@ -19,23 +22,21 @@ const fetch: FetchV2 = async ({ chain, endTimestamp }) => {
     `${endpoints[chain]}/stats/fees?timestamp=${todaysTimestamp}`
   );
   const dailyFee =
-    parseInt(res.data.mint) +
-    parseInt(res.data.burn) +
-    parseInt(res.data.marginAndLiquidation) +
-    parseInt(res.data.swap);
+    parseInt(res.data.data.mint) +
+    parseInt(res.data.data.burn) +
+    parseInt(res.data.data.marginAndLiquidation) +
+    parseInt(res.data.data.swap);
   const finalDailyFee = dailyFee / 1e30;
   const userFee =
-    parseInt(res.data.marginAndLiquidation) + parseInt(res.data.swap);
+    parseInt(res.data.data.marginAndLiquidation) + parseInt(res.data.data.swap);
   const finalUserFee = userFee / 1e30;
 
   return {
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
-    dailyRevenue: (finalDailyFee * 0.3).toString(),
-    dailyProtocolRevenue: "0",
-    totalProtocolRevenue: "0",
-    dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-    dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
+    dailyRevenue: (finalDailyFee * 0.5).toString(),
+    dailyProtocolRevenue: (finalDailyFee * 0.5).toString(),
+    dailySupplySideRevenue: (finalDailyFee * 0.5).toString(),
   };
 };
 
