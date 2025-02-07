@@ -14,7 +14,7 @@ const fetchTradeVolume = ({ startTimestamp, endTimestamp }: FetchOptions) =>
     },
     body: JSON.stringify({
       "sqlQuery": {
-        "sql": `SELECT volume, timestamp FROM DailyVolume_raw WHERE timestamp >= ${startTimestamp} AND timestamp <= ${endTimestamp} ORDER BY timestamp DESC LIMIT 1`
+        "sql": `SELECT SUM(volume) AS total_volume FROM TradeEvent WHERE timestamp >= ${startTimestamp} AND timestamp <= ${endTimestamp};`
       }
     }),
   })
