@@ -1,12 +1,11 @@
 import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {getPrices} from "../../utils/prices";
 
 const tokenMap = {
-    WETH: "coingecko:weth",
-    cbBTC: "coingecko:coinbase-wrapped-btc",
-    USDC: "coingecko:usd-coin"
+    WETH: "weth",
+    cbBTC: "coinbase-wrapped-btc",
+    USDC: "usd-coin"
 };
 
 const methodology = {
@@ -15,31 +14,25 @@ const methodology = {
 
 const API_LEVERAGE_STAT = 'https://1f5i4e87mf.execute-api.eu-central-1.amazonaws.com/prod/cols-stats'
 
-const fetch = async (timestamp: number) => {
-    const [statsLevX, prices] = await Promise.all([
-        fetchURL(API_LEVERAGE_STAT),
-        getPrices([tokenMap.WETH, tokenMap.cbBTC, tokenMap.USDC], timestamp)
+const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+    const totalFees = options.createBalances();
+
+    const [statsLevX] = await Promise.all([
+        fetchURL(API_LEVERAGE_STAT)
     ]);
 
-    const totalFeesInUSD = Object.keys(statsLevX.yield.totalFees).reduce((total, token) => {
-        const tokenKey = token as keyof typeof tokenMap;
-        const volume = statsLevX.yield.totalFees[token];
-        const price = prices[tokenMap[tokenKey]];
-        return total + (volume * price.price);
-    }, 0);
+    Object.keys(statsLevX.yield.totalFees).forEach((key) => {
+        totalFees.addCGToken(tokenMap[key], statsLevX.yield.totalFees[key]);
+    });
 
-    const totalDailyFeesInUSD = statsLevX.collaterals.reduce((total: number, collateral: any) => {
-        const tokenKey = collateral.collateralName as keyof typeof tokenMap;
-        const volume = collateral.lastDayEarned.totalFees;
-        const price = prices[tokenMap[tokenKey]]?.price;
-
-        return total + (volume * price || 0);
-    }, 0);
-
+    statsLevX.collaterals.forEach((item) => {
+        dailyFees.addCGToken(tokenMap[item.collateralName], item.lastDayEarned.totalFees);
+    });
 
     return {
-        dailyFees: totalDailyFeesInUSD,
-        totalFees: totalFeesInUSD,
+        dailyFees: dailyFees,
+        totalFees: totalFees,
         timestamp,
     };
 };

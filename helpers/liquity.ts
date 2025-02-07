@@ -6,7 +6,6 @@ import { addTokensReceived, nullAddress } from "./token";
 export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
-    const dailyRevenue = createBalances()
     const dailyFees = createBalances()
 
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
@@ -17,8 +16,7 @@ export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Con
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
-    await addTokensReceived({ options: fetchOptions, targets: interestRouters, tokens: [stableCoin], balances: dailyRevenue, fromAdddesses: [nullAddress] })
-    await addTokensReceived({ options: fetchOptions, targets: stabilityPools, tokens: [stableCoin], balances: dailyFees, fromAdddesses: [nullAddress] })
+    await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], balances: dailyFees, fromAdddesses: [nullAddress] })
 
     const redemptionLogs = await getLogs({
       targets: troves,
@@ -33,7 +31,7 @@ export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Con
 
     redemptionLogs.forEach((logs, i) => {
       const collateralToken = tokens[i]
-      logs.forEach((log: any) => dailyRevenue.add(collateralToken, log._ETHFee))
+      logs.forEach((log: any) => dailyFees.add(collateralToken, log._ETHFee))
     })
 
     liquidationLogs.forEach((logs, i) => {
@@ -44,9 +42,8 @@ export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Con
       })
     })
 
-    dailyFees.addBalances(dailyRevenue)
 
-    return { dailyRevenue, dailyFees, }
+    return { dailyFees, }
   }
   return fetch
 }

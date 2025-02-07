@@ -65,7 +65,7 @@ function toNumber(value: string): number {
 async function getFeeRevenueData(
   url: string,
   timestamp: number
-): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
+): Promise<FetchResultFees & { totalHoldersRevenue: string }> {
   const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
   const fromTimestamp = _timestamp - 60 * 60 * 24
   const toTimestamp = _timestamp
@@ -108,7 +108,7 @@ async function getFeeRevenueData(
     totalUserFees: totalFees.toString(),
     totalRevenue: (totalFees * 0.8).toString(),
     totalProtocolRevenue: (totalFees * 0.2).toString(),
-    totalDailyHoldersRevenue: (totalFees * 0.8).toString(),
+    totalHoldersRevenue: (totalFees * 0.8).toString(),
     // totalSupplySideRevenue: totalPremiums.toString(),
   };
 }
