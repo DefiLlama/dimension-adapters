@@ -26,15 +26,13 @@ const fetchTradeVolume = ({ startTimestamp, endTimestamp }: FetchOptions) =>
     })
     .then((result) => {
       const rows = result.result?.rows || [];
-      rows.forEach((row: any) => row.date = new Date(row.timestamp * 1000).toISOString());
-
-      if (rows.length === 0)
+      if (rows.length === 0 || rows[0]?.total_volume === null)
         throw new Error('No trade volume data available.');
 
-      const dailyVolume = rows[0]?.volume;
+      const totalVolume = rows[0]?.total_volume;
 
       return {
-        dailyVolume,
+        totalVolume,
       };
     });
 
