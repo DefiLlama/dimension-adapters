@@ -47,7 +47,7 @@ const getFetch =
           new Date(timestamp * 1000)
         );
         const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-          id: "daily:" + String(dayTimestamp),
+          id: String(dayTimestamp) + ":daily" ,
           period: "daily",
         });
         const totalData: IGraphResponse = await request(endpoints[chain], query, {
@@ -80,9 +80,13 @@ const getFetch =
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.LIGHTLINK_PHOENIX]: 1717199544,
+
   [CHAIN.SONIC]: 1735685544,   
   // [CHAIN.BSC]: 1727740344, 
   [CHAIN.BERACHAIN]: 1738882079,
+  [CHAIN.SONIC]: 1735685544,
+
+
 };
 
 const adapter: BreakdownAdapter = {

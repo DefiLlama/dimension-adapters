@@ -39,6 +39,8 @@ const endpointsAlgebraV3 = {
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
   [CHAIN.MANTA]:
     "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
+  [CHAIN.SONEIUM]:
+    "https://api.studio.thegraph.com/query/76874/integral-soneium/version/latest"
 };
 
 const endpointsUniV3 = {
@@ -124,6 +126,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
         start: '2023-10-19',
+      },
+      [CHAIN.SONEIUM]: {
+        fetch: graphsAlgebraV3(CHAIN.SONEIUM),
+        start: '2025-01-10',
       },
     },
     liquidityHub: {

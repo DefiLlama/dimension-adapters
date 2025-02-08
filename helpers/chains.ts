@@ -205,6 +205,13 @@ export enum CHAIN {
   SONEIUM = "soneium",
   INK = "ink",
   RIPPLE = "ripple",
+  ZERO = "zero_network",
+  SHAPE = "shape",
+  ABSTRACT = "abstract",
+  REDSTONE = "redstone",
+  PLUME = "plume",
+  PENUMBRA = "penumbra",
+  BERACHAIN = "berachain"
 }
 
 // Don´t use

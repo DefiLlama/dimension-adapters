@@ -10,16 +10,16 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
       const dayID = Math.floor(options.startOfDay / 86400);
       const query =gql`
       {
-          uniswapDayData(id:${dayID}) {
+          pancakeDayData(id:${dayID}) {
               id
               volumeUSD
               feesUSD
           }
 
       }`;
-      const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-v3-prod/1.0.0/gn";
+      const url = "https://gateway.graph.dgswap.io/dgswap-exchange-v3-kaia";
       const req = await request(url, query);
-      const dailyFee = Number(req.uniswapDayData.feesUSD);
+      const dailyFee = Number(req.pancakeDayData.feesUSD);
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
