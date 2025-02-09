@@ -9,7 +9,7 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.SONIC]:
     "https://api.studio.thegraph.com/query/91379/amped-trades-sonic/version/latest",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
-  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-berachain/version/latest"
+  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest"
 };
 
 const historicalDataSwap = gql`
