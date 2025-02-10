@@ -102,6 +102,11 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
           runAtCurrTime: true,
           start: 1662595200,
         },
+        [CHAIN.BERACHAIN]: {
+          fetch: fetch,
+          runAtCurrTime: true,
+          start: 1739171605,
+        },
       },
     };
 
