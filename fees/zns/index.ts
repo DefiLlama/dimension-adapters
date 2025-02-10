@@ -25,7 +25,8 @@ const addresses: TAddress = {
   [CHAIN.SONEIUM]: "0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D",
   [CHAIN.INK]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
   [CHAIN.ABSTRACT]: '0xe0971a2b6e34bd060866081ae879630e83c4a0bd',
-  [CHAIN.PLUME]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D'
+  [CHAIN.PLUME]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
+  [CHAIN.BERACHAIN]: '0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5',
 };
 
 const methodology = {
@@ -223,6 +224,13 @@ const adapter: Adapter = {
     [CHAIN.PLUME]: {
       fetch: fetchLogsAndCalculateFees,
       start: '2024-06-24',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BERACHAIN]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-05-30',
       meta: {
         methodology
       }

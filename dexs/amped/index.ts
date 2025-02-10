@@ -8,7 +8,8 @@ const endpoints: { [key: string]: string } = {
     "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
   [CHAIN.SONIC]:
     "https://api.studio.thegraph.com/query/91379/amped-trades-sonic/version/latest",
-  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
+  // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
+  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest"
 };
 
 const historicalDataSwap = gql`
@@ -79,8 +80,13 @@ const getFetch =
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.LIGHTLINK_PHOENIX]: 1717199544,
+
+  [CHAIN.SONIC]: 1735685544,   
+  // [CHAIN.BSC]: 1727740344, 
+  [CHAIN.BERACHAIN]: 1738882079,
   [CHAIN.SONIC]: 1735685544,
-  [CHAIN.BSC]: 1727740344,
+
+
 };
 
 const adapter: BreakdownAdapter = {

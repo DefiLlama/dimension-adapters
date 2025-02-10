@@ -8,7 +8,8 @@ const endpoints: { [key: string]: string } = {
     "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
   [CHAIN.SONIC]:
     "https://api.studio.thegraph.com/query/91379/amped-trades-sonic/version/latest",
-  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
+  // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
+  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest"
 };
 
 const historicalDataQuery = gql`
@@ -83,9 +84,16 @@ const adapter: Adapter = {
         methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
       },
     },
-    [CHAIN.BSC]: {
-      fetch: getFetch(endpoints[CHAIN.BSC]),
-      start: 1727740344,
+    // [CHAIN.BSC]: {
+    //   fetch: getFetch(endpoints[CHAIN.BSC]),
+    //   start: 1727740344,
+    //   meta: {
+    //     methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+    //   },
+    // },
+    [CHAIN.BERACHAIN]: {
+      fetch: getFetch(endpoints[CHAIN.BERACHAIN]),
+      start: 1738882079,
       meta: {
         methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
       },
