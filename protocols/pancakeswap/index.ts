@@ -287,7 +287,6 @@ const adapter: BreakdownAdapter = {
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
   start: '2023-11-09',
-  // runAtCurrTime: true,
 }
 
 export default adapter;

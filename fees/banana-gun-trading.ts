@@ -41,7 +41,6 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
-      runAtCurrTime: true,
       start: '2023-06-01',
     },
     [CHAIN.BLAST]: {

@@ -1,6 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const markets = (await fetchURL("https://indexer.dydx.trade/v4/perpetualMarkets")).markets;
