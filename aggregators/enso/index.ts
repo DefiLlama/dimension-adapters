@@ -11,11 +11,13 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2023-09-11" },
 };
 
+const queryId = "4687193";
+
 const fetchVolume = (chain: string): FetchV2 => async ({ startTimestamp, endTimestamp }) => {
   const chainConfig = chains[chain];
   if (!chainConfig) throw new Error(`Chain configuration not found for: ${chain}`);
 
-  const data = await queryDune("4687193", {
+  const data = await queryDune(queryId, {
     timestamp_from: startTimestamp,
     timestamp_to: endTimestamp,
     chain: chainConfig.duneChain,
