@@ -7,6 +7,7 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
+import { uniV2Exports, uniV3Exports } from '../../helpers/uniswap'
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ESnjgAG9NjfmHypk4Huu4PVvz55fUwpyrRqHF21thoLJ'),
@@ -346,6 +347,17 @@ const okuChains = [
   CHAIN.BSC
 ]
 
+const uniV3 = uniV3Exports({
+  unichain: { factory: '0x1F98400000000000000000000000000000000003' }
+})
+
+const uniV2 = uniV2Exports({
+  unichain: {
+    factory: '0x1F98400000000000000000000000000000000002',
+  }
+})
+
+
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
     fetch: fetchFromOku,
@@ -354,5 +366,8 @@ okuChains.forEach(chain => {
     }
   }
 })
+
+adapter.breakdown.v3.unichain = uniV3.adapter.unichain;
+adapter.breakdown.v2.unichain = uniV2.adapter.unichain;
 
 export default adapter;
