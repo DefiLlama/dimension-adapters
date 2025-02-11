@@ -110,12 +110,12 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
         [CHAIN.LINEA]: {
           fetch: fetch,
           runAtCurrTime: true,
-          start: 1739171605,
+          start: 1739292820,
         },
         [CHAIN.INK]: {
           fetch: fetch,
           runAtCurrTime: true,
-          start: 1739171605,
+          start: 1739292820,
         },
       },
     };
