@@ -29,24 +29,30 @@ const fetch = async (options: FetchOptions) => {
           volumeUSD
           feesUSD
         }
+        legacyPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+          startOfDay
+          volumeUSD
+          feesUSD
+        }
       }
   `;
   const res = await request(v2Endpoints[options.chain], query);
-  const pools: IPool[] = res.clPoolDayDatas;
+  const pools: IPool[] = [...res.clPoolDayDatas, ...res.legacyPoolDayDatas];
   const dailyFees = pools.reduce((acc, pool) => acc + Number(pool.feesUSD), 0);
   const dailyVolume = pools.reduce((acc, pool) => acc + Number(pool.volumeUSD), 0);
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 
 }
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
 };
