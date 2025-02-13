@@ -20,6 +20,7 @@ const chainToId: Record<string, number> = {
   [CHAIN.POLYGON_ZKEVM]: 1101,
   [CHAIN.BITTORRENT]: 199,
   [CHAIN.SONIC]: 146,
+  [CHAIN.BERACHAIN]: 80094,
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -101,6 +102,10 @@ const adapter = {
       start: '2021-09-22',
     },
     [CHAIN.SONIC]: {
+      fetch: fetch,
+      start: '2021-09-22',
+    },
+    [CHAIN.BERACHAIN]: {
       fetch: fetch,
       start: '2021-09-22',
     },
