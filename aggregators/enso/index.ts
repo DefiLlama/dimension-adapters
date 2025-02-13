@@ -9,6 +9,8 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.POLYGON]: { duneChain: "polygon", start: "2023-09-05" },
   [CHAIN.BASE]: { duneChain: "base", start: "2023-12-24" },
   [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2023-09-11" },
+  [CHAIN.BERACHAIN]: { duneChain: "berachain", start: "2025-02-05" },
+  [CHAIN.LINEA]: { duneChain: "linea", start: "2023-12-14" },
 };
 
 const queryId = "4687193";
@@ -35,7 +37,6 @@ const fetchVolume = (chain: string): FetchV2 => async ({ startTimestamp, endTime
 
 const adapter: any = {
   version: 2,
-  isExpensiveAdapter: true,
   adapter: Object.fromEntries(
       Object.entries(chains).map(([chain, { start }]) => [
         chain,
