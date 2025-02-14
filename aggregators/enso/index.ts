@@ -37,6 +37,7 @@ const fetchVolume = (chain: string): FetchV2 => async ({ startTimestamp, endTime
 
 const adapter: any = {
   version: 2,
+  isExpensiveAdapter: true,
   adapter: Object.fromEntries(
       Object.entries(chains).map(([chain, { start }]) => [
         chain,
