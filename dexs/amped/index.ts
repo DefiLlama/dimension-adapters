@@ -7,7 +7,7 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.LIGHTLINK_PHOENIX]:
     "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
   [CHAIN.SONIC]:
-    "https://api.studio.thegraph.com/query/91379/amped-trades-sonic/version/latest",
+    "https://api.studio.thegraph.com/query/91379/trades-sonic/version/latest",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest"
 };
