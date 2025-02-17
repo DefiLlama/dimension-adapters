@@ -24,7 +24,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 2.1,
     adapter: {
         [CHAIN.BASE]: {
             fetch,
