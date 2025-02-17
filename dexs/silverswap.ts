@@ -1,11 +1,11 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 const { request, gql } = require("graphql-request");
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { getBlock } from "../../helpers/getBlock";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getBlock } from "../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions } from "../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.SONIC]: {
@@ -26,7 +26,7 @@ interface IData {
   totalValueLockedUSD: string;
 }
 interface IGraph {
-  uniswapDayData: IData;
+  algebraDayData: IData;
   factories: IData[];
 }
 const getData = async (chain: Chain, timestamp: number) => {
@@ -52,8 +52,8 @@ const getData = async (chain: Chain, timestamp: number) => {
   const totalVolume = Number(data.factories[0].totalVolumeUSD);
   const totalFee = Number(data.factories[0].totalFeesUSD);
 
-  const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? "0");
-  const dailyFees = Number(data.uniswapDayData?.feesUSD ?? "0");
+  const dailyVolume = Number(data.algebraDayData?.volumeUSD ?? "0");
+  const dailyFees = Number(data.algebraDayData?.feesUSD ?? "0");
 
   return {
     dailyFees: `${dailyFees}`,
@@ -94,7 +94,8 @@ const adapter: SimpleAdapter = {
 	adapter: {
 	  [CHAIN.SONIC]: {
 		fetch: fetchVolume,
-		start: "2024-12-07",
+			start: "2024-12-07",
+		
 	  },
 	},
   };
