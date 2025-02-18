@@ -1,24 +1,30 @@
-import { FetchOptions } from "../adapters/types"
-import { getETHReceived } from "../helpers/token"
-
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { queryDune } from "../helpers/dune";
 
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
-      await getETHReceived({ options, balances: dailyFees, targets: address})
+  const res = await queryDune("4742045", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+  });
+
+  const dayItem = res[0]
+  dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0)
 
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
+    dailyFees
   }
 }
 
-const adapter = {
+const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    ethereum: {
+    [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
     },
   },
+  isExpensiveAdapter: true,
 }
 
-export default adapter
+export default adapter;
