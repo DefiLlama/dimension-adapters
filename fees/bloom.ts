@@ -29,6 +29,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees,
     }
   },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;
