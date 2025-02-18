@@ -1,4 +1,5 @@
 import { CHAIN } from '../../helpers/chains';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { httpGet } from '../../utils/fetchURL';
 
 
@@ -11,16 +12,17 @@ interface Stats24H {
   timestamp: number
 };
 
-async function fetch(timestamp: any) {
+async function fetch() {
+  const timestamp = getUniqStartOfTodayTimestamp()
   let response: Stats24H = await httpGet(cropperEndpoint);
   return {
     dailyVolume: response.dailyVolume,
-    timestamp: timestamp
+    timestamp,
   };
 }
 
 export default {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,

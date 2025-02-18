@@ -16,8 +16,9 @@ export async function addGasTokensReceived(params: {
   multisigs?: string[];
   options: FetchOptions;
   balances?: sdk.Balances;
+  fromAddresses?: string[];
 }) {
-  let { multisig, multisigs, options, balances } = params;
+  let { multisig, multisigs, options, balances, fromAddresses } = params;
   if (multisig) multisigs = [multisig]
 
   if (!balances) balances = options.createBalances()
@@ -26,10 +27,15 @@ export async function addGasTokensReceived(params: {
     throw new Error('multisig or multisigs required')
   }
 
-  const logs = await options.getLogs({
+  let logs = await options.getLogs({
     targets: multisigs,
     eventAbi: 'event SafeReceived (address indexed sender, uint256 value)'
   })
+
+  if(fromAddresses) {
+    const normalized = fromAddresses.map(a=>a.toLowerCase())
+    logs = logs.filter(log=>normalized.includes(log.sender.toLowerCase()))
+  }
 
   logs.forEach(i => balances!.addGasToken(i.value))
   return balances

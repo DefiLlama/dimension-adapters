@@ -9,7 +9,7 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.POLYGON]: { duneChain: "polygon", start: "2023-09-05" },
   [CHAIN.BASE]: { duneChain: "base", start: "2023-12-24" },
   [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2023-09-11" },
-  [CHAIN.BERACHAIN]: { duneChain: "berachain", start: "2025-02-05" },
+  [CHAIN.BERACHAIN]: { duneChain: "berachain", start: "2025-01-25" },
   [CHAIN.LINEA]: { duneChain: "linea", start: "2023-12-14" },
 };
 
