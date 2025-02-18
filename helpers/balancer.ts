@@ -15,7 +15,7 @@ export async function getFees(vault: string, { createBalances, api, getLogs, }: 
   const dailyFees = createBalances()
   const dailyVolume = createBalances()
 
-  const logs_swap = await getLogs({ target: vault, eventAbi: event_swap, skipIndexer: true, })
+  const logs_swap = await getLogs({ target: vault, eventAbi: event_swap, })
   const logs_balance = await getLogs({ target: vault, eventAbi: event_pools_balance_change, })
   const logs_flash_bot = await getLogs({ target: vault, eventAbi: event_flash_bot, })
   logs_balance.forEach((log: any) => dailyFees.add(log.tokens, log.protocolFeeAmounts))
