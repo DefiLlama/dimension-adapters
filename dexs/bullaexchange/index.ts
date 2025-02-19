@@ -40,8 +40,7 @@ const fetchDailyData = async (date: number) => {
   const pools = response.pools || [];
 
   const totalFeesUSD = parseFloat(data.feesUSD) || 0;
-  
-  console.log("🚀 Total Fees USD from algebraDayDatas:", totalFeesUSD);
+
 
   if (totalFeesUSD === 0) {
     return { volumeUSD: data.volumeUSD || "0", feesUSD: "0", revenueUSD: "0" };
@@ -53,18 +52,16 @@ const fetchDailyData = async (date: number) => {
     const poolFees = parseFloat(pool.feesUSD) || 0;
     let communityFee = parseFloat(pool.communityFee) || 0;
 
-    console.log(`🔹 Pool Fees: ${poolFees}, Community Fee (Raw): ${communityFee}`);
 
     // Correct the scaling of communityFee by dividing by 10000
     communityFee /= 10000;
 
-    console.log(`✅ Community Fee (Scaled): ${communityFee}`);
+
 
     const poolRevenue = (poolFees / totalFeesUSD) * totalFeesUSD * communityFee;
     totalRevenue += poolRevenue;
   });
 
-  console.log("✅ Corrected Total Revenue USD:", totalRevenue.toFixed(2));
 
   return {
     volumeUSD: data.volumeUSD || "0",
