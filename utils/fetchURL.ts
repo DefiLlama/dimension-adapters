@@ -1,11 +1,11 @@
 import axios, { AxiosRequestConfig } from "axios"
 
-export default async function fetchURL(url: string, retries = 3) {
+export default async function fetchURL(url: string, options?: AxiosRequestConfig, retries = 3) {
   try {
-    const res = await httpGet(url)
+    const res = await httpGet(url, options)
     return res
   } catch (error) {
-    if (retries > 0) return fetchURL(url, retries - 1)
+    if (retries > 0) return fetchURL(url, options, retries - 1)
     throw error
   }
 }
