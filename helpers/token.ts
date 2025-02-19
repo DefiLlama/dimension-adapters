@@ -317,12 +317,13 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-  export async function getSolanaReceived({ options, balances, target, targets, blacklists }: {
+  export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
     options: FetchOptions;
     balances?: sdk.Balances;
     target?: string;
     targets?: string[];
     blacklists?: string[];
+    blacklist_signers?: string[];
   }) {
     if (!balances) balances = options.createBalances();
   
@@ -338,6 +339,13 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
       blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
     }
+    
+    let blacklist_signersCondition = '';
+    
+    if (blacklist_signers && blacklist_signers.length > 0) {
+      const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+      blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
+    }
   
     const query = `
       SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
@@ -345,6 +353,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       WHERE to_address = '${target}'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       ${blacklistCondition}
+      ${blacklist_signersCondition}
     `;
   
     const res = await queryAllium(query);
