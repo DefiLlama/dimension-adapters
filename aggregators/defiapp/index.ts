@@ -56,6 +56,12 @@ chainKeys.forEach((chain: string) => {
   adapter.adapter[chain] = {
     fetch: fetch(chain),
     start: START_TIMESTAMP,
+    meta: {
+      methodology: {
+        dailyVolume:
+          "Volume is calculated by summing the usd value of all token trades routed via DefiApp protocol in the last 24h.",
+      },
+    },
   };
 });
 
