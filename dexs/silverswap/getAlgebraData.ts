@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.SONIC]: {
@@ -87,18 +86,3 @@ export const fetchFee = (chain: string) => {
     };
   };
 };
-
-
-const adapter: SimpleAdapter = {
-	version: 2,
-	adapter: {
-	  [CHAIN.SONIC]: {
-		fetch: fetchVolume,
-			start: "2024-12-07",
-		
-	  },
-	},
-  };
-  //
-  export default adapter;
-  

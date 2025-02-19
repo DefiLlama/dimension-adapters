@@ -1,6 +1,6 @@
 import { Adapter, } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { fetchFee } from '../dexs/silverswap';
+import { fetchFee } from '../dexs/silverswap/getAlgebraData';
 
 const methodology = {
 	UserFees: "LPs collect 90% of the fee generated in a pool",
