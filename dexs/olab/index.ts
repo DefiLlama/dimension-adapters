@@ -1,21 +1,19 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const OLAB_METRICS_URL = 'https://api.olab.xyz/api/v2/statistics';
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const data = await fetchURL(OLAB_METRICS_URL);
-  const {result: {tradingVolume}} = data;
+const fetch: FetchV2 = async (options: FetchOptions) => {
+  const {startOfDay} = options;
+  const data = await fetchURL(`https://api.olab.xyz/api/v2/statistics/volume?startOfDay=${startOfDay}`);
+  const {result: {totalVolume, dailyVolume}} = data;
   return {
-    totalVolume: `${tradingVolume}`,
-    timestamp: dayTimestamp,
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
