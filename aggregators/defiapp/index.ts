@@ -30,7 +30,7 @@ const fetch = (chain: string) => {
       await fetchURL(DEFIAPP_24H_VOLUME_URL, {
         headers: {
           "Content-Type": "application/json",
-          // DefiLlama team to advice on how this is setup
+          // DefiLlama team to configure
           "X-API-KEY": process.env.DEFIAPP_API_KEY,
           User: "defillama",
         },
