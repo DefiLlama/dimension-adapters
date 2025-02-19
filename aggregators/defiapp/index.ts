@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const DEFIAPP_24H_VOLUME_URL = "http://localhost:3000/api/stats/volume/24h"; // TBD
+const DEFIAPP_24H_VOLUME_URL = "http://api.defi.app/api/stats/volume/24h"; // requires authentication
 const START_TIMESTAMP = 1739433600; // 02.13.2025
 
 type TChainId = {
@@ -27,7 +27,14 @@ interface IDefiAppResponse {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const dayResponse = <IDefiAppResponse>(
-      await fetchURL(DEFIAPP_24H_VOLUME_URL)
+      await fetchURL(DEFIAPP_24H_VOLUME_URL, {
+        headers: {
+          "Content-Type": "application/json",
+          // DefiLlama team to advice on how this is setup
+          "X-API-KEY": process.env.DEFIAPP_API_KEY,
+          User: "defillama",
+        },
+      })
     );
 
     const dailyVolume = dayResponse.perChainUsdVolume[defiAppChainIdMap[chain]];
@@ -40,6 +47,7 @@ const fetch = (chain: string) => {
 
 const adapter: SimpleAdapter = {
   adapter: {},
+  isExpensiveAdapter: true,
 };
 
 const chainKeys = Object.keys(defiAppChainIdMap);
