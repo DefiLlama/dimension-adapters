@@ -15,19 +15,23 @@ interface IFee {
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   const query = gql`
     {
-      feesRecords(limit: 10000000, where: {timestamp_gte: "${new Date(options.startTimestamp * 1000).toISOString()}", timestamp_lte: "${new Date(options.endTimestamp * 1000).toISOString()}"}) {
-        fees
-        timestamp
+       feesRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+        totalFees
+        tradeFees
       }
     }
   `
   const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
   const res = await request(url , query)
-  const dailyFees = res.feesRecords
-    .reduce((acc: number, record: { fees: string }) => acc + Number(record.fees), 0)
+  const dailyFees = res.feesRecordDailies
+    .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
+  const totalFees = res.feesRecordDailies
+    .reduce((acc: number, record: { totalFees: string }) => acc + Number(record.totalFees), 0)
+
   return {
     timestamp: options.startOfDay,
     dailyFees: dailyFees / (10 ** 20),
+    totalFees: totalFees / (10 ** 20)
   }
 }
 
