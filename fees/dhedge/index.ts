@@ -1,12 +1,28 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
-const query = `
+
+const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
           where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
         ) { managerFee, daoFee, tokenPriceAtFeeMint }
+      }`
+const queryEntryFeeMinteds = `
+      query entryFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        entryFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { entryFeeAmount, tokenPrice }
+      }`
+
+const queryExitFeeMenteds = `
+      query exitFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        exitFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { exitFeeAmount, tokenPrice }
       }`
 
 // if graph goes down, can be pulled via event logs, example:
@@ -77,6 +93,26 @@ const calculateManagerFees = (data: any): number =>
       return acc + result;
     }, 0);
 
+const calculateEntryFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+        const entryFee = Number(item.entryFeeAmount);
+        const tokenPrice = Number(item.tokenPrice);
+        const entryFeeFormatted = entryFee / 1e18;
+        const tokenPriceFormatted = tokenPrice / 1e18;
+        const result = entryFeeFormatted * tokenPriceFormatted;
+        return acc + result;
+    }, 0);
+
+const calculateExitFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+        const exitFee = Number(item.exitFeeAmount);
+        const tokenPrice = Number(item.tokenPrice);
+        const exitFeeFormatted = exitFee / 1e18;
+        const tokenPriceFormatted = tokenPrice / 1e18;
+        const result = exitFeeFormatted * tokenPriceFormatted;
+        return acc + result;
+    }, 0);
+
 const calculateDaoFees = (data: any): number =>
     data.reduce((acc: number, item: any) => {
       const daoFee = Number(item.daoFee);
@@ -91,11 +127,20 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const config = PROVIDER_CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const dailyFees = await fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
+  const dailyManagerFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryManagerFeeMinteds, 'managerFeeMinteds', startTimestamp, endTimestamp);
+  const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
+  const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
+
+  const dailyManagerFees = calculateManagerFees(dailyManagerFeesEvents);
+  const dailyEntryFees = calculateEntryFees(dailyEntryFeesEvents);
+  const dailyExitFees = calculateExitFees(dailyExitFeesEvents);
+  const dailyFees = dailyManagerFees + dailyEntryFees + dailyExitFees;
+
+  const dailyDaoFees = calculateDaoFees(dailyManagerFeesEvents);
 
   return {
-    dailyFees: calculateManagerFees(dailyFees),
-    dailyRevenue: calculateDaoFees(dailyFees),
+    dailyFees: dailyFees,
+    dailyRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };
 }
