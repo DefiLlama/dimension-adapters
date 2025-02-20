@@ -67,6 +67,28 @@ const methodology = {
     "Sum of overall total volume for all markets since inception."
 }
 
+const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+  const query = gql`
+    {
+      volumeRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+          totalVolume
+          tradeVolume
+      }
+    }
+  `
+  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
+  const res = await request(url , query)
+  const dailyVolume = res.volumeRecordDailies
+    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
+  const totalVolume = res.volumeRecordDailies
+    .reduce((acc: number, record: { totalVolume: string }) => acc + Number(record.totalVolume), 0)
+  return {
+    timestamp: options.startOfDay,
+    dailyVolume: dailyVolume / (10 ** 20),
+    totalVolume: totalVolume / (10 ** 20)
+  }
+}
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
@@ -90,6 +112,12 @@ const adapter: BreakdownAdapter = {
       }
     }, {})
   }
+}
+
+adapter.breakdown["gmx-v2-trade"][CHAIN.SOLANA] = {
+  fetch: fetchSolana,
+  start: 1630368000,
+  meta: {methodology}
 }
 
 export default adapter;

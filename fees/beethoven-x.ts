@@ -14,9 +14,9 @@ const vaultAddresses: TAddress = {
 
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch: getFeesExport(vaultAddresses[CHAIN.OPTIMISM]), start: '2023-01-01' },
-    [CHAIN.FANTOM]: { fetch: getFeesExport(vaultAddresses[CHAIN.FANTOM]), start: '2023-01-01' },
-    [CHAIN.SONIC]: {fetch: getFeesExport(vaultAddresses[CHAIN.SONIC]), start: "2024-12-14" },
+    [CHAIN.OPTIMISM]: { fetch: getFeesExport(vaultAddresses[CHAIN.OPTIMISM], { revenueRatio: 0.25 }), start: '2023-01-01' },
+    [CHAIN.FANTOM]: { fetch: getFeesExport(vaultAddresses[CHAIN.FANTOM], { revenueRatio: 0.25 }), start: '2023-01-01' },
+    [CHAIN.SONIC]: {fetch: getFeesExport(vaultAddresses[CHAIN.SONIC], { revenueRatio: 0.25 }), start: "2024-12-14" },
   },
   version: 2,
 };
