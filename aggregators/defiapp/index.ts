@@ -24,17 +24,30 @@ interface IDefiAppResponse {
   perChainUsdVolume: Record<string, string>;
 }
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+export async function fetchCacheURL(url: string) {
+  const key = `${url}`;
+  if (!requests[key]) {
+    requests[key] = httpGet(url,  {
+      headers: {
+        "Content-Type": "application/json",
+        // DefiLlama team to configure
+        "X-API-KEY": process.env.DEFIAPP_API_KEY,
+        User: "defillama",
+      },
+    });
+  }
+  return requests[key]
+}
+
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const dayResponse = <IDefiAppResponse>(
-      await httpGet(DEFIAPP_24H_VOLUME_URL, {
-        headers: {
-          "Content-Type": "application/json",
-          // DefiLlama team to configure
-          "X-API-KEY": process.env.DEFIAPP_API_KEY,
-          User: "defillama",
-        },
-      })
+      await fetchCacheURL(DEFIAPP_24H_VOLUME_URL)
     );
 
     const dailyVolume = dayResponse.perChainUsdVolume[defiAppChainIdMap[chain]];
