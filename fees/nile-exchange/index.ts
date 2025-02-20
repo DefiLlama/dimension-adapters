@@ -45,11 +45,11 @@ const v2Graphs = getGraphDimensions({
   },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 50,
-    ProtocolRevenue: 5,
-    SupplySideRevenue: 45,
+    HoldersRevenue: 92,
+    ProtocolRevenue: 2,
+    SupplySideRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 50 // Revenue is 100% of collected fees
+    Revenue: 100 // Revenue is 100% of collected fees
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
