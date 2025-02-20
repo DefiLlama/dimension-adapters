@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter2({
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/nileexchange/cl-subgraph"
+  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/"
 }, {
   factoriesName: "factories",
   dayData: "uniswapDayData",
