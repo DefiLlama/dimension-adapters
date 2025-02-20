@@ -1,6 +1,6 @@
 import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const DEFIAPP_24H_VOLUME_URL = "http://api.defi.app/api/stats/volume/24h"; // requires authentication
 const START_TIMESTAMP = 1739433600; // 02.13.2025
@@ -27,7 +27,7 @@ interface IDefiAppResponse {
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
     const dayResponse = <IDefiAppResponse>(
-      await fetchURL(DEFIAPP_24H_VOLUME_URL, {
+      await httpGet(DEFIAPP_24H_VOLUME_URL, {
         headers: {
           "Content-Type": "application/json",
           // DefiLlama team to configure
