@@ -1,47 +1,80 @@
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { queryDune } from "../../helpers/dune";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 
-const dailyVolEndpoint =
-  "https://mainnet-beta.api.drift.trade/stats/24HourVolume";
+// const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
+const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
-async function fetch(type: "perp" | "spot") {
-  const volumeResponse = await httpGet(
-    `${dailyVolEndpoint}?${
-      type === "perp" ? "perpMarkets" : "spotMarkets"
-    }=true`
-  );
+type DimentionResult = {
+  dailyVolume?: number;
+  dailyFees?: number;
+  dailyUserFees?: number;
+  dailyRevenue?: number;
+};
 
-  const rawVolumeQuotePrecision = volumeResponse.data.volume;
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
 
-  // Volume will be returned in 10^6 precision
-  const volumeNumber =
-    rawVolumeQuotePrecision.length >= 6
-      ? Number(rawVolumeQuotePrecision.slice(0, -6))
-      : 0;
-
-  return {
-    dailyVolume: volumeNumber,
-    timestamp: Date.now() / 1e3,
-  };
+export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  const start = options.startOfDay;
+  const key = `${url}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune("4117889", {
+      start: start,
+      end: start + 24 * 60 * 60,
+    })
+  return requests[key]
 }
 
-const adapter = {
+async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
+  const volumeResponse = await fetchURLWithRetry("4117889", options)
+  const dailyVolume = volumeResponse[0].perpetual_volume;
+  const dailyFees = volumeResponse[0].total_taker_fee;
+  const dailyRevenue = volumeResponse[0].total_revenue;
+  return { dailyVolume, dailyFees, dailyRevenue };
+}
+
+async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
+  const volumeResponse = await fetchURLWithRetry("4117889", options)
+  const dailyVolume = volumeResponse[0].spot_volume;
+  return { dailyVolume };
+}
+
+async function fetch(type: "perp" | "spot", options: FetchOptions) {
+  const timestamp = Date.now() / 1e3;
+  if (type === "perp") {
+    const results = await getPerpDimensions(options);
+    return {
+      ...results,
+      timestamp,
+    };
+  } else {
+    const results = await getSpotDimensions(options);
+    return {
+      ...results,
+      timestamp: Date.now() / 1e3,
+    };
+  }
+}
+
+const adapter: BreakdownAdapter = {
   breakdown: {
     swap: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("spot"),
-        runAtCurrTime: true,
-        start: 1690239600,
+        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("spot", options),
+        start: '2023-07-25',
       },
     },
     derivatives: {
       [CHAIN.SOLANA]: {
-        fetch: () => fetch("perp"),
-        runAtCurrTime: true,
-        start: 1690239600,
+        fetch: (_t: any, _tt: any, options: FetchOptions) => fetch("perp", options),
+        start: '2023-07-25',
       },
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

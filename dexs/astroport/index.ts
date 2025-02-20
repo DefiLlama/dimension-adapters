@@ -8,14 +8,8 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.TERRA]: {
       fetch: async (timestamp: number) => {
-        return {
-          timestamp,
-          totalVolume: "32540550409.019516" // stop collect data on terra sinc 1653350400
-        }
+        throw new Error("Not implemented");
       },
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
     },
   },
 };

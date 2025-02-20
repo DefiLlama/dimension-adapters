@@ -1,9 +1,8 @@
-import { Adapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { Fetch, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
-import totalVolumePayload from "./totalVolumePayload";
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -11,9 +10,9 @@ import totalVolumePayload from "./totalVolumePayload";
   [CHAIN.BSC]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.ETHEREUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.POLYGON]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  // [MOONRIVER]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-moonriver",
-  // [AVAX]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-avax",
-  // [BOBA]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-boba"
+  // [MOONRIVER]: sdk.graph.modifyEndpoint('G4HFPFJue7zf2BktJuKETh72DscimLJRybVA6iD6A7yM'),
+  // [AVAX]: sdk.graph.modifyEndpoint('8GUXi8PNrW4ACf968KCWxH9AkeNt8YEQin7MDa7RuULW'),
+  // [BOBA]: sdk.graph.modifyEndpoint('6PVfSucTfTimvx3aMgWsatmRDBNxW7yQKayyZ7Mxrf73')
   // [HECO]: "https://n10.hg.network/subgraphs/name/dodoex-mine-v3-heco/heco",
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */
@@ -53,8 +52,8 @@ interface ITotalResponse {
   }
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const getFetch = (chain: string): Fetch => async (_ts: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
   // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))) as ITotalResponse
 
@@ -95,7 +94,10 @@ const volume = chains.reduce(
   {}
 );
 
+
 const adapter: SimpleAdapter = {
   adapter: volume
 };
-export default adapter;
+
+
+export default adapter

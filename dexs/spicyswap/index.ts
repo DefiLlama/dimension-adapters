@@ -23,7 +23,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetchVolume,
-      start: 1688774400
+      start: '2023-07-08'
     }
   }
 }

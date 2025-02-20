@@ -10,6 +10,13 @@ const chains = [
     CHAIN.SCROLL,
     CHAIN.CRONOS,
     CHAIN.MANTA,
+    CHAIN.BLAST,
+    CHAIN.XLAYER,
+    CHAIN.METIS,
+    CHAIN.ARBITRUM,
+    CHAIN.ZETA,
+    CHAIN.SONEIUM,
+    CHAIN.UNIT0,
 ];
 
 const chainToId: Record<string, number> = {
@@ -19,7 +26,14 @@ const chainToId: Record<string, number> = {
     [CHAIN.LINEA]: 59144,
     [CHAIN.SCROLL]: 534352,
     [CHAIN.CRONOS]: 25,
-    [CHAIN.MANTA]: 169
+    [CHAIN.MANTA]: 169,
+    [CHAIN.BLAST]: 81457,
+    [CHAIN.METIS]: 1088,
+    [CHAIN.XLAYER]: 196,
+    [CHAIN.ARBITRUM]: 42161,
+    [CHAIN.ZETA]: 7000,
+    [CHAIN.SONEIUM]: 1868,
+    [CHAIN.UNIT0]: 88811,
 };
 
 const fetch = (chain: string) => async (timestamp: number) => {
@@ -46,7 +60,7 @@ const adapter: any = {
                 ...acc,
                 [chain]: {
                     fetch: fetch(chain),
-                    start: 1705104000,
+                    start: '2024-01-13',
                 },
             };
         }, {}),

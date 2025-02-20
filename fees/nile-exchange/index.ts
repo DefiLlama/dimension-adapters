@@ -1,10 +1,11 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { ARBITRUM, CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
   getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph"
 
 type TStartTime = {
@@ -31,25 +32,27 @@ const v2Endpoints = {
   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v2Graphs = getGraphDimensions({
+const v2Graphs = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
-  },
   feesPercent: {
     type: "fees",
+<<<<<<< HEAD
     HoldersRevenue: 92,
     ProtocolRevenue: 2,
     SupplySideRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
     Revenue: 100 // Revenue is 100% of collected fees
+=======
+    HoldersRevenue: 72,
+    ProtocolRevenue: 8,
+    SupplySideRevenue: 20,
+    UserFees: 100, // User fees are 100% of collected fees
+    Revenue: 80 // Revenue is 100% of collected fees
+>>>>>>> a64e2d3e7fcc74d68f14ab6d1a88872780fca6d5
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution

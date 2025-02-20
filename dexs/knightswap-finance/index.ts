@@ -1,37 +1,35 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-const {
-  getChainVolume
-} = require("../../helpers/getUniSubgraphVolume");
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/knight-new-graph",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/shahzeb8285/thedarkknightanalytics",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint(
+    "GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1",
+  ),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint(
+    "GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW",
+  ),
 };
 
-const v2Graph = getChainVolume({
+const v2Graph = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
     field: "totalVolumeUSD",
   },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "dailyVolumeUSD",
-  },
 });
-
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: 1635379200,
+      start: '2021-10-28',
     },
     [CHAIN.FANTOM]: {
       fetch: v2Graph(CHAIN.FANTOM),
-      start: 1637798400,
+      start: '2021-11-25',
     },
   },
 };

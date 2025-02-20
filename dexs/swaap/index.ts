@@ -1,132 +1,132 @@
-import {BaseAdapter, BreakdownAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {gql, GraphQLClient} from "graphql-request";
-import {Chain} from "@defillama/sdk/build/general";
-import {getTimestampAtStartOfDay,} from "../../utils/date";
-import {getChainVolume} from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
+import * as sdk from "@defillama/sdk";
+import { BreakdownAdapter, FetchOptions, FetchResult } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gql, GraphQLClient } from "graphql-request";
+import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 
 interface ChainConfig{
     api: string,
-    start: number,
+    start: string,
     id: string,
     firstDayVolume: number
 }
 
 const config:Record<string, ChainConfig> = {
     [CHAIN.ETHEREUM]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-ethereum",
-        start: 1688169600,
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-ethereum/1.0.0/gn",
+        start: '2023-07-01',
         id: '2',
         firstDayVolume: 0
     },
     [CHAIN.POLYGON]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-polygon",
-        start: 1688083200,
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-polygon/1.0.0/gn",
+        start: '2023-06-30',
         id: '2',
         firstDayVolume: 240.41984714755376
 
     },
     [CHAIN.ARBITRUM]: {
-        api: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv2-arbitrum",
-        start: 1696464000,
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-arbitrum/1.0.0/gn",
+        start: '2023-10-05',
         id: '2',
         firstDayVolume: 0
     },
+    [CHAIN.OPTIMISM]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-optimism/1.0.0/gn",
+        start: '2024-05-29',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.BSC]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-bsc/1.0.0/gn",
+        start: '2024-05-29',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.BASE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
+        start: '2024-05-14',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.MODE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mode/1.0.1/gn",
+        start: '2024-05-02',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.SCROLL]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-scroll/prod/gn",
+        start: '2024-06-27',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.LINEA]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: '2024-06-27',
+        id: '2',
+        firstDayVolume: 0
+    },
+    [CHAIN.MANTLE]: {
+        api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+        start: '2024-06-27',
+        id: '2',
+        firstDayVolume: 0
+    },
+
 }
 
 interface Data {
-    swaapSnapshot: {
+    start: {
         id: string,
         totalSwapVolume: string
-    } | null
+    },
+    end: {
+        id: string,
+        totalSwapVolume: string
+    }
 }
 
-async function getTotalVolume(chain: Chain, timestamp: number): Promise<number | null> {
-    let id = config[chain].id + '-' + timestamp
 
-    const url = config[chain].api
-    const graphQLClient = new GraphQLClient(url);
-    const todayVolumeQuery = gql`
+const  getVolume = async (options: FetchOptions) => {
+    const starttimestamp = options.startOfDay;
+    const endtimestamp =  starttimestamp + 86400
+    const startId = config[options.chain].id + '-' + starttimestamp
+    const endId = config[options.chain].id + '-' + endtimestamp
+
+    const query = gql`
     {
-          swaapSnapshot(id:"${id}"){
+        start:swaapSnapshot(id: "${startId}") {
             id
             totalSwapVolume
-          }
-    }
-        `;
-
-    const result = await graphQLClient.request(todayVolumeQuery) as Data
-    return result.swaapSnapshot ? Number(result.swaapSnapshot.totalSwapVolume) : null
-}
-
-/**
- * While the getTotalVolume is null, fetch getTotalVolume of the previous day
- * @param chain
- * @param timestamp
- */
-async function getClosestTotalVolume(chain: Chain, timestamp: number): Promise<number> {
-
-    const minimalTS = config[chain].start
-    if (timestamp <= minimalTS) {
-        return config[chain].firstDayVolume
-    }
-
-
-    let totalVolume = await getTotalVolume(chain, timestamp)
-    if (totalVolume === null) {
-        const yesterdayTS = timestamp - 24 * 3600
-        totalVolume = await getClosestTotalVolume(chain, yesterdayTS)
-    }
-    return totalVolume
-}
-
-
-async function getVolume(chain: Chain, timestamp: number,) {
-
-    const timestampBegin =getTimestampAtStartOfDay(timestamp)
-    const timestampYesterday = timestampBegin - 24 * 3600
-
-    const totalVolume = await getClosestTotalVolume(chain, timestampBegin)
-    const yesterdayVolume = await getClosestTotalVolume(chain, timestampYesterday)
-
-    const dailyVolume = totalVolume - yesterdayVolume
-
-    return {
-        totalVolume,
-        dailyVolume
-    }
-}
-
-const v2graphs = (chain: Chain) => {
-    return async (timestamp: number) => {
-
-        const {totalVolume, dailyVolume} = await getVolume( chain, timestamp)
-        return {
-            timestamp,
-            totalVolume:totalVolume.toString(),
-            dailyVolume:dailyVolume.toString()
-
-        };
-    }
-}
-
-const adapterV2: BaseAdapter = Object.keys(config).reduce((acc, chain) => {
-        return {
-            ...acc,
-            [chain]: {
-                fetch: v2graphs(chain),
-                start: config[chain].start,
-                runAtCurrTime: false,
-                meta: {
-                    methodology: 'Comparing total volume of the current day with the total volume of the previous day, using TheGraph.'
-                }
-            },
         }
-    }, {} as BaseAdapter)
-;
+        end:swaapSnapshot(id: "${endId}") {
+            id
+            totalSwapVolume
+        }
+    }
+    `
+    const url = config[options.chain].api
+    const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
+    const result: Data = await graphQLClient.request(query)
+    const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
+    const totalVolume = Number(result.end?.totalSwapVolume || 0)
+    return {
+        // If the daily volume is negative, set it to 0
+        dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
+        totalVolume,
+    }
+}
 
-// Directly from Balancer adapter
+const v2graphs = async (_t: any, _tt: any ,options: FetchOptions): Promise<FetchResult> => {
+    const { dailyVolume, totalVolume }  = await getVolume(options)
+    return {
+        timestamp: options.startOfDay,
+        dailyVolume,
+        totalVolume
+    }
+}
+
 const graphParams = {
     totalVolume: {
         factory: "swaapProtocols",
@@ -137,26 +137,75 @@ const graphParams = {
 
 const v1graphs = getChainVolume({
     graphUrls: {
-        [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/swaap-labs/swaapv1"
+        [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('A1ibaGVUkqdLeBG7VeeSB8jm9QNmS8phSz8iooXR8puv')
     },
-    ...graphParams
+    ...graphParams,
 });
 
 const adapter: BreakdownAdapter = {
-    version: 2,
+    version: 1,
     breakdown: {
         v1: {
             [CHAIN.POLYGON]: {
-                fetch: v1graphs(CHAIN.POLYGON),
-                start: 1655195452,
-                customBackfill: customBackfill(CHAIN.POLYGON, v1graphs)
+                fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
+                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(_t, _tt, options)
+                    return  {
+                        timestamp: options.startOfDay,
+                        dailyVolume,
+                        totalVolume
+                    }
+                },
+                start: '2022-06-14'
             },
         },
-        v2: adapterV2
+        v2: {
+            [CHAIN.ETHEREUM]: {
+                fetch: v2graphs,
+                start: '2023-07-01',
+
+            },
+            [CHAIN.POLYGON]: {
+                fetch: v2graphs,
+                start: '2023-06-30',
+
+            },
+            [CHAIN.ARBITRUM]: {
+                fetch: v2graphs,
+                start: '2023-10-05',
+            },
+            [CHAIN.OPTIMISM]: {
+                fetch: v2graphs,
+                start: '2024-05-29',
+            },
+            [CHAIN.BSC]: {
+                fetch: v2graphs,
+                start: '2024-05-29',
+            },
+            [CHAIN.BASE]: {
+                fetch: v2graphs,
+                start: '2024-05-14',
+            },
+            [CHAIN.MODE]: {
+                fetch: v2graphs,
+                start: '2024-05-02',
+            },
+            [CHAIN.SCROLL]: {
+                fetch: v2graphs,
+                start: '2024-06-27',
+            },
+            [CHAIN.LINEA]: {
+                fetch: v2graphs,
+                start: '2024-06-27',
+            },
+            [CHAIN.MANTLE]: {
+                fetch: v2graphs,
+                start: '2024-06-27',
+            },
+
+        }
     }
 }
 
 
 
 export default adapter;
-

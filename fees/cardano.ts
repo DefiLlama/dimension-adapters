@@ -54,10 +54,11 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: Fet
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.CARDANO]: {
         fetch: fetch,
-        start: 1577836800,
+        start: '2020-01-01',
     },
   },
   protocolType: ProtocolType.CHAIN

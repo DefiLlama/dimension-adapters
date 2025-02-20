@@ -5,7 +5,7 @@ import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 
 const kinetixPerpsV2Subgraph =
-  "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/perpv2";
+  "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kava-trade";
 
 interface IReferralRecord {
   volume: string; // Assuming volume is a string that represents a number
@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch(),
-      start: async () => 1706832000,
+      start: '2024-02-02',
       meta: {
         methodology,
       },

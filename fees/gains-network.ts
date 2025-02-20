@@ -1,78 +1,116 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import ADDRESSES from "../helpers/coreAssets.json";
-import { Chain } from "@defillama/sdk/build/general";
+import { queryDune } from "../helpers/dune";
 
-type IAddresses = {
-  [s: string | Chain]: string[];
-};
+interface IStats {
+  unix_ts: number;
+  day: string;
+  blockchain: string;
+  daily_volume: number;
 
-const event: string[] = [
-  "event DevGovFeeCharged(address indexed trader, uint valueDai)",
-  "event SssFeeCharged(address indexed trader, uint valueDai)",
-  "event ReferralFeeCharged(address indexed trader, uint valueDai)",
-  "event NftBotFeeCharged(address indexed trader, uint valueDai)",
-  "event DaiVaultFeeCharged(address indexed trader, uint valueDai)",
-  "event LpFeeCharged(address indexed trader, uint valueDai)",
-  "event TriggerFeeCharged(address indexed trader, uint valueDai)",
-  "event GovFeeCharged(address indexed trader, uint valueDai, bool distributed)",
-  "event BorrowingFeeCharged(address indexed trader, uint tradeValueDai, uint valueDai)",
-];
+  // Fees
+  project_fund: number;
+  dev_fund: number; // deprecated; only used for older entries
+  referral: number;
+  nft_bots: number;
+  all_fees: number;
+  borrowing_fee: number;
+  rollover_fee: number;
+  cumul_fees: number; // all time chain fees
 
-const addressConfig: { [a: string]: string } = {
-  "0x82e59334da8c667797009bbe82473b55c7a6b311": ADDRESSES.polygon.DAI,
-  "0x0bbed2eac3237ba128643670b7cf3be475933755": ADDRESSES.polygon.WETH,
-  "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef": ADDRESSES.polygon.USDC_CIRCLE,
-  "0x298a695906e16aea0a184a2815a76ead1a0b7522": ADDRESSES.arbitrum.DAI,
-  "0x62a9f50c92a57c719ff741133caa55c7a81ce019": ADDRESSES.arbitrum.WETH,
-  "0x4542256c583bcad66a19a525b57203773a6485bf": ADDRESSES.arbitrum.USDC_CIRCLE,
-};
+  // gTokens
+  dai_stakers: number;
+  usdc_stakers: number;
+  weth_stakers: number;
 
-const contract_addresses: IAddresses = {
-  [CHAIN.POLYGON]: [
-    "0x82e59334da8c667797009bbe82473b55c7a6b311", // DAI TradingCallbacks
-    "0x0bbed2eac3237ba128643670b7cf3be475933755", // ETH TradingCallbacks
-    "0x2ac6749d0affd42c8d61ef25e433f92e375a1aef", // USDC TradingCallbacks
-  ],
-  [CHAIN.ARBITRUM]: [
-    "0x298a695906e16aea0a184a2815a76ead1a0b7522", // DAI TradingCallbacks
-    "0x62a9f50c92a57c719ff741133caa55c7a81ce019", // ETH TradingCallbacks
-    "0x4542256c583bcad66a19a525b57203773a6485bf", // USDC TradingCallbacks
-  ],
-};
+  // GNS staking
+  gns_stakers: number;
+}
+const requests: any = {};
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = createBalances()
-    const dailyRevenue = createBalances()
-    const dailyHoldersRevenue = createBalances()
+export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+  const start = options.startTimestamp;
+  const end = options.endTimestamp;
+  const key = `${url}-${start}`;
+  if (!requests[key])
+    requests[key] = queryDune("4192496", {
+      start: start,
+      end: end,
+    });
+  return requests[key];
+}
 
-    for (const target of contract_addresses[chain]) {
-      const token = addressConfig[target]
-      const [
-        devFee, ssFee, referralFee, nftBotFee, daiVault, lpFee, triggerFee, govFee, borrowingFee,
-      ]: any = await Promise.all(event.map((eventAbi) => getLogs({ target, eventAbi })));
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+  const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, totalFees] = chainStat
+    ? [
+        chainStat.all_fees,
+        chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers,
+        chainStat.gns_stakers,
+        chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers,
+        chainStat.cumul_fees,
+      ]
+    : [0, 0, 0, 0, 0];
 
-      [devFee, ssFee, referralFee, nftBotFee, daiVault, lpFee, triggerFee, govFee, borrowingFee,].flat().forEach((i: any) => dailyFees.add(token, i.valueDai));
-      [devFee, ssFee, govFee,].flat().forEach((i: any) => dailyRevenue.add(token, i.valueDai));
-      ssFee.forEach((i: any) => dailyHoldersRevenue.add(token, i.valueDai));
-    }
-
-    return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, }
+  return {
+    timestamp,
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    totalFees,
   };
+};
+
+const fetchApechain = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+  // Dune does not currently support Apechain. Using events until support is added.
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
+  const APE = "0x48b62137edfa95a428d35c09e44256a739f6b557"; // wAPE
+
+  const [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]: any = await Promise.all(
+    [
+      "event GovFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event ReferralFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event TriggerFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GnsOtcFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GTokenFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event BorrowingFeeCharged(address indexed trader, uint32 indexed index, uint8 indexed collateralIndex, uint256 amountCollateral)",
+    ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
+  );
+
+  [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(APE, i.amountCollateral));
+  [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
+  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
+  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+
+  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: 1654214400,
+      fetch: fetch,
+      start: "2022-06-03",
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1672358400,
+      fetch: fetch,
+      start: "2022-12-30",
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch,
+      start: "2024-09-26",
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetchApechain,
+      start: "2024-11-19",
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

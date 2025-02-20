@@ -1,16 +1,15 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import customBackfill from "../helpers/customBackfill";
-
-import {
-  getGraphDimensions
-} from "../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 const v2Endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06",
-}
-const v2Graph = getGraphDimensions({
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
+    "FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd",
+  ),
+};
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
@@ -19,40 +18,33 @@ const v2Graph = getGraphDimensions({
     SupplySideRevenue: 0.3,
     HoldersRevenue: 0,
     Revenue: 0,
-    Fees: 0.3
-  }
+    Fees: 0.3,
+  },
 });
 
 const v3Endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
+    "CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7",
+  ),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:"https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7"
-}
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU")
+};
 
 type TStartTime = {
   [s: string | Chain]: number;
-}
+};
 
 const startTimeV3: TStartTime = {
   [CHAIN.POLYGON]: 1662425243,
   [CHAIN.POLYGON_ZKEVM]: 1679875200,
   [CHAIN.DOGECHAIN]: 1660694400,
-}
+};
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "algebraDayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
-  dailyFees: {
-    factory: "algebraDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -61,8 +53,8 @@ const v3Graphs = getGraphDimensions({
     Fees: 0,
     UserFees: 100, // User fees are 100% of collected fees
     SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
-  }
+    Revenue: 0, // Revenue is 100% of collected fees
+  },
 });
 
 const methodology = {
@@ -71,8 +63,8 @@ const methodology = {
   Revenue: "Protocol have no revenue",
   ProtocolRevenue: "Protocol have no revenue.",
   SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders have no revenue."
-}
+  HoldersRevenue: "Holders have no revenue.",
+};
 
 const adapter: BreakdownAdapter = {
   version: 2,
@@ -80,9 +72,9 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: v2Graph(CHAIN.POLYGON),
-        start: 1602118043,
+        start: '2020-10-08',
         meta: {
-          methodology
+          methodology,
         },
       },
     },
@@ -91,12 +83,12 @@ const adapter: BreakdownAdapter = {
         fetch: v3Graphs(chain as Chain),
         start: startTimeV3[chain],
         meta: {
-          methodology
-        }
-      }
-      return acc
-    }, {} as BaseAdapter)
-  }
-}
+          methodology,
+        },
+      };
+      return acc;
+    }, {} as BaseAdapter),
+  },
+};
 
 export default adapter;

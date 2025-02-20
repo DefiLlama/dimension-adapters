@@ -9,9 +9,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: getFeesExport(friendRoomSharesAddress, [event_trade]),
-      start: 1693731179,
+      start: '2023-09-03',
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

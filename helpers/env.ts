@@ -4,7 +4,12 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
-  ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545"
+  ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
+  SVM_RPC: "https://rpc.cosvm.net",
+  XLAYER_RPC: "https://xlayerrpc.okx.com",
+  BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
+  PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
+  BERACHAIN_RPC: "https://rpc.berachain.com",
 }
 
 export const ENV_KEYS = new Set([
@@ -14,6 +19,7 @@ export const ENV_KEYS = new Set([
   'INDEXA_DB',
   'FLIPSIDE_API_KEY',
   'DUNE_API_KEYS',
+  'DUNE_RESTRICTED_MODE',
   'ALLIUM_API_KEY',
   'BIT_QUERY_API_KEY',
   'SMARDEX_SUBGRAPH_API_KEY',
@@ -23,6 +29,13 @@ export const ENV_KEYS = new Set([
   'ZEROx_API_KEY',
   'ZEROX_API_KEY',
   'AGGREGATOR_0X_API_KEY',
+  'SUI_RPC',
+  'OKX_API_KEY',
+  'ALCHEMIX_KEY',
+  'ALCHEMIX_SECRET',
+  'FLIPSIDE_RESTRICTED_MODE',
+  'STARBASE_API_KEY',
+  'ENSO_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
@@ -38,4 +51,3 @@ export function getEnv(key: string): any {
   const value = process.env[key] ?? DEFAULTS[key]
   return BOOL_KEYS.includes(key) ? !!value : value
 }
-

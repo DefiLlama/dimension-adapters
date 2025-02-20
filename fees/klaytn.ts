@@ -25,7 +25,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
         fetch: fetch,
-        start: 1577836800,
+        start: '2020-01-01',
     },
   },
   protocolType: ProtocolType.CHAIN

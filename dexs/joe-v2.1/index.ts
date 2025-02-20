@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const event_swap = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)';
@@ -47,38 +47,31 @@ const pools: TPool = {
   ]
 }
 
-const fetch: any = async (timestamp: number, _, { api, chain, getLogs, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances();
-  const lpTokens = pools[chain]
-  const [tokens0, tokens1] = await Promise.all(
-    ['address:getTokenX', 'address:getTokenY'].map((abi: string) =>
-      api.multiCall({        abi,        calls: lpTokens,      })    )
-  );
-
-  const logs: any[][] = (await getLogs({
-    targets: lpTokens,
-    eventAbi: event_swap,
-    flatten: false,
-  }))
-
-  logs.map((log: any, index: number) => {
-    const token0 = tokens0[index];
-    const token1 = tokens1[index];
-    log.forEach((i: any) => {
-      const amountInX = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(0, 32))
-      const amountInY = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(32, 64))
-      dailyVolume.add(token0, amountInY);
-      dailyVolume.add(token1, amountInX);
-    })
-  });
-  return { dailyVolume, timestamp, };
+const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const dailyVolume = options.createBalances();
+    const lpTokens = pools[options.chain]
+    const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
+    const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
+    const logs: any[][] = await options.getLogs({ targets: lpTokens, eventAbi: event_swap, flatten: false });
+    logs.map((log: any, index: number) => {
+      const token0 = tokens0[index];
+      const token1 = tokens1[index];
+      log.forEach((i: any) => {
+        const amountInX = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(0, 32))
+        const amountInY = Number('0x' + '0'.repeat(32) + i.amountsIn.replace('0x', '').slice(32, 64))
+        dailyVolume.add(token0, amountInY);
+        dailyVolume.add(token1, amountInX);
+      })
+    });
+    return { dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: 1682121600, },
-    [CHAIN.BSC]: { fetch, start: 1681084800, },
-    [CHAIN.AVAX]: { fetch, start: 1682467200, },
+    [CHAIN.AVAX]: { fetch, start: '2023-04-26', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-04-22', },
+    [CHAIN.BSC]: { fetch, start: '2023-04-10', },
   }
 };
 

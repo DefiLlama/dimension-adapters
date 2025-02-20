@@ -1,11 +1,8 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
 import { getTxReceipts } from "../helpers/getTxReceipts";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
-import * as sdk from "@defillama/sdk";
+import { Chain } from "@defillama/sdk/build/general";
 
 type TAddrress = {
   [l: string | Chain]: string;
@@ -42,17 +39,10 @@ const gasTokenId: IGasTokenId = {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.getEventLogs({
+  return async ({ toTimestamp, getLogs, }: FetchOptions) => {
+    const logs: ITx[] = (await getLogs({
       target: address_keeper[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: [topic0_keeper],
-      chain: chain
     })).map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
       .filter((e: ITx) => e.topics.includes(success_topic));
     const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
@@ -67,7 +57,7 @@ const fetchKeeper = (chain: Chain) => {
     });
     const linkAddress = "coingecko:chainlink";
     const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], timestamp))
+    const prices = (await getPrices([linkAddress, gasToken], toTimestamp))
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
@@ -78,40 +68,40 @@ const fetchKeeper = (chain: Chain) => {
     return {
       dailyFees: dailyFeesUsd.toString(),
       dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
-      timestamp
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetchKeeper(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchKeeper(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetchKeeper(CHAIN.FANTOM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetchKeeper(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchKeeper(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchKeeper(CHAIN.OPTIMISM),
-      start: 1675382400
+      start: '2023-02-03'
     }
   }
 }

@@ -1,22 +1,25 @@
+import * as sdk from "@defillama/sdk";
 // Wagmi data
 import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
+import { FetchOptions } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
     subgraph:
-      "https://api.studio.thegraph.com/query/4540/wagmi-zksync-era/version/latest",
+      "https://api.studio.thegraph.com/query/53494/wagmi-zksync-era/version/latest",
     blocks:
       "https://api.studio.thegraph.com/query/4540/zksync-era-blocks/v0.0.1",
   },
   [CHAIN.FANTOM]: {
     subgraph:
-      "https://api.thegraph.com/subgraphs/name/0xfantaholic/wagmi-fantom",
-    blocks:
-      "https://api.thegraph.com/subgraphs/name/beethovenxfi/fantom-blocks",
+      "https://api.studio.thegraph.com/query/53494/v3-fantom/version/latest",
+    blocks: sdk.graph.modifyEndpoint(
+      "GxTjovT2QA2C4ycYHHVbxtepmMJuGL1tYvhBFLb7MZVj"
+    ),
   },
   [CHAIN.KAVA]: {
     subgraph: "https://kava.graph.wagmi.com/subgraphs/name/v3",
@@ -24,12 +27,19 @@ export const LINKS: { [key: string]: any } = {
   },
   [CHAIN.ETHEREUM]: {
     subgraph: "https://api.studio.thegraph.com/query/53494/v3/version/latest",
-    blocks:
-      "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+    blocks: sdk.graph.modifyEndpoint(
+      "9A6bkprqEG2XsZUYJ5B2XXp6ymz9fNcn4tVPxMWDztYC"
+    ),
   },
   [CHAIN.METIS]: {
     subgraph: "https://metis.graph.wagmi.com/subgraphs/name/v3",
     blocks: "https://metis.graph.wagmi.com/subgraphs/name/blocks",
+  },
+  [CHAIN.SONIC]: {
+    subgraph: "https://sonic.graph.wagmi.com/subgraphs/name/v3",
+    blocks: sdk.graph.modifyEndpoint(
+      "6LJ3ThDWXaQrHGPL3KHFMcZiJpbKd1qSs9QAvgd9X89Z"
+    ),
   },
 };
 
@@ -67,8 +77,8 @@ const getData = async (chain: Chain, timestamp: number) => {
   const totalVolume = Number(data.factories[0].totalVolumeUSD);
   const totalFee = Number(data.factories[0].totalFeesUSD);
 
-  const dailyVolume = Number(data.uniswapDayData.volumeUSD);
-  const dailyFees = Number(data.uniswapDayData.feesUSD);
+  const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? "0");
+  const dailyFees = Number(data.uniswapDayData?.feesUSD ?? "0");
 
   return {
     dailyFees: `${dailyFees}`,
@@ -81,15 +91,12 @@ const getData = async (chain: Chain, timestamp: number) => {
   };
 };
 
-export const fetchVolume = (chain: string) => {
-  return async (timestamp: number) => {
-    const data = await getData(chain, timestamp);
-
-    return {
-      totalVolume: data.totalVolume,
-      dailyVolume: data.dailyVolume,
-      timestamp: data.timestamp,
-    };
+export const fetchVolume = async (options: FetchOptions) => {
+  const data = await getData(options.chain, options.startOfDay);
+  return {
+    totalVolume: data.totalVolume,
+    dailyVolume: data.dailyVolume,
+    timestamp: data.timestamp,
   };
 };
 

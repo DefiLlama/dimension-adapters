@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  // [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/danielsmith0630/fxdx-optimism-stats",
-  [CHAIN.BASE]: "https://api.thegraph.com/subgraphs/name/danielsmith0630/fxdx-base-stats"
+  // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Ey9sNQbCAa12m5f89moJrjPxXb5X7rUnGujsfbnSAs48'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('61tpLfrdoEor2ep2WctQSpGDSMetmMBc3Bb7zz7iyqsH')
 }
 
 const historicalDataSwap = gql`
@@ -63,11 +64,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     // [CHAIN.OPTIMISM]: {
     //   fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
-    //   start: 1683864388,
+    //   start: '2023-05-12',
     // },
     [CHAIN.BASE] :{
       fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-      start: 1692688600,
+      start: '2023-08-22',
     }
   },
 };

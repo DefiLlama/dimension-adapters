@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const abi_event = {
-  nameRegistered: "event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 cost,uint256 expires)",
+  nameRegistered: "event NameRegistered(string name,bytes32 indexed label,address indexed owner,uint256 baseCost,uint256 premium,uint256 expires)",
   nameRenewed: "event NameRenewed(string name,bytes32 indexed label,uint256 cost,uint256 expires)",
 };
 
@@ -15,9 +15,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: (async (timestamp: number, _: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
         const registeredLogs = await options.getLogs({
           targets: [address_v4, address_v5],
@@ -27,12 +28,19 @@ const adapter: Adapter = {
           targets: [address_v4, address_v5],
           eventAbi: abi_event.nameRenewed,
         })
-        registeredLogs.concat(renewedLogs).map((tx: any) => {
-          dailyFees.addGasToken(tx.cost)
+        renewedLogs.map((tx: any) => {
+          if (Number(tx.const) / 1e18 < 10) {
+            dailyFees.addGasToken(tx.cost)
+          }
         })
-        return { timestamp, dailyFees, dailyRevenue: dailyFees, }
+        registeredLogs.map((tx: any) => {
+          if (Number(tx.baseCost) / 1e18 < 10) {
+            dailyFees.addGasToken(tx.baseCost)
+          }
+        })
+        return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
-      start: 1677110400,
+      start: '2023-02-23',
       meta: {
         methodology
       }

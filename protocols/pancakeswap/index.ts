@@ -1,42 +1,40 @@
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
-
-import { getGraphDimensions } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
 
 const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exhange-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v2-polygon-zkevm/version/latest",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v2-arb",
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v2-base/version/latest",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx'),
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3'),
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`
 };
 
 const stablesSwapEndpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-stableswap-arb"
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
 }
 
 const v3Endpoint = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc",
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-eth",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/45376/exchange-v3-polygon-zkevm/version/latest",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-arb",
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/45376/exchange-v3-base/version/latest",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS'),
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve'),
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp'),
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.BSC]: {
@@ -45,9 +43,6 @@ const graphs = getGraphDimensions({
   },
   totalVolume: {
     factory: "pancakeFactories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -60,13 +55,10 @@ const graphs = getGraphDimensions({
   }
 });
 
-const graphsStableSwap = getGraphDimensions({
+const graphsStableSwap = getGraphDimensions2({
   graphUrls: stablesSwapEndpoints,
   totalVolume: {
     factory: "factories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -79,22 +71,13 @@ const graphsStableSwap = getGraphDimensions({
   }
 });
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
-
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD
   },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD"
   },
 });
 
@@ -110,6 +93,7 @@ const startTimes = {
 } as IJSON<number>
 
 const stableTimes = {
+  [CHAIN.ETHEREUM]: 1705363200,
   [CHAIN.BSC]: 1663718400,
   [CHAIN.ARBITRUM]: 1705363200
 } as IJSON<number>
@@ -162,9 +146,7 @@ const getResources = async (account: string): Promise<any[]> => {
   return data
 }
 
-const fetchVolume: FetchV2 = async ({ endTimestamp: timestamp, createBalances }) => {
-  const fromTimestamp = timestamp - 86400;
-  const toTimestamp = timestamp;
+const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances }) => {
   const account_resource: any[] = (await getResources(account))
   const pools = account_resource.filter(e => e.type?.includes('swap::PairEventHolder'))
     .map((e: any) => {
@@ -259,7 +241,7 @@ const adapter: BreakdownAdapter = {
             timestamp: startTimestamp
           }
         },
-        start: 1680307200,
+        start: '2023-04-01',
       }
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {
@@ -304,8 +286,7 @@ const adapter: BreakdownAdapter = {
 };
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
-  start: 1699488000,
-  // runAtCurrTime: true,
+  start: '2023-11-09',
 }
 
 export default adapter;

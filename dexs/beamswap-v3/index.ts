@@ -2,25 +2,20 @@ import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import {
-  DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
-  getGraphDimensions,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph";
 
 const endpointV3 = {
   [CHAIN.MOONBEAM]:
-    "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-v3",
+    "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v3",
 };
-const VOLUME_USD = "volumeUSD";
-const v3Graphs = getGraphDimensions({
+
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpointV3,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",
@@ -45,7 +40,7 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.MOONBEAN]: {
         fetch: v3Graphs(CHAIN.MOONBEAN),
-        start: 1684397388,
+        start: '2023-05-18',
         customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
         meta: {
           methodology: {

@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
-const endpoint = "https://api.aark.digital/stats/volume/futures";
+const endpoint = "https://public-api.aark.digital/stats/volume/futures";
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1691845200,
+      start: '2023-08-12',
     },
   },
 };

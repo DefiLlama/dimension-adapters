@@ -1,7 +1,5 @@
 import { request, gql } from "graphql-request";
 
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
 interface IGetChainStatsParams {
   graphUrl: string;
   timestamp: string;
@@ -22,7 +20,7 @@ interface IQueryResponse {
 
 async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
   const dailyVolumeQuery = gql`
-    query GetStatsForDefiLamma($fromTimestamp: Int, $toTimestamp: Int) {
+    query GetStatsForDefiLamma($dayStart: Int!, $nextDayStart: Int!) {
       optionMarkets(first: 1000) {
         totalFees
         totalVolume
@@ -33,7 +31,7 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
         first: 1000
         orderDirection: asc
         orderBy: startTimestamp
-        where: { startTimestamp_gte: $fromTimestamp, startTimestamp_lte: $toTimestamp, volume_gt: 0 }
+        where: { startTimestamp_gte: $dayStart, startTimestamp_lt: $nextDayStart }
       ) {
         volume
         fees
@@ -42,15 +40,14 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
     }
   `;
 
-  const toTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(Number(timestamp) * 1000)
-  );
-  const fromTimestamp = toTimestamp - 60 * 60 * 24;
+  // Convert to same day boundaries as subgraph
+  const dayStart = Math.floor(Number(timestamp) / 86400) * 86400;
+  const nextDayStart = dayStart + 86400;
 
   const queryResponse: IQueryResponse = await request(
     graphUrl,
     dailyVolumeQuery,
-    { fromTimestamp: fromTimestamp, toTimestamp: toTimestamp }
+    { dayStart, nextDayStart }
   );
 
   const cumulative = queryResponse.optionMarkets.reduce(
@@ -86,7 +83,7 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
   );
 
   return {
-    timestamp,
+    timestamp: dayStart.toString(),
     ...cumulative,
     totalFees: cumulative.totalRevenue,
     ...daily,

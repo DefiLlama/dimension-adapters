@@ -3,7 +3,7 @@ import { SimpleAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://pro.apex.exchange/api/v1/klines?end=${endTime}&interval=D&start=1664928000&symbol=${symbol}&limit=100`
+const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://pro.apex.exchange/api/v1/klines?end=${endTime}&interval=D&start=1708732800&symbol=${symbol}&limit=10`
 const allTiker = (symbol: string) => `https://pro.apex.exchange/api/v1/ticker?symbol=${symbol}`
 interface IVolumeall {
     id: string;
@@ -12,34 +12,24 @@ interface IVolumeall {
     price: string;
     volumeUSD: number;
 }
-const symbol: string[] =  ['1000PEPEUSDC',
-'APTUSDC',
-'ARBUSDC',
-'ATOMUSDC',
-'AVAXUSDC',
-'BCHUSDC',
-'BLURUSDC',
-'BNBUSDC',
-'BTCUSDC',
-'BTCUSDT',
-'DOGEUSDC',
-'DYDXUSDC',
-'ETCUSDC',
-'ETHUSDC',
-'ETHUSDT',
-'LBRUSDC',
-'LDOUSDC',
-'LINKUSDC',
-'LTCUSDC',
-'MATICUSDC',
-'OPUSDC',
-'ORDIUSDT',
-'SOLUSDC',
-'TIAUSDC',
-'TONUSDC',
-'WLDUSDC',
-'XRPUSDC'
-]
+const symbol: string[] = [...new Set([
+    '1000PEPEUSDC', 'APTUSDC',      'ARBUSDC',
+    'ATOMUSDC',     'AVAXUSDC',     'BCHUSDC',
+    'BLURUSDC',     'BNBUSDC',      'BTCUSDC',
+    'BTCUSDT',      'DOGEUSDC',     'DYDXUSDC',
+    'ETCUSDC',      'ETHUSDC',      'ETHUSDT',
+    'LBRUSDC',      'LDOUSDC',      'LINKUSDC',
+    'LTCUSDC',      'MATICUSDC',    'OPUSDC',
+    'ORDIUSDT',     'SOLUSDC',      'TIAUSDC',
+    'TONUSDC',      'WLDUSDC',      'XRPUSDC',
+    'STXUSDT',      'BIGTIMEUSDT',  'MEMEUSDT',
+    'PYTHUSDT',     'FETUSDT',      'RNDRUSDT',
+    'ICPUSDT',      '1000BONKUSDT', 'DOTUSDT',
+    'SEIUSDT',      'INJUSDT',      'ENSUSDT',
+    '1000SATSUSDT', 'PENDLEUSDT',   'GMTUSDT',
+    'MANTAUSDT',    'LINKUSDT',     'SOLUSDT',
+    'MATICUSDT',    'STRKUSDT',     'SUIUSDT'
+])]
 interface IOpenInterest {
     id: string;
     openInterest: string;
@@ -77,7 +67,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: getVolume,
-            start: 1664928000,
+            start: '2022-10-05',
         }
     },
 };

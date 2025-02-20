@@ -10,13 +10,15 @@ interface DailyFeeResponse {
 }
 
 const chainOverrides: { [key: string]: string } = {
-  "terra": "terra2",
+  terra: "terra2",
 };
 
 const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
-    const response: DailyFeeResponse = await httpGet(`https://edge.stride.zone/api/${overriddenChain}/stats/fees`);
+    const response: DailyFeeResponse = await httpGet(
+      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
+    );
 
     return {
       timestamp: timestamp,
@@ -25,7 +27,6 @@ const fetch = (chain: string) => {
     };
   };
 };
-
 
 const meta = {
   methodology: {
@@ -40,68 +41,72 @@ const adapter: Adapter = {
     [CHAIN.COSMOS]: {
       fetch: fetch("cosmos"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     celestia: {
       fetch: fetch("celestia"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     osmosis: {
       fetch: fetch("osmosis"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     dydx: {
       fetch: fetch("dydx"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
+    },
+    dymension: {
+      fetch: fetch("dymension"),
+      runAtCurrTime: true,
+            meta,
     },
     juno: {
       fetch: fetch("juno"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     stargaze: {
       fetch: fetch("stargaze"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     terra: {
       fetch: fetch("terra"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     evmos: {
       fetch: fetch("evmos"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     injective: {
       fetch: fetch("injective"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     umee: {
       fetch: fetch("umee"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
     },
     comdex: {
       fetch: fetch("comdex"),
       runAtCurrTime: true,
-      start: 0,
-      meta,
+            meta,
+    },
+    haqq: {
+      fetch: fetch("haqq"),
+      runAtCurrTime: true,
+            meta,
+    },
+    band: {
+      fetch: fetch("band"),
+      runAtCurrTime: true,
+            meta,
     },
   },
 };

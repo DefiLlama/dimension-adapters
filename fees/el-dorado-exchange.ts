@@ -1,13 +1,15 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
-import { Adapter } from "../adapters/types";
-import { BSC, ARBITRUM } from "../helpers/chains";
+import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
+import { ARBITRUM } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import disabledAdapter from "../helpers/disabledAdapter";
 
 const endpoints = {
-    // [BSC]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_stats_elpall_test",
-    [ARBITRUM]: "https://api.thegraph.com/subgraphs/name/metaverseblock/ede_state_elp1_arbitrimone",
+    // [BSC]: sdk.graph.modifyEndpoint('FiegiatdkorjPCvK72UyHvmJHvWtS3oQS6zwnR94Xe7c'),
+    [ARBITRUM]: sdk.graph.modifyEndpoint('G3wquxtaw68uX5GAZ7XBPWK8Fa7Buf66Y27uT8erqQZ4'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -48,10 +50,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+    version: 1,
     adapter: {
+        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         // [BSC]: {
         //     fetch: graphs(endpoints)(BSC),
-        //     start: 1670659200,
+        //     start: '2022-12-10',
         //     meta: {
         //         methodology: {
         //             Fees: "All mint, burn, margin and liquidation and swap fees are collected",
@@ -61,8 +65,8 @@ const adapter: Adapter = {
         //     }
         // },
         [ARBITRUM]: {
-            fetch: graphs(endpoints)(ARBITRUM),
-            start: 1678147200,
+            fetch: async (timestamp: number) => {return {timestamp}},
+            start: '2023-03-07',
             meta: {
                 methodology: {
                     Fees: "All mint, burn, margin and liquidation and swap fees are collected",

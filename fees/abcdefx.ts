@@ -1,14 +1,7 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getDexFeesExports } from "../helpers/dexVolumeLogs";
-import { Chain } from "@defillama/sdk/build/general";
 
 const FACTORY_ADDRESS = '0x01f43d2a7f4554468f77e06757e707150e39130c';
-
-const graph = (_chain: Chain) => {
-	// LPs get 0% fees, 100% goes to Guru's Treasury, which buys back ELITE
-	return getDexFeesExports({ chain: _chain, factory: FACTORY_ADDRESS })
-}
 
 const methodology = {
   UserFees: "Users pay a Trading fee on each swap, including Flash Loans.",
@@ -19,14 +12,16 @@ const methodology = {
   SupplySideRevenue: "0% of trading fees are distributed among liquidity providers."
 }
 
-const adapter: SimpleAdapter = {
-	adapter: {
-		[CHAIN.KCC]:		{ fetch: graph(CHAIN.KCC),		start: 1670188701,	meta: { methodology }	},
-		//[CHAIN.MULTIVAC]:	{ fetch: graph(CHAIN.MULTIVAC),	start: 1670226950,	meta: { methodology }	},	/// ! typeof CHAIN
-		[CHAIN.FANTOM]: 	{ fetch: graph(CHAIN.FANTOM),	start: 1671580916,	meta: { methodology }	},
-		//[CHAIN.ECHELON]:	{ fetch: graph(CHAIN.ECHELON),	start: 1671608400,	meta: { methodology }	},	/// ded!?
-		[CHAIN.KAVA]:		{ fetch: graph(CHAIN.KAVA),		start: 1676855943,	meta: { methodology }	}
-	}
-};
+import { uniV2Exports } from "../helpers/uniswap";
 
-export default adapter;
+const adapters: SimpleAdapter = uniV2Exports({
+  [CHAIN.FANTOM]: { factory: FACTORY_ADDRESS, },
+  [CHAIN.KCC]: { factory: FACTORY_ADDRESS, },
+  [CHAIN.KAVA]: { factory: FACTORY_ADDRESS, },
+})
+
+
+Object.keys(adapters.adapter).forEach((chain: any) => {
+  adapters.adapter[chain].meta = { methodology }
+})
+export default adapters;

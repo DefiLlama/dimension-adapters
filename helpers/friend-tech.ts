@@ -1,4 +1,4 @@
-import { ChainBlocks, Fetch, FetchOptions } from "../adapters/types";
+import { FetchV2 } from "../adapters/types";
 
 import ADDRESSES from "./coreAssets.json";
 
@@ -6,8 +6,8 @@ const event_trade = 'event Trade(address trader, address subject, bool isBuy, ui
 
 export function getFeesExport(FriendtechSharesAddress: string, eventAbis = [event_trade], {
   token = ADDRESSES.null,
-}: { token?: string } = {})  {
-  return (async (timestamp: number, _: ChainBlocks, { getLogs, createBalances, }: FetchOptions) => {
+}: { token?: string } = {}) {
+  return (async ({ getLogs, createBalances, }) => {
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
     for (const eventAbi of eventAbis) {
@@ -22,6 +22,6 @@ export function getFeesExport(FriendtechSharesAddress: string, eventAbis = [even
         if (e.holderEthAmount) dailyFees.add(token, e.holderEthAmount)
       })
     }
-    return { dailyFees, dailyRevenue, timestamp, }
-  }) as Fetch
+    return { dailyFees, dailyRevenue, }
+  }) as FetchV2
 }

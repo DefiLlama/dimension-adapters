@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -6,7 +7,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-const endpoint = "https://api.thegraph.com/subgraphs/name/symmiograph/symmioanalytics_bnb_8_2"
+const endpoint = sdk.graph.modifyEndpoint('DYHqLcjXMBC9c7AGvrYSBfQ6fQS723PJHF2usA9JX8NN')
 
 const query = gql`
   query stats($from: String!, $to: String!) {
@@ -83,7 +84,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,
-      start: 1702892400
+      start: '2023-12-18'
     }
   }
 }

@@ -28,10 +28,11 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
 }
 
 const adapters: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
-      start: 1699142400,
+      start: '2023-11-05',
       // runAtCurrTime: true
     }
   }

@@ -1,21 +1,18 @@
-import { DEFAULT_TOTAL_VOLUME_FIELD, univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import * as sdk from "@defillama/sdk";
+import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_DAILY_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { SimpleAdapter } from "../../adapters/types";
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/q1q0/squad-exchange",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FDn5m4S3bFqd8TV97P61i3dhZLpSigFwpRQEan2mrjTE'),
 };
 
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "pancakeFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
   feesPercent: {
     type: "volume",
@@ -33,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v2Graph(CHAIN.BSC),
-      start: 1702339200
+      start: '2023-12-12'
     },
   },
 };

@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
-      start: 1675814400,
+      start: '2023-02-08',
     },
   },
 };

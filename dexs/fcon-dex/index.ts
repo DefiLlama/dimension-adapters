@@ -31,8 +31,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.MANTLE]: {
-      fetch: fetch,
-      start: 1691280000,
+      fetch: async (timestamp: number) => {return {timestamp}},
+      start: '2023-08-06',
     },
   },
 };

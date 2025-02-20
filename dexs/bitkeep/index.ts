@@ -37,31 +37,31 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: graph(CHAIN.ETHEREUM),
-            start: 1667232000,
+            start: '2022-10-31',
         },
-        [CHAIN.POLYGON]: {
-            fetch: graph(CHAIN.POLYGON),
-            start: 1667232000,
-        },
+        // [CHAIN.POLYGON]: {
+        //     fetch: graph(CHAIN.POLYGON),
+        //     start: '2022-10-31',
+        // },
         [CHAIN.BSC]: {
             fetch: graph(CHAIN.BSC),
-            start: 1667232000,
+            start: '2022-10-31',
         },
         [CHAIN.HECO]: {
             fetch: graph(CHAIN.HECO),
-            start: 1667232000,
+            start: '2022-10-31',
         },
         [CHAIN.FANTOM]: {
             fetch: graph(CHAIN.FANTOM),
-            start: 1667232000,
+            start: '2022-10-31',
         },
         [CHAIN.ARBITRUM]: {
             fetch: graph(CHAIN.ARBITRUM),
-            start: 1667232000,
+            start: '2022-10-31',
         },
         [CHAIN.OPTIMISM]: {
             fetch: graph(CHAIN.OPTIMISM),
-            start: 1667232000,
+            start: '2022-10-31',
         },
     }
 };

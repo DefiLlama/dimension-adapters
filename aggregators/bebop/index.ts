@@ -1,6 +1,8 @@
 import { ethers } from "ethers";
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
+import JAM_ABI from "./jamAbi";
+import {queryDuneSql} from "../../helpers/dune"
 
 const abis = {
   "AggregateOrderExecuted": "event AggregateOrderExecuted(bytes32 order_hash)",
@@ -35,11 +37,16 @@ const abis = {
 }
 const contract_interface = new ethers.Interface(Object.values(abis));
 
+const JamContract = new ethers.Contract('0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b', JAM_ABI)
+const jamAddress = {
+  era:'0x574d1fcF950eb48b11de5DF22A007703cbD2b129',
+  default: '0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b'
+}
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
-
   const logs = await getLogs({
     target: '0xBeB09000fa59627dc02Bb55448AC1893EAa501A5',
     topics: ['0xc59522161f93d59c8c4520b0e7a3635fb7544133275be812a4ea970f4f14251b'] // AggregateOrderExecuted
@@ -76,14 +83,53 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
       api.log('no order', d.hash, d.input.slice(0, 10), d.to, chain, decoded.signature)
     }
   }
-  return { timestamp, dailyVolume }
+
+  const jamLogs = await getLogs({
+    target: jamAddress[chain] || jamAddress.default,
+    topics: ['0x7a70845dec8dc098eecb16e760b0c1569874487f0459ae689c738e281b28ed38'] // Settlement,
+  });
+
+  const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
+  for (const d of jamData) {
+    const decoded = JamContract.interface.parseTransaction(d)
+    if (!decoded) {
+      api.log('jam no decoded', d.hash, d.input.slice(0, 10), d.to, chain)
+      continue;
+    }
+    const {buyAmounts = [], sellAmounts = [], buyTokens = [], sellTokens = []} = decoded?.args?.order  
+    buyAmounts?.forEach((amount: any, i: number) => {
+      dailyVolume.add(buyTokens[i], amount)
+    })
+    sellAmounts?.forEach((amount: any, i: number) => {
+      dailyVolume.add(sellTokens[i], amount)
+    })
+  }
+
+  return { dailyVolume }
 };
 
-const adapter: any = {
+async function fetchDune(options: FetchOptions){
+  const vol = await queryDuneSql(options, `SELECT SUM(amount_usd) AS vol FROM bebop.trades WHERE blockchain = 'CHAIN' AND TIME_RANGE`)
+  const dailyVolume = options.createBalances()
+  dailyVolume.addCGToken("tether", vol[0].vol)
+  return { dailyVolume }
+}
+
+const adapter: Adapter = {
+  version: 2,
+  isExpensiveAdapter: true,
   adapter: {
-    arbitrum: { fetch, start: 1685491200, },
-    ethereum: { fetch, start: 1685491200, },
-    polygon: { fetch, start: 1685491200, },
+    arbitrum: { fetch: fetchDune, start: '2023-05-31', },
+    ethereum: { fetch: fetchDune, start: '2023-05-31', },
+    polygon: { fetch: fetchDune, start: '2023-05-31', },
+    bsc: { fetch: fetchDune, start: '2023-05-31', },
+    blast: { fetch, start: '2023-05-31', },
+    era: { fetch, start: '2023-05-31', },
+    optimism: { fetch: fetchDune, start: '2023-05-31', },
+    mode: { fetch, start: '2023-05-31', },
+    base: { fetch: fetchDune, start: '2023-05-31', },
+    scroll: { fetch: fetchDune, start: '2023-05-31', },
+    taiko: { fetch, start: '2023-05-31', },
   },
 };
 

@@ -25,7 +25,7 @@ const fetch = async (timestamp: number) => {
     markets.map(async m =>
       await fetchURL(`${BASE_URL}/rpc/volume_history?market_id=${m.market_id}&time=${dayISO}`)
         .then(res => (
-          { daily: res[0].daily * m.tick_size / 1000000, total: res[0].total * m.tick_size / 1000000 }
+          { daily: res[0].daily / 1000000, total: res[0].total / 1000000 }
         ))
     )
   );
@@ -34,9 +34,24 @@ const fetch = async (timestamp: number) => {
     return { daily: prev.daily + curr.daily, total: prev.total + curr.total };
   }, {daily: 0, total: 0});
 
+  const feesPerMarket = await Promise.all(
+    markets.map(async m =>
+      await fetchURL(`${BASE_URL}/rpc/fees?market_id=${m.market_id}&time=${dayISO}`)
+        .then(res => (
+          { daily: res[0].daily / 1000000, total: res[0].total / 1000000 }
+        ))
+    )
+  );
+
+  const fees = feesPerMarket.reduce((prev, curr) => {
+    return { daily: prev.daily + curr.daily, total: prev.total + curr.total };
+  }, { daily: 0, total: 0 });
+
   let res = {
     totalVolume: `${volumes.total}`,
     dailyVolume: `${volumes.daily}`,
+    dailyFees: `${fees.daily}`,
+    totalFees: `${fees.total}`,
     timestamp: dayTimestamp,
   };
 

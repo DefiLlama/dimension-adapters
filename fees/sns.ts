@@ -1,6 +1,6 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
 
 const API_URL = "https://sns-api.bonfida.com/v2/defilama/fees-adapter";
@@ -11,9 +11,9 @@ interface IData {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
-  const url = `${API_URL}?from=${todaysTimestamp}&to=${timestamp}`;
+  const todaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const url = `${API_URL}?from=${fromTimestamp}&to=${todaysTimestamp-1}`;
   const data: IData = await httpGet(url);
   return {
     timestamp: todaysTimestamp,
@@ -33,7 +33,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1624941677,
+      start: '2021-06-29',
       meta: {
         methodology,
       },

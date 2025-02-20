@@ -12,13 +12,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFeesExport(FriendV1Address, [event_trade]),
-      start: 1692835200,
+      start: '2023-08-24',
     },
     [CHAIN.OP_BNB]: {
       fetch: getFeesExport(FriendV2Address, [event_trade_V2]),
-      start: 1698710400,
+      start: '2023-10-31',
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

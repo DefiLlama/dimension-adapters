@@ -11,8 +11,8 @@ export type IGraphs = (chain: Chain) => (options: FetchOptions|number, chainBloc
 
 export default (chain: Chain, graphs: any): Fetch|FetchV2 => async (options: FetchOptions|number, chainBlocks: ChainBlocks): Promise<FetchResultGeneric> => {
     const fetchGetVolume = graphs(chain)
-    let resultPreviousDayN
-    let resultDayN
+    let resultPreviousDayN: any = {}
+    let resultDayN: any = {}
     if (typeof options == 'number') {
         resultDayN = await fetchGetVolume(options, chainBlocks)
         const timestampPreviousDay = options - ONE_DAY_IN_SECONDS
@@ -22,6 +22,7 @@ export default (chain: Chain, graphs: any): Fetch|FetchV2 => async (options: Fet
         resultPreviousDayN = await fetchGetVolume(timestampPreviousDay, chainBlocksPreviousDay)
     } else {
         resultDayN = await fetchGetVolume(options)
+        options.endTimestamp = options.endTimestamp - ONE_DAY_IN_SECONDS;
         resultPreviousDayN = await fetchGetVolume(options)
     }
     const response: FetchResultGeneric = resultDayN

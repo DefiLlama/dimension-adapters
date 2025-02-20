@@ -10,10 +10,12 @@ const chains = [
   CHAIN.ARBITRUM,
   CHAIN.AVAX,
   CHAIN.MANTLE,
+  CHAIN.BASE,
+  CHAIN.ZETA
 ];
 
 const NATIVE_ANALYTICS_ENDPOINT =
-  "http://chain-monitoring.native.org/analytics/overview";
+  "https://newapi.native.org/native-offchain-monitor-mono/analytics/overview";
 
 interface ResEntry {
   date: number;
@@ -68,7 +70,7 @@ const adapter: SimpleAdapter = {
             totalVolume: totalVol,
           };
         },
-        start: async () => getStartTime(chain),
+        // start: async () => getStartTime(chain),
       },
     };
   }, {} as BaseAdapter),

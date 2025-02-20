@@ -61,7 +61,7 @@ const toDbrUSDValue = (bn: BigNumber, dbrHistoPrice: number) => {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, getFromBlock, api }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ toTimestamp, createBalances, getLogs, getFromBlock, api }: FetchOptions) => {
     const dbr = DBR_CONTRACTS[chain];
     const dola = DOLA_CONTRACTS[chain];
     const dbrAuction = DBR_AUCTION_CONTRACTS[chain];
@@ -78,7 +78,7 @@ const fetch = (chain: Chain) => {
       getDbrPrices(),
     ]);
 
-    const dbrHistoPrice = dbrPrices.findLast(d => d.timestamp < (timestamp * 1000)).price;
+    const dbrHistoPrice = dbrPrices.findLast(d => d.timestamp < (toTimestamp * 1000)).price;
 
     const existingMarkets = markets.filter(m => m.startingBlock <= block)
 
@@ -159,16 +159,16 @@ const fetch = (chain: Chain) => {
       dailyFees,
       dailyRevenue,
       dailyHoldersRevenue,      
-      timestamp,
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1670716800,
+      start: '2022-12-11',
       meta: {
         methodology,
       },

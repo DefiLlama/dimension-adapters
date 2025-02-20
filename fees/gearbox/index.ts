@@ -51,7 +51,7 @@ interface ILog {
 }
 
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
 
@@ -167,14 +167,15 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     });
   const dailyRevenue = dailyFees.clone()
   dailyRevenue.resizeBy(0.5);
-  return { timestamp, dailyFees, dailyRevenue, };
+  return { dailyFees, dailyRevenue, };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1665360000,
+      start: '2022-10-10',
     },
   },
 };

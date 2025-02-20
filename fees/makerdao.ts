@@ -1,91 +1,28 @@
-import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import { getBlock } from "../helpers/getBlock";
-import { ChainBlocks } from "../adapters/types";
-import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../utils/date";
+import fetchURL from "../utils/fetchURL";
+import { DAY } from "../utils/date";
 
-const endpoints = {
-  [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
-}
+const getDay = (ts:number) => new Date(ts*1000).toISOString().split('T')[0]
 
-// Source: https://makerburn.com/#/rundown
-const collateralYields = {
-  "RWA007-A": 4,
-  "RWA009-A": 0.11,
-  "RWA010-A": 4,
-  "RWA011-A": 4,
-  "RWA014-A": 2.6,
-  "RWA015-A": 4.5,
-  "PSM-GUSD-A": 2,
-} as {
-  [rwa:string]:number
-}
+async function fetch(_a:any, _b:any, { startTimestamp, endTimestamp, startOfDay }:any) {
+  const data = await fetchURL(`https://info-sky.blockanalitica.com/api/v1/revenue/historic/?start_date=${getDay(startTimestamp-3*DAY)}&end_date=${getDay(endTimestamp+3*DAY)}`)
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
+  const dayData = data.find((d:any)=>d.date==getDay(startOfDay))
+  const dailyFee = (Number(dayData.stability_fee) + Number(dayData.liquidation_income) + Number(dayData.psm_fees))/365
 
-      const todaysBlock = (await getBlock(todaysTimestamp, chain, chainBlocks));
-      const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-
-      const graphQuery = gql
-      `query fees {
-        yesterday: collateralTypes(block: {number: ${yesterdaysBlock}}) {
-          id
-          totalDebt
-          stabilityFee
-        }
-        today: collateralTypes(block: {number: ${todaysBlock}}) {
-          id
-          totalDebt
-          stabilityFee
-        }
-      }`;
-
-      const graphRes = await request(graphUrls[chain], graphQuery);
-
-      const secondsBetweenDates = todaysTimestamp - yesterdaysTimestamp;
-      
-      const todayDebts: { [id: string]: BigNumber } = {};
-      let dailyFee = new BigNumber(0)
-
-      for (const collateral of graphRes["today"]) {
-        todayDebts[collateral.id] = new BigNumber(collateral["totalDebt"]);
-      }
-
-      for (const collateral of graphRes["yesterday"]) {
-        if (todayDebts[collateral.id]) {
-          const avgDebt = todayDebts[collateral.id].plus(new BigNumber(collateral["totalDebt"])).div(2)
-          let accFees = new BigNumber(Math.pow(collateral["stabilityFee"], secondsBetweenDates) - 1)
-          if(collateralYields[collateral.id]){
-            accFees = new BigNumber(collateralYields[collateral.id]/365e2)
-          }
-          dailyFee = dailyFee.plus(avgDebt.multipliedBy(accFees))
-        }
-      }
-
-      return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
-      };
-    };
+  // check against https://makerburn.com/#/
+  return {
+    dailyFees: dailyFee,
+    dailyRevenue: dailyFee - Number(dayData.savings_rate_cost)/365,
   };
 };
 
 
-const adapter: Adapter = {
+const adapter = {
   adapter: {
     [ETHEREUM]: {
-        fetch: graphs(endpoints)(ETHEREUM),
-        start: 1573672933,
+      fetch,
+      start: '2019-11-13',
     },
   }
 }

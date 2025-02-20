@@ -1,75 +1,24 @@
-import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { queryDune } from "../helpers/dune";
-import { queryIndexer } from "../helpers/indexer";
+import { getSolanaReceived } from "../helpers/token";
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
-  const deployer = [
-    "xf414d478934c29d9a80244a3626c681a71e53bb2", "x37aab97476ba8dc785476611006fd5dda4eed66b"
-  ].map(i => `'\\${i}'::bytea`).join(', ')
-  const transactions = await queryIndexer(`
-      SELECT
-        encode(data, 'hex') AS data
-      FROM
-        ethereum.event_logs
-      WHERE
-          block_number > 19170281
-          AND contract_address IN (
-              SELECT DISTINCT address
-              FROM ethereum.traces
-              WHERE
-                  block_number > 17345415
-                  AND from_address IN ( ${deployer} )
-                  AND "type" = 'create'
-                  and address is not null
-          )
-          AND topic_0 = '\\x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f'
-          AND block_time BETWEEN llama_replace_date_range;
-    `, options)
-  const dailyFees = options.createBalances();
-  transactions.map((e: any) => {
-    dailyFees.addGasToken(Number('0x' + e.data.slice(0, 64)));
-  })
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
-
+const fethcFeesSolana = async (options: FetchOptions) => {
+  const dailyFees = await getSolanaReceived({ options, target: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF' })
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
 
-interface IFees {
-  block_date: string;
-  feesSOL: number;
+const contract_address: any = {
+  [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  [CHAIN.BASE]: '0x1fba6b0bbae2b74586fba407fb45bd4788b7b130',
+  [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
 }
 
-const fethcFeesSolana = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  try {
-    const dateStr = new Date(todaysTimestamp * 1000).toISOString().split('T')[0];
-    const value: IFees[] = (await queryDune("2685322"));
-    const dayItem = value.find((item: any) => item.block_date.split(' ')[0] === dateStr);
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const fees = (dayItem?.feesSOL || 0) * 1e9;
-    dailyFees.add('So11111111111111111111111111111111111111112', fees);
-    dailyRevenue.add('So11111111111111111111111111111111111111112', fees) ;
-    return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
-      timestamp
-    }
-  } catch (error: any) {
-    return {
-      dailyFees: "0",
-      timestamp
-    }
-  }
-}
-
-const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const logs = await options.getLogs({
     topic: '0x72015ace03712f361249380657b3d40777dd8f8a686664cab48afd9dbbe4499f',
-    target: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+    target: contract_address[options.chain],
   });
   logs.map((log: any) => {
     const data = log.data.replace('0x', '');
@@ -80,25 +29,28 @@ const fetchBlats = async (timestamp: number, _: ChainBlocks, options: FetchOptio
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyRevenue,
-    timestamp
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: 1685577600,
+      fetch: fetchFees,
+      start: '2023-06-01',
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
-      runAtCurrTime: true,
-      start: 1685577600,
+      start: '2023-06-01',
     },
     [CHAIN.BLAST]: {
-      fetch: fetchBlats,
-      start: 1685577600,
-    }
+      fetch: fetchFees,
+      start: '2023-06-01',
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchFees,
+      start: '2023-06-01',
+    },
   },
   isExpensiveAdapter: true,
 };

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultVolume } from "../../adapters/types";
@@ -18,7 +19,7 @@ type IURL = {
 };
 
 const endpoints: IURL = {
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/immortalx-io/immortalx",
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('DGN3dMffNnXZRAHFyCAq3csJbe2o7g9Jdg2XHe2mzVdG'),
 };
 
 const fetch = (chain: Chain) => {
@@ -52,7 +53,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetch(CHAIN.CELO),
-      start: 1690848000,
+      start: '2023-08-01',
     },
   },
 };

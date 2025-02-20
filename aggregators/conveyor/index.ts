@@ -35,7 +35,7 @@ const adapter: any = {
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(chain),
           runAtCurrTime: true,
-          start: 1692897682,
+          start: '2023-08-24',
         },
       };
     }, {}),

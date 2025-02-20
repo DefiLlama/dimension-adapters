@@ -1,20 +1,17 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
-const {
-  getChainVolume,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  DEFAULT_DAILY_VOLUME_FIELD,
-} = require("../../helpers/getUniSubgraphVolume");
 const { BSC, FANTOM } = require("../../helpers/chains");
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
 const endpoints = {
-  [BSC]: "https://api.thegraph.com/subgraphs/name/whale-swap/exchange-bsc",
-  [FANTOM]: "https://api.thegraph.com/subgraphs/name/whale-swap/exchange-ftm",
+  [BSC]: sdk.graph.modifyEndpoint('6GFVtwE9cc6Rs5N4zh3WE4HxppKkaHyuetwPLutjRqZw'),
+  [FANTOM]: sdk.graph.modifyEndpoint('GVz2cRMu62ePnd3dXq42SDdTMds7koaJ1w4X5cxfdrco'),
 };
 
 const DAILY_VOLUME_FACTORY = "dayData";
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: {
     [BSC]: endpoints[BSC],
     [FANTOM]: endpoints[FANTOM],
@@ -22,10 +19,6 @@ const graphs = getChainVolume({
   totalVolume: {
     factory: "whaleswapFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
   },
 });
 

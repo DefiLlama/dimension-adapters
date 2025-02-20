@@ -1,25 +1,23 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { BreakdownAdapter, BaseAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 
 import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
+  getGraphDimensions2,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraph"
 
 const v2Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DsZsQrDp7VswGGm6PburYZ91AM3E9vwH45nwLCj3kXHA'),
 };
 
 const v3Endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/hekman-eth/arbidex-v3",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AQPMJVpukYUo96WvuKqn7aPZn3m8BHckYs82ZLSMKyeu'),
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v2Graph = getGraphDimensions({
+const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
     type: "volume",
@@ -32,15 +30,11 @@ const v2Graph = getGraphDimensions({
   }
 });
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
   feesPercent: {
     type: "fees",

@@ -1,76 +1,86 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import type { FetchOptions, } from "../adapters/types";
+import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { getEnv } from "../helpers/env";
+const axios = require('axios');
 
-interface IData {
-  yieldToken: string;
-  totalHarvested: string;
-  minimumAmountOut: string;
+type IRecipient = {
+  [chain: string]: string;
+};
+
+type IRes = {
+  to: string,
+  date: string,
+  token: string,
+  category: string,
+  usdValue: string
+  tokenAmount: string
 }
 
-const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2_ftm",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/alchemix-finance/alchemix_v2_optimisim"
+const pinataApiKey: string = getEnv('ALCHEMIX_KEY')
+const pinataApiSecret: string = getEnv('ALCHEMIX_SECRET')
+const ipfs: string = 'https://ipfs.imimim.info/ipfs/'
+
+const CONFIG: IRecipient = {
+  ethereum: '0x8392..e225',
+  optimism: '0xC224..A94a',
+  arbitrum: '0x7e10..A043'
+}
+
+async function getPinataHash(pinataFileName: string): Promise<string> {
+  const requestHeaders = {
+    "Content-Type": "application/json",
+    "pinata_api_key": pinataApiKey,
+    "pinata_secret_api_key": pinataApiSecret
 };
 
-const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)
-  {
-    alchemistHarvestEvents(
-      first: 1000
-      orderBy: timestamp
-      orderDirection: desc
-      where: {
-        timestamp_gte: $timestampFrom
-        timestamp_lte: $timestampTo
-      }
-      ){
-      timestamp,
-      yieldToken,
-      totalHarvested,
-      minimumAmountOut,
-      contract {
-        id
-      }
-    }
-  }`;
+  const findFileString1 = "https://api.pinata.cloud/data/pinList?includeCount=false&metadata[name]=";
+  const findFileString2 = "&status=pinned&pageLimit=1";
+  const findFileUrl = findFileString1 + pinataFileName + findFileString2;
+  
+  const { data } =  await axios.get(findFileUrl, { headers: requestHeaders });
+  return data.rows[0].ipfs_pin_hash;
+}
 
-  return (chain: Chain) => {
-    return async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp }: FetchOptions): Promise<FetchResultFees> => {
-      const dailyFees = createBalances()
-
-      const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
-        timestampFrom: fromTimestamp,
-        timestampTo: toTimestamp
-      })).alchemistHarvestEvents;
-
-      graphRes.map((a: IData) => dailyFees.add(a.yieldToken, a.totalHarvested))
-      const dailyRevenue = dailyFees.clone(0.1)
-
-      return { dailyFees, dailyRevenue, timestamp }
-    }
-  }
+const timestampToDate = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000);
+  return date.toISOString().split('T')[0];
 };
 
+const fetch = async (timestamp: number, _: any, { chain}: FetchOptions) => {
+  const recipient = CONFIG[chain]
+  const apiDate = timestampToDate(timestamp)
+
+  const pinataHash = await getPinataHash('den_revenue.json')
+  const { data } = await axios.get(ipfs + pinataHash)
+
+  const dataAtApiDate: IRes [] = data.filter((item: any) => item.date === apiDate && item.to === recipient);
+  
+  const totalFeesUsdValue = dataAtApiDate.reduce((sum, item) => {
+    const usdValue = parseFloat(item.usdValue);
+    return sum +  usdValue;
+  }, 0);
+
+  return { timestamp, dailyFees: totalFeesUsdValue, dailyRevenue: totalFeesUsdValue }
+}
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
-    // [CHAIN.ETHEREUM]: { // index error
-    //   fetch: graph(endpoints)(CHAIN.ETHEREUM),
-    //   start: 1669852800
-    // },
-    // [CHAIN.FANTOM]: {
-    //   fetch: graph(endpoints)(CHAIN.FANTOM),
-    //   start: 1669852800
-    // },
+    [CHAIN.ETHEREUM]: { 
+      fetch,
+      start: '2021-02-28'
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2021-02-28'
+    },
     [CHAIN.OPTIMISM]: {
-      fetch: graph(endpoints)(CHAIN.OPTIMISM),
-      start: 1669852800
+      fetch,
+      start: '2021-02-28'
     }
   }
 }
 
 export default adapter;
+

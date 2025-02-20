@@ -37,9 +37,9 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {
         fetch: fetch,
-        start: 1646784000,
+        start: '2022-03-09',
     },
-  }
+  },
 }
 
 export default adapter;

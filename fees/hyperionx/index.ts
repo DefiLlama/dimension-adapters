@@ -1,6 +1,5 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
 import { gql, GraphQLClient } from "graphql-request";
 import { Chain } from "@defillama/sdk/build/general";
 
@@ -23,11 +22,9 @@ interface IResponse {
 
 
 const graphs = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const toTimestamp = timestamp;
-    const fromTimestamp = timestamp - 24 * 60 * 60;
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
+  return async ({ getFromBlock, getToBlock }: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+    
     const query = gql`
       {
         today:protocolMetrics(block:{number:${toBlock}}, where: {id: "1"}){
@@ -47,7 +44,6 @@ const graphs = (chain: Chain) => {
     const totalFee = Number(response.today[0].totalFee) / 10 ** 6;
 
       return {
-        timestamp,
         totalFees: totalFee.toString(),
         dailyFees: dailyFees.toString(),
       };
@@ -58,9 +54,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKFAIR]: {
       fetch: graphs(CHAIN.ZKFAIR),
-      start: 1706659200,
+      start: '2024-01-31',
     },
   },
+  version: 2
 };
 
 export default adapter;

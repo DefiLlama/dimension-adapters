@@ -13,7 +13,7 @@ const ChainId: TChainID = {
   [CHAIN.XDAI]: 100,
   [CHAIN.POLYGON]: 137,
   [CHAIN.FANTOM]: 250,
-  [CHAIN.ERA]: 324,
+  // [CHAIN.ERA]: 324,
   [CHAIN.POLYGON_ZKEVM]: 1101,
   [CHAIN.KAVA]: 2222,
   [CHAIN.KLAYTN]: 8217,
@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(ChainId[chain]),
-        start: 1675209600,
+        start: '2023-02-01',
       },
     };
   }, {}),

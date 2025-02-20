@@ -19,10 +19,11 @@ const fees = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fees,
-      start: 1693440000,
+      start: '2023-08-31',
     }
   }
 }

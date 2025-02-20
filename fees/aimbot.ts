@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 import { httpGet } from "../utils/fetchURL";
@@ -8,7 +8,7 @@ interface IData {
   value: string;
 }
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (options: FetchOptions) => {
     const { createBalances, } = options
   const dailyFees = createBalances()
   const transfer_txs = `
@@ -41,15 +41,16 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
   const openBotFundAmount = openBotFundData['total'];
   dailyFees.addGasToken(openBotFundAmount * 1e18);
 
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
+  return { dailyFees, dailyRevenue: dailyFees }
 
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1690934400,
+      start: '2023-08-02',
     },
   },
 };

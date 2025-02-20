@@ -1,89 +1,123 @@
-import { BreakdownAdapter, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import request, { gql } from "graphql-request";
+import { BreakdownAdapter, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { adapter_trade } from './gmx-v2-trade/index'
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-interface ILog {
-  data: string;
-  transactionHash: string;
-  topics: string[];
+const endpoints: { [key: string]: string } = {
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
+  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
 }
 
-const topic0_ins = '0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160';
-const topic1_ins = '0xf35c99b746450c623be607459294d15f458678f99d535718db6cfcbccb117c09';
+const historicalDataSwap = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeInfos(where: {period: $period, id: $id}) {
+        swapVolumeUsd
+      }
+  }
+`
 
-interface IToken {
-  amount: number;
-  token: string;
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeInfos(where: {period: $period, id: $id}) {
+        marginVolumeUsd
+      }
+  }
+`
+
+interface IGraphResponse {
+  volumeInfos: Array<{
+    marginVolumeUsd: string,
+    swapVolumeUsd: string,
+  }>
 }
 
-type TChain = {
-  [s: Chain | string]: string;
+const getFetch = (query: string)=> (chain: string): Fetch => async (_tt: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
+  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+    id: '1d:' + String(dayTimestamp),
+    period: '1d',
+  })
+  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+    id: 'total',
+    period: 'total',
+  })
+
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume:
+      dailyData.volumeInfos.length == 1
+        ? String(Number(Object.values(dailyData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+    totalVolume:
+      totalData.volumeInfos.length == 1
+        ? String(Number(Object.values(totalData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+        : undefined,
+  }
 }
 
-const contract: TChain = {
-  [CHAIN.ARBITRUM]: '0xc8ee91a54287db53897056e12d9819156d3822fb',
-  [CHAIN.AVAX]: '0xdb17b211c34240b014ab6d61d4a31fa0c0e20c26'
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1630368000,
+  [CHAIN.AVAX]: 1640131200,
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const balances = new sdk.Balances({ chain, timestamp })
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const toTimestamp = timestamp
-    const fromBlock = (await getBlock(fromTimestamp, chain, {}));
-    const toBlock = (await getBlock(toTimestamp, chain, {}));
+const methodology = {
+  dailyVolume:
+    "Sum of daily total volume for all markets on a given day.",
+  totalVolume:
+    "Sum of overall total volume for all markets since inception."
+}
 
-    const swap_logs: ILog[] = (await sdk.getEventLogs({
-      target: contract[chain],
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-      chain: chain,
-      topics: [topic0_ins, topic1_ins]
-    })) as ILog[];
-
-    const raw_in = swap_logs.map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const volume = Number('0x' + data.slice(53 * 64, (53 * 64) + 64));
-      const address = data.slice(27 * 64, (27 * 64) + 64);
-      const contract_address = '0x' + address.slice(24, address.length);
-      return {
-        amount: volume,
-        token: contract_address,
-      } as IToken
-    })
-
-    raw_in.map((e: IToken) => {
-      balances.add(e.token, e.amount)
-    })
-
-    return {
-      dailyVolume: await balances.getUSDString(),
-      timestamp
+const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+  const query = gql`
+    {
+      volumeRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+          totalVolume
+          tradeVolume
+      }
     }
+  `
+  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
+  const res = await request(url , query)
+  const dailyVolume = res.volumeRecordDailies
+    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
+  const totalVolume = res.volumeRecordDailies
+    .reduce((acc: number, record: { totalVolume: string }) => acc + Number(record.totalVolume), 0)
+  return {
+    timestamp: options.startOfDay,
+    dailyVolume: dailyVolume / (10 ** 20),
+    totalVolume: totalVolume / (10 ** 20)
   }
 }
 
-
-const adapter: any = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1688428800,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: 1688428800,
-    },
-  },
-};
-
-const adapters: BreakdownAdapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
-    "gmx-v2-swap": adapter["adapter"],
-    "gmx-v2-trade": adapter_trade["adapter"],
+    "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataSwap)(chain),
+          start: startTimestamps[chain],
+          meta: {methodology}
+        }
+      }
+    }, {}),
+    "gmx-v2-trade": Object.keys(endpoints).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: getFetch(historicalDataDerivatives)(chain),
+          start: startTimestamps[chain],
+          meta: {methodology}
+        }
+      }
+    }, {})
   }
 }
-export default adapters;
+
+adapter.breakdown["gmx-v2-trade"][CHAIN.SOLANA] = {
+  fetch: fetchSolana,
+  start: 1630368000,
+  meta: {methodology}
+}
+
+export default adapter;

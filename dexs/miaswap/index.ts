@@ -1,26 +1,17 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import disabledAdapter from "../../helpers/disabledAdapter";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints = {
   [CHAIN.ONUS]: "https://subgraph.onuschain.io/subgraphs/name/onus/miaswap-v3-subgraph"
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: VOLUME_USD,
-  },
-  dailyFees: {
-    factory: "uniswapDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -36,9 +27,10 @@ const v3Graphs = getGraphDimensions({
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ONUS]: {
-      fetch: v3Graphs(CHAIN.ONUS),
-      start: 1685577600,
+      fetch: async (timestamp: number) => { return { timestamp } },
+      start: '2023-06-01',
     },
   },
 };

@@ -22,9 +22,10 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
             fetch: fetch,
-            start: 1698494400,
+            start: '2023-10-28',
         },
-    }
+    },
+    version: 2,
 }
 
 export default adapter; 

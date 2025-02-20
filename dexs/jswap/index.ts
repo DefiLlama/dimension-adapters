@@ -1,7 +1,7 @@
 import request, { gql } from "graphql-request";
 import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
 const blocksGraph =
@@ -40,18 +40,11 @@ const getCustomBlock = async (timestamp: number) => {
   return block;
 };
 
-const DAILY_VOLUME_FACTORY = "jswapDayData";
-
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "jswapFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: 'date'
   },
   getCustomBlock,
 });
@@ -62,7 +55,7 @@ const adapter: SimpleAdapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OKEXCHAIN]: {
       fetch: graphs(CHAIN.OKEXCHAIN),
-      start: 1627385129,
+      start: '2021-07-27',
     },
   },
 };

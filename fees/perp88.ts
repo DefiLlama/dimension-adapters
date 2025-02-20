@@ -1,113 +1,120 @@
 import { Adapter } from "../adapters/types";
-import { ARBITRUM, CHAIN, POLYGON } from "../helpers/chains";
-import { request, gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
+import { CHAIN } from "../helpers/chains";
+import { gql, GraphQLClient } from "graphql-request";
+import type { ChainEndpoints, FetchV2 } from "../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/perp88/plp-pool",
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
+  [CHAIN.ARBITRUM]:
+    "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
+  [CHAIN.BLAST]:
+    "https://api.studio.thegraph.com/query/45963/blast-mainnet-stats/version/latest",
 };
 
-interface IData {
-  totalFees: string;
-}
-interface IGraph {
-  yesterday: IData;
-  today: IData;
-  statistic: IData;
-}
 const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      if (chain === CHAIN.POLYGON) {
-        const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-        const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-        const todaysBlock = (await getBlock(todaysTimestamp, chain, {}));
-        const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-        const graphQuery = gql`
-          {
-            statistic(id: 0, block: {number: ${yesterdaysBlock}}) {
-              totalFees
-            }
+  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
+    if (chain === CHAIN.ARBITRUM || chain === CHAIN.BLAST) {
+      const floorDayTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+      const totalFeeQuery = gql`
+        {
+          globalFeesStat(id: "global") {
+            totalFeePaid
+            settlementFeePaid
+            liquidationFeePaid
+            borrowingFeePaid
+            tradingFeePaid
+            addLiquidityFeePaid
+            removeLiquidityFeePaid
+            fundingFeePaid
           }
-        `;
-        const queryDaily = gql`
-          query fees {
-              yesterday: statistic(id: "0", block: {number: ${yesterdaysBlock}}){
-                totalFees
-              }
-              today: statistic(id: "0", block: {number: ${todaysBlock}}) {
-                totalFees
-              }
-            }
-        `
-
-        const graphRes: IGraph = await request(graphUrls[chain], graphQuery);
-        const graphResDaily: IGraph = await request(graphUrls[chain], queryDaily);
-        const dailyFee = (Number(graphResDaily.yesterday.totalFees) - Number(graphResDaily.today.totalFees))/1e30;
-        const totalFees = parseInt(graphRes.statistic.totalFees) / 1e30;
-
-        return {
-          timestamp,
-          dailyFees: dailyFee.toString(),
-          totalFees: totalFees.toString(),
-        };
-      } else if (chain === CHAIN.ARBITRUM) {
-        const floorDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-        const totalFeeQuery = gql`
-          {
-            globalFeesStat(id: "global") {
-              totalFeePaid
-            }
-          }
-        `
-        const dailyFeeQuery = gql`
+        }
+      `;
+      const dailyFeeQuery = gql`
           {
             dailyFeesStat(id: "${floorDayTimestamp}") {
               totalFeePaid
+              settlementFeePaid
+              liquidationFeePaid
+              borrowingFeePaid
+              tradingFeePaid
+              addLiquidityFeePaid
+              removeLiquidityFeePaid
+              fundingFeePaid
             }
           }
-        `
-        const graphQLClient = new GraphQLClient(graphUrls[chain]);
-        graphQLClient.setHeader('origin', 'https://hmx.org')
-        const totalFeeResp = await graphQLClient.request(totalFeeQuery);
-        const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
+        `;
+      const graphQLClient = new GraphQLClient(graphUrls[chain]);
+      graphQLClient.setHeader("origin", "https://hmx.org");
+      const totalFeeResp = await graphQLClient.request(totalFeeQuery);
+      const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
 
-        const finalizedDailyFee = (Number(dailyFeeResp.dailyFeesStat.totalFeePaid) / 1e30);
-        const finalizedTotalFee = (Number(totalFeeResp.globalFeesStat.totalFeePaid) / 1e30);
+      const finalizedDailyFee =
+        Number(dailyFeeResp.dailyFeesStat?.totalFeePaid || 0 ) / 1e30;
+      const finalizedTotalFee =
+        Number(totalFeeResp.globalFeesStat?.totalFeePaid || 0) / 1e30;
+      const finalizedDailyFeeWithoutFundingFee =
+        (Number(dailyFeeResp.dailyFeesStat?.tradingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.borrowingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.liquidationFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.settlementFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.addLiquidityFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.removeLiquidityFeePaid || 0)) /
+        1e30;
+      const finalizedDailyUserFee =
+        (Number(dailyFeeResp.dailyFeesStat?.tradingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.borrowingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.liquidationFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.fundingFeePaid || 0) +
+          Number(dailyFeeResp.dailyFeesStat?.settlementFeePaid || 0)) /
+        1e30;
+      const finalizedTotalUserFee =
+        (Number(totalFeeResp.globalFeesStat.tradingFeePaid) +
+          Number(totalFeeResp.globalFeesStat.borrowingFeePaid) +
+          Number(totalFeeResp.globalFeesStat.liquidationFeePaid) +
+          Number(totalFeeResp.globalFeesStat.fundingFeePaid) +
+          Number(totalFeeResp.globalFeesStat.settlementFeePaid)) /
+        1e30;
 
-        return {
-          timestamp,
-          dailyFees: finalizedDailyFee.toString(),
-          totalFees: finalizedTotalFee.toString(),
-          dailyHoldersRevenue: (finalizedDailyFee * 0.25).toString(),
-          dailySupplySideRevenue: (finalizedDailyFee * 0.75).toString(),
-        }
-      }
-
+      const dailyHoldersRevenue = (finalizedDailyFeeWithoutFundingFee * 35) / 90;
+      const dailyProtocolRevenue = (finalizedDailyFeeWithoutFundingFee * 5) / 90;
+      const dailySupplySideRevenue = (finalizedDailyFeeWithoutFundingFee * 50) / 90;
       return {
-        timestamp,
-        dailyFees: "0",
-        totalFees: "0",
-      }
+        dailyFees: finalizedDailyFee.toString(),
+        dailyUserFees: finalizedDailyUserFee.toString(),
+        dailyRevenue: (dailyHoldersRevenue + dailyProtocolRevenue).toString(),
+        dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+        dailyHoldersRevenue: dailyHoldersRevenue.toString(),
+        dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+        totalFees: finalizedTotalFee.toString(),
+        totalUserFees: finalizedTotalUserFee.toString(),
+      };
+    }
+
+    return {
+      dailyFees: "0",
+      dailyUserFees: "0",
+      dailyRevenue: "0",
+      dailyProtocolRevenue: "0",
+      dailyHoldersRevenue: "0",
+      dailySupplySideRevenue: "0",
+      totalFees: "0",
+      totalUserFees: "0",
     };
   };
+  return fetch;
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: 1668643200,
-    },
     [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1687392000,
-    }
+      fetch: graphs(endpoints),
+      start: '2023-06-22',
+    },
+    [CHAIN.BLAST]: {
+      fetch: graphs(endpoints),
+      start: '2024-02-05',
+    },
   },
 };
 

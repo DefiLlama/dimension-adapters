@@ -1,35 +1,40 @@
-import { Adapter, FetchV2 } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { Adapter, FetchResultV2, FetchV2 } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
-const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical";
-
 interface IChartItem {
-  time: string;
-  fees_spent: number;
+  labels: string;
+  protorev: number;
+  swap_fees: number;
+  taker_fees: number;
 }
 
-const fetch: FetchV2 = async ({ endTimestamp }) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
+const fetch: FetchV2 = async ({
+  startTimestamp,
+  endTimestamp,
+}): Promise<FetchResultV2> => {
+  const startDate = new Date(startTimestamp * 1000).toISOString().slice(0, 10);
+  const endDate = new Date(endTimestamp * 1000).toISOString().slice(0, 10);
+  const feeEndpoint = `https://www.datalenses.zone/numia/osmosis/lenses/hourly_revenue?start_date=${startDate}&end_date=${endDate}`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-  const totalFee = historicalFees
-    .filter(
-      (feeItem) => new Date(feeItem.time).getTime() / 1000 <= dayTimestamp,
-    )
-    .reduce((acc, { fees_spent }) => acc + fees_spent, 0);
+  let dailyFees: number = 0;
+  let dailyRevenue: number = 0;
 
-  const dailyFee = historicalFees.find(
-    (dayItem) => new Date(dayItem.time).getTime() / 1000 === dayTimestamp,
-  )?.fees_spent;
+  historicalFees
+    .filter((feeItem) => {
+      const date = new Date(feeItem.labels).getTime() / 1000;
+      return date >= startTimestamp && date <= endTimestamp;
+    })
+    .map(({ protorev, swap_fees, taker_fees }) => {
+      dailyRevenue += protorev;
+      dailyFees += swap_fees;
+      dailyFees += taker_fees;
+    });
 
   return {
-    timestamp: dayTimestamp,
-    totalFees: `${totalFee}`,
-    dailyFees: dailyFee ? `${dailyFee}` : undefined,
-    totalRevenue: "0",
-    dailyRevenue: "0",
+    dailyFees,
+    dailyRevenue,
   };
 };
 
@@ -38,8 +43,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
-      runAtCurrTime: true,
-      start: 1665964800,
+      start: '2022-10-17',
     },
   },
 };

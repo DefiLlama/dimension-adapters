@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
@@ -11,17 +12,17 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predyv3arbitrum",
+    sdk.graph.modifyEndpoint('4ZDgpHaNhFWKFvUZ9ND4hsWjsz3vR2osCZyrkun3GghM'),
 };
 
 const v320endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v320-arbitrum",
+    sdk.graph.modifyEndpoint('5icuXT29ipuwqJBF1qux8eA1zskVazyYNq9NzQvoB6eS'),
 };
 
 const v5endpoints = {
   [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/predy-dev/predy-v4-arbitrum",
+    sdk.graph.modifyEndpoint('GxfTCbMfhaBSJaXHj88Ja1iVG9CXwGWhVQsQ8YA7oLdo'),
 };
 
 const USDC_DECIMAL = 1e6;
@@ -423,6 +424,7 @@ const v3DailyRevenue = async (
 };
 
 const adapter: BreakdownAdapter = {
+  version: 1,
   breakdown: {
     v3: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
@@ -435,7 +437,7 @@ const adapter: BreakdownAdapter = {
     v5: {
       [CHAIN.ARBITRUM]: {
         fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
-        start: 1688490168,
+        start: '2023-07-04',
       },
     },
   },

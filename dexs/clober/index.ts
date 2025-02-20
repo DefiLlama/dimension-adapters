@@ -35,22 +35,22 @@ const adapter: SimpleAdapter = {
         [CHAIN.ETHEREUM]: {
             fetch: fetch('1'),
             runAtCurrTime: true,
-            start: 1683331200,
+            start: '2023-05-06',
         },
         [CHAIN.POLYGON]: {
             fetch: fetch('137'),
             runAtCurrTime: true,
-            start: 1683331200,
+            start: '2023-05-06',
         },
         [CHAIN.ARBITRUM]: {
             fetch: fetch('42161'),
             runAtCurrTime: true,
-            start: 1683331200,
+            start: '2023-05-06',
         },
         [CHAIN.POLYGON_ZKEVM]: {
             fetch: fetch('1101'),
             runAtCurrTime: true,
-            start: 1683331200,
+            start: '2023-05-06',
         },
     }
 };

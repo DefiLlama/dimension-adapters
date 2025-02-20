@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request from "graphql-request";
 import BigNumber from "bignumber.js";
@@ -7,8 +7,8 @@ type TEndpoint = {
   [s: CHAIN | string]: string;
 }
 const endpoints: TEndpoint = {
-  [CHAIN.OPTIMISM]: `https://api.thegraph.com/subgraphs/name/extrafi/extrasubgraph`,
-  [CHAIN.BASE]: `https://api.thegraph.com/subgraphs/name/extrafi/extrafionbase`
+  [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/a4998f968b8ad324eb3e47ed20c00220/subgraphs/id/3Htp5TKs6BHCcwAYRCoBD6R4X62ThLRv2JiBBikyYze`,
+  [CHAIN.BASE]: `https://api.studio.thegraph.com/query/46015/extrafionbase/version/latest`
 }
 
 interface IFeePaid {
@@ -28,11 +28,8 @@ interface ILendingPool {
 }
 
 const graphs = (chain: CHAIN) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ fromTimestamp, toTimestamp, createBalances }: FetchOptions) => {
     const dailyFees = createBalances()
-
-    const fromTimestamp = startOfDay - 60 * 60 * 24
-    const toTimestamp = startOfDay
 
     const farmingQuery = `{
       feePaids(
@@ -93,21 +90,21 @@ const graphs = (chain: CHAIN) => {
     dailyRevenue.resizeBy(0.5)
 
     return {
-      timestamp: startOfDay,
       dailyFees, dailyRevenue,
     };
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: 1683450630,
+      start: '2023-05-07',
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: 1693449471,
+      start: '2023-08-31',
     },
   },
 };

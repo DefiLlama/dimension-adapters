@@ -27,7 +27,7 @@ const chains: TChains = {
   [CHAIN.AURORA]:"aurora",
   [CHAIN.HARMONY]:"harmony",
   [CHAIN.CANTO]:"canto",
-  [CHAIN.DOGECHAIN]:"dogechain",
+  // [CHAIN.DOGECHAIN]:"dogechain",
   [CHAIN.BASE]: "base",
 };
 
@@ -63,10 +63,20 @@ const query = `
 }`
 
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+export async function fetchrequest(url: string, query: string) {
+  if (!requests[url])
+    requests[url] = request(url, query)
+  return requests[url]
+}
 const graphs = (chain: Chain) => {
   return async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IHistory[] = (await request(url, query)).dailyStatisticsByChain;
+    const historical: IHistory[] = (await fetchrequest(url, query)).dailyStatisticsByChain;
     // const historical: IHistory[] = require('./historical.json');
     const historicalVolume = historical
     const date = new Date(timestamp * 1000);
@@ -97,12 +107,13 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 1,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: 1629504000,
+        start: '2021-08-21',
         meta: {
           methodology
         }

@@ -1,12 +1,10 @@
+import { graph } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/pangolindex/exchange"
-  },
-  dailyVolume: {
-    factory: "pangolinDayData"
+    [CHAIN.AVAX]: graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq')
   },
   totalVolume: {
     factory: "pangolinFactories"
@@ -30,5 +28,6 @@ const adapter = univ2DimensionAdapter({
     Revenue: "Governance revenue is 0.05% trading fees",
   }
 });
+
 
 export default adapter;

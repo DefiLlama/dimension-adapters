@@ -1,43 +1,53 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchResultVolume } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import fetchURL from "../../utils/fetchURL";
+import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet } from "../../utils/fetchURL";
 
 const endpoints = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/exchange",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-bnb",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v1-arbitrum",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('3VgCBQh13PseR81hPNAbKua3gD8b8r33LauKjVnMbSAs'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk'),
 };
 type TEndpoint = {
   [s: string | Chain]: string;
 }
 const endpointsV2: TEndpoint = {
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/traderjoe-xyz/joe-v2",
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6KD9JYCg2qa3TxNK3tLdhj5zuZTABoLLNcnUZXKG9vuH'),
   [CHAIN.ARBITRUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/arbitrum?startTime=1672012800&aggregateBy=daily",
-  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily"
+  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily",
+  [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
 interface IVolume {
   timestamp: number;
   volumeUsd: number;
 }
-const fetchV2 = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(endpointsV2[chain]));
-    const totalVolume = historicalVolume
-      .filter(volItem => volItem.timestamp <= dayTimestamp)
-      .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
+const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = options.startOfDay;
+  const start = options.startOfDay;
+  const end = start + 24 * 60 * 60;
+  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
+  const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
+    'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
+  }}));
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
-    return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-      timestamp: dayTimestamp,
-    }
+  const totalVolume = historicalVolume
+    .filter(volItem => volItem.timestamp <= dayTimestamp)
+    .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
+
+  const dailyVolume = historicalVolume
+    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
+  return {
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    timestamp: dayTimestamp,
   }
+}
+const mapChain = (chain: Chain): string => {
+  if (chain === CHAIN.BSC) return "binance"
+  return chain
 }
 
 const graphsV1 = getChainVolume({
@@ -45,11 +55,6 @@ const graphsV1 = getChainVolume({
   totalVolume: {
     factory: "factories",
     field: "volumeUSD",
-  },
-  dailyVolume: {
-    factory: "dayData",
-    field: "volumeUSD",
-    dateField: "date"
   },
 });
 
@@ -60,43 +65,42 @@ const graphsV2 = getChainVolume({
     factory: "lbfactories",
     field: "volumeUSD",
   },
-  dailyVolume: {
-    factory: "traderJoeDayData",
-    field: "volumeUSD",
-    dateField: "date"
-  },
 });
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {
         fetch: graphsV1(CHAIN.AVAX),
-        start: 1628467200,
+        start: '2021-08-09',
       },
       [CHAIN.BSC]: {
         fetch: graphsV1(CHAIN.BSC),
-        start: 1664841600,
+        start: '2022-10-04',
       },
       [CHAIN.ARBITRUM]: {
         fetch: graphsV1(CHAIN.ARBITRUM),
-        start: 1664841600,
+        start: '2022-10-04',
       },
     },
     v2: {
       [CHAIN.AVAX]: {
         fetch: graphsV2(CHAIN.AVAX),
-        start: 1668556800
+        start: '2022-11-16'
       },
       [CHAIN.ARBITRUM]: {
-        fetch: fetchV2(CHAIN.ARBITRUM),
-        start: 1672012800
+        fetch: fetchV2,
+        start: '2022-12-26'
       },
-      [CHAIN.BSC]: {
-        fetch: fetchV2(CHAIN.BSC),
-        start: 1677801600
-      },
+      // [CHAIN.BSC]: {
+      //   fetch: fetchV2,
+      //   start: '2023-03-03'
+      // },
+      // [CHAIN.ETHEREUM]: {
+      //   fetch: fetchV2,
+      //   start: '2023-09-24'
+      // }
     }
   },
 };

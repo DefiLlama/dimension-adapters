@@ -1,26 +1,18 @@
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/carlos53093/exchange-v3",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('CTCJRpNgyiCMaQhPsKTWfsCfFBSPkzaQKKi2EjMyidCt'),
 };
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "volumeUSD",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -37,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: v3Graphs(CHAIN.BSC),
-      start: 1704758400
+      start: '2024-01-09'
     },
   },
 };

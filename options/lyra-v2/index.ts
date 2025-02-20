@@ -16,9 +16,9 @@ export const lyraVolumeEndpoint = (endTime: number) => {
 
 export const v2_adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.LYRA]: {
       fetch: fetchLyraVolumeData,
-      start: 1702630075
+      start: '2023-12-15'
     },
   },
 };

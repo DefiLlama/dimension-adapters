@@ -9,7 +9,10 @@ const endpoints: { [chain: string]: string } = {
   [CHAIN.ARBITRUM]: "https://api.curve.fi/api/getSubgraphData/arbitrum",
   [CHAIN.AVAX]: "https://api.curve.fi/api/getSubgraphData/avalanche",
   [CHAIN.OPTIMISM]: "https://api.curve.fi/api/getSubgraphData/optimism",
-  [CHAIN.XDAI]: "https://api.curve.fi/api/getSubgraphData/xdai"
+  [CHAIN.XDAI]: "https://api.curve.fi/api/getSubgraphData/xdai",
+  // [CHAIN.CELO]: "https://api.curve.fi/api/getSubgraphData/celo",
+  [CHAIN.FRAXTAL]: "https://api.curve.fi/api/getSubgraphData/fraxtal",
+  [CHAIN.BASE]: "https://api.curve.fi/api/getVolumes/base"
 };
 
 interface IAPIResponse {
@@ -18,16 +21,30 @@ interface IAPIResponse {
     totalVolume: number,
     cryptoShare: number,
     generatedTimeMs: number
+    totalVolumes: {
+      totalVolume: number
+    }
   }
 }
 
 const fetch = (chain: string) => async (timestamp: number) => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain]));
-  const t = response.data.generatedTimeMs ? response.data.generatedTimeMs / 1000 : timestamp
-  return {
-    dailyVolume: `${response.data.totalVolume}`,
-    timestamp: t,
-  };
+  try {
+    const response: IAPIResponse = (await fetchURL(endpoints[chain]));
+    const t = response.data.generatedTimeMs ? response.data.generatedTimeMs / 1000 : timestamp
+    if (chain === CHAIN.BASE) {
+      return {
+        dailyVolume: `${response.data.totalVolumes.totalVolume}`,
+        timestamp: t,
+      }
+    }
+    return {
+      dailyVolume: `${response.data.totalVolume}`,
+      timestamp: t,
+    };
+  } catch (e) {
+    return { timestamp }
+  }
+
 };
 
 const adapter: SimpleAdapter = {
@@ -36,8 +53,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: 0,
-        runAtCurrTime: true
+                runAtCurrTime: true
       }
     }
   }, {})

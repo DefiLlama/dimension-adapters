@@ -53,9 +53,10 @@ const adapter: Adapter = {
         dailyRevenue.addTokenVannila(maticAddress, burn_fee * 1e18);
         return { timestamp, dailyFees, dailyRevenue, };
       },
-      // start: 1575158400,
-      start: 1672531200
-    },
+      // start: '2019-12-01',
+      start: '2023-01-01',
+      runAtCurrTime: true,
+    }
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN

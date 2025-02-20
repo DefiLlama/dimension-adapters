@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -10,7 +11,7 @@ interface IData {
 }
 
 const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/nuoanunu/defilahma-revenue-hono"
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7Trkrt6hPzhLXUH2x4Xt9cSnSmAFKDmKNWuUHEwzgCYJ')
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
@@ -47,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
-      start: 1691798400
+      start: '2023-08-12'
     }
   }
 }

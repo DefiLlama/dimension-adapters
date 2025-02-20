@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from 'graphql-request';
 import { Fetch, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
@@ -6,7 +7,7 @@ import {
 } from '../../helpers/getUniSubgraphVolume';
 
 const ENDPOINTS: { [key: string]: string } = {
-  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/bryant11112/mu-beta',
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('7LkMoW2UtUVauMkexF75bowQp2DE6bNB3jUXySYtBp9x'),
 };
 const SDAI_DECIMALS: { [key: string]: number } = {
   [CHAIN.XDAI]: 18,
@@ -58,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: getFetch(CHAIN.XDAI),
-      start: 1699488000,
+      start: '2023-11-09',
     },
   },
 };

@@ -1,35 +1,5 @@
-// contract
-// 0xb01b315e32d1d9b5ce93e296d483e1f0aad39e75
-// topic: 0x9bbd517758fbae61197f1c1c04c8614064e89512dbaf4350dcdf76fcaa5e2161
-// poolAmount / 1e6
-
-// 0xd20508E1E971b80EE172c73517905bfFfcBD87f9
-// topic: 0x4f2ce4e40f623ca765fc0167a25cb7842ceaafb8d82d3dec26ca0d0e0d2d4896 // poolCreated
-// topic: 1 // pool address
-
-// pool address
-// topic: 0xd1055dc2c2a003a83dfacb1c38db776eab5ef89d77a8f05a3512e8cf57f953ce
-// (interestAmount - reserveAmount) / 1e6
-
-// --- rev
-// 0xb01b315e32d1d9b5ce93e296d483e1f0aad39e75
-// topic: 0xf3583f178a8d4f8888c3683f8e948faf9b6eb701c4f1fab265a6ecad1a1ddebb
-// amount / 1e6
-
-// 0x8481a6ebaf5c7dabc3f7e09e44a89531fd31f822
-// topic: 0xf3583f178a8d4f8888c3683f8e948faf9b6eb701c4f1fab265a6ecad1a1ddebb
-// amount / 1e6
-
-
-// pool address
-// topic: 0xf3583f178a8d4f8888c3683f8e948faf9b6eb701c4f1fab265a6ecad1a1ddebb
-// amount / 1e6
-
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import * as sdk from "@defillama/sdk";
-import { EventLog } from "ethers";
 
 
 const pools: string[] = [
@@ -69,72 +39,46 @@ const pools: string[] = [
 
 const core_pool = '0xb01b315e32d1d9b5ce93e296d483e1f0aad39e75';
 const senior_pool = '0x8481a6ebaf5c7dabc3f7e09e44a89531fd31f822';
-const topic0_interest_collected = '0x9bbd517758fbae61197f1c1c04c8614064e89512dbaf4350dcdf76fcaa5e2161';
-const topic0_payment_appli = '0xd1055dc2c2a003a83dfacb1c38db776eab5ef89d77a8f05a3512e8cf57f953ce';
-const topic0_reserve_fund_collect = '0xf3583f178a8d4f8888c3683f8e948faf9b6eb701c4f1fab265a6ecad1a1ddebb'
 
-const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
-  const ONE_DAY_IN_SECONDS = 86400;
-  const toTimestamp = timestamp;
-  const fromTimestamp = timestamp - ONE_DAY_IN_SECONDS;
-  const toBlock = await getBlock(toTimestamp, 'ethereum', {});
-  const fromBlock = await getBlock(fromTimestamp, 'ethereum', {});
+const fetchFees = async ({ createBalances,  getLogs, }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
-  const logs_interest_collect: EventLog[] = (await sdk.getEventLogs({
+  const InterestCollected = (await getLogs({
     target: core_pool,
-    fromBlock: fromBlock,
-    toBlock: toBlock,
-    topics: [topic0_interest_collected],
-    chain: 'ethereum'
-  })) as EventLog[];
-  const pool_interest_collected = logs_interest_collect
-    .reduce((a: number, b: EventLog) => a + Number('0x' + b.data.replace('0x', '').slice(0, 64)), 0) / 1e6;
+    eventAbi: 'event InterestCollected (address indexed payer, uint256 poolAmount, uint256 reserveAmount)'
+  }))
+  const PaymentApplied = (await getLogs({
+    targets: pools,
+    eventAbi: 'event PaymentApplied (address indexed payer, address indexed pool, uint256 interestAmount, uint256 principalAmount, uint256 remainingAmount, uint256 reserveAmount)'
+  }))
+  const ReserveFundsCollected = (await getLogs({
+    targets: pools.concat([core_pool, senior_pool]),
+    eventAbi: 'event ReserveFundsCollected (address indexed user, uint256 amount)'
+  }))
+  InterestCollected.forEach((log: any) => {
+    dailyFees.addUSDValue(log.poolAmount.toString() / 1e6)
+    dailySupplySideRevenue.addUSDValue(log.poolAmount.toString() / 1e6)
+  });
+  PaymentApplied.forEach((log: any) => {
+    dailyFees.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6)
+    dailySupplySideRevenue.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6)
+  });
+  ReserveFundsCollected.forEach((log: any) => dailyFees.addUSDValue(log.amount.toString() / 1e6));
+  ReserveFundsCollected.forEach((log: any) => dailyRevenue.addUSDValue(log.amount.toString() / 1e6));
 
-  const logs_pool_payment_applie: EventLog[] = (await Promise.all(pools.map(async (pool: string) => sdk.getEventLogs({
-    target: pool,
-    fromBlock: fromBlock,
-    toBlock: toBlock,
-    topics: [topic0_payment_appli],
-    chain: 'ethereum'
-  })))).flat() as EventLog[];
 
-  const logs_reserve_fund_collect: EventLog[] = (await Promise.all([...pools, core_pool, senior_pool].map(async (pool: string) => sdk.getEventLogs({
-    target: pool,
-    fromBlock: fromBlock,
-    toBlock: toBlock,
-    topics: [topic0_reserve_fund_collect],
-    chain: 'ethereum'
-  })))).flat() as EventLog[];
-
-  const pool_payment_applied = logs_pool_payment_applie.map((log: EventLog) => {
-    const data = log.data.replace('0x', '')
-    const interestAmount = Number('0x' + data.slice(0, 64)) / 1e6;
-    const reserveAmount = Number('0x' + data.slice(64 * 3, (64 * 3) + 64)) / 1e6;
-    return interestAmount - reserveAmount;
-  }).reduce((a: number, b: number) => a + b, 0);
-
-  const pool_reserve_fund_collect = logs_reserve_fund_collect.map((log: EventLog) => {
-    const amount = Number(log.data) / 1e6;
-    return amount;
-  }).reduce((a: number, b: number) => a + b, 0);
-  const dailyFees = pool_interest_collected + pool_payment_applied + pool_reserve_fund_collect;
-  const dailyRevenue = pool_reserve_fund_collect;
-  const dailySupplySideRevenue = dailyFees - dailyRevenue;
-
-  return {
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: dailySupplySideRevenue > 0 ? dailySupplySideRevenue.toString() : '0',
-    timestamp
-  }
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue } as any
 }
 
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 1629331200
+      start: '2021-08-19'
     }
-  }
+  },
+  version: 2,
 }
 export default adapters;

@@ -1,12 +1,10 @@
+import { graph } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapters = univ2DimensionAdapter({
+const adapters = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/wigoswap/exchange2"
-  },
-  dailyVolume: {
-    factory: "wigoDayData"
+    [CHAIN.FANTOM]: graph.modifyEndpoint('71os49womDk3DFcNRCAFYzATxxMgWpSMKhRn5ih6aWF1')
   },
   totalVolume: {
     factory: "wigoswapFactories"
@@ -23,4 +21,5 @@ const adapters = univ2DimensionAdapter({
 }, {
 });
 adapters.adapter.fantom.start = 1642982400;
+
 export default adapters;

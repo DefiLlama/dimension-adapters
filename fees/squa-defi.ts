@@ -12,9 +12,10 @@ const adapter: Adapter = {
         fetch: getFeesExport(keyManagerQureFiAddr, [event_trade], {
           token: ADDRESSES.base.USDC,
         }),
-        start: 1703255087,
+        start: '2023-12-22',
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

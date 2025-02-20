@@ -5,35 +5,50 @@ import {
 } from "./helpers";
 import { getFees } from "../../helpers/compoundV2";
 
-const unitroller = "0x60CF091cD3f50420d50fD7f707414d0DF4751C58";
-const veloGauge = "0x3786d4419d6b4a902607ceb2bb319bb336735df8";
-const veloToken = "0x3c8b650257cfb5f272f799f5e2b4e65093a11a05";
-const veVeloHolder = "0x17063ad4e83b0aba4ca0f3fc3a9794e807a00ed7";
+const unitrollerOP = "0x60CF091cD3f50420d50fD7f707414d0DF4751C58";
+const unitrollerBASE = "0x1DB2466d9F5e10D7090E7152B68d62703a2245F0";
+// const veloGauge = "0x62D9e4e99482aF8D573d5ce1ed527C96783153ad";
+// const veloToken = "0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db";
+// const veVeloHolder = "0x784b82a27029c9e114b521abcc39d02b3d1deaf2";
 
-const getDailyVeloRewards = async ({ api, fromTimestamp, toTimestamp, createBalances }: FetchOptions) => {
-  const balances = createBalances();
-  const { lastEarn, earned } = await getVeloGaugeDetails(veloGauge, veloToken, veVeloHolder, api,);
+// const getDailyVeloRewards = async ({ api, fromTimestamp, toTimestamp, createBalances }: FetchOptions) => {
+//   const balances = createBalances();
+//   const { lastEarn, earned } = await getVeloGaugeDetails(veloGauge, veloToken, veVeloHolder, api,);
 
-  const timespan = toTimestamp - fromTimestamp;
-  const earnedTimespan = toTimestamp - lastEarn;
-  const ratio = timespan / earnedTimespan;
-  balances.add(veloToken, earned * ratio);
-  return balances
+//   const timespan = toTimestamp - fromTimestamp;
+//   const earnedTimespan = toTimestamp - lastEarn;
+//   const ratio = timespan / earnedTimespan;
+//   balances.add(veloToken, earned * ratio);
+//   return balances
+// };
+
+
+const fetchoptimism = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue } = await getFees(unitrollerOP, options, {});
+  // const dailyHoldersRevenue = await getDailyVeloRewards(options)
+  // dailyHoldersRevenue.addBalances(dailyRevenue)
+
+  return { dailyFees, dailyRevenue, };
 };
 
-const fetch = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
-  const { dailyFees, dailyRevenue } = await getFees(unitroller, options, {});
-  const dailyHoldersRevenue = await getDailyVeloRewards(options)
-  dailyHoldersRevenue.addBalances(dailyRevenue)
+const fetchbase = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue } = await getFees(unitrollerBASE, options, {});
+  // const dailyHoldersRevenue = await getDailyVeloRewards(options)
+  // dailyHoldersRevenue.addBalances(dailyRevenue)
 
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, };
+  return { dailyFees, dailyRevenue, };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: fetch as any,
-      start: 1664582400,
+      fetch: fetchoptimism as any,
+      start: '2022-10-01',
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchbase as any,
+      start: '2023-08-31',
     },
   },
 };

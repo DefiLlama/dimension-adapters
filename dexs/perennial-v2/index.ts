@@ -6,28 +6,21 @@ import { getEnv } from '../../helpers/env'
 
 const apiKey = getEnv('PERENNIAL_V2_SUBGRAPH_API_KEY')
 const graphUrls: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum/api`,
+  [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
 }
 
 const volumeDataQuery = gql`
   query PNLVolume($period: BigInt!, $periodEnd: BigInt!) {
-    daily: bucketedVolumes(
-      where: {
-        bucket: daily
-        periodStartTimestamp_gte: $period
-        periodStartTimestamp_lt: $periodEnd
-      }
+    daily: protocolAccumulations(
+      where: { bucket: daily, timestamp_gte: $period, timestamp_lt: $periodEnd }
       first: 1000
-      orderBy: periodStartTimestamp
+      orderBy: timestamp
       orderDirection: desc
     ) {
-      market
       longNotional
       shortNotional
     }
-
-    total: bucketedVolumes(where: { bucket: all }, first: 1000) {
-      market
+    total: protocolAccumulations(where: { bucket: all }) {
       longNotional
       shortNotional
     }

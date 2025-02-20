@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://lifinity.io/api/dashboard/volume"
+const historicalVolumeEndpoint = "https://api.lifinity.io/api/dashboard/volume"
 
 interface IVolumeall {
   fees: number;
@@ -29,18 +29,18 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   if (dailyFees !== undefined) {
     const dailyFeesUsd = new BigNumber(dailyFees);
     fetchResponse['dailyFees'] = dailyFeesUsd.toString()
-    fetchResponse['dailyRevenue'] = dailyFeesUsd.multipliedBy(0.15).toString()
-    fetchResponse['dailyProtocolRevenue'] = dailyFeesUsd.multipliedBy(0.15).toString()
-    fetchResponse['dailySupplySideRevenue'] = dailyFeesUsd.multipliedBy(0.85).toString()
+    fetchResponse['dailyRevenue'] = dailyFeesUsd.toString()
+    fetchResponse['dailyProtocolRevenue'] = dailyFeesUsd.toString()
+    fetchResponse['dailySupplySideRevenue'] = dailyFeesUsd.multipliedBy(0).toString()
     fetchResponse['dailyUserFees'] = dailyFeesUsd.toString()
   }
 
   if (totalFees !== undefined) {
     const totalFeesUsd = new BigNumber(totalFees);
     fetchResponse['totalFees'] = totalFeesUsd.toString()
-    fetchResponse['totalRevenue'] = totalFeesUsd.multipliedBy(0.15).toString()
-    fetchResponse['totalProtocolRevenue'] = totalFeesUsd.multipliedBy(0.15).toString()
-    fetchResponse['totalSupplySideRevenue'] = totalFeesUsd.multipliedBy(0.85).toString()
+    fetchResponse['totalRevenue'] = totalFeesUsd.toString()
+    fetchResponse['totalProtocolRevenue'] = totalFeesUsd.toString()
+    fetchResponse['totalSupplySideRevenue'] = totalFeesUsd.multipliedBy(0).toString()
     fetchResponse['totalUserFees'] = totalFeesUsd.toString()
   }
 
@@ -50,9 +50,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 const methodology = {
   UserFees: "Base trading fee differs on each pool",
   Fees: "All fees generated from trading fees",
-  SupplySideRevenue: "LPs currently receive 85% of trading fees",
-  ProtocolRevenue: "A 15% of trading fees is retained as a protocol fee",
-  Revenue: "A 15% of trading fees is retained as a protocol fee",
+  SupplySideRevenue: "LPs currently receive 0% of trading fees",
+  ProtocolRevenue: "100% of trading fees is retained as a protocol fee",
+  Revenue: "100% of trading fees is retained as a protocol fee",
   HoldersRevenue: "Holders have no revenue from trading fees",
 }
 

@@ -8,7 +8,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.KAVA]:
-    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/perpv2",
+    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/kava-trade",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -46,10 +46,11 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
   adapter: {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
-      start: async () => 1706832000,
+      start: '2024-02-02',
       meta: {
         methodology: "All treasury, pool and keeper fees are collected",
       },

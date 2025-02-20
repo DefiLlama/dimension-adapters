@@ -1,8 +1,8 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../helpers/chains";
-import { type } from "os";
 import request, { gql } from "graphql-request";
-import { Fetch, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
 
 type TEndpoint = {
@@ -10,11 +10,11 @@ type TEndpoint = {
 }
 
 const endpoints: TEndpoint = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-mainnet",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-optimism",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-polygon",
-  // [CHAIN.MOONBEAN]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-moonbeam",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/edoapp/clipper-arbitrum",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
+  // [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
 };
 
 interface IPool {
@@ -49,11 +49,9 @@ const feesQuery = gql`
 `
 
 const fetchFees = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
+  return async ({ fromTimestamp, toTimestamp, getToBlock }: FetchOptions) => {
     const endpoint = endpoints[chain];
-    const toTimestamp = timestamp;
-    const fromTimestamp = timestamp - 60 * 60 * 24;
-    const toBlock = await getBlock(timestamp, chain, {});
+    const toBlock = await getToBlock();
 
     const response: IResponse = (await request(endpoint, feesQuery, {
       fromTimestamp,
@@ -81,32 +79,32 @@ const fetchFees = (chain: Chain) => {
       totalFees: `${totalFees}`,
       totalRevenue: `${totalRevenue}`,
       totalProtocolRevenue: `${totalRevenue}`,
-      timestamp
     }
   }
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1659657600,
+      start: '2022-08-05',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees(CHAIN.OPTIMISM),
-      start: 1656460800,
+      start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees(CHAIN.POLYGON),
-      start: 1650412800,
+      start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
     //   fetch: fetchFees(CHAIN.MOONBEAN),
-    //   start: 1659657600,
+    //   start: '2022-08-05',
     // },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees(CHAIN.ARBITRUM),
-      start: 1690934400,
+      start: '2023-08-02',
     }
   }
 }

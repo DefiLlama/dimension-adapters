@@ -1,35 +1,27 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
   [CHAIN.ERA]:
     "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.10",
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/geckocoding/derpdex-amm-base",
-  [CHAIN.OP_BNB]:
-    "https://opbnb.subgraph.derpdex.com/subgraphs/name/geckocoding/derpdex-opbnb",
+    sdk.graph.modifyEndpoint('6WLn1VLCtCYHNMPLT3AfKCCrKrq91qs1wCFcULWQUX96'),
+  // [CHAIN.OP_BNB]:
+  //   "https://opbnb.subgraph.derpdex.com/subgraphs/name/geckocoding/derpdex-opbnb",
 };
 const v3StartTimes = {
   [CHAIN.ERA]: 1688515200,
   [CHAIN.BASE]: 1692296100,
-  [CHAIN.OP_BNB]: 1695275237,
+  // [CHAIN.OP_BNB]: 1695275237,
 };
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD",
-    dateField: "date",
-  },
-  dailyFees: {
-    factory: "uniswapDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",

@@ -35,7 +35,7 @@ const extractShareReward = (rewardShares: RewardShares, miner: string): number =
     }, 0)
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions) => {
+const fetch = async ({ createBalances, getFromBlock, getToBlock, }: FetchOptions) => {
     let miner = (await getData(ADAPTER, "ADAPTEE")).value;
     let feeRate = +(await getData(ADAPTER, "FEE_RATE")).value / FEE_DIVIDER;
 
@@ -62,16 +62,15 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getFro
     const dailyRevenue = dailyFees.clone()
     dailyRevenue.resizeBy(feeRate)
 
-    return {
-        timestamp, dailyFees, dailyRevenue,
-    };
+    return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.WAVES]: {
             fetch,
-            start: 1667250000 // Mon Oct 31 2022 21:00:00 GMT+0000
+            start: '2022-10-31' // Mon Oct 31 2022 21:00:00 GMT+0000
         },
     },
 }

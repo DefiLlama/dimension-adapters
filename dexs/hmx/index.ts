@@ -1,12 +1,15 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql, GraphQLClient } from "graphql-request";
+import { gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
+  [CHAIN.ARBITRUM]:
+    "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
+  [CHAIN.BLAST]:
+    "https://api.studio.thegraph.com/query/45963/blast-mainnet-stats/version/latest",
 };
 
 type MarketStat = {
@@ -17,7 +20,7 @@ type MarketStat = {
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      if (chain === CHAIN.ARBITRUM) {
+      if (chain === CHAIN.ARBITRUM || chain === CHAIN.BLAST) {
         // Get total trading volume
         const totalTradingVolumeQuery = gql`
           {
@@ -28,7 +31,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
         const graphQLClient = new GraphQLClient(graphUrls[chain]);
-        graphQLClient.setHeader('origin', 'https://hmx.org')
+        graphQLClient.setHeader("origin", "https://hmx.org");
         const totalMarketStats = (
           await graphQLClient.request(totalTradingVolumeQuery)
         ).marketStats as Array<MarketStat>;
@@ -39,23 +42,32 @@ const graphs = (graphUrls: ChainEndpoints) => {
             0 as number
           ) / 1e30;
 
-        // Get daily trading volume
-        const ids: Array<string> = [];
-        let latestHourIndex = Math.floor(
-          getTimestampAtStartOfHour(timestamp) / HOUR
-        );
-        for (let i = 0; i < 24; i++) {
-          for (const marketStat of totalMarketStats) {
-            ids.push(`"${latestHourIndex - i}_${marketStat.id}"`);
-          }
+        const chunkSize = 10;
+        const splitMarket: MarketStat[][] = [];
+        for (let i = 0; i < totalMarketStats.length; i += chunkSize) {
+          const chunk = totalMarketStats.slice(i, i + chunkSize);
+          splitMarket.push(chunk);
         }
-        const filter = ids.join(",");
-        // first 2400 should covers 100 markets last 24 hours
-        // which virtually covers all markets
-        const last24hrVolumeQuery = gql`
+
+        let last24hrVolume = 0;
+        for (const markets of splitMarket) {
+          // Get daily trading volume
+          const ids: Array<string> = [];
+          let latestHourIndex = Math.floor(
+            getTimestampAtStartOfHour(timestamp) / HOUR
+          );
+
+          for (const marketStat of markets) {
+            for (let i = 1; i < 25; i++) {
+              ids.push(`"${latestHourIndex - i}_${marketStat.id}"`);
+            }
+          }
+
+          const filter = ids.join(",");
+
+          const last24hrVolumeQuery = gql`
             {
               marketHourlyStats(
-                first: 2400
                 where: {
                   id_in: [${filter}]
                 }
@@ -64,14 +76,17 @@ const graphs = (graphUrls: ChainEndpoints) => {
               }
             }
           `;
-        const last24hrMarketStats = (
-          await graphQLClient.request(last24hrVolumeQuery)
-        ).marketHourlyStats as Array<{ tradingVolume: string }>;
-        const last24hrVolume =
-          last24hrMarketStats.reduce(
-            (accum, t) => accum + parseInt(t.tradingVolume),
-            0 as number
-          ) / 1e30;
+
+          const last24hrMarketStats = (
+            await graphQLClient.request(last24hrVolumeQuery)
+          ).marketHourlyStats as Array<{ tradingVolume: string }>;
+
+          last24hrVolume +=
+            last24hrMarketStats.reduce(
+              (accum, t) => accum + parseInt(t.tradingVolume),
+              0 as number
+            ) / 1e30;
+        }
 
         return {
           timestamp,
@@ -93,7 +108,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1687806000,
+      start: '2023-06-26',
+    },
+    [CHAIN.BLAST]: {
+      fetch: graphs(endpoints)(CHAIN.BLAST),
+      start: '2024-02-05',
     },
   },
 };

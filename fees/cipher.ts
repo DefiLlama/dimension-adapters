@@ -6,9 +6,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFeesExport('0x2544a6412bc5aec279ea0f8d017fb4a9b6673dca'),
-      start: 1695600000,
+      start: '2023-09-25',
     },
-  }
+  },
+  version: 2,
 }
 
 export default adapter;

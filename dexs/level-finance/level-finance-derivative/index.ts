@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../../adapters/types";
 import { CHAIN } from "../../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/level-fi/levelfinanceanalytics",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/level-fi/analytics-arb",
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('AFaRssJTqNReTtU2XdTGPhN38YVPNBc7faMNKA1mU54h'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AV58XWaZUZPJ2w1x2wYmGEivVZmDojGW3fAYggUAujtD'),
 }
 
 const historicalDataDerivatives = gql`

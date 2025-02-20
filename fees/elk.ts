@@ -1,28 +1,26 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-arbitrum",
-    [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-avax",
-    [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-bsc",
-    [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-ftm",
-    [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-matic",
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE'),
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('2dyce92CewvhV17C8BMFoMCgaXdPTtwBzaz8AReQR3YV'),
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('5tRz9anigEVND48Gx1mUpNNM4YSm3NpzG9XRB8dYAMhb'),
+    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('pmqe2dQvH4PK7aaFh4GXrr49wpKRr3GjPCnNEgEb6U2'),
+    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8jzpT6nnKgmqcdGocys97YWkuqwDbHBxpozsKcxH1KUP'),
     // [CHAIN.HECO]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-heco"
-    [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-xdai",
+    [CHAIN.XDAI]: sdk.graph.modifyEndpoint('kD9njskfB9xv7gDnsU2sz4X4sXfEimBv8xMJ6votFND'),
     // [CHAIN.MOONRIVER]: "https://moonriver-graph.elk.finance/subgraphs/name/elkfinance/elkdex-moonriver",
     // [CHAIN.ELASTOS]: "https://elastos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-elastos",
     // [CHAIN.OKEXCHAIN]: "https://okex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-okex",
     // [CHAIN.KCC]: "https://kcc-graph.elk.finance/subgraphs/name/elkfinance/elkdex-kcc",
-    [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-eth",
-    [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-optimism",
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('59tcH5BPyXj41XZgn1ZYy4pE8iDdzaZpR9MRhmuPW4Lr'),
+    [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('H7UcKWuAqQPqWKcnNLn2Jamy9zE7wVgsLSRQpPwXo2Ag'),
     // [CHAIN.CRONOS]: "https://cronos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-cronos",
     // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
     // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",
     // [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
-  },
-  dailyVolume: {
-    factory: "elkDayData"
   },
   totalVolume: {
     factory: "elkFactories"
@@ -61,5 +59,6 @@ adapter.adapter.optimism.start = 1651542817;
 // adapter.adapter.fuse.start = 1639187617;
 // adapter.adapter.iotex.start = 1639792417;
 // adapter.adapter.telos.start = 1648684800;
+
 
 export default adapter;

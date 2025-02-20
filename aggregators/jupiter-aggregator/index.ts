@@ -1,46 +1,35 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
+import { queryDune } from "../../helpers/dune";
 
-
-const historicalVolumeEndpoint = "https://cache.jup.ag/stats/day"
-
-interface IVolumeall {
-  groupTimestamp: string;
-  amount: string;
-}
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.groupTimestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { amount }) => acc + Number(amount), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.groupTimestamp).getTime() / 1000) === dayTimestamp)?.amount
-
+const fetch = async (options: FetchOptions) => {
+  const data = await queryDune("4187430", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+  });
+  const chainData = data[0];
+  if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: chainData.volume_24,
+    totalVolume: chainData.volume,
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  return (new Date(historicalVolume[historicalVolume.length - 1].groupTimestamp).getTime() / 1000);
-}
-const adapter: SimpleAdapter = {
+const adapter: any = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
-    }
+      fetch,
+      start: '2023-04-16',
+      meta: {
+        methodology: {
+          totalVolume:
+            "Volume is calculated by summing the token volume of all trades settled on the protocol since launch.",
+          dailyVolume:
+            "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
+        },
+      },
+    },
   },
 };
 

@@ -5,7 +5,7 @@ import { getTokenDiff } from "../../helpers/token";
 /** Address to check = paalecosystemfund.eth */
 const CONTRACT_ADDRESS = "0x54821d1B461aa887D37c449F3ace8dddDFCb8C0a";
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   await getTokenDiff({ target: CONTRACT_ADDRESS, options, includeGasToken: true, balances: dailyFees, })
   const transactions = await queryIndexer(`
@@ -25,15 +25,16 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
       `, options);
 
   transactions.map((transaction: any) => dailyFees.addGasToken(transaction.eth_value))
-  return { timestamp, dailyFees, }
+  return { dailyFees, }
 }
 
 /** Adapter */
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     ethereum: {
       fetch,
-      start: 1690070400,
+      start: '2023-07-23',
     },
   },
 }

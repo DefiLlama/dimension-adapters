@@ -1,7 +1,7 @@
 import { Chain } from "@defillama/sdk/build/types";
-import { BaseAdapter, BreakdownAdapter, FetchOptions, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
   [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v2",
@@ -10,8 +10,6 @@ const endpoints = {
 const v3Endpoint = {
   [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v3",
 };
-
-const VOLUME_USD = "volumeUSD";
 
 const startTimes = {
   [CHAIN.KLAYTN]: 1707297572,
@@ -30,7 +28,7 @@ const methodology = {
   Fees: "All fees comes from the user."
 }
 
-const graphs = getGraphDimensions({
+const graphs = getGraphDimensions2({
   graphUrls: endpoints,
   graphRequestHeaders: {
     [CHAIN.KLAYTN]: {
@@ -39,9 +37,6 @@ const graphs = getGraphDimensions({
   },
   totalVolume: {
     factory: "pancakeFactories"
-  },
-  dailyVolume: {
-    factory: "pancakeDayData"
   },
   feesPercent: {
     type: "volume",
@@ -54,21 +49,13 @@ const graphs = getGraphDimensions({
   }
 });
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
   graphUrls: v3Endpoint,
   totalVolume: {
     factory: "factories",
   },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: VOLUME_USD
-  },
   totalFees: {
     factory: "factories",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD"
   },
 });
 

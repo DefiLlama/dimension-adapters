@@ -1,23 +1,22 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_DAILY_VOLUME_FIELD, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "@defillama/sdk/build/general";
+import { fetchV2Volume } from "./v2"
 
 const endpoints = {
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/dmihal/velodrome",
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('2bam2XEb91cFqABFPSKj3RiSjpop9HvDt1MnYq5cDX5E'),
 };
 
-const graphs = getChainVolume({
+const graphs = getChainVolume2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: "dayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
 });
+
 
 
 const fetch = (chain: Chain) => {
@@ -35,8 +34,16 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1677110400
+      start: '2023-02-23'
     },
+    [CHAIN.MODE]: {
+      fetch: fetchV2Volume,
+      start: '2024-05-15'
+    },
+    [CHAIN.BOB]: {
+      fetch: fetchV2Volume,
+      start: '2024-05-15'
+    }
   },
 };
 

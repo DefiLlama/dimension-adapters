@@ -9,9 +9,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFeesExport({ FACTORY_ADDRESS, VOTER_ADDRESS, }),
-      start: 1695458888,
+      start: '2023-09-23',
     },
-  }
+  },
+  version: 2,
 };
 
 export default adapter;

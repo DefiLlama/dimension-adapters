@@ -3,11 +3,7 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 
-const ZKEVM_URL = 'https://zksync.satori.finance/api/data-center/pub/overview/integration'
-const ZkSYNC_URL = 'https://zksync.satori.finance/api/data-center/pub/overview/integration'
-const SCROLL_URL = 'https://scroll.satori.finance/api/data-center/pub/overview/integration'
-const LINEA_URL = 'https://linea.satori.finance/api/data-center/pub/overview/integration'
-
+const DATA_URL = 'https://trade.satori.finance/api/data-center/pub/overview/integration'
 interface VolumeInfo {
     fee24h: string;
     tradVol24h: string;
@@ -28,8 +24,17 @@ const scroll = {
 const linea = {
     "exchange":"linea"
 }
+const  base = {
+    "exchange":"base"
+}
+const arbitrum = {
+    "exchange":"arbitrum-one"
+}
+const xlayer = {
+    "exchange":"xlayer"
+}
 const evm_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZKEVM_URL,zk_evm)).data;
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,zk_evm)).data;
     
     return {
             totalVolume: volumeData.totalTradVol,
@@ -41,7 +46,7 @@ const evm_fetch  =  async (_timestamp: number) => {
 };
 
 const era_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,zk_era)).data;
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,zk_era)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -53,7 +58,7 @@ const era_fetch  =  async (_timestamp: number) => {
 };
 
 const linea_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,linea)).data;
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,linea)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -65,7 +70,7 @@ const linea_fetch  =  async (_timestamp: number) => {
 };
 
 const scroll_fetch  =  async (_timestamp: number) => {
-    const volumeData: VolumeInfo = (await postURL(ZkSYNC_URL,scroll)).data;
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,scroll)).data;
    
     return {
             totalVolume: volumeData.totalTradVol,
@@ -75,6 +80,43 @@ const scroll_fetch  =  async (_timestamp: number) => {
             timestamp: parseInt(volumeData.time),
         };
 };
+
+const base_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,base)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+
+const arbitrum_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,arbitrum)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+
+const xlayer_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,xlayer)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.POLYGON_ZKEVM]: {
@@ -94,6 +136,21 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.SCROLL]: {
             fetch:scroll_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.BASE]: {
+            fetch:base_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.ARBITRUM]: {
+            fetch:arbitrum_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.XLAYER]: {
+            fetch:xlayer_fetch,
             runAtCurrTime: true,
             start: 1684003134,
         }

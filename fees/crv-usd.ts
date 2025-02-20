@@ -17,11 +17,17 @@ const controller: TContract = {
 }
 
 const fetchFees = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getLogs, fromApi, toApi }: FetchOptions) => {
     const dailyFees = createBalances()
-    const logs = await getLogs({ targets: controller[chain], eventAbi: 'event CollectFees (uint256 amount, uint256 new_supply)' })
-    logs.forEach((i: any) => dailyFees.add('0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E', i.amount))
-    return { dailyFees, timestamp, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+    await Promise.all(controller[chain].map(async controller=>{
+      const logs = await getLogs({ target: controller, eventAbi: 'event CollectFees (uint256 amount, uint256 new_supply)' })
+      logs.forEach((i: any) => dailyFees.add('0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E', i.amount))
+      const feesStart = await fromApi.call({target: controller, abi: "uint:admin_fees"})
+      const feesEnd = await toApi.call({target: controller, abi: "uint:admin_fees"})
+      dailyFees.add("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E", feesEnd-feesStart)
+    }))
+
+    return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
   }
 }
 
@@ -29,8 +35,9 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1684047600
+      start: '2023-05-14'
     }
-  }
+  },
+  version: 2
 }
 export default adapters;

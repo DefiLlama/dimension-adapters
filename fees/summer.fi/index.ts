@@ -28,7 +28,6 @@ const fetch: FetchV2 = async (options) => {
   const dailyFees = await addTokensReceived({
     options,
     target: contracts[options.chain].address,
-    fetchTokenList: true,
   });
 
   return {

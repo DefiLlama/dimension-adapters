@@ -1,30 +1,21 @@
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getSolanaReceived } from "../../helpers/token";
 
-interface IFees {
-  block_date: string;
-  feesUSD: number;
+const fethcFeesSolana = async (options: FetchOptions) => {
+  const dailyFees = await getSolanaReceived({ options, target: 'ZG98FUCjb8mJ824Gbs6RsgVmr1FhXb2oNiJHa2dwmPd' })
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
-const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
-  const result = await queryDune("3211435");
-  const date = new Date(timestamp * 1000);
-  const dateTime = date.toISOString().split('T')[0];
-  const dayItem = result.find((item: IFees) => item.block_date.split(' ')[0] === dateTime);
-  return {
-    dailyFees: dayItem?.feesUSD ?? 0,
-    dailyRevenue: dayItem?.feesUSD ?? 0,
-    timestamp
-  }
-}
+
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: 1692748800,
-      runAtCurrTime: true,
-    }
+      fetch: fethcFeesSolana,
+      start: '2023-08-23',
+    },
   }
 }
 
