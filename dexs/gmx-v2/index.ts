@@ -86,7 +86,7 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   const res = await request(url , query)
   
   const dailyVolume = res.volumeRecordDailies
-    .filter((record: {timestamp : string}) => record.timestamp === targetDate)
+    .filter((record: {timestamp : string}) => new Date(record.timestamp).getTime() === new Date(targetDate).getTime())
     .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
   const totalVolume = res.volumeRecordDailies
     .filter((record: {timestamp : string}) => record.timestamp <= targetDate)
