@@ -68,20 +68,29 @@ const methodology = {
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+
+  const targetDate = new Date(options.startOfDay * 1000).toISOString();
   const query = gql`
     {
-      volumeRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
-          totalVolume
+      volumeRecordDailies(
+        where: {timestamp_lte: "${targetDate}"},
+        orderBy: timestamp_ASC 
+      ) {
+          timestamp
           tradeVolume
       }
     }
   `
+
   const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
   const res = await request(url , query)
+  
   const dailyVolume = res.volumeRecordDailies
+    .filter((record: {timestamp : string}) => record.timestamp === targetDate)
     .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
   const totalVolume = res.volumeRecordDailies
-    .reduce((acc: number, record: { totalVolume: string }) => acc + Number(record.totalVolume), 0)
+    .filter((record: {timestamp : string}) => record.timestamp <= targetDate)
+    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
   return {
     timestamp: options.startOfDay,
     dailyVolume: dailyVolume / (10 ** 20),
