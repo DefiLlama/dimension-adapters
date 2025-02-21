@@ -105,7 +105,8 @@ const adapter: Adapter = {
       meta: {
         methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
       },
-  },
+    },
+  }
 };
 
 export default adapter;
