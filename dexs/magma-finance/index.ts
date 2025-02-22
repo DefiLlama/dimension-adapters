@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -17,38 +17,50 @@ const url: IUrl = {
   },
 };
 
-interface IVolumeall {
+interface IVolumeData {
   num: string;
   date: string;
 }
 
+
+async function fetchHistoricalVolume(chain: Chain): Promise<IVolumeData[]> {
+  const response = await fetchURL(url[chain].histogramUrl);
+  return response.data.list;
+}
+
+function calculateDailyVolume(historicalVolume: IVolumeData[], dateStr: string): string | undefined {
+  return historicalVolume.find(
+    (dayItem) => dayItem.date.split('T')[0] === dateStr
+  )?.num;
+}
+
+function calculateTotalVolume(historicalVolume: IVolumeData[]): string {
+  return historicalVolume.reduce(
+    (acc, item) => acc + Number(item.num),
+    0
+  ).toString();
+}
+
 const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(options.endTimestamp * 1000),
-    );
-    const historicalVolume: IVolumeall[] = (
-      await fetchURL(url[chain].histogramUrl)
-    ).data.list;
-    const dailyVolume = historicalVolume.find(
-      (dayItem) =>
-        new Date(dayItem.date.split("T")[0]).getTime() / 1000 === dayTimestamp,
-    )?.num;
-    const totalVolume = historicalVolume.reduce(
-      (acc, item) => acc + Number(item.num),
-      0,
-    );
+  return async (_tt: any,_t: any, options: FetchOptions): Promise<FetchResult> => {
+    const date = new Date(options.startOfDay * 1000);
+    const dateStr = date.toISOString().split('T')[0];  // Format: YYYY-MM-DD
+    const dayTimestamp = getUniqStartOfTodayTimestamp(date);
+
+    const historicalVolume = await fetchHistoricalVolume(chain);
+    const dailyVolume = calculateDailyVolume(historicalVolume, dateStr);
+    const totalVolume = calculateTotalVolume(historicalVolume);
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
       timestamp: dayTimestamp,
+      dailyVolume,
+      totalVolume,
     };
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch(CHAIN.SUI),
