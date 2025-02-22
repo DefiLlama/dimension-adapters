@@ -1,40 +1,20 @@
-import { FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
-
-const list_of_mints: string[] = [
-  "So11111111111111111111111111111111111111112",
-  "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh",
-  "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
-]
+import { queryDune } from "../../helpers/dune";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const header_user = {
-    "accept": "*/*",
-    "accept-language": "en-US,en;q=0.9",
-    "content-type": "application/json",
-    "sec-ch-ua": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"90\", \"Google Chrome\";v=\"90\"",
-    "sec-ch-ua-mobile": "?0",
-    "sec-fetch-dest": "empty",
-    "sec-fetch-mode": "cors",
-    "sec-fetch-site": "cross-site",
-    "sec-gpc": "1",
-    "referrer": "https://www.jup.ag/",
-    "referrerPolicy": "strict-origin-when-cross-origin",
-    "mode": "cors",
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
-  }
-  const url = (token: string) => `https://perp-api.jup.ag/trpc/tradeVolume?batch=1&input={"0":{"json":{"mint":"${token}"}}}`
-  const fetches = (await Promise.all(list_of_mints.map(token => httpGet(url(token), { headers: header_user })))).flat();
-  const dailyVolume = fetches.reduce((acc, { result }) => acc + result.data.json.volume, 0);
-
-  // https://station.jup.ag/guides/perpetual-exchange/how-it-works#base-fee
-  const fee = (0.06/100);
-  const dailyFees = options.createBalances()
-  dailyFees.addUSDValue(dailyVolume * fee);
+  const data: any[] = (await queryDune("4751411", {
+    start: options.startTimestamp,
+    end: options.endTimestamp
+  }));
+  const dailyFees = data[0].total_fees;
   return {
-    dailyFees: dailyFees
-  };
+    dailyFees: `${dailyFees}`,
+    dailyRevenue: `${dailyFees * (25/100)}`,
+    dailyHoldersRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
+    dailyProtocolRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
+    dailySupplySideRevenue: `${dailyFees * (75/100)}`,
+  }
 };
 
 const adapter = {
@@ -47,6 +27,8 @@ const adapter = {
         start: '2024-01-23',
       },
     },
-  }
+  },
+  isExpensiveAdapter: true,
 };
 export default adapter;
+
