@@ -101,7 +101,7 @@ const adapter: Adapter = {
     },
     [CHAIN.BASE]: {
       fetch: getFetch(endpoints[CHAIN.BASE]),
-      start: 1740112854,
+      start: 1740056400,
       meta: {
         methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
       },

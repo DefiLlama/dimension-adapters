@@ -85,7 +85,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.SONIC]: 1735685544,   
   // [CHAIN.BSC]: 1727740344, 
   [CHAIN.BERACHAIN]: 1738882079,
-  [CHAIN.SONIC]: 1735685544,
+  [CHAIN.BASE]: 1740056400,
 
 
 };
