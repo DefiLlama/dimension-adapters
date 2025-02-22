@@ -63,6 +63,15 @@ const fetchVolume = async (chainId: string, startOfDay: number) => {
 
 const adapter: BreakdownAdapter = {
   breakdown: {
+    "orderly-network": {
+       [CHAIN.NEAR]: {
+        fetch: async (timestamp: number) => {
+          return {
+            timestamp: timestamp,
+          }
+        }
+       }
+    },
     "orderly-network-derivatives": Object.entries(chainIdToChainInfo).reduce(
       (acc, [chainId, { chain, startDate }]) => ({
         ...acc,
