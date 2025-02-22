@@ -7,7 +7,7 @@ import { Chain } from "@defillama/sdk/build/general";
 const endpoints = {
   [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
   [CHAIN.LINEA]: sdk.graph.modifyEndpoint('9R6uvVYXn9V1iAxkTLXL1Ajka75aD7mmHRj86DbXnyYQ'),
-  [CHAIN.SCROLL]: 'https://api.studio.thegraph.com/query/62864/syncswap-scroll/version/latest'
+  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll'
 };
 
 const v3Endpoints = {
