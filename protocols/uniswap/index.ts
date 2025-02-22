@@ -15,6 +15,7 @@ const v1Endpoints = {
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83')
 };
 
 const blacklisted = {
@@ -67,7 +68,8 @@ const v3Endpoints = {
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
-  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
+  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX') 
 };
 
 // fees results are in eth, needs to be converted to a balances objects
@@ -245,6 +247,22 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
+      [CHAIN.UNICHAIN]: {
+        fetch: async (options: FetchOptions) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
+        meta: {
+          methodology
+        },
+      },
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
@@ -347,15 +365,6 @@ const okuChains = [
   CHAIN.BSC
 ]
 
-const uniV3 = uniV3Exports({
-  unichain: { factory: '0x1F98400000000000000000000000000000000003' }
-})
-
-const uniV2 = uniV2Exports({
-  unichain: {
-    factory: '0x1F98400000000000000000000000000000000002',
-  }
-})
 
 
 okuChains.forEach(chain => {
@@ -367,7 +376,5 @@ okuChains.forEach(chain => {
   }
 })
 
-adapter.breakdown.v3.unichain = uniV3.adapter.unichain;
-adapter.breakdown.v2.unichain = uniV2.adapter.unichain;
 
 export default adapter;
