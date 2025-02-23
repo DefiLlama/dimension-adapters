@@ -13,8 +13,8 @@ const graph = getGraphDimensions2({
   },
   feesPercent: {
     type: "volume",
-    Fees: 0.01,
-    Revenue: 0.0033
+    Fees: 0.0005,
+    Revenue: 0.0001667
   }
 });
 
@@ -26,7 +26,7 @@ const adapters: SimpleAdapter = {
       start: '2024-11-06',
       meta: {
         methodology: {
-          UserFees: "User pays 0.01% fees on each swap.",
+          UserFees: "User pays 0.0005% fees on each swap.",
           ProtocolRevenue: "Approximately 33% of the fees go to the protocol.",
           SupplySideRevenue: "Approximately 67% of the fees are distributed to liquidity providers (ZFLP token holders)",
           Revenue: "Approximately 33% of the fees go to the protocol.",
