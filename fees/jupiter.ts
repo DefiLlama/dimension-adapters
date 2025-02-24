@@ -1,7 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
+import { queryDune } from "../helpers/dune"
 import { getSolanaReceived } from "../helpers/token"
 
+
+interface IData  {
+  fee_usd: string;
+}
 
 const fethcFeesSolana = async (options: FetchOptions) => {
   // limit order fees
@@ -9,7 +14,21 @@ const fethcFeesSolana = async (options: FetchOptions) => {
     'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
     ,'27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
   ]})
-  return { dailyFees, dailyRevenue: dailyFees }
+  // ultra fees
+  const data: IData[] = await queryDune("4769928", {
+    start: options.startTimestamp,
+    end: options.endTimestamp
+  })
+
+  const dailyFeesUltra = options.createBalances()
+  data.forEach((item) => {
+    dailyFeesUltra.addUSDValue(item.fee_usd)
+  })
+  const dailyRevenue = dailyFees.clone()
+  dailyFees.addBalances(dailyFeesUltra)
+  dailyFeesUltra.resizeBy(0.5)
+  dailyRevenue.addBalances(dailyFeesUltra)
+  return { dailyFees, dailyRevenue: dailyRevenue }
 }
 
 
