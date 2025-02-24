@@ -26,7 +26,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
   })
   const dailyRevenue = dailyFees.clone()
   dailyFees.addBalances(dailyFeesUltra)
-  dailyFeesUltra.resizeBy(0.5)
+  dailyFeesUltra.resizeBy(0.25) // 
   dailyRevenue.addBalances(dailyFeesUltra)
   return { dailyFees, dailyRevenue: dailyRevenue }
 }
