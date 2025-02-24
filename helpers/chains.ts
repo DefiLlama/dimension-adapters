@@ -134,7 +134,7 @@ export enum CHAIN {
   MEER = "meer",
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
-  LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  LIGHTLINK = "lightlink",
   EON = "eon",
   MANTA = "manta",
   NEAR = "near",
