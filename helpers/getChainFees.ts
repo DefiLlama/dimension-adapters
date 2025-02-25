@@ -34,7 +34,6 @@ export const fetchTransactionFees = async (options: FetchOptions): Promise<Balan
     FROM ${chainKey}.raw.transactions
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
     AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    AND receipt_status = 1 -- Success 
   `;
 
   const dailyFees = options.createBalances();
