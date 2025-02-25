@@ -19,6 +19,15 @@ export const chainMap: ChainMapping = {
   blast: 'blast',
   celo: 'celo',
   berachain: 'berachain',
+  sonic: 'sonic',
+  mantle: 'mantle',
+  linea: 'linea',
+  sei: 'sei',
+  ronin: 'ronin',
+  fraxtal: 'fraxtal',
+  metis: 'metis',
+  unichain: 'unichain',
+  mode: 'mode',
 };
 
 
