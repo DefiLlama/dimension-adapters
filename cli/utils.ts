@@ -51,7 +51,9 @@ export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
 
 
     if (volumes.length > 1) {
-        const aggregated = {
+        const aggregated: {
+            [key: string]: any
+        } = {
             chain: '---- aggregate',
             timestamp: volumes[0].timestamp,
         }
