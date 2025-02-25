@@ -1,5 +1,46 @@
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from '../utils/date';
 import { httpGet } from '../utils/fetchURL';
+import { queryAllium } from '../helpers/allium';
+import { Balances } from '@defillama/sdk';
+import { FetchOptions } from '../adapters/types';
+
+interface ChainMapping {
+  [key: string]: string;
+}
+
+export const chainMap: ChainMapping = {
+  ethereum: 'ethereum',
+  base: 'base',
+  optimism: 'optimism',
+  scroll: 'scroll',
+  bsc: 'bsc',
+  arbitrum: 'arbitrum',
+  polygon: 'polygon',
+  blast: 'blast',
+  celo: 'celo',
+  berachain: 'berachain',
+};
+
+
+export const fetchTransactionFees = async (options: FetchOptions): Promise<Balances> => {
+  const chainKey = chainMap[options.chain];
+  if (!chainKey) {
+    throw new Error('[Pull fees transactions] Chain not supported: ' + options.chain);
+  }
+
+  const query = `
+    SELECT 
+      SUM(gas_price * receipt_gas_used) AS tx_fees
+    FROM ${chainKey}.raw.transactions
+    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+    AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
+
+  const dailyFees = options.createBalances();
+  const res = await queryAllium(query);
+  dailyFees.addGasToken(res[0].tx_fees);
+  return dailyFees;
+};
 
 export const chainAdapter = (adapterKey: string, assetID: string, startTime: number) => {
     const fetch = async (timestamp: number) => {
