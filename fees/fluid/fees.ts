@@ -5,9 +5,6 @@ import { ABI, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 
 const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92"
 
-// DexResolver after block 21041663
-// 0x7af0C11F5c787632e567e6418D74e5832d8FFd4c
-
 export const getDexResolver = async (api: ChainApi) => {
   const block = await api.getBlock()
 
@@ -73,7 +70,7 @@ export const getVaultsResolver = async (api: ChainApi) => {
         return getVaultsT1Resolver(api);
       }
       
-      address = ""; 
+      address = "0xe7A6d56346d2ab4141Fa38e1B2Bc5ff3F69333CD"; 
       break;
   }
 
@@ -161,14 +158,10 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
     const initialShares = Number(dexStateFrom.totalBorrowShares);
     if (!initialShares || initialShares == 0) continue;
     const initialBalance0 = initialShares * Number(dexStateFrom.token0PerBorrowShare) / 1e18;
-    // console.log("Initial Balance 0:", initialBalance0.toString());
     const initialBalance1 = initialShares * Number(dexStateFrom.token1PerBorrowShare) / 1e18;
-    // console.log("Initial Balance 1:", initialBalance1.toString());
 
     const borrowBalanceTo0 = Number(dexStateTo.totalBorrowShares) * Number(dexStateTo.token0PerBorrowShare) / 1e18;
-    // console.log("Borrow Balance To 0:", borrowBalanceTo0.toString());
     const borrowBalanceTo1 = Number(dexStateTo.totalBorrowShares) * Number(dexStateTo.token1PerBorrowShare) / 1e18;
-    // console.log("Borrow Balance To 1:", borrowBalanceTo1.toString());
 
     const liquidityLogs0 = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex), parseInTopic(borrowToken0)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
     const liquidityLogs1 = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex), parseInTopic(borrowToken1)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
@@ -179,27 +172,12 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
     const borrowBalances1 = liquidityLogs1
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance1)
-    // console.log("Borrow Balance 0:", borrowBalances0.toString());
-    // console.log("Borrow Balance 1:", borrowBalances1.toString());
     
     const fees0 = borrowBalanceTo0 > borrowBalances0 ? borrowBalanceTo0 - borrowBalances0 : 0n
     const fees1 = borrowBalanceTo1 > borrowBalances1 ? borrowBalanceTo1 - borrowBalances1 : 0n
-    // console.log("fees0:", fees0.toString());
-    // console.log("fees1:", fees1.toString());
-
-    let valuesBefore = await dailyFees.getUSDValue();
-
+    
     dailyFees.add(borrowToken0, fees0)
-
-    let valuesAfter =  await dailyFees.getUSDValue();
-    // console.log((valuesAfter - valuesBefore).toString(), "added fees0");
-
-     valuesBefore = await dailyFees.getUSDValue();
-
     dailyFees.add(borrowToken1, fees1)
-
-     valuesAfter =  await dailyFees.getUSDValue();
-     // console.log((valuesAfter - valuesBefore).toString(), "added fees1");
 
     if (!dexStateFrom.totalSupplyShares || Number(dexStateFrom.totalSupplyShares) == 0) continue;
     
@@ -207,6 +185,7 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
     let arbLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
     // filter events for arb logs: both supply and borrow amount must be + (deposit and borrow) or - (payback and withdraw)
     arbLogs = arbLogs.filter((log) => ((log[2] > 0 && log[3] > 0) || (log[2] < 0 && log[3] < 0)) && (log[2] != log[3]));
+
     // abs diff is arb amount. = fee
     const arbs0 = arbLogs
       .filter((log) => log[1] == borrowToken0)
@@ -215,21 +194,9 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
       .filter((log) => log[1] == borrowToken1)
       .reduce((balance, [, , supplyAmount, borrowAmount]) => balance + Math.abs(Number(supplyAmount) - Number(borrowAmount)) , 0);
 
-       valuesBefore = await dailyFees.getUSDValue();
-
-      dailyFees.add(borrowToken0, arbs0)
-      dailyFees.add(borrowToken1, arbs1)
-  
-       valuesAfter =  await dailyFees.getUSDValue();
-      console.log((valuesAfter - valuesBefore).toString(), "added arbs0");
-  
-       valuesBefore = await dailyFees.getUSDValue();
-  
-  
-       valuesAfter =  await dailyFees.getUSDValue();
-       console.log((valuesAfter - valuesBefore).toString(), "added arbs1");
+    dailyFees.add(borrowToken0, arbs0);
+    dailyFees.add(borrowToken1, arbs1);
   }
-
   
   return dailyFees;
 }
@@ -287,10 +254,7 @@ export const getFluidDailyFees = async (options: FetchOptions) => {
     await getFluidVaultsDailyBorrowFees(options),
     await getFluidDexesDailyBorrowFees(options),
   ]);
-
-  console.log("vaultFees", (await vaultFees.getUSDValue()).toString())
-  console.log("dexFees", (await dexFees.getUSDValue()).toString())
-
+  
   vaultFees.addBalances(dexFees);
   return vaultFees;
 };
