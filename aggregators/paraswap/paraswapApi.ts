@@ -47,16 +47,16 @@ const fetch = (chain: Chain) => {
     const totalRevenue = totalProtocolRevenue;
     if(type === "fees"){
         return {
-            dailyFees: dailyFees ? dailyFees.toString() : undefined,
-            dailyRevenue: dailyRevenue ? dailyRevenue.toString() : undefined,
-            totalRevenue: totalRevenue ? totalRevenue.toString() : undefined,
-            totalFees: totalFees ? totalFees.toString(): undefined,
+            dailyFees: dailyFees ? dailyFees : undefined,
+            dailyRevenue: dailyRevenue ? dailyRevenue : undefined,
+            totalRevenue: totalRevenue ? totalRevenue : undefined,
+            totalFees: totalFees ? totalFees: undefined,
             timestamp
         }
     } else {
         return {
-            dailyVolume: dailyVolume.toString(),
-            totalVolume: totalVolume.toString(),
+            dailyVolume: dailyVolume,
+            totalVolume: totalVolume,
             timestamp
         }
     }
