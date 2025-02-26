@@ -51,7 +51,7 @@ const blacklistTokens = {
 
 const endpointsClassic = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6NUtT5mGjZ1tSshKLf5Q3uEEJtjBZJo1TpL5MXsUBqrT'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('GPRigpbNuPkxkwpSbDuYXbikodNJfurc1LCENLzboWer'),
+  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('GPRigpbNuPkxkwpSbDuYXbikodNJfurc1LCENLzboWer'),
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
