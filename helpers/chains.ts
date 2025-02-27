@@ -215,6 +215,7 @@ export enum CHAIN {
   UNICHAIN = "unichain",
   STORY = 'sty',
   LUMIA = 'lumia',
+  FORMNETWORK = "formnetwork",
 }
 
 // Don´t use
