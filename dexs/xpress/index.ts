@@ -16,7 +16,7 @@ interface IGraph {
 }
 
 const getData = async (chain: string, timestamp: number) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400) * 86400;
+  const dateId = getTimestampAtStartOfDayUTC(timestamp)
 
   const query = gql`{
     dailyVolume(id: ${dateId}) {
