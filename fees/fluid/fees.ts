@@ -131,7 +131,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
   }
 }
 
-export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
+export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalances }: FetchOptions, liquidityOperateLogs: any[]) => {
   // borrow fees for all dexes that have smart debt pool enabled (covers smart debt vaults).
   const dailyFees = createBalances();
   const dexes: string[] = await (await getDexResolver(fromApi)).getAllDexAddresses();
@@ -163,8 +163,10 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
     const borrowBalanceTo0 = Number(dexStateTo.totalBorrowShares) * Number(dexStateTo.token0PerBorrowShare) / 1e18;
     const borrowBalanceTo1 = Number(dexStateTo.totalBorrowShares) * Number(dexStateTo.token1PerBorrowShare) / 1e18;
 
-    const liquidityLogs0 = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex), parseInTopic(borrowToken0)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
-    const liquidityLogs1 = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex), parseInTopic(borrowToken1)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
+    const liquidityLogs = liquidityOperateLogs.filter(log => log[0] == dex);
+
+    const liquidityLogs0 = liquidityLogs.filter(log => log[1] == borrowToken0);
+    const liquidityLogs1 = liquidityLogs.filter(log => log[1] == borrowToken1);
 
     const borrowBalances0 = liquidityLogs0
       .filter((log) => log[5] !== reserveContract)
@@ -182,9 +184,8 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
     if (!dexStateFrom.totalSupplyShares || Number(dexStateFrom.totalSupplyShares) == 0) continue;
     
     // if the dex has both col pool and debt pool enabled, there can be internal arbitrage fees
-    let arbLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(dex)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
     // filter events for arb logs: both supply and borrow amount must be + (deposit and borrow) or - (payback and withdraw)
-    arbLogs = arbLogs.filter((log) => ((log[2] > 0 && log[3] > 0) || (log[2] < 0 && log[3] < 0)) && (log[2] != log[3]));
+    const arbLogs = liquidityLogs.filter((log) => ((log[2] > 0 && log[3] > 0) || (log[2] < 0 && log[3] < 0)) && (log[2] != log[3]));
 
     // abs diff is arb amount. = fee
     const arbs0 = arbLogs
@@ -201,7 +202,7 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, getLogs, cr
   return dailyFees;
 }
 
-export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
+export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBalances }: FetchOptions, liquidityOperateLogs: any[]) => {
   // borrow fees for all normal debt vaults.
   const dailyFees = createBalances();
   const vaults: string[] = await (await getVaultsResolver(fromApi)).getAllVaultsAddresses();
@@ -236,8 +237,8 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, getLogs, c
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
 
-    const liquidityLogs = await getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate, parseInTopic(vault), parseInTopic(borrowToken)], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
-    
+    const liquidityLogs = liquidityOperateLogs.filter(log => (log[0] == vault && log[1] == borrowToken));
+
     const borrowBalances = liquidityLogs
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance)
@@ -250,11 +251,14 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, getLogs, c
 };
 
 export const getFluidDailyFees = async (options: FetchOptions) => {
+  // fetch all operate logs at liquidity layer at once
+  const liquidityOperateLogs = await options.getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
+
   const [vaultFees, dexFees] = await Promise.all([
-    await getFluidVaultsDailyBorrowFees(options),
-    await getFluidDexesDailyBorrowFees(options),
+    await getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
+    await getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ]);
-  
+
   vaultFees.addBalances(dexFees);
   return vaultFees;
 };
