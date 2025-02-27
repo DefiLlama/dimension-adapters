@@ -34,9 +34,8 @@ const fetchVolume = async (options: FetchOptions) => {
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ABSTRACT]: {
-      fetch: fetchVolume,
-      runAtCurrTime: true
+    [CHAIN.BERACHAIN]: {
+      fetch: fetchVolume
     }
   }
 }
