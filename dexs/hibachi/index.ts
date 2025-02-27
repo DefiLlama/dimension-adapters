@@ -5,8 +5,6 @@ import { httpGet, httpPost } from "../../utils/fetchURL";
 
 type FutureContracts = {
   id: number;
-  underlying_symbol: string,
-  name: string,
   symbol: string,
   volume24h: string | null,
   low24h: string | null,
