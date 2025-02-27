@@ -15,20 +15,19 @@ type FutureContracts = {
 
 interface Response {
   future_contracts: FutureContracts[];
-
+  timestamp: string
 }
 
 const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const response: Response = (await httpGet("https://data-api.hibachi.xyz/exchange/stats/volumes"));
-
+  
   const dailyVolume = response.future_contracts.reduce((acc, item) => {
     return acc + Number(item.volume24h ?? 0);
   }, 0);
 
   const output = {
     dailyVolume: dailyVolume?.toString(),
-    timestamp: dayTimestamp,
+    timestamp: new Date(response.timestamp).getTime() / 1000,
   }
 
 
@@ -39,7 +38,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     "hibachi": {
       fetch,
-      start: '2025-02-17',
+      start: '2025-03-01',
     },
   }
 };
