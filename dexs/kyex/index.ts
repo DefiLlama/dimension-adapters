@@ -79,18 +79,18 @@ const fetch = async (options: FetchOptions) => {
 
       for (const event of swapExecuteds) {
         const tokenInPrice = prices[`${CHAIN.ZETA}:${event.tokenIn.toLowerCase()}`]?.price;
-        const tokenOutPrice = prices[`${CHAIN.ZETA}:${event.tokenOut.toLowerCase()}`]?.price;
+        // const tokenOutPrice = prices[`${CHAIN.ZETA}:${event.tokenOut.toLowerCase()}`]?.price;
 
         if (tokenInPrice) {
           dailyVolume.add(event.tokenIn.toLowerCase(), Number(event.amountIn) * tokenInPrice);
         } else {
             console.warn(`Price not found for token ${event.tokenIn} at timestamp ${endTimestamp}`);
         }
-        if(tokenOutPrice) {
-          dailyVolume.add(event.tokenOut.toLowerCase(), Number(event.amountOut) * tokenOutPrice);
-        } else {
-            console.warn(`Price not found for token ${event.tokenOut} at timestamp ${endTimestamp}`);
-        }
+        // if(tokenOutPrice) {
+        //   dailyVolume.add(event.tokenOut.toLowerCase(), Number(event.amountOut) * tokenOutPrice);
+        // } else {
+        //     console.warn(`Price not found for token ${event.tokenOut} at timestamp ${endTimestamp}`);
+        // }
         lastId = event.id;
       }
 
