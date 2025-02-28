@@ -1,41 +1,23 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
-interface Token {
-    token0Address?: string;
-    token1Address?: string;
-    token0Name?: string;
-    token1Name?: string;
-    token0Symbol?: string;
-    token1Symbol?: string;
-    token0Decimal?: number;
-    token1Decimal?: number;
-}
-
-interface PairData {
-    pairAddress: string;
-    token0: Token;
-    token1: Token;
+interface HyperswapPair {
     version: string;
-    fee: number;
-    h24: string | null;
+    h24: string;
+    fee: string;
 }
 
-interface ApiResponse {
-    success: boolean;
-    data: {
-        pageCount: number;
-        pairs: PairData[];
-    };
+interface HyperswapResponse {
+    pairs: HyperswapPair[];
+    pageCount: number;
 }
 
-const fetchData = async (options: FetchOptions) => {
+const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     const url = (page: number) =>  `https://api.hyperswap.exchange/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
-    const data: PairData[] = []
-    
+    const data: HyperswapPair[] = []
     while(true) {
-        const response = await httpGet(url(page), { 
+        const res = (await httpGet(url(page), {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -52,32 +34,27 @@ const fetchData = async (options: FetchOptions) => {
                 "Origin": "https://hyperswap.exchange",
                 "Referer": "https://hyperswap.exchange/"
             }
-        });
-        
-        const res = response.data as ApiResponse;
-        page++;
+        })) as { data: HyperswapResponse };
+        page++
 
-        if (!res.success || res.data.pageCount < page) break;
+        if (res.data.pageCount < page) break
 
-        data.push(...res.data.pairs);   
+        data.push(...res.data.pairs)   
     }
 
-    const dailyVolume = options.createBalances();
-    const dailyFees = options.createBalances();
-    
-    data
-        .filter((pair) => pair.version === "v3")
-        .forEach((pair) => {
-            if (pair.h24) {
-                const volume = Number(pair.h24);
-                dailyVolume.addUSDValue(volume);
-                dailyFees.addUSDValue((volume * Number(pair.fee)) / 1000000); // (fee/10000)/100 simplified
-            }
-        });
+    const dailyVolume = options.createBalances()
+    const dailyFees = options.createBalances()
+    data.filter((e) => e.version === "v3").forEach((pair) => {
+        if (pair.h24) {
+            dailyVolume.addUSDValue(Number(pair.h24))
+            dailyFees.addUSDValue(Number(pair.h24) * (Number(pair.fee)/10000)/100)
+        }
+    })
 
     return {
         dailyVolume,
-        dailyFees
+        dailyFees,
+        timestamp: options.startOfDay,
     }
 }
 
