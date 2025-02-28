@@ -33,6 +33,28 @@ const arbitrum = {
 const xlayer = {
     "exchange":"xlayer"
 }
+const plume = {
+    "exchange":"plume"
+}
+const zircuit = {
+    "exchange":"zircuit"
+}
+const story = {
+    "exchange":"story"
+}
+const ethereum = {
+    "exchange":"ethereum"
+}
+const bsc = {
+    "exchange":"bsc"
+}
+const optimism = {
+    "exchange":"optimism"
+}
+const ton = {
+    "exchange":"ton"
+}
+
 const evm_fetch  =  async (_timestamp: number) => {
     const volumeData: VolumeInfo = (await postURL(DATA_URL,zk_evm)).data;
     
@@ -105,6 +127,63 @@ const arbitrum_fetch  =  async (_timestamp: number) => {
         };
 };
 
+const plume_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,plume)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+
+const zircuit_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,zircuit)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+
+const story_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,story)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+const ethereum_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,ethereum)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+const bsc_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,bsc)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
 const xlayer_fetch  =  async (_timestamp: number) => {
     const volumeData: VolumeInfo = (await postURL(DATA_URL,xlayer)).data;
    
@@ -116,7 +195,28 @@ const xlayer_fetch  =  async (_timestamp: number) => {
             timestamp: parseInt(volumeData.time),
         };
 };
-
+const ton_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,ton)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
+const optimism_fetch  =  async (_timestamp: number) => {
+    const volumeData: VolumeInfo = (await postURL(DATA_URL,optimism)).data;
+   
+    return {
+            totalVolume: volumeData.totalTradVol,
+            dailyVolume: volumeData.tradVol24h,
+            dailyFees: volumeData.fee24h,
+            dailyRevenue : volumeData.fee24h,
+            timestamp: parseInt(volumeData.time),
+        };
+};
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.POLYGON_ZKEVM]: {
@@ -151,6 +251,41 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.XLAYER]: {
             fetch:xlayer_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.PLUME]: {
+            fetch:plume_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.ZIRCUIT]: {
+            fetch:zircuit_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.STORY]: {
+            fetch:story_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.ETHEREUM]: {
+            fetch:ethereum_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.BSC]: {
+            fetch:bsc_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.OPTIMISM]: {
+            fetch:optimism_fetch,
+            runAtCurrTime: true,
+            start: 1684003134,
+        },
+        [CHAIN.TON]: {
+            fetch:ton_fetch,
             runAtCurrTime: true,
             start: 1684003134,
         }
