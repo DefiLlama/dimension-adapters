@@ -5,7 +5,7 @@ import { queryDune } from "../helpers/dune";
 import { getTimestampAtStartOfDay } from "../utils/date";
 
 const fetch = (_: Chain) => {
-  return async (options: FetchOptions) => {
+  return async (_a: any, _ts: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     try {
       const startOfDay = getTimestampAtStartOfDay(options.startOfDay);
@@ -32,7 +32,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM) as any,
