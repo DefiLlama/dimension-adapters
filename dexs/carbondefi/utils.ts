@@ -1,11 +1,6 @@
-import { Balances } from "@defillama/sdk";
 import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-
-const isNativeToken = (address: string) =>
-  address.toLowerCase() ===
-  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
 
 const fetchWithPagination = async (endpoint: string, limit: number = 10000) => {
   let offset = 0;
@@ -33,8 +28,10 @@ export const fetchDataFromApi = async (
   const url = new URL(endpoint);
 
   // Filter by date
-  if (startTimestampS && endTimestampS) {
+  if (startTimestampS) {
     url.searchParams.append("start", startTimestampS.toString());
+  }
+  if (endTimestampS) {
     url.searchParams.append("end", endTimestampS.toString());
   }
   return fetchWithPagination(url.href);
@@ -43,14 +40,18 @@ export const fetchDataFromApi = async (
 export const getDimensionsSum = async (
   endpoint: string,
   startTimestamp: number,
-  endTimestamp: number
+  endTimestamp: number,
+  chainStartTimestamp: number
 ) => {
   const dailyData: CarbonAnalyticsResponse = await fetchDataFromApi(
     endpoint,
     startTimestamp,
     endTimestamp
   );
-  const swapData: CarbonAnalyticsResponse = await fetchDataFromApi(endpoint);
+  const swapData: CarbonAnalyticsResponse = await fetchDataFromApi(
+    endpoint,
+    chainStartTimestamp
+  );
 
   const { dailyVolume, dailyFees } = dailyData.reduce(
     (prev, curr) => {

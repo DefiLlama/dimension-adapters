@@ -41,9 +41,15 @@ const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
   const startTimestamp = options.fromTimestamp;
   const endTimestamp = options.toTimestamp;
+  const chainStartTimestamp = chainInfo[options.chain].startTimestamp;
 
   try {
-    return getDimensionsSum(analyticsEndpoint, startTimestamp, endTimestamp);
+    return getDimensionsSum(
+      analyticsEndpoint,
+      startTimestamp,
+      endTimestamp,
+      chainStartTimestamp
+    );
   } catch (e) {
     console.error(e);
     // Return empty values
