@@ -54,8 +54,6 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchScallopStats,
       start: '2023-12-31',
       meta: {

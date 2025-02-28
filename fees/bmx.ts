@@ -6,9 +6,9 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api-v2.morphex.trade/subgraph/2vZHkWfx8g27Tri5LkTbhvCExCQcXJ3f28X2BwzFhjf6",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.1/gn",
   [CHAIN.MODE]:
-    "https://api-v2.morphex.trade/subgraph/8tp7xrDSCuutJ5omjfQKHvkGJpLszqPVWg3pby9XMLEz",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };
 
 const methodology = {

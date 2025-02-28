@@ -7,6 +7,7 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
+import { uniV2Exports, uniV3Exports } from '../../helpers/uniswap'
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ESnjgAG9NjfmHypk4Huu4PVvz55fUwpyrRqHF21thoLJ'),
@@ -14,6 +15,7 @@ const v1Endpoints = {
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83')
 };
 
 const blacklisted = {
@@ -62,11 +64,12 @@ const v3Endpoints = {
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
-  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
+  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
-  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
+  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX') 
 };
 
 // fees results are in eth, needs to be converted to a balances objects
@@ -185,7 +188,7 @@ const fetchV2 = async (options: FetchOptions) => {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     });
     const dailyVolume = response.v2HistoricalProtocolVolume.find((item) => item.timestamp === options.startOfDay)?.value;
-    return {dailyVolume: dailyVolume}
+    return { dailyVolume, dailyFees: Number(dailyVolume) * 0.003 };
   } catch (e) {
     console.error(e)
     return {
@@ -244,6 +247,22 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
+      [CHAIN.UNICHAIN]: {
+        fetch: async (options: FetchOptions) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
+        meta: {
+          methodology
+        },
+      },
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
@@ -256,6 +275,7 @@ const adapter: BreakdownAdapter = {
         fetch: async (options: FetchOptions) => {
           try {
             const res = (await v3Graphs(chain as Chain)(options))
+            // console.log("res", res)
             return {
               totalVolume: res?.totalVolume || 0,
               dailyVolume: res?.dailyVolume || 0,
@@ -323,7 +343,29 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-const okuChains = [ CHAIN.ETHEREUM, CHAIN.SEI, CHAIN.ERA, CHAIN.TAIKO, CHAIN.SCROLL, CHAIN.ROOTSTOCK, CHAIN.FILECOIN, CHAIN.BOBA, CHAIN.MOONBEAM, CHAIN.MANTA, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.POLYGON_ZKEVM, CHAIN.BLAST, CHAIN.XDAI, CHAIN.BOB, CHAIN.LISK]
+const okuChains = [
+  CHAIN.ETHEREUM,
+  CHAIN.SEI,
+  CHAIN.ERA,
+  CHAIN.TAIKO,
+  CHAIN.SCROLL,
+  CHAIN.ROOTSTOCK,
+  CHAIN.FILECOIN,
+  CHAIN.BOBA,
+  CHAIN.MOONBEAM,
+  CHAIN.MANTA,
+  CHAIN.MANTLE,
+  CHAIN.LINEA,
+  CHAIN.POLYGON_ZKEVM,
+  CHAIN.BLAST,
+  CHAIN.XDAI,
+  CHAIN.BOB,
+  CHAIN.LISK,
+  CHAIN.CORN,
+  CHAIN.BSC
+]
+
+
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
@@ -333,5 +375,6 @@ okuChains.forEach(chain => {
     }
   }
 })
+
 
 export default adapter;

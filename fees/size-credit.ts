@@ -1,7 +1,10 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const SIZE_FACTORY = '0x330Dc31dB45672c1F565cf3EC91F9a01f8f3DF0b'
+const SIZE_FACTORY = {
+  [CHAIN.BASE]: '0x330Dc31dB45672c1F565cf3EC91F9a01f8f3DF0b',
+  [CHAIN.ETHEREUM]: '0x3A9C05c3Da48E6E26f39928653258D7D4Eb594C1'
+}
 
 const abis = {
   SizeFactory: {
@@ -16,10 +19,10 @@ const abis = {
   },
 }
 
-const fetch: any = async ({ createBalances, getLogs, api, }: FetchOptions) => {
+const fetch: any = async ({ createBalances, getLogs, api, }: FetchOptions, chain: keyof typeof SIZE_FACTORY) => {
   const fees = createBalances()
 
-  const markets = await api.call({ abi: abis.SizeFactory.getMarkets, target: SIZE_FACTORY })
+  const markets = await api.call({ abi: abis.SizeFactory.getMarkets, target: SIZE_FACTORY[chain] })
   const [datas, feeConfigs] = await Promise.all([
     api.multiCall({ abi: abis.Size.data, calls: markets }),
     api.multiCall({ abi: abis.Size.feeConfig, calls: markets }),
@@ -73,7 +76,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch,
+      fetch: (options: any) => fetch(options, CHAIN.BASE),
       start: '2024-07-16',
       meta: {
         methodology: {
@@ -82,6 +85,16 @@ const adapter: Adapter = {
         }
       }
     },
+    [CHAIN.ETHEREUM]: {
+      fetch: (options: any) => fetch(options, CHAIN.ETHEREUM),
+      start: '2025-01-08',
+      meta: {
+        methodology: {
+          Fees: methodology,
+          ProtocolRevenue: methodology
+        }
+      }
+    }
   }
 }
 export default adapter;

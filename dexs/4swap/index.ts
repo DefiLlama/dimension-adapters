@@ -28,7 +28,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.MIXIN]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
   }
 };

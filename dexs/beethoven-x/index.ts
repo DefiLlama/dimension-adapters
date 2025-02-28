@@ -8,6 +8,7 @@ import request, { gql } from "graphql-request";
 const endpoints: ChainEndpoints = {
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4XKeW12D2RAhqefPYT3MLoT64p1JnT5TBLnYaNeSLA8k'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F5jeL2nMXZt5LU6kSway7Vi2PTUcqDbw1gMQEbrmiVdJ'),
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint("wwazpiPPt5oJMiTNnQ2VjVxKnKakGDuE2FfEZPD4TKj"),
 };
 
 interface IPool {

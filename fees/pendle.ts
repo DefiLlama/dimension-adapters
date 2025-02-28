@@ -238,10 +238,23 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   sys: string[];
   marketToSy: Map<string, string>;
 }> {
-  const { results } = await getConfig(
-    "pendle/v2/revenue-" + api.chain,
-    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
-  );
+  // Should only cache api by week
+  const weekId = Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 7);
+
+  let results: any[] = [];
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { results: newResults } = await getConfig(
+      `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
+      `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
+    );
+    results = results.concat(newResults);
+    skip += 100;
+    hasMore = newResults.length === 100;
+  }
+
   const markets = results.map((d: any) => d.lp.address);
   const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
   const sys = Array.from(sySet);

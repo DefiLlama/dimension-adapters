@@ -36,18 +36,38 @@ export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
         if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
             console.info(`Backfill start time: ${formatTimestampAsDate(String(element.startTimestamp))}`)
         else console.info("Backfill start time not defined")
-        if (typeof methodology === 'string') console.log("Methodology:", methodology)
-        else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
+        // if (typeof methodology === 'string') console.log("Methodology:", methodology)
+        // else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
         Object.entries(element).forEach(([attribute, value]) => {
             if (!exclude2Print.includes(attribute)) {
                 const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any) * 1e3).toISOString()})` : humanizeNumber(Number(value))
                 console.info(`${camelCaseToSpaces(attribute === "timestamp" ? "endTimestamp" : attribute)}: ${valueFormatted}`)
-                if (valueFormatted !== undefined && typeof methodology === 'object' && methodology[attribute.slice(5)])
-                    console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
+                // if (valueFormatted !== undefined && typeof methodology === 'object' && methodology[attribute.slice(5)])
+                //     console.log("└─ Methodology:", methodology?.[attribute.slice(5)])
             }
         })
         console.info('\n')
     });
+
+
+    if (volumes.length > 1) {
+        const aggregated: {
+            [key: string]: any
+        } = {
+            chain: '---- aggregate',
+            timestamp: volumes[0].timestamp,
+        }
+        const ignoredKeySet = new Set(['chain', 'timestamp', 'startTimestamp'])
+        volumes.forEach((element) => {
+            for (const [key, value] of Object.entries(element)) {
+                if (!ignoredKeySet.has(key)) {
+                    if (aggregated[key] === undefined) aggregated[key] = 0
+                    aggregated[key] += value
+                }
+            }
+        })
+        printVolumes([aggregated])
+    }
 }
 
 export function formatTimestampAsDate(timestamp: string) {

@@ -27,7 +27,6 @@ const fetchFeesAndRevenues = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
-  isExpensiveAdapter: true,
   adapter: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.SOLANA, CHAIN.TRON, CHAIN.TON].reduce((all, chain) => ({
     ...all,
     [chain]: {

@@ -6,7 +6,7 @@ interface IData {
   dailyFees: string;
 }
 
-const endpoint = "https://www.4cast.win/api/api/platformFees";
+const endpoint = "https://app.memecast.ai/api/api/platformFees";
 
 function createSolBalances(options: FetchOptions, value: string) {
   const balances = options.createBalances();
@@ -32,7 +32,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      runAtCurrTime: false,
       start: '2024-07-17',
     },
   },

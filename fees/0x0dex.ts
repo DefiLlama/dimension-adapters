@@ -37,7 +37,6 @@ const adapter: Adapter = {
     adapter: {
         [ETHEREUM]: {
             fetch,
-            runAtCurrTime: true,
             start: '2023-05-29',
             meta: {
                 methodology: {

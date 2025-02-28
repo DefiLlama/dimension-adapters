@@ -230,7 +230,6 @@ const volAdapter: BaseAdapter = {}
 Object.keys(orderbooks).forEach(chain => {
   volAdapter[chain] = {
     fetch: fetchVolume,
-    runAtCurrTime: false,
     start: Object.values(orderbooks[chain])
       .flat()
       .reduce((a, b) => a.start < b.start ? a : b)

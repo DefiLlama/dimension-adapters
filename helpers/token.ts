@@ -16,8 +16,9 @@ export async function addGasTokensReceived(params: {
   multisigs?: string[];
   options: FetchOptions;
   balances?: sdk.Balances;
+  fromAddresses?: string[];
 }) {
-  let { multisig, multisigs, options, balances } = params;
+  let { multisig, multisigs, options, balances, fromAddresses } = params;
   if (multisig) multisigs = [multisig]
 
   if (!balances) balances = options.createBalances()
@@ -26,10 +27,15 @@ export async function addGasTokensReceived(params: {
     throw new Error('multisig or multisigs required')
   }
 
-  const logs = await options.getLogs({
+  let logs = await options.getLogs({
     targets: multisigs,
     eventAbi: 'event SafeReceived (address indexed sender, uint256 value)'
   })
+
+  if(fromAddresses) {
+    const normalized = fromAddresses.map(a=>a.toLowerCase())
+    logs = logs.filter(log=>normalized.includes(log.sender.toLowerCase()))
+  }
 
   logs.forEach(i => balances!.addGasToken(i.value))
   return balances
@@ -237,6 +243,7 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
   })
 
   logs.forEach((log) => {
+    if (log.data == '0x') return
     balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
@@ -310,12 +317,13 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-  export async function getSolanaReceived({ options, balances, target, targets, blacklists }: {
+  export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
     options: FetchOptions;
     balances?: sdk.Balances;
     target?: string;
     targets?: string[];
     blacklists?: string[];
+    blacklist_signers?: string[];
   }) {
     if (!balances) balances = options.createBalances();
   
@@ -331,6 +339,13 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
       blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
     }
+    
+    let blacklist_signersCondition = '';
+    
+    if (blacklist_signers && blacklist_signers.length > 0) {
+      const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+      blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
+    }
   
     const query = `
       SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
@@ -338,6 +353,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       WHERE to_address = '${target}'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       ${blacklistCondition}
+      ${blacklist_signersCondition}
     `;
   
     const res = await queryAllium(query);

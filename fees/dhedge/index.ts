@@ -1,14 +1,29 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
-const query = `
+
+const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { daoFee, tokenPriceAtFeeMint }
+        ) { managerFee, daoFee, tokenPriceAtFeeMint }
+      }`
+const queryEntryFeeMinteds = `
+      query entryFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        entryFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { entryFeeAmount, tokenPrice }
       }`
 
+const queryExitFeeMenteds = `
+      query exitFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        exitFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { exitFeeAmount, tokenPrice }
+      }`
 
 // if graph goes down, can be pulled via event logs, example:
 // https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
@@ -34,7 +49,6 @@ const PROVIDER_CONFIG = {
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
   },
   [CHAIN.BASE]: {
-    startTimestamp: 1712227101,
     endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
   },
 };
@@ -69,25 +83,64 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
   return allData;
 };
 
-const calculateFees = (data: any): number =>
-  data.reduce((acc: number, item: any) => {
-    const daoFee = Number(item.daoFee);
-    const tokenPrice = Number(item.tokenPriceAtFeeMint);
-    const daoFeeInEth = daoFee / 1e18;
-    const tokenPriceInEth = tokenPrice / 1e18;
-    const result = daoFeeInEth * tokenPriceInEth;
-    return acc + result;
-  }, 0);
+const calculateManagerFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+      const managerFee = Number(item.managerFee);
+      const tokenPrice = Number(item.tokenPriceAtFeeMint);
+      const managerFeeFormatted = managerFee / 1e18;
+      const tokenPriceFormatted = tokenPrice / 1e18;
+      const result = managerFeeFormatted * tokenPriceFormatted;
+      return acc + result;
+    }, 0);
+
+const calculateEntryFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+        const entryFee = Number(item.entryFeeAmount);
+        const tokenPrice = Number(item.tokenPrice);
+        const entryFeeFormatted = entryFee / 1e18;
+        const tokenPriceFormatted = tokenPrice / 1e18;
+        const result = entryFeeFormatted * tokenPriceFormatted;
+        return acc + result;
+    }, 0);
+
+const calculateExitFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+        const exitFee = Number(item.exitFeeAmount);
+        const tokenPrice = Number(item.tokenPrice);
+        const exitFeeFormatted = exitFee / 1e18;
+        const tokenPriceFormatted = tokenPrice / 1e18;
+        const result = exitFeeFormatted * tokenPriceFormatted;
+        return acc + result;
+    }, 0);
+
+const calculateDaoFees = (data: any): number =>
+    data.reduce((acc: number, item: any) => {
+      const daoFee = Number(item.daoFee);
+      const tokenPrice = Number(item.tokenPriceAtFeeMint);
+      const daoFeeFormatted = daoFee / 1e18;
+      const tokenPriceFormatted = tokenPrice / 1e18;
+      const result = daoFeeFormatted * tokenPriceFormatted;
+      return acc + result;
+    }, 0);
 
 const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const config = PROVIDER_CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const dailyFees = await fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
+  const dailyManagerFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryManagerFeeMinteds, 'managerFeeMinteds', startTimestamp, endTimestamp);
+  const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
+  const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
+
+  const dailyManagerFees = calculateManagerFees(dailyManagerFeesEvents);
+  const dailyEntryFees = calculateEntryFees(dailyEntryFeesEvents);
+  const dailyExitFees = calculateExitFees(dailyExitFeesEvents);
+  const dailyFees = dailyManagerFees + dailyEntryFees + dailyExitFees;
+
+  const dailyDaoFees = calculateDaoFees(dailyManagerFeesEvents);
 
   return {
-    dailyFees: calculateFees(dailyFees),
-    dailyRevenue: calculateFees(dailyFees),
+    dailyFees: dailyFees,
+    dailyRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };
 }
