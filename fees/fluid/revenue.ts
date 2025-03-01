@@ -37,7 +37,6 @@ const revenueResolver = async (api: ChainApi) => {
   const block = await api.getBlock();
   let address: string
   let abi: any = ABI.revenueResolver;
-
   switch (api.chain) {
     case CHAIN.ETHEREUM:
       // fluid revenueResolver exist after block 19784319
@@ -50,7 +49,7 @@ const revenueResolver = async (api: ChainApi) => {
   
     case CHAIN.ARBITRUM:
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
-      break
+      break;
     case CHAIN.BASE:
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
       break;
@@ -63,7 +62,7 @@ const revenueResolver = async (api: ChainApi) => {
 }
 
 const getUncollectedLiquidities = async (api: ChainApi, tokens: string []) => {
-  const revenueResolverInfo = (await revenueResolver(api)).targetInfo(); 
+  const revenueResolverInfo = (await revenueResolver(api)).targetInfo();
   return await api.multiCall({
     calls: tokens.map((token) => ({ target: revenueResolverInfo.address, params: [token] })),
     abi: revenueResolverInfo.abi.getRevenue,

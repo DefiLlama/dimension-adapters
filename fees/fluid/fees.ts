@@ -252,7 +252,13 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
 
 export const getFluidDailyFees = async (options: FetchOptions) => {
   // fetch all operate logs at liquidity layer at once
-  const liquidityOperateLogs = await options.getLogs({ target: LIQUIDITY, onlyArgs: true, topics: [TOPIC0.logOperate], eventAbi: EVENT_ABI.logOperate, flatten: true, skipCacheRead: true });
+  const liquidityOperateLogs = await options.getLogs({ 
+    target: LIQUIDITY,
+    onlyArgs: true,
+    topics: [TOPIC0.logOperate],
+    eventAbi: EVENT_ABI.logOperate,
+    flatten: true
+  });
 
   const [vaultFees, dexFees] = await Promise.all([
     await getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
