@@ -1,13 +1,11 @@
 import * as sdk from "@defillama/sdk";
-import { getTimestamp } from "@defillama/sdk/build/util";
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
-import { getVaultsResolver } from './fees';
+import { getVaultsT1Resolver } from './fees';
 
 type CreateBalances = () => sdk.Balances
-const NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
 const liquidityResolver = async (api: ChainApi) => {
   const block = await api.getBlock();
@@ -32,8 +30,6 @@ const liquidityResolver = async (api: ChainApi) => {
 
   return {
     listedTokens: async () => api.call({ target: address, abi: abi.listedTokens }),
-    getExchangePricesAndConfig: async (tokens: string []) => api.multiCall({ calls: tokens.map((token) => ({ target: address, params: [token] })), abi: abi.getExchangePricesAndConfig }),
-    getTotalAmounts: async (tokens: string []) =>  api.multiCall({ calls: tokens.map((token) => ({ target: address, params: [token] })), abi: abi.getTotalAmounts })
   }
 };
 
@@ -61,64 +57,27 @@ const revenueResolver = async (api: ChainApi) => {
   }
 
   return {
-    calcRevenueSimulatedTime: async (totalAmounts: string, exchangePricesAndConfig: string, liquidityTokenBalance: string, timestamp: number) => {
-      const blockTimestamp = await getTimestamp(await api.getBlock(), api.chain);
-      if(blockTimestamp > timestamp) {
-        // calcRevenueSimulatedTime() method does not support the case where lastUpdateTimestamp (included in exchangePricesAndConfig) is > simulated block.timestamp ("timestamp"). 
-        // making the timestamp at least be block.timestamp guarantees that this can never be the case, as `exchangePricesAndConfig` is fetched at that block.timestamp.
-        // difference here should be very negligible (yield accrual for time difference), although advanced handling would be possible if needed via checking the actual time
-        // difference and processing further accordingly.
-        timestamp = blockTimestamp;
-      }
-      return await api.call({ target: address, params: [totalAmounts, exchangePricesAndConfig, liquidityTokenBalance, timestamp], abi: abi.calcRevenueSimulatedTime, permitFailure: true });
-    }
+    targetInfo: () => { return { address, abi }},
+    getRevenue: async (token: string) => api.call({ target: address, params: [token], abi: abi.getRevenue }),
   }
 }
 
-const getUncollectedLiquidities = async (api: ChainApi, timestamp: number, tokens: string []) => {
-  const [totalAmounts, exchangePricesAndConfig] = await Promise.all([
-    (await liquidityResolver(api)).getTotalAmounts(tokens),
-    (await liquidityResolver(api)).getExchangePricesAndConfig(tokens),
-  ]);
-
-  const liquidityTokenBalance: string[] = await api.multiCall({
-    calls: tokens.filter((token) => token !== NATIVE_TOKEN).map((token) => ({ target: token, params: [LIQUIDITY] })),
-    abi: "erc20:balanceOf",
+const getUncollectedLiquidities = async (api: ChainApi, tokens: string []) => {
+  const revenueResolverInfo = (await revenueResolver(api)).targetInfo(); 
+  return await api.multiCall({
+    calls: tokens.map((token) => ({ target: revenueResolverInfo.address, params: [token] })),
+    abi: revenueResolverInfo.abi.getRevenue,
   });
-
-  if (tokens.includes(NATIVE_TOKEN)) {
-    const { output: nativeBalance } = (await sdk.api.eth.getBalance({ target: LIQUIDITY, chain: api.chain, block: await api.getBlock() }))
-    const eeIndex = tokens.indexOf(NATIVE_TOKEN);
-    liquidityTokenBalance.splice(eeIndex, 0, nativeBalance);
-  }
-
-  return Promise.all(
-    tokens.map(async (_, index) => {
-      const totalAmount = totalAmounts[index];
-      const exchangePriceConfig = exchangePricesAndConfig[index];
-      const tokenBalance = liquidityTokenBalance[index];
-  
-      if (totalAmount === undefined || exchangePriceConfig === undefined || tokenBalance === undefined) return 0;
-      const _uncollectedRevenue = await (await revenueResolver(api)).calcRevenueSimulatedTime(
-        totalAmount,
-        exchangePriceConfig,
-        tokenBalance,
-        timestamp
-      );
-  
-      return _uncollectedRevenue ?? 0;
-    })
-  );
 }
 
-const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalances, fromTimestamp, toTimestamp }: FetchOptions) => {
+const getLiquidityRevenues = async ({ fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
   const dailyValues = createBalances();
-  const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
+  const tokens: string[] = (await (await liquidityResolver(fromApi)).listedTokens()).map((t: string) => t.toLowerCase());
 
   // Fetch uncollected revenues for the "from" and "to" timestamps
   const [revenuesFrom, revenuesTo] = await Promise.all([
-    getUncollectedLiquidities(fromApi, fromTimestamp, tokens),
-    getUncollectedLiquidities(toApi, toTimestamp, tokens)
+    getUncollectedLiquidities(fromApi, tokens),
+    getUncollectedLiquidities(toApi, tokens)
   ]);
 
   for (const [i, token] of tokens.entries()) {
@@ -138,11 +97,11 @@ const getLiquidityRevenues = async ({ api, fromApi, toApi, getLogs, createBalanc
   return dailyValues.getUSDValue();
 };
 
-const getVaultUncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string [], timestamp: number) => {
+const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string [], timestamp: number) => {
   const values = createBalances()
   if (timestamp < CONFIG_FLUID[api.chain].vaultResolverExistAfterTimestamp) return values
 
-  const vaultDatas = await ((await getVaultsResolver(api)).getVaultEntireData(vaults))
+  const vaultDatas = await ((await getVaultsT1Resolver(api)).getVaultEntireData(vaults))
 
   vaultDatas.forEach((data) => {
     if (!data || !data.totalSupplyAndBorrow || !data.constantVariables) return
@@ -162,7 +121,7 @@ const getVaultUncollectedRevenues = async (api: ChainApi, createBalances: Create
   return values;
 };
 
-const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs, vaults: string []) => {
+const getVaultT1CollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs, vaults: string []) => {
   const values = createBalances()
   const rebalanceEventLogs: any [] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance })
   if (rebalanceEventLogs.length == 0) return values;
@@ -183,15 +142,15 @@ const getVaultCollectedRevenues = async (api: ChainApi, createBalances: CreateBa
   return values
 }
 
-const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs, fromTimestamp, toTimestamp }: FetchOptions) => {
+const getVaultsT1Revenues = async ({ api, fromApi, toApi, createBalances, getLogs, fromTimestamp, toTimestamp }: FetchOptions) => {
   if (toTimestamp < CONFIG_FLUID[api.chain].vaultResolverExistAfterTimestamp) return 0
 
-  const vaults: string[] = await (await getVaultsResolver(api)).getAllVaultsAddresses();
+  const vaults: string[] = await (await getVaultsT1Resolver(fromApi)).getAllVaultsAddresses();
 
   const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] = await Promise.all([
-    getVaultUncollectedRevenues(fromApi, createBalances, vaults, fromTimestamp),
-    getVaultUncollectedRevenues(toApi, createBalances, vaults, toTimestamp),
-    getVaultCollectedRevenues(api, createBalances, getLogs, vaults)
+    getVaultT1UncollectedRevenues(fromApi, createBalances, vaults, fromTimestamp),
+    getVaultT1UncollectedRevenues(toApi, createBalances, vaults, toTimestamp),
+    getVaultT1CollectedRevenues(api, createBalances, getLogs, vaults)
   ])
 
   vaultUncollectedBalancesTo.addBalances(vaultCollected)
@@ -203,7 +162,8 @@ const getVaultsRevenues = async ({ api, fromApi, toApi, createBalances, getLogs,
 export const getFluidDailyRevenue = async (options: FetchOptions) => {
   const [liquidityRevenues, vaultRevenues] = await Promise.all([
     getLiquidityRevenues(options),
-    getVaultsRevenues(options)
+    getVaultsT1Revenues(options)
   ])
+
   return liquidityRevenues + vaultRevenues
 }
