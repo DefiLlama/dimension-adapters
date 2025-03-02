@@ -19,7 +19,7 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
   const fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
 
-  const buyLogsSinceDeploy = await getLogs({
+  const buyLogs = await getLogs({
     target: BERO,
     fromBlock,
     toBlock,
@@ -27,20 +27,20 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
       "event TOKEN__Buy(address indexed sender, address indexed toAccount, uint256 amountBase)",
   });
 
-  const sellLogsSinceDeploy = await getLogs({
+  const sellLogs = await getLogs({
     target: BERO,
     fromBlock,
     eventAbi:
       "event TOKEN__Sell(address indexed sender, address indexed toAccount, uint256 amountToken)",
   });
 
-  buyLogsSinceDeploy.forEach((log) => {
+  buyLogs.forEach((log) => {
     const amount = log.amountBase;
     const fee = (amount * (SWAP_FEE + PROVIDER_FEE)) / DIVISOR;
     totalFees.add(HONEY, fee);
   });
 
-  sellLogsSinceDeploy.forEach((log) => {
+  sellLogs.forEach((log) => {
     const amount = log.amountToken;
     const fee = (amount * (SWAP_FEE + PROVIDER_FEE)) / DIVISOR;
     totalFees.add(HONEY, fee);
@@ -53,14 +53,14 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
   const fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
 
-  const borrowLogsSinceDeploy = await getLogs({
+  const borrowLogs = await getLogs({
     target: VOTER,
     fromBlock,
     toBlock,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
   });
 
-  borrowLogsSinceDeploy.forEach((log) => {
+  borrowLogs.forEach((log) => {
     const amount = log.amount;
     const fee = (amount * BORROW_FEE) / DIVISOR;
     totalFees.add(HONEY, fee);
