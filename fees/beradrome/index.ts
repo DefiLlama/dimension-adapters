@@ -43,7 +43,7 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
   sellLogs.forEach((log) => {
     const amount = log.amountToken;
     const fee = (amount * (SWAP_FEE + PROVIDER_FEE)) / DIVISOR;
-    totalFees.add(HONEY, fee);
+    totalFees.add(BERO, fee);
   });
 }
 
