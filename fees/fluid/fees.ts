@@ -177,8 +177,21 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
     const fees0 = borrowBalanceTo0 > borrowBalances0 ? borrowBalanceTo0 - borrowBalances0 : 0n
     const fees1 = borrowBalanceTo1 > borrowBalances1 ? borrowBalanceTo1 - borrowBalances1 : 0n
 
+    console.log("dex", i, dex)
+    
+    let valuesBefore = await dailyFees.getUSDValue();
+
     dailyFees.add(borrowToken0, fees0)
+
+    let valuesAfter =  await dailyFees.getUSDValue();
+    console.log((valuesAfter - valuesBefore).toString(), "added fees0");
+
+     valuesBefore = await dailyFees.getUSDValue();
+
     dailyFees.add(borrowToken1, fees1)
+
+     valuesAfter =  await dailyFees.getUSDValue();
+     console.log((valuesAfter - valuesBefore).toString(), "added fees1");
 
     if (!dexStateFrom.totalSupplyShares || Number(dexStateFrom.totalSupplyShares) == 0) continue;
 
@@ -194,8 +207,19 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
       .filter((log) => log[1] == borrowToken1)
       .reduce((balance, [, , supplyAmount, borrowAmount]) => balance + Math.abs(Number(supplyAmount) - Number(borrowAmount)) , 0);
 
-    dailyFees.add(borrowToken0, arbs0);
-    dailyFees.add(borrowToken1, arbs1);
+      valuesBefore = await dailyFees.getUSDValue();
+
+      dailyFees.add(borrowToken0, arbs0)
+  
+       valuesAfter =  await dailyFees.getUSDValue();
+      console.log((valuesAfter - valuesBefore).toString(), "added arbs0");
+  
+       valuesBefore = await dailyFees.getUSDValue();
+  
+       dailyFees.add(borrowToken1, arbs1)
+  
+       valuesAfter =  await dailyFees.getUSDValue();
+       console.log((valuesAfter - valuesBefore).toString(), "added arbs1");
   }
 
   return dailyFees;
@@ -211,6 +235,8 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
     (await getVaultsResolver(toApi)).getVaultEntireData(vaults),
   ]);
 
+  console.log("\n\n------------------ chain", fromApi.chain, "---------------------");
+
   for (const [i, vault] of vaults.entries()) {
     const vaultDataFrom = vaultDatasFrom[i];
     const vaultDataTo = vaultDatasTo[i];
@@ -220,30 +246,57 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
     const vaultFrom = vaultDataFrom.vault
     const vaultTo = vaultDataTo.vault
 
-    if (!vaultFrom || !vaultTo || vaultFrom !== vault || vaultTo !== vault) continue
+    if (!vaultFrom || !vaultTo || vaultFrom !== vault || vaultTo !== vault){
+      console.log("Skip any not set");
+      continue;
+    } 
 
     if(vaultDataFrom.constantVariables.vaultType > 0 && vaultDataFrom.constantVariables.borrowToken.token1 != "0x0000000000000000000000000000000000000000"){
       // skip any smart debt vault. tracked at dex level instead.
+      console.log("Skip smart debt vault", vault, vaultDataFrom.constantVariables.vaultType, vaultDataFrom.constantVariables.borrowToken);
       continue;
     }
 
     const borrowToken = vaultDataFrom.constantVariables.vaultType > 0 ? vaultDataFrom.constantVariables.borrowToken.token0 : vaultDataFrom.constantVariables.borrowToken;
-    if (!borrowToken) continue;
+    if (!borrowToken){
+      console.log("Skip fail borrow token", vault, borrowToken);
+      continue;
+    }
+
+    console.log("vault", vault)
+    console.log("borrowToken", borrowToken)
 
     const { totalSupplyAndBorrow: totalSupplyAndBorrowFrom } = vaultDataFrom;
     const { totalSupplyAndBorrow: totalSupplyAndBorrowTo } = vaultDataTo;
 
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
+
+    console.log("initialBalance", initialBalance.toString())
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
 
+    console.log("borrowBalanceTo", borrowBalanceTo.toString())
+
     const liquidityLogs = liquidityOperateLogs.filter(log => (log[0] == vault && log[1] == borrowToken));
+    
+    console.log("liquidityLogs", liquidityLogs.length)
 
     const borrowBalances = liquidityLogs
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance)
 
+   console.log("reduced borrowBalances", borrowBalances.toString())
+    
     const fees = borrowBalanceTo > borrowBalances ? borrowBalanceTo - borrowBalances : 0n
+
+    console.log("fees", fees.toString())
+
+    let valuesBefore = await dailyFees.getUSDValue();
+
     dailyFees.add(borrowToken, fees)
+
+    let valuesAfter =  await dailyFees.getUSDValue();
+
+     console.log((valuesAfter - valuesBefore).toString(), "added vault fees");
   }
 
   return dailyFees;
@@ -261,6 +314,9 @@ export const getFluidDailyFees = async (options: FetchOptions) => {
     await getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
     await getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ]);
+
+  console.log("vaultFees", (await vaultFees.getUSDValue()).toString())
+  console.log("dexFees", (await dexFees.getUSDValue()).toString())
 
   vaultFees.addBalances(dexFees);
   return vaultFees;
