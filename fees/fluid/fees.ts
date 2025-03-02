@@ -16,21 +16,21 @@ export const getDexResolver = async (api: ChainApi) => {
       if (block < 21041663) {
         break;
       }
-      address = "0x7af0C11F5c787632e567e6418D74e5832d8FFd4c"; 
+      address = "0x7af0C11F5c787632e567e6418D74e5832d8FFd4c";
       break;
-  
+
     case CHAIN.ARBITRUM:
       if (block < 286521718) {
         break;
       }
-      address = "0x1De42938De444d376eBc298E15D21F409b946E6D"; 
+      address = "0x1De42938De444d376eBc298E15D21F409b946E6D";
       break;
-  
+
     case CHAIN.BASE:
       if (block < 25847553) {
         break;
       }
-      address = "0x800104086BECa15A54e8c61dC1b419855fdA3377"; 
+      address = "0x800104086BECa15A54e8c61dC1b419855fdA3377";
       break;
   }
 
@@ -53,24 +53,24 @@ export const getVaultsResolver = async (api: ChainApi) => {
       if (block < 21041663) {
         return getVaultsT1Resolver(api);
       }
-  
-      address = "0x49290f778faAD125f2FBCDE6F09600e73bf4bBd9"; 
+
+      address = "0x49290f778faAD125f2FBCDE6F09600e73bf4bBd9";
       break;
-  
+
     case CHAIN.ARBITRUM:
       if (block < 286521718) {
         return getVaultsT1Resolver(api);
       }
-      
-      address = "0xD6373b375665DE09533478E8859BeCF12427Bb5e"; 
+
+      address = "0xD6373b375665DE09533478E8859BeCF12427Bb5e";
       break;
 
     case CHAIN.BASE:
       if (block < 25847553) {
         return getVaultsT1Resolver(api);
       }
-      
-      address = "0xe7A6d56346d2ab4141Fa38e1B2Bc5ff3F69333CD"; 
+
+      address = "0xe7A6d56346d2ab4141Fa38e1B2Bc5ff3F69333CD";
       break;
   }
 
@@ -91,7 +91,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
         // vault resolver related revenue only exists after this block. revenue / fees before are negligible
         break
       }
-  
+
       if (block < 19662786) {
         address = "0x8DD65DaDb217f73A94Efb903EB2dc7B49D97ECca";
         abi = ABI.vaultResolver_before_19992222;
@@ -104,7 +104,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
         address = "0x6922b85D6a7077BE56C0Ae8Cab97Ba3dc4d2E7fA"; // VaultT1Resolver compatibility
       }
       break;
-  
+
     case CHAIN.ARBITRUM:
       if (block < 301152875) {
         address = "0x77648D39be25a1422467060e11E5b979463bEA3d";
@@ -112,7 +112,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
         address = "0xFbFC36f44B5385AC68264dc9767662d02e0412d2"; // VaultT1Resolver compatibility
       }
       break;
-  
+
     case CHAIN.BASE:
       if (block < 25765353) {
         address = "0x94695A9d0429aD5eFec0106a467aDEaDf71762F9";
@@ -125,8 +125,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
   return {
     getAllVaultsAddresses: async () => api.call({ target: address, abi: abi.getAllVaultsAddresses }),
     getVaultEntireData: async (vaults: string []) => {
-      const permitFailure = api.chain == CHAIN.ARBITRUM && (await api.getBlock()) > 285530000 && address == "0x77648D39be25a1422467060e11E5b979463bEA3d";
-      return api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData, permitFailure });
+      return api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData });
     }
   }
 }
@@ -174,15 +173,15 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
     const borrowBalances1 = liquidityLogs1
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance1)
-    
+
     const fees0 = borrowBalanceTo0 > borrowBalances0 ? borrowBalanceTo0 - borrowBalances0 : 0n
     const fees1 = borrowBalanceTo1 > borrowBalances1 ? borrowBalanceTo1 - borrowBalances1 : 0n
-    
+
     dailyFees.add(borrowToken0, fees0)
     dailyFees.add(borrowToken1, fees1)
 
     if (!dexStateFrom.totalSupplyShares || Number(dexStateFrom.totalSupplyShares) == 0) continue;
-    
+
     // if the dex has both col pool and debt pool enabled, there can be internal arbitrage fees
     // filter events for arb logs: both supply and borrow amount must be + (deposit and borrow) or - (payback and withdraw)
     const arbLogs = liquidityLogs.filter((log) => ((log[2] > 0 && log[3] > 0) || (log[2] < 0 && log[3] < 0)) && (log[2] != log[3]));
@@ -198,7 +197,7 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
     dailyFees.add(borrowToken0, arbs0);
     dailyFees.add(borrowToken1, arbs1);
   }
-  
+
   return dailyFees;
 }
 
@@ -228,7 +227,7 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
       continue;
     }
 
-    const borrowToken = vaultDataFrom.constantVariables.vaultType > 0 ? vaultDataFrom.constantVariables.borrowToken.token0 : vaultDataFrom.constantVariables.borrowToken; 
+    const borrowToken = vaultDataFrom.constantVariables.vaultType > 0 ? vaultDataFrom.constantVariables.borrowToken.token0 : vaultDataFrom.constantVariables.borrowToken;
     if (!borrowToken) continue;
 
     const { totalSupplyAndBorrow: totalSupplyAndBorrowFrom } = vaultDataFrom;
@@ -242,7 +241,7 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
     const borrowBalances = liquidityLogs
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance)
-    
+
     const fees = borrowBalanceTo > borrowBalances ? borrowBalanceTo - borrowBalances : 0n
     dailyFees.add(borrowToken, fees)
   }
@@ -252,13 +251,11 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
 
 export const getFluidDailyFees = async (options: FetchOptions) => {
   // fetch all operate logs at liquidity layer at once
-  const liquidityOperateLogs = await options.getLogs({ 
+  const liquidityOperateLogs = await options.getLogs({
     target: LIQUIDITY,
     onlyArgs: true,
     topics: [TOPIC0.logOperate],
-    eventAbi: EVENT_ABI.logOperate,
-    flatten: true
-  });
+    eventAbi: EVENT_ABI.logOperate});
 
   const [vaultFees, dexFees] = await Promise.all([
     await getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
