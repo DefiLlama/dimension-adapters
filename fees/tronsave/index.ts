@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const TRON_SAVE_ADDRESS = "TWZEhq5JuUVvGtutNgnRBATbF8BnHGyn4S";
-const LIMIT = 20;
+const LIMIT = 50;
 
 const getDailyFees = async (fromTimestamp: number, endTimestamp: number) => {
     let start = 0;
@@ -11,15 +11,15 @@ const getDailyFees = async (fromTimestamp: number, endTimestamp: number) => {
     let hasMoreData = true;
 
     while (hasMoreData) {
-        const trxTransactions = await httpGet(`https://apilist.tronscanapi.com/api/transfer/trx?address=${TRON_SAVE_ADDRESS}&start=${start}&limit=${LIMIT}&direction=2&&reverse=false&fee=true&db_version=1&start_timestamp=${fromTimestamp}&end_timestamp=${endTimestamp}`);
+        const trxTransactions = await httpGet(`https://apilist.tronscanapi.com/api/transfer/trx?address=${TRON_SAVE_ADDRESS}&start=${start}&limit=${LIMIT}&direction=2&reverse=false&start_timestamp=${fromTimestamp}&end_timestamp=${endTimestamp}`);
 
-        if (!trxTransactions.data || trxTransactions.data.length === 0) {
+        if (trxTransactions.page_size === 0) {
             break;
         }
 
         totalFees += trxTransactions.data.reduce((acc: number, curr: any) => acc + Number(curr.amount) / 1000000, 0);
         // If we got fewer results than the limit, we've reached the end
-        if (trxTransactions.data.length < LIMIT) {
+        if (trxTransactions.page_size < LIMIT) {
             hasMoreData = false;
         } else {
             // Move to the next page
