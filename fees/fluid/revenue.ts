@@ -69,9 +69,9 @@ const getUncollectedLiquidities = async (api: ChainApi, tokens: string []) => {
   });
 }
 
-const getLiquidityRevenues = async ({ fromApi, toApi, getLogs, createBalances }: FetchOptions) => {
+const getLiquidityRevenues = async ({ fromApi, toApi, getLogs, createBalances, api }: FetchOptions) => {
   const dailyValues = createBalances();
-  const tokens: string[] = (await (await liquidityResolver(fromApi)).listedTokens()).map((t: string) => t.toLowerCase());
+  const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
 
   // Fetch uncollected revenues for the "from" and "to" timestamps
   const [revenuesFrom, revenuesTo] = await Promise.all([
@@ -144,7 +144,7 @@ const getVaultT1CollectedRevenues = async (api: ChainApi, createBalances: Create
 const getVaultsT1Revenues = async ({ api, fromApi, toApi, createBalances, getLogs, fromTimestamp, toTimestamp }: FetchOptions) => {
   if (toTimestamp < CONFIG_FLUID[api.chain].vaultResolverExistAfterTimestamp) return 0
 
-  const vaults: string[] = await (await getVaultsT1Resolver(fromApi)).getAllVaultsAddresses();
+  const vaults: string[] = await (await getVaultsT1Resolver(api)).getAllVaultsAddresses();
 
   const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] = await Promise.all([
     getVaultT1UncollectedRevenues(fromApi, createBalances, vaults, fromTimestamp),
