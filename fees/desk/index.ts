@@ -12,11 +12,8 @@ interface Response {
 }
 
 const fetch = async (timestamp: number) => {
-  console.log("timestamp ", timestamp);
   const response = await httpGet(`${URL}?date=${timestamp}`);
   const data: Response = response.data;
-
-  console.log("data ", data);
 
   const dailyFees = Number(data.dailyTakerFee) + Number(data.dailyMakerFee);
   const totalFees = Number(data.totalTakerFee) + Number(data.totalMakerFee);
