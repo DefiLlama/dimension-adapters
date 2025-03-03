@@ -5,18 +5,21 @@ const URL = "https://api.happytrading.global/v2/global-stats";
 
 interface Response {
   date: number;
-  dailyTakerFee: number;
-  dailyMakerFee: number;
-  totalTakerFee: number;
-  totalMakerFee: number;
+  dailyTakerFee: string;
+  dailyMakerFee: string;
+  totalTakerFee: string;
+  totalMakerFee: string;
 }
 
 const fetch = async (timestamp: number) => {
+  console.log("timestamp ", timestamp);
   const response = await httpGet(`${URL}?date=${timestamp}`);
   const data: Response = response.data;
 
-  const dailyFees = data.dailyTakerFee + data.dailyMakerFee;
-  const totalFees = data.totalTakerFee + data.totalMakerFee;
+  console.log("data ", data);
+
+  const dailyFees = Number(data.dailyTakerFee) + Number(data.dailyMakerFee);
+  const totalFees = Number(data.totalTakerFee) + Number(data.totalMakerFee);
 
   return {
     dailyFees: dailyFees.toString(),

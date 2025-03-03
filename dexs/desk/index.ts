@@ -5,8 +5,8 @@ const URL = "https://api.happytrading.global/v2/global-stats";
 
 interface Response {
   date: number;
-  dailyVolume: number;
-  totalVolume: number;
+  dailyVolume: string;
+  totalVolume: string;
 }
 
 const fetch = async (timestamp: number) => {
