@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const TRON_SAVE_ADDRESS = "TWZEhq5JuUVvGtutNgnRBATbF8BnHGyn4S";
-const LIMIT = 50;
+const LIMIT = 20;
 
 const getDailyFees = async (fromTimestamp: number, endTimestamp: number) => {
     let start = 0;
