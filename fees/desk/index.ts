@@ -15,8 +15,8 @@ const fetch = async (timestamp: number) => {
   const response = await httpGet(`${URL}?date=${timestamp}`);
   const data: Response = response.data;
 
-  const dailyFees = Math.abs(data.dailyTakerFee) + Math.abs(data.dailyMakerFee);
-  const totalFees = Math.abs(data.totalTakerFee) + Math.abs(data.totalMakerFee);
+  const dailyFees = data.dailyTakerFee + data.dailyMakerFee;
+  const totalFees = data.totalTakerFee + data.totalMakerFee;
 
   return {
     dailyFees: dailyFees.toString(),
