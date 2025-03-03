@@ -61,6 +61,7 @@ const fetch = async (timestamp: number) => {
     dailyFees: `${dailyFees}`,
     totalProtocolRevenue: `${totalProtocolRevenue}`,
     dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+    dailyRevenue: `${dailyProtocolRevenue}`,
     timestamp,
   };
 };
