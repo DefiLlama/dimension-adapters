@@ -1,6 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 const TRON_SAVE_ADDRESS = "TWZEhq5JuUVvGtutNgnRBATbF8BnHGyn4S";
 const LIMIT = 50;
@@ -11,7 +11,7 @@ const getDailyFees = async (fromTimestamp: number, endTimestamp: number) => {
     let hasMoreData = true;
 
     while (hasMoreData) {
-        const trxTransactions = await httpGet(`https://apilist.tronscanapi.com/api/transfer/trx?address=${TRON_SAVE_ADDRESS}&start=${start}&limit=${LIMIT}&direction=2&reverse=false&start_timestamp=${fromTimestamp}&end_timestamp=${endTimestamp}`);
+        const trxTransactions = await fetchURL(`https://apilist.tronscanapi.com/api/transfer/trx?address=${TRON_SAVE_ADDRESS}&start=${start}&limit=${LIMIT}&direction=2&reverse=false&start_timestamp=${fromTimestamp}&end_timestamp=${endTimestamp}`);
 
         if (trxTransactions.page_size === 0) {
             break;
