@@ -20,35 +20,29 @@ const burnSuccessAbi = "event BurnSuccess(address indexed user, uint256 totalAmo
 // Function to fetch volume and fees for a specific chain
 const fetchChainData = async (chain: string, options: any) => {
   const { createBalances, getLogs } = options;
-  const dailyVolume = createBalances();
-  const totalVolume = createBalances();
+  const dailyVolume = createBalances()
 
   try {
     // Get logs for BurnSuccess events
     const logs = await getLogs({
       target: BURNER_CONTRACTS[chain],
       eventAbi: burnSuccessAbi,
-      fromBlock: options.fromBlock,
-      toBlock: options.toBlock,
     });
 
     // Process logs to calculate volume and fees
     logs.forEach((log: any) => {
       const totalAmountOut = log.totalAmountOut;
-      
+
       // Add to volume (total amount + fee)
       dailyVolume.addGasToken(totalAmountOut);
-      
-      // Add to total volume (cumulative)
-      totalVolume.addGasToken(totalAmountOut);
+
     });
   } catch (error) {
     console.log(`Error fetching logs for ${chain}:`, error);
   }
 
   return {
-    dailyVolume,
-    totalVolume
+    dailyVolume
   };
 };
 

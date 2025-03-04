@@ -22,33 +22,23 @@ const fetchChainData = async (chain: string, options: any) => {
   const { createBalances, getLogs } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
-  const totalFees = createBalances();
-  const totalRevenue = createBalances();
 
   try {
     // Get logs for BurnSuccess events
     const logs = await getLogs({
       target: BURNER_CONTRACTS[chain],
       eventAbi: burnSuccessAbi,
-      fromBlock: options.fromBlock,
-      toBlock: options.toBlock,
     });
 
     // Process logs to calculate volume and fees
     logs.forEach((log: any) => {
       const feeAmount = log.feeAmount;
-      
+
       // Add to fees
       dailyFees.addGasToken(feeAmount);
-      
+
       // All fees go to revenue (protocol keeps 100% of fees)
       dailyRevenue.addGasToken(feeAmount);
-      
-      // Add to total fees (cumulative)
-      totalFees.addGasToken(feeAmount);
-      
-      // Add to total revenue (cumulative)
-      totalRevenue.addGasToken(feeAmount);
     });
   } catch (error) {
     console.log(`Error fetching logs for ${chain}:`, error);
@@ -57,8 +47,6 @@ const fetchChainData = async (chain: string, options: any) => {
   return {
     dailyFees,
     dailyRevenue,
-    totalFees,
-    totalRevenue
   };
 };
 
