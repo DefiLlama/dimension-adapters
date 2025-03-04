@@ -101,13 +101,15 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const totalFees = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyBribes = options.createBalances();
 
-  await addBondigCurveFees(options, totalFees);
-  await addBorrowFees(options, totalFees);
-  await addBribes(options, totalFees);
+  await addBondigCurveFees(options, dailyFees);
+  await addBorrowFees(options, dailyFees);
 
-  return { totalFees };
+  await addBribes(options, dailyBribes);
+
+  return { dailyFees, dailyBribes };
 }
 
 const adapter: Adapter = {
