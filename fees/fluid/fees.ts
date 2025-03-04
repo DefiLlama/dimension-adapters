@@ -123,16 +123,21 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
   }
 
   return {
-    getAllVaultsAddresses: async () => api.call({ target: address, abi: abi.getAllVaultsAddresses }),
-    getVaultEntireData: async (vaults: string []) => {
-      return api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData });
-    }
+    getAllVaultsAddresses: async () => { 
+      let vaults = await api.call({ target: address, abi: abi.getAllVaultsAddresses });
+      if(api.chain == CHAIN.ARBITRUM && block > 285530000 && address == "0x77648D39be25a1422467060e11E5b979463bEA3d"){
+        // skip smart vaults during time period where VaultT1Resolver compatibility was not deployed yet (no / negligible fees during that time anyway)
+        vaults = vaults.filter(v => v != "0xeAEf563015634a9d0EE6CF1357A3b205C35e028D" && v != "0x3A0b7c8840D74D39552EF53F586dD8c3d1234C40" && v != "0x3996464c0fCCa8183e13ea5E5e74375e2c8744Dd");
+      }
+      return vaults;
+    },
+    getVaultEntireData: async (vaults: string []) => api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
   }
 }
 
 export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalances, api }: FetchOptions, liquidityOperateLogs: any[]) => {
   // borrow fees for all dexes that have smart debt pool enabled (covers smart debt vaults).
-  const dailyFees = createBalances();
+  let dailyFees = createBalances();
   const dexes: string[] = await (await getDexResolver(api)).getAllDexAddresses();
 
   if(!dexes.length){
@@ -156,6 +161,7 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
 
     const initialShares = Number(dexStateFrom.totalBorrowShares);
     if (!initialShares || initialShares == 0) continue;
+
     const initialBalance0 = initialShares * Number(dexStateFrom.token0PerBorrowShare) / 1e18;
     const initialBalance1 = initialShares * Number(dexStateFrom.token1PerBorrowShare) / 1e18;
 
@@ -174,11 +180,18 @@ export const getFluidDexesDailyBorrowFees = async ({ fromApi, toApi, createBalan
       .filter((log) => log[5] !== reserveContract)
       .reduce((balance, [, , , amount]) => balance + Number(amount) , initialBalance1)
 
-    const fees0 = borrowBalanceTo0 > borrowBalances0 ? borrowBalanceTo0 - borrowBalances0 : 0n
-    const fees1 = borrowBalanceTo1 > borrowBalances1 ? borrowBalanceTo1 - borrowBalances1 : 0n
+    const fees0 = borrowBalanceTo0 - borrowBalances0
+    const fees1 = borrowBalanceTo1 - borrowBalances1
+    
+    const dailyFeesBefore = dailyFees.clone();
 
     dailyFees.add(borrowToken0, fees0)
     dailyFees.add(borrowToken1, fees1)
+
+    if(await dailyFees.getUSDValue() < await dailyFeesBefore.getUSDValue()){
+      // if fees for the dex ended up < 0 for some unexpected reason, set fees to 0.
+      dailyFees = dailyFeesBefore;
+    }
 
     if (!dexStateFrom.totalSupplyShares || Number(dexStateFrom.totalSupplyShares) == 0) continue;
 
@@ -236,6 +249,8 @@ export const getFluidVaultsDailyBorrowFees = async ({ fromApi, toApi, createBala
     const initialBalance = Number(totalSupplyAndBorrowFrom.totalBorrowVault);
     const borrowBalanceTo = Number(totalSupplyAndBorrowTo.totalBorrowVault);
 
+    if(initialBalance == 0 || borrowBalanceTo == 0) continue;
+
     const liquidityLogs = liquidityOperateLogs.filter(log => (log[0] == vault && log[1] == borrowToken));
 
     const borrowBalances = liquidityLogs
@@ -256,12 +271,18 @@ export const getFluidDailyFees = async (options: FetchOptions) => {
     onlyArgs: true,
     eventAbi: EVENT_ABI.logOperate}
   );
+  
+  if(!liquidityOperateLogs?.length){
+    return 0;
+  }
 
   const [vaultFees, dexFees] = await Promise.all([
     await getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
     await getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ]);
 
-  vaultFees.addBalances(dexFees);
-  return vaultFees;
+  const vaultFeesUSD = await vaultFees.getUSDValue()
+  const dexFeesUSD = await dexFees.getUSDValue()
+
+  return vaultFeesUSD + dexFeesUSD;
 };
