@@ -22,31 +22,28 @@ const VotingEscrowAbi = [{
     "stateMutability": "view",
     "type": "function"
 }] as const;
-const VoterAbi = [{"inputs":[],"name":"baseAsset","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}, {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"periodBudget","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}] as const;
+const VoterAbi = [{"inputs":[],"name":"baseAsset","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}] as const;
 
-const PERIOD_DURATION = 604800;
-
-const fetch: any = async ({ createBalances, api }: FetchOptions) => {
+const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyRevenue = createBalances();
-
-  const period = (Math.floor(Date.now() / 1000 / PERIOD_DURATION)) * PERIOD_DURATION + PERIOD_DURATION;
 
   for (const ve of Object.values(VotingEscrows)) {
     const voter = await api.call({
       target: ve,
         abi: VotingEscrowAbi.find(abi => abi.name === 'voter'),
     });
-    const periodBudget = await api.call({
-        target: voter,
-        abi: VoterAbi.find(abi => abi.name === 'periodBudget'),
-        params: [period]
-    });
     const baseAsset = await api.call({
         target: voter,
         abi: VoterAbi.find(abi => abi.name === 'baseAsset'),
     });
+    const logs = await getLogs({
+      targets: [voter],
+      eventAbi: "event BudgetDeposited(address indexed depositor, uint256 indexed period, uint256 amount)",
+    });
 
-    dailyRevenue.add(baseAsset, periodBudget / 7);
+    for (const log of logs) {
+      dailyRevenue.add(baseAsset, log.amount);
+    }
   }
 
   // Daily fees are 10% on top of daily revenue
