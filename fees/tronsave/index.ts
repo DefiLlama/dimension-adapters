@@ -60,11 +60,11 @@ async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promis
         if (response?.data?.length === 0 || !response?.data) break;
 
         totalFees += response.data.reduce(
-            (acc, tx) => acc + Number(tx.amount) / 1_000_000, 
+            (acc, tx) => acc + Number(tx?.amount || 0) / 1_000_000, 
             0
         );
 
-        if (response.page_size < CONFIG.PAGE_LIMIT) break;
+        if (response?.page_size < CONFIG.PAGE_LIMIT) break;
         start += CONFIG.PAGE_LIMIT;
     }
 
