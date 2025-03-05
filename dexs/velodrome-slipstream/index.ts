@@ -24,6 +24,9 @@ const superchainConfig = {
   },
   [CHAIN.FRAXTAL]: {
     sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
+  },
+  [CHAIN.UNICHAIN]: {
+    sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
   }
 }
 
@@ -135,14 +138,18 @@ const adapters: SimpleAdapter = {
       fetch: fetch as any,
       start: '2024-11-19',
     },
-    // [CHAIN.INK]: {
-    //   fetch: fetch as any,
-    //   start: '2025-01-14',
-    // },
-    // [CHAIN.SONEIUM]: {
-    //   fetch: fetch as any,
-    //   start: '2025-01-14',
-    // },
+    [CHAIN.INK]: {
+      fetch: fetch as any,
+      start: '2025-01-14',
+    },
+    [CHAIN.SONEIUM]: {
+      fetch: fetch as any,
+      start: '2025-01-14',
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch: fetch as any,
+      start: '2025-03-04',
+    }
   }
 }
 export default adapters;
