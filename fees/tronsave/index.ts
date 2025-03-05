@@ -8,7 +8,7 @@ const CONFIG = {
     TRON_SAVE_ADDRESS: "TWZEhq5JuUVvGtutNgnRBATbF8BnHGyn4S",
     API_BASE_URL: "https://apilist.tronscanapi.com/api/transfer/trx",
     PAGE_LIMIT: 50,
-    START_TIMESTAMP: 1738368000,
+    START_TIMESTAMP: 1687938910,
 } as const;
 
 interface TronTransaction {
