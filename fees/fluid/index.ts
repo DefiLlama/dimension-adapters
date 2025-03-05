@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { Adapter, FetchOptions, Fetch } from "../../adapters/types";
 import { CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
 import { getFluidDailyFees } from "./fees";
@@ -8,6 +9,11 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
     getFluidDailyFees(options),
     getFluidDailyRevenue(options)
   ])
+  const fees = await (dailyFees as Balances).getUSDValue();
+  if (fees > 1_000_000) {
+    throw new Error(`Fluid fees are too high: ${await (dailyFees as Balances).getUSDJSONs()}`);
+  }
+
   return { dailyFees, dailyRevenue, timestamp: options.startOfDay };
 }
 
