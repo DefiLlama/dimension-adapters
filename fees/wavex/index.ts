@@ -9,7 +9,7 @@ const endpoints: any = {
 };
 
 const methodology = {
-  Fees: "Fees from open/close position (0.1%), swap (stableSwapFee: 0% - 0.06%, swapFee: 0% - 0.85%), deposit and withdraw (based on the total asset amount in the LP pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  Fees: "Fees from open/close position (0.01%), swap (stableSwapFee: 0% - 0.06%, swapFee: 0% - 0.85%), deposit and withdraw (based on the total asset amount in the LP pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   SupplySideRevenue: "50% of all collected fees goes to WLP holders",
   ProtocolRevenue:
     "Until waveX’s tokenomics and governance framework are fully established, the remaining 50% of fees will go to the Treasury.",
