@@ -36,7 +36,6 @@ const blazing_contract_swapx_v3 = { [CHAIN.SONIC]: '0x66684B8d430BD7f60bAa4190B4
 const blazing_contract_shadow_v2 = { [CHAIN.SONIC]: '0xB0B3e44e0a382E1915960ffD8fEBd813298fbC22' };
 const blazing_contract_shadow_v3 = { [CHAIN.SONIC]: '0x1aAd8E39B446b6d82E9394067d8fD4C8ec91A176' };
 
-// Centralized list of contract addresses for each chain
 const contractAddresses = {
   [CHAIN.BSC]: [
     v2_contract_address[CHAIN.BSC],
