@@ -362,6 +362,7 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.LISK,
   CHAIN.CORN,
+  CHAIN.SAGA,
   CHAIN.BSC
 ]
 
