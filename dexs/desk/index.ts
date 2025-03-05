@@ -1,5 +1,6 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://api.happytrading.global/v2/global-stats";
 
@@ -25,7 +26,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    desk: {
+    [CHAIN.BASE]: {
       fetch,
       start: "2025-02-18",
     },
