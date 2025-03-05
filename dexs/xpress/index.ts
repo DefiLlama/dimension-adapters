@@ -16,7 +16,7 @@ interface IGraph {
 }
 
 const getData = async (chain: string, timestamp: number) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400) * 86400;
+  const dateId = getTimestampAtStartOfDayUTC(timestamp)
 
   const query = gql`{
     dailyVolume(id: ${dateId}) {
@@ -40,7 +40,7 @@ const getData = async (chain: string, timestamp: number) => {
   };
 };
 
-export const fetchVolume = async (options: FetchOptions) => {
+export const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
   const data = await getData(options.chain, options.startOfDay);
   return {
     totalVolume: data.totalVolume,
@@ -50,7 +50,7 @@ export const fetchVolume = async (options: FetchOptions) => {
 };
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SONIC]: {
       fetch: fetchVolume,

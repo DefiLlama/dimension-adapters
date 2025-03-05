@@ -1,7 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
-import type { ChainEndpoints, FetchV2 } from "../adapters/types";
+import type { ChainEndpoints, Fetch, FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
@@ -10,7 +10,7 @@ const endpoints = {
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
+  const fetch: Fetch = async (_t:any, _c:any, { chain, startTimestamp }) => {
     if (chain === CHAIN.BASE) {
       const floorDayTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
       const totalFeeQuery = gql`
@@ -85,6 +85,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailySupplySideRevenue: dailySupplySideRevenue.toString(),
         totalFees: finalizedTotalFee.toString(),
         totalUserFees: finalizedTotalUserFee.toString(),
+        timestamp: startTimestamp
       };
     }
 
@@ -97,13 +98,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
       dailySupplySideRevenue: "0",
       totalFees: "0",
       totalUserFees: "0",
+      timestamp: startTimestamp
     };
   };
   return fetch;
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs(endpoints),

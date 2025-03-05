@@ -198,6 +198,7 @@ export enum CHAIN {
   VINUCHAIN = "vinu",
   NEUTRON = "neutron",
   CORN = "corn",
+  SAGA = "saga",
   SAPPHIRE = "sapphire",
   VANA = "vana",
   SONIC = "sonic",
@@ -214,6 +215,9 @@ export enum CHAIN {
   BERACHAIN = "berachain",
   UNICHAIN = "unichain",
   STORY = 'sty',
+  LUMIA = 'lumia',
+  FORMNETWORK = "formnetwork",
+  HEMI = "hemi",
 }
 
 // Don´t use

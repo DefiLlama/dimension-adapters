@@ -2,12 +2,14 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
 import { queryDune } from "../helpers/dune";
+import { getTimestampAtStartOfDay } from "../utils/date";
 
 const fetch = (_: Chain) => {
-  return async (options: FetchOptions) => {
+  return async (_a: any, _ts: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     try {
-      const value = (await queryDune("4736286", { start: options.startOfDay }));
+      const startOfDay = getTimestampAtStartOfDay(options.startOfDay);
+      const value = (await queryDune("4736286", { start: startOfDay }));
       const dayItem = value[0]
       dailyFees.addGasToken((dayItem?.eth_value) * 1e18 || 0)
       return {
@@ -30,7 +32,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM) as any,
