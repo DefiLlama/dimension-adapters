@@ -15,11 +15,11 @@ type ChainConfig = {
 const mangrove: Record<string, ChainConfig> = {
   [CHAIN.BLAST]: {
     core: "0xb1a49C54192Ea59B233200eA38aB56650Dfb448C",
-    start: '2024-02-27',
+    start: "2024-02-27",
   },
   [CHAIN.ARBITRUM]: {
     core: "0x109d9CDFA4aC534354873EF634EF63C235F93f61",
-    start: '2024-07-22',
+    start: "2024-07-22",
   },
 };
 
@@ -36,7 +36,7 @@ async function getToken(
   map: Map<string, string>,
   olKeyHash: string,
   api: ChainApi,
-  chain: string,
+  chain: string
 ): Promise<string> {
   let token = map.get(olKeyHash.toLowerCase());
   if (token) {
@@ -70,6 +70,7 @@ async function fetch({
       target: mangrove[chain].core,
     }),
   ]).then((r) => r.flat());
+  console.log(logs.length);
   for (const log of logs) {
     const olKeyHash = log.olKeyHash;
     const token = await getToken(olKeys, olKeyHash, api, chain);
