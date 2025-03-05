@@ -198,6 +198,7 @@ export enum CHAIN {
   VINUCHAIN = "vinu",
   NEUTRON = "neutron",
   CORN = "corn",
+  SAGA = "saga",
   SAPPHIRE = "sapphire",
   VANA = "vana",
   SONIC = "sonic",
