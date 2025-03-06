@@ -2,6 +2,7 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from '../../helpers/token';
 
+// wrong config free wallet is balancer team not gyroscope
 const config = {
   [CHAIN.BASE]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   [CHAIN.ETHEREUM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
