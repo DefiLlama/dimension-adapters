@@ -17,10 +17,11 @@ const adapter: SimpleAdapter = {
         const res = await queryAllium(query);
         const dailyFees = options.createBalances();
         dailyFees.addGasToken(res[0].tx_fees);
-        const dailyRevenue = dailyFees.clone(0.5)
+        const dailyRevenue = dailyFees.clone(0.5) // burn 50% of fees
         return {
             dailyFees,
-            dailyRevenue
+            dailyRevenue,
+            dailyHoldersRevenue: dailyRevenue
         }
       },
     },
