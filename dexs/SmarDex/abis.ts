@@ -11,4 +11,8 @@ export const usdnAbi = {
     "event AssetsDeposited(address indexed user, uint256 amount, uint256 positionVersion)",
   rebalancerWithdrawalEvent:
     "event AssetsWithdrawn(address indexed user, address indexed to, uint256 amount)",
+  liquidatedTickEvent:
+    "event LiquidatedTick(int24 indexed tick, uint256 indexed oldTickVersion, uint256 liquidationPrice, uint256 effectiveTickPrice, int256 remainingCollateral)",
+  liquidatorRewarded:
+    "event LiquidatorRewarded (address indexed liquidator, uint256 rewards)",
 };

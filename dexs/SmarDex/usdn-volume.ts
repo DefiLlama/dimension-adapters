@@ -19,6 +19,8 @@ export class USDNVolumeService {
       this.fetchEventLogs(usdnAbi.vaultWithdrawalEvent, USDN),
       this.fetchEventLogs(usdnAbi.longOpenPositionEvent, USDN),
       this.fetchEventLogs(usdnAbi.longClosePositionEvent, USDN),
+      this.fetchEventLogs(usdnAbi.liquidatedTickEvent, USDN),
+      this.fetchEventLogs(usdnAbi.liquidatorRewarded, USDN),
       this.fetchEventLogs(usdnAbi.rebalancerDepositEvent, DIP_ACCUMULATOR),
       this.fetchEventLogs(usdnAbi.rebalancerWithdrawalEvent, DIP_ACCUMULATOR),
     ]);
@@ -30,6 +32,8 @@ export class USDNVolumeService {
       vaultWithdrawalLogs,
       longOpenLogs,
       longCloseLogs,
+      liquidatedTickLogs,
+      liquidatorRewardedLogs,
       dipAccumulatorDepositLogs,
       dipAccumulatorWithdrawalLogs,
     ] = logs;
@@ -64,6 +68,18 @@ export class USDNVolumeService {
             withdrawals: this.sumBigIntFromLogs(
               dipAccumulatorWithdrawalLogs,
               2
+            ),
+          },
+        },
+        liquidations: {
+          raw:
+            this.sumBigIntFromLogs(liquidatedTickLogs, 4) +
+            this.sumBigIntFromLogs(liquidatorRewardedLogs, 1),
+          breakdown: {
+            liquidatedTicks: this.sumBigIntFromLogs(liquidatedTickLogs, 4),
+            liquidatorRewards: this.sumBigIntFromLogs(
+              liquidatorRewardedLogs,
+              1
             ),
           },
         },
@@ -141,7 +157,6 @@ export class USDNVolumeService {
     const logs = await this.fetchAllVolumeLogs();
     const volumes = this.calculateVolumes(logs);
     const usdVolumes = await this.convertVolumesToUsd(volumes);
-
     if (!usdVolumes) {
       console.error("Error converting volumes to USD");
       return 0;
