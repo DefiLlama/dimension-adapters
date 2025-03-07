@@ -7,48 +7,24 @@ const VotingEscrows = {
     BTC: "0x7585D9C32Db1528cEAE4770Fd1d01B888F5afA9e"
 };
 
-const VotingEscrowAbi = [{
-    "constant": true,
-    "inputs": [],
-    "name": "voter",
-    "outputs": [
-        {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-        }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-}] as const;
-const VoterAbi = [{"inputs":[],"name":"baseAsset","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}] as const;
-
 const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyRevenue = createBalances();
+  const ves = Object.values(VotingEscrows)
+  const voters = await api.multiCall({  abi: 'address:voter', calls: ves})
+  const baseAssets = await api.multiCall({  abi: 'address:baseAsset', calls: voters})
+  const logs = await getLogs({
+    targets: voters,
+    flatten: false,
+    eventAbi: "event BudgetDeposited(address indexed depositor, uint256 indexed period, uint256 amount)",
+  });
 
-  for (const ve of Object.values(VotingEscrows)) {
-    const voter = await api.call({
-      target: ve,
-        abi: VotingEscrowAbi.find(abi => abi.name === 'voter'),
-    });
-    const baseAsset = await api.call({
-        target: voter,
-        abi: VoterAbi.find(abi => abi.name === 'baseAsset'),
-    });
-    const logs = await getLogs({
-      targets: [voter],
-      eventAbi: "event BudgetDeposited(address indexed depositor, uint256 indexed period, uint256 amount)",
-    });
-
-    for (const log of logs) {
-      dailyRevenue.add(baseAsset, log.amount);
-    }
-  }
+  logs.forEach((log, i) => {
+    const asset = baseAssets[i]
+    log.map(i => dailyRevenue.add(asset, i.amount))
+  })
 
   // Daily fees are 10% on top of daily revenue
-  const dailyFees = createBalances();
-  dailyFees.addUSDValue((await dailyRevenue.getUSDValue()) * (100 / 90))
+  const dailyFees = dailyRevenue.clone(100 / 90);
 
   return { dailyFees, dailyRevenue, };
 };
