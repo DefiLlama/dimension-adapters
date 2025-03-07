@@ -2,7 +2,7 @@ import { getPoolFees_24h, getPoolVolumes_24h } from './balanced.ts'
 import { CHAIN } from '../../helpers/chains'
 
 export default {
-    version: 1,
+    version: 2,
     adapter: {
         [CHAIN.ICON]: {
             runAtCurrTime: true,
@@ -21,7 +21,6 @@ export default {
                 return {
                     dailyVolume: volumeResponse.toString(),
                     dailyFees: feeResponse.toString(),
-                    timestamp: Date.now()
                 }
             },
         },
