@@ -11,7 +11,7 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
   ])
   const fees = await (dailyFees as Balances).getUSDValue();
   if (fees > 1_000_000) {
-    throw new Error(`Fluid fees are too high: ${await (dailyFees as Balances).getUSDJSONs()}`);
+    throw new Error(`Fluid fees are too high: ${JSON.stringify(await (dailyFees as Balances).getUSDJSONs())}`);
   }
 
   return { dailyFees, dailyRevenue, timestamp: options.startOfDay };

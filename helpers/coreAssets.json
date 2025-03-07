@@ -1689,7 +1689,8 @@
     "WETH": "0x7ebef2a4b1b09381ec5b9df8c5c6f2dbeca59c73",
     "USDC": "0x18fb38404dadee1727be4b805c5b242b5413fa40",
     "USDT": "0x6308fa9545126237158778e74ae1b6b89022c5c0",
-    "WBTC": "0x46a5e3fa4a02b9ae43d9df9408c86ed643144a67"
+    "WBTC": "0x46a5e3fa4a02b9ae43d9df9408c86ed643144a67",
+    "LL": "0xd9d7123552fa2bedb2348bb562576d67f6e8e96e"
   },
   "jbc": {
     "USDT": "0xFD8Ef75c1cB00A594D02df48ADdc27414Bd07F8a",

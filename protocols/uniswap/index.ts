@@ -339,6 +339,7 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
+  if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
   return chain
 }
 
@@ -364,6 +365,7 @@ const okuChains = [
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.SAGA,
+  CHAIN.LIGHTLINK_PHOENIX,
 ]
 
 
