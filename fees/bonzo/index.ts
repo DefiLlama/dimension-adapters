@@ -28,7 +28,7 @@ const fetch = async () => {
     const dailySupplySideRevenue = total_intrest_earned.shiftedBy(-18);
 
     return {
-        timestamp,
+        timestamp: Math.floor(timestamp),
         dailyFees,
         dailyUserFees,
         dailyProtocolRevenue,
