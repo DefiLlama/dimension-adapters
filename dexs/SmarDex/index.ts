@@ -1,3 +1,4 @@
+import { ethers, Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {
@@ -33,7 +34,10 @@ Object.keys(CHAIN_CONFIG.GRAPH_URLS).forEach((chain: string) => {
             usdnVolume + Number(smardexDimensions.dailyVolume);
         }
 
-        return smardexDimensions;
+        return {
+          ...smardexDimensions,
+          totalVolume: undefined,
+        };
       } catch (error) {
         console.error(`Error fetching data for ${chain}:`, error);
         return subgraphFetching(options).catch(() => ({}));
