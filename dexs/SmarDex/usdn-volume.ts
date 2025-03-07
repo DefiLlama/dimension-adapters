@@ -1,5 +1,5 @@
 import { FetchOptions } from "../../adapters/types";
-import { formatEther } from "ethers";
+import { formatEther, ethers } from "ethers";
 import { usdnAbi } from "./abis";
 import { CONFIG } from "./config";
 import { getPrices } from "../../utils/prices";
@@ -11,158 +11,125 @@ export class USDNVolumeService {
     this.options = options;
   }
 
-  public async fetchAllVolumeLogs() {
+  private getEventConfigs() {
     const { USDN, DIP_ACCUMULATOR } = CONFIG.CONTRACTS;
+    const { USDN: USDN_TOKEN, WSTETH } = CONFIG.TOKENS;
 
-    return Promise.all([
-      this.fetchEventLogs(usdnAbi.vaultDepositEvent, USDN),
-      this.fetchEventLogs(usdnAbi.vaultWithdrawalEvent, USDN),
-      this.fetchEventLogs(usdnAbi.longOpenPositionEvent, USDN),
-      this.fetchEventLogs(usdnAbi.longClosePositionEvent, USDN),
-      this.fetchEventLogs(usdnAbi.liquidatedTickEvent, USDN),
-      this.fetchEventLogs(usdnAbi.liquidatorRewarded, USDN),
-      this.fetchEventLogs(usdnAbi.rebalancerDepositEvent, DIP_ACCUMULATOR),
-      this.fetchEventLogs(usdnAbi.rebalancerWithdrawalEvent, DIP_ACCUMULATOR),
-    ]);
-  }
-
-  public calculateVolumes(logs: any[][]) {
-    const [
-      vaultDepositLogs,
-      vaultWithdrawalLogs,
-      longOpenLogs,
-      longCloseLogs,
-      liquidatedTickLogs,
-      liquidatorRewardedLogs,
-      dipAccumulatorDepositLogs,
-      dipAccumulatorWithdrawalLogs,
-    ] = logs;
-
-    return {
-      usdn: {
-        raw: this.sumBigIntFromLogs(
-          [...vaultDepositLogs, ...vaultWithdrawalLogs],
-          3
-        ),
-        breakdown: {
-          deposits: this.sumBigIntFromLogs(vaultDepositLogs, 3),
-          withdrawals: this.sumBigIntFromLogs(vaultWithdrawalLogs, 3),
-        },
+    return [
+      {
+        abi: usdnAbi.vaultDepositEvent,
+        token: USDN_TOKEN,
+        valueIndex: 3,
+        contract: USDN,
       },
-      wsteth: {
-        long: {
-          raw:
-            this.sumBigIntFromLogs(longOpenLogs, 4) +
-            this.sumBigIntFromLogs(longCloseLogs, 3),
-          breakdown: {
-            open: this.sumBigIntFromLogs(longOpenLogs, 4),
-            close: this.sumBigIntFromLogs(longCloseLogs, 3),
-          },
-        },
-        dipAccumulator: {
-          raw:
-            this.sumBigIntFromLogs(dipAccumulatorDepositLogs, 1) +
-            this.sumBigIntFromLogs(dipAccumulatorWithdrawalLogs, 2),
-          breakdown: {
-            deposits: this.sumBigIntFromLogs(dipAccumulatorDepositLogs, 1),
-            withdrawals: this.sumBigIntFromLogs(
-              dipAccumulatorWithdrawalLogs,
-              2
-            ),
-          },
-        },
-        liquidations: {
-          raw:
-            this.sumBigIntFromLogs(liquidatedTickLogs, 4) +
-            this.sumBigIntFromLogs(liquidatorRewardedLogs, 1),
-          breakdown: {
-            liquidatedTicks: this.sumBigIntFromLogs(liquidatedTickLogs, 4),
-            liquidatorRewards: this.sumBigIntFromLogs(
-              liquidatorRewardedLogs,
-              1
-            ),
-          },
-        },
+      {
+        abi: usdnAbi.vaultWithdrawalEvent,
+        token: USDN_TOKEN,
+        valueIndex: 3,
+        contract: USDN,
       },
-    };
-  }
-
-  private validateNumber(value: any): number {
-    if (value === undefined || value === null) return 0;
-
-    const num = Number(value);
-    if (isNaN(num)) {
-      console.warn(`Invalid number encountered: ${value} (${typeof value})`);
-      return 0;
-    }
-    return num;
-  }
-
-  public async convertVolumesToUsd(volumes: any) {
-    const { USDN, WSTETH } = CONFIG.TOKENS;
-    const timestamp =
-      this.options.fromTimestamp || Math.floor(Date.now() / 1000);
-
-    const usdnApiKey = `ethereum:${USDN.toLowerCase()}`;
-    const wstethApiKey = `ethereum:${WSTETH.toLowerCase()}`;
-
-    try {
-      const priceData = await getPrices([usdnApiKey, wstethApiKey], timestamp);
-
-      const usdnPrice = this.validateNumber(priceData[usdnApiKey]?.price);
-      const wstethPrice = this.validateNumber(priceData[wstethApiKey]?.price);
-
-      const usdnVolume = this.validateNumber(
-        parseFloat(formatEther(volumes.usdn.raw))
-      );
-      const longVolume = this.validateNumber(
-        parseFloat(formatEther(volumes.wsteth.long.raw))
-      );
-      const dipAccumulatorVolume = this.validateNumber(
-        parseFloat(formatEther(volumes.wsteth.dipAccumulator.raw))
-      );
-
-      const usdnVolumeUsd = usdnVolume * usdnPrice;
-      const longVolumeUsd = longVolume * wstethPrice;
-      const dipAccumulatorVolumeUsd = dipAccumulatorVolume * wstethPrice;
-
-      const total = usdnVolumeUsd + longVolumeUsd + dipAccumulatorVolumeUsd;
-
-      if (isNaN(total)) {
-        console.error("Error: total volume is NaN. Component values:", {
-          usdnVolumeUsd,
-          longVolumeUsd,
-          dipAccumulatorVolumeUsd,
-          usdnPrice,
-          wstethPrice,
-        });
-        return null;
-      }
-
-      return {
-        usdn: usdnVolumeUsd,
-        wsteth: {
-          long: longVolumeUsd,
-          dipAccumulator: dipAccumulatorVolumeUsd,
-        },
-        total,
-      };
-    } catch (error) {
-      console.error("Error converting volumes to USD:", error);
-      return null;
-    }
+      {
+        abi: usdnAbi.longOpenPositionEvent,
+        token: WSTETH,
+        valueIndex: 4,
+        contract: USDN,
+      },
+      {
+        abi: usdnAbi.longClosePositionEvent,
+        token: WSTETH,
+        valueIndex: 3,
+        contract: USDN,
+      },
+      {
+        abi: usdnAbi.liquidatedTickEvent,
+        token: WSTETH,
+        valueIndex: 4,
+        contract: USDN,
+      },
+      {
+        abi: usdnAbi.liquidatorRewarded,
+        token: WSTETH,
+        valueIndex: 1,
+        contract: USDN,
+      },
+      {
+        abi: usdnAbi.rebalancerDepositEvent,
+        token: WSTETH,
+        valueIndex: 1,
+        contract: DIP_ACCUMULATOR,
+      },
+      {
+        abi: usdnAbi.rebalancerWithdrawalEvent,
+        token: WSTETH,
+        valueIndex: 2,
+        contract: DIP_ACCUMULATOR,
+      },
+    ];
   }
 
   public async getUsdnVolume(): Promise<number> {
-    const logs = await this.fetchAllVolumeLogs();
-    const volumes = this.calculateVolumes(logs);
-    const usdVolumes = await this.convertVolumesToUsd(volumes);
-    if (!usdVolumes) {
-      console.error("Error converting volumes to USD");
-      return 0;
+    let totalVolumeUsd = 0;
+    const eventConfigs = this.getEventConfigs();
+
+    for (const config of eventConfigs) {
+      const logs = await this.fetchEventLogs(config.abi, config.contract);
+      const eventVolume = await this.calculateEventVolumeUsd(logs, config);
+      totalVolumeUsd += eventVolume;
     }
 
-    return usdVolumes.total;
+    return totalVolumeUsd;
+  }
+
+  private async calculateEventVolumeUsd(
+    logs: any[],
+    config: { abi: any; token: string; valueIndex: number }
+  ): Promise<number> {
+    if (!logs.length) return 0;
+
+    let eventVolumeUsd = 0;
+    const tokenApiKey = `ethereum:${config.token.toLowerCase()}`;
+    const batchSize = 10;
+
+    for (let i = 0; i < logs.length; i += batchSize) {
+      const batch = logs.slice(i, i + batchSize);
+
+      const volumes = await Promise.all(
+        batch.map(async (log) => {
+          try {
+            const decodedData = this.decodeLog(log, config.abi);
+            if (!decodedData) return 0;
+
+            const block = await this.options.api.provider.getBlock(
+              log.blockNumber
+            );
+            if (!block) return 0;
+
+            const priceData = await getPrices([tokenApiKey], block.timestamp);
+            const price = this.validateNumber(priceData[tokenApiKey]?.price);
+
+            const valueRaw = decodedData[config.valueIndex] || BigInt(0);
+            const valueEther = parseFloat(formatEther(valueRaw));
+            return valueEther * price;
+          } catch (error) {
+            console.error("Error processing log:", error);
+            return 0;
+          }
+        })
+      );
+
+      eventVolumeUsd += volumes.reduce((sum, val) => sum + val, 0);
+    }
+
+    return eventVolumeUsd;
+  }
+
+  private decodeLog(log: any, eventAbi: any): any {
+    try {
+      const i = new ethers.Interface([eventAbi]);
+      return i.decodeEventLog(eventAbi, log.data, log.topics);
+    } catch {
+      return null;
+    }
   }
 
   private async fetchEventLogs(eventAbi: any, target: string) {
@@ -172,7 +139,9 @@ export class USDNVolumeService {
     });
   }
 
-  private sumBigIntFromLogs(logs: any[], valueIndex: number): bigint {
-    return logs.reduce((acc, log) => acc + BigInt(log[valueIndex]), 0n);
+  private validateNumber(value: any): number {
+    if (value === undefined || value === null) return 0;
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
   }
 }
