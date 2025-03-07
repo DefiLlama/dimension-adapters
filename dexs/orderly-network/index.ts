@@ -33,6 +33,8 @@ const chainIdToChainInfo: {
   "900900900": { chain: CHAIN.SOLANA, startDate: "2024-11-29" },
   "2818": { chain: CHAIN.MORPH, startDate: "2024-12-17" },
   "146": { chain: CHAIN.SONIC, startDate: "2024-12-31" },
+  "80094": { chain: CHAIN.BERACHAIN, startDate: "2025-03-07" },
+  "1514": { chain: CHAIN.STORY, startDate: "2025-03-07" },
 };
 
 const fetchVolume = async (chainId: string, startOfDay: number) => {
@@ -64,13 +66,13 @@ const fetchVolume = async (chainId: string, startOfDay: number) => {
 const adapter: BreakdownAdapter = {
   breakdown: {
     "orderly-network": {
-       [CHAIN.NEAR]: {
+      [CHAIN.NEAR]: {
         fetch: async (timestamp: number) => {
           return {
             timestamp: timestamp,
-          }
-        }
-       }
+          };
+        },
+      },
     },
     "orderly-network-derivatives": Object.entries(chainIdToChainInfo).reduce(
       (acc, [chainId, { chain, startDate }]) => ({
