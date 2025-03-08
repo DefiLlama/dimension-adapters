@@ -9,7 +9,7 @@ export type ChainEndpoints = {
 }
 
 export type FetchResultBase = {
-  timestamp: number;
+  timestamp?: number;
   block?: number;
 };
 

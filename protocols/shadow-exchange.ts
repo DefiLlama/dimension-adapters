@@ -13,7 +13,7 @@ const startTimeV2: TStartTime = {
 
 export const v2Endpoints: any = {
   [CHAIN.SONIC]:
-    sdk.graph.modifyEndpoint('HGyx7TCqgbWieay5enLiRjshWve9TjHwiug3m66pmLGR'),
+    "https://sonic.kingdomsubgraph.com/subgraphs/name/exp",
 };
 
 interface IPool {
