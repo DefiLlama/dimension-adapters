@@ -25,7 +25,7 @@ const VotingEscrowAbi = [{
 const VoterAbi = [{"inputs":[],"name":"baseAsset","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}] as const;
 
 const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
-  const dailyRevenue = createBalances();
+  const dailyFees = createBalances();
 
   for (const ve of Object.values(VotingEscrows)) {
     const voter = await api.call({
@@ -42,15 +42,10 @@ const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
     });
 
     for (const log of logs) {
-      dailyRevenue.add(baseAsset, log.amount);
+      dailyFees.add(baseAsset, log.amount);
     }
   }
-
-  // Daily fees are 10% on top of daily revenue
-  const dailyFees = createBalances();
-  dailyFees.addUSDValue((await dailyRevenue.getUSDValue()) * (100 / 90))
-
-  return { dailyFees, dailyRevenue, };
+  return { dailyFees };
 };
 
 const adapter: Adapter = {
@@ -60,7 +55,7 @@ const adapter: Adapter = {
       fetch,
       start: '2025-01-21',
       meta: {
-        methodology: 'We calculate the fees added to the voters of each ve contracts then we add 10% on top of the daily revenue.',
+        methodology: 'We calculate the fees added to the voters of each ve contracts',
       }
     },
   },
