@@ -317,6 +317,17 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
+  /**
+   * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
+   * 
+   * @param options - FetchOptions containing timestamp range and other configuration
+   * @param balances - Optional sdk.Balances object to add the results to
+   * @param target - Single Solana address to query
+   * @param targets - Array of Solana addresses to query (alternative to target)
+   * @param blacklists - Optional array of addresses to exclude from the sender side
+   * @param blacklist_signers - Optional array of transaction signers to exclude
+   * @returns The balances object with added USD value from received tokens
+   */
   export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
     options: FetchOptions;
     balances?: sdk.Balances;
@@ -325,14 +336,17 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     blacklists?: string[];
     blacklist_signers?: string[];
   }) {
+    // Initialize balances if not provided
     if (!balances) balances = options.createBalances();
   
+    // If multiple targets are provided, process each one recursively
     if (targets?.length) {
       for (const target of targets)
         await getSolanaReceived({ options, balances, target, blacklists });
       return balances;
     }
   
+    // Build SQL condition to exclude blacklisted sender addresses
     let blacklistCondition = '';
     
     if (blacklists && blacklists.length > 0) {
@@ -340,6 +354,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
     }
     
+    // Build SQL condition to exclude blacklisted transaction signers
     let blacklist_signersCondition = '';
     
     if (blacklist_signers && blacklist_signers.length > 0) {
@@ -347,6 +362,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
     }
   
+    // Construct SQL query to get sum of received token values in USD and native amount
     const query = `
       SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
       FROM solana.assets.transfers
@@ -356,7 +372,10 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       ${blacklist_signersCondition}
     `;
   
+    // Execute query against Allium database
     const res = await queryAllium(query);
+    
+    // Add the USD value to the balances object (defaulting to 0 if no results)
     balances.addUSDValue(res[0]?.usd_value ?? 0);
     return balances;
   }
@@ -399,4 +418,70 @@ export async function getETHReceived({ options, balances, target, targets }: { o
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)
   return balances
+}
+
+/**
+ * Retrieves the total value of tokens received by multiple Solana addresses in a single query
+ * 
+ * This function is more efficient than getSolanaReceived when processing multiple targets
+ * as it uses a single SQL query with an IN clause instead of recursive calls
+ * 
+ * @param options - FetchOptions containing timestamp range and other configuration
+ * @param balances - Optional sdk.Balances object to add the results to
+ * @param targets - Array of Solana addresses to query
+ * @param blacklists - Optional array of addresses to exclude from the sender side
+ * @param blacklist_signers - Optional array of transaction signers to exclude
+ * @returns The balances object with added USD value from received tokens
+ */
+export async function getSolanaReceivedBatch({ options, balances, targets, blacklists, blacklist_signers }: {
+  options: FetchOptions;
+  balances?: sdk.Balances;
+  targets: string[];
+  blacklists?: string[];
+  blacklist_signers?: string[];
+}) {
+  // Initialize balances if not provided
+  if (!balances) balances = options.createBalances();
+
+  // If no targets provided, return empty balances
+  if (!targets?.length) {
+    return balances;
+  }
+
+  // Format targets for SQL IN clause
+  const formattedTargets = targets.map(addr => `'${addr}'`).join(', ');
+  
+  // Build SQL condition to exclude blacklisted sender addresses
+  let blacklistCondition = '';
+  
+  if (blacklists && blacklists.length > 0) {
+    const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
+    blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
+  }
+  
+  // Build SQL condition to exclude blacklisted transaction signers
+  let blacklist_signersCondition = '';
+  
+  if (blacklist_signers && blacklist_signers.length > 0) {
+    const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+    blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
+  }
+
+  // Construct SQL query to get sum of received token values in USD and native amount
+  // Using IN clause to process all targets in a single query
+  const query = `
+    SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
+    FROM solana.assets.transfers
+    WHERE to_address IN (${formattedTargets})
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ${blacklistCondition}
+    ${blacklist_signersCondition}
+  `;
+
+  // Execute query against Allium database
+  const res = await queryAllium(query);
+  
+  // Add the USD value to the balances object (defaulting to 0 if no results)
+  balances.addUSDValue(res[0]?.usd_value ?? 0);
+  return balances;
 }
