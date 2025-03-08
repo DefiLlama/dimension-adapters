@@ -32,12 +32,19 @@ export const getDexResolver = async (api: ChainApi) => {
       }
       address = "0x800104086BECa15A54e8c61dC1b419855fdA3377";
       break;
+
+    case CHAIN.POLYGON:
+      if (block < 68688825) {
+        break;
+      }
+      address = "0xa17798d03bB563c618b9C44cAd937340Bad99138";
+      break;
   }
 
   return {
     getAllDexAddresses: async () => !address ? [] : api.call({ target: address, abi: abi.getAllDexAddresses }),
-    getDexTokens: async (dexes: string []) => api.multiCall({ calls: dexes.map(dex => ({ target: address, params: [dex] })), abi: abi.getDexTokens }),
-    getDexStates: async (dexes: string []) => api.multiCall({ calls: dexes.map(dex => ({ target: address, params: [dex] })), abi: abi.getDexState }),
+    getDexTokens: async (dexes: string []) => !address ? [] : api.multiCall({ calls: dexes.map(dex => ({ target: address, params: [dex] })), abi: abi.getDexTokens }),
+    getDexStates: async (dexes: string []) => !address ? [] : api.multiCall({ calls: dexes.map(dex => ({ target: address, params: [dex] })), abi: abi.getDexState }),
   }
 }
 
@@ -72,11 +79,19 @@ export const getVaultsResolver = async (api: ChainApi) => {
 
       address = "0xe7A6d56346d2ab4141Fa38e1B2Bc5ff3F69333CD";
       break;
+
+    case CHAIN.POLYGON:
+      if (block < 68688825) {
+        break;
+      }
+
+      address = "0x3c64Ec468D7f0998cB6dea05d4D8AB847573fE4D";
+      break;
   }
 
   return {
-    getAllVaultsAddresses: async () => api.call({ target: address, abi: abi.getAllVaultsAddresses }),
-    getVaultEntireData: async (vaults: string []) => api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
+    getAllVaultsAddresses: async () => !address ? [] : api.call({ target: address, abi: abi.getAllVaultsAddresses }),
+    getVaultEntireData: async (vaults: string []) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
   }
 }
 
@@ -120,18 +135,26 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
         address = "0xb7AC1927a78ADCD33E5B0473c0A1DEA76ca2bff6"; // VaultT1Resolver compatibility
       }
       break;
+
+    case CHAIN.POLYGON:
+      if (block < 68688825) {
+        break;
+      }
+
+      address = "0x9edb8D8b6db9A869c3bd913E44fa416Ca7490aCA"; // VaultT1Resolver compatibility
+      break;
   }
 
   return {
     getAllVaultsAddresses: async () => { 
-      let vaults = await api.call({ target: address, abi: abi.getAllVaultsAddresses });
+      let vaults = !address ? [] : await api.call({ target: address, abi: abi.getAllVaultsAddresses });
       if(api.chain == CHAIN.ARBITRUM && block > 285530000 && address == "0x77648D39be25a1422467060e11E5b979463bEA3d"){
         // skip smart vaults during time period where VaultT1Resolver compatibility was not deployed yet (no / negligible fees during that time anyway)
         vaults = vaults.filter(v => v != "0xeAEf563015634a9d0EE6CF1357A3b205C35e028D" && v != "0x3A0b7c8840D74D39552EF53F586dD8c3d1234C40" && v != "0x3996464c0fCCa8183e13ea5E5e74375e2c8744Dd");
       }
       return vaults;
     },
-    getVaultEntireData: async (vaults: string []) => api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
+    getVaultEntireData: async (vaults: string []) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData })
   }
 }
 
@@ -275,7 +298,7 @@ export const getFluidDailyFees = async (options: FetchOptions) => {
   );
   
   if(!liquidityOperateLogs?.length){
-    return 0;
+    return options.createBalances();
   }
 
   const [vaultFees, dexFees] = await Promise.all([

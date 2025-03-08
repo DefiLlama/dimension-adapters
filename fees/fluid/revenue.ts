@@ -26,10 +26,14 @@ const liquidityResolver = async (api: ChainApi) => {
     case CHAIN.BASE:
       address = "0x35A915336e2b3349FA94c133491b915eD3D3b0cd";
       break;
+  
+    case CHAIN.POLYGON:
+      address = "0x98d900e25AAf345A4B23f454751EC5083443Fa83";
+      break;
   }
 
   return {
-    listedTokens: async () => api.call({ target: address, abi: abi.listedTokens }),
+    listedTokens: async () => !address ? [] : api.call({ target: address, abi: abi.listedTokens }),
   }
 };
 
@@ -53,16 +57,22 @@ const revenueResolver = async (api: ChainApi) => {
     case CHAIN.BASE:
       address = "0xFe4affaD55c7AeC012346195654634F7C786fA2c";
       break;
+    case CHAIN.POLYGON:
+      address = "0x493493f73692Ca94219D3406CE0d2bd08D686BcF";
+      break;
   }
 
   return {
     targetInfo: () => { return { address, abi }},
-    getRevenue: async (token: string) => api.call({ target: address, params: [token], abi: abi.getRevenue }),
+    getRevenue: async (token: string) => !address ? [] : api.call({ target: address, params: [token], abi: abi.getRevenue }),
   }
 }
 
 const getUncollectedLiquidities = async (api: ChainApi, tokens: string []) => {
   const revenueResolverInfo = (await revenueResolver(api)).targetInfo();
+  if(!revenueResolverInfo.address) {
+    return [];
+  }
   return await api.multiCall({
     calls: tokens.map((token) => ({ target: revenueResolverInfo.address, params: [token] })),
     abi: revenueResolverInfo.abi.getRevenue,
