@@ -480,8 +480,7 @@ export async function getSolanaReceivedBatch({ options, balances, targets, black
 
   // Execute query against Allium database
   const res = await queryAllium(query);
-  
-  // Add the USD value to the balances object (defaulting to 0 if no results)
-  balances.addUSDValue(res[0]?.usd_value ?? 0);
+
+  balances.add(nullAddress, res[0].amount)
   return balances;
 }
