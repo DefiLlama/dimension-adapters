@@ -8,7 +8,7 @@ const VotingEscrows = {
 };
 
 const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
-  const dailyRevenue = createBalances();
+  const dailyFees = createBalances();
   const ves = Object.values(VotingEscrows)
   const voters = await api.multiCall({  abi: 'address:voter', calls: ves})
   const baseAssets = await api.multiCall({  abi: 'address:baseAsset', calls: voters})
@@ -20,13 +20,10 @@ const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
 
   logs.forEach((log, i) => {
     const asset = baseAssets[i]
-    log.map(i => dailyRevenue.add(asset, i.amount))
+    log.map(i => dailyFees.add(asset, i.amount))
   })
 
-  // Daily fees are 10% on top of daily revenue
-  const dailyFees = dailyRevenue.clone(100 / 90);
-
-  return { dailyFees, dailyRevenue, };
+  return { dailyFees, };
 };
 
 const adapter: Adapter = {
@@ -35,9 +32,6 @@ const adapter: Adapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: '2025-01-21',
-      meta: {
-        methodology: 'We calculate the fees added to the voters of each ve contracts then we add 10% on top of the daily revenue.',
-      }
     },
   },
 };
