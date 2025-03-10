@@ -470,17 +470,20 @@ export async function getSolanaReceivedBatch({ options, balances, targets, black
   // Construct SQL query to get sum of received token values in USD and native amount
   // Using IN clause to process all targets in a single query
   const query = `
-    SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
+    SELECT mint, SUM(raw_amount) as amount
     FROM solana.assets.transfers
     WHERE to_address IN (${formattedTargets})
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ${blacklistCondition}
     ${blacklist_signersCondition}
+    GROUP BY mint
   `;
 
   // Execute query against Allium database
   const res = await queryAllium(query);
 
-  balances.add(nullAddress, res[0].amount)
+  res.forEach((row: any) => {
+    balances.add(row.mint, row.amount)
+  })
   return balances;
 }
