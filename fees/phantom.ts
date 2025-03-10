@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getSolanaReceivedBatch } from "../helpers/token";
+import { getSolanaReceived } from "../helpers/token";
 
 
 const fee_wallet_addresses = [
@@ -15,7 +15,7 @@ const fee_wallet_addresses = [
 ];
 
 const fetch: any = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceivedBatch({ 
+    const dailyFees = await getSolanaReceived({ 
       options, 
       targets: fee_wallet_addresses, 
       blacklist_signers: fee_wallet_addresses 
