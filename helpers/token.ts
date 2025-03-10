@@ -378,7 +378,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     
     // Add the USD value to the balances object (defaulting to 0 if no results)
     res.forEach((row: any) => {
-      balances.add(row.token, row.amount)
+      balances!.add(row.token, row.amount)
     })
     return balances;
   }
