@@ -3,6 +3,7 @@ import { FetchOptions } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 import axios from "axios";
 import { createHmac } from "crypto";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 const plimit = require('p-limit');
 const limits = plimit(1);
 
@@ -68,7 +69,8 @@ async function queryOkxApi(timestamp:string, path:string){
 
 const fetch = async (_timestampParam: number, block: any, options: FetchOptions) => {
     const timestamp = new Date().toISOString()
-    const path = `/api/v5/dex/aggregator/volume?timestamp=${options.endTimestamp * 1e3}&chainId=${CHAINS[options.chain]}`
+    const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay)
+    const path = `/api/v5/dex/aggregator/volume?timestamp=${startOfDay* 1e3}&chainId=${CHAINS[options.chain]}`
     const data = await limits(() => queryOkxApi(timestamp, path))
     return {
         dailyVolume: data.data.data.volumeUsdLast24hour,

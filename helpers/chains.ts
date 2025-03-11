@@ -218,6 +218,7 @@ export enum CHAIN {
   LUMIA = 'lumia',
   FORMNETWORK = "formnetwork",
   HEMI = "hemi",
+  MOVE = "move",
 }
 
 // Don´t use

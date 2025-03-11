@@ -19,6 +19,7 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.TAIKO]: ["0xFA0e9251503DaE51670d10288e6962d63191731d"],
   [CHAIN.ZIRCUIT]: ["0x6bD912872B9e704a70f10226ab01A2Db87D0dd1C"],
   [CHAIN.SONEIUM]: ["0x7E36665858D17FD1CbFd4Fd464d2a3Da49aa3B9d"],
+  [CHAIN.HEMI]: ["0xbc4B0BDA9B091CBa8A72036715fB372B3B509ad1"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -58,6 +59,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.TAIKO]: { fetch, start: "2024-10-01" },
     [CHAIN.ZIRCUIT]: { fetch, start: "2024-12-06" },
     [CHAIN.SONEIUM]: { fetch, start: "2024-12-15" },
+    [CHAIN.HEMI]: { fetch, start: "2025-03-07" },
   },
 };
 

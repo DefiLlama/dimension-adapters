@@ -25,7 +25,6 @@ const adapter: Adapter = {
           .filter((p:any)=> Number(p.tvl) > 1000)
           .reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
         return {
-          timestamp: Date.now()/1e3,
           dailyFees: fees,
           dailyRevenue: fees*0.2,
         };
