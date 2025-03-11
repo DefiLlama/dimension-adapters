@@ -1,10 +1,8 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
+import { Chain, } from "@defillama/sdk/build/general";
 import getTxReceipts from "../helpers/getTxReceipts";
-const sdk = require('@defillama/sdk')
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -65,7 +63,7 @@ const gasTokenId: IGasTokenId = {
 
 
 const fetch = (chain: Chain, version: number) => {
-  return async ({ toTimestamp, getLogs }: FetchOptions) => {
+  return async (_: any, _1: any, { toTimestamp, getLogs }: FetchOptions) => {
     const logs_1: ITx[] = (await getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
       topics: version === 1 ? [topic0_v1] : [topic0_v2],
@@ -103,7 +101,7 @@ const fetch = (chain: Chain, version: number) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 2),

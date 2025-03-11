@@ -9,7 +9,7 @@ export type ChainEndpoints = {
 }
 
 export type FetchResultBase = {
-  timestamp: number;
+  timestamp?: number;
   block?: number;
 };
 
@@ -52,6 +52,7 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipIndexer?: boolean,
   topics?: string[],
 }
 

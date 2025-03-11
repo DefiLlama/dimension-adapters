@@ -16,8 +16,9 @@ export async function addGasTokensReceived(params: {
   multisigs?: string[];
   options: FetchOptions;
   balances?: sdk.Balances;
+  fromAddresses?: string[];
 }) {
-  let { multisig, multisigs, options, balances } = params;
+  let { multisig, multisigs, options, balances, fromAddresses } = params;
   if (multisig) multisigs = [multisig]
 
   if (!balances) balances = options.createBalances()
@@ -26,10 +27,15 @@ export async function addGasTokensReceived(params: {
     throw new Error('multisig or multisigs required')
   }
 
-  const logs = await options.getLogs({
+  let logs = await options.getLogs({
     targets: multisigs,
     eventAbi: 'event SafeReceived (address indexed sender, uint256 value)'
   })
+
+  if(fromAddresses) {
+    const normalized = fromAddresses.map(a=>a.toLowerCase())
+    logs = logs.filter(log=>normalized.includes(log.sender.toLowerCase()))
+  }
 
   logs.forEach(i => balances!.addGasToken(i.value))
   return balances
@@ -311,38 +317,69 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-  export async function getSolanaReceived({ options, balances, target, targets, blacklists }: {
+  /**
+   * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
+   * 
+   * @param options - FetchOptions containing timestamp range and other configuration
+   * @param balances - Optional sdk.Balances object to add the results to
+   * @param target - Single Solana address to query
+   * @param targets - Array of Solana addresses to query (alternative to target)
+   * @param blacklists - Optional array of addresses to exclude from the sender side
+   * @param blacklist_signers - Optional array of transaction signers to exclude
+   * @returns The balances object with added USD value from received tokens
+   */
+  export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
     options: FetchOptions;
     balances?: sdk.Balances;
     target?: string;
     targets?: string[];
     blacklists?: string[];
+    blacklist_signers?: string[];
   }) {
+    // Initialize balances if not provided
     if (!balances) balances = options.createBalances();
-  
-    if (targets?.length) {
-      for (const target of targets)
-        await getSolanaReceived({ options, balances, target, blacklists });
-      return balances;
-    }
-  
+
+    // If targets is provided, use that instead of single target
+    const addresses = targets?.length ? targets : target ? [target] : [];
+    if (addresses.length === 0) return balances;
+
+    // Build SQL condition to exclude blacklisted sender addresses
     let blacklistCondition = '';
     
     if (blacklists && blacklists.length > 0) {
       const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
       blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
     }
+    
+    // Build SQL condition to exclude blacklisted transaction signers
+    let blacklist_signersCondition = '';
+    
+    if (blacklist_signers && blacklist_signers.length > 0) {
+      const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+      blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
+    }
+
+    // Format addresses for IN clause
+    const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
   
+    // Construct SQL query to get sum of received token values in USD and native amount
     const query = `
-      SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
+      SELECT mint as token, SUM(raw_amount) as amount
       FROM solana.assets.transfers
-      WHERE to_address = '${target}'
+      WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       ${blacklistCondition}
+      ${blacklist_signersCondition}
+      GROUP BY mint
     `;
   
+    // Execute query against Allium database
     const res = await queryAllium(query);
-    balances.addUSDValue(res[0]?.usd_value ?? 0);
+    
+    // Add the USD value to the balances object (defaulting to 0 if no results)
+    res.forEach((row: any) => {
+      balances!.add(row.token, row.amount)
+    })
     return balances;
   }
   

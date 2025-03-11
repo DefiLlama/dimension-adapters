@@ -200,6 +200,16 @@ const fetch = async (options: FetchOptions) => {
     topics: [transferHash, lpStakeRewardsFromHash, lpStakeRewardsToHash],
   });
 
+  // freeze lista
+  const freezeLista = await options.getLogs({
+    target: lista,
+    topics: [
+      transferHash,
+      "0x000000000000000000000000e4153eb04417be05b8d6b2222e4cdd8ae674ee76",
+      "0x000000000000000000000000000000000000000000000000000000000000dead",
+    ],
+  });
+
   [...ethStakingEthOld, ...ethStakingEthNew].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(eth, amount);
@@ -261,6 +271,10 @@ const fetch = async (options: FetchOptions) => {
   [...lpStakingCakeRewards].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(cake, amount);
+  });
+  [...freezeLista].forEach((log) => {
+    const amount = Number(log.data);
+    dailyFees.subtractToken(lista, amount);
   });
 
   return {

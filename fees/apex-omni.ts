@@ -15,7 +15,6 @@ const fees = async (_:any, _b: any, options: FetchOptions): Promise<FetchResultF
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    timestamp: todaysTimestamp
   }
 }
 const adapter: SimpleAdapter = {

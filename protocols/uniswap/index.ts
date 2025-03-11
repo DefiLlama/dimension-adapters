@@ -14,6 +14,7 @@ const v1Endpoints = {
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83')
 };
 
 const blacklisted = {
@@ -63,10 +64,11 @@ const v3Endpoints = {
   [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
   [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'),
+  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
-  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era"
+  [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX') 
 };
 
 // fees results are in eth, needs to be converted to a balances objects
@@ -244,6 +246,22 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
+      [CHAIN.UNICHAIN]: {
+        fetch: async (options: FetchOptions) => {
+          const response = await v2Graph(options.chain)(options);
+          response.totalVolume =
+            Number(response.dailyVolume) + 1079453198606.2229;
+          response.totalFees = Number(response.totalVolume) * 0.003;
+          response.totalUserFees = Number(response.totalVolume) * 0.003;
+          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
+          return {
+            ...response,
+          }
+        },
+        meta: {
+          methodology
+        },
+      },
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
@@ -256,6 +274,7 @@ const adapter: BreakdownAdapter = {
         fetch: async (options: FetchOptions) => {
           try {
             const res = (await v3Graphs(chain as Chain)(options))
+            // console.log("res", res)
             return {
               totalVolume: res?.totalVolume || 0,
               dailyVolume: res?.dailyVolume || 0,
@@ -320,6 +339,7 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
+  if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
   return chain
 }
 
@@ -342,7 +362,13 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.LISK,
   CHAIN.CORN,
+  CHAIN.BSC,
+  CHAIN.HEMI,
+  CHAIN.SAGA,
+  CHAIN.LIGHTLINK_PHOENIX,
 ]
+
+
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
@@ -352,5 +378,6 @@ okuChains.forEach(chain => {
     }
   }
 })
+
 
 export default adapter;

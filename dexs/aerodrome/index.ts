@@ -37,7 +37,7 @@ const fetchBribes = async (fetchOptions: FetchOptions): Promise<FetchResult> => 
   return { dailyBribesRevenue: dailyBribes } as any
 }
 
-const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_:any, _1:any, fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, getLogs, createBalances, } = fetchOptions
   const chain = api.chain
   const dailyVolume = createBalances()
@@ -111,7 +111,8 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,

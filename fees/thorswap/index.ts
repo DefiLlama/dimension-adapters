@@ -55,9 +55,17 @@ const findInterval = (timestamp: number, intervals) => {
   return null;
 };
 
-let earnings: any;
-let revenue: any;
-let pools: any;
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+export async function fetchCacheURL(url: string) {
+  const key = `${url}`;
+  if (!requests[key])
+    requests[key] = httpGet(url, { headers: {"x-client-id": "defillama"}});
+  return requests[key]
+}
 
 const fetchFeesByChain = () => {
   const adapter = {}
@@ -70,15 +78,9 @@ const fetchFeesByChain = () => {
         const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
         const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
         const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
-        if (!earnings) {
-          earnings = await httpGet(earningsUrl, { headers: {"x-client-id": "defillama"}});
-        }
-        if (!revenue) {
-          revenue = await httpGet(reserveUrl, { headers: {"x-client-id": "defillama"}});
-        }
-        if (!pools) {
-          pools = await httpGet(poolsUrl, { headers: {"x-client-id": "defillama"}});
-        }
+        const earnings = await fetchCacheURL(earningsUrl);
+        const revenue = await fetchCacheURL(reserveUrl);
+        const pools = await fetchCacheURL(poolsUrl);
         const selectedEarningInterval = findInterval(timestamp, earnings.intervals);
         const selectedRevenueInterval = findInterval(timestamp, revenue.intervals);
 
@@ -129,7 +131,6 @@ const fetchFeesByChain = () => {
 const adapters: SimpleAdapter = {
   version: 1,
   adapter: fetchFeesByChain(),
-  isExpensiveAdapter: true
 }
 
 export default adapters

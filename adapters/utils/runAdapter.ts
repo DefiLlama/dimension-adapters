@@ -1,7 +1,11 @@
-import { Balances, ChainApi, getEventLogs, getProvider, elastic } from '@defillama/sdk'
+import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import * as _env from '../../helpers/env'
+
+// to trigger inclusion of the env.ts file
+const _include_env = _env.getEnv('BITLAYER_RPC')
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -93,18 +97,23 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
-      return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
+      let _chain = chain
+      // workaround for mismatch in chain names between dimensions repo and rest of the codebase
+      switch (chain) {
+        case 'bitlayer': _chain = 'btr'; break;
+      }
+      return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, })
+      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached

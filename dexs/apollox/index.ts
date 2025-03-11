@@ -108,7 +108,6 @@ const fetchTotalV2Volume = async (chain: Chain) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v1, v2, totalV2Volume, { v1 : totalV1Volume }] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
@@ -125,7 +124,6 @@ const adapter: SimpleAdapter = {
       start: '2023-04-21',
     },
     [CHAIN.ARBITRUM]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.ARBITRUM),
@@ -140,7 +138,6 @@ const adapter: SimpleAdapter = {
       start: '2023-04-21',
     },
     [CHAIN.OP_BNB]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume('opbnb'),
@@ -155,7 +152,6 @@ const adapter: SimpleAdapter = {
       start: '2023-04-21',
     },
     [CHAIN.BASE]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.BASE),

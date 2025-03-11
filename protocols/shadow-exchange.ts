@@ -6,47 +6,65 @@ import request from "graphql-request";
 type TStartTime = {
   [key: string]: number;
 };
+
 const startTimeV2: TStartTime = {
   [CHAIN.SONIC]: 1735129946,
 };
 
-const v2Endpoints: any = {
+export const v2Endpoints: any = {
   [CHAIN.SONIC]:
-    sdk.graph.modifyEndpoint('HGyx7TCqgbWieay5enLiRjshWve9TjHwiug3m66pmLGR'),
+    "https://sonic.kingdomsubgraph.com/subgraphs/name/exp",
 };
 
 interface IPool {
   id: string;
   volumeUSD: string;
   feesUSD: string;
+  isCL: boolean;
+}
+
+export async function fetchPools(options: FetchOptions): Promise<IPool[]> {
+  const query = `
+    {
+      clPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+        startOfDay
+        volumeUSD
+        feesUSD
+      }
+      legacyPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+        startOfDay
+        volumeUSD
+        feesUSD
+      }
+    }
+  `;
+  const rows = await request(v2Endpoints[options.chain], query);
+
+  const res: IPool[] = [
+    ...rows.clPoolDayDatas.map((row: any) => ({ ...row, isCL: true })),
+    ...rows.legacyPoolDayDatas.map((row: any) => ({ ...row, isCL: false })),
+  ]
+
+  return res
 }
 
 const fetch = async (options: FetchOptions) => {
-  const query = `
-      {
-        clPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
-          startOfDay
-          volumeUSD
-          feesUSD
-        }
-      }
-  `;
-  const res = await request(v2Endpoints[options.chain], query);
-  const pools: IPool[] = res.clPoolDayDatas;
+  const pools = (await fetchPools(options)).filter((pool) => pool.isCL)
   const dailyFees = pools.reduce((acc, pool) => acc + Number(pool.feesUSD), 0);
   const dailyVolume = pools.reduce((acc, pool) => acc + Number(pool.volumeUSD), 0);
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 
 }
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
 };

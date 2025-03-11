@@ -7,7 +7,6 @@ import {
   FetchV2
 } from "../../adapters/types";
 import { queryDune } from "../../helpers/dune";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
 const arbitrumStartTimestamp = 1696982400; // 2023-10-11 00:00:00
 
@@ -29,7 +28,6 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
 
     const date = new Date(options.startOfDay * 1000);
 
-    const dayStartOfDayTimestamp = getUniqStartOfTodayTimestamp(date);
 
     // throw new Error('Dune query is broken, fix it by turning adapter on chain')
 
@@ -44,7 +42,6 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
       totalVolume: data.total_volume || 0,
       dailyRevenue: data.fees_24hr || 0,
       totalRevenue: data.total_fees || 0,
-      timestamp: dayStartOfDayTimestamp,
     };
   };
 

@@ -3,12 +3,36 @@ import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import request, { gql } from "graphql-request";
 
 
 interface IFee {
   time: string;
   v2_fees: number;
   total_fees: number;
+}
+
+const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+  const query = gql`
+    {
+       feesRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+        totalFees
+        tradeFees
+      }
+    }
+  `
+  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
+  const res = await request(url , query)
+  const dailyFees = res.feesRecordDailies
+    .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
+  const totalFees = res.feesRecordDailies
+    .reduce((acc: number, record: { totalFees: string }) => acc + Number(record.totalFees), 0)
+
+  return {
+    timestamp: options.startOfDay,
+    dailyFees: dailyFees / (10 ** 20),
+    totalFees: totalFees / (10 ** 20)
+  }
 }
 
 const fetch = (chain: Chain) => {
@@ -43,6 +67,10 @@ const adapter: Adapter = {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
       start: '2023-08-24',
+    },
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2023-07-25',
     },
   },
   isExpensiveAdapter: true,
