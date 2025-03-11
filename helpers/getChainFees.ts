@@ -2,7 +2,8 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from
 import { httpGet } from '../utils/fetchURL';
 import { queryAllium } from '../helpers/allium';
 import { Balances } from '@defillama/sdk';
-import { FetchOptions } from '../adapters/types';
+import { FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
+import { CHAIN } from './chains';
 
 interface ChainMapping {
   [key: string]: string;
@@ -51,31 +52,49 @@ export const fetchTransactionFees = async (options: FetchOptions): Promise<Balan
   return dailyFees;
 };
 
-export const chainAdapter = (adapterKey: string, assetID: string, startTime: number) => {
-    const fetch = async (timestamp: number) => {
-        const today = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000).toISOString()
-        const yesterday = new Date(getTimestampAtStartOfPreviousDayUTC(timestamp) * 1000).toISOString()
-        const dailyFee = await getOneDayFees(assetID, yesterday, today);
+export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN, start?: any }): SimpleAdapter {
+  return {
+    adapter: {
+      [chain]: {
+        fetch: async (_: any, _1: any, options: FetchOptions) => {
+          return {
+            dailyFees: await fetchTransactionFees(options),
+          }
+        },
+        start,
+      },
+    },
+    version: 1,
+    isExpensiveAdapter: true,
+    protocolType: ProtocolType.CHAIN,
+  }
+}
 
-        return {
-            timestamp,
-            dailyFees: dailyFee,
-        };
-    };
+export const chainAdapter = (adapterKey: string, assetID: string, startTime: number) => {
+  const fetch = async (timestamp: number) => {
+    const today = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000).toISOString()
+    const yesterday = new Date(getTimestampAtStartOfPreviousDayUTC(timestamp) * 1000).toISOString()
+    const dailyFee = await getOneDayFees(assetID, yesterday, today);
 
     return {
-        [adapterKey]: {
-            fetch: fetch,
-            start: startTime
-        }
+      timestamp,
+      dailyFees: dailyFee,
+    };
+  };
+
+  return {
+    [adapterKey]: {
+      fetch: fetch,
+      start: startTime
     }
+  }
 };
 
 export const getOneDayFees = async (assetID: string, startDate: string, endDate: string) => {
-    const result = await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=FeeTotUSD&assets=${assetID}&start_time=${startDate}&end_time=${endDate}`);
-    if (!result.data[0]) {
-        throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${endDate}`);
-    }
+  const result = await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=FeeTotUSD&assets=${assetID}&start_time=${startDate}&end_time=${endDate}`);
+  if (!result.data[0]) {
+    throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${endDate}`);
+  }
 
-    return parseFloat(result.data[1]['FeeTotUSD']);
+  return parseFloat(result.data[1]['FeeTotUSD']);
 }

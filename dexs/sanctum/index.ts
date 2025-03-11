@@ -18,7 +18,6 @@ const adapter: SimpleAdapter = {
     solana: {
       fetch,
       start: '2022-07-14',
-      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,
