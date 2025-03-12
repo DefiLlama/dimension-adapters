@@ -11,7 +11,7 @@ interface LogXDashboardResponse {
 
 const adapter: Adapter = {
     adapter: {
-        [CHAIN.ARBITRUM]: {
+        [CHAIN.LOGX]: {
             start: '2024-09-11',
             fetch: async (_timestamp: number, _: any) => {
                 const response: LogXDashboardResponse = await fetchURL(
