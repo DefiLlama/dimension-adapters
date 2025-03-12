@@ -91,6 +91,7 @@ export enum CHAIN {
   XDC = "xdc",
   STARKNET = "starknet",
   MOONBEAM = "moonbeam",
+  MOVEMENT = "movement",
   WAVES = "waves",
   CARBON = "carbon",
   THUNDERCORE = "thundercore",
