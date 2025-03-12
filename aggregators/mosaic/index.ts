@@ -3,7 +3,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import { fetchURLWithRetry } from "../../helpers/duneRequest";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (option): Promise<FetchResult> => {
+const fetch = async (_: any): Promise<FetchResult> => {
   const unixTimestamp = getUniqStartOfTodayTimestamp();
   const data = await fetchURLWithRetry(
     `https://analytics.mosaic.ag/report/volume`
