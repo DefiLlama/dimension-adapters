@@ -145,6 +145,10 @@ const chainConfig: Record<Chain, Config> = {
     treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
     start: "2024-03-12",
   },
+  [CHAIN.HYPERLIQUID]: {
+    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
+    start: "2024-03-13",
+  },
 };
 
 type Config = {
