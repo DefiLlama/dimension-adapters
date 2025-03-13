@@ -54,7 +54,7 @@ async function fetch(type: "perp" | "spot", options: FetchOptions) {
     const results = await getSpotDimensions(options);
     return {
       ...results,
-      timestamp: Date.now() / 1e3,
+      timestamp: options.startOfDay
     };
   }
 }
