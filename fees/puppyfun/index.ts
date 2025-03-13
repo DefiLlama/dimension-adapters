@@ -17,14 +17,21 @@ const fetch: any = async (options: FetchOptions) => {
             console.log(response.data)
 
             const fees = options.createBalances()
+            const dailyFees = options.createBalances()
             const revenue = options.createBalances()
+            const dailyRevenue = options.createBalances()
+
             fees.add(BNB_ADDRESS, response.data.totalFee)
+            dailyFees.add(BNB_ADDRESS, response.data.totalDailyFee)
             // revenue == fees (no users fees)
             revenue.add(BNB_ADDRESS, response.data.totalFee)
+            dailyFees.add(BNB_ADDRESS, response.data.totalDailyFee)
 
             return {
                 totalFees: fees,
                 totalRevenue: revenue,
+                dailyFees,
+                dailyRevenue
             }
         } catch (err) {
             console.log(`Error getting Volume`, err)

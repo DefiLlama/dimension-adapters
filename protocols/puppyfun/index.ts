@@ -16,11 +16,14 @@ const fetch: any = async (options: FetchOptions) => {
             const response = await axios.get(apiBaseURL + volumeMethod)
 
             const volume = options.createBalances()
+            const dailyVolume = options.createBalances()
             volume.add(BNB_ADDRESS, response.data.volume)
+            dailyVolume.add(BNB_ADDRESS, response.data.dailyVolume)
 
             const totalVolume = Number(response.data.volume) / 10 ** 18
             console.log(`Got Volume: ${totalVolume} BNB`, response.data.volume)
-            return { totalVolume: volume }
+            console.log(`Got Daily Volume: ${Number(response.data.dailyVolume) / 10 ** 18} BNB`, response.data.dailyVolume)
+            return { totalVolume: volume, dailyVolume }
         } catch (err) {
             console.log(`Error getting Volume`, err)
             continue
