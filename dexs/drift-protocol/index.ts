@@ -43,12 +43,11 @@ async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult
 }
 
 async function fetch(type: "perp" | "spot", options: FetchOptions) {
-  const timestamp = Date.now() / 1e3;
   if (type === "perp") {
     const results = await getPerpDimensions(options);
     return {
       ...results,
-      timestamp,
+      timestamp: options.startOfDay,
     };
   } else {
     const results = await getSpotDimensions(options);
