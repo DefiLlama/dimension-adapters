@@ -13,7 +13,6 @@ const headers = {
 
 // Calculate fees from the DFXDayData entity
 async function getDailyFees(timestamp: number) {
-  // Convert timestamp to day timestamp (start of day in UTC)
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
   
   const query = gql`
@@ -89,7 +88,7 @@ async function getPairsDailyFees(timestamp: number) {
     totalVolume += parseFloat(pairData.volumeUSD);
   }
 
-  // This means 100% of fees go to liquidity providers and 0% to the protocol
+  // 100% of fees go to liquidity providers and 0% to the protocol
   return {
     dailyFees: totalFees.toString(),
     dailyRevenue: "0", // Protocol takes 0% of fees
