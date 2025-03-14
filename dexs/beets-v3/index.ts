@@ -16,15 +16,11 @@ Object.keys(v3ChainMapping).forEach((chain: any) => {
   adapter.adapter[chain] = { fetch, runAtCurrTime: true, }
 })
 
-// chains = ["MAINNET", "ARBITRUM", "AVALANCHE", "BASE", "GNOSIS", "POLYGON", "ZKEVM", "OPTIMISM", "MODE", "FRAXTAL"]
-
 async function fetch({ createBalances, chain}: FetchOptions) {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const query = `query {
   pools: poolGetPools(
-    first: 1000
-    skip: 0
     orderBy: volume24h
     orderDirection: desc
     where: { chainIn: [${v3ChainMapping[chain]}] protocolVersionIn: [3]}
@@ -39,6 +35,7 @@ async function fetch({ createBalances, chain}: FetchOptions) {
       totalLiquidity
       lifetimeVolume
       lifetimeSwapFees
+      yieldCapture24h
       volume24h
       fees24h
     }
@@ -47,6 +44,7 @@ async function fetch({ createBalances, chain}: FetchOptions) {
   const { pools } = await request('https://api-v3.balancer.fi/graphql', query);
   pools.forEach((pool: any) => {
     dailyFees.addUSDValue(+pool.dynamicData.fees24h)
+    dailyFees.addUSDValue(+pool.dynamicData.yieldCapture24h)
     dailyVolume.addUSDValue(+pool.dynamicData.volume24h)
   })
   return { dailyFees, dailyVolume }
