@@ -1,7 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-// Superfluid contract for AaveChan stream
 const SUPERFLUID_CONTRACT = "0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c";
 const STREAM_ID = 100034;
 
@@ -65,19 +64,18 @@ const ABI = {
 const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
 
-  // Get stream data from Superfluid contract for stream ID 100034
   const stream = await options.toApi.call({
     abi: ABI.getStream,
     target: SUPERFLUID_CONTRACT,
     params: [STREAM_ID]
   });
 
-  // Calculate daily fees based on ratePerSecond (31709791983764586 wei/second)
+
   const ratePerSecond = stream.ratePerSecond;
   const SECONDS_PER_DAY = 86400;
   const dailyRate = ratePerSecond * SECONDS_PER_DAY;
 
-  // Add fees using the stream's token address
+
   dailyFees.add(stream.tokenAddress, dailyRate);
 
   return { 
