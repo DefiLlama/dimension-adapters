@@ -1,5 +1,5 @@
-import { Adapter, FetchV2, } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { Adapter, FetchV2, } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 export default {
   adapter: {
