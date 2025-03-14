@@ -10,19 +10,27 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const feesEndpoint = (endTimestamp: number, timeframe: string) =>
+const feesEndpoint = (
+  endTimestamp: number,
+  timeframe: string,
+  network: string
+) =>
   endTimestamp
-    ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
-    : feesQueryURL + timeframe;
+    ? feesQueryURL +
+      timeframe +
+      `&endTimestamp=${endTimestamp}&network=${network}`
+    : feesQueryURL + timeframe + `&network=${network}`;
 
-const fetch = async (timestamp: number) => {
-  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
+const fetch = async (timestamp: number, network: string) => {
+  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D", network)))
+    ?.data;
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
   );
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
+  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL", network)))
+    ?.data;
   const totalFees = totalFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
@@ -38,8 +46,12 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
-      fetch,
-      start: '2023-04-03',
+      fetch: (timestamp: number) => fetch(timestamp, "aptos_mainnet"),
+      start: "2023-04-03",
+    },
+    [CHAIN.MOVE]: {
+      fetch: (timestamp: number) => fetch(timestamp, "movement_mainnet"),
+      start: "2025-03-09",
     },
   },
 };
