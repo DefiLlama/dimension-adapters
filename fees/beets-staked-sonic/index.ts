@@ -9,7 +9,7 @@ export default {
         const dailyRevenue = createBalances()
         const logs = await getLogs({
             target: "0xe5da20f15420ad15de0fa650600afc998bbe3955",
-            eventAbi: 'event RewardsClaimed(uint256 amountClaimed, uint256 protocolFee);'
+            eventAbi: 'event RewardsClaimed(uint256 amountClaimed, uint256 protocolFee)'
         })
         logs.map((e: any) => {
             dailyFees.addGasToken(e.amountClaimed)
