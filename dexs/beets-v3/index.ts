@@ -23,8 +23,6 @@ async function fetch({ createBalances, chain}: FetchOptions) {
   const dailyFees = createBalances()
   const query = `query {
   pools: poolGetPools(
-    first: 1000
-    skip: 0
     orderBy: volume24h
     orderDirection: desc
     where: { chainIn: [${v3ChainMapping[chain]}] protocolVersionIn: [3]}
