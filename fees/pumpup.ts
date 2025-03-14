@@ -103,24 +103,29 @@ async function getDynamicFieldObjects({
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  //Unihouse
-  const unihouseDynamicFields = await getDynamicFieldObjects({
-    parent: UNI_HOUSE_OBJ_ID,
-  });
+  //Unihouse, use hardcorded token types for now. Because some of our income tokens haven't listed on CoinGecko yet.
+  //   const unihouseDynamicFields = await getDynamicFieldObjects({
+  //     parent: UNI_HOUSE_OBJ_ID,
+  //   });
 
-  const unihouseList = unihouseDynamicFields?.filter((field) =>
-    field?.type.includes("house::House")
-  );
+  //   const unihouseList = unihouseDynamicFields?.filter((field) =>
+  //     field?.type.includes("house::House")
+  //   );
 
-  const unihouseIdList = unihouseList.map((house) => house.fields.id.id);
+  //   const unihouseIdList = unihouseList.map((house) => house.fields.id.id);
 
-  const houseObjects = await getObjects(unihouseIdList);
+  //   const houseObjects = await getObjects(unihouseIdList);
 
-  const houseTokenType = houseObjects
-    .map((house) => house.type.split("<")[1].split(">")[0])
-    .filter((type) => !type.includes("::unihouse::FeeTag"));
+  //   const houseTokenType = houseObjects
+  //     .map((house) => house.type.split("<")[1].split(">")[0])
+  //     .filter((type) => !type.includes("::unihouse::FeeTag"));
 
-  for (const tokenType of houseTokenType) {
+  const tokenTypeList = [
+    "0x2::sui::SUI",
+    "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+    "0xfe3afec26c59e874f3c1d60b8203cb3852d2bb2aa415df9548b8d688e6683f93::alpha::ALPHA",
+  ];
+  for (const tokenType of tokenTypeList) {
     const joinHouseEvents = await queryEvents({
       eventType: `${UNIHOUSE_CORE_PACKAGE_ID}::house::JoinHouseEvent<${tokenType}>`,
       options,
