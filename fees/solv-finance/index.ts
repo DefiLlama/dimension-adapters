@@ -20,6 +20,12 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.CORE]: { deployedAt: 1726531200 },
   [CHAIN.SCROLL]: { deployedAt: 1726531200 },
   [CHAIN.SOLANA]: { deployedAt: 1726531200 },
+  [CHAIN.AVAX]: { deployedAt: 1726531200 },
+  [CHAIN.BOB]: { deployedAt: 1726531200 },
+  [CHAIN.BASE]: { deployedAt: 1726531200 },
+  [CHAIN.LINEA]: { deployedAt: 1726531200 },
+  [CHAIN.ROOTSTOCK]: { deployedAt: 1726531200 },
+  [CHAIN.SONEIUM]: { deployedAt: 1726531200 },
 };
 
 const fetch: FetchV2 = async (options) => {
