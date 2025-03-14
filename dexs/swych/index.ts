@@ -130,7 +130,6 @@ export default {
         [CHAIN.BSC]: {
             fetch: fetchVolumeStats,
             start: '2023-12-04',
-            runAtCurrTime: false,
         },
     },
 };

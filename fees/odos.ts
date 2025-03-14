@@ -54,6 +54,8 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.LINEA]: ['0x2d8879046f1559E53eb052E949e9544bCB72f414',],
   [CHAIN.MANTLE]: ['0xD9F4e85489aDCD0bAF0Cd63b4231c6af58c26745',],
   [CHAIN.SCROLL]: ['0xbFe03C9E20a9Fc0b37de01A172F207004935E0b1',],
+  [CHAIN.FRAXTAL]: ['0x56c85a254DD12eE8D9C04049a4ab62769Ce98210'],
+  [CHAIN.SONIC]: ['0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D'],
 }
 
 const graph = (chain: Chain): any => {
@@ -92,6 +94,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: '2023-07-14' },
     [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: '2023-07-14' },
     [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: '2023-07-14' },
+    [CHAIN.FRAXTAL]: { fetch: graph(CHAIN.FRAXTAL), start: '2023-07-14' },
+    [CHAIN.SONIC]: { fetch: graph(CHAIN.SONIC), start: '2023-07-14' },
   }
 };
 

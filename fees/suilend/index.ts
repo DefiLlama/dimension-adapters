@@ -16,6 +16,7 @@ interface DailyStats {
   protocolFees: number;
   liquidatorBonuses: number;
   liquidationProtocolFees: number;
+  stakingRevenue: number;
   previous: string;
   next: string;
 }
@@ -32,11 +33,13 @@ const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
   const userFees =
     stats.borrowInterestPaid +
     stats.borrowFees +
-    stats.protocolFees +
-    stats.liquidationProtocolFees;
+    stats.liquidationProtocolFees +
+    stats.liquidatorBonuses;
 
-  const dailyRevenue = stats.borrowInterestPaid +
-    stats.liquidationProtocolFees;
+  const dailyRevenue = stats.borrowFees +
+    stats.protocolFees +
+    stats.liquidationProtocolFees
+    + stats.stakingRevenue;
 
   return {
     dailyFees: userFees,
@@ -52,8 +55,6 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchSuilendStats,
       start: '2024-03-01',
       meta: {

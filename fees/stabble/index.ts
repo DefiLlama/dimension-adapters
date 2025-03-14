@@ -2,11 +2,12 @@ import { CHAIN } from "../../helpers/chains";
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const feesURL = "https://api.stabble.org/stats/fees";
+const feesURL = "https://api.stabble.org/metric";
 
 interface DailyStats {
-  revenue: number;
+  volume: number;
   fees: number;
+  revenue: number;
 }
 
 const fetch: FetchV2 = async (options: FetchOptions) => {

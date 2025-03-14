@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
@@ -18,6 +19,7 @@ export enum CHAIN {
   OKEXCHAIN = "okexchain",
   OPTIMISM = "optimism",
   POLYGON = "polygon",
+  POLYNOMIAL = "polynomial",
   RONIN = "ronin",
   ROOTSTOCK = "rsk",
   XDAI = "xdai",
@@ -89,6 +91,7 @@ export enum CHAIN {
   XDC = "xdc",
   STARKNET = "starknet",
   MOONBEAM = "moonbeam",
+  MOVEMENT = "movement",
   WAVES = "waves",
   CARBON = "carbon",
   THUNDERCORE = "thundercore",
@@ -188,6 +191,35 @@ export enum CHAIN {
   ECLIPSE = "eclipse",
   UNIT0 = "unit0",
   SHIDO = "shido",
+  ACE = "ace",
+  BOUNCE_BIT = "bouncebit",
+  ZIRCUIT = "zircuit",
+  WC = "wc",
+  ARCHWAY = "archway-1",
+  VINUCHAIN = "vinu",
+  NEUTRON = "neutron",
+  CORN = "corn",
+  SAGA = "saga",
+  SAPPHIRE = "sapphire",
+  VANA = "vana",
+  SONIC = "sonic",
+  HYPERLIQUID = "hyperliquid",
+  SONEIUM = "soneium",
+  INK = "ink",
+  RIPPLE = "ripple",
+  ZERO = "zero_network",
+  SHAPE = "shape",
+  ABSTRACT = "abstract",
+  REDSTONE = "redstone",
+  PLUME = "plume",
+  PENUMBRA = "penumbra",
+  BERACHAIN = "berachain",
+  UNICHAIN = "unichain",
+  STORY = 'sty',
+  LUMIA = 'lumia',
+  FORMNETWORK = "formnetwork",
+  HEMI = "hemi",
+  MOVE = "move",
 }
 
 // Don´t use
@@ -212,6 +244,7 @@ const LITECOIN = "litecoin";
 const DOGE = "doge";
 const ZKSYNC = "zksync";
 const MANTLE = "mantle";
+const POLYNOMIAL = "polynomial";
 // Don't use
 export {
   ARBITRUM,
@@ -235,4 +268,5 @@ export {
   RONIN,
   XDAI,
   ZKSYNC,
+  POLYNOMIAL,
 };

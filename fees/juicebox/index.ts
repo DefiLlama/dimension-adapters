@@ -1,4 +1,3 @@
-// https://juice-finance.gitbook.io/juice-finance/juice-protocol/fees#protocol-fees
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";

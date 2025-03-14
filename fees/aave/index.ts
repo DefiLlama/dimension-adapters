@@ -483,10 +483,10 @@ const adapter = {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
         start: '2022-03-14'
       },
-      [FANTOM]: {
-        fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: '2022-03-14'
-      },
+      // [FANTOM]: { // index error
+      //   fetch: v3Graphs(v3Endpoints)(FANTOM),
+      //   start: '2022-03-14'
+      // },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
         start: '2022-03-14'

@@ -31,7 +31,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.WAVES]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
           },
   }
 };

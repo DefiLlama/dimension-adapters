@@ -4,7 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint =
-  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v1/gn";
+  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v2/gn";
 
 // Get timestamps for yesterday and today
 const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
@@ -96,7 +96,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch: fetchProtocolFees,
-      start: '2024-09-07',
+      start: '2025-01-21',
       meta: {
         methodology,
       },

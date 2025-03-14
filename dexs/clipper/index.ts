@@ -10,6 +10,8 @@ const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
   // [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('HkSpNiuPdZu5nidNwtSdWty4KkKjgRMoJwTKsjZmtgco'),
+  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('8JiAx8TbKWBzZpxVMMdSJf77DyCWVt2RTNbXH8iYPg9Z'),
 };
 
 

@@ -52,10 +52,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const totalRes = await request(graphUrls[chain], totalGraphQuery);
 
       const dailyFee =
-        parseInt(graphRes.feeStat.mint) +
-        parseInt(graphRes.feeStat.burn) +
-        parseInt(graphRes.feeStat.marginAndLiquidation) +
-        parseInt(graphRes.feeStat.swap);
+        parseInt(graphRes.feeStat?.mint || 0) +
+        parseInt(graphRes.feeStat?.burn || 0) +
+        parseInt(graphRes.feeStat?.marginAndLiquidation || 0) +
+        parseInt(graphRes.feeStat?.swap || 0);
       const finalDailyFee = dailyFee / 1e30;
       const totalFees =
         parseInt(totalRes.feeStat.mint) +
@@ -65,8 +65,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const finalTotalFee = totalFees / 1e30;
 
       const userFee =
-        parseInt(graphRes.feeStat.marginAndLiquidation) +
-        parseInt(graphRes.feeStat.swap);
+        parseInt(graphRes.feeStat?.marginAndLiquidation || 0) +
+        parseInt(graphRes.feeStat?.swap || 0);
       const finalUserFee = userFee / 1e30;
 
       return {

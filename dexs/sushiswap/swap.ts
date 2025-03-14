@@ -1,8 +1,9 @@
-import axios from "axios";
 import { FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
-const ROUTE_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
+const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
+const ROUTE_RP6_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
 
 const CHAIN_ID = {
   [CHAIN.ETHEREUM]: 1,
@@ -38,6 +39,15 @@ const CHAIN_ID = {
   [CHAIN.BLAST]: 81457,
   [CHAIN.SKALE_EUROPA]: 2046399126,
   [CHAIN.ROOTSTOCK]: 30,
+  [CHAIN.MANTLE]: 5000,
+  [CHAIN.ERA]: 324,
+  [CHAIN.MANTA]: 169,
+  [CHAIN.MODE]: 34443,
+  [CHAIN.TAIKO]: 167000,
+  [CHAIN.ZKLINK]: 810180,
+  [CHAIN.APECHAIN]: 33139,
+  [CHAIN.SONIC]: 146,
+  [CHAIN.HEMI]: 43111,
 }
 
 const RP4_ADDRESS = {
@@ -110,6 +120,57 @@ const RP5_ADDRESS = {
   [CHAIN.BLAST]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
   [CHAIN.SKALE_EUROPA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
   [CHAIN.ROOTSTOCK]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.MANTLE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ERA]: '0x9e55e562D40FD01f38cD4057e632352fE0758F16',
+  [CHAIN.MANTA]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.MODE]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.TAIKO]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+  [CHAIN.ZKLINK]: '0x9e55e562D40FD01f38cD4057e632352fE0758F16',
+  [CHAIN.APECHAIN]: '0xf2614A233c7C3e7f08b1F887Ba133a13f1eb2c55',
+}
+const RP6_ADDRESS = {
+  [CHAIN.ETHEREUM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ARBITRUM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.OPTIMISM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BASE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.POLYGON]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.AVAX]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BSC]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.LINEA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ARBITRUM_NOVA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.XDAI]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.FANTOM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BITTORRENT]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.CELO]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.FILECOIN]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.HAQQ]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.KAVA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.METIS]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.THUNDERCORE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.SCROLL]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ZETA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.MOONBEAM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.MOONRIVER]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.POLYGON_ZKEVM]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.FUSE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.HARMONY]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.TELOS]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BOBA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BOBA_BNB]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.CORE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.CRONOS]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.BLAST]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.SKALE_EUROPA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ROOTSTOCK]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ERA]: '0xE6fD46600A97CE06703b58333B9C2399F4bF6FEc',
+  [CHAIN.MANTLE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.MANTA]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.MODE]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.TAIKO]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.ZKLINK]: '0xE6fD46600A97CE06703b58333B9C2399F4bF6FEc',
+  [CHAIN.APECHAIN]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.SONIC]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71',
+  [CHAIN.HEMI]: '0x85CD07Ea01423b1E937929B44E4Ad8c40BbB5E71'
 }
 
 const WNATIVE_ADDRESS = {
@@ -146,6 +207,15 @@ const WNATIVE_ADDRESS = {
   [CHAIN.BLAST]: '0x4300000000000000000000000000000000000004',
   [CHAIN.SKALE_EUROPA]: '0x0000000000000000000000000000000000000000',
   [CHAIN.ROOTSTOCK]: '0x542fda317318ebf1d3deaf76e0b632741a7e677d',
+  [CHAIN.MANTLE]: '0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8',
+  [CHAIN.ERA]: '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91',
+  [CHAIN.MANTA]: '0x0dc808adce2099a9f62aa87d9670745aba741746',
+  [CHAIN.MODE]: '0x4200000000000000000000000000000000000006',
+  [CHAIN.TAIKO]: '0xa51894664a773981c6c112c43ce576f315d5b1b6',
+  [CHAIN.ZKLINK]: '0x8280a4e7d5b3b658ec4580d3bc30f5e50454f169',
+  [CHAIN.APECHAIN]: '0x48b62137edfa95a428d35c09e44256a739f6b557',
+  [CHAIN.SONIC]: '0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38',
+  [CHAIN.HEMI]: '0x4200000000000000000000000000000000000006'
 }
 
 const useSushiAPIPrice = (chain) => [
@@ -153,44 +223,40 @@ const useSushiAPIPrice = (chain) => [
   CHAIN.MOONRIVER
 ].includes(chain)
 
-const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<FetchResultV2> => {
+const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const logs = await Promise.all([
-    getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_EVENT }),
-    getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_EVENT })
-  ]).then(([rp4Logs, rp5Logs]) => [...rp4Logs, ...rp5Logs])
+    getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
+    getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
+    getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }),
+  ]).then(([rp4Logs, rp5Logs, rp6logs]) => [...rp4Logs, ...rp5Logs, ...rp6logs])
 
   if (useSushiAPIPrice(chain)) {
-    const [tokensQuery, pricesQuery] = await Promise.all([
-      axios.get(`https://tokens.sushi.com/v0/${CHAIN_ID[chain]}`)
-        .then(response => response.data),
-      axios.get(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)
-        .then(response => Object.entries(response.data).reduce(
-          (acc, [key, value]) => {
-            acc[key.toLowerCase()] = value
-            return acc
-          },
-          {},
-        )),
-    ])
+    const dailyVolume = createBalances()
+    const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]) => {
+      acc[key.toLowerCase()] = value
+      return acc
+    });
+    const tokensIn =  [...new Set(logs.map(log => log.tokenIn.toLowerCase()))]
+    const tokensInfo = (await Promise.all(tokensIn.map(token => httpGet(`https://api.sushi.com/token/v1/${CHAIN_ID[chain]}/${token}`)))).flat();
 
-    const tokens = tokensQuery.reduce((tokens, token) => {
+    const tokens = tokensInfo.reduce((tokens, token) => {
       const address = token.address.toLowerCase()
       tokens[address] = {
         ...token,
-        price: pricesQuery[address] ?? 0
+        price: tokenPrice[address] ?? 0
       }
 
       return tokens
-    }, {})
-
-    let dailyVolume = 0
+    }, {});
 
     logs.forEach((log) => {
-      const token = tokens[
-        log.tokenIn === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? WNATIVE_ADDRESS[chain] : log.tokenIn.toLowerCase()
-      ]
-
-      if (token) dailyVolume += Number(log.amountIn) * token.price / 10 ** token.decimals
+      const token = tokens[log.tokenIn.toLowerCase()]
+      if (token && log.tokenIn !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
+        dailyVolume.addUSDValue(_dailyVolume)
+      } else {
+        dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
+      }
     })
 
     return { dailyVolume }
@@ -333,6 +399,42 @@ const adapters = {
     fetch,
     start: '2024-02-25'
   },
+  [CHAIN.MANTLE]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.ERA]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.MANTA]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.MODE]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.TAIKO]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.ZKLINK]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.APECHAIN]: {
+    fetch,
+    start: '2024-02-25'
+  },
+  [CHAIN.SONIC]: {
+    fetch,
+    start: '2025-02-19'
+  },
+  [CHAIN.HEMI]: {
+    fetch,
+    start: '2025-02-19'
+  }
 }
 
 export default adapters

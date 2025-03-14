@@ -2424,6 +2424,14 @@ export default (
       name: "GraFun",
       addresses: {
         bsc: ["0x8341b19a2A602eAE0f22633b6da12E1B016E6451"],
+        ethereum: ["0xb8540a7d74Cc4912443e8c4B2064B640FC763c4f"],
+      },
+    },
+    {
+      id: "5799",
+      name: "Liquidity House",
+      addresses: {
+        etlk: ["0x0c532e1e916219007f244e2d8Ef46f8530Ec75DE"],
       },
     },
   ] as ProtocolAddresses[]

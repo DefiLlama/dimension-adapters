@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
-const fethcFeesSolana = async (options: FetchOptions) => {
+const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF' })
   return { dailyFees, dailyRevenue: dailyFees, }
 }
@@ -13,7 +13,7 @@ const contract_address: any = {
   [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
 }
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const logs = await options.getLogs({
@@ -33,7 +33,7 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
@@ -41,7 +41,6 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
-      runAtCurrTime: true,
       start: '2023-06-01',
     },
     [CHAIN.BLAST]: {

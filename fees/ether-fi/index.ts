@@ -108,10 +108,10 @@ const getSsvRevenue = async (options: FetchOptions) => {
   let ssv_revenue = 0;
   for (const log of logs) {
     if (log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase()) {
-      ssv_revenue += +log.value;
+      ssv_revenue += +Number(log.value);
     }
     else {
-      ssv_revenue += +log.value * 0.8;
+      ssv_revenue += +Number(log.value) * 0.8;
     }
   }
   return BigInt(ssv_revenue);
@@ -197,4 +197,3 @@ const adapter: Adapter = {
 };
 
 export default adapter;
-

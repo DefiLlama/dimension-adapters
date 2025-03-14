@@ -36,10 +36,11 @@ const endpointsAlgebraV3 = {
     "CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7",
   ),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:
-    "https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
   [CHAIN.MANTA]:
     "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
+  [CHAIN.SONEIUM]:
+    "https://api.studio.thegraph.com/query/76874/integral-soneium/version/latest"
 };
 
 const endpointsUniV3 = {
@@ -95,7 +96,7 @@ const fetchLiquidityHub = async (timestamp: number) => {
 
   return {
     dailyVolume: `${dailyVolume}`,
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume ? `${totalVolume}` : undefined,
     timestamp: timestamp,
   };
 };
@@ -125,6 +126,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MANTA]: {
         fetch: v3GraphsUni(CHAIN.MANTA),
         start: '2023-10-19',
+      },
+      [CHAIN.SONEIUM]: {
+        fetch: graphsAlgebraV3(CHAIN.SONEIUM),
+        start: '2025-01-10',
       },
     },
     liquidityHub: {

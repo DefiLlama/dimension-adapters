@@ -11,7 +11,7 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_:any, _1:any, fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, getLogs, createBalances, } = fetchOptions
   const chain = api.chain
   const dailyVolume = createBalances()
@@ -19,11 +19,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   let pairs = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A' })
   let token0s = await api.multiCall({ abi: 'address:token0', calls: pairs })
   let token1s = await api.multiCall({ abi: 'address:token1', calls: pairs })
-  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s })
-  api.log(res.pairs.length, 'pairs out of', pairs.length, chain, 'aerodrome')
+
+  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s, minUSDValue: 2000, maxPairSize: 1000 })
   pairs = res.pairs
   token0s = res.token0s
   token1s = res.token1s
+
   const fees = await api.multiCall({ abi: 'uint256:fee', calls: pairs })
 
   let logs: ILog[][] = await getLogs({ targets: pairs, eventAbi: event_swap, flatten: false, })
@@ -41,7 +42,8 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,

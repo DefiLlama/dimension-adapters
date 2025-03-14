@@ -22,7 +22,6 @@ const adapter: SimpleAdapter = {
         algorand: {
             fetch,
             runAtCurrTime: true,
-            customBackfill: undefined,
                     },
     }
 };
