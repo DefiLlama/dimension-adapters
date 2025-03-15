@@ -23,8 +23,6 @@ async function fetch({ createBalances, chain}: FetchOptions) {
   const dailyFees = createBalances()
   const query = `query {
   pools: poolGetPools(
-    first: 1000
-    skip: 0
     orderBy: volume24h
     orderDirection: desc
     where: { chainIn: [${v3ChainMapping[chain]}] protocolVersionIn: [3]}
@@ -41,12 +39,14 @@ async function fetch({ createBalances, chain}: FetchOptions) {
       lifetimeSwapFees
       volume24h
       fees24h
+      yieldCapture24h
     }
   }
 }` 
   const { pools } = await request('https://api-v3.balancer.fi/graphql', query);
   pools.forEach((pool: any) => {
     dailyFees.addUSDValue(+pool.dynamicData.fees24h)
+    dailyFees.addUSDValue(+pool.dynamicData.yieldCapture24h)
     dailyVolume.addUSDValue(+pool.dynamicData.volume24h)
   })
   return { dailyFees, dailyVolume }
