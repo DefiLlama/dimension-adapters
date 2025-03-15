@@ -50,6 +50,7 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
   return {
     dailyRevenue: fees,
+    dailyFees: fees
   };
 }
 
