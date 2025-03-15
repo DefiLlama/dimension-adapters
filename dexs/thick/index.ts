@@ -16,8 +16,8 @@ const adapters: SimpleAdapter = uniV3Exports({
   [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
   [CHAIN.ARBITRUM]: { factory: poolFactoryAddress, },
   [CHAIN.BASE]: { factory: poolFactoryAddress, },
-  [CHAIN.XDAI]: { factory: poolFactoryAddress, },
-  [CHAIN.BSC]: { factory: poolFactoryAddress, },
+  //[CHAIN.XDAI]: { factory: poolFactoryAddress, },
+  //[CHAIN.BSC]: { factory: poolFactoryAddress, },
   [CHAIN.SONIC]: { factory: poolFactoryAddress, },
 })
 

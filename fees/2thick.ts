@@ -16,7 +16,7 @@ const methodology = {
 const adapters: SimpleAdapter = uniV3Exports({
   [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
   [CHAIN.ARBITRUM]: { factory: poolFactoryAddress, },
-  [CHAIN.BSC]: { factory: "0x5C0a9661E0bC1294bB87686C472F7C699831B1ea", }, //different
+  //[CHAIN.BSC]: { factory: "0x5C0a9661E0bC1294bB87686C472F7C699831B1ea", }, //different
   [CHAIN.BASE]: { factory: poolFactoryAddress, },
 })
 
