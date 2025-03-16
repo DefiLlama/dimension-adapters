@@ -19,7 +19,8 @@ const getData = async (chain: string, timestamp: number) => {
         query pairDayDatas {
             pairDayDatas(
                 where: {
-                    date_gt: ${timestamp}
+                    date_gte: ${timestamp - 24 * 3600}
+                    date_lte: ${timestamp}
                 },
                 orderBy: date,
                 first: 1000,
