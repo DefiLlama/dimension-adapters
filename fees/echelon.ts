@@ -24,17 +24,27 @@ const feesEndpoint = (
 const fetch = async (timestamp: number, network: string) => {
   const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D", network)))
     ?.data;
-  const dailyFees = dayFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+  let dailyFees = 0;
+  if (!dayFeesQuery) {
+    dailyFees = 0;
+  } else {
+    dailyFees = dayFeesQuery.reduce(
+      (partialSum: number, a: IVolumeall) => partialSum + a.value,
+      0
+    );
+  }
 
   const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL", network)))
     ?.data;
-  const totalFees = totalFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+  let totalFees = 0;
+  if (!totalFeesQuery) {
+    totalFees = 0;
+  } else {
+    totalFees = totalFeesQuery.reduce(
+      (partialSum: number, a: IVolumeall) => partialSum + a.value,
+      0
+    );
+  }
 
   return {
     totalFees: `${totalFees}`,
