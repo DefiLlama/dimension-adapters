@@ -1,13 +1,32 @@
 import {SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
+import {FetchOptions} from "../../adapters/types";
+import { httpPost } from "../../utils/fetchURL";
 
-const getData = async (chain: string, timestamp: number) => {
+interface DayData {
+    feesUSD: string;
+    volumeUSD: string;
+}
+
+interface MetricsAccumulator {
+    fees: number;
+    volume: number;
+}
+
+const calculateMetrics = (dayDatas: DayData[]): MetricsAccumulator => {
+    return dayDatas.reduce((acc, data) => ({
+        fees: acc.fees + parseFloat(data.feesUSD || '0'),
+        volume: acc.volume + parseFloat(data.volumeUSD || '0')
+    }), { fees: 0, volume: 0 });
+};
+
+const getData = async (from: number, to: number) => {
     const Sonic_LB_V22_QUERY = `
         query lbpairDayDatas {
             lbpairDayDatas(
                 where: {
-                    date_gte: ${timestamp - 24 * 3600}
-                    date_lte: ${timestamp}
+                    date_gte: ${from}
+                    date_lte: ${to}
                 },
                 orderBy: date,
                 first: 1000,
@@ -27,70 +46,28 @@ const getData = async (chain: string, timestamp: number) => {
           }
         }`;
 
-    async function fetchLbV22() {
-        try {
-            const responses = [
-                await fetch('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({query: Sonic_LB_V22_QUERY}),
-                }),
-            ];
 
-            const results = await Promise.all(responses.map(async (response) => {
-                if (!response.ok) {
-                    let errorText;
-                    switch (response.status) {
-                        case 400:
-                            errorText = await response.text();
-                            break;
-                        case 401:
-                            errorText = 'Unauthorized';
-                            break;
-                        case 403:
-                            errorText = 'Forbidden';
-                            break;
-                        default:
-                            errorText = `HTTP error! status: ${response.status}`;
-                    }
-                    throw new Error(errorText);
-                }
+        const responses = [
+            await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22', 
+                {query: Sonic_LB_V22_QUERY}
+            ),
+        ];
 
-                return response.json();
-            }));
-
-            const feeData = results.flat().map(data => data.data?.lbpairDayDatas);
-            if (feeData.length > 0) {
-                const {fees, volume} = feeData.reduce((acc, dayDatas) => {
-                    if (dayDatas) {
-                        return dayDatas.reduce((innerAcc, data) => ({
-                            fees: innerAcc.fees + parseFloat(data.feesUSD || '0'),
-                            volume: innerAcc.volume + parseFloat(data.volumeUSD || '0')
-                        }), acc);
-                    }
-                    return acc;
-                }, {fees: 0, volume: 0});
-                return {fees, volume}
-            }
-        } catch (error) {
-            console.error('Error fetching iotaLbV22 data:', error);
-            return null;
+        const feeData = responses.flat().map(data => data?.data?.lbpairDayDatas);
+        if (feeData.length > 0 && feeData[0]) {
+            return calculateMetrics(feeData[0]);
         }
-    }
 
-    return await fetchLbV22()
+    return { fees: 0, volume: 0 };
 }
 
-export const fetchFee = (chain: string) => {
-    return async (timestamp: number) => {
-        const {fees, volume} = await getData(chain, timestamp);
-        return {
-            timestamp: timestamp,
-            dailyFees: fees,
-            dailyVolume: volume,
-        };
+export const fetchFee = async (timestamp: number, _block: any, options: FetchOptions) => {
+    const {fees, volume} = await getData(options.fromTimestamp, options.toTimestamp);
+    if (!fees || !volume) { throw new Error('No data') }
+    return {
+        timestamp: timestamp,
+        dailyFees: fees,
+        dailyVolume: volume,
     };
 };
 
@@ -101,7 +78,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SONIC]: {
-            fetch: fetchFee(CHAIN.SONIC),
+            fetch: fetchFee,
             start: "2024-12-16",
             meta: {
                 methodology,
