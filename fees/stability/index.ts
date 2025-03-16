@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
@@ -28,38 +28,36 @@ async function getVaults({ getLogs }: FetchOptions): Promise<string[]> {
 
 async function getFeeEvents(vaults: string[], options: FetchOptions): Promise<Balances> {
     const fees = {
-        vaultManagerFee: 0n,
-        strategyLogicFee: 0n,
-        ecosystemFee: 0n,
-        multisigFee: 0n
+        vaultManagerFee: 0,
+        strategyLogicFee: 0,
+        ecosystemFee: 0,
+        multisigFee: 0,
     }
     const dailyFees = options.createBalances();
-    const DECIMALS = BigInt(10 ** 18);
+    const DECIMALS = 1e18;
+    const mintFeesEvents = await options.getLogs({
+        targets: vaults,
+        eventAbi: "event MintFees(uint256 vaultManagerReceiverFee, uint256 strategyLogicReceiverFee, uint256 ecosystemRevenueReceiverFee, uint256 multisigReceiverFee)",
+        flatten: false
+    });
 
-    for (const vault of vaults) {
-        const mintFeesEvents = await options.getLogs({
+    const prices = await options.api.multiCall({
+        abi: "function price() view returns (uint, bool)",
+        calls: vaults.map(vault => ({
             target: vault,
-            eventAbi: "event MintFees(uint256 vaultManagerReceiverFee, uint256 strategyLogicReceiverFee, uint256 ecosystemRevenueReceiverFee, uint256 multisigReceiverFee)",
-        });
-        //fees are distributed in vault shares
-        //we can use vault price() to convert the shares to USD price is in 1e18
-        let price = await options.api.call({
-            target: vault,
-            abi: "function price() view returns (uint, bool)"
-        });
-        const priceBI = BigInt(price[0]);
-        //we can then convert the shares to USD
-        //multiply each fee amount by pricePerShare and divide by 1e18 to get the USD value
-        mintFeesEvents.forEach((event: any) => {
-            fees.vaultManagerFee += BigInt(event.vaultManagerReceiverFee) * priceBI / DECIMALS;
-            fees.strategyLogicFee += BigInt(event.strategyLogicReceiverFee) * priceBI / DECIMALS;
-            fees.ecosystemFee += BigInt(event.ecosystemRevenueReceiverFee) * priceBI / DECIMALS;
-            fees.multisigFee += BigInt(event.multisigReceiverFee) * priceBI / DECIMALS;
+        }))
+    });
+
+    mintFeesEvents.forEach((event: any, i: number) => {
+        event.forEach((fee: any) => {
+            const price = Number(prices[i][0]);
+            fees.vaultManagerFee += Number(fee.vaultManagerReceiverFee) * price / DECIMALS;
+            fees.strategyLogicFee += Number(fee.strategyLogicReceiverFee) * price / DECIMALS;
+            fees.ecosystemFee += Number(fee.ecosystemRevenueReceiverFee) * price / DECIMALS;
+            fees.multisigFee += Number(fee.multisigReceiverFee) * price / DECIMALS;
         })
-    }
-
-    const totalFees = fees.vaultManagerFee + fees.strategyLogicFee + fees.ecosystemFee + fees.multisigFee;
-    dailyFees.addUSDValue(Number(totalFees) / 1e18);
+    });
+    dailyFees.addUSDValue(Number(fees.vaultManagerFee + fees.strategyLogicFee + fees.ecosystemFee + fees.multisigFee) / 1e18)
 
     return dailyFees;
 }
