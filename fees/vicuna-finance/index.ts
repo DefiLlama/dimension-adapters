@@ -17,8 +17,8 @@ const adapter: Adapter = {
                 const targets = ['0xad1bB693975C16eC2cEEF65edD540BC735F8608B'];
     
                 const dailyRevenue = await addTokensReceived({ options, targets, tokens });
-                const dailyFees = dailyRevenue.clone(totalFee / 100);  // 7% of revenue
-                const dailyProtocolRevenue = dailyRevenue.clone(vaultFee / 100);  // 6.95% of revenue
+                const dailyFees = dailyRevenue.clone(totalFee / vaultFee);  // Total fees = protocol revenue * (7/6.95)
+                const dailyProtocolRevenue = dailyRevenue 
     
                 return { dailyFees, dailyRevenue, dailyProtocolRevenue }
             },
