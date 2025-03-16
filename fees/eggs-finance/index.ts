@@ -39,7 +39,7 @@ const adapter: Adapter = {
       start: '2025-02-14', 
       meta: {
         methodology: {
-          Fees: "All fees (redeeming / selling using contract for 2.5% fees, flash loan 1%, loan interest, instant default 1%) are captured by monitoring SendSonic events to FEE_ADDRESS",
+          Fees: "All fees (redeeming / selling using contract for 2.5% fees, flash loan 1%, loan interest, instant default 1%, etc) are captured by monitoring SendSonic events to FEE_ADDRESS",
           Revenue: "Protocol revenue is 30% of total fees sent directly to FEE_ADDRESS"
         }
       }
