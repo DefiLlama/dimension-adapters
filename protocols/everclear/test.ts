@@ -22,7 +22,7 @@ export async function getFeeUSD({ startOfDay, createBalances }: FetchOptions, ur
         return {
           timestamp: Number((line.split(",")[1] as string)?.replace(/"/g, "")),
           value: Number((line.split(",")[2] as string)?.replace(/"/g, ""))
-        }
+        }s
       }).filter((fee: any) => fee.timestamp === startOfDay)
   const gasToken = "bitcoin";
   feesToday.forEach((fee: any) => {

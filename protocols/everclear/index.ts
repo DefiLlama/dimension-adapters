@@ -36,6 +36,7 @@ const fetch = async () => {
                 feesByAsset[assetKey] += fee;
             });
 
+            //a
         // Convert number values to strings for JSON compatibility
         Object.keys(feesByAsset).forEach(key => {
             feesByAsset[key] = feesByAsset[key].toString();
