@@ -91,6 +91,7 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   const totalVolume = res.volumeRecordDailies
     .filter((record: {timestamp : string}) => record.timestamp <= targetDate)
     .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
+  if (dailyVolume === 0) throw new Error('Not found daily data!.')
   return {
     timestamp: options.startOfDay,
     dailyVolume: dailyVolume / (10 ** 20),
