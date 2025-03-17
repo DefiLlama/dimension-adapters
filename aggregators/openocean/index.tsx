@@ -26,6 +26,7 @@ const chains = [
 const fetch =
   (chain: string) =>
     async (timestamp: number): Promise<FetchResult> => {
+      if (chain === 'heco') { return {} } // skip HECO for now
       const today = new Date();
       const timestampDate = new Date(timestamp * 1000);
       const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);

@@ -22,6 +22,7 @@ const mapChainId: ChainMapId = {
 };
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const queryByChainId = `?chain_id=${mapChainId[chain]}`;
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;

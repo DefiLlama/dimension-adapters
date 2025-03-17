@@ -13,9 +13,11 @@ interface IFee {
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
+  const targetDate = new Date(dayTimestamp * 1000).toISOString();
   const query = gql`
     {
-       feesRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+       feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
         totalFees
         tradeFees
       }

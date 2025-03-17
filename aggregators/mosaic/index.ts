@@ -20,7 +20,7 @@ const fetch = async (_: any): Promise<FetchResult> => {
 const adapter: any = {
   timetravel: false,
   adapter: {
-    [CHAIN.MOVEMENT]: {
+    [CHAIN.MOVE]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2025-03-10",
