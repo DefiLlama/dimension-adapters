@@ -2,49 +2,71 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-// Define the fetch function
-const fetch = async () => {
-    const url = "https://api.everclear.org/intents?startDate=1741590197&endDate=1741676597";
-    
+const PRICES_API = "https://coins.llama.fi/prices/current";
+
+// Function to fetch the price of an asset in USD
+/* const getAssetPriceUSD = async (chain: string, contract: string): Promise<number> => {
+  try {
+    const priceResponse = await fetchURL(`${PRICES_API}/${chain}:${contract}`);
+
+    // Check if the response is properly structured
+    if (!priceResponse || !priceResponse.data || !priceResponse.data.coins) {
+      console.error(`Invalid response structure for ${chain}:${contract}`, priceResponse);
+      return 0;  // Default to 0 if API response is malformed
+    }
+
+    const priceData = priceResponse.data.coins[`${chain}:${contract}`];
+
+    if (!priceData || typeof priceData.price !== "number") {
+      console.warn(`Price not found for ${chain}:${contract}`);
+      return 0;  // Default to 0 if price is missing
+    }
+
+    return priceData.price;
+  } catch (error) {
+    console.error(`Error fetching price for ${chain}:${contract}`, error);
+    return 0;  // Default to 0 if price fetch fails
+  }
+}; */
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  const url = "https://api.everclear.org/intents?startDate=1726542000&endDate=1742108597&limit=100000";
+
     try {
         const response = await fetchURL(url);
 
-        if (!response || !Array.isArray(response.intents)) {
+  /*       if (!response || !Array.isArray(response.intents)) {
             throw new Error("Unexpected API response format.");
+        } */
+
+        let totalFeesUSD = 0; // Accumulator for total fees in USD
+
+        // Process intents and accumulate protocol fees in USD
+        for (const intent of response.intents) {
+            if (intent.status !== "SETTLED_AND_COMPLETED") continue;
+            
+
+            const chain = "ethereum"; // Assuming all assets are on Ethereum --> problem, price API needs to know the chain, and not all of our intents have contract addresses of tokens deployed on ethereum
+            const assetContract = intent.input_asset;
+
+            // Ensure values are numbers
+            const originAmount = intent.origin_amount ? Number(intent.origin_amount) : 0;
+            const destinationAmount = intent.destination_amount ? Number(intent.destination_amount) : 0;
+            const feeAmount = (originAmount - destinationAmount)/1e18;
+            dailyFees.add(assetContract, feeAmount);
+
+            // Fetch asset price in USD
+            // const priceUSD = await getAssetPriceUSD(chain, assetContract);
+
+            // Convert fee to USD and accumulate
+            // totalFeesUSD += (feeAmount) * priceUSD;
         }
+        console.log(dailyFees)
 
-        // Accumulate protocol fees per asset
-        const feesByAsset = {};
-
-        response.intents
-            .filter(intent => intent.status === "SETTLED_AND_COMPLETED")
-            .forEach(intent => {
-                const assetKey = `ethereum:${intent.input_asset}`;
-
-                // Ensure values are numbers
-                const originAmount = intent.origin_amount ? Number(intent.origin_amount) : 0;
-                const destinationAmount = intent.destination_amount ? Number(intent.destination_amount) : 0;
-
-                const fee = originAmount - destinationAmount;
-
-                // Initialize if not exists
-                if (!feesByAsset[assetKey]) {
-                    feesByAsset[assetKey] = 0;
-                }
-
-                // Accumulate fees
-                feesByAsset[assetKey] += fee;
-            });
-
-            //a
-        // Convert number values to strings for JSON compatibility
-        Object.keys(feesByAsset).forEach(key => {
-            feesByAsset[key] = feesByAsset[key].toString();
-        });
-
-        // ✅ Return fees inside the "dailyFees" key
+        // ✅ Return the total protocol fees in USD
         return {
-            dailyFees: feesByAsset
+            dailyFees, dailyRevenue: dailyFees
         };
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -52,23 +74,21 @@ const fetch = async () => {
     }
 };
 
-
-
-// Export the adapter for use in the main application
-
+// Export the adapter with correct dimension format
 export default {
     version: 2,
     adapter: {
       [CHAIN.ETHEREUM]: {
         fetch: fetch,
-        start: 0,
-        runAtCurrTime: true,
+        start: 1726542000,
+        runAtCurrTime: false,
         meta: {
-          methodology: "Accumulates the protocol fees as originAmount - destinationAmount for settled intents."
+          methodology: "Accumulates the protocol fees as (originAmount - destinationAmount) converted to USD."
         }
       },
     },
 };
+
   
 
 /* 
