@@ -2,8 +2,6 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const PRICES_API = "https://coins.llama.fi/prices/current";
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const url = "https://api.everclear.org/intents?startDate=1726542000&endDate=1742108597&limit=100000";
@@ -49,34 +47,29 @@ const fetch = async (options: FetchOptions) => {
     }
 };
 
-// Export the adapter with correct dimension format
 export default {
     version: 2,
     adapter: {
-      adapter: {
-        [CHAIN.ETHEREUM]: { fetch, start: 1726542000 },
-        [CHAIN.OPTIMISM]: { fetch, start: 1726542000 },
-        [CHAIN.BSC]: { fetch, start: 1726542000 },
-        [CHAIN.BASE]: { fetch, start: 1726542000 },
-        [CHAIN.ARBITRUM]: { fetch, start: 1726542000 },
-        [CHAIN.LINEA]: { fetch, start: 1726542000 },
-        [CHAIN.POLYGON]: { fetch, start: 1726542000 },
-        [CHAIN.AVAX]: { fetch, start: 1726542000 },
-        [CHAIN.BLAST]: { fetch, start: 1726542000 },
-        },
+      [CHAIN.ETHEREUM]: {
+        fetch: fetch,
+        start: 1726542000,
+        runAtCurrTime: false,
         meta: {
           methodology: "Accumulates the protocol fees as (originAmount - destinationAmount) converted to USD."
         }
       },
-    }
+    },
+};
 
-
-
+  
 
 // EXTRA
 
-  // Function to fetch the price of an asset in USD
-/* const getAssetPriceUSD = async (chain: string, contract: string): Promise<number> => {
+// Function to fetch the price of an asset in USD
+/*
+const PRICES_API = "https://coins.llama.fi/prices/current";
+
+ const getAssetPriceUSD = async (chain: string, contract: string): Promise<number> => {
   try {
     const priceResponse = await fetchURL(`${PRICES_API}/${chain}:${contract}`);
 
