@@ -25,7 +25,7 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.BASE]: { deployedAt: 1726531200 },
   [CHAIN.LINEA]: { deployedAt: 1726531200 },
   [CHAIN.ROOTSTOCK]: { deployedAt: 1726531200 },
-  [CHAIN.SONEIUM]: { deployedAt: 1726531200 },
+  [CHAIN.SONEIUM]: { deployedAt: 1742169600 },
 };
 
 const fetch: FetchV2 = async (options) => {
