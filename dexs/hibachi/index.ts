@@ -39,6 +39,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: "2025-03-18",
     },
+    [CHAIN.BASE]: {
+      fetch,
+      start: "2025-03-18",
+    },
   },
 };
 
