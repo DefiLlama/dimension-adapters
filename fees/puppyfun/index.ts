@@ -22,10 +22,10 @@ const fetch: any = async (options: FetchOptions) => {
             const dailyRevenue = options.createBalances()
 
             fees.add(BNB_ADDRESS, response.data.totalFee)
-            dailyFees.add(BNB_ADDRESS, response.data.totalDailyFee)
+            dailyFees.add(BNB_ADDRESS, response.data.dailyTotalFee)
             // revenue == fees (no users fees)
             revenue.add(BNB_ADDRESS, response.data.totalFee)
-            dailyFees.add(BNB_ADDRESS, response.data.totalDailyFee)
+            dailyRevenue.add(BNB_ADDRESS, response.data.dailyTotalFee)
 
             return {
                 totalFees: fees,
