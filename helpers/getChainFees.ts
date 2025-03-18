@@ -24,6 +24,7 @@ export const chainMap: ChainMapping = {
   mantle: 'mantle',
   linea: 'linea',
   sei: 'sei',
+  ripple: 'ripple',
   ronin: 'ronin',
   fraxtal: 'fraxtal',
   metis: 'metis',
