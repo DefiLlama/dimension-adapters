@@ -7,11 +7,14 @@ import { Chain } from "@defillama/sdk/build/general";
 const endpoints = {
   [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
   [CHAIN.LINEA]: sdk.graph.modifyEndpoint('9R6uvVYXn9V1iAxkTLXL1Ajka75aD7mmHRj86DbXnyYQ'),
-  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll'
+  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll',
+  ['sophon']: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
 
 const v3Endpoints = {
   [CHAIN.ERA]: sdk.graph.modifyEndpoint('6pXVWtpsLXMLAyS7UU49ftu38MCSVh5fqVoSWLiLBkmP'),
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('FMDUEPFThYQZM6f2bXsRduB9pWQvDB9mPCBQc9C9gUed'),
+  ['sophon']: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon-v3',
 };
 
 const graphs = getChainVolume2({
@@ -63,6 +66,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.SCROLL]: {
       fetch: fetch(CHAIN.SCROLL),
       start: '2023-10-17'
+    },
+    ['sophon']: {
+      fetch: fetch('sophon'),
+      start: '2024-12-16'
     }
   },
 };
