@@ -20,8 +20,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
   const totalVolume = createBalances();
   const pastSales:ISale[] = (await fetchURL(recentSalesEndpoint)).sales;
     //helper function to group by days
-    const formatDate = (timestamp: number): string => {
-      return new Date(timestamp).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
+    const formatDate = (unixTimestamp: number): string => {
+      return new Date(unixTimestamp).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
     };
 
     const groupedSales = pastSales.reduce((feeSum, sale) => {
