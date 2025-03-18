@@ -1,12 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.CALLISTO]: "https://03.callisto.network/subgraphs/name/soyswap"
-}, {
-  factoriesName: "soySwapFactories",
-  dayData: "soySwapDayData",
-});
-adapters.adapter.callisto.start = 1634699765;
-
-export default adapters;
+export default uniV2Exports({ 
+  [CHAIN.CALLISTO]: {
+    factory: '0x9CC7C769eA3B37F1Af0Ad642A268b80dc80754c5',
+  },
+})

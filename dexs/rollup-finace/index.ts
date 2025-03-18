@@ -72,7 +72,8 @@ const adapter: BreakdownAdapter = {
         }
       }
     }, {})
-  }
+  },
+  deadFrom: "2024-09-31",
 }
 
 export default adapter;
