@@ -1,48 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { addTokensReceived } from "../../helpers/token";
 
-let cachedData: any = null;
-let fetchPromise: Promise<any> | null = null;
-
-const fetchFees = async (options: FetchOptions) => {
-    const res = await queryDune("4865365", {
-      start: options.startTimestamp,
-      end: options.endTimestamp,
-    });
-
-    return {
-      data: res || []
-    };
-}
-
-const getFees = async (options: FetchOptions) => {
-    if (cachedData) {
-        return cachedData;
-    }
-    if (!fetchPromise) {
-        fetchPromise = fetchFees(options).then(data => {
-            cachedData = data;
-            fetchPromise = null;
-            return data;
-        }).catch(err => {
-            fetchPromise = null; // in case of error
-            throw err;
-        });
-    }
-    return fetchPromise;
-}
 
 const fetch = async (options: FetchOptions) => {
-    const dailyFees = await getFees(options);
-    const fee = options.createBalances();
-    const data = dailyFees.data.filter((d: any) => d.CHAIN === options.chain);
-    
-    if (data.length > 0) {
-        fee.addUSDValue(data[0].AMOUNT_USD);
+    const dailyFees = await addTokensReceived({ 
+        options,
+        target: '0xFee97c6f9Bce786A08b1252eAc9223057508c760'
+    })
+    return {
+        dailyFees
     }
-
-    return { dailyFees: fee };
 }
 
 const adapter: SimpleAdapter = {
@@ -88,8 +56,7 @@ const adapter: SimpleAdapter = {
             fetch: fetch,
             start: '2024-11-05'
         },
-    },
-    isExpensiveAdapter: true,
+    }
 }
 
 export default adapter;
