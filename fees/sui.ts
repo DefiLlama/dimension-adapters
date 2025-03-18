@@ -7,7 +7,7 @@ import { queryAllium } from "../helpers/allium";
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
-      fetch: async (options: FetchOptions) => {
+      fetch: async (_:any, _1:any, options: FetchOptions) => {
         const start = new Date(options.fromTimestamp * 1000).toISOString()
         const end = new Date(options.toTimestamp * 1000).toISOString()
         const query = `
@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
       },
     },
   },
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
 };

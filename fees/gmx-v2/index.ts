@@ -13,9 +13,11 @@ interface IFee {
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
+  const targetDate = new Date(dayTimestamp * 1000).toISOString();
   const query = gql`
     {
-       feesRecordDailies(where: {timestamp_eq: "${new Date(options.startOfDay * 1000).toISOString()}"}) {
+       feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
         totalFees
         tradeFees
       }
@@ -27,7 +29,7 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
     .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
   const totalFees = res.feesRecordDailies
     .reduce((acc: number, record: { totalFees: string }) => acc + Number(record.totalFees), 0)
-
+  if (dailyFees === 0) throw new Error('Not found daily data!.')
   return {
     timestamp: options.startOfDay,
     dailyFees: dailyFees / (10 ** 20),

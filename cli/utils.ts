@@ -39,6 +39,7 @@ export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
         // if (typeof methodology === 'string') console.log("Methodology:", methodology)
         // else if (!methodology) console.log("NO METHODOLOGY SPECIFIED")
         Object.entries(element).forEach(([attribute, value]) => {
+            if (attribute === 'timestamp' && !value) return;
             if (!exclude2Print.includes(attribute)) {
                 const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any) * 1e3).toISOString()})` : humanizeNumber(Number(value))
                 console.info(`${camelCaseToSpaces(attribute === "timestamp" ? "endTimestamp" : attribute)}: ${valueFormatted}`)

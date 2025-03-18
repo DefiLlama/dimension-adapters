@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryEvents } from "../helpers/sui";
 import axios from "axios";
+import BigNumber from "bignumber.js";
 
 const UNIHOUSE_CORE_PACKAGE_ID =
   "0x2f2226a22ebeb7a0e63ea39551829b238589d981d1c6dd454f01fcc513035593";
@@ -103,24 +104,34 @@ async function getDynamicFieldObjects({
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  //Unihouse
-  const unihouseDynamicFields = await getDynamicFieldObjects({
-    parent: UNI_HOUSE_OBJ_ID,
-  });
+  //Unihouse, use hardcorded token types for now. Because some of our income tokens haven't listed on CoinGecko yet.
+  //   const unihouseDynamicFields = await getDynamicFieldObjects({
+  //     parent: UNI_HOUSE_OBJ_ID,
+  //   });
 
-  const unihouseList = unihouseDynamicFields?.filter((field) =>
-    field?.type.includes("house::House")
-  );
+  //   const unihouseList = unihouseDynamicFields?.filter((field) =>
+  //     field?.type.includes("house::House")
+  //   );
 
-  const unihouseIdList = unihouseList.map((house) => house.fields.id.id);
+  //   const unihouseIdList = unihouseList.map((house) => house.fields.id.id);
 
-  const houseObjects = await getObjects(unihouseIdList);
+  //   const houseObjects = await getObjects(unihouseIdList);
 
-  const houseTokenType = houseObjects
-    .map((house) => house.type.split("<")[1].split(">")[0])
-    .filter((type) => !type.includes("::unihouse::FeeTag"));
+  //   const houseTokenType = houseObjects
+  //     .map((house) => house.type.split("<")[1].split(">")[0])
+  //     .filter((type) => !type.includes("::unihouse::FeeTag"));
 
-  for (const tokenType of houseTokenType) {
+  const tokenTypeList = [
+    "0x2::sui::SUI",
+    "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+    "0xfe3afec26c59e874f3c1d60b8203cb3852d2bb2aa415df9548b8d688e6683f93::alpha::ALPHA",
+    "0x76cb819b01abed502bee8a702b4c2d547532c12f25001c9dea795a5e631c26f1::fud::FUD",
+    "0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP",
+  ];
+
+  const tokenCGName = ["sui", "usd-coin", "alpha-fi", "fud-the-pug", "deep"];
+
+  for (const [index, tokenType] of tokenTypeList.entries()) {
     const joinHouseEvents = await queryEvents({
       eventType: `${UNIHOUSE_CORE_PACKAGE_ID}::house::JoinHouseEvent<${tokenType}>`,
       options,
@@ -132,17 +143,17 @@ const fetchFees = async (options: FetchOptions) => {
     });
 
     const coinMetadata = await getCoinMetadata(tokenType);
+    const decimals = coinMetadata.decimals;
 
     joinHouseEvents.map((ev) => {
-      const symbol = coinMetadata.symbol.toLowerCase();
-      const decimals = coinMetadata.decimals;
-      dailyFees.addCGToken(symbol, ev.fee_taken / 10 ** decimals);
+      dailyFees.addCGToken(tokenCGName[index], ev.fee_taken / 10 ** decimals);
     });
 
     splitHouseEvents.map((ev) => {
-      const symbol = coinMetadata.symbol.toLowerCase();
-      const decimals = coinMetadata.decimals;
-      dailyFees.addCGToken(symbol, -ev.fee_reimbursed_amount / 10 ** decimals);
+      dailyFees.addCGToken(
+        tokenCGName[index],
+        -ev.fee_reimbursed_amount / 10 ** decimals
+      );
     });
   }
 

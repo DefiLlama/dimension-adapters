@@ -47,6 +47,8 @@ const blacklistedChains: string[] = [
   "sui",
   "neutron",
   "terra2",
+  "move",
+  "heco",
   "dymension"
 ];
 
