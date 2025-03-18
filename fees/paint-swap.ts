@@ -14,21 +14,15 @@ interface ISale {
     price: number;
   }
 
-
-
 const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances();
   const dailyUserFees = createBalances();
   const totalVolume = createBalances();
   const pastSales:ISale[] = (await fetchURL(recentSalesEndpoint)).sales;
-  console.log(pastSales[1])
-
-
     //helper function to group by days
     const formatDate = (timestamp: number): string => {
       return new Date(timestamp).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
     };
-
 
     const groupedSales = pastSales.reduce((feeSum, sale) => {
       const day = formatDate(Number(sale.endTime*1000)); // Convert timestamp to date for grouping
@@ -37,18 +31,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
       return feeSum;
     }, {} as Record<string, number>);
     
-
-  
-
-
-
-//   dailyVolume.addGasToken(historicalVolume
-//     .find(dayItem => (new Date(dayItem.date).getTime()) === startOfDay)?.dailyVolume)
-  
     dailyUserFees.addGasToken(groupedSales[startOfDay] ?? 0);
 
-
-  
 
   return {
     timestamp: startOfDay,
