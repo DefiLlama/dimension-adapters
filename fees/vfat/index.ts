@@ -52,6 +52,16 @@ const chainSettings: any = {
     chainName: 'sonic',
     fromBlockSickle: 1449481
   },
+  fraxtal: {
+    factory: '0x53d9780DbD3831E3A797Fd215be4131636cD5FDf',
+    chainName: 'fraxtal',
+    fromBlockSickle: 13191747
+  },
+  avax: {
+    factory: '0x53d9780DbD3831E3A797Fd215be4131636cD5FDf',
+    chainName: 'avax',
+    fromBlockSickle: 52924795
+  },
 };
 
 const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
@@ -136,6 +146,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch: fetchFees,
       start: '2024-12-24',
+    },
+    [CHAIN.FRAXTAL]: {
+      fetch: fetchFees,
+      start: '2024-12-03',
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchFees,
+      start: '2024-11-11',
     },
   }
 }
