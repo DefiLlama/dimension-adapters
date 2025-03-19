@@ -1,18 +1,8 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains"
+import { uniV2Exports } from "../../helpers/uniswap"
 
-const endpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('FvP7tK71rX51wsb663j5GRx2YTtDRa1Adq8QSCi5akLS'),
-};
-
-const adapter = univ2Adapter2(endpoints, {
-  factoriesName: "factories",
-  dayData: "dayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "volumeUSD"
-});
-
-adapter.adapter.ethereum.start = 1625566975;
-
-export default adapter
+export default uniV2Exports({
+  [CHAIN.ETHEREUM]: {
+    factory: '0x115934131916c8b277dd010ee02de363c09d037c',
+  }
+})
