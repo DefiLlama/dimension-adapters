@@ -18,7 +18,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
 
   const bookKeys = takeEvents.map(i => i.bookId.toString())
   const tokens = await api.multiCall({ abi: abi.getBookKey, calls: bookKeys, target })
-  takeEvents.forEach((i, idx) => dailyVolume.add(tokens[idx].quote, i.unit * tokens[idx].unitSize))
+  takeEvents.forEach((i, idx) => dailyVolume.add(tokens[idx].quote, i.unit * Number(tokens[idx].unitSize)))
 
   return { dailyVolume, };
 };
