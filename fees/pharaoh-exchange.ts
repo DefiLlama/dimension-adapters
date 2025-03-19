@@ -29,7 +29,7 @@ const v2Graphs = getGraphDimensions2({
   },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 92,
+    HoldersRevenue: 100,
     UserFees: 100,
     Revenue: 100,
     SupplySideRevenue: 0,
