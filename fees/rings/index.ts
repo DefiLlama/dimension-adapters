@@ -15,7 +15,7 @@ const accountants = Object.values({
 const fetch: any = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyFees = createBalances();
   const ves = Object.values(VotingEscrows)
-  const voters = await api.multiCall({ abi: 'address:voter', calls: ves })
+  const voters = await api.multiCall({ abi: 'address:voter', calls: ves, permitFailure: true, excludeFailed: true })
   const baseAssets = await api.multiCall({ abi: 'address:baseAsset', calls: voters })
 
   // Budget event is yield generated from scUSD and scETH: comes from strategies in Ethereum veda vault
