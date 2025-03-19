@@ -68,62 +68,61 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { 
       fetch: fetch(CHAIN.ETHEREUM), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Ethereum. Only source chain transactions pay fees."
       }
     },
     [CHAIN.ARBITRUM]: { 
       fetch: fetch(CHAIN.ARBITRUM), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Arbitrum. Only source chain transactions pay fees."
       }
     },
     [CHAIN.AVAX]: { 
       fetch: fetch(CHAIN.AVAX), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Avalanche. Only source chain transactions pay fees."
       }
     },
     [CHAIN.BSC]: { 
       fetch: fetch(CHAIN.BSC), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on BSC. Only source chain transactions pay fees."
       }
     },
     [CHAIN.POLYGON]: { 
       fetch: fetch(CHAIN.POLYGON), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Polygon. Only source chain transactions pay fees."
       }
     },
     [CHAIN.SOLANA]: { 
       fetch: fetch(CHAIN.SOLANA), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the total volume bridged through Mayan WH Swap on Solana"
       }
     },
     [CHAIN.BASE]: { 
       fetch: fetch(CHAIN.BASE), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Base. Only source chain transactions pay fees."
       }
     },
     [CHAIN.OPTIMISM]: { 
       fetch: fetch(CHAIN.OPTIMISM), 
-      start: "2025-03-18",
+      runAtCurrTime: true,
       meta: {
         methodology: "Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on Optimism. Only source chain transactions pay fees."
       }
     },
   },
-  timetravel: false,
 };
 
 export default adapter;
