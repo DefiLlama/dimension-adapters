@@ -13,32 +13,43 @@ import { addTokensReceived } from "../helpers/token";
 
 const ABI = {
   feeAccruedEvent: "event YieldFeeAccrued(uint256 fee)",
+  poolSwapEvent:
+    "event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 packed_price_scale)",
 };
 
 async function fetchMarkets(api: ChainApi): Promise<FetchMarketsResult> {
   const url = `https://api-v2.napier.finance/v1/market?chainIds=${api.chainId!}`;
   const res = await axios.get<any[]>(url);
 
-  const markets = res.data.map((m) => m.metadata.address);
-  const marketToUnderlying = new Map(
-    res.data.map((m) => [m.metadata.address, m.tokens.targetToken.id])
-  );
-  const splitFeePcts = res.data.map(
-    (m) => new BigNumber(m.fees.splitFeePercentage)
-  );
-
   const rewardTokensDuplicated = res.data.flatMap((m) =>
     m.metrics.underlyingRewards.map((r: any) => r.rewardToken.address)
   );
   const rewardTokens = [...new Set(rewardTokensDuplicated)];
 
-  return { markets, marketToUnderlying, splitFeePcts, rewardTokens };
+  return {
+    rewardTokens,
+    marketInfos: res.data.map((m) => ({
+      address: m.metadata.address,
+      poolAddress: m.tokens.poolToken.id,
+      underlying: m.tokens.targetToken.id,
+      splitFeePct: new BigNumber(m.fees.splitFeePercentage),
+      rewardTokens: m.metrics.underlyingRewards.map(
+        (r: any) => r.rewardToken.address
+      ),
+    })),
+  };
 }
 
 export type FetchMarketsResult = {
-  markets: string[];
-  marketToUnderlying: Map<string, string>;
-  splitFeePcts: BigNumber[];
+  rewardTokens: string[];
+  marketInfos: MarketInfo[];
+};
+
+export type MarketInfo = {
+  address: string;
+  poolAddress: string;
+  underlying: string;
+  splitFeePct: BigNumber;
   rewardTokens: string[];
 };
 
@@ -50,9 +61,7 @@ const fetch = (chain: Chain) => {
   ): Promise<FetchResultFees> => {
     const { getLogs, createBalances } = options;
 
-    const { markets, marketToUnderlying, splitFeePcts, rewardTokens } =
-      await fetchMarkets(options.api);
-
+    const { marketInfos, rewardTokens } = await fetchMarkets(options.api);
     const dailyFees = createBalances();
     const dailySupplySideRevenue = createBalances();
     const dailyRevenue = await addTokensReceived({
@@ -62,24 +71,43 @@ const fetch = (chain: Chain) => {
     });
 
     const allFeeAccruedEvents = await getLogs({
-      targets: markets,
+      targets: marketInfos.map((m) => m.address),
       eventAbi: ABI.feeAccruedEvent,
       flatten: false,
     });
 
-    markets.forEach((market, i) => {
-      const token = marketToUnderlying.get(market);
+    const allPoolSwapEvents = await getLogs({
+      targets: marketInfos.map((m) => m.poolAddress),
+      eventAbi: ABI.poolSwapEvent,
+      flatten: false,
+    });
+
+    marketInfos.forEach((marketInfo, i) => {
+      const token = marketInfo.underlying;
       const fees = allFeeAccruedEvents[i];
+      const swapEvents = allPoolSwapEvents[i];
 
       fees.forEach(([fee]: bigint[]) => {
         const feeBn = new BigNumber(fee.toString());
         const curatorFeeBn = feeBn
-          .times(splitFeePcts[i])
+          .times(marketInfo.splitFeePct)
           .dividedToIntegerBy(100);
 
         dailyFees.add(token!, feeBn);
         dailySupplySideRevenue.add(token!, curatorFeeBn.toNumber());
         dailyRevenue.add(token!, feeBn.minus(curatorFeeBn));
+      });
+
+      swapEvents.forEach((eventData: bigint[]) => {
+        const boughtId = eventData[3];
+        const fee = eventData[5];
+        const feeBn = new BigNumber(fee.toString());
+        const tokenAddress =
+          Number(boughtId) === 0 ? marketInfo.underlying : marketInfo.address;
+
+        // All swap fees go to LPs/Curve, nothing to protocol revenue
+        dailyFees.add(tokenAddress, feeBn);
+        dailySupplySideRevenue.add(tokenAddress, feeBn);
       });
     });
 
@@ -94,14 +122,14 @@ const fetch = (chain: Chain) => {
 
 const methodology = {
   UserFees:
-    "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, and post-settlement fee",
-  Fees: "Total of all fees paid by users including issuance, performance, redemption, and post-settlement fees",
+    "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, post-settlement fee, and swap fee",
+  Fees: "Total of all fees paid by users including issuance, performance, redemption, post-settlement, and swap fees",
   Revenue:
-    "A portion of all fees is collected by the protocol based on the split fee percentage",
+    "A portion of all fees (except swap fees) is collected by the protocol based on the split fee percentage",
   ProtocolRevenue:
     "Protocol revenue is the portion of fees not distributed to curators, determined by the split fee percentage",
   SupplySideRevenue:
-    "Curators receive a percentage of the fees as specified by each pool's splitFeePercentage",
+    "Curators receive a percentage of the fees as specified by each pool's splitFeePercentage. Additionally, swap fees go to liquidity providers/Curve and are counted as supply side revenue",
 };
 
 const chainConfig: Record<Chain, Config> = {
