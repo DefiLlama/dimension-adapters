@@ -64,7 +64,7 @@ const chainSettings: any = {
   },
 };
 
-const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async (_t: any, _b: any,{ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 
@@ -105,7 +105,7 @@ const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
