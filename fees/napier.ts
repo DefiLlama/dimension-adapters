@@ -122,8 +122,8 @@ const fetch = (chain: Chain) => {
 
 const methodology = {
   UserFees:
-    "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, post-settlement fee, and swap fee",
-  Fees: "Total of all fees paid by users including issuance, performance, redemption, post-settlement, and swap fees",
+    "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, and swap fee",
+  Fees: "Total of all fees paid by users including issuance, performance, redemption, and swap fees",
   Revenue:
     "A portion of all fees (except swap fees) is collected by the protocol based on the split fee percentage",
   ProtocolRevenue:
