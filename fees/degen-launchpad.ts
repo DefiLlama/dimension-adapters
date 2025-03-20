@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const FEE_PER_TRADE = 20;
+const REVENUE_PER_TRADE = 6;
 const RATIO = 1000;
 
 export default {
@@ -25,11 +26,11 @@ export default {
         
         logs_sold.map((e: any) => {
             dailyFees.addGasToken(e[2] * BigInt(FEE_PER_TRADE) / BigInt(RATIO))
-            dailyRevenue.addGasToken(e[2] * BigInt(FEE_PER_TRADE) / BigInt(RATIO))
+            dailyRevenue.addGasToken(e[2] * BigInt(REVENUE_PER_TRADE) / BigInt(RATIO))
         });
         logs_bought.map((e: any) => {
           dailyFees.addGasToken(e[2] * BigInt(FEE_PER_TRADE) / BigInt(RATIO))
-          dailyRevenue.addGasToken(e[2] * BigInt(FEE_PER_TRADE) / BigInt(RATIO))
+          dailyRevenue.addGasToken(e[2] * BigInt(REVENUE_PER_TRADE) / BigInt(RATIO))
         });
         return { dailyFees, dailyRevenue, }
       }) as FetchV2,
