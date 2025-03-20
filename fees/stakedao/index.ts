@@ -31,11 +31,13 @@ const fetch = async (options: FetchOptions) => {
     options, 
     targets: [LIQUIDITY_FEES_RECIPIENT] 
   });
-
+  const dailyRevenue = dailyProtocolRevenue.clone();
+  dailyRevenue.addBalances(dailyHoldersRevenue);
   return {
     dailyFees,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
+    dailyRevenue, // Protocol Revenue + Holder Revenue
     dailyUserFees
   };
 };
