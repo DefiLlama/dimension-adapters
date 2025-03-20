@@ -36,7 +36,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
 
   return {
     timestamp: startOfDay,
-    dailyUserFees
+    dailyUserFees,
+    dailyFees: dailyUserFees
   };
 };
 
