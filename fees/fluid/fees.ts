@@ -70,7 +70,7 @@ export const getVaultsResolver = async (api: ChainApi) => {
 
   return {
     getAllVaultsAddresses: async () => !address ? [] : api.call({ target: address, abi: abi.getAllVaultsAddresses }),
-    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData }),
+    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData, permitFailure: true }),
   };
 };
 
@@ -115,7 +115,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
   }
 
   return {
-    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData }),
+    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData, permitFailure: true }),
     getAllVaultsAddresses: async () => {
       let vaults = !address ? [] : await api.call({ target: address, abi: abi.getAllVaultsAddresses });
       if ( api.chain === CHAIN.ARBITRUM && block > 285530000 && address === "0x77648D39be25a1422467060e11E5b979463bEA3d") {
@@ -291,7 +291,7 @@ export const getFluidDailyFees = async (options: FetchOptions): Promise<Balances
     fromBlock: Number(options.fromApi.block),
     toBlock: Number(options.api.block),
     skipCacheRead: true,
-    // skipIndexer: true
+    skipIndexer: true
     // More resource-intensive but prevents logs from being cached.
     // Currently, the adapter is updated every hour.
     // In case of an error within a given time range for some reasons, the next sequence

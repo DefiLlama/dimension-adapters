@@ -99,7 +99,7 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
       topics:[TOPIC0.logCollectRevenue, parseInTopic(token)],
       eventAbi: EVENT_ABI.logCollectRevenue,
       skipCacheRead: true,
-      // skipIndexer: true
+      skipIndexer: true
     })
 
     const collectedRevenue = collectedRevenueLogs.reduce(
