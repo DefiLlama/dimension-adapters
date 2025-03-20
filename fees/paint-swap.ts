@@ -1,8 +1,6 @@
 import fetchURL from "../utils/fetchURL"
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { start } from "repl";
-import { group } from "console";
 
 const dateFrom = 1630584906;
 const recentSalesEndpoint = `https://api.paintswap.finance/v2/sales?numToFetch=1000&sold=true&orderDirection=desc`;
@@ -14,10 +12,8 @@ interface ISale {
     price: number;
   }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances();
+const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
   const dailyUserFees = createBalances();
-  const totalVolume = createBalances();
   const pastSales:ISale[] = (await fetchURL(recentSalesEndpoint)).sales;
     //helper function to group by days
     const formatDate = (unixTimestamp: number): string => {
