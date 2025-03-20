@@ -7,7 +7,6 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
-import { uniV2Exports, uniV3Exports } from '../../helpers/uniswap'
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ESnjgAG9NjfmHypk4Huu4PVvz55fUwpyrRqHF21thoLJ'),
@@ -340,6 +339,7 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.ROOTSTOCK) return "rootstock"
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
+  if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
   return chain
 }
 
@@ -362,7 +362,10 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.LISK,
   CHAIN.CORN,
-  CHAIN.BSC
+  CHAIN.BSC,
+  CHAIN.HEMI,
+  CHAIN.SAGA,
+  CHAIN.LIGHTLINK_PHOENIX,
 ]
 
 

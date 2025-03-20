@@ -9,7 +9,7 @@ export type ChainEndpoints = {
 }
 
 export type FetchResultBase = {
-  timestamp: number;
+  timestamp?: number;
   block?: number;
 };
 
@@ -94,6 +94,7 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
+  deadFrom?: string;
 }
 
 export type SimpleAdapter = AdapterBase & {

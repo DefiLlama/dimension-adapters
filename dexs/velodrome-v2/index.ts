@@ -7,6 +7,7 @@ export default uniV2Exports({
   [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
   [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
   [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
-  //[CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
-  //[CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
+  [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
+  [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
+  [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0',  swapEvent, },
 })

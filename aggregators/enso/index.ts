@@ -15,7 +15,7 @@ const chains: Record<string, { duneChain: string; start: string }> = {
 
 const queryId = "4687193";
 
-const fetchVolume = (chain: string): FetchV2 => async ({ startTimestamp, endTimestamp }) => {
+const fetchVolume = async (_:any, _1:any, { startTimestamp, endTimestamp, chain }) => {
   const chainConfig = chains[chain];
   if (!chainConfig) throw new Error(`Chain configuration not found for: ${chain}`);
 
@@ -36,12 +36,12 @@ const fetchVolume = (chain: string): FetchV2 => async ({ startTimestamp, endTime
 };
 
 const adapter: any = {
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   adapter: Object.fromEntries(
       Object.entries(chains).map(([chain, { start }]) => [
         chain,
-        { fetch: fetchVolume(chain), start },
+        { fetch: fetchVolume, start },
       ])
   ),
 };

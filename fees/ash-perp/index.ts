@@ -30,10 +30,8 @@ const adapter: Adapter = {
     [CHAIN.ELROND]: {
       fetch,
       start: '2024-02-01',
-      runAtCurrTime: true,
     }
   },
-  isExpensiveAdapter: true,
   version: 2
 };
 export default adapter;

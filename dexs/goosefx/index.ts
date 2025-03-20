@@ -11,7 +11,7 @@ const fetch = async (timestamp: number) => {
     timestamp: timeStampInMs 
   });
   return {
-    timestamp: timeStampInMs,
+    timestamp,
     dailyVolume: res?.volume24H,
     totalVolume: res?.totalVolume,
   };

@@ -33,6 +33,7 @@ const endpointsV3 = {
     [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
     // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
     [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
+    [CHAIN.HEMI]: sdk.graph.modifyEndpoint('GQU44ZBv8NpiBUxA6eLSDSdd7bs6TVop9dASKzrdirUv'),
 }
 
 const v3Graphs = getGraphDimensions2({
