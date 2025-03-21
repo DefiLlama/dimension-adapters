@@ -29,11 +29,14 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBal
     
     dailyUserFees.addGasToken(groupedSales[startOfDay] ?? 0);
 
-
+    const dailyRevenue = dailyUserFees.clone(0.5)
   return {
     timestamp: startOfDay,
     dailyUserFees,
-    dailyFees: dailyUserFees
+    dailyFees: dailyUserFees,
+    dailyRevenue: dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    
   };
 };
 
