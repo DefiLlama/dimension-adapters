@@ -76,7 +76,7 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.TOMOCHAIN]: {
+    [CHAIN.VICTION]: {
       fetch: fetch,
       start: "2024-11-12",
       meta: {
