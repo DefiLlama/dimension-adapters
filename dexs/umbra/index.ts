@@ -1,24 +1,54 @@
-import { SimpleAdapter } from '../../adapters/types';
+import { Fetch, FetchV2, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import axios from 'axios';
 
-const fetch = async () => {
-  const url = 'https://api.umbra.finance/1/explore/volume?timeframe=M';
-  const volumeItems = await axios<{
-    result: { timestamp: number; data: number }[];
-  }>(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }).then((response) => response.data.result);
+type VolumeItem = {
+  timestamp: number;
+  data: number;
+};
 
-  const totalVolumeUsd = volumeItems.reduce(
+type VolumeResponse = {
+  result: VolumeItem[];
+};
+
+const fetch: Fetch = async (timestamp) => {
+  const baseUrl = 'https://api.umbra.finance/1/explore/volume';
+
+  const monthlyVolumeFetch = axios
+    .get<VolumeResponse>(`${baseUrl}?timeframe=M`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    .then((response) => response.data.result);
+
+  const dailyVolumeFetch = axios
+    .get<VolumeResponse>(`${baseUrl}?timeframe=D`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    .then((response) => response.data.result);
+
+  const [monthlyVolumeItems, dailyVolumeItems] = await Promise.all([
+    monthlyVolumeFetch,
+    dailyVolumeFetch,
+  ]);
+
+  // sort desc and get latest item found before given timestamp
+  const dailyVolumeItem = dailyVolumeItems
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .find((item) => item.timestamp <= timestamp);
+
+  const dailyVolumeUsd = dailyVolumeItem?.data ?? 0;
+
+  const totalVolumeUsd = monthlyVolumeItems.reduce(
     (sum, { data }) => (sum = sum + data),
     0
   );
 
   return {
+    dailyVolume: dailyVolumeUsd,
     totalVolume: totalVolumeUsd,
   };
 };
@@ -27,6 +57,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ECLIPSE]: {
       fetch: fetch,
+      start: '2025-02-22',
       meta: {
         methodology: {
           Volume:
