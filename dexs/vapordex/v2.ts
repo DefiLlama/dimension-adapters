@@ -9,10 +9,10 @@ export default {
     }),
     start: "2023-10-17",
   },
-  [CHAIN.APECHAIN]: {
-    fetch: getUniV3LogAdapter({
-      factory: FACTORY,
-    }),
-    start: "2024-10-29",
-  },
+  // [CHAIN.APECHAIN]: {
+  //   fetch: getUniV3LogAdapter({
+  //     factory: FACTORY,
+  //   }),
+  //   start: "2024-10-29",
+  // },
 };

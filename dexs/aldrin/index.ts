@@ -47,6 +47,7 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2022-11-12',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {

@@ -1,13 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import customBackfill from "../../helpers/customBackfill";
-import {
-  DEFAULT_TOTAL_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-} from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
-import type { Chain } from "@defillama/sdk/build/general";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV2LogAdapter, getUniV3LogAdapter, } from "../../helpers/uniswap";
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('BWHCfpXMHFDx3u4E14hEwv4ST7SUyN89FKJ2RjzWKgA9'),
@@ -16,37 +10,6 @@ const v3Endpoints = {
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/v3-base/prod/gn'
 };
 
-// Fetch function to query the subgraphs
-const v2Graph = getGraphDimensions2({
-  graphUrls: v2Endpoints,
-  totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "volume",
-    UserFees: 0.25,
-    SupplySideRevenue: 0.17,
-    ProtocolRevenue: 0.08,
-    Revenue: 0.25,
-    Fees: 0.25,
-  },
-});
-
-const v3Graphs = getGraphDimensions2({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 64,
-    UserFees: 100,
-    SupplySideRevenue: 36,
-    Revenue: 0,
-  },
-});
 
 const v2Methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
@@ -75,19 +38,15 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: v2Graph(chain as Chain),
+          fetch: getUniV2LogAdapter({ factory: '0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB' }),
           start: '2023-07-28',
-          customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
       };
     }, {}),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: async (options)=>{
-          const res = await v3Graphs(chain as Chain)(options)
-          return Object.fromEntries(Object.entries(res).filter(t=>!t[0].startsWith("total")))
-        },
+        fetch: getUniV3LogAdapter({ factory: '0x38015d05f4fec8afe15d7cc0386a126574e8077b' }),
         start: startTimeV3[chain],
         meta: {
           methodology: v3Methodology,
