@@ -1,19 +1,6 @@
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.SMARTBCH]: "https://thegraph.mistswap.fi/subgraphs/name/mistswap/exchange"
-}, {
-  factoriesName: "factories",
-  totalVolume: "volumeUSD",
-  dayData: "dayData",
-  dailyVolume: "volumeUSD",
-  dailyVolumeTimestampField: "date"
+export default uniV2Exports({
+  [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0'},
 });
-
-adapters.adapter.smartbch.start = 1633220803;
-adapters.adapter.smartbch.fetch = async (timestamp: number) => { return { timestamp } };
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-export default adapters;

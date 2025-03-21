@@ -56,7 +56,10 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
-    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
+    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })7
+
+    if (!pairIds.length) return { dailyVolume, dailyFees }
+
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
@@ -72,10 +75,10 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     })
     if (customLogic)
       return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
-    
 
-    if (voter) { 
-       const dailyBribesRevenue = createBalances()
+
+    if (voter) {
+      const dailyBribesRevenue = createBalances()
       const bribeContracts: string[] = await api.multiCall({ abi: 'function gauges(address) view returns (address)', calls: pairIds, target: voter })
       let feesVotingReward: string[] = await api.multiCall({ abi: 'address:feesVotingReward', calls: bribeContracts, permitFailure: true })
       if (feesVotingReward.filter((e: any) => e).length === 0) {
@@ -83,9 +86,9 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
         feesVotingReward = bribeContracts
       }
       api.log(bribeContracts.length, 'bribes contracts found')
-    
+
       const logs = await getLogs({ targets: feesVotingReward.filter(i => i !== ZERO_ADDRESS), eventAbi: notifyRewardEvent, })
-    
+
       logs.map((e: any) => {
         dailyBribesRevenue.add(e.reward, e.amount)
       })
@@ -118,6 +121,8 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
     const dailyFees = createBalances()
+
+    if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees }
 
     const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
@@ -161,7 +166,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getUniV2LogAdapter(chainConfig),
-          }
+    }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }
@@ -171,7 +176,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getUniV3LogAdapter(chainConfig),
-          }
+    }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }

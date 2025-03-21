@@ -38,6 +38,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-02-02',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
