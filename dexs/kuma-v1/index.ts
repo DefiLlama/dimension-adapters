@@ -1,7 +1,7 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
-const URL = "https://api.idex.io/v4/exchange";
+const URL = "https://api.kuma.bid/v1/exchange";
 
 const fetch = async () => {
   const response = await httpGet(URL);
@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     idex: {
       fetch,
-      start: '2024-07-18',
+      start: "2025-03-06",
       runAtCurrTime: true,
     },
   },
