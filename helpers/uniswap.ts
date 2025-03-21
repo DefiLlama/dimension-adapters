@@ -56,7 +56,7 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
-    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })7
+    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
     if (!pairIds.length) return { dailyVolume, dailyFees }
 
