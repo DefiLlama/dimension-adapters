@@ -20,7 +20,7 @@ async function fetchVolumeFromIndexers(params: { target: string; options: FetchO
       target,
       topics,
       onlyArgs: true,
-      // ~~ 150 confirmation block lag L1 ( < 10 blocks for L2)
+      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
       fromBlock: (await options.getFromBlock()) - 200,
       toBlock: (await options.getToBlock()) - 200,
       limit: batchSize,

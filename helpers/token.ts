@@ -35,7 +35,7 @@ export async function addGasTokensReceived(params: {
       topics: ['0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d'],
       onlyArgs: true,
       eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
-      // ~~ 150 confirmation block lag L1 ( < 10 blocks for L2)
+      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
       fromBlock: (await options.getFromBlock()) - 200,
       toBlock: (await options.getToBlock()) - 200,
       limit: batchSize,
