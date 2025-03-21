@@ -19,26 +19,46 @@ export async function addGasTokensReceived(params: {
   fromAddresses?: string[];
 }) {
   let { multisig, multisigs, options, balances, fromAddresses } = params;
-  if (multisig) multisigs = [multisig]
+  if (multisig) multisigs = [multisig];
+  if (!balances) balances = options.createBalances();
+  if (!multisigs?.length) throw new Error('multisig or multisigs required');
 
-  if (!balances) balances = options.createBalances()
+  const batchSize = 1000;
+  const allLogs: any[] = [];
+  let offset = 0;
+  let batchLogs: any[];
 
-  if (!multisigs?.length) {
-    throw new Error('multisig or multisigs required')
+  for (;;) {
+    batchLogs = await sdk.indexer.getLogs({
+      chain: options.chain,
+      targets: multisigs,
+      topics: ['0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d'],
+      onlyArgs: true,
+      eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
+      // ~~ 150 confirmation block lag L1 ( < 10 blocks for L2)
+      fromBlock: (await options.getFromBlock()) - 200,
+      toBlock: (await options.getToBlock()) - 200,
+      limit: batchSize,
+      offset,
+      all: false
+    });
+    allLogs.push(...batchLogs);
+    if (batchLogs.length < batchSize) break;
+    offset += batchSize;
   }
 
-  let logs = await options.getLogs({
-    targets: multisigs,
-    eventAbi: 'event SafeReceived (address indexed sender, uint256 value)'
-  })
-
-  if(fromAddresses) {
-    const normalized = fromAddresses.map(a=>a.toLowerCase())
-    logs = logs.filter(log=>normalized.includes(log.sender.toLowerCase()))
+  if (fromAddresses) {
+    const normalized = fromAddresses.map(a => a.toLowerCase());
+    allLogs.forEach(log => {
+      if (normalized.includes(log.sender?.toLowerCase?.())) {
+        balances!.addGasToken(log.value);
+      }
+    });
+  } else {
+    allLogs.forEach(i => balances!.addGasToken(i.value));
   }
 
-  logs.forEach(i => balances!.addGasToken(i.value))
-  return balances
+  return balances;
 }
 
 type AddTokensReceivedParams = {

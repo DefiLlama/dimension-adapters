@@ -16,7 +16,8 @@ const fetch: any = async (options: FetchOptions) => {
     ], 
     fromAdddesses: fromAddresses
   })
-  await addGasTokensReceived({multisig: feeReceiverMultisig, balances: dailyRevenue, options, fromAddresses})
+
+  await addGasTokensReceived({ multisig: feeReceiverMultisig, balances: dailyRevenue, options, fromAddresses })
 
   const dailyFees = dailyRevenue.clone()
   await getETHReceived({ options, balances: dailyFees, target: revshareWallet })
@@ -32,6 +33,7 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  isExpensiveAdapter: true,
   version: 2,
   adapter: {
     [CHAIN.BSC]: { fetch },
