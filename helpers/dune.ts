@@ -93,7 +93,7 @@ export const queryDune = async (queryId: string, query_parameters: any = {}) => 
   if (_status === 'QUERY_STATE_COMPLETED') {
     const API_KEY = API_KEYS[API_KEY_INDEX]
     try {
-      const queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${execution_id}/results?limit=5&offset=0`, {
+      const queryStatus = await limit(() => httpGet(`https://api.dune.com/api/v1/execution/${execution_id}/results?limit=100000`, {
         headers: {
           "x-dune-api-key": API_KEY
         }
