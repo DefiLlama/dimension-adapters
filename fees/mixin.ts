@@ -1,4 +1,6 @@
-import { blockscoutFeeAdapter } from "../helpers/blockscoutFees";
+
+import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
+import { CHAIN } from "../helpers/chains";
 
 // DO NOT LIST, unsure if correct
-export default blockscoutFeeAdapter("mixin", "https://scan.mvm.dev/api?module=stats&action=totalfees", "mixin")
+export default blockscoutFeeAdapter2(CHAIN.MIXIN)

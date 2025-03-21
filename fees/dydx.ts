@@ -24,6 +24,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2024-12-14',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {

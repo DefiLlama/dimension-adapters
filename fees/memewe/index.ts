@@ -5,6 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 const api = "https://backend.memewe.club/trade/stats/fee";
 
 const adapter: Adapter = {
+  deadFrom: "2025-03-01",
   version: 1,
   adapter: {
     [CHAIN.BASE]: {

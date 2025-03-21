@@ -19,5 +19,5 @@ async function fetch(options: FetchOptions) {
   const pools = await options.api.call({ abi: 'address[]:getAllPools', target: '0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303' })
   const logs = await options.getLogs({ targets: pools, eventAbi })
   logs.forEach(log => dailyVolume.add(log.dst, log.dstBalance))
-  return { dailyVolume }
+  return { dailyVolume, dailyFees: dailyVolume.clone(0.003) }
 }
