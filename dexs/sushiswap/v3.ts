@@ -8,7 +8,7 @@ const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
     [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('4vRhyrcGqN63T7FXvL9W5X72iQN8H9fDNfLcUQBG91Wi'),
     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('HE31GSTGpXsRnuT4sAJoFayGBZX2xBQqWq4db48YuKmD'),
-    [CHAIN.BSC]: sdk.graph.modifyEndpoint('GtUp5iLfjfYXtX76wF1yyteSSC5WqnYV8br5ixHZgFmW'),
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'),
     [CHAIN.BOBA]: sdk.graph.modifyEndpoint('Du43Wz3rZ5ajzScgsTnuPv5NvRmQLTDPPkBxYEmFBmWM'),
     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7okunX6MGm2pdFK7WJSwm9o82okpBLEzfGrqHDDMWYvq'),
     [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('6z2W9fLTVmhpCecSMTMpRNeSBTRPJLmKsSXrtdkpeJDz'),
@@ -33,6 +33,7 @@ const endpointsV3 = {
     [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
     // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
     [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
+    [CHAIN.HEMI]: sdk.graph.modifyEndpoint('GQU44ZBv8NpiBUxA6eLSDSdd7bs6TVop9dASKzrdirUv'),
 }
 
 const v3Graphs = getGraphDimensions2({

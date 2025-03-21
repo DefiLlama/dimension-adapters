@@ -4,7 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const endpoint =
-  "https://api-v2.morphex.trade/subgraph/3KhmYXgsM3CM1bbUCX8ejhcxQCtWwpUGhP7p9aDKZ94Z";
+  "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx_analytics_base/0.8.2/gn";
 
 const query = gql`
   query stats($from: String!, $to: String!) {
@@ -106,7 +106,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchVolume,
-      start: '2024-05-01',
+      start: "2024-05-01",
     },
   },
 };

@@ -1,10 +1,11 @@
 import { CHAIN } from "../helpers/chains"
 import { Adapter, FetchOptions, } from '../adapters/types';
 import { findClosest } from "../helpers/utils/findClosest";
+import { httpGet } from "../utils/fetchURL";
 
 const fetchFees = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const data:any[] = (await fetch(`https://api.hypurrscan.io/fees`).then(r => r.json())).map((t:any)=>({...t, time:t.time*1e3}))
+    const data: any[] = (await httpGet(`https://api.hypurrscan.io/fees`)).map((t: any) => ({ ...t, time: t.time * 1e3 }))
 
     const startCumFees: any = findClosest(options.startTimestamp, data, 3600)
     const endCumFees: any = findClosest(options.endTimestamp, data, 3600)
@@ -28,7 +29,7 @@ const adapter: Adapter = {
             fetch: fetchFees,
             meta: {
                 methodology: {
-                    Fees: "Trade fees and ticket auction proceeds",
+                    Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
                 }
             }
         },

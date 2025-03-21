@@ -15,18 +15,17 @@ interface IVolumeall {
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
+        if (chain === CHAIN.HECO) { return {}} // skip HECO for now
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-        const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data.list;
+        const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
-        const totalVolume = historicalVolume
-            .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+        const totalVolume = historicalVolume?.filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
             .reduce((acc, { volume }) => acc + Number(volume), 0)
 
-        const dailyVolume = historicalVolume
-            .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+        const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
-            totalVolume: `${totalVolume}`,
+            totalVolume: totalVolume ? `${totalVolume}` : undefined,
             dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
             timestamp: dayTimestamp,
         };
@@ -34,16 +33,33 @@ const graph = (chain: Chain) => {
 }
 
 const CHAINS: Array<CHAIN> = [
-    CHAIN.ETHEREUM,
-    CHAIN.POLYGON,
-    CHAIN.SOLANA,
-    CHAIN.BSC,
-    CHAIN.OPTIMISM,
+    CHAIN.APTOS,
+    CHAIN.ARBITRUM,
+    CHAIN.AVAX,
     CHAIN.BASE,
+    CHAIN.BLAST,
+    CHAIN.BSC,
+    CHAIN.BITCOIN,
+    CHAIN.CELO,
+    CHAIN.CORE,
+    CHAIN.ETHEREUM,
+    CHAIN.FANTOM,
+    CHAIN.HECO,
+    CHAIN.KLAYTN,
+    CHAIN.LINEA,
+    CHAIN.MANTA,
+    CHAIN.POLYGON,
+    CHAIN.MANTLE,
+    CHAIN.MORPH,
+    CHAIN.NEAR,
+    CHAIN.OP_BNB,
+    CHAIN.OPTIMISM,
+    CHAIN.SOLANA,
+    CHAIN.SUI,
     CHAIN.TON,
     CHAIN.TRON,
-    CHAIN.BITCOIN,
-    CHAIN.SUI
+    CHAIN.ZKFAIR,
+    CHAIN.ZKSYNC
 ];
 
 

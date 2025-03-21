@@ -9,6 +9,7 @@ const DEFAULTS: any = {
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
+  BERACHAIN_RPC: "https://rpc.berachain.com",
 }
 
 export const ENV_KEYS = new Set([
@@ -33,6 +34,8 @@ export const ENV_KEYS = new Set([
   'ALCHEMIX_KEY',
   'ALCHEMIX_SECRET',
   'FLIPSIDE_RESTRICTED_MODE',
+  'STARBASE_API_KEY',
+  'ENSO_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

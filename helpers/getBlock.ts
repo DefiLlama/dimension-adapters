@@ -23,7 +23,6 @@ const blacklistedChains: string[] = [
   "algorand",
   "mixin",
   "thorchain",
-  "flow",
   "aptos",
   "polkadex",
   "neo",
@@ -48,6 +47,8 @@ const blacklistedChains: string[] = [
   "sui",
   "neutron",
   "terra2",
+  "move",
+  "heco",
   "dymension"
 ];
 

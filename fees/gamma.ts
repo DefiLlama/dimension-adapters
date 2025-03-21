@@ -189,6 +189,14 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("apechain"),
       start: '2023-04-22',
     },
+    [CHAIN.SONIC]: {
+      fetch: fetchFees("sonic"),
+      start: '2023-04-22',
+    },
+    [CHAIN.BOB]: {
+      fetch: fetchFees("bob"),
+      start: '2023-04-22',
+    },
   }
 }
 

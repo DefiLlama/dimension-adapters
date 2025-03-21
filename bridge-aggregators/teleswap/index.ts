@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { httpGet } from '../../utils/fetchURL';
 import { CHAIN } from '../../helpers/chains';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 
 const chains: Record<string, string> = {
   [CHAIN.BITCOIN]: 'bitcoin',
@@ -22,9 +21,6 @@ const chains: Record<string, string> = {
 
 let data: any;
 const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.startOfDay * 1000)
-  );
   if (!data) {
     data = await httpGet('https://api.teleswap.io/stats/volume', {
       headers: {
@@ -41,7 +37,6 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
   return {
     dailyBridgeVolume: chainVolume?.dailyVolume || 0,
     totalBridgeVolume: chainVolume?.totalVolume || 0,
-    timestamp: unixTimestamp,
   };
 };
 
@@ -53,6 +48,7 @@ const adapter: SimpleAdapter = {
       return {
         ...acc,
         [key]: {
+          runAtCurrTime: true,
           fetch: fetchVolume,
           start: '2024-09-18',
         },

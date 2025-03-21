@@ -1,12 +1,11 @@
 import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {getPrices} from "../../utils/prices";
 
 const tokenMap = {
-    WETH: "coingecko:weth",
-    cbBTC: "coingecko:coinbase-wrapped-btc",
-    USDC: "coingecko:usd-coin"
+    WETH: "weth",
+    cbBTC: "coinbase-wrapped-btc",
+    USDC: "usd-coin"
 };
 
 const methodology = {
@@ -16,31 +15,28 @@ const methodology = {
 const API_VOLUME_DEX = `https://aws-api.javlis.com/api/javsphere/coin-volume`;
 const API_LEVERAGE_STAT = 'https://1f5i4e87mf.execute-api.eu-central-1.amazonaws.com/prod/cols-stats'
 
-const fetch = async (timestamp: number) => {
-    const [stats, statsLevX, prices] = await Promise.all([
+const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
+    const dailyVolume = options.createBalances();
+    const totalVolume = options.createBalances();
+    const [stats, statsLevX] = await Promise.all([
         fetchURL(API_VOLUME_DEX),
-        fetchURL(API_LEVERAGE_STAT),
-        getPrices([tokenMap.WETH, tokenMap.cbBTC, tokenMap.USDC], timestamp)
+        fetchURL(API_LEVERAGE_STAT)
     ]);
 
-    const totalVolumeInUSD = Object.keys(statsLevX.yield.totalVolume).reduce((total, token) => {
-        const tokenKey = token as keyof typeof tokenMap;
-        const volume = statsLevX.yield.totalVolume[token];
-        const price = prices[tokenMap[tokenKey]];
-        return total + (volume * price.price);
-    }, 0);
+    Object.keys(statsLevX.yield.totalVolume).forEach((key) => {
+        totalVolume.addCGToken(tokenMap[key], statsLevX.yield.totalVolume[key]);
+    });
 
-    const totalDailyVolumeInUSD = statsLevX.collaterals.reduce((total: number, collateral: any) => {
-        const tokenKey = collateral.collateralName as keyof typeof tokenMap;
-        const volume = collateral.lastDayEarned.totalVolume;
-        const price = prices[tokenMap[tokenKey]]?.price;
+    statsLevX.collaterals.forEach((item) => {
+        dailyVolume.addCGToken(tokenMap[item.collateralName], item.lastDayEarned.totalVolume);
+    });
 
-        return total + (volume * price || 0);
-    }, 0);
 
+    dailyVolume.addUSDValue(stats.volume24);
+    totalVolume.addUSDValue(stats.volumeTotal);
     return {
-        dailyVolume: totalDailyVolumeInUSD + stats.volume24,
-        totalVolume: totalVolumeInUSD + stats.volume24,
+        dailyVolume: dailyVolume,
+        totalVolume: totalVolume,
         timestamp,
     };
 };

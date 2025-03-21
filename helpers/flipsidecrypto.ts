@@ -14,14 +14,14 @@ type IRequest = {
 const query: IRequest = {};
 
 async function randomDelay() {
-  const delay = Math.floor(Math.random() * 4) + 1
+  const delay = Math.floor(Math.random() * 5) + 2
   return new Promise((resolve) => setTimeout(resolve, delay * 1000))
 }
 
 export async function queryFlipside(sqlQuery: string, maxAgeMinutes: number = 90) {
   checkCanFlipSideQuery();
   if (!query[sqlQuery]) {
-    return  _queryFlipside(sqlQuery, maxAgeMinutes);
+    query[sqlQuery] =  _queryFlipside(sqlQuery, maxAgeMinutes);
   }
   return query[sqlQuery];
 }

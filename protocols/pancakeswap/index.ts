@@ -10,9 +10,9 @@ const endpoints = {
   [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx'),
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v2-zksync/version/latest",
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3'),
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exhange-v2",
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`
 };
@@ -24,12 +24,12 @@ const stablesSwapEndpoints = {
 }
 
 const v3Endpoint = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hv1GncLY5docZoGtXjo4kwbTvxm3MAhVZqBZE4sUT9eZ'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m'),
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS'),
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45376/exchange-v3-zksync/version/latest",
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve'),
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/pancakeswap/exchange-v3-linea",
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp'),
   [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
 }
@@ -287,7 +287,6 @@ const adapter: BreakdownAdapter = {
 adapter.breakdown.v2[CHAIN.APTOS] = {
   fetch: fetchVolume,
   start: '2023-11-09',
-  // runAtCurrTime: true,
 }
 
 export default adapter;

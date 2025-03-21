@@ -1,6 +1,7 @@
 import { FetchResultFees } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import { ethers } from "ethers";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
 
 function get2Days(array: Array<any>, key: string): [string, string] {
@@ -40,9 +41,10 @@ interface IGraphResponse {
 async function getFeeRevenueData(
   url: string,
   timestamp: number
-): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const dailyId = Math.floor(timestamp / 86400);
+): Promise<FetchResultFees & { totalHoldersRevenue: string }> {
+  const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const fromTimestamp = startOfDay - (60 * 60 * 24);
+  const dailyId = Math.floor(startOfDay / 86400);
   const yesterdayId = Math.floor(fromTimestamp / 86400);
   const query = gql`
   {
@@ -72,15 +74,13 @@ async function getFeeRevenueData(
 
   const dailyFees = (toNumber(response.today?.feeRevenueUSD || '0') - toNumber(response.yesterday?.feeRevenueUSD || '0'));
   const dailyProtocolFees = (toNumber(response.today?.protocolFeeRevenueUSD || '0')  - toNumber(response.yesterday?.protocolFeeRevenueUSD || '0'));
-  const dailyMakerRebates = dailyFees - dailyProtocolFees;
-  // const dailyPremiums = toNumber(factoryDayData?.premiumsUSD || 0);
-  // const dailyExercisePayouts = toNumber(factoryDayData?.exercisePayoutsUSD || 0);
 
   const totalFees = (toNumber(response.factories[0]?.feeRevenueUSD || '0'));
   const totalProtocolFees = (toNumber(response.factories[0]?.protocolFeeRevenueUSD || '0'));
-  const totalMakerRebates = totalFees - totalProtocolFees;
-  // const totalPremiums = toNumber(factories[0]?.premiumsUSD || '0');
-  // const totalExercisePayouts = toNumber(factories[0]?.exercisePayoutsUSD || '0');
+
+  if (dailyFees < 0) {
+    throw new Error("Daily fees cannot be negative");
+  }
 
   return {
     timestamp: timestamp,
@@ -94,7 +94,7 @@ async function getFeeRevenueData(
     totalUserFees: totalFees.toString(),
     totalRevenue: (totalFees * .5).toString(),
     totalProtocolRevenue: (totalProtocolFees * 0.2).toString(),
-    totalDailyHoldersRevenue: (totalProtocolFees * 0.4).toString(),
+    totalHoldersRevenue: (totalProtocolFees * 0.4).toString(),
     // totalSupplySideRevenue: (totalMakerRebates).toString(),
   };
 }

@@ -46,7 +46,7 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.OPTIMISM]: "ethereum"
 }
 
-const fetch =  async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch =  async (_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> => {
     const version = 1;
     const chain = options.chain
     const logs_1: ITx[] = (await options.getLogs({
@@ -97,7 +97,7 @@ const fetch =  async (options: FetchOptions): Promise<FetchResultV2> => {
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,

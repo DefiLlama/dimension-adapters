@@ -57,6 +57,7 @@ const adapter: Adapter = {
       start: '2024-01-31',
     },
   },
+  deadFrom: '2024-10-31',
   version: 2
 };
 

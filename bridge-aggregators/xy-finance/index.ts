@@ -99,11 +99,11 @@ const contract: Contract = {
     xyRouter: "0x43A86823EBBe2ECF9A384aDfD989E26A30626458"
   },
   [CHAIN.XLAYER]: {
-    yBridge: "0x73Ce60416035B8D7019f6399778c14ccf5C9c7A1",
+    yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04",
     xyRouter: "0x6A816cEE105a9409D8df0A83d8eeaeD9EB4309fE"
   },
   [CHAIN.TAIKO]: {
-    yBridge: "0x73Ce60416035B8D7019f6399778c14ccf5C9c7A1",
+    yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04",
     xyRouter: "0xedC061306A79257f15108200C5B82ACc874C239d"
   },
   [CHAIN.CRONOS_ZKEVM]: {

@@ -49,7 +49,6 @@ const getVolume = async (timestamp: number) => {
         totalVolume: `${totalVolume}`,
         dailyOpenInterest: `${dailyOpenInterest}`,
         dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-        timestamp: dayTimestamp,
     };
 };
 

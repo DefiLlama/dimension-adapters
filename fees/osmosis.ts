@@ -43,7 +43,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
-      runAtCurrTime: true,
       start: '2022-10-17',
     },
   },

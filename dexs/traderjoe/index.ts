@@ -93,14 +93,14 @@ const adapter: BreakdownAdapter = {
         fetch: fetchV2,
         start: '2022-12-26'
       },
-      [CHAIN.BSC]: {
-        fetch: fetchV2,
-        start: '2023-03-03'
-      },
-      [CHAIN.ETHEREUM]: {
-        fetch: fetchV2,
-        start: '2023-09-24'
-      }
+      // [CHAIN.BSC]: {
+      //   fetch: fetchV2,
+      //   start: '2023-03-03'
+      // },
+      // [CHAIN.ETHEREUM]: {
+      //   fetch: fetchV2,
+      //   start: '2023-09-24'
+      // }
     }
   },
 };

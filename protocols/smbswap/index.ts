@@ -4,6 +4,7 @@ import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, IJSO
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('9BtGwsWynjj21VyrAtNfeKG5kMhcZ7Z12T53wo7PBTLj')
@@ -101,13 +102,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.BSC]: {
-        fetch: async (options: FetchOptions) => {
-          const volume = await graphs(CHAIN.BSC)(options)
-          return {
-            dailyFees: volume.dailyFees,
-            dailyVolume: volume.dailyVolume,
-          }
-        },
+        fetch: getUniV2LogAdapter({ factory: '0x2Af5c23798FEc8E433E11cce4A8822d95cD90565'}),
         start: startTimes[CHAIN.BSC],
         meta: {
           methodology
@@ -116,14 +111,14 @@ const adapter: BreakdownAdapter = {
     },
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graph(chain as Chain),
+        fetch: () => ({} as any),
         start: v3StartTimes[chain],
       }
       return acc
     }, {} as BaseAdapter),
     stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: graphsStableSwap(chain as Chain),
+        fetch: () => ({} as any),
         start: stableTimes[chain],
         meta: {
           methodology : {

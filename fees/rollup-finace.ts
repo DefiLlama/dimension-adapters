@@ -72,7 +72,8 @@ const adapter: Adapter = {
       }),
       start: '2023-04-21',
     },
-  }
+  },
+  deadFrom: '2024-09-31',
 }
 
 export default adapter;

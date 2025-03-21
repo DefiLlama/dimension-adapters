@@ -36,7 +36,6 @@ const adapter: Adapter = {
 
       }) as any,
       start: '2021-08-10',
-      runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,
