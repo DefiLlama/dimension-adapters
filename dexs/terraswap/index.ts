@@ -56,6 +56,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-12-01',
   adapter: {
     [CHAIN.TERRA]: {
       fetch,

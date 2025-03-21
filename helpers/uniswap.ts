@@ -57,17 +57,19 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
-    await Promise.all(pairIds.map(async (pair, index) => {
+    const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
+    allLogs.map((logs: any, index) => {
+      if (!logs.length) return;
+      const pair = pairIds[index]
       let _fees = isStablePair[index] ? stableFees : fees
       const [token0, token1] = pairObject[pair]
-      const logs = await getLogs({ target: pair, eventAbi: swapEvent })
-      logs.forEach(log => {
+      logs.forEach((log: any) => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * _fees, amount1: Number(log.amount1In) * _fees })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
       })
-    }))
+    })
     if (customLogic)
       return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
     
@@ -117,15 +119,17 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     const dailyVolume = createBalances()
     const dailyFees = createBalances()
 
-    await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
+    const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
+    allLogs.map((logs: any, index) => {
+      if (!logs.length) return;
+      const pair = Object.keys(filteredPairs)[index]
       const [token0, token1] = pairObject[pair]
       const fee = fees[pair]
-      const logs = await getLogs({ target: pair, eventAbi: swapEvent })
-      logs.forEach(log => {
+      logs.forEach((log: any) => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
       })
-    }))
+    })
 
     if (customLogic) {
       return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })

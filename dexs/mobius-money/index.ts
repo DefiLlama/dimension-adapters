@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getSaddleVolume } from "../../helpers/saddle";
 
 
 const adapter: SimpleAdapter = {
@@ -40,16 +41,6 @@ const pools = [
   "0xfa3df877f98ac5ecd87456a7accaa948462412f0",
 ]
 
-async function fetch({ api, createBalances, getLogs, }: FetchOptions) {
-  const dailyVolume = createBalances()
-  const token0s = await api.multiCall({  abi: 'function getToken(uint8) view returns (address)', calls: pools.map((pool) => ({ target: pool, params: 0 })) });
-  const token1s = await api.multiCall({  abi: 'function getToken(uint8) view returns (address)', calls: pools.map((pool) => ({ target: pool, params: 1 })) });
-  const tokens = [token0s, token1s]
-  const eventAbi = 'event TokenSwap (address indexed buyer, uint256 tokensSold, uint256 tokensBought, uint128 soldId, uint128 boughtId)'
-  const logs = await getLogs({  targets: pools, eventAbi, flatten: false, });
-  logs.forEach((log, i) => {
-    log.forEach((_log) => dailyVolume.add(tokens[_log.boughtId][i], _log.tokensBought))
-  })
-  return { dailyVolume }
-
+async function fetch(options: FetchOptions) {
+  return getSaddleVolume(options, pools)
 }
