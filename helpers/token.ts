@@ -23,10 +23,12 @@ export async function addGasTokensReceived(params: {
   if (!balances) balances = options.createBalances();
   if (!multisigs?.length) throw new Error('multisig or multisigs required');
 
-  const batchSize = 1000;
+  const batchSize = 5000;
   const allLogs: any[] = [];
-  let offset = 0;
   let batchLogs: any[];
+  let offset = 0;
+  const fromBlock = (await options.getFromBlock()) - 200
+  const toBlock = (await options.getToBlock()) - 200
 
   for (;;) {
     batchLogs = await sdk.indexer.getLogs({
@@ -36,8 +38,8 @@ export async function addGasTokensReceived(params: {
       onlyArgs: true,
       eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
       // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
-      fromBlock: (await options.getFromBlock()) - 200,
-      toBlock: (await options.getToBlock()) - 200,
+      fromBlock,
+      toBlock,
       limit: batchSize,
       offset,
       all: false

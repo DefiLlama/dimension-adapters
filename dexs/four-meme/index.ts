@@ -9,10 +9,12 @@ const topics0_sell_1 = '0x0a5575b3648bae2210cee56bf33254cc1ddfbc7bf637c0af2ac18b
 async function fetchVolumeFromIndexers(params: { target: string; options: FetchOptions, topics: string[] }) {
   let { target, options, topics } = params;
 
-  const batchSize = 1000;
+  const batchSize = 5000;
   const allLogs: any[] = [];
-  let offset = 0;
   let batchLogs: any[];
+  let offset = 0;
+  const fromBlock = (await options.getFromBlock()) - 200
+  const toBlock = (await options.getToBlock()) - 200
 
   for (;;) {
     batchLogs = await sdk.indexer.getLogs({
@@ -21,8 +23,8 @@ async function fetchVolumeFromIndexers(params: { target: string; options: FetchO
       topics,
       onlyArgs: true,
       // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
-      fromBlock: (await options.getFromBlock()) - 200,
-      toBlock: (await options.getToBlock()) - 200,
+      fromBlock,
+      toBlock,
       limit: batchSize,
       offset,
       all: false
@@ -51,7 +53,6 @@ const fetchVolume = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  isExpensiveAdapter: true,
   version: 2,
   adapter: {
     [CHAIN.BSC]: {

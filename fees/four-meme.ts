@@ -33,7 +33,6 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  isExpensiveAdapter: true,
   version: 2,
   adapter: {
     [CHAIN.BSC]: { fetch },
