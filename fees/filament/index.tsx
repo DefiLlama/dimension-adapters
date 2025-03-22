@@ -25,13 +25,10 @@ const queryDaily = gql`
   }
 `;
 
+// Removed the hardcoded timestamp to fetch ALL fees
 const queryTotal = gql`
-  query stats($now: Int!) {
-    totalTradingFees(
-      orderBy: block_number
-      orderDirection: asc
-      where: { timestamp__gte: 1737397800, timestamp__lte: $now }
-    ) {
+  query stats {
+    totalTradingFees(orderBy: block_number, orderDirection: asc) {
       timestamp_
       block_number
       account
@@ -66,29 +63,38 @@ const fetchProtocolFees = async () => {
   console.log("Now", now);
   const yesterday = now - 86400; // 24 hours ago
   console.log("Yesterday", yesterday);
+
   const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
     yesterday,
     now,
   });
-  // console.log("Response Daily", responseDaily);
+
   let dailyFees = new BigNumber(0);
   responseDaily.totalTradingFees.forEach((dailyData) => {
     dailyFees = dailyFees.plus(new BigNumber(dailyData.totalFees));
   });
 
-  // Fetch total fees
-  const responseTotal: IGraphResponse = await request(endpoint, queryTotal, {
-    now,
-  });
-  // console.log("Response Total", responseTotal);
+  // Fetch total fees without time constraints
+  const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
+
   let totalFees = new BigNumber(0);
   responseTotal.totalTradingFees.forEach((totalData) => {
     totalFees = totalFees.plus(new BigNumber(totalData.totalFees));
   });
-  console.log("Daily Fees", toString(dailyFees));
-  console.log("Total Fees", toString(totalFees));
-  // Daily Fees 12682234458836419524
-  // Total Fees 482382219254978143
+
+  console.log("Daily Fees Raw", toString(dailyFees));
+  console.log("Total Fees Raw", toString(totalFees));
+
+  // Validate that total fees are greater than or equal to daily fees
+  if (totalFees.isLessThan(dailyFees)) {
+    console.error(
+      "Error: Total fees are less than daily fees. This is logically impossible."
+    );
+    console.log(
+      "Setting total fees to at least daily fees to maintain data consistency"
+    );
+    totalFees = BigNumber.max(totalFees, dailyFees);
+  }
 
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
   totalFees = totalFees.dividedBy(new BigNumber(1e18));
@@ -113,4 +119,5 @@ const adapter: SimpleAdapter = {
     },
   },
 };
+
 export default adapter;
