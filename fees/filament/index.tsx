@@ -77,7 +77,9 @@ const fetchProtocolFees = async () => {
   });
 
   // Fetch total fees
-  const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
+  const responseTotal: IGraphResponse = await request(endpoint, queryTotal, {
+    now,
+  });
   // console.log("Response Total", responseTotal);
   let totalFees = new BigNumber(0);
   responseTotal.totalTradingFees.forEach((totalData) => {
