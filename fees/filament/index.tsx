@@ -27,7 +27,11 @@ const queryDaily = gql`
 
 const queryTotal = gql`
   query stats {
-    totalTradingFees(orderBy: block_number, orderDirection: asc) {
+    totalTradingFees(
+      orderBy: block_number
+      orderDirection: asc
+      where: { timestamp__gte: 1737397800, timestamp__lte: $now }
+    ) {
       timestamp_
       block_number
       account
@@ -81,6 +85,8 @@ const fetchProtocolFees = async () => {
   });
   console.log("Daily Fees", toString(dailyFees));
   console.log("Total Fees", toString(totalFees));
+  // Daily Fees 12682234458836419524
+  // Total Fees 482382219254978143
 
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
   totalFees = totalFees.dividedBy(new BigNumber(1e18));
