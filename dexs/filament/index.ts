@@ -2,7 +2,7 @@ import type { SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
-const assets = ["BTC", "ETH", "SOL", "TRUMP"];
+const assets = ["BTC", "ETH", "SOL", "SEI"];
 
 const fetchForAsset = async (asset: string) => {
   const api = `https://orderbookv5.filament.finance/k8s/api/v1/orderbook/tradeVolumeStats/${asset}`;

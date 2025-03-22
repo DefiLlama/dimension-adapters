@@ -4,7 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint =
-  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v2/gn";
+  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v3/gn";
 
 // Get timestamps for yesterday and today
 const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
@@ -26,8 +26,12 @@ const queryDaily = gql`
 `;
 
 const queryTotal = gql`
-  query stats {
-    totalTradingFees(orderBy: block_number, orderDirection: asc) {
+  query stats($now: Int!) {
+    totalTradingFees(
+      orderBy: block_number
+      orderDirection: asc
+      where: { timestamp__gte: 1737397800, timestamp__lte: $now }
+    ) {
       timestamp_
       block_number
       account
@@ -38,8 +42,8 @@ const queryTotal = gql`
 
 interface IGraphResponse {
   totalTradingFees: Array<{
-    timestamp: string;
-    blocknumber: string;
+    timestamp_: string;
+    block_number: string;
     account: string;
     totalFees: string;
   }>;
@@ -59,26 +63,32 @@ const toString = (x: BigNumber) => {
 
 const fetchProtocolFees = async () => {
   // Fetch daily fees
-  console.log(now);
+  console.log("Now", now);
   const yesterday = now - 86400; // 24 hours ago
-  console.log(yesterday);
+  console.log("Yesterday", yesterday);
   const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
     yesterday,
     now,
   });
-
+  // console.log("Response Daily", responseDaily);
   let dailyFees = new BigNumber(0);
-  responseDaily.totalTradingFees.forEach((data) => {
-    dailyFees = dailyFees.plus(new BigNumber(data.totalFees));
+  responseDaily.totalTradingFees.forEach((dailyData) => {
+    dailyFees = dailyFees.plus(new BigNumber(dailyData.totalFees));
   });
 
   // Fetch total fees
-  const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
-
-  let totalFees = new BigNumber(0);
-  responseTotal.totalTradingFees.forEach((data) => {
-    totalFees = totalFees.plus(new BigNumber(data.totalFees));
+  const responseTotal: IGraphResponse = await request(endpoint, queryTotal, {
+    now,
   });
+  // console.log("Response Total", responseTotal);
+  let totalFees = new BigNumber(0);
+  responseTotal.totalTradingFees.forEach((totalData) => {
+    totalFees = totalFees.plus(new BigNumber(totalData.totalFees));
+  });
+  console.log("Daily Fees", toString(dailyFees));
+  console.log("Total Fees", toString(totalFees));
+  // Daily Fees 12682234458836419524
+  // Total Fees 482382219254978143
 
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
   totalFees = totalFees.dividedBy(new BigNumber(1e18));
@@ -96,7 +106,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch: fetchProtocolFees,
-      start: '2025-01-21',
+      start: "2025-01-21",
       meta: {
         methodology,
       },
