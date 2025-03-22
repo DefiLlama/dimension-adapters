@@ -26,7 +26,7 @@ const queryDaily = gql`
 `;
 
 const queryTotal = gql`
-  query stats {
+  query stats($now: Int!) {
     totalTradingFees(
       orderBy: block_number
       orderDirection: asc
