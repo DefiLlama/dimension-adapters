@@ -43,7 +43,7 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBal
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.FANTOM]: {
+    [CHAIN.SONIC]: {
       fetch,
       start: '2021-09-02',
       meta: {
