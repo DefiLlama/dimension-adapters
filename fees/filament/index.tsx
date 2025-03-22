@@ -66,21 +66,21 @@ const fetchProtocolFees = async () => {
     yesterday,
     now,
   });
-  console.log("Response Daily", responseDaily);
+  // console.log("Response Daily", responseDaily);
   let dailyFees = new BigNumber(0);
-  responseDaily.totalTradingFees.forEach((data) => {
-    dailyFees = dailyFees.plus(new BigNumber(data.totalFees));
+  responseDaily.totalTradingFees.forEach((dailyData) => {
+    dailyFees = dailyFees.plus(new BigNumber(dailyData.totalFees));
   });
 
   // Fetch total fees
   const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
-  console.log("Response Total", responseTotal);
+  // console.log("Response Total", responseTotal);
   let totalFees = new BigNumber(0);
-  responseTotal.totalTradingFees.forEach((data) => {
-    totalFees = totalFees.plus(new BigNumber(data.totalFees));
+  responseTotal.totalTradingFees.forEach((totalData) => {
+    totalFees = totalFees.plus(new BigNumber(totalData.totalFees));
   });
-  console.log("Daily Fees", dailyFees);
-  console.log("Total Fees", totalFees);
+  console.log("Daily Fees", toString(dailyFees));
+  console.log("Total Fees", toString(totalFees));
 
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
   totalFees = totalFees.dividedBy(new BigNumber(1e18));
