@@ -4,19 +4,35 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint =
-  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v2/gn";
+  "https://api.goldsky.com/api/public/project_cm0qvthsz96sp01utcnk55ib0/subgraphs/filament-sei/v3/gn";
 
 // Get timestamps for yesterday and today
 const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
 const yesterday = now - 86400; // 24 hours ago
 
-const queryDaily = gql`
-  query stats($yesterday: Int!, $now: Int!) {
+// Basic query without where clauses
+const queryAllFees = gql`
+  query AllFees {
+    totalTradingFees(first: 1000, orderBy: timestamp_, orderDirection: desc) {
+      id
+      timestamp_
+      block_number
+      account
+      totalFees
+    }
+  }
+`;
+
+// Query with skip parameter for pagination
+const queryFeesWithSkip = gql`
+  query AllFeesWithSkip($skip: Int!) {
     totalTradingFees(
-      orderBy: block_number
-      orderDirection: asc
-      where: { timestamp__gte: $yesterday, timestamp__lte: $now }
+      first: 1000
+      skip: $skip
+      orderBy: timestamp_
+      orderDirection: desc
     ) {
+      id
       timestamp_
       block_number
       account
@@ -25,24 +41,16 @@ const queryDaily = gql`
   }
 `;
 
-const queryTotal = gql`
-  query stats {
-    totalTradingFees(orderBy: block_number, orderDirection: asc) {
-      timestamp_
-      block_number
-      account
-      totalFees
-    }
-  }
-`;
+interface IFeeEntry {
+  id: string;
+  timestamp_: string;
+  block_number: string;
+  account: string;
+  totalFees: string;
+}
 
-interface IGraphResponse {
-  totalTradingFees: Array<{
-    timestamp: string;
-    blocknumber: string;
-    account: string;
-    totalFees: string;
-  }>;
+interface IFeesResponse {
+  totalTradingFees: Array<IFeeEntry>;
 }
 
 const methodology = {
@@ -57,50 +65,112 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
+/**
+ * Fetches all fee entries with proper pagination
+ */
+const fetchAllFeeEntries = async (maxPages = 10): Promise<IFeeEntry[]> => {
+  let allEntries: IFeeEntry[] = [];
+  let currentSkip = 0;
+  let hasMoreData = true;
+  let pageCount = 0;
+
+
+  while (hasMoreData && pageCount < maxPages) {
+    pageCount++;
+
+    try {
+
+
+      const response: IFeesResponse = await request(
+        endpoint,
+        pageCount === 1 ? queryAllFees : queryFeesWithSkip,
+        pageCount === 1 ? {} : { skip: currentSkip } as { skip: number },
+      );
+
+      const { totalTradingFees } = response;
+      const entriesCount = totalTradingFees.length;
+
+      allEntries = [...allEntries, ...totalTradingFees];
+
+      // If we got fewer than 1000 entries, we've reached the end
+      if (entriesCount < 1000) {
+        hasMoreData = false;
+      } else {
+        currentSkip += 1000;
+      }
+    } catch (error) {
+      hasMoreData = false; // Stop on error
+    }
+  }
+
+  if (pageCount >= maxPages) {
+  }
+
+  return allEntries;
+};
+
 const fetchProtocolFees = async () => {
-  // Fetch daily fees
-  console.log(now);
-  const yesterday = now - 86400; // 24 hours ago
-  console.log(yesterday);
-  const responseDaily: IGraphResponse = await request(endpoint, queryDaily, {
-    yesterday,
-    now,
-  });
+    // Fetch all available fee entries (with pagination)
+    const allEntries = await fetchAllFeeEntries(50); // Set max pages to 50 (up to 50,000 entries)
 
-  let dailyFees = new BigNumber(0);
-  responseDaily.totalTradingFees.forEach((data) => {
-    dailyFees = dailyFees.plus(new BigNumber(data.totalFees));
-  });
+    // Calculate daily and total fees
+    let dailyFees = new BigNumber(0);
+    let totalFees = new BigNumber(0);
+    let dailyEntryCount = 0;
 
-  // Fetch total fees
-  const responseTotal: IGraphResponse = await request(endpoint, queryTotal);
+    // Process each fee entry
+    allEntries.forEach((entry) => {
+      const entryTimestamp = parseInt(entry.timestamp_);
+      const feesAmount = new BigNumber(entry.totalFees);
 
-  let totalFees = new BigNumber(0);
-  responseTotal.totalTradingFees.forEach((data) => {
-    totalFees = totalFees.plus(new BigNumber(data.totalFees));
-  });
+      // Add to total fees
+      totalFees = totalFees.plus(feesAmount);
 
-  dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
-  totalFees = totalFees.dividedBy(new BigNumber(1e18));
+      // Check if entry is from the last 24 hours
+      if (entryTimestamp >= yesterday && entryTimestamp <= now) {
+        dailyFees = dailyFees.plus(feesAmount);
+        dailyEntryCount++;
 
-  const _dailyFees = toString(dailyFees);
-  const _totalFees = toString(totalFees);
+        // Log a few daily entries for debugging
+        if (dailyEntryCount <= 3) {
+          console.log(
+            `Sample daily entry: time=${new Date(
+              entryTimestamp * 1000
+            ).toISOString()}, amount=${entry.totalFees}`
+          );
+        }
+      }
+    });
 
-  return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
-  };
+
+    // Safety check: ensure total fees are at least equal to daily fees
+    if (dailyFees.isGreaterThan(totalFees)) {
+      totalFees = dailyFees;
+    }
+
+    // Normalize by dividing by 10^18
+    const normalizedDailyFees = dailyFees.dividedBy(new BigNumber(1e18));
+    const normalizedTotalFees = totalFees.dividedBy(new BigNumber(1e18));
+
+    const _dailyFees = toString(normalizedDailyFees);
+    const _totalFees = toString(normalizedTotalFees);
+
+    return {
+      dailyFees: _dailyFees ?? "0",
+      totalFees: _totalFees ?? "0",
+    };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch: fetchProtocolFees,
-      start: '2025-01-21',
+      start: "2023-01-21",
       meta: {
         methodology,
       },
     },
   },
 };
+
 export default adapter;
