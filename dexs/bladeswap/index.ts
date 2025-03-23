@@ -1,18 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, BreakdownAdapter } from "../../adapters/types";
-const adapters = univ2Adapter2(
-  {
-    [CHAIN.BLAST]:
-      "https://api.studio.thegraph.com/query/75205/blade-algebra/mainnet-info-1.0.3",
-  },
-  {
-    factoriesName: "factories",
-    dayData: "algebraDayData",
-    dailyVolume: "volumeUSD",
-    totalVolume: "totalVolumeUSD",
-  }
-);
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
+
 
 const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances()
@@ -33,7 +22,6 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   return { dailyVolume };
 }
 
-adapters.adapter.blast.start = 1717740000;
 
 const adapter: BreakdownAdapter = {
     breakdown: {
@@ -43,7 +31,11 @@ const adapter: BreakdownAdapter = {
                 start: '2024-02-29',
             }
         },
-        CL: adapters.adapter
+        CL: {
+          [CHAIN.BLAST]: {
+            fetch: () => ({} as any)
+          }
+        }
     },
     version: 2
 }

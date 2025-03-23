@@ -14,12 +14,8 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTime = async () => {
-  const plentyData = (await fetchURL("https://api.analytics.plenty.network/analytics/plenty"));
-  return parseInt(Object.keys(plentyData.fees.history[0])[0]);
-}
-
 const adapter: Adapter = {
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,

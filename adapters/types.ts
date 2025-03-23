@@ -94,6 +94,7 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
+  deadFrom?: string;
 }
 
 export type SimpleAdapter = AdapterBase & {

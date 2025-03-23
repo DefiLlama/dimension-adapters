@@ -1,16 +1,8 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter(
-  {
-    [CHAIN.BSC]:
-      sdk.graph.modifyEndpoint('B1VWKexyptT1ixDdHsxj3EJnAxvuje7ANT39rnfq9rRG'),
-  },
-  {
-    factoriesName: "pancakeFactories",
-    dayData: "pancakeDayData",
+export default uniV2Exports({
+  [CHAIN.BSC]: {
+    factory: '0x1c3E50DBBCd05831c3A695d45D2b5bCD691AD8D8',
   }
-);
-adapters.adapter.bsc.start = 1670113423;
-export default adapters;
+});

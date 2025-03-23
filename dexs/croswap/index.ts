@@ -16,4 +16,5 @@ const adapters = univ2Adapter({
 
 adapters.adapter.cronos.start = 1664409600;
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
+adapters.deadFrom = '2023-08-12';
 export default adapters;

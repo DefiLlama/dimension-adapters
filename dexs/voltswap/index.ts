@@ -1,38 +1,19 @@
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
+import { BreakdownAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-const { DEFAULT_TOTAL_VOLUME_FIELD } = require("../../helpers/getUniSubgraphVolume");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
-const endpoints = {
-  [CHAIN.METER]: "https://graph-meter.voltswap.finance/subgraphs/name/meterio/voltswapv2-subgraph",
-};
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const DAILY_VOLUME_FACTORY = "uniswapDayData";
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "uniswapFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
 
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      [CHAIN.METER]: disabledAdapter
+      [CHAIN.METER]: {
+        fetch: getUniV2LogAdapter({ factory: '0x56aD9A9149685b290ffeC883937caE191e193135' }),
+      }
     },
     v2: {
       [CHAIN.METER]: {
-        fetch: graphs(CHAIN.METER),
-        start: getStartTimestamp({
-          endpoints,
-          chain: CHAIN.METER,
-          dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-        }),
+        fetch: getUniV2LogAdapter({ factory: '0xb33dE8C0843F90655ad6249F20B473a627443d21' }),
       }
     },
   },

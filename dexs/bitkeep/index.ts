@@ -14,6 +14,7 @@ interface IVolumeall {
 
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
+        if (chain === CHAIN.HECO) { return {}} // skip HECO for now
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
         const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data.list;
 

@@ -33,6 +33,7 @@ const fetch = async (timestamp: number) => {
 
 
 const adapter: Adapter = {
+  deadFrom: '2023-02-02',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {

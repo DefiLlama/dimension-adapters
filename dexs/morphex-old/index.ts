@@ -85,6 +85,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 
 const adapter: BreakdownAdapter = {
+  deadFrom: "2024-02-21",
   breakdown: {
     swap: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,

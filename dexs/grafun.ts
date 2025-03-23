@@ -22,19 +22,19 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const startFormatted = new Date(startTimestamp * 1000).toISOString().split("T")[0]
 
   const graphRes = await request(endpoints[chain], query, { date: startFormatted });
-  if(!graphRes?.dailyStatistics_collection || graphRes?.dailyStatistics_collection.length === 0) {
-    return {}
-  }
 
   const dayItem = graphRes.dailyStatistics_collection[0]
 
   const dailyVolume = restOpts.createBalances();
+  const dailyFees = restOpts.createBalances();
 
   dailyVolume.addGasToken(dayItem.cumulativeTradingVolumeBNB);
+  dailyFees.addGasToken(dayItem.cumulativeFeesBNB);
 
   return {
-    timestamp: restOpts.startOfDay,
+    timestamp: startTimestamp,
     dailyVolume,
+    dailyFees,
   }
 }
 

@@ -19,4 +19,5 @@ adapters.adapter[CHAIN.CUBE].fetch = async (timestamp: number) => {
 }
 
 adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
+adapters.deadFrom = '1688947200';
 export default adapters;

@@ -20,6 +20,7 @@ export enum CHAIN {
   OPTIMISM = "optimism",
   POLYGON = "polygon",
   POLYNOMIAL = "polynomial",
+  RIPPLE = "ripple",
   RONIN = "ronin",
   ROOTSTOCK = "rsk",
   XDAI = "xdai",
@@ -135,6 +136,9 @@ export enum CHAIN {
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  ETHERLINK = "etlk",
+  ETHEREUM_CLASSIC = "ethereumclassic",
+  NULS = "nuls",
   EON = "eon",
   MANTA = "manta",
   NEAR = "near",
@@ -205,7 +209,6 @@ export enum CHAIN {
   HYPERLIQUID = "hyperliquid",
   SONEIUM = "soneium",
   INK = "ink",
-  RIPPLE = "ripple",
   ZERO = "zero_network",
   SHAPE = "shape",
   ABSTRACT = "abstract",
@@ -219,6 +222,7 @@ export enum CHAIN {
   FORMNETWORK = "formnetwork",
   HEMI = "hemi",
   MOVE = "move",
+  SUPERPOSITION = "superposition"
 }
 
 // Don´t use
