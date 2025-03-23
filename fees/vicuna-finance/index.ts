@@ -23,7 +23,7 @@ const adapter: Adapter = {
                 const dailyProtocolRevenue = dailyRevenue.clone(vaultFee / totalFee); // Vault share of the revenue
                 const governanceRevenue = dailyRevenue.clone(governanceShare / totalFee); // Governance share of the revenue
     
-                return { dailyFees, dailyRevenue, dailyProtocolRevenue, governanceRevenue };
+                return { dailyFees, dailyRevenue, dailyProtocolRevenue };
             },
             start: '2025-01-02',
             meta: {
