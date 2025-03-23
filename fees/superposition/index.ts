@@ -1,4 +1,4 @@
 import { CHAIN } from "../../helpers/chains";
-import { blockscoutFeeAdapter } from "../../helpers/blockscoutFees";
+import { blockscoutFeeAdapter2 } from "../../helpers/blockscoutFees";
 
-export default blockscoutFeeAdapter(CHAIN.SUPERPOSITION, "https://explorer.superposition.so/api?module=stats&action=totalfees", 'ethereum')
+export default blockscoutFeeAdapter2(CHAIN.SUPERPOSITION)
