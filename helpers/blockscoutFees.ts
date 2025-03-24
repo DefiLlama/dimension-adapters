@@ -2,7 +2,7 @@ import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/ty
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from "./chains";
 
-const chainConfigMap: any = {
+export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', },
   [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', },
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', },
@@ -51,7 +51,7 @@ const chainConfigMap: any = {
   [CHAIN.KCC]: { explorer: 'https://scan.kcc.io', CGToken: 'kucoin-shares' },
   [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com/', CGToken: 'thunder-token' },
   [CHAIN.CHILIZ]: { explorer: 'https://scan.chiliz.com/', CGToken: 'chiliz' },
-  [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so/api?module=stats&action=totalfees', CGToken: 'ethereum' },
+  [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum' },
 }
 
 export function blockscoutFeeAdapter2(chain: string) {
