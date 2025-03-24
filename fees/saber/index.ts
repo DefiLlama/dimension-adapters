@@ -5,7 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
   // fetch volume and pools data from https://app.saberdao.so/
   const [volumeData, poolsData] = await Promise.all([
-    httpGet('https://raw.githubusercontent.com/saberdao/info/main/poolInfo.json'),
+    httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json'),
     httpGet('https://raw.githubusercontent.com/saberdao/saber-registry-dist/master/data/pools-info.mainnet.json')
   ]);
 
@@ -29,7 +29,7 @@ async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalan
       dailyFees.add(tokenAMint.toString(), pool.feesUsd)
     }
   })
-  // console.log(dailyFees);
+  console.log(dailyFees);
 
   return { dailyFees, dailyRevenue: dailyFees, }
 }
