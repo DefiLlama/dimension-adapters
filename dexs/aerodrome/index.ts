@@ -92,7 +92,7 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, options: Fet
     feesMap.set(pool.pair, +feesRaw[i] / 1e4)
   })
 
-  const chunkSize = 5
+  const chunkSize = 10
   const logsMap = new Map<string, any[]>()
   
   for (let i = 0; i < pools.length; i += chunkSize) {

@@ -1,42 +1,110 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
-import { addOneToken } from "../../helpers/prices";
+import * as sdk from '@defillama/sdk';
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from '../../helpers/prices';
 import { filterPools2 } from "../../helpers/uniswap";
 
-interface ILog {
-  address: string;
-  data: string;
-  transactionHash: string;
-  topics: string[];
+const CONFIG = {
+  factory: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A'
 }
-const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+
+const topics = {
+  event_poolCreated: '0xab0d57f0df537bb25e80245ef7748fa62353808c54d6e528a9dd20887aed9ac2',
+  event_swap: '0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67'
+}
+
+const eventAbis = {
+  event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+}
+
+type PoolInfo = {
+  pair: string
+  token0: string
+  token1: string
+  factory: string
+  createdAtBlock: number
+}
 
 const fetch = async (_:any, _1:any, fetchOptions: FetchOptions): Promise<FetchResult> => {
-  const { api, getLogs, createBalances, } = fetchOptions
-  const chain = api.chain
+  const { api, createBalances, getToBlock, getFromBlock, chain } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  let pairs = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A' })
-  let token0s = await api.multiCall({ abi: 'address:token0', calls: pairs })
-  let token1s = await api.multiCall({ abi: 'address:token1', calls: pairs })
+  const [toBlockRaw, fromBlock] = await Promise.all([getToBlock(),getFromBlock()])
+  const toBlock = toBlockRaw - 15
 
-  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s, minUSDValue: 2000, maxPairSize: 1000 })
-  pairs = res.pairs
-  token0s = res.token0s
-  token1s = res.token1s
-
-  const fees = await api.multiCall({ abi: 'uint256:fee', calls: pairs })
-
-  let logs: ILog[][] = await getLogs({ targets: pairs, eventAbi: event_swap, flatten: false, })
-  logs.forEach((logs: ILog[], idx: number) => {
-    const token0 = token0s[idx]
-    const token1 = token1s[idx]
-    const fee = fees[idx]/1e6
-    logs.forEach((log: any) => {
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0) * fee, amount1: Number(log.amount1) * fee })
-    })
+  const rawPools = await sdk.indexer.getLogs({ chain, target: CONFIG.factory, fromBlock: 13843704, toBlock, topics: [topics.event_poolCreated] }) 
+  
+  const poolInfoMap = new Map<string, PoolInfo>()
+  rawPools.forEach(({ source, topics, data, blockNumber }) => {
+    if (!topics || topics.length < 4 || data.length < 66) return
+  
+    const rawToken0 = topics[1]
+    const rawToken1 = topics[2]
+    if (!rawToken0 || !rawToken1) return
+  
+    const pair = `0x${data.slice(26, 66)}`.toLowerCase()
+    const token0 = `0x${rawToken0.slice(26)}`.toLowerCase()
+    const token1 = `0x${rawToken1.slice(26)}`.toLowerCase()
+    const factory = source.toLowerCase()
+    poolInfoMap.set(pair, { pair, token0, token1, factory, createdAtBlock: blockNumber })
   })
+
+  const poolInfos = Array.from(poolInfoMap.values())
+  const res = await filterPools2({
+    fetchOptions,
+    pairs: poolInfos.map(p => p.pair),
+    token0s: poolInfos.map(p => p.token0),
+    token1s: poolInfos.map(p => p.token1),
+    minUSDValue: 2000,
+    maxPairSize: 1000
+  })
+
+  const pools: PoolInfo[] = res.pairs.map((pair: string) => poolInfoMap.get(pair)!).filter(Boolean)
+  const feesRaw = await api.multiCall({ abi: 'uint256:fee', calls: pools.map((p) => ({ target: p.pair })) })
+
+  const feesMap = new Map<string, number>()
+  pools.forEach((pool, i) => {
+    feesMap.set(pool.pair, +feesRaw[i] / 1e6)
+  })
+
+  const chunkSize = 10
+  const logsMap = new Map<string, any[]>()
+
+  for (let i = 0; i < pools.length; i += chunkSize) {
+    const chunkPools = pools.slice(i, i + chunkSize)
+    const chunkTargets = chunkPools.map(p => p.pair)
+
+    const currentLogs = await sdk.indexer.getLogs({
+      chain,
+      targets: chunkTargets,
+      topics: [topics.event_swap],
+      eventAbi: eventAbis.event_swap,
+      flatten: false,
+      fromBlock,
+      toBlock,
+    })
+
+    currentLogs.forEach((logsForPair, j) => {
+      const pair = chunkTargets[j]
+      logsMap.set(pair, logsForPair)
+    })
+  }
+
+  for (const pool of pools) {
+    const logs = logsMap.get(pool.pair) ?? []
+    const { token0, token1, pair } = pool
+    const fee = feesMap.get(pair) ?? 0
+
+    logs.forEach((log: any) => {
+      const amount0 = Number(log[2])
+      const amount1 = Number(log[3])
+      const fee0 = amount0 * fee
+      const fee1 = amount1 * fee
+
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+    })
+  }
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees } as any
 }
