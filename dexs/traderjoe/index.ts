@@ -4,6 +4,7 @@ import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../.
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
@@ -25,8 +26,8 @@ interface IVolume {
   volumeUsd: number;
 }
 const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = options.startOfDay;
-  const start = options.startOfDay;
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const start = dayTimestamp;
   const end = start + 24 * 60 * 60;
   const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
   const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
@@ -47,6 +48,7 @@ const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchR
 }
 const mapChain = (chain: Chain): string => {
   if (chain === CHAIN.BSC) return "binance"
+  if (chain === CHAIN.AVAX) return "avalanche"
   return chain
 }
 
@@ -86,7 +88,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.AVAX]: {
-        fetch: graphsV2(CHAIN.AVAX),
+        fetch: fetchV2,
         start: '2022-11-16'
       },
       [CHAIN.ARBITRUM]: {
