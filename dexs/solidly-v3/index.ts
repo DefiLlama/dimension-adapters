@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, FetchV2 } from "../../adapters/types";
 
 const adapters = univ2Adapter2({
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
@@ -20,4 +21,15 @@ adapters.adapter.sonic.start = '2024-12-17';
 adapters.adapter.optimism.start = '2024-01-24';
 adapters.adapter.arbitrum.start = '2024-01-24';
 adapters.adapter.fantom.start = '2023-25-12';
+
+// Store original fetch function
+const originalBaseFetch = adapters.adapter.base.fetch;
+
+adapters.adapter.base.fetch = async (options: FetchOptions) => {
+  const res = await (originalBaseFetch as FetchV2)(options)
+  return {
+    dailyVolume: res.dailyVolume,
+    totalVolume: 0
+  }
+}
 export default adapters;
