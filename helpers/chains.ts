@@ -222,7 +222,7 @@ export enum CHAIN {
   FORMNETWORK = "formnetwork",
   HEMI = "hemi",
   MOVE = "move",
-  SUPERPOSITION = "superposition",
+  SUPERPOSITION = "spn",
   SWELLCHAIN = "swellchain",
   ANCIENT8 = "ancient8",
 }
