@@ -16,19 +16,15 @@ const fetch = async ({ startTimestamp, endTimestamp, createBalances }) => {
     })
 
     const dailyVolume = createBalances()
-    const dailyFees = createBalances()
-    const dailyUserFees = createBalances()
-    const dailyProtocolRevenue = createBalances()
-    const dailySupplySideRevenue = createBalances()
 
     for (const { amount, token } of data) {
-      const totalFees = amount * 0.0025
       dailyVolume.add(token, amount)
-      dailyFees.add(token, totalFees)
-      dailyUserFees.add(token, totalFees)
-      dailyProtocolRevenue.add(token, amount * 0.0005)
-      dailySupplySideRevenue.add(token, amount * 0.002)
     }
+
+    const dailyFees = dailyVolume.clone(0.25 / 100)
+    const dailyUserFees = dailyFees
+    const dailyProtocolRevenue = dailyFees.clone(0.2)
+    const dailySupplySideRevenue = dailyFees.clone(0.8)
     
     return { 
       dailyVolume, 
