@@ -68,11 +68,11 @@ const fetch = async (options: FetchOptions) => {
   `;
 
   const results = await queryDuneSql(options, query);
-  // console.log(results);
+
   if (results[0]?.total_gas_token_amount) {
     dailyFees.addGasToken(results[0].total_gas_token_amount * 1e18);
   }
-  // console.log(dailyFees);
+
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
@@ -81,47 +81,47 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: '2023-04-23',
+      start: '2021-10-30',
     },
     [CHAIN.BSC]: {
       fetch,
-      start: '2023-04-23',
+      start: '2021-06-01',
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: '2023-04-23',
+      start: '2024-12-06',
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2023-04-23',
+      start: '2023-02-01',
     },
     [CHAIN.AVAX]: {
       fetch,
-      start: '2023-04-23',
+      start: '2021-09-18',
     },
     // [CHAIN.CRONOS]: {
     //   fetch,
-    //   start: '2023-04-23',
+    //   start: '2022-04-01',
     // },
     // [CHAIN.CORE]: {
     //   fetch,
-    //   start: '2023-04-23',
+    //   start: '2023-10-19',
     // },
     // [CHAIN.ZETA]: {
     //   fetch,
-    //   start: '2023-04-23',
+    //   start: '2025-02-07',
     // },
     [CHAIN.BASE]: {
       fetch,
-      start: '2023-04-23',
+      start: '2024-04-05',
     },
     [CHAIN.UNICHAIN]: {
       fetch,
-      start: '2023-04-23',
+      start: '2025-02-21',
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolanaFees,
-      start: '2023-04-23',
+      start: '2024-02-04',
     },
   },
 };
