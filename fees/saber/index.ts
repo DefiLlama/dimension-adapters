@@ -29,7 +29,7 @@ async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalan
       dailyFees.add(tokenAMint.toString(), pool.feesUsd)
     }
   })
-  console.log(dailyFees);
+  // console.log(dailyFees);
 
   return { dailyFees, dailyRevenue: dailyFees, }
 }
