@@ -24,7 +24,6 @@ const fetchFees = async (options: FetchOptions) => {
         })
         Object.values(burn._balances).forEach(i => dailyFees.addCGToken('vaultcraft', Number(i)/1e18))
     }
-    console.log(await dailyFees.getUSDJSONs())
     return {
         dailyFees: dailyFees,
         dailyRevenue: dailyFees
