@@ -54,7 +54,13 @@ interface WhirlpoolWithNumberMetrics extends Omit<Whirlpool, 'rewardsUsdc24h' | 
     feesUsdc24h: number;
 }
 interface StatsApiResponse {
-    data: Whirlpool[]
+    data: Whirlpool[];
+    meta: {
+        cursor: {
+            previous: string;
+            next: string;
+        }
+    }
 }
 
 function convertWhirlpoolMetricsToNumbers(whirlpool: Whirlpool): WhirlpoolWithNumberMetrics {
@@ -84,9 +90,19 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
 }
 
 async function fetch(timestamp: number, url: string) {
-    const [whirlpools]: [StatsApiResponse] = await Promise.all([httpGet(url)]);
+    let allWhirlpools: Whirlpool[] = [];
+    let nextCursor: string | null = null;
 
-    const validPools = whirlpools.data.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);
+    do {
+        const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
+        const response: StatsApiResponse = await httpGet(currentUrl);
+        allWhirlpools = allWhirlpools.concat(response.data);
+        // console.log(response.meta);
+        nextCursor = response.meta?.cursor?.next || null;
+        // console.log(nextCursor);
+    } while (nextCursor);
+
+    const validPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);
 
     const dailyVolume = validPools.reduce(
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
@@ -107,7 +123,10 @@ async function fetch(timestamp: number, url: string) {
     return {
         dailyVolume,
         dailyFees,
-        dailyRevenue,
+        dailyUserFees: dailyFees, // All fees paid by users
+        dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
+        dailyProtocolRevenue: dailyRevenue, // Revenue going to protocol treasury
+        dailyRevenue, // Total protocol revenue (same as protocol revenue in this case)
         timestamp: timestamp
     }
 }
