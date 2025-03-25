@@ -11,6 +11,9 @@ const contract_address: any = {
   [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
   [CHAIN.BASE]: '0x1fba6b0bbae2b74586fba407fb45bd4788b7b130',
   [CHAIN.ETHEREUM]: '0x3328f7f4a1d1c57c35df56bbf0c9dcafca309c49',
+  [CHAIN.SONIC]: '0xdc13700db7f7cda382e10dba643574abded4fd5b',
+  [CHAIN.BSC]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
+  [CHAIN.UNICHAIN]: '0x461efe0100be0682545972ebfc8b4a13253bd602'
 }
 
 const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
@@ -50,6 +53,18 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2023-06-01',
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetchFees,
+      start: '2024-12-16',
+    },
+    [CHAIN.BSC]: {
+      fetch: fetchFees,
+      start: '2024-03-15',
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch: fetchFees,
+      start: '2025-02-10',
     },
   },
   isExpensiveAdapter: true,
