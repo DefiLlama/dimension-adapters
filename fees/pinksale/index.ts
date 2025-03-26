@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
-import { queryAllium } from "../../helpers/allium";
+import { getETHReceived, getSolanaReceived } from "../../helpers/token";
 
 // FEE WALLETS:
 const FEE_WALLETS = {
@@ -48,32 +47,11 @@ const fetchSolanaFees: any = async (options: FetchOptions) => {
 
 const fetch = async (options: FetchOptions) => {
   // https://docs.pinksale.finance/service-fees
-  const dailyFees = options.createBalances();
 
   const feeWallet = FEE_WALLETS[options.chain];
-  if (!feeWallet) return { dailyFees, dailyRevenue: dailyFees };
+  const dailyFees = await  getETHReceived({ options, targets: feeWallet,});
 
-  const query = `
-      SELECT
-          sum(value / 1e18) as total_amount
-      FROM
-         CHAIN.traces
-      WHERE
-          to_address = '${feeWallet[0].toLowerCase()}'
-          AND trace_type = 'call'
-          AND call_type = 'call'
-          AND status = 1
-          AND value > 0
-          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  `;
-
-  const res = await queryAllium(query);
-  if (res[0]?.total_amount) {
-    dailyFees.addGasToken(res[0].total_amount * 1e18);
-  }
   return { dailyFees, dailyRevenue: dailyFees };
-
 };
 
 const adapter: SimpleAdapter = {
