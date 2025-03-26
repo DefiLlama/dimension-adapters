@@ -82,7 +82,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions): 
       params: [event.reserve],
       skipCache: true,
       permitFailure: false,
-      block: event.blockNumber,
+      block: event.blockNumber - 1,
     })
 
     let liquidityIndex = BigInt(0)
