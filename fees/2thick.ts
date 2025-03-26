@@ -25,3 +25,4 @@ Object.keys(adapters.adapter).forEach((chain: any) => {
   adapters.adapter[chain].meta = { methodology }
 })
 export default adapters;
+
