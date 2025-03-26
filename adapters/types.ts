@@ -38,6 +38,7 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  dateString: string,
 }
 
 export type FetchGetLogsOptions = {
