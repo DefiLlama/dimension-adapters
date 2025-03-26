@@ -35,10 +35,10 @@ const fetch = async (options: FetchOptions) => {
   const finalDailyFee = tokenAmount / 1e8;
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('hedera', tokenAmount);
+  dailyFees.addCGToken('hedera', finalDailyFee);
 
   return {
-    dailyFees: finalDailyFee.toString(),
+    dailyFees
   };
 };
 
