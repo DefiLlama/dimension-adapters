@@ -1,17 +1,16 @@
-import { gql, request } from "graphql-request";
+import { request } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
-import { Adapter } from "../adapters/types";
+import { Adapter, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const graphqlEndpoint = "https://mainnet.hedera.api.hgraph.dev/v1/graphql";
 
-const fetch = async (options: FetchOptions) => {
-  const { startOfDay } = options;
-  const endOfDay = startOfDay + 24 * 60 * 60;
-  const startDate = new Date(startOfDay * 1000).toISOString();
-  const endDate = new Date(endOfDay * 1000).toISOString();
+const fetch = async (_:any, _1: any, options: FetchOptions) => {
+  const { fromTimestamp, toTimestamp } = options;
+  const startDate = new Date(fromTimestamp * 1000).toISOString();
+  const endDate = new Date(toTimestamp * 1000).toISOString();
 
-  const graphQuery = gql`
+  const graphQuery = `
     {
           all_metrics: ecosystem_metric(
             where: {
@@ -35,7 +34,7 @@ const fetch = async (options: FetchOptions) => {
   const finalDailyFee = tokenAmount / 1e8;
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('hedera', finalDailyFee);
+  dailyFees.addCGToken('hedera-hashgraph', finalDailyFee);
 
   return {
     dailyFees
@@ -44,13 +43,14 @@ const fetch = async (options: FetchOptions) => {
 
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
       start: '2019-09-14'
     },
   },
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
