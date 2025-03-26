@@ -17,11 +17,9 @@ const adapter: Adapter = {
           WHERE SUCCESS AND 
           block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${startTimestamp}) AND TO_TIMESTAMP_NTZ(${endTimestamp})
         `, 260)
-
+        
         const fees = Number(feeQuery[0][0])
-
-        dailyFees.addGasToken(fees)
-
+        dailyFees.addCGToken('movement',fees)
         return { dailyFees, dailyHoldersRevenue: dailyFees };
 
       }) as any,
