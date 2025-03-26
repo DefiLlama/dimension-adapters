@@ -116,6 +116,7 @@ const tableName = {
   bsc: "bnb",
   ethereum: "ethereum",
   base: "base",
+  avax: "avalanche_c"
 } as any
 
 export const queryDuneSql = (options: any, query: string) => {
