@@ -37,7 +37,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.NEAR]: {
       fetch,
-      start: '2019-09-14'
+      start: '2020-07-21'
     },
   },
 };
