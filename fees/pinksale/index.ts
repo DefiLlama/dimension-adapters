@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
 // FEE WALLETS:
 const FEE_WALLETS = {
@@ -27,21 +27,21 @@ const fetchSolanaFees: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: FEE_WALLETS[CHAIN.SOLANA] })
   // const dailyFees = options.createBalances();
 
-  const wsolQuery = `
-    SELECT
-        SUM(amount/10e9) as total_wsol
-    FROM tokens_solana.transfers
-    WHERE
-        outer_executing_account = '${SOLANA_PINKSALE_PROGRAM}'
-        AND token_mint_address = 'So11111111111111111111111111111111111111112'
-        AND to_owner = '${FEE_WALLETS[CHAIN.SOLANA][0]}'
-        AND TIME_RANGE
-  `;
+  // const wsolQuery = `
+  //   SELECT
+  //       SUM(amount/10e9) as total_wsol
+  //   FROM tokens_solana.transfers
+  //   WHERE
+  //       outer_executing_account = '${SOLANA_PINKSALE_PROGRAM}'
+  //       AND token_mint_address = 'So11111111111111111111111111111111111111112'
+  //       AND to_owner = '${FEE_WALLETS[CHAIN.SOLANA][0]}'
+  //       AND TIME_RANGE
+  // `;
 
-  const wsolResults = await queryDuneSql(options, wsolQuery);
-  if (wsolResults[0]?.total_wsol) {
-    dailyFees.add('So11111111111111111111111111111111111111112', wsolResults[0].total_wsol * 1e9);
-  }
+  // const wsolResults = await queryDuneSql(options, wsolQuery);
+  // if (wsolResults[0]?.total_wsol) {
+  //   dailyFees.add('So11111111111111111111111111111111111111112', wsolResults[0].total_wsol * 1e9);
+  // }
   // console.log(dailyFees);
   return { dailyFees, dailyRevenue: dailyFees, }
 }
@@ -55,25 +55,25 @@ const fetch = async (options: FetchOptions) => {
 
   const query = `
       SELECT
-          sum(value / 1e18) as total_gas_token_amount
+          sum(value / 1e18) as total_amount
       FROM
          CHAIN.traces
       WHERE
-          "to" = from_hex('${feeWallet[0].toLowerCase()}')
-          AND type = 'call'
+          to_address = '${feeWallet[0].toLowerCase()}'
+          AND trace_type = 'call'
           AND call_type = 'call'
-          AND success = true
+          AND status = 1
           AND value > 0
-          AND TIME_RANGE
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
 
-  const results = await queryDuneSql(options, query);
-
-  if (results[0]?.total_gas_token_amount) {
-    dailyFees.addGasToken(results[0].total_gas_token_amount * 1e18);
+  const res = await queryAllium(query);
+  if (res[0]?.total_amount) {
+    dailyFees.addGasToken(res[0].total_amount * 1e18);
   }
-
   return { dailyFees, dailyRevenue: dailyFees };
+
 };
 
 const adapter: SimpleAdapter = {
