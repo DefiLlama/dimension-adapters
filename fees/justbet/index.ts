@@ -1,182 +1,58 @@
-import { ethers } from "ethers";
 import { ChainApi } from "@defillama/sdk";
 
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
-import { vaultAdapterAbi, bankrollVaultAbi } from "./abis";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { FetchV2, Adapter, FetchResultFees, IJSON } from "../../adapters/types";
+import {  Adapter,  FetchOptions } from "../../adapters/types";
+
+const abis = {
+  "getAllDataBatch": "function getAllDataBatch(address[] bankrollIndexes) view returns ((uint256 vaultIndex, address bankrollBytesIdentifier, address vaultAddress, address bankrollTokenAddress, address shareTokenAddress, address controllerAddress, address liquidityManagerAddress)[] vaultDetails, (uint256 bankrollAmount, uint256 shareTokenAmount, uint256 epochAmount, uint256 totalAmount, uint256 totalAmountExcluding, uint64 bankrollTokenPrice, bool isProfitEpcoh, bool isProfitTotal, bool isProfitTotalExcluding)[] vaultAmounts)",
+  "returnAllTimeProfitLossIncludingActiveEpoch": "function returnAllTimeProfitLossIncludingActiveEpoch() view returns (bool isProfit_, uint256 amountDelta_)",
+  "epochCounter": "uint256:epochCounter",
+  "currentEpochEnd": "uint256:currentEpochEnd",
+  "returnNetProfitOrLossInActiveEpoch": "function returnNetProfitOrLossInActiveEpoch() view returns (bool isProfit_, uint256 amountDelta_)"
+}
+
 
 import {
-  TOKEN_DETAILS,
   JUSTBET_BANKROLL_INDEXES,
   WINR_VAULT_ADAPTER_CONTRACT,
 } from "./constants";
 
 const getVaultAddresses = async (api: ChainApi) => {
-  const vaultDetails = await api.call({
-    abi: vaultAdapterAbi,
+  const { vaultDetails, } = await api.call({
+    abi: abis.getAllDataBatch,
     target: WINR_VAULT_ADAPTER_CONTRACT,
     params: [JUSTBET_BANKROLL_INDEXES as any],
   });
 
-  const [details, amounts] = [vaultDetails[0], vaultDetails[1]];
-
-  const pools: { detail: any; amount: any }[] = [];
-  details.forEach((detail, index) => {
-    pools.push({
-      detail: detail,
-      amount: amounts[index],
-    });
-  });
-
-  const vaults = pools.map((p) => ({
-    vaultAddress: p.detail.vaultAddress,
-    vaultTokenAddress: p.detail.bankrollTokenAddress,
-  }));
-
-  return vaults;
-};
-
-const getVaultProfitAllTime = async (
-  api: ChainApi,
-  vaultAddress: string,
-  vaultTokenAddress: string,
-  tokenPrices: IJSON<any>
-) => {
-  const returnAllTimeProfitLossIncludingActiveEpoch = bankrollVaultAbi.find(
-    (abi) => abi.name === "returnAllTimeProfitLossIncludingActiveEpoch"
-  );
-
-  const profitDetails = await api.call({
-    abi: returnAllTimeProfitLossIncludingActiveEpoch,
-    target: vaultAddress,
-  });
-
-  const tokenDetails = TOKEN_DETAILS[vaultTokenAddress.toLowerCase()];
-  const tokenPrice = tokenPrices[`coingecko:${tokenDetails.coingeckoId}`];
-
-  const decimals = tokenDetails.decimals;
-  const amount = Number(ethers.formatUnits(profitDetails[1], decimals));
-  const amountUsd = amount * tokenPrice.price;
-
-  return {
-    revenue: amountUsd,
-    fees: (amountUsd * 60) / 100,
-    holdersRevenue: (amountUsd * 20) / 100,
-  };
-};
-
-const getVaultProfitDaily = async (
-  api: ChainApi,
-  vaultAddress: string,
-  vaultTokenAddress: string,
-  tokenPrices: IJSON<any>,
-  startOfDay: number
-) => {
-  const [currentEpochEndAbi, netProfitOrLossActiveEpoch] = [
-    bankrollVaultAbi.find((abi) => abi.name === "currentEpochEnd"),
-    bankrollVaultAbi.find(
-      (abi) => abi.name === "returnNetProfitOrLossInActiveEpoch"
-    ),
-  ];
-
-  const [epochEndTimestamp, netProfitOrLoss] = await Promise.all([
-    api.call({
-      abi: currentEpochEndAbi,
-      target: vaultAddress,
-    }),
-    api.call({
-      abi: netProfitOrLossActiveEpoch,
-      target: vaultAddress,
-    }),
-  ]);
-
-  const tokenDetails = TOKEN_DETAILS[vaultTokenAddress.toLowerCase()];
-  const tokenPrice = tokenPrices[`coingecko:${tokenDetails.coingeckoId}`];
-
-  const decimals = tokenDetails.decimals;
-  const amount = Number(ethers.formatUnits(netProfitOrLoss[1], decimals));
-  const amountUsd = amount * tokenPrice.price;
-
-  const startOfDayTimestamp = getTimestampAtStartOfDayUTC(startOfDay);
-  const totalTimeOfFinishingEpoch = epochEndTimestamp - startOfDayTimestamp;
-  const totalDaysInEpoch = totalTimeOfFinishingEpoch / 86400;
-
-  return {
-    revenue: amountUsd / totalDaysInEpoch,
-    fees: (amountUsd * 60) / 100 / totalDaysInEpoch,
-    holdersRevenue: (amountUsd * 20) / 100 / totalDaysInEpoch,
-  };
+  return {vaults: vaultDetails.map(i => i.vaultAddress), tokens: vaultDetails.map(i => i.bankrollTokenAddress) };
 };
 
 export default {
   adapter: {
     [CHAIN.WINR]: {
-      fetch: (async ({ api, startOfDay }) => {
-        const startOfDayTimestamp = getTimestampAtStartOfDayUTC(startOfDay);
-        const tokenPrices = await getPrices(
-          Object.values(TOKEN_DETAILS).map((t) => `coingecko:${t.coingeckoId}`),
-          startOfDayTimestamp
-        );
-
-        const vaultAddresses = await getVaultAddresses(api);
-        const allTimeProfits = await Promise.all(
-          vaultAddresses.map((vaultAddress) =>
-            getVaultProfitAllTime(
-              api,
-              vaultAddress.vaultAddress,
-              vaultAddress.vaultTokenAddress,
-              tokenPrices
-            )
-          )
-        );
-
-        const [totalFees, totalRevenue, totalHoldersRevenue] =
-          allTimeProfits.reduce(
-            (acc, curr) => {
-              return [
-                acc[0] + curr.fees,
-                acc[1] + curr.revenue,
-                acc[2] + curr.holdersRevenue,
-              ];
-            },
-            [0, 0, 0]
-          );
-
-        const dailyProfits = await Promise.all(
-          vaultAddresses.map((vaultAddress) =>
-            getVaultProfitDaily(
-              api,
-              vaultAddress.vaultAddress,
-              vaultAddress.vaultTokenAddress,
-              tokenPrices,
-              startOfDay
-            )
-          )
-        );
-
-        const [dailyFees, dailyRevenue, dailyHoldersRevenue] =
-          dailyProfits.reduce(
-            (acc, curr) => {
-              return [
-                acc[0] + curr.fees,
-                acc[1] + curr.revenue,
-                acc[2] + curr.holdersRevenue,
-              ];
-            },
-            [0, 0, 0]
-          );
+      fetch: (async ({ api, fromApi, createBalances, }: FetchOptions) => {
+        const { vaults, tokens } = await getVaultAddresses(api);
+        const yesterdayData = await fromApi.multiCall({  abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
+        const todayData = await api.multiCall({  abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
+        const dailyRevenue = createBalances()
+        const totalRevenue = createBalances()
+        tokens.forEach((token, i) => {
+          if (!todayData[i] || !yesterdayData[i]) return;
+          const vaultProfitToday = Number(todayData[i].amountDelta_) * (todayData[i].isProfit_ ? 1 : -1)
+          const vaultProfitYesterday = Number(yesterdayData[i].amountDelta_) * (yesterdayData[i].isProfit_ ? 1 : -1)
+          dailyRevenue.add(token, vaultProfitToday - vaultProfitYesterday)
+          totalRevenue.add(token, vaultProfitToday)
+        })
 
         return {
-          totalFees,
-          totalRevenue,
-          totalHoldersRevenue,
-          dailyFees,
+          // totalFees: totalRevenue.clone(???),
+          // dailyFees: dailyRevenue.clone(???),
           dailyRevenue,
-          dailyHoldersRevenue,
-        } as FetchResultFees;
-      }) as FetchV2,
+          totalRevenue,
+          dailyHoldersRevenue: dailyRevenue.clone(20/100),
+          totalHoldersRevenue: totalRevenue.clone(20/100),
+        };
+      }),
       start: 1732060800,
     },
   },
