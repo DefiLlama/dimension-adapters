@@ -25,7 +25,6 @@
  *
  * 4. Curator Revenue (Curation Fees) Earned by curators who stake GRT on subgraphs.
  *    - Event: RebateCollected (curationFees)
- *    - Event: Collected (tokens)
  *    - Mapped to: dailySupplySideRevenue
  *
  * 5. Delegator Revenue (Delegation Rewards) Rewards for delegating GRT to indexers.
@@ -115,18 +114,18 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addCGToken("the-graph", BigInt(log.curationTax) / BigInt(1e18));
   });
 
-  // Fetch Curation Earnings from Collected Event
-  const collectedLogs = await options.getLogs({
-    targets: [GRAPH_CONTRACTS.CURATION],
-    eventAbi: `event Collected(
-      bytes32 indexed subgraphDeploymentID,
-      uint256 tokens
-    )`,
-  });
+  // Fetch Curation Earnings from Collected Event, possibly duplicate with RebateCollected event
+  // const collectedLogs = await options.getLogs({
+  //   targets: [GRAPH_CONTRACTS.CURATION],
+  //   eventAbi: `event Collected(
+  //     bytes32 indexed subgraphDeploymentID,
+  //     uint256 tokens
+  //   )`,
+  // });
 
-  collectedLogs.map((log: any) => {
-    dailySupplySideRevenue.addCGToken("the-graph", BigInt(log.tokens) / BigInt(1e18));
-  });
+  // collectedLogs.map((log: any) => {
+  //   dailySupplySideRevenue.addCGToken("the-graph", BigInt(log.tokens) / BigInt(1e18));
+  // });
 
   // console.log(dailyFees, "dailyFees");
   // console.log(dailyRevenue, "dailyRevenue");
@@ -155,7 +154,7 @@ const adapter: Adapter = {
           revenue: "Revenue is calculated from two sources: 1) Protocol tax portion of RebateCollected event, and 2) Curation tax from Signalled event when curators signal subgraphs.",
           protocolRevenue: "Protocol revenue is calculated from two sources: 1) Protocol tax portion of RebateCollected event, and 2) Curation tax from Signalled event when curators signal subgraphs.",
           holdersRevenue: "Holders revenue is calculated from RebateCollected event, combining curation fees and delegation rewards earned by token holders.",
-          supplySideRevenue: "Supply-side revenue is calculated from multiple sources: 1) Query rebates from RebateCollected event, 2) Curation fees from RebateCollected event, 3) Delegation rewards from RebateCollected event, 4) Indexing rewards from RewardsAssigned event, and 5) Curation earnings from Collected event.",
+          supplySideRevenue: "Supply-side revenue is calculated from multiple sources: 1) Query rebates from RebateCollected event, 2) Curation fees from RebateCollected event, 3) Delegation rewards from RebateCollected event, 4) Indexing rewards from RewardsAssigned event.",
         },
       },
     },
