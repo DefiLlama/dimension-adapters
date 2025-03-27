@@ -2,6 +2,8 @@ import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
 
+const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
 const eVaultFactories = {
     [CHAIN.ETHEREUM]: "0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e",
     [CHAIN.SONIC]: "0xF075cC8660B51D0b8a4474e3f47eDAC5fA034cFB",
@@ -15,12 +17,11 @@ const eulerFactoryABI = {
 
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
-    interestAccumulator: "function interestAccumulator() view returns (uint256)",
     accumulatedFees: "function accumulatedFees() view returns (uint256)",
-    totalBorrows: "function totalBorrows() view returns (uint256)",
     convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
     convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
-    vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)"
+    vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)",
+    interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
 }
 
 const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: FetchOptions, {
@@ -33,9 +34,7 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
 
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
-    const vaultLength = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.vaultLength})
-    if(vaultLength === 0) return {}
-    const vaults = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, vaultLength]})
+    const vaults = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX]})
     const underlyings = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.asset})
     underlyings.forEach((underlying, index) => {
         if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
@@ -43,10 +42,15 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
 
     const accumulatedFeesStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
     const accumulatedFeesEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
-    const interestAccumulatorStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.interestAccumulator})
-    const interestAccumulatorEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.interestAccumulator})
-    const totalBorrows = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.totalBorrows})
-    const dailyInterest = totalBorrows.map((borrow, i) => borrow * (interestAccumulatorEnd[i] - interestAccumulatorStart[i]) / interestAccumulatorStart[i])
+    
+    const interestAccrued = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.interestAccumulated, flatten: false})).map((logs) => {
+        if (!logs.length) return 0n;
+        let totalInterest = 0n;
+        for (const log of logs) {
+            totalInterest += BigInt(log.borrowIndex.toString());
+        }
+        return totalInterest;
+    })
 
     const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false})).map((vaultLogs) => {
         if (!vaultLogs.length) return 0n;
@@ -74,7 +78,7 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     });
 
     totalAssets.forEach((assets, i) => {
-        dailyFees.add(underlyings[i], dailyInterest[i])
+        dailyFees.add(underlyings[i], interestAccrued[i])
         dailyRevenue.add(underlyings[i], assets)
     })
     const dailySupplySideRevenue = dailyFees.clone()
@@ -88,7 +92,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-    dailyFees: "Interest that are paid by the borrowers to the vaults",
+    dailyFees: "Interest that is paid by the borrowers to the vaults",
     dailyRevenue: "Protocol & Governor fees share"
 }
 
