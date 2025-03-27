@@ -23,26 +23,18 @@ const ReserveFactorDecimals = BigInt(1e4);
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
 
-async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions): Promise<{
+async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
   dailyRevenue: sdk.Balances,
-}> {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-
+}) {
   // get reserve (token) list which are supported by lthe ending pool
   const reservesList: Array<string> = await options.api.call({ target: pool.lendingPoolProxy, abi: AaveAbis.getReservesList })
 
   // get reserves configs, mainly reserveFactor values
   const reserveConfigs = await options.api.multiCall({
     abi: AaveAbis.getReserveConfiguration,
-    calls: reservesList.map(
-      (reserveAddress: string) => {
-        return {
-          target: pool.dataProvider,
-          params: [reserveAddress],
-        }
-    })
+    target: pool.dataProvider,
+    calls: reservesList,
   })
 
   // map reserve with their reserveFactor rate
@@ -76,7 +68,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions): 
   .flat()
 
   for (const event of events) {
-    const reserveData = await options.api.call({
+    const reserveData = await sdk.api2.abi.call({
       abi: pool.version === 3 ? AaveAbis.getReserveDataV3 : AaveAbis.getReserveDataV2,
       target: pool.dataProvider,
       params: [event.reserve],
@@ -99,13 +91,8 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions): 
     const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
     const revenueAccrued = reserveFactors[event.reserve] * interestAccrued / ReserveFactorDecimals
 
-    dailyFees.add(event.reserve, interestAccrued.toString())
-    dailyRevenue.add(event.reserve, revenueAccrued.toString())
-  }
-
-  return {
-    dailyFees,
-    dailyRevenue,
+    balances.dailyFees.add(event.reserve, interestAccrued.toString())
+    balances.dailyRevenue.add(event.reserve, revenueAccrued.toString())
   }
 }
 
@@ -114,25 +101,21 @@ export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
   Object.entries(config).map(([chain, pools]) => {
     exportObject[chain] = {
       fetch: (async (options: FetchOptions) => {
-        const totalDailyFees = options.createBalances()
-        const totalDailyRevenue = options.createBalances()
-        const totalDailyHoldersRevenue = options.createBalances()
-        const totalDailySupplySideRevenue = options.createBalances()
+        let dailyFees = options.createBalances()
+        let dailyRevenue = options.createBalances()
 
         for (const pool of pools) {
-          const { dailyFees, dailyRevenue } = await getPoolFees(pool, options)
-
-          totalDailyFees.addBalances(dailyFees)
-          totalDailyRevenue.addBalances(dailyRevenue)
-          totalDailySupplySideRevenue.addBalances(dailyFees)
-          totalDailyHoldersRevenue.addBalances(dailyRevenue)
-
-          Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
-            totalDailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
+          await getPoolFees(pool, options, {
+            dailyFees,
+            dailyRevenue,
           })
         }
+
+        const dailyHoldersRevenue = dailyRevenue.clone();
+        const dailySupplySideRevenue = dailyFees.clone();
+        dailySupplySideRevenue.subtract(dailyRevenue);
         
-        return { dailyFees: totalDailyFees, dailyRevenue: totalDailyRevenue, dailyHoldersRevenue: totalDailyHoldersRevenue, dailySupplySideRevenue: totalDailySupplySideRevenue }
+        return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
       }) ,
     }
   })
