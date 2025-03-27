@@ -49,9 +49,8 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
   ])
   const events: Array<ReserveDataUpdatedEvent> = (await options.getLogs({
     target: pool.lendingPoolProxy,
-    flatten: false,
     entireLog: true,
-    topic: '0x804c9b842b2748a22bb64b345453a3de7ca54a6ca45ce00d415894979e22897a',
+    eventAbi: AaveAbis.reserveDataUpdatedEvent
   }))
   .map((log: any) => {
     const decodeLog: any = lendingPoolContract.parseLog(log);
@@ -65,7 +64,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
 
     return event
   })
-  .flat()
+  options.api.log(`[Aave] ${options.chain} Found ${events.length} ReserveDataUpdated events`)
 
   for (const event of events) {
     const reserveData = await sdk.api2.abi.call({
@@ -75,6 +74,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
       skipCache: true,
       permitFailure: false,
       block: event.blockNumber - 1,
+      chain: options.chain,
     })
 
     let liquidityIndex = BigInt(0)

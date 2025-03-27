@@ -297,7 +297,7 @@ export default aaveExport({
   [CHAIN.BASE]: AvalonMarkets[CHAIN.BASE],
   [CHAIN.ARBITRUM]: AvalonMarkets[CHAIN.ARBITRUM],
   [CHAIN.BSC]: AvalonMarkets[CHAIN.BSC],
-  [CHAIN.MERLIN]: AvalonMarkets[CHAIN.MERLIN],
+  // [CHAIN.MERLIN]: AvalonMarkets[CHAIN.MERLIN],
   [CHAIN.BITLAYER]: AvalonMarkets[CHAIN.BITLAYER],
   [CHAIN.BSQUARED]: AvalonMarkets[CHAIN.BSQUARED],
   [CHAIN.MODE]: AvalonMarkets[CHAIN.MODE],
@@ -311,5 +311,5 @@ export default aaveExport({
   [CHAIN.ZETA]: AvalonMarkets[CHAIN.ZETA],
   [CHAIN.CORN]: AvalonMarkets[CHAIN.CORN],
   [CHAIN.DUCKCHAIN]: AvalonMarkets[CHAIN.DUCKCHAIN],
-  [CHAIN.SEI]: AvalonMarkets[CHAIN.SEI],
+  // [CHAIN.SEI]: AvalonMarkets[CHAIN.SEI],
 })
