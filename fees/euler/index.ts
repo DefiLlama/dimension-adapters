@@ -56,7 +56,7 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
         }
         return totalShares;
     });
-
+ 
     //calculate (accumulatedFeesEnd - accumulatedFeesStart) + totalShares from convertFees
     const accumulatedFees = accumulatedFeesEnd.map((fees, i) => {
         const feesEnd = BigInt(fees.toString());
