@@ -51,7 +51,9 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false})).map((vaultLogs) => {
         if (!vaultLogs.length) return 0n;
         let totalShares = 0n;
-        totalShares += (vaultLogs.protocolShares + vaultLogs.governorShares);
+        for (const log of vaultLogs) {
+            totalShares += (log.protocolShares + log.governorShares);
+        }
         return totalShares;
     });
 
@@ -106,13 +108,13 @@ const adapters: Adapter = {
                 methodology
             }
         },
-        // [CHAIN.BASE]: {
-        //     fetch: fetch,
-        //     start: '2024-11-27',
-        //     meta: {
-        //         methodology
-        //     }
-        // }
+        [CHAIN.BASE]: {
+            fetch: fetch,
+            start: '2024-11-27',
+            meta: {
+                methodology
+            }
+        }
     },
     
     version: 2
