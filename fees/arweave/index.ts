@@ -1,10 +1,10 @@
 import type { FetchOptions, } from "../../adapters/types";
-import { Adapter } from "../../adapters/types";
+import { Adapter, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 const axios = require('axios');
 
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dayTimestamp = options.startOfDay * 1000;
 
     const { data } = await axios.get('https://api.viewblock.io/arweave/stats/advanced/charts/txFees?network=mainnet', {
@@ -28,13 +28,19 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.ARWEAVE]: {
             fetch,
-            start: '2018-06-08'
+            start: '2018-06-08',
+            meta: {
+                methodology: {
+                    Fees: 'Fees are collected in AR (Arweave) tokens for each transaction on the Arweave network. The data is fetched from ViewBlock API which aggregates transaction fees from the Arweave blockchain. The fees represent the total amount paid by users for data storage and transfer on the network.'
+                }
+            }
         },
-    }
+    },
+    protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
