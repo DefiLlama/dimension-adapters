@@ -1,5 +1,5 @@
 import type { FetchOptions } from "../adapters/types";
-import { Adapter } from "../adapters/types";
+import { Adapter, ProtocolType } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
@@ -11,7 +11,7 @@ interface ChartData {
 
 const feesAPI = 'https://nearblocks.io/_next/data/nearblocks/en/charts/txn-fee.json';
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startTimestamp) * 1000;
   const startDate = new Date(todaysTimestamp).toISOString();
 
@@ -33,13 +33,17 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.NEAR]: {
       fetch,
-      start: '2020-07-21'
+      start: '2020-07-21',
+      meta: {
+        methodology: "We fetch daily transaction fees from NearBlocks API. The data is aggregated daily and includes all transaction fees paid on the NEAR blockchain."
+      }
     },
   },
+  protocolType: ProtocolType.CHAIN
 };
 
 export default adapter;
