@@ -1,98 +1,199 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
 
-let cachedData: any = null;
-let fetchPromise: Promise<any> | null = null;
+const withdrawABI = "event Withdrawal(address to, bytes32 nullifierHash, address indexed relayer, uint256 fee)";
 
-const fetchFees = async (options: FetchOptions) => {
-    const res = await queryDune("4898710", {
-      start: options.startTimestamp,
-      end: options.endTimestamp,
-    });
-    
+const TORNADO_CONTRACTS = {
+    [CHAIN.ETHEREUM]: {
+        ETH: {
+            pools: [
+                "0x12d66f87a04a9e220743712ce6d9bb1b5616b8fc", // 0.1 ETH
+                "0x47ce0c6ed5b0ce3d3a51fdb1c52dc66a7c3c2936", // 1 ETH
+                "0x910cbd523d972eb0a6f4cae4618ad62622b39dbf", // 10 ETH
+                "0xa160cdab225685da1d56aa342ad8841c3b53f291", // 100 ETH
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native ETH
+        },
+        DAI: {
+            pools: [
+                "0xd4b88df4d29f5cedd6857912842cff3b20c8cfa3", // 100 DAI
+                "0xfd8610d20aa15b7b2e3be39b396a1bc3516c7144", // 1,000 DAI
+                "0x07687e702b410fa43f4cb4af7fa097918ffd2730", // 10,000 DAI
+                "0x23773E65ed146A459791799d01336DB287f25334", // 100,000 DAI
+            ],
+            token: "0x6b175474e89094c44da98b954eedeac495271d0f"
+        },
+        cDAI: {
+            pools: [
+                "0x22aaA7720ddd5388A3c0A3333430953C68f1849b", // 5,000 cDAI
+                "0x03893a7c7463AE47D46bc7f091665f1893656003", // 50,000 cDAI
+                "0x2717c5e28cf931547B621a5dddb772Ab6A35B701", // 500,000 cDAI
+                "0xD21be7248e0197Ee08E0c20D4a96DEBdaC3D20Af", // 5,000,000 cDAI
+            ],
+            token: "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"
+        },
+        USDC: {
+            pools: [
+                "0x4736dCf1b7A3d580672CcE6E7c65cd5cc9cFBa9D", // 100 USDC
+                "0xd96f2B1c14Db8458374d9Aca76E26c3D18364307", // 1,000 USDC
+            ],
+            token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        },
+        USDT: {
+            pools: [
+                "0x169AD27A470D064DEDE56a2D3ff727986b15D52B", // 100 USDT
+                "0x0836222F2B2B24A3F36f98668Ed8F0B38D1a872f", // 1,000 USDT
+            ],
+            token: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+        },
+        WBTC: {
+            pools: [
+                "0x178169B423a011fff22B9e3F3abeA13414dDD0F1", // 0.1 WBTC
+                "0x610B717796ad172B316836AC95a2ffad065CeaB4", // 1 WBTC
+                "0xbB93e510BbCD0B7beb5A853875f9eC60275CF498", // 10 WBTC
+            ],
+            token: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+        }
+    },
+    [CHAIN.ARBITRUM]: {
+        ETH: {
+            pools: [
+                "0x84443CFd09A48AF6eF360C6976C5392aC5023a1F", // 0.1 ETH
+                "0xd47438C816c9E7f2E2888E060936a499Af9582b3", // 1 ETH
+                "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 ETH
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 ETH
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native ETH
+        }
+    },
+    [CHAIN.OPTIMISM]: {
+        ETH: {
+            pools: [
+                "0x84443CFd09A48AF6eF360C6976C5392aC5023a1F", // 0.1 ETH
+                "0xd47438C816c9E7f2E2888E060936a499Af9582b3", // 1 ETH
+                "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 ETH
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 ETH
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native ETH
+        }
+    },
+    [CHAIN.BSC]: {
+        BNB: {
+            pools: [
+                "0x84443CFd09A48AF6eF360C6976C5392aC5023a1F", // 0.1 BNB
+                "0xd47438C816c9E7f2E2888E060936a499Af9582b3", // 1 BNB
+                "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 BNB
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 BNB
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native BNB
+        }
+    },
+    [CHAIN.XDAI]: {
+        XDAI: {
+            pools: [
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 xDAI
+                "0xdf231d99Ff8b6c6CBF4E9B9a945CBAcEF9339178", // 1,000 xDAI
+                "0xaf4c0B70B2Ea9FB7487C7CbB37aDa259579fe040", // 10,000 xDAI
+                "0xa5C2254e4253490C54cef0a4347fddb8f75A4998", // 100,000 xDAI
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native xDAI
+        }
+    },
+    [CHAIN.POLYGON]: {
+        POLYGON: {
+            pools: [
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 MATIC
+                "0xdf231d99Ff8b6c6CBF4E9B9a945CBAcEF9339178", // 1,000 MATIC
+                "0xaf4c0B70B2Ea9FB7487C7CbB37aDa259579fe040", // 10,000 MATIC
+                "0xa5C2254e4253490C54cef0a4347fddb8f75A4998", // 100,000 MATIC
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native MATIC
+        }
+    },
+    [CHAIN.AVAX]: {
+        AVAX: {
+            pools: [
+                "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 AVAX
+                "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 AVAX
+                "0xaf8d1839c3c67cf571aa74B5c12398d4901147B3", // 500 AVAX
+            ],
+            token: "0x0000000000000000000000000000000000000000" // Native AVAX
+        }
+    }
+};
 
-    return {
-        data: res || []
-    };
+interface TornadoPoolData {
+    pools: string[];
+    token: string;
 }
 
-const getFees = async (options: FetchOptions) => {
-    if (cachedData) {
-        return cachedData;
-    }
-    if (!fetchPromise) {
-        fetchPromise = fetchFees(options).then(data => {
-            cachedData = data;
-            fetchPromise = null;
-            return data;
-        }).catch(err => {
-            fetchPromise = null; // in case of error
-            throw err;
+const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
+    const fees: { [token: string]: number } = {};
+
+    for (const [token, data] of Object.entries(TORNADO_CONTRACTS[chain]) as [string, TornadoPoolData][]) {
+        const feesPaid = await getLogs({
+            targets: data.pools,
+            eventAbi: withdrawABI,
         });
+        fees[data.token] = feesPaid.reduce((sum, log) => sum + Number(log.fee), 0);
     }
-    return fetchPromise;
+
+    const dailyFees = createBalances();
+    for (const [token, fee] of Object.entries(fees)) {
+        dailyFees.add(token, fee);
+    }
+    
+    return {dailyFees};
 }
 
-const fetch = async (options: FetchOptions) => {
-    const dailyFees = await getFees(options);
-    const fee = options.createBalances();
-    switch (options.chain) {
-        case CHAIN.ETHEREUM:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'eth')?.total_fee);
-            fee.add('0x39aa39c021dfbae8fac545936693ac917d5e7563', dailyFees.data.find((d: any) => d.currency === '0x39aa39c021dfbae8fac545936693ac917d5e7563')?.total_fee);
-            fee.add('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', dailyFees.data.find((d: any) => d.currency === '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599')?.total_fee);
-            fee.add('0x5d3a536e4d6dbd6114cc1ead35777bab948e3643', dailyFees.data.find((d: any) => d.currency === '0x5d3a536e4d6dbd6114cc1ead35777bab948e3643')?.total_fee);
-            fee.add('0xdac17f958d2ee523a2206206994597c13d831ec7', dailyFees.data.find((d: any) => d.currency === '0xdac17f958d2ee523a2206206994597c13d831ec7')?.total_fee);
-            fee.add('0x6b175474e89094c44da98b954eedeac495271d0f', dailyFees.data.find((d: any) => d.currency === '0x6b175474e89094c44da98b954eedeac495271d0f')?.total_fee);
-            break;
-        case CHAIN.BSC:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'bnb')?.total_fee);
-            break;
-        case CHAIN.AVAX:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'avalanche_avax')?.total_fee);
-            break;
-        case CHAIN.OPTIMISM:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'optimism_eth')?.total_fee);
-            break;
-        case CHAIN.ARBITRUM:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'arbitrum_eth')?.total_fee);
-            break;
-        case CHAIN.POLYGON:
-            fee.add('0x0000000000000000000000000000000000000000', dailyFees.data.find((d: any) => d.currency === 'polygon_matic')?.total_fee);
-            break;
-        case CHAIN.XDAI:
-            fee.add('0x0000000000000000000000000000000000000000',  dailyFees.data.find((d: any) => d.currency === 'gnosis')?.total_fee);
-        default:
-            break;
-    }
-
-    return { dailyFees: fee };
+const methodology = {
+    dailyFees: "All fees that are paid by users"
 }
 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.BSC]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.AVAX]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.OPTIMISM]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.ARBITRUM]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.POLYGON]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         },
         [CHAIN.XDAI]: {
-            fetch: fetch,
+            fetch: getFees,
+            meta: {
+                methodology
+            }
         }
     },
     isExpensiveAdapter: true
