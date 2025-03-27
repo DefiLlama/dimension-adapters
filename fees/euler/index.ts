@@ -1,5 +1,4 @@
-import { Interface } from "ethers";
-import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
 
@@ -48,27 +47,10 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     const totalBorrows = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.totalBorrows})
     const dailyInterest = totalBorrows.map((borrow, i) => borrow * (interestAccumulatorEnd[i] - interestAccumulatorStart[i]) / interestAccumulatorStart[i])
 
-    const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten:false, entireLog: true}))
-    const iface = new Interface([eulerVaultABI.convertFees]);
-
-    const processedLogs = logs.map((vaultLogs, index) => {
+    const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false})).map((vaultLogs) => {
         if (!vaultLogs.length) return 0n;
-        const vaultAddress = vaults[index].toLowerCase();
         let totalShares = 0n;
-        for (const log of vaultLogs) {
-            try {
-                const parsedLog = iface.parseLog({
-                    topics: log.topics,
-                    data: log.data
-                });
-                if (!parsedLog || log.address.toLowerCase() !== vaultAddress) continue;
-                // add protocol and governor shares - accumulates for all events from this vault
-                totalShares += (parsedLog.args.protocolShares + parsedLog.args.governorShares);
-            } catch (error) {
-                continue;
-            }
-        }
-        
+        totalShares += (vaultLogs.protocolShares + vaultLogs.governorShares);
         return totalShares;
     });
 
@@ -76,10 +58,10 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     const accumulatedFees = accumulatedFeesEnd.map((fees, i) => {
         const feesEnd = BigInt(fees.toString());
         const feesStart = BigInt(accumulatedFeesStart[i].toString());
-        return feesEnd - feesStart + processedLogs[i];
+        return feesEnd - feesStart + logs[i];
     });
 
-    //we then  convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
+    //we then convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
     const totalAssets = await toApi.multiCall({
         calls: accumulatedFees.map((fees, i) => ({
             target: vaults[i],
@@ -92,8 +74,10 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
         dailyFees.add(underlyings[i], dailyInterest[i])
         dailyRevenue.add(underlyings[i], assets)
     })
+    const dailySupplySideRevenue = dailyFees.clone()
+    dailySupplySideRevenue.subtract(dailyRevenue)
 
-    return {dailyFees,dailyRevenue}
+    return {dailyFees,dailyRevenue, dailySupplySideRevenue}
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -121,13 +105,13 @@ const adapters: Adapter = {
                 methodology
             }
         },
-        [CHAIN.BASE]: {
-            fetch: fetch,
-            start: '2024-11-27',
-            meta: {
-                methodology
-            }
-        }
+        // [CHAIN.BASE]: {
+        //     fetch: fetch,
+        //     start: '2024-11-27',
+        //     meta: {
+        //         methodology
+        //     }
+        // }
     },
     
     version: 2
