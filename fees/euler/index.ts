@@ -1,3 +1,4 @@
+import { Interface } from "ethers";
 import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
@@ -16,7 +17,7 @@ const eulerFactoryABI = {
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
     interestAccumulator: "function interestAccumulator() view returns (uint256)",
-    accumulatedFeesAssets: "function accumulatedFeesAssets() view returns (uint256)",
+    accumulatedFees: "function accumulatedFees() view returns (uint256)",
     totalBorrows: "function totalBorrows() view returns (uint256)",
     convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
     convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
@@ -33,76 +34,102 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
 
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
-    const vaultLength = await api.call({target: eVaultFactories[chain], abi: eulerFactoryABI.vaultLength})
-    const vaults = await api.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, vaultLength]})
-    const underlyings = await api.multiCall({calls: vaults.map(vault=>({target: vault})), abi: eulerVaultABI.asset})
+    const vaultLength = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.vaultLength})
+    const vaults = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, vaultLength]})
+    const underlyings = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.asset})
     underlyings.forEach((underlying, index) => {
         if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
     })    
-    
-    const vaultWithUnderlyings = vaults.map((vault, index) => ({vault, underlying: underlyings[index]}))
-    await Promise.all(vaultWithUnderlyings.map(async ({ vault, underlying }) => {
-        const accumulatedFeesStart = await fromApi.call({target: vault, abi: eulerVaultABI.accumulatedFeesAssets, permitFailure: true})
-        const accumulatedFeesEnd = await toApi.call({target: vault, abi: eulerVaultABI.accumulatedFeesAssets, permitFailure: true})
+
+    const accumulatedFeesStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
+    const accumulatedFeesEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
+    const interestAccumulatorStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.interestAccumulator})
+    const interestAccumulatorEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.interestAccumulator})
+    const totalBorrows = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.totalBorrows})
+    const dailyInterest = totalBorrows.map((borrow, i) => borrow * (interestAccumulatorEnd[i] - interestAccumulatorStart[i]) / interestAccumulatorStart[i])
+
+    const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten:false, entireLog: true}))
+    const iface = new Interface([eulerVaultABI.convertFees]);
+
+    const processedLogs = logs.map((vaultLogs, index) => {
+        if (!vaultLogs.length) return 0n;
+        const vaultAddress = vaults[index].toLowerCase();
+        let totalShares = 0n;
+        for (const log of vaultLogs) {
+            try {
+                const parsedLog = iface.parseLog({
+                    topics: log.topics,
+                    data: log.data
+                });
+                if (!parsedLog || log.address.toLowerCase() !== vaultAddress) continue;
+                // add protocol and governor shares - accumulates for all events from this vault
+                totalShares += (parsedLog.args.protocolShares + parsedLog.args.governorShares);
+            } catch (error) {
+                continue;
+            }
+        }
         
-        const interestAccumulatorStart = await fromApi.call({target: vault, abi: eulerVaultABI.interestAccumulator, permitFailure: true})
-        const interestAccumulatorEnd = await toApi.call({target: vault, abi: eulerVaultABI.interestAccumulator, permitFailure: true})
-        const totalBorrow = await fromApi.call({target: vault, abi: eulerVaultABI.totalBorrows, permitFailure: true})
+        return totalShares;
+    });
 
-        const dailyInterest = totalBorrow * (interestAccumulatorEnd - interestAccumulatorStart) / interestAccumulatorStart
+    //calculate (accumulatedFeesEnd - accumulatedFeesStart) + totalShares from convertFees
+    const accumulatedFees = accumulatedFeesEnd.map((fees, i) => {
+        const feesEnd = BigInt(fees.toString());
+        const feesStart = BigInt(accumulatedFeesStart[i].toString());
+        return feesEnd - feesStart + processedLogs[i];
+    });
 
-        const logsVaultStatus = await getLogs({
-            target: vault, 
-            eventAbi: eulerVaultABI.vaultStatus, 
-        });
+    //we then  convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
+    const totalAssets = await toApi.multiCall({
+        calls: accumulatedFees.map((fees, i) => ({
+            target: vaults[i],
+            params: [fees.toString()]
+        })),
+        abi: eulerVaultABI.convertToAssets,
+    });
 
-        logsVaultStatus.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+    totalAssets.forEach((assets, i) => {
+        dailyFees.add(underlyings[i], dailyInterest[i])
+        dailyRevenue.add(underlyings[i], assets)
+    })
 
-        // we listen for the convert fees event otherwise if convert fees happened accumulatedfees will be 0 and mess every thing up Daily Revenue = accumulatedFees + sum(converted_fees)
-        const logs = await getLogs({target: vault, eventAbi: eulerVaultABI.convertFees})
-        const convertShares = await Promise.all(logs.map(async (log: any) => {
-            const shares = log.protocolShares + log.governorShares;
-            const assets = await api.call({
-            target: vault,
-            abi: eulerVaultABI.convertToAssets,
-            params: [shares],
-            permitFailure: false,
-            });
-            return Number(assets);
-        }));
-        const totalConvertedAmount = convertShares.reduce((sum, amount) => sum + amount, 0);
-       
-        const accumulatedFees = (accumulatedFeesEnd - accumulatedFeesStart) + totalConvertedAmount
-  
-        dailyFees.add(underlying, dailyInterest)
-        dailyRevenue.add(underlying, accumulatedFees)
-    }))
-   
-    return {
-        dailyFees,
-        dailyRevenue
-    }
+    return {dailyFees,dailyRevenue}
 }
 
 const fetch = async (options: FetchOptions) => {
     return await getVaults(options, {})
 }
 
+const methodology = {
+    dailyFees: "Interest that are paid by the borrowers to the vaults",
+    dailyRevenue: "Protocol & Governor fees share"
+}
+
 const adapters: Adapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
-            start: '2024-08-14'
+            start: '2024-08-18',
+            meta: {
+                methodology
+            }
         },
         [CHAIN.SONIC]: {
             fetch: fetch,
-            start: '2025-01-25'
+            start: '2025-01-31',
+            meta: {
+                methodology
+            }
         },
         [CHAIN.BASE]: {
             fetch: fetch,
-            start: '2024-11-11'
+            start: '2024-11-27',
+            meta: {
+                methodology
+            }
         }
     },
+    
     version: 2
 }
 
