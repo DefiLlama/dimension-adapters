@@ -34,6 +34,7 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
     const vaultLength = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.vaultLength})
+    if(vaultLength === 0) return {}
     const vaults = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, vaultLength]})
     const underlyings = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.asset})
     underlyings.forEach((underlying, index) => {
