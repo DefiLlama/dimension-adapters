@@ -34,23 +34,23 @@ export default {
         const { vaults, tokens } = await getVaultAddresses(api);
         const yesterdayData = await fromApi.multiCall({  abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
         const todayData = await api.multiCall({  abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
-        const dailyRevenue = createBalances()
-        const totalRevenue = createBalances()
+        const dailyFees = createBalances()
+        const totalFees = createBalances()
         tokens.forEach((token, i) => {
           if (!todayData[i] || !yesterdayData[i]) return;
           const vaultProfitToday = Number(todayData[i].amountDelta_) * (todayData[i].isProfit_ ? 1 : -1)
           const vaultProfitYesterday = Number(yesterdayData[i].amountDelta_) * (yesterdayData[i].isProfit_ ? 1 : -1)
-          dailyRevenue.add(token, vaultProfitToday - vaultProfitYesterday)
-          totalRevenue.add(token, vaultProfitToday)
+          dailyFees.add(token, vaultProfitToday - vaultProfitYesterday)
+          totalFees.add(token, vaultProfitToday)
         })
 
         return {
-          // totalFees: totalRevenue.clone(???),
-          // dailyFees: dailyRevenue.clone(???),
-          dailyRevenue,
-          totalRevenue,
-          dailyHoldersRevenue: dailyRevenue.clone(20/100),
-          totalHoldersRevenue: totalRevenue.clone(20/100),
+          dailyFees,
+          totalFees,
+          dailyRevenue: dailyFees.clone(60/100),
+          totalRevenue: totalFees.clone(60/100),
+          dailyHoldersRevenue: dailyFees.clone(20/100),
+          totalHoldersRevenue: totalFees.clone(20/100),
         };
       }),
       start: 1732060800,
