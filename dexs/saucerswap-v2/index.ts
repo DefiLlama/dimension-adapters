@@ -7,9 +7,8 @@ const methodology = {
 }
 
 const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
+  let dailyVolume = 0
+  let dailyFees = 0
 
   // get know pools list
   const pools: Array<any> = (await httpGet('https://server.saucerswap.finance/api/public/v2/pools', {
@@ -29,19 +28,18 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, start
     const _dailyVolume = poolStats
       .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)
     
+      const volume = Number(_dailyVolume ? _dailyVolume.volumeUsd : 0)
+
     // https://docs.saucerswap.finance/protocol/saucerswap-v2
     // v2 fees goes to LP
-    const dailyVolumeUsd = Number(_dailyVolume ? _dailyVolume.volumeUsd : 0)
-    const dailyFeesUsd = dailyVolumeUsd * Number(pool.fee) / 1000000
-
-    dailyVolume.addUSDValue(dailyVolumeUsd)
-    dailyFees.addUSDValue(dailyFeesUsd)
+    dailyVolume += volume
+    dailyFees += volume * Number(pool.fee) / 1000000
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: 0,
     timestamp: startOfDay,
   };
 };
