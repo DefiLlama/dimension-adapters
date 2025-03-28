@@ -25,7 +25,7 @@ export const chainConfigMap: any = {
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
   // [CHAIN.Z]: { explorer: 'https://zyxscan.com', CGToken: ''},
   [CHAIN.VELAS]: { explorer: 'https://evmexplorer.velas.com', CGToken: 'velas' },
-  [CHAIN.NULS]: { explorer: 'https://chains.blockscout.com/evmscan.nuls.io', CGToken: 'nuls' },
+  [CHAIN.NULS]: { explorer: 'https://evmscan.nuls.io', CGToken: 'nuls' },
   [CHAIN.FUSE]: { explorer: 'https://explorer.fuse.io', CGToken: 'fuse-network-token', allStatsApi: 'https://stats-fuse-mainnet.k8s-prod-1.blockscout.com' },
   [CHAIN.POLYGON]: { explorer: 'https://polygon.blockscout.com', CGToken: 'matic-network', allStatsApi: 'https://stats-polygon-mainnet.k8s-prod-3.blockscout.com' },
   // [CHAIN.MANTA]: { explorer: 'https://pacific-explorer.manta.network', CGToken: 'ethereum' },
@@ -72,11 +72,15 @@ function getTimeString(timestamp: number) {
   return new Date(timestamp * 1000).toISOString().slice(0, '2011-10-05'.length)
 }
 
+async function sleep(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time))
+}
+
 export function blockscoutFeeAdapter2(chain: string) {
   let config = chainConfigMap[chain]
   if (!config) throw new Error(`No blockscout config for chain ${chain}`)
   let { url, CGToken, explorer, start, allStatsApi } = config
-  if (explorer && explorer.endsWith('')) explorer = explorer.slice(0, -1)
+  if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
   const adapter: Adapter = {
     version: 1,
@@ -84,6 +88,7 @@ export function blockscoutFeeAdapter2(chain: string) {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
 
+          await sleep(3000)
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
           let todayPrice = undefined
@@ -117,7 +122,7 @@ export function blockscoutFeeAdapter2(chain: string) {
               // console.log(bulkStoreCGData[CGToken], gasData[chain])
             }
 
-            todayData = gasData[chain][dateString]
+            todayData = gasData[chain]?.[dateString]
             todayPrice = bulkStoreCGData[CGToken][dateString]
             if (todayData === undefined) {
               const fees = await httpGet(`${url}&date=${dateString}`)
