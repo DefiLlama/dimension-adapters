@@ -4,10 +4,11 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 
 const USDC = ADDRESSES.base.USDC;
 
-const cheddaPools = [
-  "0xE5c35103D75a72035B7B21Bb8e3Fd1e06920e5b0",
-  "0x7677DcdaCE362b4185dB2eE47472108156397936",
-];
+const registry = "0xFF11a76cB422642525B751972151841673CB0C57";
+
+const poolAbi = {
+  activePools: "function activePools() view returns (address[])",
+};
 
 const interestAccruedABI =
   "event InterestAccrued(address indexed caller, uint256 interest, uint256 totalDebt, uint256 totalAssets)";
@@ -46,6 +47,11 @@ const getAndSumFees = async (
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const targets = await options.api.call({
+    target: registry,
+    abi: poolAbi.activePools,
+  });
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
@@ -53,11 +59,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const reserveFactors = await options.api.multiCall({
     abi: reserveFactorABI,
-    calls: cheddaPools,
+    calls: targets,
   });
 
-  for (let i = 0; i < cheddaPools.length; i++) {
-    const poolAddress = cheddaPools[i];
+  for (let i = 0; i < targets.length; i++) {
+    const poolAddress = targets[i];
     const reserveFactor = BigInt(reserveFactors[i]);
 
     const fees = await getAndSumFees(options, [poolAddress]);
@@ -66,7 +72,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     totalRevenue += revenue;
   }
 
-  const cheddaFees = await getAndSumFees(options, cheddaPools);
+  const cheddaFees = await getAndSumFees(options, targets);
 
   dailyFees.add(USDC, cheddaFees);
   dailyRevenue.add(USDC, totalRevenue);
