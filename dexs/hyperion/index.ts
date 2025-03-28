@@ -14,7 +14,7 @@ interface VolumeFeeStat {
   };
 }
 
-const BASE_URL = "https://api.hyperfluid.xyz/v1/graphql";
+const BASE_URL = "https://api.hyperion.xyz/v1/graphql";
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));

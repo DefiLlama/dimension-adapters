@@ -16,8 +16,8 @@ type TEndpoint = {
 }
 const endpointsV2: TEndpoint = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6KD9JYCg2qa3TxNK3tLdhj5zuZTABoLLNcnUZXKG9vuH'),
-  [CHAIN.ARBITRUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/arbitrum?startTime=1672012800&aggregateBy=daily",
-  [CHAIN.BSC]: "https://barn.traderjoexyz.com/v1/dex/analytics/binance?startTime=1677801600&aggregateBy=daily",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9RoEdAwZiP651miLbKLYQczjckg7HxmyoKXWYXBDYsJc'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('9ANwfoCsnDa2fREYqEpGxWcTQHsmBDeTkdSDXGYAspN7'),
   [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
@@ -88,17 +88,17 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.AVAX]: {
-        fetch: fetchV2,
+        fetch: graphsV2(CHAIN.AVAX),
         start: '2022-11-16'
       },
       [CHAIN.ARBITRUM]: {
-        fetch: fetchV2,
+        fetch: graphsV2(CHAIN.ARBITRUM),
         start: '2022-12-26'
       },
-      // [CHAIN.BSC]: {
-      //   fetch: fetchV2,
-      //   start: '2023-03-03'
-      // },
+      [CHAIN.BSC]: {
+        fetch: graphsV2(CHAIN.BSC),
+        start: '2023-03-03'
+      },
       // [CHAIN.ETHEREUM]: {
       //   fetch: fetchV2,
       //   start: '2023-09-24'
