@@ -19,6 +19,7 @@ const fetchSteammStats = async ({ startTimestamp, endTimestamp, createBalances }
 
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
