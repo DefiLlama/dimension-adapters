@@ -15,15 +15,21 @@ const fetchFees = async (options: FetchOptions) => {
     dailyFees.add(log.token, log.amount);
   });
 
-  // Protocol Fees
-  const protocolFeeLogs = await options.getLogs({
-    target: "0xb71b3DaEA39012Fb0f2B14D2a9C86da9292fC126",
-    eventAbi:
-      "event ProtocolFees(address indexed _token, uint256 _amt, uint256 _voterAmt)",
+  // Borrowing Fee
+
+  const borrowingFeePaid = await options.getLogs({
+    target: "0xdb32ca8f3bb099a76d4ec713a2c2aacb3d8e84b9",
+    eventAbi: `event BorrowingFeePaid(address indexed name, address indexed borrower, uint256 amount)`,
   });
 
-  protocolFeeLogs.forEach((log: any) => {
-    dailyFees.add(log._token, log._amt);
+  const debtTokens = await options.api.multiCall({
+    abi: "address:debtToken",
+    calls: borrowingFeePaid.map((log: any) => ({ target: log.name })),
+  });
+
+  borrowingFeePaid.forEach((log: any, i: number) => {
+    const token = debtTokens[i];
+    dailyFees.add(token, log.amount);
   });
 
   return { dailyFees };
