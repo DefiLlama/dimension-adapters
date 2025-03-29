@@ -33,7 +33,7 @@ async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalan
 
   return { 
     dailyFees, 
-    dailyRevenue: dailyFees, 
+    dailyRevenue: dailyProtocolRevenue, 
     dailyProtocolRevenue, 
     dailySupplySideRevenue 
   }
@@ -48,10 +48,10 @@ const adapter: Adapter = {
       runAtCurrTime: true,
       meta: {
         methodology: {
-          dailyFees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
-          dailyRevenue: "Revenue is considered to be the same as daily fees, as all collected fees are treated as revenue.",
-          dailyProtocolRevenue: "Half of the total fees, representing the portion retained by the protocol.",
-          dailySupplySideRevenue: "Half of the total fees, representing the portion going to liquidity providers.",
+          Fees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
+          Revenue: "Half of the total fees, representing the portion retained by the protocol.",
+          ProtocolRevenue: "Half of the total fees, representing the portion retained by the protocol.",
+          SupplySideRevenue: "Half of the total fees, representing the portion going to liquidity providers.",
         },
       },
     },
