@@ -10,23 +10,41 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const feesEndpoint = (endTimestamp: number, timeframe: string) =>
+const feesEndpoint = (
+  endTimestamp: number,
+  timeframe: string,
+  network: string
+) =>
   endTimestamp
-    ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
-    : feesQueryURL + timeframe;
+    ? feesQueryURL +
+      timeframe +
+      `&endTimestamp=${endTimestamp}&network=${network}`
+    : feesQueryURL + timeframe + `&network=${network}`;
 
-const fetch = async (timestamp: number) => {
-  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
-  const dailyFees = dayFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+const fetch = async (timestamp: number, network: string) => {
+  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D", network)))
+    ?.data;
+  let dailyFees = 0;
+  if (!dayFeesQuery) {
+    dailyFees = 0;
+  } else {
+    dailyFees = dayFeesQuery.reduce(
+      (partialSum: number, a: IVolumeall) => partialSum + a.value,
+      0
+    );
+  }
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
-  const totalFees = totalFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
+  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL", network)))
+    ?.data;
+  let totalFees = 0;
+  if (!totalFeesQuery) {
+    totalFees = 0;
+  } else {
+    totalFees = totalFeesQuery.reduce(
+      (partialSum: number, a: IVolumeall) => partialSum + a.value,
+      0
+    );
+  }
 
   return {
     totalFees: `${totalFees}`,
@@ -38,8 +56,12 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
-      fetch,
-      start: '2023-04-03',
+      fetch: (timestamp: number) => fetch(timestamp, "aptos_mainnet"),
+      start: "2023-04-03",
+    },
+    [CHAIN.MOVE]: {
+      fetch: (timestamp: number) => fetch(timestamp, "movement_mainnet"),
+      start: "2025-03-09",
     },
   },
 };
