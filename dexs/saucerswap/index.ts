@@ -13,14 +13,14 @@ interface IVolumeItem {
   value: string;
 }
 
-const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) => {
   const TwoDays = 2 * 24 * 3600
   const historicalVolume: IVolumeItem[] = (await httpGet(historicalVolumeEndpoint(startOfDay - TwoDays, startOfDay + TwoDays), { headers: {
     'origin': 'https://www.saucerswap.finance',
   }}));
 
   const _dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)?.value
+    .find((dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay)?.value
 
   const dailyVolume = Number(_dailyVolume ? _dailyVolume : 0)
 

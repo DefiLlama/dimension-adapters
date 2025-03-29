@@ -6,7 +6,7 @@ const methodology = {
   Fees: "Swap fees paid by users.",
 }
 
-const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) => {
   let dailyVolume = 0
   let dailyFees = 0
 
@@ -26,7 +26,7 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, start
       }
     }))
     const _dailyVolume = poolStats
-      .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)
+      .find((dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay)
     
       const volume = Number(_dailyVolume ? _dailyVolume.volumeUsd : 0)
 
