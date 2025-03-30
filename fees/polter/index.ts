@@ -138,7 +138,7 @@ const fetch: FetchV2 = async ({
           skip: ${skip}
           where: { blockTimestamp_lte: ${endTimestamp}, blockTimestamp_gte: ${startTimestamp} },
           orderBy: blockTimestamp
-          order: ASC
+          orderDirection: asc
         ) {
           id
           reward
