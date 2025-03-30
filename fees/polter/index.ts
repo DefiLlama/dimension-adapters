@@ -18,7 +18,7 @@ const endpoints: any = {
 	[CHAIN.SONIC]:
 		"https://api.studio.thegraph.com/query/71811/polter-sonic/version/latest",
 	[CHAIN.FANTOM]:
-		"https://api.studio.thegraph.com/query/71811/polter/version/latest",
+		"https://api.studio.thegraph.com/query/71811/polter-ftm/version/latest",
 	[CHAIN.BASE]:
 		"https://api.studio.thegraph.com/query/71811/polter-base/version/latest",
 };
