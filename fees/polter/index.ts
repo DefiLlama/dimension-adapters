@@ -25,7 +25,7 @@ const endpoints: any = {
 
 const tokens: any = {
 	sonic: {
-		"0x44BD4F79A95cF04505F2dc5C8e2e4043f67C7B07": {
+		"0x44bd4f79a95cf04505f2dc5c8e2e4043f67c7b07": {
 			gecko: "polter-finance",
 			decimals: 18,
 		},
