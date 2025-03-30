@@ -28,10 +28,16 @@ type DepositSummary = {
   deposit_ratio: number;
 };
 
+type ChainVolume = {
+  chain_name: string;
+  volume: number;
+}
+
 interface Response {
   future_contracts: FutureContracts[];
   timestamp: string;
   deposit_summary?: DepositSummary[];
+  chain_volumes: ChainVolume[]
 }
 
 const fetch: Fetch = async (timestamp: number, chainBlocks, options) => {
@@ -39,19 +45,13 @@ const fetch: Fetch = async (timestamp: number, chainBlocks, options) => {
     "https://data-api.hibachi.xyz/exchange/stats/volumes"
   );
 
-  const deposit_ratio =
-    response.deposit_summary?.find(
+  const chain_volume =
+    response.chain_volumes?.find(
       (d) => d.chain_name.toLowerCase() === options.chain.toLowerCase()
-    )?.deposit_ratio ?? 0;
-
-  const dailyVolume = response.future_contracts.reduce((acc, item) => {
-    return acc + Number(item.volume24h ?? 0);
-  }, 0);
-
-  const adjusted_daily_volume = dailyVolume * deposit_ratio;
+    )?.volume ?? 0;
 
   const output = {
-    dailyVolume: adjusted_daily_volume?.toString(),
+    dailyVolume: chain_volume.toString(),
     timestamp: new Date(response.timestamp).getTime() / 1000,
   };
 
