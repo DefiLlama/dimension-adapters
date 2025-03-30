@@ -29,19 +29,19 @@ const tokens: any = {
 			gecko: "polter-finance",
 			decimals: 18,
 		},
-		"0x81faE0eF10f391450F9b59E21c8115485B9F73CF": {
+		"0x81fae0ef10f391450f9b59e21c8115485b9f73cf": {
 			gecko: "sonic-3",
 			decimals: 18,
 		},
-		"0x07FE600220712d758F785F40474EcBEB81943Cd6": {
+		"0x07fe600220712d758f785f40474ecbeb81943cd6": {
 			gecko: "ethereum",
 			decimals: 18,
 		},
-		"0x3e43aa6281C8341B06F502c4f204D3242f67599F": {
+		"0x3e43aa6281c8341b06f502c4f204d3242f67599f": {
 			gecko: "sonic-bridged-usdc-e-sonic",
 			decimals: 6,
 		},
-		"0x4227C901cA6Af2afB772dB7E93BB9Ab25dD8AdC5": {
+		"0x4227c901ca6af2afb772db7e93bb9ab25dd8adc5": {
 			gecko: "tether",
 			decimals: 6,
 		},
