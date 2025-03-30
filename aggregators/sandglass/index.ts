@@ -1,7 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const historicalVolumeEndpoint = "https://api.sandglass.so/dashboard/volumes";
 
@@ -19,8 +19,8 @@ const convertVolume = (volumeData: any[]): IVolumeall[] => {
   });
 };
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
   const historicalVolume: IVolumeall[] = convertVolume(
     await fetchURL(historicalVolumeEndpoint)
   );
