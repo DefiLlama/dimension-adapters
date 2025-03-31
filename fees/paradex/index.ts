@@ -15,12 +15,13 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   // Fetch fees data
   const feesData = await fetchURL(feesEndpoint) as IFeesData
   const timestampStr = new Date(timestamp * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  const dailyFees = feesData.data.rows.find(row => row[0] === timestampStr)?.[1] || 0
+  const dailyFees = feesData.data.rows.find(row => row[0] === timestampStr)?.[1]
+  if (!dailyFees) throw new Error('record missing!')
 
   return { 
     timestamp, 
-    dailyFees: dailyFees ? `${dailyFees}` : 0,
-    dailyUserFees: dailyFees ? `${dailyFees}` : 0
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees
   };
 };
 
@@ -30,7 +31,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-09-01',
-      runAtCurrTime: true
     },
   },
 };
