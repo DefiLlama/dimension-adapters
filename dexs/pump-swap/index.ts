@@ -1,43 +1,42 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
+import { FetchOptions } from "../../adapters/types";
 
-const queryId = "4900425";
+// const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
 
 interface IData {
-    daily_volume_sol: number;
-    daily_protocol_fees_sol: number;
-    daily_lp_fees_sol: number;
+    quoteAmountOutorIn: number;
+    lpFee: number;
+    protocolFee: number;
+    quoteMint: string;
 }
 
-const fetch = async ({ startTimestamp, endTimestamp, createBalances }) => {
-  // https://x.com/pumpdotfun/status/1902762316774486276 source for platform and lp fees brakedown
-  const data: IData[] = await queryDune(queryId, {
-      start: startTimestamp,
-      end: endTimestamp,
+const fetch = async (options: FetchOptions) => {
+    const data: IData[] = await queryDune('4881760', {
+        start: options.startTimestamp,
+        end: options.endTimestamp
     })
+    const dailyVolume = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyFees = options.createBalances()
 
-    const dailyVolume = createBalances()
-    const dailySupplySideRevenue = createBalances()
-    const dailyProtocolRevenue = createBalances()
-
-    dailyVolume.addGasToken(data[0].daily_volume_sol)
-    dailyProtocolRevenue.addGasToken(data[0].daily_protocol_fees_sol)
-    dailySupplySideRevenue.addGasToken(data[0].daily_lp_fees_sol)
-
-    const dailyFees = createBalances()
-    dailyFees.addBalances(dailyProtocolRevenue)
-    dailyFees.addBalances(dailySupplySideRevenue)
-    const dailyUserFees = dailyFees.clone(1)
-
-    // console.log(dailyVolume, dailyFees, dailyUserFees, dailyProtocolRevenue, dailySupplySideRevenue)
+    for (const item of data) {
+        dailyVolume.add(item.quoteMint, item.quoteAmountOutorIn)
+        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
+        dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
+        dailyFees.addBalances(dailyProtocolRevenue)
+        dailyFees.addBalances(dailySupplySideRevenue)
+    }
 
     return { 
-      dailyVolume, 
-      dailyFees,
-      dailyUserFees,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue
+        dailyVolume,
+        dailyFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyUserFees: dailyFees,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue
     }
 };
   
@@ -48,7 +47,9 @@ const adapter: SimpleAdapter = {
             start: '2025-03-15',
             meta: {
                 methodology: {
-                    Fees: "Each trade has a 0.25% fee - 0.20% goes to LPs and 0.05% goes to the protocol",
+                    Fees: "Total fees collected from all sources, including both LP fees (0.20%) and protocol fees (0.05%) from each trade",
+                    Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
+                    SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
                     Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
                 }
             }

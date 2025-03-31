@@ -445,6 +445,7 @@ export async function getETHReceived({ options, balances, target, targets }: { o
     avax: 'avax_token_transfers',
     tron: 'trx_token_transfers',
     near: 'near_token_transfers',
+    polygon: 'matic_token_transfers',
     berachain: 'native_token_transfers',
     ink: 'native_token_transfers',
     xdai: 'native_token_transfers',

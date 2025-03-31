@@ -25,7 +25,7 @@ export const chainConfigMap: any = {
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
   // [CHAIN.Z]: { explorer: 'https://zyxscan.com', CGToken: ''},
   [CHAIN.VELAS]: { explorer: 'https://evmexplorer.velas.com', CGToken: 'velas' },
-  [CHAIN.NULS]: { explorer: 'https://chains.blockscout.com/evmscan.nuls.io', CGToken: 'nuls' },
+  [CHAIN.NULS]: { explorer: 'https://evmscan.nuls.io', CGToken: 'nuls' },
   [CHAIN.FUSE]: { explorer: 'https://explorer.fuse.io', CGToken: 'fuse-network-token', allStatsApi: 'https://stats-fuse-mainnet.k8s-prod-1.blockscout.com' },
   [CHAIN.POLYGON]: { explorer: 'https://polygon.blockscout.com', CGToken: 'matic-network', allStatsApi: 'https://stats-polygon-mainnet.k8s-prod-3.blockscout.com' },
   // [CHAIN.MANTA]: { explorer: 'https://pacific-explorer.manta.network', CGToken: 'ethereum' },
@@ -54,7 +54,7 @@ export const chainConfigMap: any = {
 
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
   [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
-  [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
+  [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
   // [CHAIN.ZORA]: { explorer: 'https://explorer.zora.energy', CGToken: 'ethereum', allStatsApi: 'https://stats-l2-zora-mainnet.k8s-prod-1.blockscout.com' },
   [CHAIN.WC]: { explorer: 'https://worldchain-mainnet.explorer.alchemy.com', CGToken: 'ethereum', allStatsApi: 'https://stats-alchemy-worldchain-mainnet.k8s.blockscout.com' },
   // [CHAIN.ASSETCHAIN]: { explorer: 'https://scan.assetchain.org', CGToken: 'ethereum', allStatsApi: 'https://stats.assetchain.org' },
@@ -65,6 +65,8 @@ export const chainConfigMap: any = {
   // [CHAIN.LUKSO]: {    explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: 'lukso-token-2', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network'  },
   [CHAIN.LIGHTLINK_PHOENIX]: { explorer: 'https://phoenix.lightlink.io', CGToken: 'lightlink', allStatsApi: 'https://stats-lightlink-phoenix.k8s.blockscout.com' },
   [CHAIN.IOTAEVM]: { CGToken: 'iota', explorer: 'https://explorer.evm.iota.org', allStatsApi: 'https://stats-iota-evm.k8s.blockscout.com' },
+  [CHAIN.FILECOIN]: { CGToken: 'filecoin', explorer: 'https://filecoin.blockscout.com/', allStatsApi: 'https://stats-filecoin.k8s-prod-1.blockscout.com'},
+  [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network'},
 
 }
 
@@ -72,11 +74,15 @@ function getTimeString(timestamp: number) {
   return new Date(timestamp * 1000).toISOString().slice(0, '2011-10-05'.length)
 }
 
+async function sleep(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time))
+}
+
 export function blockscoutFeeAdapter2(chain: string) {
   let config = chainConfigMap[chain]
   if (!config) throw new Error(`No blockscout config for chain ${chain}`)
   let { url, CGToken, explorer, start, allStatsApi } = config
-  if (explorer && explorer.endsWith('')) explorer = explorer.slice(0, -1)
+  if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
   const adapter: Adapter = {
     version: 1,
@@ -84,6 +90,7 @@ export function blockscoutFeeAdapter2(chain: string) {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
 
+          await sleep(3000)
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
           let todayPrice = undefined
@@ -117,7 +124,7 @@ export function blockscoutFeeAdapter2(chain: string) {
               // console.log(bulkStoreCGData[CGToken], gasData[chain])
             }
 
-            todayData = gasData[chain][dateString]
+            todayData = gasData[chain]?.[dateString]
             todayPrice = bulkStoreCGData[CGToken][dateString]
             if (todayData === undefined) {
               const fees = await httpGet(`${url}&date=${dateString}`)
