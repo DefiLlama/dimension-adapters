@@ -104,9 +104,9 @@ const fetch = async (options: FetchOptions) => {
     for (const item of data) {
         dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
         dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
-        dailyFees.addBalances(dailyProtocolRevenue)
-        dailyFees.addBalances(dailySupplySideRevenue)
     }
+    dailyFees.addBalances(dailyProtocolRevenue);
+    dailyFees.addBalances(dailySupplySideRevenue);
 
     return {
         dailyFees,
