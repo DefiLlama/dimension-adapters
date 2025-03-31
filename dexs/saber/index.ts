@@ -1,44 +1,46 @@
-/**
- * https://doc.saberdao.so/liquidity-flywheel
- * Swap Fees: Half the swap fees go to liquidity providers, adding another way to increase liquidity.
- * 
- * Fee Handling in Swap Operations:
- *
- * During a swap operation, the SwapData structure specifies the amount_in and the minimum_amount_out. 
- * The program calculates the output amount based on the current pool state and the swap curve. 
- * A portion of the input amount is allocated as a fee, which is distributed according to the pool's fee configuration. 
- * The net amount received by the user is the calculated output minus the fee. 
- * This ensures that fees are deducted directly from the transacted amounts, affecting the final amounts received or sent by users.
- *
- */
-
-import { Adapter, ChainBlocks, FetchOptions } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
+import { ChainBlocks, FetchOptions } from '../../adapters/types';
 import { httpGet } from "../../utils/fetchURL";
 
-async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
-  const volumeData = await httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json');
+async function last24h(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
+  const [volumeData, poolsData] = await Promise.all([
+    httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json'),
+    httpGet('https://raw.githubusercontent.com/saberdao/saber-registry-dist/master/data/pools-info.mainnet.json')
+  ]);
 
-  const dailyVolume = createBalances();
+  const dailyVolume = createBalances()
 
-  for (const pool of Object.values(volumeData as Record<string, { v: number }>)) {
-    dailyVolume.addUSDValue(pool.v);
-  }
+  // Create map of tokenA mint addresses and decimals by swap account
+  const poolTokens = new Map(
+    poolsData.pools.map((pool: any) => [
+      pool.swap.config.swapAccount,
+      {
+        mint: pool.swap.state.tokenA.mint.toString(),
+        decimals: pool.tokens.find((token: any) => token.address === pool.swap.state.tokenA.mint.toString())?.decimals
+      }
+    ])
+  )
 
-  return {
-    dailyVolume,
-  }
+  Object.entries(volumeData).forEach(([swapAccount, pool]: [string, any]) => {
+    if (!pool.v) return;
+
+    const tokenInfo = poolTokens.get(swapAccount);
+    if (!tokenInfo) return;
+
+    const { mint, decimals } = tokenInfo as { mint: string; decimals: number };
+    const adjustedVolume = pool.v * Math.pow(10, decimals || 0);
+
+    dailyVolume.add(mint, adjustedVolume);
+  })
+
+  return { dailyVolume, timestamp: Math.floor(Date.now() / 1e3) }
 }
 
 
-const adapter: Adapter = {
-  version: 1,
+export default {
   adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchLast24hFees,
+    "solana": {
+      fetch: last24h,
       runAtCurrTime: true,
-    },
-  },
-};
-
-export default adapter;
+    }
+  }
+}
