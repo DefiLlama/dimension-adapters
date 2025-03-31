@@ -225,6 +225,7 @@ export enum CHAIN {
   SUPERPOSITION = "spn",
   SWELLCHAIN = "swellchain",
   ANCIENT8 = "ancient8",
+  SOPHON = "sophon",
 }
 
 // Don´t use
