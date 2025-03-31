@@ -22,8 +22,8 @@ const requestBody = {
 };
 
 
-const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startTimestamp * 1000));
+const fetch = async (timestamp: number, _, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const historicalVolume = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value;
@@ -63,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.EOS]: {
       fetch,
