@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { getSolanaReceived } from "../helpers/token";
 
 const fetch: any = async (options: FetchOptions) => {
   const targets = [
