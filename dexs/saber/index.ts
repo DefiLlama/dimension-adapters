@@ -1,7 +1,19 @@
+/**
+ * Saber Volume Adapter
+ * 
+ * This adapter fetches and processes the previous day's volume data for Saber pools.
+ * It retrieves volume data and pool information, then calculates the adjusted volume
+ * based on token decimals. The adjusted volume is used to provide accurate volume
+ * metrics for each token in the pool.
+ * 
+ */
+
+import { CHAIN } from '../../helpers/chains';
 import { ChainBlocks, FetchOptions } from '../../adapters/types';
 import { httpGet } from "../../utils/fetchURL";
 
-async function last24h(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
+
+async function fetchLast24hVolume(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
   const [volumeData, poolsData] = await Promise.all([
     httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json'),
     httpGet('https://raw.githubusercontent.com/saberdao/saber-registry-dist/master/data/pools-info.mainnet.json')
@@ -38,8 +50,8 @@ async function last24h(timestamp: number, _: ChainBlocks, { createBalances }: Fe
 
 export default {
   adapter: {
-    "solana": {
-      fetch: last24h,
+    [CHAIN.SOLANA]: {
+      fetch: fetchLast24hVolume,
       runAtCurrTime: true,
     }
   }
