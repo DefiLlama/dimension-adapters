@@ -19,14 +19,20 @@ import { httpGet } from "../../utils/fetchURL";
 async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
   const volumeData = await httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json');
 
-  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
 
-  for (const pool of Object.values(volumeData as Record<string, { v: number }>)) {
-    dailyVolume.addUSDValue(pool.v);
+  for (const pool of Object.values(volumeData as Record<string, { feesUsd: number }>)) {
+    dailyFees.addUSDValue(pool.feesUsd);
   }
 
-  return {
-    dailyVolume,
+  const dailySupplySideRevenue = dailyFees.clone(0.5); // Half of the fees go to liquidity providers
+  const dailyProtocolRevenue = dailyFees.clone(0.5); // Half of the fees go to the protocol
+
+  return { 
+    dailyFees, 
+    dailyRevenue: dailyProtocolRevenue, 
+    dailyProtocolRevenue, 
+    dailySupplySideRevenue 
   }
 }
 
@@ -37,6 +43,14 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchLast24hFees,
       runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
+          Revenue: "Half of the total fees, representing the portion retained by the protocol.",
+          ProtocolRevenue: "Half of the total fees, representing the portion retained by the protocol.",
+          SupplySideRevenue: "Half of the total fees, representing the portion going to liquidity providers.",
+        },
+      },
     },
   },
 };
