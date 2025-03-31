@@ -39,7 +39,28 @@ const chains: Record<string, string> = {
   [CHAIN.CORE]: 'core',
   [CHAIN.TAIKO]: 'taiko',
   [CHAIN.ZKLINK]: 'zklink',
-  [CHAIN.BITLAYER]: 'bitlayer'
+  [CHAIN.BITLAYER]: 'bitlayer',
+  [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.TON]: 'ton',
+  [CHAIN.SUI]: 'sui',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.MORPH]: 'morph',
+  [CHAIN.FRAXTAL]: 'fraxtal',
+  [CHAIN.SONIC]: 'sonic',
+  [CHAIN.SONEIUM]: 'soneium',
+  [CHAIN.GRAVITY]: 'gravity',
+  [CHAIN.ROOTSTOCK]: 'rootstock',
+  [CHAIN.KROMA]: 'kroma',
+  [CHAIN.XLAYER]: 'xlayer',
+  [CHAIN.SEI]: 'sei',
+  [CHAIN.EON]: 'horizen-eon',
+  [CHAIN.BAHAMUT]: 'bahamut',
+  [CHAIN.KLAYTN]: 'klaytn',
+  [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
+  [CHAIN.VELAS]: 'velas',
+  [CHAIN.SYSCOIN]: 'syscoin',
+  [CHAIN.BOBA_BNB]: 'boba-bsc',
+  [CHAIN.FLARE]: 'flare'
 };
 
 interface ApiResponse {

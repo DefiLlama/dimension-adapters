@@ -14,7 +14,8 @@ const endpoints: ChainMap = {
   [CHAIN.OP_BNB]: "https://opapi.kiloex.io/common/queryTradeSummary",
   [CHAIN.MANTA]: "https://mantaapi.kiloex.io/common/queryTradeSummary",
   [CHAIN.TAIKO]: "https://taikoapi.kiloex.io/common/queryTradeSummary",
-  [CHAIN.BSQUARED]: "https://b2api.kiloex.io/common/queryTradeSummary"
+  [CHAIN.BSQUARED]: "https://b2api.kiloex.io/common/queryTradeSummary",
+  [CHAIN.BASE]: "https://baseapi.kiloex.io/common/queryTradeSummary"
 };
 
 interface IFee {
@@ -60,6 +61,9 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BSQUARED]: {
       fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30'
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE), start: '2024-10-09'
     },
   },
 };

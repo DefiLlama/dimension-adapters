@@ -5,7 +5,7 @@ import { Adapter } from "../../adapters/types";
 
 const fetch = getGraphDimensions({
     graphUrls: {
-      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cm78242tjtmme01uvcbkaay27/subgraphs/hpot-algebra-core/2.1.4/gn",
+      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cm78242tjtmme01uvcbkaay27/subgraphs/hpot-algebra-core/hpot-dex/gn",
     },
     totalVolume: {
       factory: "factories",
