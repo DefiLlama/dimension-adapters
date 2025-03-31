@@ -36,19 +36,28 @@ const fetch = async (options: FetchOptions) => {
   const dailyLiquidityProviderFee = Number(dailyVolume) * 0.002;
   const dailyBurnFee = Number(dailyVolume) * 0.0005;
 
+  const dailyHoldersRevenue = dailyBurnFee;
+  const dailyProtocolRevenue = 0; // Assuming no separate protocol revenue
+  const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
+
   const totalFees = totalVolume * 0.0025;
   const totalLiquidityProviderFee = totalVolume * 0.002;
   const totalBurnFee = totalVolume * 0.0005;
+  const totalHoldersRevenue = totalBurnFee;
+  const totalProtocolRevenue = 0; // Assuming no separate protocol revenue
+  const totalRevenue = totalHoldersRevenue + totalProtocolRevenue;
 
   return {
     dailyFees: dailyFees,
-    dailyRevenue: dailyBurnFee,
+    dailyRevenue: dailyRevenue,
     dailyUserFees: dailyFees,
-    dailyProtocolRevenue: dailyBurnFee,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailyLiquidityProviderFee,
     totalFees: totalFees,
     totalUserFees: totalFees,
-    totalProtocolRevenue: totalBurnFee,
+    totalRevenue: totalRevenue,
+    totalProtocolRevenue: totalProtocolRevenue,
     totalSupplySideRevenue: totalLiquidityProviderFee
   };
 };
