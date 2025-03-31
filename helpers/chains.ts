@@ -226,6 +226,7 @@ export enum CHAIN {
   SWELLCHAIN = "swellchain",
   ANCIENT8 = "ancient8",
   SOPHON = "sophon",
+  VERUS = "verus",
 }
 
 // Don´t use
