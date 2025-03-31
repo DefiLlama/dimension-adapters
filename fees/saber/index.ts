@@ -22,11 +22,8 @@ async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalan
   const dailyFees = createBalances();
 
   for (const pool of Object.values(volumeData as Record<string, { feesUsd: number }>)) {
-    if (pool.feesUsd > 0) {
-      dailyFees.addCGToken('usd-coin', pool.feesUsd);
-    }
+    dailyFees.addUSDValue(pool.feesUsd);
   }
-  // console.log(dailyFees);
 
   const dailySupplySideRevenue = dailyFees.clone(0.5); // Half of the fees go to liquidity providers
   const dailyProtocolRevenue = dailyFees.clone(0.5); // Half of the fees go to the protocol
