@@ -217,14 +217,15 @@ export enum CHAIN {
   PENUMBRA = "penumbra",
   BERACHAIN = "berachain",
   UNICHAIN = "unichain",
-  STORY = 'sty',
-  LUMIA = 'lumia',
+  STORY = "sty",
+  LUMIA = "lumia",
   FORMNETWORK = "formnetwork",
   HEMI = "hemi",
   MOVE = "move",
   SUPERPOSITION = "spn",
   SWELLCHAIN = "swellchain",
   ANCIENT8 = "ancient8",
+  KARAK = "karak",
 }
 
 // Don´t use
