@@ -11,11 +11,6 @@ const endpoints = {
   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
 
-const v3Endpoints = {
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('6pXVWtpsLXMLAyS7UU49ftu38MCSVh5fqVoSWLiLBkmP'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('FMDUEPFThYQZM6f2bXsRduB9pWQvDB9mPCBQc9C9gUed'),
-  [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon-v3',
-};
 
 const graphs = getChainVolume2({
   graphUrls: endpoints,
@@ -25,26 +20,10 @@ const graphs = getChainVolume2({
   },
 });
 
-const v3Graphs = getChainVolume2({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: 'volumeUSD',
-  }
-});
-
 const fetch = (chain: Chain) => {
   return async (options: FetchOptions) => {
     const [v2] = await Promise.all([graphs(chain)(options)])
     let dailyVolume = Number(v2.dailyVolume)
-    if((v3Endpoints as any)[chain]) {
-      const [v3] = await Promise.all([v3Graphs(chain)(options)])
-      dailyVolume += Number(v3.dailyVolume);
-    }
     return {
       dailyVolume: `${dailyVolume}`,
     }
