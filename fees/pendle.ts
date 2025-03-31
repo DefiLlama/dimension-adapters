@@ -66,6 +66,12 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BASE]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
+  },
+  [CHAIN.SONIC]: {
+    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+  },
+  [CHAIN.BERACHAIN]: {
+    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
   }
 };
 
@@ -229,6 +235,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: 1731368987,
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetch(CHAIN.SONIC),
+      start: '2025-02-14',
+    },
+    [CHAIN.BERACHAIN]: {
+      fetch: fetch(CHAIN.BERACHAIN),
+      start: '2025-02-07'
     }
   },
 };
