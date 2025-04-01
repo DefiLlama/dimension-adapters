@@ -2,22 +2,22 @@ import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { ChainEndpoints } from "../adapters/types";
+import { Chain } from "@defillama/sdk/build/general";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import BigNumber from "bignumber.js";
 
 const endpoints = {
-  [ETHEREUM]: sdk.graph.modifyEndpoint('FDLuaz69DbMADuBjJDEcLnTuPnjhZqNbFVrkNiBLGkEg'),
-}
+  [ETHEREUM]: sdk.graph.modifyEndpoint(
+    "FDLuaz69DbMADuBjJDEcLnTuPnjhZqNbFVrkNiBLGkEg"
+  ),
+};
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number) => {
-      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400);
 
-      const graphQuery = gql
-      `{
+      const graphQuery = gql`{
         financialsDailySnapshot(id: ${dateId}) {
             dailyTotalRevenueUSD
             dailyProtocolSideRevenueUSD
@@ -27,9 +27,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
-      const dailyFee = new BigNumber(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD);
-      const dailyRevenue = new BigNumber(graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD);
-      const dailySSRev = new BigNumber(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD);
+      const dailyFee = graphRes.financialsDailySnapshot.dailyTotalRevenueUSD
+
+      const dailyRevenue = graphRes.financialsDailySnapshot.dailyProtocolSideRevenueUSD
+ 
+      const dailySSRev = graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD
+ 
 
       return {
         timestamp,
@@ -41,14 +44,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
   };
 };
 
-
 const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
-        fetch: graphs(endpoints)(ETHEREUM),
-        start: '2023-01-01',
+      fetch: graphs(endpoints)(ETHEREUM),
+      start: "2023-01-01",
     },
-  }
-}
+  },
+};
 
 export default adapter;
