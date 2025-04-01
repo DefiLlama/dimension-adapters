@@ -11,17 +11,16 @@ const methodology = {
   ProtocolReveneue: 'The portion of the total fees going to the STEAMM treasury'
 }
 
-const fetchSteammStats = async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
-  const url = `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${startTimestamp}&endTimestampS=${endTimestamp}&intervalS=86400`
-  const [stats]: any = (await fetchURL(url));
-  const dailyFees = createBalances()
-  Object.entries(stats.fees).forEach(([token, fees]: any) => dailyFees.add(token, fees))
-
-  return {
-    dailyFees,
-  };
-};
-
+ const fetchSteammStats = async ({ endTimestamp }: FetchOptions) => {
+   const url = `${suilendFeesURL}?ts=${endTimestamp}`
+   const stats: DailyStats = (await fetchURL(url));
+   return {
+     dailyFees: parseFloat(stats.protocolFeesUsd) + parseFloat(stats.poolFeesUsd),
+     dailyUserFees: parseFloat(stats.poolFeesUsd),
+     dailyRevenue: parseFloat(stats.protocolFeesUsd),
+     dailyProtocolRevenue: parseFloat(stats.protocolFeesUsd),
+   };
+ };
 
 
 const adapter: Adapter = {
