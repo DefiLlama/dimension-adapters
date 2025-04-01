@@ -228,6 +228,7 @@ export enum CHAIN {
   WINR = "winr",
   SOPHON = "sophon",
   KARAK = "karak",
+  VERUS = "verus",
 }
 
 // Don´t use
