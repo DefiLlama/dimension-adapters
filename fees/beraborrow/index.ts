@@ -36,7 +36,7 @@ const fetchFees = async (options: FetchOptions) => {
           topics: [
             TRANSFER_TOPIC,
             zeroAddress,
-            "0x000000000000000000000000" + FEE_RECEIVER.substring(2), // to == fee receiver
+            "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
           ],
         });
     
@@ -51,7 +51,7 @@ const fetchFees = async (options: FetchOptions) => {
     );
     
     const calls = collaterals.map((collateral, index) => ({
-      target: collateral, // assuming collateral has convertToAssets
+      target: collateral,
       params: [withdrawalFees[index].toString()],
     }));
 
@@ -107,7 +107,6 @@ const DenManagerRedemptionFees = await Promise.all(
   })
 );
 
-// Aplanar los arrays anidados y agregar a dailyFees
 dailyFees.add(assets, DenManagerRedemptionFees.flat());
 
 
@@ -120,8 +119,8 @@ const logs = await options.getLogs({
   eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
   topics: [
     TRANSFER_TOPIC,
-    "0x000000000000000000000000" + NectGasPool.substring(2), // from == gas pool address
-    "0x000000000000000000000000" + FEE_RECEIVER.substring(2), // to == fee receiver
+    "0x000000000000000000000000" + NectGasPool.substring(2),
+    "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
   ],
   fromBlock: 10
 })
@@ -145,8 +144,8 @@ await Promise.all(
       eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
       topics: [
         TRANSFER_TOPIC,
-        "0x000000000000000000000000" + denManagers[0].substring(2), // change 
-        "0x000000000000000000000000" + FEE_RECEIVER.substring(2), // to == fee receiver
+        "0x000000000000000000000000" + denManagers[0].substring(2),
+        "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
       ],
     });
     
@@ -176,7 +175,6 @@ await Promise.all(
 
 
 // PermissionlessPSM withdrawal fee (fee is in indexed stable)
-// event Withdraw(address indexed caller, address indexed stable, uint stableAmount, uint burnedNect, uint fee)
 // OLD AND new PSM
 
 await Promise.all(
@@ -209,8 +207,8 @@ await Promise.all(
       eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
       topics: [
         TRANSFER_TOPIC,
-        zeroAddress, // from == zero address
-        "0x000000000000000000000000" + FEE_RECEIVER.substring(2), // to == fee receiver
+        zeroAddress,
+        "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
       ],
     })
     const total = logs.reduce((acc: BigNumber, log: any) => {
