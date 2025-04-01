@@ -18,12 +18,16 @@ const fetch = async (_: number , __: ChainBlocks, ___: FetchOptions) => {
   }
 
   const dailyFees = dailyVolume * 0.00025;
-  const dailyRevenue = dailyFees;
+  const dailyRevenue = dailyFees * 0.5;
+  const dailyProtocolRevenue = dailyRevenue;
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
