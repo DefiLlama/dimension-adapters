@@ -5,7 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const getDailyVolume = () => {
   return gql`{
-    dailyDexes(first:1000, orderBy: TIMESTAMP_DESC) {
+    dailyDexes(first:50, orderBy: TIMESTAMP_DESC) {
       nodes {
         timestamp
         dailyTradeVolumeUSD
