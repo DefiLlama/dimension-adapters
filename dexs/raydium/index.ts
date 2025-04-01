@@ -2,10 +2,15 @@ import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapter
 import fetchURL, { postURL } from "../../utils/fetchURL"
 
 const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
-  const ammPoolStandard: any[] = [
-    ...(await fetchURL("https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=1000&page=1")).data.data,
-    ...(await fetchURL("https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=1000&page=2")).data.data,
-  ];
+  const ammPoolStandard: any[] = [];
+  let page = 1;
+  while (true) {
+    const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=1000&page=${page}`);
+    const data = response.data.data;
+    if (!data || data.length === 0) break;
+    ammPoolStandard.push(...data);
+    page++;
+  }
 
   const dailyVolumeAmmPool = ammPoolStandard
     .filter((i: any) => Number(i.tvl) >  100_000)
