@@ -1,3 +1,4 @@
+import { getBlock } from "@defillama/sdk/build/util/blocks";
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
@@ -24,7 +25,7 @@ const eulerVaultABI = {
     interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
 }
 
-const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: FetchOptions, {
+const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, fromTimestamp}: FetchOptions, {
     dailyFees,
     dailyRevenue,
 }: {
@@ -42,14 +43,63 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
 
     const accumulatedFeesStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
     const accumulatedFeesEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
+
+    const yesterdayBlock = await getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
+    const todayBlockminus1 = await getBlock(chain, fromTimestamp - 1, {})
+
+    const lastEventsFromPrevDay = await getLogs({
+        targets: vaults,
+        fromBlock: yesterdayBlock.number,
+        toBlock: todayBlockminus1.number,
+        eventAbi: eulerVaultABI.vaultStatus,
+        flatten: false
+    }).then(logs => 
+        logs.map(vaultLogs => 
+            vaultLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0]
+        )
+    )
     
-    const interestAccrued = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.interestAccumulated, flatten: false})).map((logs) => {
-        if (!logs.length) return 0n;
-        let totalInterest = 0n;
-        for (const log of logs) {
-            totalInterest += BigInt(log.borrowIndex.toString());
+
+    const vaultStatusLogs = (await getLogs({
+        targets: vaults, 
+        eventAbi: eulerVaultABI.vaultStatus,
+        flatten: false
+      }))
+    
+      vaultStatusLogs.forEach((logs, vaultIndex) => {
+        const prevDayLog = lastEventsFromPrevDay[vaultIndex]
+        
+        if (!prevDayLog) {
+            return
         }
-        return totalInterest;
+    
+        if (logs.length === 0) {
+            return
+        }
+    
+        logs.sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
+        let totalInterest = 0n
+        
+        const firstLog = logs[0]
+        const prevBorrows = BigInt(prevDayLog.totalBorrows.toString())
+        const firstRatio = (BigInt(firstLog.interestAccumulator.toString()) * BigInt(1e18)) / 
+                        BigInt(prevDayLog.interestAccumulator.toString())
+        
+        totalInterest += (prevBorrows * (firstRatio - BigInt(1e18))) / BigInt(1e18)
+        
+        for (let i = 1; i < logs.length; i++) {
+            const prev = logs[i-1]
+            const current = logs[i]
+            
+            const currentBorrows = BigInt(prev.totalBorrows.toString())
+            const ratio = (BigInt(current.interestAccumulator.toString()) * BigInt(1e18)) / 
+                         BigInt(prev.interestAccumulator.toString())
+            
+            const interest = (currentBorrows * (ratio - BigInt(1e18))) / BigInt(1e18)
+            totalInterest += interest
+        }
+        
+        dailyFees.add(underlyings[vaultIndex], totalInterest)
     })
 
     const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false})).map((vaultLogs) => {
@@ -78,7 +128,6 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain}: 
     });
 
     totalAssets.forEach((assets, i) => {
-        dailyFees.add(underlyings[i], interestAccrued[i])
         dailyRevenue.add(underlyings[i], assets)
     })
     const dailySupplySideRevenue = dailyFees.clone()
