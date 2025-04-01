@@ -31,6 +31,12 @@ const fetch = async (options: FetchOptions) => {
                 BYTEARRAY_TO_UINT256 (
                     BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 73, 8))
                 ) AS quoteAmountOutorIn,
+                BYTEARRAY_TO_UINT256 (
+                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 89, 8))
+                ) AS lpFee,
+                BYTEARRAY_TO_UINT256 (
+                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 105, 8))
+                ) AS protocolFee,
                 to_base58 (bytearray_substring (data, 129, 32)) AS pool
             FROM
                 solana.instruction_calls
@@ -48,7 +54,9 @@ const fetch = async (options: FetchOptions) => {
                 s.block_time,
                 DATE_TRUNC('day', s.block_time) AS dt,
                 s.quoteAmountOutorIn,
-                p.quoteMint
+                p.quoteMint,
+                s.protocolFee,
+                s.lpFee
             FROM
                 decoded_swap s
                 JOIN decoded_pool p ON s.pool = p.pool
@@ -67,7 +75,9 @@ const fetch = async (options: FetchOptions) => {
             SELECT
                 dt AS date,
                 quoteMint,
-                SUM(quoteAmountOutorIn) AS quoteAmountOutorIn
+                SUM(quoteAmountOutorIn) AS quoteAmountOutorIn,
+                SUM(protocolFee) as protocolFee,
+                SUM(lpFee) as lpFee
             FROM
                 pumpswap_trades
             WHERE
@@ -79,20 +89,31 @@ const fetch = async (options: FetchOptions) => {
     SELECT
         date,
         quoteAmountOutorIn,
+        protocolFee,
+        lpFee,
         quoteMint
     FROM
         daily_volume
     ORDER BY
         date DESC
     `)
-    const dailyVolume = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyFees = options.createBalances()
 
     for (const item of data) {
-        dailyVolume.add(item.quoteMint, item.quoteAmountOutorIn)
+        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
+        dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
     }
+    dailyFees.addBalances(dailyProtocolRevenue);
+    dailyFees.addBalances(dailySupplySideRevenue);
 
-    return { 
-        dailyVolume
+    return {
+        dailyFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyUserFees: dailyFees,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue
     }
 };
 
@@ -100,7 +121,15 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: '2025-03-15'
+            start: '2025-03-15',
+            meta: {
+                methodology: {
+                    Fees: "Total fees collected from all sources, including both LP fees (0.20%) and protocol fees (0.05%) from each trade",
+                    Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
+                    SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
+                    Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
+                }
+            }
         }
     },
     version: 2,
