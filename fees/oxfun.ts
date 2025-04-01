@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpPost } from "../utils/fetchURL";
 
@@ -28,6 +28,7 @@ const adapter: SimpleAdapter = {
       start: '2024-01-18',
     },
   },
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
