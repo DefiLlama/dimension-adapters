@@ -1,18 +1,15 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDay } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
 
 const methodology = {
   Fees: "A 0.025% fee is charged to users on every conversion.",
   UserFees: "Users pay 0.025% fee on every conversion.",
-  ProtocolRevenue: "All fees added to reserves, block reward for miners and stakers.",
+  SupplySideRevenue: "The 50% of swap fee added to reserves of LPs.",
+  ProtocolRevenue: "The 50% of swap fee added to the block reward for miners and stakers.",
 }
 
 const fetch = async (_: number , __: ChainBlocks, ___: FetchOptions) => {
-  // get current data volumes
-  const timestamp = getTimestampAtStartOfDay(Math.floor(new Date().getDate() / 1000));
-
   const response = await httpGet('https://marketapi.verus.services/getdefichaininfo');
 
   let dailyVolume = 0;
@@ -27,7 +24,6 @@ const fetch = async (_: number , __: ChainBlocks, ___: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
-    timestamp: timestamp,
   };
 };
 
@@ -35,6 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.VERUS]: {
       fetch,
+      runAtCurrTime: true,
       meta: {
         methodology,
       },
