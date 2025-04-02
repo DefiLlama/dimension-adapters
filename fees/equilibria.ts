@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
 
-  const contracts = {
+  const contracts: {[key: string]: string }  = {
     ethereum:  "0x357F55b46821A6C6e476CC32EBB2674cD125e849",
     arbitrum: "0x9739d1E515C5291faA26D92a5D02761b6BbB4D6F",
     bsc:  "0xE2dB20ce7D845f99338BbA4bdFF00e733801Dde7",
