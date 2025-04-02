@@ -55,7 +55,7 @@ const v3Endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
   [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
-  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GQFbb95cE6d8mV989mL5figjaGaKCQB3xqYrr1bRyXqF'),
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('FQcacc4ZJaQVS9euWb76nvpSq2GxavBnUM6DU6tmspbi'),
 }
