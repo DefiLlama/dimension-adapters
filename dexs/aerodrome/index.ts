@@ -39,6 +39,7 @@ const getBribes = async (fromBlock: number, toBlock: number, fetchOptions: Fetch
   const { createBalances, chain } = fetchOptions
   const dailyBribesRevenue = createBalances()
   const logs_gauge_created = await sdk.indexer.getLogs({ chain, target: CONFIG.voter, fromBlock: 3200601, toBlock, topics: [topics.event_gaugeCreated], eventAbi: eventAbis.event_gauge_created })
+  if (!logs_gauge_created.length) return { dailyBribesRevenue };
   const bribes_contract: string[] = logs_gauge_created.map((log) => log[4].toLowerCase())
   const logs = await sdk.indexer.getLogs({ chain, targets: bribes_contract, fromBlock, toBlock, topics:[topics.event_notify_reward], eventAbi: eventAbis.event_notify_reward })
   logs.forEach(([_, reward, amount]) => { dailyBribesRevenue.add(reward, amount) })
