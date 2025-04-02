@@ -16,13 +16,14 @@ const fetch = async (timestamp: number) => {
 
   const feesData = await httpGet(feesAPI);
 
-  const dailyFees = feesData.charts.find((chart: ChartData) => 
+  const dailyFees = feesData.charts.find((chart: ChartData) =>
     chart.date.split('T')[0] === dateStr
   )?.txn_fee_usd;
 
   return {
-    dailyFees,
-    dailyRevenue: dailyFees
+    timestamp,
+    dailyFees: dailyFees ? `${dailyFees}` : undefined,
+    dailyRevenue: dailyFees ? `${dailyFees}` : undefined
   };
 };
 
