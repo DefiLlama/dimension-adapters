@@ -17,13 +17,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const fees = data.day.data[1];
 
     const index = timestamps.findIndex((ts: number) => ts === dayTimestamp);
-    const tokenAmount = index !== -1 ? parseFloat(fees[index]) : 0;
+    const tokenAmount = parseFloat(fees[index]);
 
     const dailyFees = options.createBalances();
     dailyFees.addCGToken('arweave', tokenAmount)
 
     return {
-        dailyFees,
+        dailyFees
     }
 }
 
