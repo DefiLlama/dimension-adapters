@@ -1,7 +1,6 @@
-import { Adapter, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface ChartData {
   date: string;
@@ -10,20 +9,18 @@ interface ChartData {
 
 const feesAPI = 'https://api.nearblocks.io/v1/charts';
 
-const fetch = async (timestamp: number) => {
-  const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const dateStr = new Date(todayTimestamp * 1000).toISOString().split('T')[0];
+const fetch = async (_timestamp: number, __: any, { dateString }: FetchOptions) => {
 
   const feesData = await httpGet(feesAPI);
 
   const dailyFees = feesData.charts.find((chart: ChartData) =>
-    chart.date.split('T')[0] === dateStr
-  )?.txn_fee_usd;
+    chart.date.split('T')[0] === dateString
+  )
+  if (!dailyFees) throw new Error(`No data found for date: ${dateString}`)
 
   return {
-    timestamp,
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    dailyRevenue: dailyFees ? `${dailyFees}` : undefined
+    dailyFees: dailyFees.txn_fee_usd,
+    dailyRevenue: dailyFees.txn_fee_usd,
   };
 };
 
