@@ -22,14 +22,25 @@ adapters.adapter.optimism.start = '2024-01-24';
 adapters.adapter.arbitrum.start = '2024-01-24';
 adapters.adapter.fantom.start = '2023-25-12';
 
-// Store original fetch function
-const originalBaseFetch = adapters.adapter.base.fetch;
+// Store original fetch functions and create wrapper
+const chains = ['ethereum', 'base', 'sonic', 'optimism', 'arbitrum', 'fantom'] as const;
+const originalFetches = new Map(
+  chains.map(chain => [chain, adapters.adapter[chain].fetch])
+);
 
-adapters.adapter.base.fetch = async (options: FetchOptions) => {
-  const res = await (originalBaseFetch as FetchV2)(options)
-  return {
-    dailyVolume: res.dailyVolume,
-    totalVolume: 0
-  }
-}
+const wrapFetchWithZeroTotal = (originalFetch: FetchV2) => {
+  return async (options: FetchOptions) => {
+    const res = await originalFetch(options);
+    return {
+      dailyVolume: res.dailyVolume,
+      totalVolume: 0
+    };
+  };
+};
+
+// Apply wrapper to all chains
+chains.forEach(chain => {
+  adapters.adapter[chain].fetch = wrapFetchWithZeroTotal(originalFetches.get(chain) as FetchV2);
+});
+
 export default adapters;
