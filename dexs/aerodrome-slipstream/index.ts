@@ -14,99 +14,103 @@ const topics = {
 }
 
 const eventAbis = {
+  event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
   event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 }
 
-type PoolInfo = {
-  pair: string
-  token0: string
-  token1: string
-  factory: string
-  createdAtBlock: number
+const abis = {
+  fee: 'uint256:fee'
 }
 
+type PoolInfo = {
+  pair: string;
+  token0: string;
+  token1: string;
+  logs: any
+};
+
 const fetch = async (_:any, _1:any, fetchOptions: FetchOptions): Promise<FetchResult> => {
-  const { api, createBalances, getToBlock, getFromBlock, chain } = fetchOptions
+  // const startTime = Date.now();
+  const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  const [toBlockRaw, fromBlock] = await Promise.all([getToBlock(),getFromBlock()])
-  const toBlock = toBlockRaw - 15
+  const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
-  const rawPools = await sdk.indexer.getLogs({ chain, target: CONFIG.factory, fromBlock: 13843704, toBlock, topics: [topics.event_poolCreated] }) 
-  
-  const poolInfoMap = new Map<string, PoolInfo>()
-  rawPools.forEach(({ source, topics, data, blockNumber }) => {
-    if (!topics || topics.length < 4 || data.length < 66) return
-  
-    const rawToken0 = topics[1]
-    const rawToken1 = topics[2]
-    if (!rawToken0 || !rawToken1) return
-  
-    const pair = `0x${data.slice(26, 66)}`.toLowerCase()
-    const token0 = `0x${rawToken0.slice(26)}`.toLowerCase()
-    const token1 = `0x${rawToken1.slice(26)}`.toLowerCase()
-    const factory = source.toLowerCase()
-    poolInfoMap.set(pair, { pair, token0, token1, factory, createdAtBlock: blockNumber })
-  })
+  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 13843704, toBlock, topics: [topics.event_poolCreated], eventAbi: eventAbis.event_poolCreated }) 
+  const pools = rawPools.map(([token0, token1, _tick, pair]) => ({ pair, token0, token1 }))
 
-  const poolInfos = Array.from(poolInfoMap.values())
-  const res = await filterPools2({
+  const { pairs, token0s, token1s } = await filterPools2({
     fetchOptions,
-    pairs: poolInfos.map(p => p.pair),
-    token0s: poolInfos.map(p => p.token0),
-    token1s: poolInfos.map(p => p.token1),
+    pairs: pools.map(p => p.pair),
+    token0s: pools.map(p => p.token0),
+    token1s: pools.map(p => p.token1),
     minUSDValue: 2000,
     maxPairSize: 1000
   })
 
-  const pools: PoolInfo[] = res.pairs.map((pair: string) => poolInfoMap.get(pair)!).filter(Boolean)
-  const feesRaw = await api.multiCall({ abi: 'uint256:fee', calls: pools.map((p) => ({ target: p.pair })) })
+  const filteredPools: PoolInfo[] = pairs.map((pair: string, index: number) => ({ pair, token0: token0s[index], token1: token1s[index] }));
+  const fees = await api.multiCall({ calls: filteredPools.map(({ pair }) => ({ target: pair })), abi: abis.fee });
+  const poolsAndFees = filteredPools.map((pool, index) => ({ ...pool, fees: fees[index] / 1e6, logs: [] as any[] }));
 
-  const feesMap = new Map<string, number>()
-  pools.forEach((pool, i) => {
-    feesMap.set(pool.pair, +feesRaw[i] / 1e6)
-  })
+  const blockStep = 5000;
+  const poolChunkSize = 10;
 
-  const chunkSize = 10
-  const logsMap = new Map<string, any[]>()
+  for (let i = 0; i < poolsAndFees.length; i += poolChunkSize) {
+    const chunkPools = poolsAndFees.slice(i, i + poolChunkSize);
 
-  for (let i = 0; i < pools.length; i += chunkSize) {
-    const chunkPools = pools.slice(i, i + chunkSize)
-    const chunkTargets = chunkPools.map(p => p.pair)
+    for (let startBlock = fromBlock; startBlock <= toBlock; startBlock += blockStep) {
+      const endBlock = Math.min(startBlock + blockStep - 1, toBlock);
 
-    const currentLogs = await sdk.indexer.getLogs({
-      chain,
-      targets: chunkTargets,
-      topics: [topics.event_swap],
-      eventAbi: eventAbis.event_swap,
-      flatten: false,
-      fromBlock,
-      toBlock,
-    })
+      const logsChunk = await Promise.all(
+        chunkPools.map(async (pool) => {
+          const logs = await sdk.indexer.getLogs({
+            chain,
+            target: pool.pair,
+            fromBlock: startBlock,
+            toBlock: endBlock,
+            topics: [topics.event_swap],
+            eventAbi: eventAbis.event_swap,
+            all: true
+          });
+          return { pool, logs };
+        })
+      );
 
-    currentLogs.forEach((logsForPair, j) => {
-      const pair = chunkTargets[j]
-      logsMap.set(pair, logsForPair)
-    })
+      for (const { pool, logs } of logsChunk) {
+        pool.logs.push(...logs);
+      }
+    }
   }
 
-  for (const pool of pools) {
-    const logs = logsMap.get(pool.pair) ?? []
-    const { token0, token1, pair } = pool
-    const fee = feesMap.get(pair) ?? 0
+  // const totalPools = poolsAndFees.length;
+  // let totalLogs = 0;
+  // const logsByPool = poolsAndFees.map(pool => {
+  //   const logCount = pool.logs.length;
+  //   totalLogs += logCount;
+  //   return { pool: pool.pair, logCount };
+  // });
+
+  // const runtime = Date.now() - startTime;
+  // console.log(`Script execution time: ${runtime} ms`);
+  // console.log(`Total number of poolsAndFees: ${totalPools}`);
+  // console.log(`Total number of logs: ${totalLogs}`);
+  // console.table(logsByPool);
+
+  for (const pool of poolsAndFees) {
+    const { token0, token1, fees = 0, logs = [] } = pool;
 
     logs.forEach((log: any) => {
       const amount0 = Number(log[2])
       const amount1 = Number(log[3])
-      const fee0 = amount0 * fee
-      const fee1 = amount1 * fee
+      const fee0 = amount0 * fees
+      const fee1 = amount1 * fees
 
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
     })
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees } as any
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 
 const adapters: SimpleAdapter = {
