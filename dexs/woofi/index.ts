@@ -4,6 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 
 const endpoints = {
@@ -79,8 +80,8 @@ interface FetchResult {
 }
 const fetch = async (_t: any, _c: any,options: FetchOptions) => {
   try {
-    console.log('fetching volume for', options.startOfDay);
-    const dateId = Math.floor(options.startOfDay / 86400);
+    const start = getTimestampAtStartOfDayUTC(options.startOfDay)
+    const dateId = Math.floor(start / 86400);
     const response: FetchResult = await request(endpoints[options.chain], dailyQuery, { Id: dateId });
     if (!response) return {};
     return {
@@ -88,7 +89,7 @@ const fetch = async (_t: any, _c: any,options: FetchOptions) => {
       totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
     };
   } catch (error) {
-    console.error(error);
+    console.error(options.chain, error);
     return {};
   }
 }
