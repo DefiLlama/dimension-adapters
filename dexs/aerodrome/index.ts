@@ -19,8 +19,8 @@ const topics = {
 const eventAbis = {
   event_pool_created: 'event PoolCreated(address indexed token0,address indexed token1,bool indexed stable,address pool,uint256)',
   event_swap: 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)',
-  event_gauge_created: 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)',
-  event_notify_reward: 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)',
+  event_gaugeCreated: 'event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)',
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)',
 }
 
 const abis = {
@@ -34,6 +34,18 @@ type PoolInfo = {
   stable: number;
   logs: any
 };
+
+const getBribes = async (fromBlock: number, toBlock: number, fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
+  const { createBalances, chain } = fetchOptions
+  const dailyBribesRevenue = createBalances()
+  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, toBlock, eventAbi: eventAbis.event_gaugeCreated })
+  if (!logs_gauge_created || logs_gauge_created.length === 0) return { dailyBribesRevenue };
+  const bribes_contract: string[] = logs_gauge_created.map((log) => log[4].toLowerCase())
+  const logs = await sdk.indexer.getLogs({ chain, targets: bribes_contract, fromBlock, toBlock, eventAbi: eventAbis.event_notify_reward })
+  if (!logs || logs.length === 0) return { dailyBribesRevenue };
+  logs.forEach(([_, reward, __, amount]) => { dailyBribesRevenue.add(reward, amount) })
+  return { dailyBribesRevenue }
+}
 
 const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions: FetchOptions): Promise<{ dailyVolume: sdk.Balances; dailyFees: sdk.Balances }> => {
   // const startTime = Date.now();
@@ -126,8 +138,11 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
 const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
   const { getToBlock, getFromBlock } = options
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options)
-  return { dailyVolume, dailyFees }
+  const [{ dailyVolume, dailyFees }, { dailyBribesRevenue }] = await Promise.all([
+    getVolumeAndFees(fromBlock, toBlock, options),
+    getBribes(fromBlock, toBlock, options)
+  ])
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyBribesRevenue }
 }
 
 const adapters: SimpleAdapter = {
