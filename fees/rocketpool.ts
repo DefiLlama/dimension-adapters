@@ -1,7 +1,5 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ZeroAddress } from "ethers";
-import { normalizeAddress } from "@defillama/sdk/build/util";
 
 /**
  * 
@@ -50,7 +48,7 @@ const RocketPoolContractAbis = {
 }
 
 interface EtherDepositedEvent {
-  etherAmount: bigint;
+  etherAmount: number;
   fromAddress: string;
 }
 
@@ -63,8 +61,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }))
     .map((log: any) => {
       const event: EtherDepositedEvent = {
-        etherAmount: BigInt(log[1].toString()),
-        fromAddress: normalizeAddress(log[0].toString()),
+        etherAmount: Number(log.amount),
+        fromAddress: log.from.toLowerCase(),
       }
       return event
     })
@@ -72,8 +70,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // we make sure minipools addresses are unique to reduce contract calls
   const minipools: {
     [key: string]: {
-      nodeBalance: null | bigint;
-      nodeFee: null | bigint;
+      nodeBalance: null | number;
+      nodeFee: null | number;
     }
   } = {};
   for (const event of etherDepositedEvents) {
@@ -95,37 +93,41 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     permitFailure: true,
   })
   for (let i = 0; i < minipoolAddresses.length; i++) {
-    minipools[minipoolAddresses[i]].nodeBalance = getNodeBalances[i] ? BigInt(getNodeBalances[i].toString()) : null
-    minipools[minipoolAddresses[i]].nodeFee = getNodeFees[i] ? BigInt(getNodeFees[i].toString()) : null
+    minipools[minipoolAddresses[i]].nodeBalance = getNodeBalances[i] ? +getNodeBalances[i] : null
+    minipools[minipoolAddresses[i]].nodeFee = getNodeFees[i] ? +getNodeFees[i] : null
   }
 
   for (const event of etherDepositedEvents) {
     const nodeBalance = minipools[event.fromAddress].nodeBalance
-    const nodeFeeRate = minipools[event.fromAddress].nodeFee
+    let nodeFeeRate = minipools[event.fromAddress].nodeFee
+    // if nodeBalance is null, it means the minipool is not active
+    if (nodeBalance === null || nodeFeeRate === null) {
+      continue
+    }
+    nodeFeeRate = nodeFeeRate / 1e18
 
     // make sure the deposit from minipools
-    if (nodeBalance !== null && nodeFeeRate !== null) {
-      let rewardToStakers = BigInt(0)
+    let rewardToStakers = 0
 
-      if (event.etherAmount >= BigInt(24e18)) {
-        // minipools repay borrowed 24 ETH to rETH, and the rest amount is rewards
-        rewardToStakers = event.etherAmount - BigInt(24e18)
-      } else if (event.etherAmount >= BigInt(16e18) && event.etherAmount < BigInt(24e18)) {
-        // minipools repay borrowed 16 ETH to rETH, and the rest amount is rewards
-        rewardToStakers = event.etherAmount - BigInt(16e18)
-      } else {
-        // minipools distribute rewards
-        rewardToStakers = event.etherAmount
-      }
-
-      // calculate total rewards were collected by minipool (excluding minipool commission)
-      const rewardToStakersAndOperators = rewardToStakers * BigInt(1e18) / (BigInt(1e18) - (nodeBalance * BigInt(1e18) / BigInt(32e18)))
-      
-      // calculate total rewards were collected by minipool (including minipool commission)
-      const rewardFromBeacon = rewardToStakersAndOperators * BigInt(1e18) / (BigInt(1e18) - nodeFeeRate)
-
-      dailyFees.add(ZeroAddress, rewardFromBeacon)
+    if (event.etherAmount >= 24e18) {
+      // minipools repay borrowed 24 ETH to rETH, and the rest amount is rewards
+      rewardToStakers = event.etherAmount - 24e18
+    } else if (event.etherAmount >= 16e18 && event.etherAmount < 24e18) {
+      // minipools repay borrowed 16 ETH to rETH, and the rest amount is rewards
+      rewardToStakers = event.etherAmount - 16e18
+    } else {
+      // minipools distribute rewards
+      rewardToStakers = event.etherAmount
     }
+
+    // calculate total rewards were collected by minipool (excluding minipool commission)
+    const rewardToStakersAndOperators = rewardToStakers / (1 - (nodeBalance / 32e18))
+
+    // calculate total rewards were collected by minipool (including minipool commission)
+    const rewardFromBeacon = rewardToStakersAndOperators / (1 - nodeFeeRate)
+
+
+    dailyFees.addGasToken(rewardFromBeacon)
   }
 
   const etherWithdrawnEvents: Array<any> = (await options.getLogs({
@@ -133,8 +135,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     eventAbi: RocketPoolContractAbis.smoothingPoolEtherWithdrawn,
   }))
   etherWithdrawnEvents.forEach((log: any) => {
-    if (log[1].toString().toLowerCase() === rETH.toLowerCase()) {
-      dailyFees.add(ZeroAddress, BigInt(log[2].toString()))
+    if (log.to.toLowerCase() === rETH.toLowerCase()) {
+      dailyFees.addGasToken(log.amount)
     }
   })
 
