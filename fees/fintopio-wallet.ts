@@ -5,10 +5,6 @@ import { addGasTokensReceived, addTokensReceived } from "../helpers/token";
 type TMulitsig = {
   [s: string]: string[];
 }
-const multisig1 = "0xCB203fbB9dA1A930578a2d62AD49af8d27aadd01";
-const multisig2 = "0xe5C68E943b3aEaD59709F9fe51b5eb6598bed3b2";
-const multisig2 = "0xe5C68E943b3aEaD59709F9fe51b5eb6598bed3b2";
-const multisig2 = "0xe5C68E943b3aEaD59709F9fe51b5eb6598bed3b2";
 
 const multisigs: TMulitsig = {
   [CHAIN.BSC]: ["0xCB203fbB9dA1A930578a2d62AD49af8d27aadd01"],
