@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Interface, ZeroAddress } from "ethers";
+import { ZeroAddress } from "ethers";
 import { normalizeAddress } from "@defillama/sdk/build/util";
 
 /**
@@ -50,7 +50,6 @@ const RocketPoolContractAbis = {
 }
 
 interface EtherDepositedEvent {
-  blockNumber: number;
   etherAmount: bigint;
   fromAddress: string;
 }
@@ -58,23 +57,15 @@ interface EtherDepositedEvent {
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
 
-  const rETHContract: Interface = new Interface([
-    RocketPoolContractAbis.rETHEventEtherDeposited,
-  ])
   const etherDepositedEvents: Array<EtherDepositedEvent> = (await options.getLogs({
     target: rETH,
-    entireLog: true,
     eventAbi: RocketPoolContractAbis.rETHEventEtherDeposited,
   }))
     .map((log: any) => {
-      const decodeLog: any = rETHContract.parseLog(log);
-
       const event: EtherDepositedEvent = {
-        blockNumber: Number(log.blockNumber),
-        etherAmount: BigInt(decodeLog.args[1].toString()),
-        fromAddress: normalizeAddress(decodeLog.args[0].toString()),
+        etherAmount: BigInt(log[1].toString()),
+        fromAddress: normalizeAddress(log[0].toString()),
       }
-
       return event
     })
 
@@ -137,18 +128,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
   }
 
-  const smoothingPoolContract: Interface = new Interface([
-    RocketPoolContractAbis.smoothingPoolEtherWithdrawn,
-  ])
   const etherWithdrawnEvents: Array<any> = (await options.getLogs({
     target: smoothingPool,
-    entireLog: true,
     eventAbi: RocketPoolContractAbis.smoothingPoolEtherWithdrawn,
   }))
   etherWithdrawnEvents.forEach((log: any) => {
-    const decodeLog: any = smoothingPoolContract.parseLog(log);
-    if (decodeLog.args[1].toString().toLowerCase() === rETH.toLowerCase()) {
-      dailyFees.add(ZeroAddress, BigInt(decodeLog.args[2].toString()))
+    if (log[1].toString().toLowerCase() === rETH.toLowerCase()) {
+      dailyFees.add(ZeroAddress, BigInt(log[2].toString()))
     }
   })
 
