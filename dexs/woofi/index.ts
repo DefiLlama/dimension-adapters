@@ -7,7 +7,7 @@ import request, { gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 
-const endpoints = {
+const endpoints: Record<Chain, string> = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('BL45YVVLVkCRGaAtyTjvuRt1yHnUt4QbZg8bWcZtLvLm'),
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('CxWDreK8yXVX9qxLTNoyTrcNT2uojrPiseC7mBqRENem'),
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('B1TxafnDavup8z9rwi5TKDwZxCBR24tw8sFeyLSShhiP'),
@@ -59,17 +59,6 @@ const graphs = getChainVolume({
   },
 });
 
-const dailyQuery = gql`
-  query getDailyVolume($Id: Int!) {
-    dayData(id: $Id) {
-      volumeUSD
-    },
-    globalVariables {
-      totalVolumeUSD
-    }
-  }
-`
-
 interface FetchResult {
   dayData: {
     volumeUSD: string;
@@ -78,19 +67,24 @@ interface FetchResult {
     totalVolumeUSD: string;
   }>
 }
-const fetch = async (_t: any, _c: any,options: FetchOptions) => {
-  try {
-    const start = getTimestampAtStartOfDayUTC(options.startOfDay)
-    const dateId = Math.floor(start / 86400);
-    const response: FetchResult = await request(endpoints[options.chain], dailyQuery, { Id: dateId });
-    if (!response) return {};
-    return {
-      dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
-      totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
-    };
-  } catch (error) {
-    console.error(options.chain, error);
-    return {};
+const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
+  const start = getTimestampAtStartOfDayUTC(options.endTimestamp)
+  const dateId = Math.floor(start / 86400);
+  const query = `
+    {
+    dayData(id: ${dateId}) {
+        volumeUSD
+      },
+      globalVariables {
+        totalVolumeUSD
+      }
+    }
+  `;
+  const response: FetchResult = (await request(endpoints[options.chain], query));
+  return {
+    timestamp: start,
+    dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
+    totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
   }
 }
 
@@ -98,7 +92,7 @@ const volume = Object.keys(endpoints).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: fetch,
+      fetch: fetchVolume,
       start: startTime[chain],
     },
   }),
