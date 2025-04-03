@@ -15,7 +15,7 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    idex: {
+    kuma: {
       fetch,
       start: "2025-03-06",
       runAtCurrTime: true,
