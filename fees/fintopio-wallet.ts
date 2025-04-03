@@ -7,10 +7,8 @@ type TMulitsig = {
 }
 
 const multisigs: TMulitsig = {
-  [CHAIN.BSC]: ["0xCB203fbB9dA1A930578a2d62AD49af8d27aadd01"],
-  [CHAIN.BSC]: ["0xe5C68E943b3aEaD59709F9fe51b5eb6598bed3b2"],
-  [CHAIN.TON]: ["UQCXwlp0CZbvT1gI7TTgmcAFTw2FKaOSc5ZLT2NN2df4cbBY"],
-  [CHAIN.TON]: ["UQC3LEsF4S1YJRl1qBRdyVSBj-PQ8iW4wze5z0ozJmpalEdP"],
+  [CHAIN.BSC]: ["0xCB203fbB9dA1A930578a2d62AD49af8d27aadd01", "0xe5C68E943b3aEaD59709F9fe51b5eb6598bed3b2"],
+  [CHAIN.TON]: ["UQCXwlp0CZbvT1gI7TTgmcAFTw2FKaOSc5ZLT2NN2df4cbBY", "UQC3LEsF4S1YJRl1qBRdyVSBj-PQ8iW4wze5z0ozJmpalEdP"]
 }
 
 const fetch: any = async (options: FetchOptions) => {
