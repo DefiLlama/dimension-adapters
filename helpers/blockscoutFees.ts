@@ -67,6 +67,7 @@ export const chainConfigMap: any = {
   [CHAIN.IOTAEVM]: { CGToken: 'iota', explorer: 'https://explorer.evm.iota.org', allStatsApi: 'https://stats-iota-evm.k8s.blockscout.com' },
   [CHAIN.FILECOIN]: { CGToken: 'filecoin', explorer: 'https://filecoin.blockscout.com/', allStatsApi: 'https://stats-filecoin.k8s-prod-1.blockscout.com'},
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network'},
+  [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games'},
 
 }
 
