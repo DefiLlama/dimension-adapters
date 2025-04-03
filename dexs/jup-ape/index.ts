@@ -65,7 +65,7 @@ const adapter: SimpleAdapter = {
             start: '2024-09-13'
         }
     },
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true
 }
 

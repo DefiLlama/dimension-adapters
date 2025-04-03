@@ -8,7 +8,7 @@ const fetchFeesSolana = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFeesSolana,
