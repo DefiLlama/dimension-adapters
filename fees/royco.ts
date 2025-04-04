@@ -22,7 +22,7 @@ import { Balances } from "@defillama/sdk";
 
 const methodology = {
   Fees: 'Total incentive/reward amount were committed by Incentive Providers.',
-  SupplySideRevenue: 'The amount of incentive/reward goes to Action Providers.',
+  SupplySideRevenue: 'The amount of incentive/reward goes to Action Providers and Frontend Providers.',
   ProtocolRevenue: 'The amount of incentive/reward goes to Royco Protocol.',
 }
 
@@ -40,9 +40,6 @@ const roycoSubgraph = {
   projectId: "project_cm07c8u214nt801v1b45zb60i",
   recipe: {
     version: "1.0.26",
-  },
-  vault: {
-    version: "1.0.33",
   },
 }
 
@@ -157,31 +154,32 @@ async function querySubgraph(options: FetchOptions, endpoint: string, dailySuppl
 
     for (const event of receiptEvents) {
       for (let i = 0; i < event.incentiveTokens.length; i++) {
+        // add incentive amount + frontend fees to supply side
         dailySupplySideRevenue.add(event.incentiveTokens[i], event.incentiveAmounts[i])
+        dailySupplySideRevenue.add(event.incentiveTokens[i], event.frontendFeeAmounts[i])
+
+        // add protocol fees to Royco protocol
         dailyProtocolRevenue.add(event.incentiveTokens[i], event.protocolFeeAmounts[i])
-        dailyProtocolRevenue.add(event.incentiveTokens[i], event.frontendFeeAmounts[i])
       }
     }
 }
 
-function getFetchFunction(defillamaChain: string): FetchV2 {
-  return async function (options: FetchOptions): Promise<FetchResultV2> {
-    const recipeSubgraphUrl = getRecipeSubgraphUrl(defillamaChain)
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const recipeSubgraphUrl = getRecipeSubgraphUrl(options.chain)
 
-    const dailySupplySideRevenue = options.createBalances()
-    const dailyProtocolRevenue = options.createBalances()
-    
-    await querySubgraph(options, recipeSubgraphUrl, dailySupplySideRevenue, dailyProtocolRevenue)
-    
-    const dailyFees = options.createBalances()
-    dailyFees.addBalances(dailySupplySideRevenue)
-    dailyFees.addBalances(dailyProtocolRevenue)
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  
+  await querySubgraph(options, recipeSubgraphUrl, dailySupplySideRevenue, dailyProtocolRevenue)
+  
+  const dailyFees = options.createBalances()
+  dailyFees.addBalances(dailySupplySideRevenue)
+  dailyFees.addBalances(dailyProtocolRevenue)
 
-    return {
-      dailyFees: dailyFees,
-      dailyProtocolRevenue: dailyProtocolRevenue,
-      dailySupplySideRevenue: dailySupplySideRevenue,
-    }
+  return {
+    dailyFees: dailyFees,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   }
 }
 
@@ -189,42 +187,42 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: getFetchFunction(CHAIN.ETHEREUM),
+      fetch: fetch,
       meta: {
         methodology,
       },
       start: '2024-12-2',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: getFetchFunction(CHAIN.ARBITRUM),
+      fetch: fetch,
       meta: {
         methodology,
       },
       start: '2024-11-24',
     },
     [CHAIN.BASE]: {
-      fetch: getFetchFunction(CHAIN.BASE),
+      fetch: fetch,
       meta: {
         methodology,
       },
       start: '2024-12-23',
     },
     [CHAIN.CORN]: {
-      fetch: getFetchFunction(CHAIN.CORN),
+      fetch: fetch,
       meta: {
         methodology,
       },
       start: '2024-12-2',
     },
     [CHAIN.SONIC]: {
-      fetch: getFetchFunction(CHAIN.SONIC),
+      fetch: fetch,
       meta: {
         methodology,
       },
       start: '2025-01-15',
     },
     [CHAIN.HYPERLIQUID]: {
-      fetch: getFetchFunction(CHAIN.HYPERLIQUID),
+      fetch: fetch,
       meta: {
         methodology,
       },
