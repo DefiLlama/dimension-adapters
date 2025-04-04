@@ -11,7 +11,7 @@ const adapter: Adapter = {
           fees: 0.003,
           customLogic: ({ dailyVolume, dailyFees }) => {
             // Protocol Revenue (Treasury): 0.0075% out of 0.3% swap fees
-            const dailyRevenue = dailyFees.clone(0.0075 / 0.3);
+            const dailyProtocolRevenue = dailyFees.clone(0.0075 / 0.3);
             // Holders Revenue (PNG Stakers): 0.0425% out of 0.3% swap fees  
             const dailyHoldersRevenue = dailyFees.clone(0.0425 / 0.3);
             // Supply Side Revenue (LPs): 0.25% / 0.3%
@@ -20,8 +20,9 @@ const adapter: Adapter = {
             return {
               dailyVolume,
               dailyFees,
-              dailyRevenue,
+              dailyProtocolRevenue,
               dailyHoldersRevenue,
+              dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
               dailySupplySideRevenue
             }
           }
