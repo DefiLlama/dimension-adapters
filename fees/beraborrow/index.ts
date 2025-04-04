@@ -110,7 +110,7 @@ dailyFees.add(CollVaults, withdrawalFeesInAssets);
   });
 
 
-// Liquidation fee (Debt gas compensation - TEMPORARY) -- Duplciate with borrowing Fee
+// Liquidation fee (Debt gas compensation - TEMPORARY)
 
 const logsLiquidation = await options.getLogs({
   target: NECT,
