@@ -8,16 +8,16 @@ import { CHAIN } from "../../helpers/chains";
 
 const gooseFxEndpoint = "https://gamma-api.goosefx.io/v1/stats";
 
-const fetch = async (timestamp: number) => {
+const fetch = async () => {
     const res = await fetchURL(gooseFxEndpoint);
     return {
-        timestamp,
         dailyVolume: res?.data.stats.stats24h.volume,
         totalVolume: res?.data.stats.stats30d.volume
     };
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
