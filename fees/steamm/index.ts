@@ -5,24 +5,30 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
+const suilendFeesURL = 'https://api.suilend.fi/steamm/daily/fees';
+
+interface DailyStats {  
+  protocolFeesUsd: string;
+  poolFeesUsd: string;
+}
 
 const methodology = {
   Fees: 'Total fees paid from swaps',
   ProtocolReveneue: 'The portion of the total fees going to the STEAMM treasury'
 }
 
-const fetchSteammStats = async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
-  const url = `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${startTimestamp}&endTimestampS=${endTimestamp}&intervalS=86400`
-  const [stats]: any = (await fetchURL(url));
-  const dailyFees = createBalances()
-  Object.entries(stats.fees).forEach(([token, fees]: any) => dailyFees.add(token, fees))
-
+const fetchSteammStats = async ({ endTimestamp }: FetchOptions) => {
+  const url = `${suilendFeesURL}?ts=${endTimestamp}`
+  const stats: DailyStats = (await fetchURL(url));
+  const dailyFees = parseFloat(stats.protocolFeesUsd) + parseFloat(stats.poolFeesUsd)
   return {
-    dailyFees,
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: stats.poolFeesUsd,
+    dailyRevenue: stats.protocolFeesUsd,
+    dailyProtocolRevenue: stats.protocolFeesUsd,
   };
 };
-
-
 
 const adapter: Adapter = {
   version: 2,

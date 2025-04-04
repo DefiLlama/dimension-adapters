@@ -55,12 +55,6 @@ const graphs = () => {
   };
 };
 
-const getStartTimestamp = async (chain: Chain) => {
-  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
-  const historicalVolume = historical.filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
-  return (new Date(historicalVolume[historicalVolume.length - 1].intervalTimestamp).getTime()) / 1000
-}
-
 const methodology = {
   UserFees: "Users pay 0.3% swap fees",
   Fees: "A 0.3% fee is collected from each swap"
@@ -71,77 +65,66 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs()(CHAIN.ARBITRUM),
-      start: async () => getStartTimestamp(CHAIN.ARBITRUM),
       meta: {
         methodology
       }
     },
     [CHAIN.AURORA]: {
       fetch: graphs()(CHAIN.AURORA),
-      start: async () => getStartTimestamp(CHAIN.AURORA),
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
       fetch: graphs()(CHAIN.AVAX),
-      start: async () => getStartTimestamp(CHAIN.AVAX),
       meta: {
         methodology
       }
     },
     [CHAIN.BOBA]: {
       fetch: graphs()(CHAIN.BOBA),
-      start: async () => getStartTimestamp(CHAIN.BOBA),
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
       fetch: graphs()(CHAIN.BSC),
-      start: async () => getStartTimestamp(CHAIN.BSC),
       meta: {
         methodology
       }
     },
     [CHAIN.ETHEREUM]: {
       fetch: graphs()(CHAIN.ETHEREUM),
-      start: async () => getStartTimestamp(CHAIN.ETHEREUM),
       meta: {
         methodology
       }
     },
     [CHAIN.FANTOM]: {
       fetch: graphs()(CHAIN.FANTOM),
-      start: async () => getStartTimestamp(CHAIN.FANTOM),
       meta: {
         methodology
       }
     },
     [CHAIN.HARMONY]: {
       fetch: graphs()(CHAIN.HARMONY),
-      start: async () => getStartTimestamp(CHAIN.HARMONY),
       meta: {
         methodology
       }
     },
     [CHAIN.MOONBEAN]: {
       fetch: graphs()(CHAIN.MOONBEAN),
-      start: async () => getStartTimestamp(CHAIN.MOONBEAN),
       meta: {
         methodology
       }
     },
     [CHAIN.MOONRIVER]: {
       fetch: graphs()(CHAIN.MOONRIVER),
-      start: async () => getStartTimestamp(CHAIN.MOONRIVER),
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
       fetch: graphs()(CHAIN.POLYGON),
-      start: async () => getStartTimestamp(CHAIN.POLYGON),
       meta: {
         methodology
       }
