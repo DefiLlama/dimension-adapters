@@ -1,0 +1,86 @@
+import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { queryDune } from "../helpers/dune";
+
+const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
+  const dailyFees = option.createBalances();
+  const dailyRevenue = option.createBalances();
+  const dailyMaticXFees = option.createBalances();
+  const dailyMaticXRev = option.createBalances();
+
+  const logsFees = await option.getLogs({
+    target: "0xf03A7Eb46d01d9EcAA104558C732Cf82f6B6B645",
+    eventAbi:
+      "event DistributeFees(address indexed _treasury, uint256 _feeAmount)",
+  });
+  logsFees.map((e) => {
+    dailyMaticXRev.addCGToken(
+      "matic-network",
+      Number(e._feeAmount / 10n ** 18n)
+    );
+  });
+
+  const logs = await option.getLogs({
+    target: "0xf03A7Eb46d01d9EcAA104558C732Cf82f6B6B645",
+    eventAbi:
+      "event StakeRewards(uint256 indexed _validatorId, uint256 _stakedAmount)",
+  });
+  logs.map((e) => {
+    dailyMaticXFees.addCGToken(
+      "matic-network",
+      Number(e._stakedAmount / 10n ** 18n)
+    );
+  });
+  dailyMaticXFees.addBalances(dailyMaticXRev); // StakeRewards excludes stader revenue
+
+  const date = new Date(option.startOfDay * 1000).toISOString().split("T")[0];
+
+  const res: { user_rewards: string; stader_revenue: string }[] =
+    await queryDune("4936645", { target_date: date });
+  res.forEach((item) => {
+    dailyFees.addUSDValue(item.user_rewards);
+    dailyRevenue.addUSDValue(item.stader_revenue);
+  });
+  dailyFees.addBalances(dailyMaticXFees);
+  dailyRevenue.addBalances(dailyMaticXRev);
+
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyRevenue,
+  };
+};
+
+const fetch: FetchV2 = async (option: FetchOptions) => {
+  const dailyFees = option.createBalances();
+
+  const logs = await option.getLogs({
+    target: "0x7276241a669489E4BBB76f63d2A43Bfe63080F2F",
+    eventAbi: "event Redelegate (uint256 _rewardsId, uint256 _amount)",
+  });
+  logs.map((e) => {
+    dailyFees.addGasToken(e._amount);
+  });
+
+  const dailyRevenue = dailyFees.clone(1 / 9);
+
+  return {
+    dailyFees: dailyFees,
+    dailyRevenue: dailyRevenue,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchEthereum,
+      start: "2022-04-12",
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch,
+      start: "2022-07-27",
+    },
+  },
+  version: 2,
+};
+
+export default adapter;
