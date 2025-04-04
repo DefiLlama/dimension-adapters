@@ -8,6 +8,8 @@ const PSMContracts = ["0x6983E589E57E244B4e42FA8293B4128d15D4AaC6", "0xB2F796FA3
 const NectGasPool = "0x088D80A806b015a3047baF3e8D0A391B3D13e0c8";
 const NECT = "0x1cE0a25D13CE4d52071aE7e02Cf1F6606F4C79d3"
 const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000"
+const BorrowerOperationsContracts = ["0x1cE0a25D13CE4d52071aE7e02Cf1F6606F4C79d3", "0xDB32cA8f3bB099A76D4Ec713a2c2AACB3d8e84B9"]
+const DenManagerGettersContracts = ["0xa2ECbE7a6BBfB0F14ABbCFE3c19FE54dC7878588", "0xFA7908287c1f1B256831c812c7194cb95BB440e6"]
 
 const fetchFees = async (options: FetchOptions) => {
 
@@ -90,7 +92,7 @@ const fetchFees = async (options: FetchOptions) => {
   // Borrowing Fee
 
   const borrowingFeePaid = await options.getLogs({
-    target: "0xdb32ca8f3bb099a76d4ec713a2c2aacb3d8e84b9",
+    targets: BorrowerOperationsContracts,
     eventAbi: `event BorrowingFeePaid(address indexed name, address indexed borrower, uint256 amount)`
   });
 
@@ -132,13 +134,19 @@ const fetchFees = async (options: FetchOptions) => {
 
   // Liquidation fee (Collateral gas compensation - TEMPORARY)
 
-  const tuples = await options.api.call({
+  console.log(DenManagerGettersContracts)
+  const tuples = await options.api.multiCall({
     abi: "function getAllCollateralsAndDenManagers() view returns (tuple(address collateral, address[] denManagers)[])",
-    target: "0xFA7908287c1f1B256831c812c7194cb95BB440e6",
+    calls: DenManagerGettersContracts,
   });
+  // flat the tuples into a single array
+  const flatTuples = tuples.reduce((acc: any, tuple: any) => {
+    return acc.concat(tuple);
+  }, []);
+
   const denManagersSet = new Set();
   const collateralSet = new Set();
-  tuples.map((tuple: any) => {
+  flatTuples.map((tuple: any) => {
     const denManagers = tuple.denManagers;
     collateralSet.add(tuple.collateral.toLowerCase());
     denManagers.forEach((denManager: any) => denManagersSet.add(denManager.toLowerCase()));
