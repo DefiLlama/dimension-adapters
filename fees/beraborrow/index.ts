@@ -8,6 +8,8 @@ const PSMContracts = ["0x6983E589E57E244B4e42FA8293B4128d15D4AaC6", "0xB2F796FA3
 const NectGasPool = "0x088D80A806b015a3047baF3e8D0A391B3D13e0c8";
 const NECT = "0x1cE0a25D13CE4d52071aE7e02Cf1F6606F4C79d3"
 const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000"
+const BorrowerOperationsContracts = ["0x1cE0a25D13CE4d52071aE7e02Cf1F6606F4C79d3", "0xDB32cA8f3bB099A76D4Ec713a2c2AACB3d8e84B9"]
+const DenManagerGettersContracts = ["0xa2ECbE7a6BBfB0F14ABbCFE3c19FE54dC7878588", "0xFA7908287c1f1B256831c812c7194cb95BB440e6"]
 
 const fetchFees = async (options: FetchOptions) => {
 
@@ -16,38 +18,19 @@ const fetchFees = async (options: FetchOptions) => {
   const getCollateralVaults = await options.api.call({
     abi: "function getCollateralVaults() view returns (tuple(address collateral, uint blockNumbe, uint8 protocolInstance)[])",
     target: "0xcE997aC8FD015A2B3c3950Cb33E9e6Bb962E35e1",
-<<<<<<< HEAD
-  }); 
-  
-=======
   });
 
->>>>>>> master
   const CollVaults = getCollateralVaults.map((vault: any) => {
     return vault.collateral
   });
 
-<<<<<<< HEAD
-// Performance Fees
-=======
   // Performance Fees
->>>>>>> master
 
   const performanceFeeLogs = await options.getLogs({
     targets: CollVaults,
     eventAbi: "event PerformanceFee(address indexed token, uint256 amount)",
   });
 
-<<<<<<< HEAD
-    performanceFeeLogs.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
-  });
-
-// LSP Deposit / Withdraw Fee
-
-  const LSPContract = "0x597877Ccf65be938BD214C4c46907669e3E62128"
-  const logs  = await options.getLogs({
-=======
   performanceFeeLogs.forEach((log: any) => {
     dailyFees.add(log.token, log.amount);
   });
@@ -56,7 +39,6 @@ const fetchFees = async (options: FetchOptions) => {
 
   const LSPContract = "0x597877Ccf65be938BD214C4c46907669e3E62128"
   const logs = await options.getLogs({
->>>>>>> master
     target: LSPContract,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: [
@@ -66,54 +48,11 @@ const fetchFees = async (options: FetchOptions) => {
     ],
   })
   const total = logs.reduce((acc: BigNumber, log: any) => {
-<<<<<<< HEAD
-    return acc.plus(new BigNumber(log[2]));
-=======
     return acc.plus(new BigNumber(log.value));
->>>>>>> master
   }, new BigNumber(0));
 
   dailyFees.add(LSPContract, total);
 
-<<<<<<< HEAD
-// ColVault Withdraw Fee
-
-const colVaultWithdrawShares  = await options.getLogs({
-  targets: CollVaults,
-  eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-  topics: [
-    TRANSFER_TOPIC,
-    zeroAddress,
-    "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
-  ],
-  flatten: false,
-
-})
-
-const colVaultWithdraw = colVaultWithdrawShares.map((logs: any[]) => {
-  if (!logs || logs.length === 0) return new BigNumber(0);
-  return logs.reduce((acc: BigNumber, logItem: any) => {
-        return acc.plus(logItem[2]);
-      }
-    , new BigNumber(0)
-);
-})
-
-const calls = CollVaults.map((collateral, index) => ({
-  target: collateral,
-  params: [colVaultWithdraw[index].toFixed(0)],
-}));
-
-
-const withdrawalFeesInAssets = await options.api.multiCall({
-  abi: 'function convertToAssets(uint256) view returns (uint256)',
-  calls,
-});
-dailyFees.add(CollVaults, withdrawalFeesInAssets);
-
-
-// Borrowing Fee
-=======
   // ColVault Withdraw Fee
 
   const colVaultWithdrawShares = await options.getLogs({
@@ -151,10 +90,9 @@ dailyFees.add(CollVaults, withdrawalFeesInAssets);
 
 
   // Borrowing Fee
->>>>>>> master
 
   const borrowingFeePaid = await options.getLogs({
-    target: "0xdb32ca8f3bb099a76d4ec713a2c2aacb3d8e84b9",
+    targets: BorrowerOperationsContracts,
     eventAbi: `event BorrowingFeePaid(address indexed name, address indexed borrower, uint256 amount)`
   });
 
@@ -170,86 +108,6 @@ dailyFees.add(CollVaults, withdrawalFeesInAssets);
     calls: uniqueBorrowingNames,
   });
   uniqueBorrowingNames.map((name: string, i: number) => {
-<<<<<<< HEAD
-    dailyFees.add(DebtToken[i], uniqueBorrowingAmounts[i] )
-  });
-
-
-// Liquidation fee (Debt gas compensation - TEMPORARY)
-
-const logsLiquidation = await options.getLogs({
-  target: NECT,
-  eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-  topics: [
-    TRANSFER_TOPIC,
-    "0x000000000000000000000000" + NectGasPool.substring(2),
-    "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
-  ],
-  
-})
-
-
-const totalLogsLiquidation = logsLiquidation.reduce((acc: BigNumber, log: any) => {
-    return acc.plus(new BigNumber(log[2]));
-  }, new BigNumber(0));
-
-dailyFees.add(NECT, totalLogsLiquidation);
-
-// Liquidation fee (Collateral gas compensation - TEMPORARY)
-
-const tuples = await options.api.call({
-  abi: "function getAllCollateralsAndDenManagers() view returns (tuple(address collateral, address[] denManagers)[])",
-  target: "0xFA7908287c1f1B256831c812c7194cb95BB440e6",
-});
-
-await Promise.all(
-    
-  tuples.map(async (tuple) => {
-    const denManagers = tuple.denManagers;
-    const collateral = tuple.collateral;
-
-    const logs = await options.getLogs({
-      target: collateral,
-      eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-      topics: [
-        TRANSFER_TOPIC,
-        "0x000000000000000000000000" + denManagers[0].substring(2),
-        "0x000000000000000000000000" + FEE_RECEIVER.substring(2),
-      ],
-    });
-
-    const total = logs.reduce((acc: BigNumber, log: any) => {
-      return acc.plus(new BigNumber(log[2]));
-    }, new BigNumber(0));
-
-    dailyFees.add(collateral, total);
-  })
-);
-
-// PermissionlessPSM deposit fee (in NECT)
-
-const depositsPermissionlessPSM = await options.getLogs({
-  targets: PSMContracts,
-  eventAbi: "event Deposit(address indexed caller, address indexed stable, uint stableAmount, uint mintedNect, uint fee)",
-});
-const totalDeposits = depositsPermissionlessPSM.reduce((acc, log) => acc.plus(new BigNumber(log[4])), new BigNumber(0));
-
-if (totalDeposits.isGreaterThan(0)) dailyFees.add(NECT, total);
-
-
-// PermissionlessPSM withdrawal fee (fee is in indexed stable)
-
-const withdrawalPermissionlessPSM = await options.getLogs({
-  targets: PSMContracts,
-  eventAbi: "event Withdraw(address indexed caller, address indexed stable, uint stableAmount, uint burnedNect, uint fee)",
-});
-
-withdrawalPermissionlessPSM.forEach((log) => {
-  dailyFees.add(log.stable, log.fee);
-});
-
-  return { dailyFees};
-=======
     dailyFees.add(DebtToken[i], uniqueBorrowingAmounts[i])
   });
 
@@ -276,13 +134,19 @@ withdrawalPermissionlessPSM.forEach((log) => {
 
   // Liquidation fee (Collateral gas compensation - TEMPORARY)
 
-  const tuples = await options.api.call({
+  console.log(DenManagerGettersContracts)
+  const tuples = await options.api.multiCall({
     abi: "function getAllCollateralsAndDenManagers() view returns (tuple(address collateral, address[] denManagers)[])",
-    target: "0xFA7908287c1f1B256831c812c7194cb95BB440e6",
+    calls: DenManagerGettersContracts,
   });
+  // flat the tuples into a single array
+  const flatTuples = tuples.reduce((acc: any, tuple: any) => {
+    return acc.concat(tuple);
+  }, []);
+
   const denManagersSet = new Set();
   const collateralSet = new Set();
-  tuples.map((tuple: any) => {
+  flatTuples.map((tuple: any) => {
     const denManagers = tuple.denManagers;
     collateralSet.add(tuple.collateral.toLowerCase());
     denManagers.forEach((denManager: any) => denManagersSet.add(denManager.toLowerCase()));
@@ -329,7 +193,6 @@ withdrawalPermissionlessPSM.forEach((log) => {
   });
 
   return { dailyFees };
->>>>>>> master
 };
 
 const adapter: SimpleAdapter = {
