@@ -163,34 +163,25 @@ await Promise.all(
 
 // PermissionlessPSM deposit fee (in NECT)
 
-await Promise.all(
-  PSMContracts.map(async (psm) => {
-    const logs = await options.getLogs({
-      target: psm,
-      eventAbi: "event Deposit(address indexed caller, address indexed stable, uint stableAmount, uint mintedNect, uint fee)",
-    });
+const depositsPermissionlessPSM = await options.getLogs({
+  targets: PSMContracts,
+  eventAbi: "event Deposit(address indexed caller, address indexed stable, uint stableAmount, uint mintedNect, uint fee)",
+});
+const totalDeposits = depositsPermissionlessPSM.reduce((acc, log) => acc.plus(new BigNumber(log[4])), new BigNumber(0));
 
-    const total = logs.reduce((acc, log) => acc.plus(new BigNumber(log[4])), new BigNumber(0));
-    if (total.isGreaterThan(0)) dailyFees.add(NECT, total);
-  })
-);
-
+if (totalDeposits.isGreaterThan(0)) dailyFees.add(NECT, total);
 
 
 // PermissionlessPSM withdrawal fee (fee is in indexed stable)
 
-await Promise.all(
-  PSMContracts.map(async (psm) => {
-    const logs = await options.getLogs({
-      target: psm,
-      eventAbi: "event Withdraw(address indexed caller, address indexed stable, uint stableAmount, uint burnedNect, uint fee)",
-    });
-    
-    logs.forEach((log) => {
-      dailyFees.add(log.stable, log.fee);
-    });
-  })
-);
+const withdrawalPermissionlessPSM = await options.getLogs({
+  targets: PSMContracts,
+  eventAbi: "event Withdraw(address indexed caller, address indexed stable, uint stableAmount, uint burnedNect, uint fee)",
+});
+
+withdrawalPermissionlessPSM.forEach((log) => {
+  dailyFees.add(log.stable, log.fee);
+});
 
   return { dailyFees};
 };
