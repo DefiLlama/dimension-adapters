@@ -274,7 +274,6 @@ const adapter: BreakdownAdapter = {
         fetch: async (options: FetchOptions) => {
           try {
             const res = (await v3Graphs(chain as Chain)(options))
-            // console.log("res", res)
             return {
               totalVolume: res?.totalVolume || 0,
               dailyVolume: res?.dailyVolume || 0,

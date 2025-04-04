@@ -22,7 +22,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const apiUrl = `${API_ENDPOINT}?filterBeginKlineTimeInclusive=${(options.fromTimestamp - 800) * 1000}&filterEndKlineTimeExclusive=${options.toTimestamp * 1000}`;
 
   const { data }: IEdgeXFeeResponse = await httpGet(apiUrl)
-  console.log(data)
 
   const startOfDayUTC = options.startOfDay * 1000;
   const dayData = data.find(item => item.dayTimestamp === startOfDayUTC);

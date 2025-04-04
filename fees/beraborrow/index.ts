@@ -134,7 +134,6 @@ const fetchFees = async (options: FetchOptions) => {
 
   // Liquidation fee (Collateral gas compensation - TEMPORARY)
 
-  console.log(DenManagerGettersContracts)
   const tuples = await options.api.multiCall({
     abi: "function getAllCollateralsAndDenManagers() view returns (tuple(address collateral, address[] denManagers)[])",
     calls: DenManagerGettersContracts,

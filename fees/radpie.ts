@@ -32,20 +32,15 @@ const graph = (chain: Chain) => {
   return async ({ createBalances, getLogs, api }: FetchOptions) => {
     const dailyFees = createBalances();
     let poolLength = await api.call({ abi: 'uint256:poolLength', target: address_reward[chain], });
-    // console.log(poolLength);
     let array = Array.from({ length: poolLength }, (_, index) => index);
     const pools = await api.multiCall({ abi: 'function poolTokenList(uint256) view returns(address)', calls: array, target: address_reward[chain] })    // (await getLogs({
-    // console.log(pools)
     const rewardContracts = await api.multiCall({ abi: 'function pools(address) view returns ( address asset,  address rToken,  address vdToken,  address rewarder, address receiptToken ,  uint256 maxCap,  uint256 lastActionHandled,  bool isNative,   bool isActive)', calls: pools, target: address_reward[chain] })    // (await getLogs({
-    // console.log(rewardContracts[0].rewarder) 
     for (const i of rewardContracts) {
       const logs = await getLogs({
         target: i.rewarder,
         eventAbi: event_paid_stream,
       });
-      // console.log(logs)
       logs.forEach((e: any) => {
-        // console.log(e._token,e._reward)
         dailyFees.add(e._token, e._reward);
       });
     }
@@ -54,7 +49,6 @@ const graph = (chain: Chain) => {
       target: address_rdnt_reward[chain],
       eventAbi: event_paid_rdnt,
     })).map((e: any) => {
-      // console.log(e)
       dailyFees.add(address_rdnt[chain], e._amount)
     })
     return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };

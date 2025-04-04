@@ -102,9 +102,6 @@ const fetchFees = async (options: FetchOptions) => {
     })
   );
 
-  console.log("Daily fees: ", dailyFees);
-  console.log("Daily revenue: ", dailyRevenue);
-
   return { dailyFees, dailyRevenue };
 };
 
