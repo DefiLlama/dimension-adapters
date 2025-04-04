@@ -4,6 +4,7 @@ import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+
     const toDayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const fromDayTimestamp = toDayTimestamp - 86400; // 60*60*24
 
