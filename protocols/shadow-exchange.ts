@@ -26,12 +26,12 @@ interface IPool {
 export async function fetchPools(options: FetchOptions): Promise<IPool[]> {
   const query = `
     {
-      clPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      clPoolDayDatas(where:{startOfDay: ${options.startOfDay}}, first: 1000) {
         startOfDay
         volumeUSD
         feesUSD
       }
-      legacyPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      legacyPoolDayDatas(where:{startOfDay: ${options.startOfDay}}, first: 1000) {
         startOfDay
         volumeUSD
         feesUSD
