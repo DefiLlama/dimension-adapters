@@ -16,13 +16,15 @@ const adapter: Adapter = {
             const dailyHoldersRevenue = dailyFees.clone(0.0425 / 0.3);
             // Supply Side Revenue (LPs): 0.25% / 0.3%
             const dailySupplySideRevenue = dailyFees.clone(0.25 / 0.3);
+            const dailyRevenue = dailyProtocolRevenue.clone()
+            dailyRevenue.add(dailyHoldersRevenue)
             
             return {
               dailyVolume,
               dailyFees,
               dailyProtocolRevenue,
               dailyHoldersRevenue,
-              dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
+              dailyRevenue,
               dailySupplySideRevenue
             }
           }
