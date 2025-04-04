@@ -1,7 +1,7 @@
 /**
  * The Graph Protocol Fees & Revenue Adapter
  * -----------------------------------------
- * Fetches fees and revenue data from The Graph protocol on Arbitrum using the subgraph.
+ * Fetches fees and revenue data from The Graph protocol on Arbitrum and Ethereum using their respective subgraphs.
  * 
  * Fee Structure:(source: https://github.com/graphprotocol/graph-network-subgraph/blob/master/schema.graphql)
  * - Query Fees: Total fees generated in the network from subgraph queries
@@ -18,23 +18,24 @@ import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import { graph } from "@defillama/sdk";
 
-const ENDPOINT = graph.modifyEndpoint('DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp');
+const ARBITRUM_ENDPOINT = graph.modifyEndpoint('DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp');
+const ETHEREUM_ENDPOINT = graph.modifyEndpoint('9Co7EQe5PgW3ugCUJrJgRv4u9zdEuDJf8NvMWftNsBH8');
 
-interface PaymentSource {
+interface GraphNetwork {
   id: string;
+  totalQueryFees: string;
   totalCuratorQueryFees: string;
   totalDelegatorQueryFeeRebates: string;
   totalIndexerQueryFeeRebates: string;
-  totalQueryFees: string;
   totalTaxedQueryFees: string;
 }
 
 interface GraphQLResponse {
-  yesterday: PaymentSource[];
-  today: PaymentSource[];
+  yesterday: GraphNetwork[];
+  today: GraphNetwork[];
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetchData = async (endpoint: string, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -48,70 +49,59 @@ const fetch = async (options: FetchOptions) => {
     getBlock(options.startTimestamp, options.chain, {}),
   ]);
 
-  const data: GraphQLResponse = await request(ENDPOINT, gql`{
-    yesterday: paymentSources(block: {number: ${yesterdaysBlock}}) {
+  const data: GraphQLResponse = await request(endpoint, gql`{
+    yesterday: graphNetworks(block: {number: ${yesterdaysBlock}}) {
       id
+      totalQueryFees
       totalCuratorQueryFees
       totalDelegatorQueryFeeRebates
       totalIndexerQueryFeeRebates
-      totalQueryFees
       totalTaxedQueryFees
     }
-    today: paymentSources(block: {number: ${todaysBlock}}) {
+    today: graphNetworks(block: {number: ${todaysBlock}}) {
       id
+      totalQueryFees
       totalCuratorQueryFees
       totalDelegatorQueryFeeRebates
       totalIndexerQueryFeeRebates
-      totalQueryFees
       totalTaxedQueryFees
     }
   }`);
 
-  const yesterdayMap = new Map(data.yesterday.map(source => [source.id, source]));
-  const todayMap = new Map(data.today.map(source => [source.id, source]));
+  const yesterday = data.yesterday[0];
+  const today = data.today[0];
 
-  let totalQueryFeesDiff = BigInt(0);
-  let totalProtocolTaxDiff = BigInt(0);
-  let totalCuratorFeesDiff = BigInt(0);
-  let totalDelegatorRewardsDiff = BigInt(0);
-  let totalIndexerRebatesDiff = BigInt(0);
+  if (!yesterday || !today) return {};
 
-  for (const [id, todaySource] of todayMap) {
-    const yesterdaySource = yesterdayMap.get(id);
-    if (!yesterdaySource) continue;
-
-    totalQueryFeesDiff += BigInt(todaySource.totalQueryFees) - BigInt(yesterdaySource.totalQueryFees);
-    totalProtocolTaxDiff += BigInt(todaySource.totalTaxedQueryFees) - BigInt(yesterdaySource.totalTaxedQueryFees);
-    totalCuratorFeesDiff += BigInt(todaySource.totalCuratorQueryFees) - BigInt(yesterdaySource.totalCuratorQueryFees);
-    totalDelegatorRewardsDiff += BigInt(todaySource.totalDelegatorQueryFeeRebates) - BigInt(yesterdaySource.totalDelegatorQueryFeeRebates);
-    totalIndexerRebatesDiff += BigInt(todaySource.totalIndexerQueryFeeRebates) - BigInt(yesterdaySource.totalIndexerQueryFeeRebates);
-  }
+  // Total fees (from queries)
+  const totalQueryFeesDiff = BigInt(today.totalQueryFees) - BigInt(yesterday.totalQueryFees);
+  // Protocol revenue (from taxed fees)
+  const totalProtocolTaxDiff = BigInt(today.totalTaxedQueryFees) - BigInt(yesterday.totalTaxedQueryFees);
+  // Supply side components
+  const totalCuratorFeesDiff = BigInt(today.totalCuratorQueryFees) - BigInt(yesterday.totalCuratorQueryFees);
+  const totalDelegatorRewardsDiff = BigInt(today.totalDelegatorQueryFeeRebates) - BigInt(yesterday.totalDelegatorQueryFeeRebates);
+  const totalIndexerRebatesDiff = BigInt(today.totalIndexerQueryFeeRebates) - BigInt(yesterday.totalIndexerQueryFeeRebates);
 
   if (totalQueryFeesDiff > 0) {
     dailyFees.addCGToken("the-graph", totalQueryFeesDiff / BigInt(1e18));
   }
 
-  // daily revenue is protocol tax (burned)
   if (totalProtocolTaxDiff > 0) {
     dailyRevenue.addCGToken("the-graph", totalProtocolTaxDiff / BigInt(1e18));
   }
 
-  // Supply side revenue (indexer rebates + delegator rewards + curator fees)
   const totalSupplySideDiff = totalIndexerRebatesDiff + totalDelegatorRewardsDiff + totalCuratorFeesDiff;
   if (totalSupplySideDiff > 0) {
     dailySupplySideRevenue.addCGToken("the-graph", totalSupplySideDiff / BigInt(1e18));
   }
 
-  for (const [id, todaySource] of todayMap) {
-    totalFees.addCGToken("the-graph", BigInt(todaySource.totalQueryFees) / BigInt(1e18));
+  totalFees.addCGToken("the-graph", BigInt(today.totalQueryFees) / BigInt(1e18));
+  totalRevenue.addCGToken("the-graph", BigInt(today.totalTaxedQueryFees) / BigInt(1e18));
 
-    totalRevenue.addCGToken("the-graph", BigInt(todaySource.totalTaxedQueryFees) / BigInt(1e18));
-
-    const totalSupplySide = BigInt(todaySource.totalIndexerQueryFeeRebates) + 
-                           BigInt(todaySource.totalDelegatorQueryFeeRebates) +
-                           BigInt(todaySource.totalCuratorQueryFees);
-    totalSupplySideRevenue.addCGToken("the-graph", totalSupplySide / BigInt(1e18));
-  }
+  const totalSupplySide = BigInt(today.totalIndexerQueryFeeRebates) + 
+                         BigInt(today.totalDelegatorQueryFeeRebates) +
+                         BigInt(today.totalCuratorQueryFees);
+  totalSupplySideRevenue.addCGToken("the-graph", totalSupplySide / BigInt(1e18));
 
   return {
     dailyFees,
@@ -131,8 +121,19 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch as any,
+      fetch: (options: FetchOptions) => fetchData(ARBITRUM_ENDPOINT, options),
       start: '2022-11-30',
+      meta: {
+        methodology: {
+          fees: "Total query fees paid by users for accessing subgraph data",
+          revenue: "Combined revenue from protocol tax (burned fees)",
+          supplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
+        },
+      },
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch: (options: FetchOptions) => fetchData(ETHEREUM_ENDPOINT, options),
+      start: '2020-12-17',
       meta: {
         methodology: {
           fees: "Total query fees paid by users for accessing subgraph data",
