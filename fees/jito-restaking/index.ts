@@ -1,6 +1,6 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
-import { CHAIN } from "../helpers/chains"
-import { getSolanaReceived } from "../helpers/token"
+import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { CHAIN } from "../../helpers/chains"
+import { getSolanaReceived } from "../../helpers/token"
 
 const fetchFees = async (options: FetchOptions) => {
 
