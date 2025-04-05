@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchPools } from "./shadow-exchange";
+import { fetchStats } from "./shadow-exchange";
 
 type TStartTime = {
     [key: string]: number;
@@ -11,9 +11,10 @@ const startTimeV2: TStartTime = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const pools = (await fetchPools(options)).filter((pool) => !pool.isCL)
-  const dailyFees = pools.reduce((acc, pool) => acc + Number(pool.feesUSD), 0);
-  const dailyVolume = pools.reduce((acc, pool) => acc + Number(pool.volumeUSD), 0);
+  const stats = await fetchStats(options)
+  
+  const dailyFees = stats.legacyFeesUSD
+  const dailyVolume = stats.legacyVolumeUSD
 
   return {
     dailyVolume,
