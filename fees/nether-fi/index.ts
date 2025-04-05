@@ -1,7 +1,8 @@
-import { Adapter, Fetch } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { Adapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const subgraphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
 const startTimestamp = 1693526400;
@@ -20,7 +21,7 @@ const getFetch = (): Fetch => async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
-  const graphQuery = gql`{
+  const graphQuery = `{
     feeStat(id: "${searchTimestamp}") {
       mint
       burn
@@ -28,9 +29,9 @@ const getFetch = (): Fetch => async (timestamp: number) => {
       swap
     }
   }`;
-
-  const graphRes = await request(subgraphEndpoint, graphQuery);
-
+  console.log(graphQuery);
+  const graphRes = await sdk.graph.request(subgraphEndpoint, graphQuery);
+  console.log(graphRes);
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
     parseInt(graphRes.feeStat.burn) +
@@ -54,7 +55,9 @@ const getFetch = (): Fetch => async (timestamp: number) => {
 
 const adapter: Adapter = {
   version: 1,
+  deadFrom: '2025-01-28',
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BASE]: {
       fetch: getFetch(),
       start: startTimestamp,

@@ -1,7 +1,8 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const graphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
 const startTimestamp = 1693526400;
@@ -71,8 +72,10 @@ const getFetch =
   };
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-01-28',
   breakdown: {
     swap: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap),
         start: startTimestamp,
@@ -80,6 +83,7 @@ const adapter: BreakdownAdapter = {
     },
 
     derivatives: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataDerivatives),
         start: startTimestamp,

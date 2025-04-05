@@ -179,10 +179,16 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 };
 
 const fetchVolumeBlast = async (timestamp: number): Promise<FetchResultVolume> => {
+  if (timestamp > 1728432000){
+    return {}
+  }
+
   let dailyMakerVolume = new BigNumber(0);
   let dailyTakerVolume = new BigNumber(0);
   let totalMakerVolume = new BigNumber(0);
   let totalTakerVolume = new BigNumber(0);
+
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   const response_blast: IGraphResponse = await request(endpoint_blast, queryBlast, {
     from: String(timestamp - ONE_DAY_IN_SECONDS),
@@ -203,7 +209,6 @@ const fetchVolumeBlast = async (timestamp: number): Promise<FetchResultVolume> =
   const _dailyVolume = toString(dailyVolume);
   const _totalVolume = toString(totalVolume);
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   return {
     timestamp: dayTimestamp,
