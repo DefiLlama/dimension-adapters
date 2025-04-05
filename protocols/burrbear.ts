@@ -1,51 +1,98 @@
-import request, { gql } from "graphql-request";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
 
-interface Balancer {
-  totalSwapFee: number;
-  totalSwapVolume: number;
-  totalProtocolFee: number;
+import { graph } from "@defillama/sdk";
+import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { CHAIN } from "../helpers/chains"
+import { getBlock } from "../helpers/getBlock"
+
+const url = 'https://api.goldsky.com/api/public/project_cluukfpdrw61a01xag6yihcuy/subgraphs/berachain/prod/gn'
+
+interface IPool {
+  address: string
+  symbol: string
+  totalSwapVolume: number
+  totalSwapFee: number
+  totalProtocolFee: number
 }
 
-const fetch = async ({ getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultV2> => {
-  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+interface GraphQLResponse {
+  yesterday: { pool0: IPool[] }
+  today: { pool0: IPool[] }
+}
 
-  const graphQuery = gql`query fees {
-        today:balancers(block: { number: ${toBlock}}) { totalSwapFee totalSwapVolume totalProtocolFee }
-        yesterday:balancers(block: { number: ${fromBlock}}) { totalSwapFee totalSwapVolume totalProtocolFee }
-      }`;
+const fetchVolume = async (options: FetchOptions) => {
+  const [todaysBlock, yesterdaysBlock] = await Promise.all([
+      options.getToBlock(),
+      options.getFromBlock()
+  ]);
 
-  const graphRes: any = await request('https://api.goldsky.com/api/public/project_cluukfpdrw61a01xag6yihcuy/subgraphs/berachain/prod/gn', graphQuery);
+  const query = `{
+    yesterday: pools(
+      first: 1000
+      where: { totalSwapVolume_gt: "0" }
+      block: { number: ${yesterdaysBlock} }
+    ) {
+      address
+      symbol
+      totalSwapVolume
+      totalSwapFee
+      totalProtocolFee
+    }
+    today: pools(
+      first: 1000
+      where: { totalSwapVolume_gt: "0" }
+      block: { number: ${todaysBlock} }
+    ) {
+      address
+      symbol
+      totalSwapVolume
+      totalSwapFee
+      totalProtocolFee
+    }
+  }`
 
+  const response = await graph.request(url, query) as {
+    yesterday: IPool[]
+    today: IPool[]
+  }
 
-  const totalVolume: number = graphRes.today.reduce((p: number, c: Balancer) => p + c.totalSwapVolume, 0);
-  const totalFees = graphRes.today.reduce((p: number, c: Balancer) => p + c.totalSwapFee, 0);
-  const totalProtocolFees = graphRes.today.reduce((p: number, c: Balancer) => p + c.totalProtocolFee, 0);
-  const previousVolume = graphRes.yesterday.reduce((p: number, c: Balancer) => p + c.totalSwapVolume, 0);
-  const previousFees = graphRes.yesterday.reduce((p: number, c: Balancer) => p + c.totalSwapFee, 0);
-  const previousProtocolFees = graphRes.yesterday.reduce((p: number, c: Balancer) => p + c.totalProtocolFee, 0);
+  const yesterdayTotalVolume = response.yesterday.reduce((acc, pool) => acc + Number(pool.totalSwapVolume), 0);
+  const yesterdayTotalFees = response.yesterday.reduce((acc, pool) => acc + Number(pool.totalSwapFee), 0);
 
-  const dailyVolume = totalVolume - previousVolume;
-  const dailyFees = totalFees - previousFees;
+  const todayTotalVolume = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapVolume), 0);
+  const todayTotalFees = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapFee), 0);
+  
+  const totalProtocolFees = response.today.reduce((p: number, c: IPool) => p + Number(c.totalProtocolFee), 0);
+  const previousProtocolFees = response.yesterday.reduce((p: number, c: IPool) => p + Number(c.totalProtocolFee), 0);
+
+  const volumeDiff = todayTotalVolume - yesterdayTotalVolume;
+  const feesDiff = todayTotalFees - yesterdayTotalFees;
   const dailyRevenue = totalProtocolFees - previousProtocolFees;
 
+  const dailyVolume = (volumeDiff > 0 ? volumeDiff : 0);
+  const dailyFees = (feesDiff > 0 ? feesDiff : 0);
+
   return {
-    dailyVolume,
-    totalVolume,
-    dailyFees,
-    totalFees,
-    dailyRevenue,
-    totalRevenue: totalProtocolFees,
-  };
-};
+    dailyVolume: dailyVolume,
+    totalVolume: todayTotalVolume,
+    dailyFees: dailyFees,
+    totalFees: todayTotalFees,
+    dailyRevenue: dailyRevenue
+  }
+}
+
+
+
 
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.BERACHAIN]: { fetch, }
-  },
+    [CHAIN.BERACHAIN]: {
+      fetch: fetchVolume,
+      start: '2025-01-25'
+    }
+  }
 };
+
 
 export default adapter;
