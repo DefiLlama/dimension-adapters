@@ -61,8 +61,8 @@ const fetchVolume = async (options: FetchOptions) => {
   const todayTotalVolume = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapVolume), 0);
   const todayTotalFees = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapFee), 0);
   
-  const totalProtocolFees = response.today.reduce((p: number, c: IPool) => p + c.totalProtocolFee, 0);
-  const previousProtocolFees = response.yesterday.reduce((p: number, c: IPool) => p + c.totalProtocolFee, 0);
+  const totalProtocolFees = response.today.reduce((p: number, c: IPool) => p + Number(c.totalProtocolFee), 0);
+  const previousProtocolFees = response.yesterday.reduce((p: number, c: IPool) => p + Number(c.totalProtocolFee), 0);
 
   const volumeDiff = todayTotalVolume - yesterdayTotalVolume;
   const feesDiff = todayTotalFees - yesterdayTotalFees;
