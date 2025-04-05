@@ -75,7 +75,6 @@ const adapter: BreakdownAdapter = {
   deadFrom: '2025-01-28',
   breakdown: {
     swap: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap),
         start: startTimestamp,
@@ -83,7 +82,6 @@ const adapter: BreakdownAdapter = {
     },
 
     derivatives: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataDerivatives),
         start: startTimestamp,

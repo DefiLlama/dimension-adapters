@@ -55,7 +55,6 @@ const adapter: Adapter = {
   version: 1,
   deadFrom: '2025-01-28',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BASE]: {
       fetch: getFetch(),
       start: startTimestamp,
