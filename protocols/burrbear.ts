@@ -1,3 +1,4 @@
+
 import { graph } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
@@ -19,8 +20,8 @@ interface GraphQLResponse {
 
 const fetchVolume = async (options: FetchOptions) => {
   const [todaysBlock, yesterdaysBlock] = await Promise.all([
-    getBlock(options.endTimestamp, options.chain, {}),
-    getBlock(options.startTimestamp, options.chain, {}),
+      options.getToBlock(),
+      options.getFromBlock()
   ]);
 
   const query = `{
@@ -33,6 +34,7 @@ const fetchVolume = async (options: FetchOptions) => {
       symbol
       totalSwapVolume
       totalSwapFee
+      totalProtocolFee
     }
     today: pools(
       first: 1000
@@ -43,6 +45,7 @@ const fetchVolume = async (options: FetchOptions) => {
       symbol
       totalSwapVolume
       totalSwapFee
+      totalProtocolFee
     }
   }`
 
@@ -56,9 +59,13 @@ const fetchVolume = async (options: FetchOptions) => {
 
   const todayTotalVolume = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapVolume), 0);
   const todayTotalFees = response.today.reduce((acc, pool) => acc + Number(pool.totalSwapFee), 0);
+  
+  const totalProtocolFees = graphRes.today.reduce((p: number, c: Balancer) => p + c.totalProtocolFee, 0);
+  const previousProtocolFees = graphRes.yesterday.reduce((p: number, c: Balancer) => p + c.totalProtocolFee, 0);
 
   const volumeDiff = todayTotalVolume - yesterdayTotalVolume;
   const feesDiff = todayTotalFees - yesterdayTotalFees;
+    const dailyRevenue = totalProtocolFees - previousProtocolFees;
 
   const dailyVolume = (volumeDiff > 0 ? volumeDiff : 0);
   const dailyFees = (feesDiff > 0 ? feesDiff : 0);
@@ -68,10 +75,15 @@ const fetchVolume = async (options: FetchOptions) => {
     totalVolume: todayTotalVolume,
     dailyFees: dailyFees,
     totalFees: todayTotalFees,
+    dailyRevenue: dailyRevenue
   }
 }
 
-const adapters: SimpleAdapter = {
+
+
+
+
+const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BERACHAIN]: {
@@ -79,6 +91,7 @@ const adapters: SimpleAdapter = {
       start: '2025-01-25'
     }
   }
-}
+};
 
-export default adapters
+
+export default adapter;

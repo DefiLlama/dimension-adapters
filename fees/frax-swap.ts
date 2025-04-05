@@ -18,7 +18,7 @@ const chains: TChains = {
   [CHAIN.ETHEREUM]: 'Ethereum',
   [CHAIN.FANTOM]: 'Fantom',
   [CHAIN.HARMONY]: 'Harmony',
-  [CHAIN.MOONBEAN]: 'Moonbeam',
+  [CHAIN.MOONBEAM]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
 };
@@ -111,8 +111,8 @@ const adapter: Adapter = {
         methodology
       }
     },
-    [CHAIN.MOONBEAN]: {
-      fetch: graphs()(CHAIN.MOONBEAN),
+    [CHAIN.MOONBEAM]: {
+      fetch: graphs()(CHAIN.MOONBEAM),
       meta: {
         methodology
       }
