@@ -189,6 +189,10 @@ const fetchVolume = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
 };
 
 const fetchVolumeBlast = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+  if (startTimestamp > 1728432000){
+    return {}
+  }
+
   let dailyFees = new BigNumber(0);
   let totalFees = new BigNumber(0);
 
