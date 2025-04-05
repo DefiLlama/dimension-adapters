@@ -29,9 +29,7 @@ const getFetch = (): Fetch => async (timestamp: number) => {
       swap
     }
   }`;
-  console.log(graphQuery);
   const graphRes = await sdk.graph.request(subgraphEndpoint, graphQuery);
-  console.log(graphRes);
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
     parseInt(graphRes.feeStat.burn) +
