@@ -15,12 +15,12 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
     return Number(feesToday?.split(",")[2].slice(1, -2))
 }
 
-export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string) {
+export function etherscanFeeAdapter(chain: string, url: string, start?: string, cgToken?: string) {
     const adapter: Adapter = {
-        version: 2,
+        version: 1,
         adapter: {
             [chain]: {
-                fetch: async (options: FetchOptions) => {
+                fetch: async (_a:any, _b:any, options: FetchOptions) => {
                     const amount = await getEtherscanFees(options, url)
                     const dailyFees = options.createBalances()
                     if (cgToken)
@@ -37,7 +37,7 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                         dailyFees,
                     };
                 },
-                start: '2023-07-31'
+                start: start
             },
         },
         protocolType: ProtocolType.CHAIN
