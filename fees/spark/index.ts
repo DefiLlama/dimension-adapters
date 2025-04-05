@@ -57,9 +57,9 @@ const fetchReserves = async (timestamp: number): Promise<V3Reserve[]> => {
   return reserves;
 }
 
-async function fetchFees({ endTimestamp }: FetchOptions) {
-  const todaysTimestamp = endTimestamp;
-  const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24;
+async function fetchFees({ fromTimestamp, toTimestamp }: FetchOptions) {
+  const todaysTimestamp = toTimestamp;
+  const yesterdaysTimestamp = fromTimestamp
 
   const todaysReserves: V3Reserve[] = await fetchReserves(todaysTimestamp);
   const yesterdaysReserves: V3Reserve[] = await fetchReserves(yesterdaysTimestamp);
