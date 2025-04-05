@@ -9,7 +9,7 @@ import {
 } from "../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint(
+  [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint(
     "9CwTvN5R8sztZSBZqbDZWcHZjM41RRiz63QmRMsJBn6X",
   ),
 };
