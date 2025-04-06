@@ -1,3 +1,4 @@
+import { Interface } from "ethers"
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import * as sdk from '@defillama/sdk'
@@ -21,6 +22,7 @@ const methodology = {
 const BoringVaultAbis = {
   //vault
   hook: 'function hook() view returns(address)',
+  decimals: 'function decimals() view returns(uint8)',
   totalSupply: 'function totalSupply() view returns(uint256)',
   
   // hook
@@ -36,6 +38,12 @@ interface IBoringVault {
   vault: string;
   paltformFee: number;
   performanceFee?: number;
+}
+
+interface ExchangeRateUpdatedEvent {
+  blockNumber: number;
+  oldRate: bigint;
+  newRate: bigint;
 }
 
 const BoringVaults: {[key: string]: Array<IBoringVault>} = {
@@ -127,6 +135,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         }
       }),
     })
+    const getDecimals: Array<string> = await options.api.multiCall({
+      abi: BoringVaultAbis.decimals,
+      calls: vaults.map(vault => {
+        return {
+          target: vault.vault,
+          params: [],
+        }
+      }),
+    })
     const getAccountants: Array<string> = await options.api.multiCall({
       abi: BoringVaultAbis.accountant,
       calls: getHooks.map(hook => {
@@ -146,60 +163,82 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     for (let i = 0; i < vaults.length; i++) {
       const vault = vaults[i]
+      const vaultRateBase = Number(10 ** Number(getDecimals[i]))
       const accountant = getAccountants[i]
       const token = getTokens[i]
 
-      // get vaults performance fees
-      const events = await options.getLogs({
+      // get vaults rate updateed events
+      const lendingPoolContract: Interface = new Interface([
+        BoringVaultAbis.exchangeRateUpdated,
+      ])
+      const events: Array<ExchangeRateUpdatedEvent> = (await options.getLogs({
         eventAbi: BoringVaultAbis.exchangeRateUpdated,
+        entireLog: true,
         target: accountant,
-      })
+      }))
+      .map(log => {
+        const decodeLog: any = lendingPoolContract.parseLog(log);
 
+        const event: any = {
+          blockNumber: Number(log.blockNumber),
+          oldRate: decodeLog.args[0],
+          newRate: decodeLog.args[1],
+        }
+
+        return event
+      })
+      
       for (const event of events) {
         // newRate - oldRate
-        const growthRate = Number(event[1] - event[0]);
+        const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0;
 
-        // get total staked in vault at the given block
-        // it's safe for performance because ExchangeRateUpdated events
-        // occur daily once
-        const totalSupplyAtUpdated = await sdk.api2.abi.call({
-          abi: BoringVaultAbis.totalSupply,
-          target: vault.vault,
-        })
-        const getRateAtUpdated = await sdk.api2.abi.call({
-          abi: BoringVaultAbis.getRate,
-          target: accountant,
-        })
+        // don't need to make calls if there isn't rate growth
+        if (growthRate > 0) {
+          // get total staked in vault at the given block
+          // it's safe for performance because ExchangeRateUpdated events
+          // occur daily once
+          const totalSupplyAtUpdated = await sdk.api2.abi.call({
+            abi: BoringVaultAbis.totalSupply,
+            target: vault.vault,
+            block: event.blockNumber,
+          })
+          const getRateAtUpdated = await sdk.api2.abi.call({
+            abi: BoringVaultAbis.getRate,
+            target: accountant,
+            block: event.blockNumber,
+          })
 
-        // rate is always greater than or equal 1
-        const totalDeposited = Number(totalSupplyAtUpdated) * Number(getRateAtUpdated) / Number(1e18)
+          // rate is always greater than or equal 1
+          const totalDeposited = Number(totalSupplyAtUpdated) * Number(getRateAtUpdated) / vaultRateBase
 
-        const performanceFeeRate = vault.performanceFee ? vault.performanceFee : 0;
-        const supplySideYield = totalDeposited * growthRate / Number(1e18)
-        const totalYield = supplySideYield / (1 - performanceFeeRate)
-        const protocolFee = totalYield - supplySideYield
+          const performanceFeeRate = vault.performanceFee ? vault.performanceFee : 0;
+          const supplySideYield = totalDeposited * growthRate / vaultRateBase
+          const totalYield = supplySideYield / (1 - performanceFeeRate)
+          const protocolFee = totalYield - supplySideYield
 
-        dailyFees.add(token, totalYield)
-        dailySupplySideRevenue.add(token, supplySideYield)
-        dailyProtocolRevenue.add(token, protocolFee)
+          dailyFees.add(token, totalYield)
+          dailySupplySideRevenue.add(token, supplySideYield)
+          dailyProtocolRevenue.add(token, protocolFee)
+        }
       }
 
-      const totalSupplyAtUpdated = await options.api.call({
+      // get total asset are deposited in vault
+      const totalSupply = await options.api.call({
         abi: BoringVaultAbis.totalSupply,
         target: vault.vault,
       })
-      const getRateAtUpdated = await options.api.call({
+      const getRate = await options.api.call({
         abi: BoringVaultAbis.getRate,
         target: accountant,
       })
-      const totalDeposited = Number(totalSupplyAtUpdated) * Number(getRateAtUpdated) / Number(1e18)
+      const totalDeposited = Number(totalSupply) * Number(getRate) / vaultRateBase
 
       // default one day
       let timespan = 24 * 60 * 60
       if (options.fromApi.timestamp && options.toApi.timestamp) {
         timespan = options.toApi.timestamp - options.fromApi.timestamp
       }
-      
+
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
       const platformFee = totalDeposited * vault.paltformFee / yearInSecs * timespan
