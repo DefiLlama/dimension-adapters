@@ -1,66 +1,76 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { Adapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { queryDuneSql } from "../../helpers/dune";
 
-const API_ENDPOINT = "https://flask.tigristrade.info";
-
-interface ApiResponse {
-  dailyVolume: number;
-  day: number;
-  totalVolume: number;
-}
-
-const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
-  let endpoint;
-  if (chain === CHAIN.POLYGON) {
-    endpoint = "/fetch-polygon-data";
-  } else if (chain === CHAIN.ARBITRUM) {
-    endpoint = "/fetch-arbitrum-data";
-  } else {
-    throw new Error(`Unsupported chain: ${chain}`);
-  }
-
-  const response = await httpGet(`${API_ENDPOINT}${endpoint}`, {
-    params: {
-      chain: chain,
-      timestamp: timestamp
-    }
-  });
-
-  return response;
-}
-
-function startOfDayTimestamp(timestamp: number): number {
-  const date = new Date(timestamp * 1000);
-  date.setUTCHours(0, 0, 0, 0);
-  return Math.floor(date.getTime() / 1000);
+interface DuneTradeData {
+  blockchain: string;
+  perpetuals_volume: string;
+  options_volume: string;
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dataPoints = await fetchFromAPI(chain, timestamp);
-    const adjustedTimestamp = startOfDayTimestamp(timestamp);
-    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+  return async (options: FetchOptions) => {
+    const duneChainName = chain === CHAIN.ARBITRUM ? 'arbitrum' : 'polygon';
+    
+    const duneData: DuneTradeData[] = await queryDuneSql(options, `
+      WITH all_trades AS (
+          SELECT
+              blockchain,
+              volume_usd,
+              block_time,
+              'perpetuals' AS class
+          FROM
+              tigris.perpetual_trades
+          WHERE TIME_RANGE
 
-    if (!matchingData) {
-      console.warn(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
-      return {
-        dailyVolume: '0',
-        totalVolume: '0',
-        timestamp: adjustedTimestamp
-      };
-    }
+          UNION ALL
+
+          SELECT
+              blockchain,
+              volume_usd,
+              evt_block_time AS block_time,
+              'options' AS class
+          FROM
+              tigris.options_trades
+          WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
+                AND evt_block_time <= from_unixtime(${options.endTimestamp})
+      ),
+      daily_summary AS (
+          SELECT
+              blockchain,
+              SUM(CASE WHEN class = 'perpetuals' THEN volume_usd ELSE 0 END) AS perpetuals_volume,
+              SUM(CASE WHEN class = 'options' THEN volume_usd ELSE 0 END) AS options_volume
+          FROM
+              all_trades
+          GROUP BY
+              blockchain
+      )
+      SELECT
+          blockchain,
+          perpetuals_volume,
+          options_volume
+      FROM
+          daily_summary
+      WHERE blockchain = '${duneChainName}';
+    `);
+
+    const chainData = duneData?.[0] ?? {
+      perpetuals_volume: '0',
+      options_volume: '0'
+    };
+    
+    const totalVolume = Number(chainData.perpetuals_volume) + Number(chainData.options_volume);
 
     return {
-      dailyVolume: matchingData.dailyVolume.toString(),
-      totalVolume: matchingData.totalVolume.toString(),
-      timestamp: matchingData.day
+      dailyVolume: totalVolume.toString(),
     };
-  }
-}
+  };
+};
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
+  version: 2,
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
@@ -71,6 +81,6 @@ const adapter: Adapter = {
       start: '2022-09-13',
     }
   }
-}
+};
 
 export default adapter;
