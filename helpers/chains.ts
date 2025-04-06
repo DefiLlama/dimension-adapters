@@ -230,6 +230,7 @@ export enum CHAIN {
   KARAK = "karak",
   VERUS = "verus",
   PERENNIAL = "perennial",
+  GOAT = "goat",
 }
 
 // Don´t use
