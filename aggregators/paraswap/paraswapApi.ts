@@ -29,7 +29,15 @@ const requests: IRequest = {}
 const fetchCacheURL = (url: string) => {
   const key = `${url}`;
   if (!requests[key]) {
-      requests[key] = httpGet(url);
+      const headers: any = {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "max-age=0",
+        "priority": "u=0, i",
+        "upgrade-insecure-requests": "1",
+        "referrerPolicy": "strict-origin-when-cross-origin",
+    };
+      requests[key] = httpGet(url, {headers});
   }
   return requests[key];
 }
@@ -77,6 +85,7 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  version : 1,
   adapter: Object.keys(mapChainId).reduce((all, chain)=>({
     ...all,
     [chain]:{
