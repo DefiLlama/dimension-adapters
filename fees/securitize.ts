@@ -43,7 +43,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const totalAssetManagement = Number(totalSupply) / 1e6
 
     const yearInSecs = 365 * 24 * 60 * 60
-    const timespan = Number(options.toApi.timestamp) - Number(options.fromApi.timestamp)
+    const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 24 * 60 * 60
     const totalFees = totalAssetManagement * EARNING_APY * timespan / yearInSecs
 
     // Securitize charges management fees on % of total assets per year
