@@ -67,6 +67,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetch(CHAIN.SUI),
+            runAtCurrTime: true,
             start: '2025-03-08',
         }
     },
