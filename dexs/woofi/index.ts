@@ -14,10 +14,10 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Bn68xGN5mLu9cAVgCNrACxXWf5FR1dDQ6JxvXzimd7eZ'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9wYUKdu85CGGwiV8mawEUwMhj4go7dx6ezfSkh9DUrFa'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F7nNhkyaR53fs14vhfJmsUAotN1aJiyMbVc677ngFHWU'),
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45576/woofi-zksync/version/latest",
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/71937/woofi-polygon-zkevm/version/latest",
-  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/71937/woofi-linea/version/latest",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/71937/woofi-base/version/latest",
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('DxS3HgpNUjaujQEeom9CyTmrRbLH31PYX3JdiJkgRh7D'),
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('FbGJ32HNCStF9df3M1GXQCs4MUsSY4tAPh3MZyKMV2M5'),
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('4TN6UVFc77yYu3YdUxFv6wkFXkNEeueWi8oGrAg8BcfM'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('EHcBkzfegM51XJmxb26DcB6RmvhNTaoY692aiNHC9Bm5'),
   [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/api/public/9e9d6e8a-be9d-42d1-9747-3a8f001214c5/subgraphs/woonetwork/woofi-mantle/v0.0.1/gn",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
 };
@@ -70,7 +70,7 @@ interface FetchResult {
 const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
   const start = getTimestampAtStartOfDayUTC(options.endTimestamp)
   const dateId = Math.floor(start / 86400);
-  const query = `
+  const query = gql`
     {
     dayData(id: ${dateId}) {
         volumeUSD
