@@ -4,27 +4,26 @@ import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
 const adapter = univ2DimensionAdapter2({
   graphUrls: {
-    [CHAIN.ARBITRUM]: "https://api.studio.thegraph.com/query/92690/arbitrum-client/version/latest",
-    [CHAIN.AVAX]: "https://api.studio.thegraph.com/query/91831/avax-client/version/latest",
-    [CHAIN.BSC]: "https://api.studio.thegraph.com/query/92679/bnb-client/version/latest",
-    [CHAIN.FANTOM]: "https://api.studio.thegraph.com/query/92675/fantom-client/version/latest",
-    [CHAIN.POLYGON]: "https://api.studio.thegraph.com/query/92672/polygon-client/version/latest",
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE'),
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('2dyce92CewvhV17C8BMFoMCgaXdPTtwBzaz8AReQR3YV'),
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('5tRz9anigEVND48Gx1mUpNNM4YSm3NpzG9XRB8dYAMhb'),
+    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('pmqe2dQvH4PK7aaFh4GXrr49wpKRr3GjPCnNEgEb6U2'),
+    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8jzpT6nnKgmqcdGocys97YWkuqwDbHBxpozsKcxH1KUP'),
     // [CHAIN.HECO]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-heco"
-    [CHAIN.XDAI]: "https://api.studio.thegraph.com/query/92677/gnosis-client/version/latest",
+    [CHAIN.XDAI]: sdk.graph.modifyEndpoint('kD9njskfB9xv7gDnsU2sz4X4sXfEimBv8xMJ6votFND'),
     // [CHAIN.MOONRIVER]: "https://moonriver-graph.elk.finance/subgraphs/name/elkfinance/elkdex-moonriver",
     // [CHAIN.ELASTOS]: "https://elastos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-elastos",
     // [CHAIN.OKEXCHAIN]: "https://okex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-okex",
     // [CHAIN.KCC]: "https://kcc-graph.elk.finance/subgraphs/name/elkfinance/elkdex-kcc",
-    [CHAIN.ETHEREUM]: "https://api.studio.thegraph.com/query/92692/ethereum-client/version/latest",
-    [CHAIN.OPTIMISM]: "https://api.studio.thegraph.com/query/92688/optimism-client/version/latest",
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('59tcH5BPyXj41XZgn1ZYy4pE8iDdzaZpR9MRhmuPW4Lr'),
+    [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('H7UcKWuAqQPqWKcnNLn2Jamy9zE7wVgsLSRQpPwXo2Ag'),
     // [CHAIN.CRONOS]: "https://cronos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-cronos",
     // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
     // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",
     // [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
   },
   totalVolume: {
-    factory: "elkDayDatas",
-    field: "dailyVolumeUSD"
+    factory: "elkFactories"
   },
   feesPercent: {
     type: "volume",
