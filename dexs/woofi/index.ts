@@ -18,7 +18,7 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('FbGJ32HNCStF9df3M1GXQCs4MUsSY4tAPh3MZyKMV2M5'),
   [CHAIN.LINEA]: sdk.graph.modifyEndpoint('4TN6UVFc77yYu3YdUxFv6wkFXkNEeueWi8oGrAg8BcfM'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('EHcBkzfegM51XJmxb26DcB6RmvhNTaoY692aiNHC9Bm5'),
-  [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/api/public/9e9d6e8a-be9d-42d1-9747-3a8f001214c5/subgraphs/woonetwork/woofi-mantle/v0.0.1/gn",
+  [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
 };
 
