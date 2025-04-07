@@ -1,6 +1,5 @@
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { getConfig } from "../../helpers/cache"
 
 const reUSD = "0x57aB1E0003F623289CD798B1824Be09a793e4Bec"
 const feeDepostController = "0x7E3D2F480AbbA95863040D763DDe8F30D100C6F5"
@@ -15,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const pairContracts = await options.api.call({  abi: 'address[]:getAllPairAddresses', target: '0x10101010E0C3171D894B71B3400668aF311e7D94'})
+  const pairContracts = await options.api.call({ abi: 'address[]:getAllPairAddresses', target: '0x10101010E0C3171D894B71B3400668aF311e7D94' })
   const splits = await options.api.call({ target: feeDepostController, abi: abi.splits })
 
   const treasuryRatio = BigInt(splits.treasury)
@@ -74,7 +73,6 @@ const adapters: Adapter = {
       }
     },
   },
-
   version: 2
 }
 
