@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BSC]: {
       fetch: getFetch,
-      start: startTimestamps[CHAIN.OP_BNB],
+      start: startTimestamps[CHAIN.BSC],
       meta: {
         methodology
       }
