@@ -19,31 +19,10 @@ const methodology = {
   ProtocolRevenue: 'The amount of yields are distibuted to Veda Protocol.',
 }
 
-const BoringVaultAbis = {
-  //vault
-  hook: 'function hook() view returns(address)',
-  decimals: 'function decimals() view returns(uint8)',
-  totalSupply: 'function totalSupply() view returns(uint256)',
-  
-  // hook
-  accountant: 'function accountant() view returns(address)',
-  getRate: 'function getRate() view returns(uint256)',
-
-  // accountant
-  base: 'function base() view returns(address)',
-  exchangeRateUpdated: 'event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)',
-}
-
 interface IBoringVault {
   vault: string;
   paltformFee: number;
   performanceFee?: number;
-}
-
-interface ExchangeRateUpdatedEvent {
-  blockNumber: number;
-  oldRate: bigint;
-  newRate: bigint;
 }
 
 const BoringVaults: {[key: string]: Array<IBoringVault>} = {
@@ -118,6 +97,27 @@ const BoringVaults: {[key: string]: Array<IBoringVault>} = {
   ],
 }
 
+const BoringVaultAbis = {
+  //vault
+  hook: 'address:hook',
+  decimals: 'uint8:decimals',
+  totalSupply: 'uint256:totalSupply',
+  
+  // hook
+  accountant: 'address:accountant',
+  
+  // accountant
+  base: 'address:base',
+  getRate: 'uint256:getRate',
+  exchangeRateUpdated: 'event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)',
+}
+
+interface ExchangeRateUpdatedEvent {
+  blockNumber: number;
+  oldRate: bigint;
+  newRate: bigint;
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
@@ -128,37 +128,19 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (vaults) {
     const getHooks: Array<string> = await options.api.multiCall({
       abi: BoringVaultAbis.hook,
-      calls: vaults.map(vault => {
-        return {
-          target: vault.vault,
-          params: [],
-        }
-      }),
+      calls: vaults.map(vault => vault.vault),
     })
     const getDecimals: Array<string> = await options.api.multiCall({
       abi: BoringVaultAbis.decimals,
-      calls: vaults.map(vault => {
-        return {
-          target: vault.vault,
-          params: [],
-        }
-      }),
+      calls: vaults.map(vault => vault.vault),
     })
     const getAccountants: Array<string> = await options.api.multiCall({
       abi: BoringVaultAbis.accountant,
-      calls: getHooks.map(hook => {
-        return {
-          target: hook,
-        }
-      }),
+      calls: getHooks,
     })
     const getTokens: Array<string> = await options.api.multiCall({
       abi: BoringVaultAbis.base,
-      calls: getAccountants.map(accountant => {
-        return {
-          target: accountant,
-        }
-      }),
+      calls: getAccountants,
     })
 
     for (let i = 0; i < vaults.length; i++) {
@@ -233,15 +215,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       })
       const totalDeposited = Number(totalSupply) * Number(getRate) / vaultRateBase
 
-      // default one day
-      let timespan = 24 * 60 * 60
-      if (options.fromApi.timestamp && options.toApi.timestamp) {
-        timespan = options.toApi.timestamp - options.fromApi.timestamp
-      }
-
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
-      const platformFee = totalDeposited * vault.paltformFee / yearInSecs * timespan
+      const timespan = Number(options.toApi.timestamp) - Number(options.fromApi.timestamp)
+      const platformFee = totalDeposited * vault.paltformFee * timespan / yearInSecs
 
       dailyFees.add(token, platformFee)
       dailyProtocolRevenue.add(token, platformFee)
