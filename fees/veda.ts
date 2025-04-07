@@ -21,78 +21,74 @@ const methodology = {
 
 interface IBoringVault {
   vault: string;
-  paltformFee: number;
-  performanceFee?: number;
+  accountantAbiVersion: 1 | 2;
 }
 
 const BoringVaults: {[key: string]: Array<IBoringVault>} = {
   [CHAIN.ETHEREUM]: [
     {
       vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C',
-      paltformFee: 0.01, // 1%
-    },
-    {
-      vault: '0xC673ef7791724f0dcca38adB47Fbb3AEF3DB6C80',
-      paltformFee: 0,
-    },
-    {
-      vault: '0x83599937c2C9bEA0E0E8ac096c6f32e86486b410',
-      paltformFee: 0,
-    },
-    {
-      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
-      paltformFee: 0.015,
-    },
-    {
-      vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF',
-      paltformFee: 0.015,
-    },
-    {
-      vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726',
-      paltformFee: 0.02,
-    },
-    {
-      vault: '0xca8711dAF13D852ED2121E4bE3894Dae366039E4',
-      paltformFee: 0.02,
+      accountantAbiVersion: 1,
     },
     {
       vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C',
-      paltformFee: 0.02,
+      accountantAbiVersion: 1,
+    },
+    {
+      vault: '0xC673ef7791724f0dcca38adB47Fbb3AEF3DB6C80',
+      accountantAbiVersion: 2,
+    },
+    {
+      vault: '0x83599937c2C9bEA0E0E8ac096c6f32e86486b410',
+      accountantAbiVersion: 2,
+    },
+    {
+      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
+      accountantAbiVersion: 2,
+    },
+    {
+      vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF',
+      accountantAbiVersion: 2,
+    },
+    {
+      vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726',
+      accountantAbiVersion: 2,
+    },
+    {
+      vault: '0xca8711dAF13D852ED2121E4bE3894Dae366039E4',
+      accountantAbiVersion: 2,
     },
     {
       vault: '0xFE0C961A49E1aEe2AE2d842fE40157365C6d978f',
-      paltformFee: 0,
+      accountantAbiVersion: 2,
     },
     {
       vault: '0x352180974C71f84a934953Cf49C4E538a6F9c997',
-      paltformFee: 0,
+      accountantAbiVersion: 2,
     },
     {
       vault: '0xbc0f3B23930fff9f4894914bD745ABAbA9588265',
-      paltformFee: 0.02,
-      performanceFee: 0.2, // 20%
+      accountantAbiVersion: 2,
     },
     {
       vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85',
-      paltformFee: 0,
-      performanceFee: 0.2, // 20%
+      accountantAbiVersion: 2,
     },
     {
       vault: '0xeDa663610638E6557c27e2f4e973D3393e844E70',
-      paltformFee: 0.02,
+      accountantAbiVersion: 2,
     },
   ],
   [CHAIN.SONIC]: [
     {
       vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF',
-      paltformFee: 0.02,
+      accountantAbiVersion: 2,
     }
   ],
   [CHAIN.BASE]: [
     {
       vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85',
-      paltformFee: 0,
-      performanceFee: 0.2, // 20%
+      accountantAbiVersion: 2,
     }
   ],
 }
@@ -108,9 +104,14 @@ const BoringVaultAbis = {
   
   // accountant
   base: 'address:base',
-  getRate: 'uint256:getRate',
   exchangeRateUpdated: 'event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)',
+  accountantState: {
+    1: 'function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint32,uint16)',
+    2: 'function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint24,uint16,uint16)',
+  },
 }
+
+const AccountantFeeRateBase = 1e4
 
 interface ExchangeRateUpdatedEvent {
   blockNumber: number;
@@ -123,7 +124,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
 
-  const vaults = BoringVaults[options.chain];
+  const vaults = BoringVaults[options.chain]
 
   if (vaults) {
     const getHooks: Array<string> = await options.api.multiCall({
@@ -159,7 +160,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         target: accountant,
       }))
       .map(log => {
-        const decodeLog: any = lendingPoolContract.parseLog(log);
+        const decodeLog: any = lendingPoolContract.parseLog(log)
 
         const event: any = {
           blockNumber: Number(log.blockNumber),
@@ -169,13 +170,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
         return event
       })
-      
+
       for (const event of events) {
         // newRate - oldRate
-        const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0;
+        const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
 
         // don't need to make calls if there isn't rate growth
         if (growthRate > 0) {
+          
           // get total staked in vault at the given block
           // it's safe for performance because ExchangeRateUpdated events
           // occur daily once
@@ -184,16 +186,22 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
             target: vault.vault,
             block: event.blockNumber,
           })
-          const getRateAtUpdated = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.getRate,
+          const getAccountantState = await sdk.api2.abi.call({
+            abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
             target: accountant,
             block: event.blockNumber,
           })
 
+          let performanceFeeRate = 0
+          if (vault.accountantAbiVersion === 2) {
+            // only version 2 vaults have performance fee config
+            performanceFeeRate = Number(getAccountantState[11]) / AccountantFeeRateBase
+          }
+          
           // rate is always greater than or equal 1
-          const totalDeposited = Number(totalSupplyAtUpdated) * Number(getRateAtUpdated) / vaultRateBase
+          const exchangeRate = Number(getAccountantState[4])
+          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
-          const performanceFeeRate = vault.performanceFee ? vault.performanceFee : 0;
           const supplySideYield = totalDeposited * growthRate / vaultRateBase
           const totalYield = supplySideYield / (1 - performanceFeeRate)
           const protocolFee = totalYield - supplySideYield
@@ -209,16 +217,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         abi: BoringVaultAbis.totalSupply,
         target: vault.vault,
       })
-      const getRate = await options.api.call({
-        abi: BoringVaultAbis.getRate,
+      const getAccountantState = await options.api.call({
+        abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
         target: accountant,
       })
-      const totalDeposited = Number(totalSupply) * Number(getRate) / vaultRateBase
+
+      const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
+      const paltformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
+
+      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
 
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
-      const timespan = Number(options.toApi.timestamp) - Number(options.fromApi.timestamp)
-      const platformFee = totalDeposited * vault.paltformFee * timespan / yearInSecs
+      const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+      const platformFee = totalDeposited * (paltformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
       dailyFees.add(token, platformFee)
       dailyProtocolRevenue.add(token, platformFee)
