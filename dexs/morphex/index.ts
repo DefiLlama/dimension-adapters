@@ -45,6 +45,7 @@ const getFetch =
         const dayTimestamp = getUniqStartOfTodayTimestamp(
           new Date(timestamp * 1000)
         );
+        if (dayTimestamp > 1737936000) return {};
         const dailyData: IGraphResponse = await request(endpoints[chain], query, {
           id: String(dayTimestamp) + ":daily",
           period: "daily",
@@ -87,6 +88,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 
 const adapter: BreakdownAdapter = {
+  deadFrom: "2025-01-27",
   breakdown: {
     swap: {
       [CHAIN.FANTOM]: {
