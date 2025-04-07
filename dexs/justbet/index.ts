@@ -99,8 +99,11 @@ export default {
             );
 
             const totalVolumeUSD =
-              Number(ethers.formatUnits(receipt.payin, vaultDecimal)) *
-              vaultCurrentPrice;
+              receipt.payin > receipt.payout
+                ? Number(ethers.formatUnits(receipt.payin, vaultDecimal)) *
+                  vaultCurrentPrice
+                : Number(ethers.formatUnits(receipt.payout, vaultDecimal)) *
+                  vaultCurrentPrice;
 
             dailyVolume += totalVolumeUSD;
           });
