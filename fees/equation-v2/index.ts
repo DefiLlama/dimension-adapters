@@ -35,6 +35,7 @@ interface IDailyResponse {
 }
 
 const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
+    if (timestamp > 1743940800) return {}
     const todaysTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
     const graphRes: IDailyResponse = await request(endpoints[chain], queryFee, {
         id: 'Daily:' + todaysTimestamp,
@@ -51,6 +52,7 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    deadFrom: "2025-04-06",
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
