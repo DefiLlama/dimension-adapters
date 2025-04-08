@@ -52,16 +52,14 @@ const fetch = async (timestamp: number) => {
   const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
   const totalProtocolRevenue = totalFees * protocolFeeRatio;
 
-  console.log(dailyVolume, totalVolume);
-
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    totalProtocolRevenue: `${totalProtocolRevenue}`,
-    dailyProtocolRevenue: `${dailyProtocolRevenue}`,
-    dailyRevenue: `${dailyProtocolRevenue}`,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
+    totalFees: totalFees,
+    dailyFees: dailyFees,
+    totalProtocolRevenue: totalProtocolRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyRevenue: dailyProtocolRevenue,
     timestamp,
   };
 };

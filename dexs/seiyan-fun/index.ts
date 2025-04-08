@@ -13,7 +13,6 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
   const dayStart = options.startOfDay;
   const nextDayStart = dayStart + 86400;
   const url = buildTradingVolumeUrl(dayStart, nextDayStart);
-  console.log("fetching seiyan fun", url);
   const { volume }= await fetchURL(url);
   return {
     dailyVolume: volume,

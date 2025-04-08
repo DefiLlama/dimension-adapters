@@ -48,7 +48,8 @@ const fetchFees = async (_t: any, _tts: any, { fromTimestamp, toTimestamp, api }
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
-  [CHAIN.OP_BNB]: 1727443900
+  [CHAIN.OP_BNB]: 1727443900,
+  [CHAIN.BSC]: 1742165391,
 }
 
 const adapter: SimpleAdapter = {
@@ -71,6 +72,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.OP_BNB]: {
       fetch: fetchFees,
       start: startTimestamps[CHAIN.OP_BNB],
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BSC]: {
+      fetch: fetchFees,
+      start: startTimestamps[CHAIN.BSC],
       meta: {
         methodology
       }

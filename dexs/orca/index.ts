@@ -97,9 +97,7 @@ async function fetch(timestamp: number, url: string) {
         const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
         const response: StatsApiResponse = await httpGet(currentUrl);
         allWhirlpools = allWhirlpools.concat(response.data);
-        // console.log(response.meta);
         nextCursor = response.meta?.cursor?.next || null;
-        // console.log(nextCursor);
     } while (nextCursor);
 
     const validPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);

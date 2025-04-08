@@ -21,8 +21,6 @@ export default {
             target: "0xe220E8d200d3e433b8CFa06397275C03994A5123",
             eventAbi: 'event Bought(address buyer, address token, uint256 ethIn, uint256 tokensOut, uint256 priceNew)'
         });
-        // console.log("SOLD:", logs_sold.length);
-        // console.log("BOUGHT:", logs_bought.length);
         
         logs_sold.map((e: any) => {
             dailyFees.addGasToken(e[2] * BigInt(FEE_PER_TRADE) / BigInt(RATIO))

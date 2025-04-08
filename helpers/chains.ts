@@ -27,7 +27,6 @@ export enum CHAIN {
   AURORA = "aurora",
   MOONRIVER = "moonriver",
   TRON = "tron",
-  MOONBEAN = "moonbeam",
   KLAYTN = "klaytn",
   JUNO = "juno",
   KCC = "kcc",
@@ -225,9 +224,13 @@ export enum CHAIN {
   SUPERPOSITION = "spn",
   SWELLCHAIN = "swellchain",
   ANCIENT8 = "ancient8",
+  ARWEAVE = "arweave",
   WINR = "winr",
   SOPHON = "sophon",
   KARAK = "karak",
+  VERUS = "verus",
+  PERENNIAL = "perennial",
+  GOAT = "goat",
 }
 
 // Don´t use

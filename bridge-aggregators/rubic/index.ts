@@ -47,7 +47,7 @@ const chains: Record<string, string> = {
     [CHAIN.ALGORAND]: 'algorand',
     [CHAIN.ASTAR]: 'astar',
     [CHAIN.CARDANO]: 'cardano',
-    [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
+    // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
     [CHAIN.BOBA_BNB]:'boba-bsc',
     [CHAIN.EOS]: 'eos',
     [CHAIN.DOGECHAIN]: 'dogecoin',

@@ -22,7 +22,7 @@ const convertVolume = (volumeData: any[]): IVolumeall[] => {
 const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
   const historicalVolume: IVolumeall[] = convertVolume(
-    await fetchURL(historicalVolumeEndpoint)
+    await fetchURL(historicalVolumeEndpoint + `?chain=${options.chain}`)
   );
   const dateStr = new Date(dayTimestamp * 1000).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -60,6 +60,10 @@ const getStartTimestamp = async () => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
+      fetch,
+      start: getStartTimestamp,
+    },
+    [CHAIN.ECLIPSE]: {
       fetch,
       start: getStartTimestamp,
     },

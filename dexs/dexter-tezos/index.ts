@@ -14,7 +14,6 @@ async function getData() {
 const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
 
   const date = new Date(options.startOfDay * 1000).toLocaleDateString()
-  console.log(date)
   const data = (await getData())[date]
   if (!data) throw new Error("No data found for date " + date)
   return {
