@@ -67,10 +67,13 @@ const BorrowingEvent = 'event LUSDBorrowingFeePaid(address indexed _borrower, ui
 
 type LiquityV1Config = {
   troveManager: string
+  stableCoin: string
   holderRevenuePercentage?: number
   protocolRevenuePercentage?: number
   redemptionEvent?: string
+  redemptionFeesField?: string
   borrowingEvent?: string
+  borrowingFeesField?: string
 }
 
 
@@ -98,12 +101,17 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       eventAbi: borrowingEvent,
     })
 
-    redemptionLogs.forEach((logs) => {
-      dailyFees.addGasToken(BigInt(logs[3]))
-    })
+    const redemptionFeesField = config.redemptionFeesField || 'ETHFee'
+    const borrowingFeesField = config.borrowingFeesField || 'LUSDFee'
 
+    // get _ETHFee from event
+    redemptionLogs.forEach((logs) => {
+      dailyFees.addGasToken(BigInt(logs[redemptionFeesField]))
+    })  
+
+    // get _LUSDFee from event
     borrowingLogs.forEach((logs) => {
-      dailyFees.addUSDValue(BigInt(logs[1])/BigInt(1e18))
+      dailyFees.add(config.stableCoin, BigInt(logs[borrowingFeesField])/BigInt(1e18))
     })
 
     const result = { dailyFees }
