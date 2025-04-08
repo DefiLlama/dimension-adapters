@@ -7,9 +7,13 @@ const UINT256_MAX = "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
 const eVaultFactories = {
     [CHAIN.ETHEREUM]: "0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e",
+    [CHAIN.BASE]: "0x7F321498A801A191a93C840750ed637149dDf8D0",
     [CHAIN.SONIC]: "0xF075cC8660B51D0b8a4474e3f47eDAC5fA034cFB",
-    [CHAIN.BASE]: "0x7F321498A801A191a93C840750ed637149dDf8D0"
-}
+    [CHAIN.SWELLCHAIN]: "0x238bF86bb451ec3CA69BB855f91BDA001aB118b9",
+    [CHAIN.BOB]: "0x046a9837A61d6b6263f54F4E27EE072bA4bdC7e4",
+    [CHAIN.BERACHAIN]: "0x5C13fb43ae9BAe8470f646ea647784534E9543AF",
+};
+  
 
 const eulerFactoryABI = {
     vaultLength: "function getProxyListLength() view returns (uint256)",
@@ -167,7 +171,28 @@ const adapters: Adapter = {
             meta: {
                 methodology
             }
-        }
+        },
+        [CHAIN.SWELLCHAIN]: {
+            fetch: fetch,
+            start: '2025-01-20',
+            meta: {
+                methodology
+            }
+        },
+        [CHAIN.BOB]: {
+            fetch: fetch,
+            start: '2025-01-21',
+            meta: {
+                methodology
+            }
+        },
+        [CHAIN.BERACHAIN]: {
+            fetch: fetch,
+            start: '2025-02-06',
+            meta: {
+                methodology
+            }
+        },
     },
     
     version: 2
