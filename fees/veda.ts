@@ -107,7 +107,7 @@ const BoringVaultAbis = {
   exchangeRateUpdated: 'event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)',
   accountantState: {
     1: 'function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint32,uint16)',
-    2: 'function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint24,uint16,uint16)',
+    2: 'function accountantState() view returns(address,uint96,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint24,uint16,uint16)',
   },
 }
 
@@ -120,9 +120,9 @@ interface ExchangeRateUpdatedEvent {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  let dailyFees = 0
-  let dailySupplySideRevenue = 0
-  let dailyProtocolRevenue = 0
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
 
   const vaults = BoringVaults[options.chain]
 
@@ -192,23 +192,27 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
             block: event.blockNumber,
           })
 
+          let exchangeRate = vaultRateBase
           let performanceFeeRate = 0
           if (vault.accountantAbiVersion === 2) {
+            exchangeRate = Number(getAccountantState[4])
+
             // only version 2 vaults have performance fee config
             performanceFeeRate = Number(getAccountantState[11]) / AccountantFeeRateBase
+          } else {
+            exchangeRate = Number(getAccountantState[3])
           }
           
           // rate is always greater than or equal 1
-          const exchangeRate = Number(getAccountantState[4])
-          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
+          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase / vaultRateBase
 
           const supplySideYield = totalDeposited * growthRate / vaultRateBase
           const totalYield = supplySideYield / (1 - performanceFeeRate)
           const protocolFee = totalYield - supplySideYield
 
-          dailyFees += totalYield
-          dailySupplySideRevenue += supplySideYield
-          dailyProtocolRevenue += protocolFee
+          dailyFees.add(token, totalYield)
+          dailySupplySideRevenue.add(token, supplySideYield)
+          dailyProtocolRevenue.add(token, protocolFee)
         }
       }
 
@@ -225,17 +229,23 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
       const paltformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
 
-      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
+      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase / vaultRateBase
 
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
       const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
       const platformFee = totalDeposited * (paltformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
-      dailyFees += platformFee
-      dailyProtocolRevenue += platformFee
+      dailyFees.add(token, platformFee)
+      dailyProtocolRevenue.add(token, platformFee)
     }
   }
+
+  console.log({
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+  })
 
   return {
     dailyFees,
