@@ -39,7 +39,10 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
 
 const fetch = (chain: Chain) => {
   return async (timestamp: number, _t: any, _: FetchOptions): Promise<FetchResultFees> => {
-    const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "4385920" : "4385999"))
+    const fees: IFee[] = await queryDune("4959575", {
+      Chain: chain === CHAIN.ARBITRUM ? "arbitrum" : "avalanche"
+    })
+    // const fees: IFee[] = (await queryDune(chain === CHAIN.ARBITRUM ? "4385920" : "4385999"))
     // const queryId = chain === CHAIN.ARBITRUM ? "3186689" : "3186714";
     // const fees: IFee[] = (await fetchURLWithRetry(`https://api.dune.com/api/v1/query/${queryId}/results`)).result.rows;
     // const fees: IFee[] = require(`./${chain}.json`);
@@ -48,6 +51,7 @@ const fetch = (chain: Chain) => {
     const daily = fees.find(fee => fee.time.split(' ')[0] === dateString);
     const dailyFees = daily?.v2_fees || 0
     const total_fees = daily?.total_fees || 0;
+
     return {
       dailyFees: `${dailyFees}`,
       dailyRevenue: `${dailyFees * 0.37}`,
