@@ -1,9 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import type { Adapter, FetchOptions } from "../../adapters/types";
 
 const ONE_DAY = 24 * 60 * 60;
-const ETHEREUM_ENDPOINT = 'https://api.goldsky.com/api/public/project_cm8ziqcbp247r01rr01htbz8h/subgraphs/spark/1.0/gn';
+const ETHEREUM_ENDPOINT = sdk.graph.modifyEndpoint('EAEyPKcbLHTb9uarfeop5A86n8SUsxmjyvU1ZctsHAZP')
 const POOL_ADDRESS = '0x02c3ea4e34c0cbd694d2adfa2c690eecbc1793ee';
 
 export type V3Reserve = {
