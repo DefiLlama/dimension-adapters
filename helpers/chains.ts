@@ -231,6 +231,7 @@ export enum CHAIN {
   VERUS = "verus",
   PERENNIAL = "perennial",
   GOAT = "goat",
+  HASHKEY = "hsk",
 }
 
 // Don´t use
