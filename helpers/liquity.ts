@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchResultFees, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
 
 
@@ -101,8 +101,8 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       eventAbi: borrowingEvent,
     })
 
-    const redemptionFeesField = config.redemptionFeesField || 'ETHFee'
-    const borrowingFeesField = config.borrowingFeesField || 'LUSDFee'
+    const redemptionFeesField = config.redemptionFeesField || '_ETHFee'
+    const borrowingFeesField = config.borrowingFeesField || '_LUSDFee'
 
     // get _ETHFee from event
     redemptionLogs.forEach((logs) => {
@@ -114,7 +114,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       dailyFees.add(config.stableCoin, BigInt(logs[borrowingFeesField])/BigInt(1e18))
     })
 
-    const result = { dailyFees }
+    const result: FetchResultFees = { dailyFees }
 
     let dailyRevenue = null
     // validate percentage
@@ -124,21 +124,20 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     }
     if (config.holderRevenuePercentage) {
       const dailyHoldersRevenue = dailyFees.clone(config.holderRevenuePercentage / 100)
-      Object.assign(result, { dailyHoldersRevenue })
       dailyRevenue = dailyHoldersRevenue.clone()
+      result.dailyHoldersRevenue = dailyHoldersRevenue
     }
     if (config.protocolRevenuePercentage) {
       const dailyProtocolRevenue = dailyFees.clone(config.protocolRevenuePercentage / 100)
-      Object.assign(result, { dailyProtocolRevenue })
+      result.dailyProtocolRevenue = dailyProtocolRevenue
       if (dailyRevenue) {
         dailyRevenue.addBalances(dailyProtocolRevenue)
       } else {
         dailyRevenue = dailyProtocolRevenue.clone()
       }
-    }
-
+    } 
     if (dailyRevenue) {
-      Object.assign(result, { dailyRevenue })
+      result.dailyRevenue = dailyRevenue
     }
 
     return result
