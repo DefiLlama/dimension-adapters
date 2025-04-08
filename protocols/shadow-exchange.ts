@@ -48,7 +48,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   }
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_:any, _1:any, options: FetchOptions) => {
   const stats = await fetchStats(options)
 
   const dailyFees = stats.clFeesUSD
@@ -58,8 +58,6 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
   };
 
 }
@@ -70,7 +68,6 @@ const methodology = {
   HoldersRevenue: "User fees are distributed among holders.",
 };
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,

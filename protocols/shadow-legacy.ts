@@ -3,16 +3,16 @@ import { CHAIN } from "../helpers/chains";
 import { fetchStats } from "./shadow-exchange";
 
 type TStartTime = {
-    [key: string]: number;
-  };
+  [key: string]: number;
+};
 
 const startTimeV2: TStartTime = {
   [CHAIN.SONIC]: 1735129946,
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options)
-  
+
   const dailyFees = stats.legacyFeesUSD
   const dailyVolume = stats.legacyVolumeUSD
 
@@ -20,8 +20,6 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
   };
 
 }
@@ -32,7 +30,6 @@ const methodology = {
   HoldersRevenue: "User fees are distributed among holders.",
 };
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
