@@ -20,14 +20,13 @@ const options = {
 };
 
 const fetch = (chain: Chain) => {
-    return async ({endTimestamp }): Promise<FetchResultV2> => {
+    return async ({startTimestamp, endTimestamp }): Promise<FetchResultV2> => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000));
         const data = {
             timeRange: {
-                start: 'now-1d',
-                end: 'now',
+                start: startTimestamp.toString(),
+                end: endTimestamp.toString(),
                 step: 3600,
-                timezone: 'UTC',
             },
             queries: [
                 {
