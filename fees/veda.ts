@@ -204,7 +204,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           }
           
           // rate is always greater than or equal 1
-          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase / vaultRateBase
+          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
           const supplySideYield = totalDeposited * growthRate / vaultRateBase
           const totalYield = supplySideYield / (1 - performanceFeeRate)
@@ -229,7 +229,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
       const paltformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
 
-      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase / vaultRateBase
+      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
 
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
