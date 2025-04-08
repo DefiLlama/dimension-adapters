@@ -241,12 +241,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
   }
 
-  console.log({
-    dailyFees,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-  })
-
   return {
     dailyFees,
     dailySupplySideRevenue,
