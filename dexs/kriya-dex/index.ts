@@ -9,22 +9,20 @@ type IUrl = {
 }
 
 const url: IUrl = {
-    [CHAIN.SUI]: `https://tkmw8dmcp8.execute-api.ap-southeast-1.amazonaws.com/prod/volume/`
+    [CHAIN.SUI]: `https://api.kriya.finance/defillama/amm/`
 }
 
 interface IVolume {
     totalVolume: number,
     dailyVolume: number,
-    weeklyVolume: number,
-    monthlyVolume: number,
 }
 
 const fetch = (chain: Chain) => {
     return async (timestamp: number) => {
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-        // fetch for the passed timestamp.
-        const volumeUrl = url[chain] + String(timestamp);
-        const volume: IVolume = (await fetchURL(volumeUrl));
+        const volumeUrl = `${url[chain]}?timestamp=${timestamp}`;
+        const volume: IVolume = (await fetchURL(volumeUrl))?.data;
+
         return {
             totalVolume: `${volume?.totalVolume || undefined}`,
             dailyVolume: `${volume?.dailyVolume || undefined}`,
