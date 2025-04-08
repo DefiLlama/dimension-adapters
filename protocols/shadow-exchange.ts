@@ -17,42 +17,51 @@ export const v2Endpoints: any = {
 };
 
 interface IGraphRes {
-  clVolumeUSD: number;
-  clFeesUSD: number;
-  legacyVolumeUSD: number;
-  legacyFeesUSD: number;
+  volume: number;
+  fees: number;
 }
 
-export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
-  const query = `
-    {
-      clProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
-        startOfDay
-        volumeUSD
-        feesUSD
-      }
-      legacyProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
-        startOfDay
-        volumeUSD
-        feesUSD
-      }
-    }
-  `;
-  const rows = await request(v2Endpoints[options.chain], query);
+export async function fetchStats(options: FetchOptions, isCL: boolean): Promise<IGraphRes> {
+  const entity = isCL ? "clPoolHourDatas" : "legacyPoolHourDatas"
 
-  return {
-    clVolumeUSD: Number(rows.clProtocolDayDatas?.[0]?.volumeUSD ?? 0),
-    clFeesUSD: Number(rows.clProtocolDayDatas?.[0]?.feesUSD ?? 0),
-    legacyVolumeUSD: Number(rows.legacyProtocolDayDatas?.[0]?.volumeUSD ?? 0),
-    legacyFeesUSD: Number(rows.legacyProtocolDayDatas?.[0]?.feesUSD ?? 0),
-  }
+  const rows: any[] = []
+  const perPage = 1000
+  let page = 0
+
+  do {
+    const query = `
+      {
+        ${entity}(
+          where: {
+            startOfHour_gt: ${options.startTimestamp},
+            startOfHour_lt: ${options.endTimestamp}
+          },
+          first: ${perPage},
+          skip: ${page * perPage}
+        ) {
+          volumeUSD
+          feesUSD
+        }
+      }
+    `;
+
+    const tmpRows = await request(v2Endpoints[options.chain], query);
+    rows.push(...tmpRows[entity])
+    page += 1
+    
+  } while (rows.length % 1000 === 0)
+
+  const volume = rows.reduce((prev: any, current: any) => prev + Number(current.volumeUSD), 0)
+  const fees = rows.reduce((prev: any, current: any) => prev + Number(current.feesUSD), 0)
+
+  return { volume, fees }
 }
 
 const fetch = async (options: FetchOptions) => {
-  const stats = await fetchStats(options)
+  const stats = await fetchStats(options, true)
 
-  const dailyFees = stats.clFeesUSD
-  const dailyVolume = stats.clVolumeUSD
+  const dailyFees = stats.fees
+  const dailyVolume = stats.volume
 
   return {
     dailyVolume,

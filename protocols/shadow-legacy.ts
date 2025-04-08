@@ -11,10 +11,10 @@ const startTimeV2: TStartTime = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const stats = await fetchStats(options)
+  const stats = await fetchStats(options, false)
   
-  const dailyFees = stats.legacyFeesUSD
-  const dailyVolume = stats.legacyVolumeUSD
+  const dailyFees = stats.fees
+  const dailyVolume = stats.volume
 
   return {
     dailyVolume,
@@ -23,7 +23,6 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
-
 }
 
 const methodology = {
