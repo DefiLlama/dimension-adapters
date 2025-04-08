@@ -1,4 +1,3 @@
-
 import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
 
@@ -63,3 +62,88 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }
 
+const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
+const BorrowingEvent = 'event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)'
+
+type LiquityV1Config = {
+  troveManager: string
+  holderRevenuePercentage?: number
+  protocolRevenuePercentage?: number
+  redemptionEvent?: string
+  borrowingEvent?: string
+}
+
+
+
+export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 => {
+  const fetch: FetchV2 = async (fetchOptions) => {
+    const { createBalances, getLogs, api } = fetchOptions
+    const dailyFees = createBalances()
+
+    const redemptionEvent = config.redemptionEvent || RedemptionEvent
+    const borrowingEvent = config.borrowingEvent || BorrowingEvent
+
+    // Get brrower opertaor contract
+    const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
+    
+    // redemtions fees
+    const redemptionLogs = await getLogs({
+      target: config.troveManager,
+      eventAbi: redemptionEvent,
+    })
+
+    // event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee);
+    const borrowingLogs = await getLogs({
+      target: borrowerOperator,
+      eventAbi: borrowingEvent,
+    })
+
+    redemptionLogs.forEach((logs) => {
+      dailyFees.addGasToken(BigInt(logs[3]))
+    })
+
+    borrowingLogs.forEach((logs) => {
+      dailyFees.addUSDValue(BigInt(logs[1])/BigInt(1e18))
+    })
+
+    const result = { dailyFees }
+
+    let dailyRevenue = null
+    // validate percentage
+    const totalRevPercent = Number(config.holderRevenuePercentage || 0) + Number(config.protocolRevenuePercentage || 0)
+    if (totalRevPercent > 100) {
+      throw new Error('Total revenue percentage cannot exceed 100%')
+    }
+    if (config.holderRevenuePercentage) {
+      const dailyHoldersRevenue = dailyFees.clone(config.holderRevenuePercentage / 100)
+      Object.assign(result, { dailyHoldersRevenue })
+      dailyRevenue = dailyHoldersRevenue.clone()
+    }
+    if (config.protocolRevenuePercentage) {
+      const dailyProtocolRevenue = dailyFees.clone(config.protocolRevenuePercentage / 100)
+      Object.assign(result, { dailyProtocolRevenue })
+      if (dailyRevenue) {
+        dailyRevenue.addBalances(dailyProtocolRevenue)
+      } else {
+        dailyRevenue = dailyProtocolRevenue.clone()
+      }
+    }
+
+    if (dailyRevenue) {
+      Object.assign(result, { dailyRevenue })
+    }
+
+    return result
+  }
+  return fetch
+} 
+
+export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).map(([chain, chainConfig]) => {
+    exportObject[chain] = {
+      fetch: getLiquityV1LogAdapter(chainConfig),
+    }
+  })
+  return { adapter: exportObject, version: 2 } as SimpleAdapter
+}

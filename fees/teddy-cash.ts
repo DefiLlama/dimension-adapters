@@ -2,8 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { liquityV1Exports } from "../helpers/liquity";
 
 export default liquityV1Exports({
-  [CHAIN.ETHEREUM]: { 
-    troveManager: '0xA39739EF8b0231DbFA0DcdA07d7e29faAbCf4bb2', 
-    holderRevenuePercentage: 100
+  [CHAIN.AVAX]: { 
+    troveManager: '0xd22b04395705144Fd12AfFD854248427A2776194',
   }
 })
