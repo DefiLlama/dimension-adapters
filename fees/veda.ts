@@ -120,9 +120,9 @@ interface ExchangeRateUpdatedEvent {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
+  let dailyFees = 0
+  let dailySupplySideRevenue = 0
+  let dailyProtocolRevenue = 0
 
   const vaults = BoringVaults[options.chain]
 
@@ -206,9 +206,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           const totalYield = supplySideYield / (1 - performanceFeeRate)
           const protocolFee = totalYield - supplySideYield
 
-          dailyFees.add(token, totalYield)
-          dailySupplySideRevenue.add(token, supplySideYield)
-          dailyProtocolRevenue.add(token, protocolFee)
+          dailyFees += totalYield
+          dailySupplySideRevenue += supplySideYield
+          dailyProtocolRevenue += protocolFee
         }
       }
 
@@ -232,8 +232,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
       const platformFee = totalDeposited * (paltformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
-      dailyFees.add(token, platformFee)
-      dailyProtocolRevenue.add(token, platformFee)
+      dailyFees += platformFee
+      dailyProtocolRevenue += platformFee
     }
   }
 
