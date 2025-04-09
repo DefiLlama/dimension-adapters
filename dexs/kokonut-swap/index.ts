@@ -45,12 +45,12 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetchZKEVM,
+      fetch: () => ({} as any),
       start: '2023-06-19',
       runAtCurrTime: true
     },
     [CHAIN.BASE]: {
-      fetch: fetchBASE,
+      fetch: () => ({} as any),
       start: '2023-08-09',
       runAtCurrTime: true
     },

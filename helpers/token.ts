@@ -19,26 +19,48 @@ export async function addGasTokensReceived(params: {
   fromAddresses?: string[];
 }) {
   let { multisig, multisigs, options, balances, fromAddresses } = params;
-  if (multisig) multisigs = [multisig]
+  if (multisig) multisigs = [multisig];
+  if (!balances) balances = options.createBalances();
+  if (!multisigs?.length) throw new Error('multisig or multisigs required');
 
-  if (!balances) balances = options.createBalances()
+  const batchSize = 5000;
+  const allLogs: any[] = [];
+  let batchLogs: any[];
+  let offset = 0;
+  const fromBlock = (await options.getFromBlock()) - 200
+  const toBlock = (await options.getToBlock()) - 200
 
-  if (!multisigs?.length) {
-    throw new Error('multisig or multisigs required')
+  for (;;) {
+    batchLogs = await sdk.indexer.getLogs({
+      chain: options.chain,
+      targets: multisigs,
+      topics: ['0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d'],
+      onlyArgs: true,
+      eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
+      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
+      fromBlock,
+      toBlock,
+      limit: batchSize,
+      offset,
+      all: false
+    });
+    allLogs.push(...batchLogs);
+    if (batchLogs.length < batchSize) break;
+    offset += batchSize;
   }
 
-  let logs = await options.getLogs({
-    targets: multisigs,
-    eventAbi: 'event SafeReceived (address indexed sender, uint256 value)'
-  })
-
-  if(fromAddresses) {
-    const normalized = fromAddresses.map(a=>a.toLowerCase())
-    logs = logs.filter(log=>normalized.includes(log.sender.toLowerCase()))
+  if (fromAddresses) {
+    const normalized = fromAddresses.map(a => a.toLowerCase());
+    allLogs.forEach(log => {
+      if (normalized.includes(log.sender?.toLowerCase?.())) {
+        balances!.addGasToken(log.value);
+      }
+    });
+  } else {
+    allLogs.forEach(i => balances!.addGasToken(i.value));
   }
 
-  logs.forEach(i => balances!.addGasToken(i.value))
-  return balances
+  return balances;
 }
 
 type AddTokensReceivedParams = {
@@ -317,6 +339,17 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
+  /**
+   * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
+   * 
+   * @param options - FetchOptions containing timestamp range and other configuration
+   * @param balances - Optional sdk.Balances object to add the results to
+   * @param target - Single Solana address to query
+   * @param targets - Array of Solana addresses to query (alternative to target)
+   * @param blacklists - Optional array of addresses to exclude from the sender side
+   * @param blacklist_signers - Optional array of transaction signers to exclude
+   * @returns The balances object with added USD value from received tokens
+   */
   export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
     options: FetchOptions;
     balances?: sdk.Balances;
@@ -325,14 +358,14 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     blacklists?: string[];
     blacklist_signers?: string[];
   }) {
+    // Initialize balances if not provided
     if (!balances) balances = options.createBalances();
-  
-    if (targets?.length) {
-      for (const target of targets)
-        await getSolanaReceived({ options, balances, target, blacklists });
-      return balances;
-    }
-  
+
+    // If targets is provided, use that instead of single target
+    const addresses = targets?.length ? targets : target ? [target] : [];
+    if (addresses.length === 0) return balances;
+
+    // Build SQL condition to exclude blacklisted sender addresses
     let blacklistCondition = '';
     
     if (blacklists && blacklists.length > 0) {
@@ -340,24 +373,35 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
     }
     
+    // Build SQL condition to exclude blacklisted transaction signers
     let blacklist_signersCondition = '';
     
     if (blacklist_signers && blacklist_signers.length > 0) {
       const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
       blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
     }
+
+    // Format addresses for IN clause
+    const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
   
+    // Construct SQL query to get sum of received token values in USD and native amount
     const query = `
-      SELECT SUM(usd_amount) as usd_value, SUM(amount) as amount
+      SELECT mint as token, SUM(raw_amount) as amount
       FROM solana.assets.transfers
-      WHERE to_address = '${target}'
+      WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       ${blacklistCondition}
       ${blacklist_signersCondition}
+      GROUP BY mint
     `;
   
+    // Execute query against Allium database
     const res = await queryAllium(query);
-    balances.addUSDValue(res[0]?.usd_value ?? 0);
+    
+    // Add the USD value to the balances object (defaulting to 0 if no results)
+    res.forEach((row: any) => {
+      balances!.add(row.token, row.amount)
+    })
     return balances;
   }
   
@@ -372,6 +416,8 @@ export async function getETHReceived({ options, balances, target, targets }: { o
   }
 
   target = target?.toLowerCase()
+
+  // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
     ethereum: 'ethereum',
     base: 'base',
@@ -379,12 +425,36 @@ export async function getETHReceived({ options, balances, target, targets }: { o
     scroll: 'scroll',
     bsc: 'bsc',
     arbitrum: 'arbitrum',
+    avax: 'avalanche',
     polygon: 'polygon',
     blast: 'blast',
     celo: 'celo',
+    tron: 'tron',
+    unichain: 'unichain',
+    worldchain: 'worldchain',
+    zora: 'zora',
+    sonic: 'sonic',
+    soneium: 'soneium',
+    rsk: 'rootstock',
+    mode: 'mode',
+    near: 'near',
+    xdai: 'gnosis',
   }
   const tableMap: any = {
     bsc: 'bnb_token_transfers',
+    avax: 'avax_token_transfers',
+    tron: 'trx_token_transfers',
+    near: 'near_token_transfers',
+    polygon: 'matic_token_transfers',
+    berachain: 'native_token_transfers',
+    ink: 'native_token_transfers',
+    xdai: 'native_token_transfers',
+    polygon_zkevm: 'native_token_transfers',
+    unichain: 'native_token_transfers',
+    sonic: 'native_token_transfers',
+    soneium: 'native_token_transfers',
+    rsk: 'native_token_transfers',
+    mode: 'native_token_transfers',
   }
   const chainKey = chainMap[options.chain]
   if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)

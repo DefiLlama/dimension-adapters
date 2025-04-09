@@ -1,37 +1,24 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
-import fetchURL from "../../utils/fetchURL"
+import { postURL } from "../../utils/fetchURL"
 
-const endpoints = {
-  [CHAIN.SOLANA]: "https://api.saros.finance/info",
-};
+async function fetch() {
+  const { data: { data } } = await postURL('https://api.saros.xyz/api/saros/token/top', {
+    "page": 1,
+    "size": 100,
+  })
 
-const graphs = (chain: string) => async (timestamp: number) => {
-  let res;
-  switch (chain) {
-    case CHAIN.SOLANA:
-      res = await fetchURL(endpoints[CHAIN.SOLANA]);
-    default:
-      res = await fetchURL(endpoints[CHAIN.SOLANA]);
-  }
+  const dailyVolume = data.reduce((acc: number, { volume24h }) => acc + Number(volume24h), 0);
+  return { dailyVolume }
+}
 
-  return {
-    timestamp,
-    dailyVolume: res.volume24h,
-    totalVolume: res.totalvolume,
-  };
-};
-
-// @TODO check and backfill
 const adapter: SimpleAdapter = {
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {
-      fetch: graphs(CHAIN.SOLANA),
+      fetch,
       runAtCurrTime: true,
-          },
+    },
   },
 };
 export default adapter;

@@ -16,24 +16,24 @@ const getBitoroProUrl = (startTime: number, endTime: number): string => {
 }
 
 const fetchBitoroX = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
-    const { endTimestamp, startTimestamp } = options;
+    const { endTimestamp, startTimestamp, startOfDay } = options;
     const dailyVolume = await fetchURL(getBitoroXUrl(startTimestamp, endTimestamp));
     const totalVolume = await fetchURL(getBitoroXUrl(startTimestamp_bitoro_x, endTimestamp));
 
     return {
-        timestamp: startTimestamp,
+        timestamp: startOfDay,
         dailyVolume: dailyVolume.volume || 0,
         totalVolume: totalVolume.volume || 0,
     };
 };
 
 const fetchBitoroPro = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
-    const { fromTimestamp, toTimestamp } = options;
+    const { fromTimestamp, toTimestamp, startOfDay } = options;
     const dailyVolume = await fetchURL(getBitoroProUrl(fromTimestamp, toTimestamp));
     const totalVolume = await fetchURL(getBitoroProUrl(startTimestamp_bitoro_pro, toTimestamp));
 
     return {
-        timestamp: fromTimestamp,
+        timestamp: startOfDay,
         dailyVolume: dailyVolume.volume || 0,
         totalVolume: totalVolume.volume || 0,
     };

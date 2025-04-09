@@ -131,7 +131,6 @@ const fetchFeesByChain = () => {
 const adapters: SimpleAdapter = {
   version: 1,
   adapter: fetchFeesByChain(),
-  isExpensiveAdapter: true
 }
 
 export default adapters

@@ -41,6 +41,9 @@ const fee_detail: TFeeDetail = {
   [CHAIN.MANTLE]: {
     from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   },
+  [CHAIN.SONIC]: {
+    from: '0xc45b55032cafeaff3b8057d52758d8f8211da54d'
+  }
 }
 
 const fetch = (chain: Chain) => {
@@ -104,6 +107,10 @@ const adapter: Adapter = {
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
       start: '2023-01-09',
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetch(CHAIN.SONIC),
+      start: '2024-12-18',
     }
   }
 }

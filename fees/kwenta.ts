@@ -26,6 +26,7 @@ const fetchData = (_: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2024-12-14",
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OPTIMISM]: {

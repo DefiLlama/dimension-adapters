@@ -46,7 +46,7 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   let chunkSize = 400;
@@ -119,7 +119,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   adapter: {
     [CHAIN.OPTIMISM]: {

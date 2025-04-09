@@ -1,4 +1,4 @@
-import { blockscoutFeeAdapter } from "../helpers/blockscoutFees";
+import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 import { CHAIN } from "../helpers/chains";
 
-export default blockscoutFeeAdapter(CHAIN.AURORA, "https://aurorascan.dev/api?module=stats&action=totalfees")
+export default blockscoutFeeAdapter2(CHAIN.AURORA)

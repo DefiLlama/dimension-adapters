@@ -1,20 +1,4 @@
-
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapter = univ2Adapter({
-  [CHAIN.CRONOS]: "https://gnode.photonswap.finance/subgraphs/name/dexbruce/photonswap"
-}, {});
-
-adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter
-adapter.adapter[CHAIN.CRONOS].start = 1690070400
-adapter.adapter[CHAIN.CRONOS].fetch = async (timestamp: number) => {
-  return {
-    dailyVolume: 0,
-    timestamp,
-  }
-}
-
-export default adapter
+export default uniV2Exports({ [CHAIN.CRONOS]: { factory: '0x462C98Cae5AffEED576c98A55dAA922604e2D875'}})

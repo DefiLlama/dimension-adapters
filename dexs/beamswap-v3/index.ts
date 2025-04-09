@@ -38,10 +38,10 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v3: {
-      [CHAIN.MOONBEAN]: {
-        fetch: v3Graphs(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: v3Graphs(CHAIN.MOONBEAM),
         start: '2023-05-18',
-        customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
+        customBackfill: customBackfill(CHAIN.MOONBEAM, v3Graphs),
         meta: {
           methodology: {
             ...methodologyv3,

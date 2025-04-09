@@ -25,4 +25,5 @@ adapter.adapter.fantom.start = 1673827200;
 // and use the exact same code (with a new listing
 // since swapline recently launched)
 adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter
+adapter.deadFrom = '2024-09-12';
 export default adapter;

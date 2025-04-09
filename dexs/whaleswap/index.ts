@@ -1,45 +1,18 @@
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const { BSC, FANTOM } = require("../../helpers/chains");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
-const endpoints = {
-  [BSC]: sdk.graph.modifyEndpoint('6GFVtwE9cc6Rs5N4zh3WE4HxppKkaHyuetwPLutjRqZw'),
-  [FANTOM]: sdk.graph.modifyEndpoint('GVz2cRMu62ePnd3dXq42SDdTMds7koaJ1w4X5cxfdrco'),
-};
-
-const DAILY_VOLUME_FACTORY = "dayData";
-
-const graphs = getChainVolume2({
-  graphUrls: {
-    [BSC]: endpoints[BSC],
-    [FANTOM]: endpoints[FANTOM],
-  },
-  totalVolume: {
-    factory: "whaleswapFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [BSC]: {
-      fetch: graphs(BSC),
-      start: getStartTimestamp({
-        endpoints,
-        chain: BSC,
-        dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-      }),
+    [CHAIN.BSC]: {
+      fetch: getUniV2LogAdapter({ factory: '0xabc26f8364cc0dd728ac5c23fa40886fda3dd121'}),
+      start: '2021-10-28',
     },
-    [FANTOM]: {
-      fetch: graphs(FANTOM),
-      start: getStartTimestamp({
-        endpoints,
-        chain: FANTOM,
-        dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-      }),
+    [CHAIN.FANTOM]: {
+      fetch: getUniV2LogAdapter({ factory: '0xabc26f8364cc0dd728ac5c23fa40886fda3dd121'}),
+      start: '2021-11-25',
     },
   },
 };

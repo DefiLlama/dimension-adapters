@@ -44,6 +44,7 @@ async function fetch({ createBalances, api, fromApi,  toApi }: FetchOptions) {
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: '2024-07-08',
   adapter: {
     [CHAIN.FUSE]: {
       fetch,

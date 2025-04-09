@@ -1,26 +1,25 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchPools } from "./shadow-exchange";
+import { fetchStats } from "./shadow-exchange";
 
 type TStartTime = {
-    [key: string]: number;
-  };
+  [key: string]: number;
+};
 
 const startTimeV2: TStartTime = {
   [CHAIN.SONIC]: 1735129946,
 };
 
-const fetch = async (options: FetchOptions) => {
-  const pools = (await fetchPools(options)).filter((pool) => !pool.isCL)
-  const dailyFees = pools.reduce((acc, pool) => acc + Number(pool.feesUSD), 0);
-  const dailyVolume = pools.reduce((acc, pool) => acc + Number(pool.volumeUSD), 0);
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
+  const stats = await fetchStats(options)
+
+  const dailyFees = stats.legacyFeesUSD
+  const dailyVolume = stats.legacyVolumeUSD
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
   };
 
 }
@@ -31,7 +30,6 @@ const methodology = {
   HoldersRevenue: "User fees are distributed among holders.",
 };
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,

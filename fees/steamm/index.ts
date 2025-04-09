@@ -20,15 +20,15 @@ const methodology = {
 const fetchSteammStats = async ({ endTimestamp }: FetchOptions) => {
   const url = `${suilendFeesURL}?ts=${endTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
+  const dailyFees = parseFloat(stats.protocolFeesUsd) + parseFloat(stats.poolFeesUsd)
   return {
-    dailyFees: parseFloat(stats.protocolFeesUsd) + parseFloat(stats.poolFeesUsd),
-    dailyUserFees: parseFloat(stats.poolFeesUsd),
-    dailyRevenue: parseFloat(stats.protocolFeesUsd),
-    dailyProtocolRevenue: parseFloat(stats.protocolFeesUsd),
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: stats.poolFeesUsd,
+    dailyRevenue: stats.protocolFeesUsd,
+    dailyProtocolRevenue: stats.protocolFeesUsd,
   };
 };
-
-
 
 const adapter: Adapter = {
   version: 2,

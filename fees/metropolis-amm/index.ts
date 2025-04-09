@@ -1,5 +1,7 @@
 import {SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
+import { httpPost } from "../../utils/fetchURL";
 
 export const TOTAL_FEE = 0.003
 export const LP_HOLDERS_FEE = 0.0015
@@ -14,12 +16,13 @@ export const getLpFees = (volumeUSD: number) => {
     }
 }
 
-const getData = async (chain: string, timestamp: number) => {
+const getData = async (from: number, to) => {
     const Sonic_LP_V21_QUERY = `
         query pairDayDatas {
             pairDayDatas(
                 where: {
-                    date_gt: ${timestamp}
+                    date_gte: ${from}
+                    date_lte: ${to}
                 },
                 orderBy: date,
                 first: 1000,
@@ -39,74 +42,54 @@ const getData = async (chain: string, timestamp: number) => {
             }
         }`;
 
-    async function fetchV21() {
-        try {
-            const responses = [
-                await fetch('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-dex', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({query: Sonic_LP_V21_QUERY}),
-                }),
-            ];
 
-            const results = await Promise.all(responses.map(async (response) => {
-                if (!response.ok) {
-                    let errorText;
-                    switch (response.status) {
-                        case 400:
-                            errorText = await response.text();
-                            break;
-                        case 401:
-                            errorText = 'Unauthorized';
-                            break;
-                        case 403:
-                            errorText = 'Forbidden';
-                            break;
-                        default:
-                            errorText = `HTTP error! status: ${response.status}`;
-                    }
-                    throw new Error(errorText);
-                }
+    const responses = [
+        await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-dex', 
+            {query: Sonic_LP_V21_QUERY}
+        ),
+    ];
 
-                return response.json();
-            }));
+    const processDailyData = (data: any) => {
+        const volume = parseFloat(data.dailyVolumeUSD || '0');
+        const lpFees = getLpFees(volume);
+        return {
+            holderFees: lpFees.lpFees24h,
+            dailyFees: lpFees.totalFees24h,
+            volume
+        };
+    };
 
-            const feeData = results.flat().map(data => data.data?.pairDayDatas);
-            if (feeData.length > 0) {
-                const {holderFees, dailyFees, volume} = feeData.reduce((acc, dayDatas) => {
-                    if (dayDatas) {
-                        return dayDatas.reduce((innerAcc, data) => {
-                            const lpFees = getLpFees(parseFloat(data.dailyVolumeUSD || '0'))
-                            return {
-                                holderFees: innerAcc.holderFees + lpFees.lpFees24h,
-                                dailyFees: innerAcc.dailyFees + lpFees.totalFees24h,
-                                volume: innerAcc.volume + parseFloat(data.dailyVolumeUSD || '0')
-                            }
-                        }, acc);
-                    }
-                    return acc;
-                }, {holderFees: 0, dailyFees: 0, volume: 0});
-                return {holderFees, dailyFees, volume}
-            }
-        } catch (error) {
-            console.error('Error fetching iotaV21 data:', error);
-            return null;
-        }
+    const aggregateMetrics = (dayDatas: any[]) => {
+        return dayDatas.reduce((acc, data) => ({
+            holderFees: acc.holderFees + processDailyData(data).holderFees,
+            dailyFees: acc.dailyFees + processDailyData(data).dailyFees,
+            volume: acc.volume + processDailyData(data).volume
+        }), { holderFees: 0, dailyFees: 0, volume: 0 });
+    };
+
+    const feeData = responses.flat().map(data => data?.data?.pairDayDatas);
+    if (feeData.length > 0) {
+        const metrics = feeData.reduce((acc, dayDatas) => {
+            if (!dayDatas) return acc;
+            return aggregateMetrics(dayDatas);
+        }, { holderFees: 0, dailyFees: 0, volume: 0 });
+        
+        return metrics;
     }
 
-    return await fetchV21()
+    return {holderFees: 0, dailyFees: 0, volume: 0};
 }
 
-export const fetchFee = (chain: string) => {
-    return async (timestamp: number) => {
-        const data = await getData(chain, timestamp);
+export const fetchFee = async (timestamp: number, _block: any, options: FetchOptions) => {
+    const data = await getData(options.fromTimestamp, options.toTimestamp);
+    if (!data) {
         return {
-            timestamp: timestamp,
-            dailyFees: data.dailyFees,
-            dailyVolume: data.volume,
-        };
+        }
+    }
+    return {
+        timestamp: timestamp,
+        dailyFees: data.dailyFees,
+        dailyVolume: data.volume,
     };
 };
 
@@ -117,7 +100,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SONIC]: {
-            fetch: fetchFee(CHAIN.SONIC),
+            fetch: fetchFee,
             start: "2024-12-16",
             meta: {
                 methodology,
