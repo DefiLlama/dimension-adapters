@@ -1,3 +1,4 @@
+import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import * as sdk from '@defillama/sdk'
@@ -30,34 +31,49 @@ const OndoAbis = {
   OracleOUSGUpdatedEvent: 'event RWAExternalComparisonCheckPriceSet(int256, uint80 indexed, int256, uint80 indexed, int256, int256)',
 }
 
+interface OusgOracleUpdateEvent {
+  increasedRate: number;
+  blockNumber: number;
+}
+
 const fetch: any = async (options: FetchOptions) => {
   // USD value
   let dailyFees = 0
 
   // get fees from OUSG
-  const ousgOracleUpdatedEvents: Array<any> = await options.getLogs({
-    target: OracleOUSG,
+  const ousgOracleContract: Interface = new Interface([
+    OndoAbis.OracleOUSGUpdatedEvent,
+  ])
+  const events: Array<OusgOracleUpdateEvent> = (await options.getLogs({
     eventAbi: OndoAbis.OracleOUSGUpdatedEvent,
+    entireLog: true,
+    target: OracleOUSG,
+  }))
+  .map(log => {
+    const decodeLog: any = ousgOracleContract.parseLog(log)
+    return {
+      blockNumber: Number(log.blockNumber),
+      increasedRate: Number(decodeLog.args[5]) - Number(decodeLog.args[4]),
+    }
   })
-  for (const event of ousgOracleUpdatedEvents) {
-    // this event occuor daily once, no need to worry about rpc calls
+  for (const event of events) {
+    // this event occurs daily once, no need to worry about rpc calls
     const totalSupply = await sdk.api2.abi.call({
       abi: OndoAbis.totalSupply,
       target: OUSG,
+      block: event.blockNumber - 1,
     })
-   
-    const increasePrice = Number(event[5]) - Number(event[4])
-    dailyFees += Number(totalSupply) * increasePrice / 1e36
+    dailyFees += Number(totalSupply) * event.increasedRate / 1e36
   }
 
   // get fees from USDY
   const oldPrice = await options.fromApi.call({
     abi: OndoAbis.getPrice,
-      target: OracleUSDY,
+    target: OracleUSDY,
   })
   const newPrice = await options.toApi.call({
     abi: OndoAbis.getPrice,
-      target: OracleUSDY,
+    target: OracleUSDY,
   })
   const totalSupply = await sdk.api2.abi.call({
     abi: OndoAbis.totalSupply,
