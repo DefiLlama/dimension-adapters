@@ -15,7 +15,7 @@ const fetchEchoLendingStats: FetchV2 = async ({
   startTimestamp,
   endTimestamp,
 }): Promise<FetchResultV2> => {
-  const url = `${echoLendingApiURL}?type=lending&startTimestamp=${Math.floor(startTimestamp / 1000)}&endTimestamp=${Math.floor(endTimestamp / 1000)}`;
+  const url = `${echoLendingApiURL}?type=lending&startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
   const { data }: EchoLendingStats = await fetchURL(url);
   const dailyFees = data.fee;
   const dailyRevenue = data.revenue;
@@ -31,7 +31,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchEchoLendingStats,
-      start: '2025-01-20',
+      start: '2025-04-06'
     },
   },
 };
