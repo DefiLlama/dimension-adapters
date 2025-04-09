@@ -11,9 +11,10 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     ammPoolStandard.push(...data);
     page++;
   }
+  const validPools = ammPoolStandard.filter((i: any) => ((Number(i.tvl) >  10_000) || (Number(i.feeRate) > 0.001)));
+  console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${ammPoolStandard.length}`);
 
-  const dailyVolumeAmmPool = ammPoolStandard
-    .filter((i: any) => Number(i.tvl) >  10_000 || Number(i.feeRate) > 0.001)
+  const dailyVolumeAmmPool = validPools
     .reduce((a: number, b) => a + b.day.volume, 0)
 
   let ammFee = 0
