@@ -64,6 +64,7 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
 
 const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
 const BorrowingEvent = 'event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)'
+const liquidationEvent = 'event Liquidation(uint _liquidatedDebt, uint _liquidatedColl, uint _collGasCompensation, uint _LUSDGasCompensation)'
 
 type LiquityV1Config = {
   troveManager: string
@@ -71,9 +72,7 @@ type LiquityV1Config = {
   holderRevenuePercentage?: number
   protocolRevenuePercentage?: number
   redemptionEvent?: string
-  redemptionFeesField?: string
   borrowingEvent?: string
-  borrowingFeesField?: string
 }
 
 
@@ -95,23 +94,32 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       eventAbi: redemptionEvent,
     })
 
+    // liquidations logs 
+    const liquidationLogs = await getLogs({
+      target: config.troveManager,
+      eventAbi: liquidationEvent,
+    })
+
     // event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee);
     const borrowingLogs = await getLogs({
       target: borrowerOperator,
       eventAbi: borrowingEvent,
     })
 
-    const redemptionFeesField = config.redemptionFeesField || '_ETHFee'
-    const borrowingFeesField = config.borrowingFeesField || '_LUSDFee'
-
     // get _ETHFee from event
     redemptionLogs.forEach((logs) => {
-      dailyFees.addGasToken(BigInt(logs[redemptionFeesField]))
-    })  
+      dailyFees.addGasToken(BigInt(logs['_ETHFee']))
+    })
 
     // get _LUSDFee from event
     borrowingLogs.forEach((logs) => {
-      dailyFees.add(config.stableCoin, BigInt(logs[borrowingFeesField])/BigInt(1e18))
+      dailyFees.add(config.stableCoin, BigInt(logs['_LUSDFee']))
+    })
+
+    // get _LUSDGasCompensation from event
+    liquidationLogs.forEach((logs) => {
+      dailyFees.add(config.stableCoin, BigInt(logs['_LUSDGasCompensation']))
+      dailyFees.addGasToken(BigInt(logs['_collGasCompensation']))
     })
 
     const result: FetchResultFees = { dailyFees }
