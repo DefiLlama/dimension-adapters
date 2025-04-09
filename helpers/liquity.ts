@@ -116,10 +116,11 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       dailyFees.add(config.stableCoin, BigInt(logs['_LUSDFee']))
     })
 
+    const supplySideFees = createBalances()
     // get _LUSDGasCompensation from event
     liquidationLogs.forEach((logs) => {
-      dailyFees.add(config.stableCoin, BigInt(logs['_LUSDGasCompensation']))
-      dailyFees.addGasToken(BigInt(logs['_collGasCompensation']))
+      supplySideFees.add(config.stableCoin, BigInt(logs['_LUSDGasCompensation']))
+      supplySideFees.addGasToken(BigInt(logs['_collGasCompensation']))
     })
 
     const result: FetchResultFees = { dailyFees }
@@ -147,6 +148,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     if (dailyRevenue) {
       result.dailyRevenue = dailyRevenue
     }
+    result.dailySupplySideRevenue = supplySideFees
 
     return result
   }
