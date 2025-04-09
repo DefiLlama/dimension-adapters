@@ -11,6 +11,11 @@ interface EchoStakingStats {
   }
 }
 
+const methodology = {
+  Fees: 'Staking rewards earned by all staked APT',
+  ProtocolRevenue: 'Staking rewards',
+};
+
 const fetchEchoStakingStats: FetchV2 = async ({
   startTimestamp,
   endTimestamp,
@@ -31,7 +36,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchEchoStakingStats,
-      start: '2025-04-07',
+      start: '2025-04-06',
+      meta: {
+        methodology,
+      },
     },
   },
 };

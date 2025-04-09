@@ -11,6 +11,11 @@ interface EchoLendingStats {
   }
 }
 
+const methodology = {
+  Fees: 'Interest paid by borrowers',
+  ProtocolRevenue: 'Percentage of interest going to treasury',
+};
+
 const fetchEchoLendingStats: FetchV2 = async ({
   startTimestamp,
   endTimestamp,
@@ -31,7 +36,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchEchoLendingStats,
-      start: '2025-04-06'
+      start: '2025-04-06',
+      meta: {
+        methodology,
+      },
     },
   },
 };
