@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const graph = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const url = `https://api.everclear.org/intents?startDate=1744128069&endDate=1744214469&limit=10&statuses=SETTLED_AND_COMPLETED`;
+  const url = `https://api.everclear.org/intents?startDate=1744128069&endDate=1744214469&limit=10000&statuses=SETTLED_AND_COMPLETED`;
 
   try {
     const response = await fetchURL(url);
@@ -20,12 +20,12 @@ const graph = async (options: FetchOptions) => {
 
       const originAmount = intent.origin_amount ? Number(intent.origin_amount) : 0;
       const destinationAmount = intent.destination_amount ? Number(intent.destination_amount) : 0;
-      const feeAmount = (originAmount - destinationAmount); //multiplied by eth's price
+      const feeAmount = intent.token_fee; //multiplied by eth's price
       const feeTimestamp = intent.settlement_timestamp; // Use settlement timestamp from the intent
 
       if (feeAmount <= 0) continue; // Skip if no positive fee
 
-      dailyFees.add(assetContract, feeAmount, timestamp: feeTimestamp, chain);
+      dailyFees.add(assetContract, feeAmount, chain);
 
       console.log(`Adding fee for ${assetContract} at ${feeTimestamp}: ${feeAmount}`);
     }
