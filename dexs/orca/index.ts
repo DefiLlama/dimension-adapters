@@ -109,11 +109,11 @@ async function fetch(timestamp: number, url: string) {
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
     );
 
-    const dailyLpFees = allPools.reduce(
+    const dailyLpFees = validPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateLPFees(pool), 0
     );
 
-    const dailyFees = allPools.reduce(
+    const dailyFees = validPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 

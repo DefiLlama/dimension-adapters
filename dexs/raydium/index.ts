@@ -20,7 +20,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   let ammFee = 0
   let clmmFee = 0
   let cpmmFee = 0
-  for (const item of ammPoolStandard){
+  for (const item of validPools){
     if (item.programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') clmmFee += item.day.volumeFee
     else if (item.programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') cpmmFee += item.day.volumeFee
     else ammFee += item.day.volumeFee
