@@ -37,8 +37,8 @@ const fetch = async (timestamp: number) => {
     const dailyProtocolRevenue = 0;
     const totalProtocolRevenue = 0;
 
-    const dailyHolderRevenue = dailyFees;
-    const totalHolderRevenue = totalFees;
+    const dailyHoldersRevenue = dailyFees;
+    const totalHoldersRevenue = totalFees;
 
     return {
         totalVolume: `${totalVolume}`,
@@ -47,8 +47,8 @@ const fetch = async (timestamp: number) => {
         dailyFees: `${dailyFees}`,
         totalProtocolRevenue: `${totalProtocolRevenue}`,
         dailyProtocolRevenue: `${dailyProtocolRevenue}`,
-        dailyHolderRevenue: `${dailyHolderRevenue}`,
-        totalHolderRevenue: `${totalHolderRevenue}`,
+        dailyHoldersRevenue: `${dailyHoldersRevenue}`,
+        totalHoldersRevenue: `${totalHoldersRevenue}`,
         timestamp,
     };
 };
