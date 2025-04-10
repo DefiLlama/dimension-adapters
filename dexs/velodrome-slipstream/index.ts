@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { filterPools2 } from "../../helpers/uniswap";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 const abis: any = {
@@ -51,7 +52,7 @@ const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV
   const dailyFees = options.createBalances()
   let chunkSize = 400;
   let currentOffset = 0;
-  const allForSwaps: IForSwap[] = [];
+  let allForSwaps: IForSwap[] = [];
   let unfinished = true;
   let sugarContract = superchainConfig[options.chain]['sugar'];
 
@@ -84,13 +85,32 @@ const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV
     allForSwaps.push(...forSwaps);
   }
 
-  const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+
+    const { pairs, token0s, token1s } = await filterPools2({
+      fetchOptions: options,
+      pairs: allForSwaps.map(p => p.lp),
+      token0s: allForSwaps.map(p => p.token0),
+      token1s: allForSwaps.map(p => p.token1),
+      minUSDValue: 2000,
+      maxPairSize: 1000
+    })
 
   let logs: ILog[][] = [];
   const targetChunkSize = 5;
   let currentTargetOffset = 0;
   unfinished = true;
 
+  allForSwaps = pairs.map((pair: string, index: number) => {
+    const pool = allForSwaps.find(p => p.lp.toLowerCase() === pair.toLowerCase());
+    return {
+      lp: pair,
+      token0: token0s[index],
+      token1: token1s[index],
+      pool_fee: pool?.pool_fee
+    }
+  });
+  const targets = allForSwaps.map(p => p.lp);
+  
   while (unfinished) {
     let endOffset = currentTargetOffset + targetChunkSize;
     if (endOffset >= targets.length) {
