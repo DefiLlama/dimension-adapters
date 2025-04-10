@@ -61,15 +61,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   )?.[0] || options.chain;
 
   const url = `${URL}${endpoint}startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&chain=${houdiniChain}`;
+  const defaultRes = {}
   try {
     const res = await httpGet(url);
     if (!res || !res.length) {
-      return;
+      return defaultRes
     }
     const targetDay = startTimestamp;
     const dailyData = res.find((item: any) => item.timestamp === targetDay);
     if (!dailyData) {
-      return;
+      return defaultRes
     }
     return {
       dailyVolume: dailyData.totalUSD.toString(),
@@ -77,7 +78,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       // timestamp: dailyData.timestamp,
     };
   } catch (error) {
-    return;
+    return defaultRes
   }
 };
 
