@@ -34,8 +34,11 @@ const fetch = async (timestamp: number) => {
     const totalFeesQuery = (await httpGet(totalEndpoint(0, "FEE_ALL"), config_rule)).data;
     const totalFees = totalFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const dailyProtocolRevenue = dailyFees;
-    const totalProtocolRevenue = totalFees;
+    const dailyProtocolRevenue = 0;
+    const totalProtocolRevenue = 0;
+
+    const dailyHolderRevenue = dailyFees;
+    const totalHolderRevenue = totalFees;
 
     return {
         totalVolume: `${totalVolume}`,
@@ -44,6 +47,8 @@ const fetch = async (timestamp: number) => {
         dailyFees: `${dailyFees}`,
         totalProtocolRevenue: `${totalProtocolRevenue}`,
         dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+        dailyHolderRevenue: `${dailyHolderRevenue}`,
+        totalHolderRevenue: `${totalHolderRevenue}`,
         timestamp,
     };
 };
