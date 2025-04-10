@@ -3,10 +3,10 @@ import { CHAIN } from "../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 const v3Endpoints: { [key: string]: string } = {
-  [CHAIN.ABSTRACT]: "https://graph-node.internal.reservoir.tools/subgraphs/name/abstract/v3-subgraph",
-  [CHAIN.ZERO]: "https://graph-node.internal.reservoir.tools/subgraphs/name/zero/v3-subgraph",
-  [CHAIN.SHAPE]: "https://graph-node.internal.reservoir.tools/subgraphs/name/shape/v3-subgraph",
-  [CHAIN.REDSTONE]: "https://graph-node.internal.reservoir.tools/subgraphs/name/redstone/v3-subgraph",
+  [CHAIN.ABSTRACT]: "https://graph-node.reservoir.tools/subgraphs/name/abstract/v3-subgraph",
+  [CHAIN.ZERO]: "https://graph-node.reservoir.tools/subgraphs/name/zero/v3-subgraph",
+  [CHAIN.SHAPE]: "https://graph-node.reservoir.tools/subgraphs/name/shape/v3-subgraph",
+  [CHAIN.REDSTONE]: "https://graph-node.reservoir.tools/subgraphs/name/redstone/v3-subgraph",
 }
 
 // https://graph-node.internal.reservoir.tools/subgraphs/name/abstract/v3-subgraph

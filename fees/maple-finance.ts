@@ -53,7 +53,6 @@ const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
     targets: contract_open_term_loan,
     eventAbi: 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)'
   })
-  console.log(logs_claim_funds.length, logs_funds_distribution.length, logsTranferERC20.length)
 
   logs_funds_distribution.map((e: any, index: number) => {
     const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();

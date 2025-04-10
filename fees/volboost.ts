@@ -3,9 +3,9 @@ import { CHAIN } from "../helpers/chains"
 import { addTokensReceived } from "../helpers/token";
 
 const contracts: any = {
-  [CHAIN.ETHEREUM]: '0x3b18167886fc10dc1FDE2e5dD9d5afD36f40f538',
-  [CHAIN.BSC]: '0x3b18167886fc10dc1FDE2e5dD9d5afD36f40f538',
-  [CHAIN.BASE]: '0x3b18167886fc10dc1FDE2e5dD9d5afD36f40f538',
+  [CHAIN.ETHEREUM]: '0x9d06Fe7F623323086FaFf70ca7BfB2b539ac8C3d',
+  [CHAIN.BSC]: '0xc2af820610e055264f928388b85cdede6a21d710',
+  [CHAIN.BASE]: '0xcd216f87d8ab4d913e8660606679e9d5b805f220',
 }
 
 const chains = [

@@ -71,6 +71,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 }
 
 const adapter: Adapter = {
+  deadFrom: '2024-01-30',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),

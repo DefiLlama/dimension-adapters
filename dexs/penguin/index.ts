@@ -35,6 +35,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2024-07-01",
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

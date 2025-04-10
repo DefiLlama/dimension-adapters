@@ -75,6 +75,7 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 }
 
 const adapter: BreakdownAdapter = {
+    deadFrom: '2023-02-21',  // https://x.com/DexibleApp/status/1628117375278088192
     breakdown: {
         "Dexible_v2": {
             [DISABLED_ADAPTER_KEY]: disabledAdapter, // site has been sunset and discord is dead 

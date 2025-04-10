@@ -29,7 +29,7 @@ const adapter: Adapter = {
             fetch: fetchFees,
             meta: {
                 methodology: {
-                    Fees: "Trade fees and ticket auction proceeds",
+                    Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
                 }
             }
         },

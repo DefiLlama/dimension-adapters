@@ -20,6 +20,7 @@ const poolIDs = {
   V3_METIS: '0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af',
   V3_BASE: '0xe20fcbdbffc4dd138ce8b2e6fbb6cb49777ad64d',
   V3_SCROLL: '0x69850d0b276776781c063771b161bd8894bcdd04',
+  V3_SONIC: '0x5c2e738f6e27bce0f7558051bf90605dd6176900'
 }
 type THeader = {
   [s: string]: string;
@@ -54,8 +55,9 @@ const v3Endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
   [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
-  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GQFbb95cE6d8mV989mL5figjaGaKCQB3xqYrr1bRyXqF'),
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint('FQcacc4ZJaQVS9euWb76nvpSq2GxavBnUM6DU6tmspbi'),
 }
 
 
@@ -325,6 +327,9 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
   else if (chain === CHAIN.SCROLL) {
     poolid = poolIDs.V3_SCROLL;
   }
+  else if (chain === CHAIN.SONIC){
+    poolid = poolIDs.V3_SONIC;
+  }
   else {
     poolid= poolIDs.V3;
   }
@@ -514,6 +519,10 @@ const adapter = {
       [CHAIN.SCROLL]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.SCROLL),
         start: '2024-01-20'
+      },
+      [CHAIN.SONIC]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.SONIC),
+        start: '2025-02-15'
       },
     }
   },

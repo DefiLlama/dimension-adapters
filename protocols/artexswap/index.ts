@@ -10,6 +10,7 @@ interface IPairTrade {
 }
 
 const fetchData = async (timestamp: any, _b: any, options: FetchOptions) => {
+  if (timestamp > 1742860800) return {}
   const querry = `
     {
       pairTrades(where:{timestamp_gte: ${options.startOfDay}, timestamp_lte:${options.startOfDay + 86400}}) {
@@ -36,6 +37,7 @@ const fetchData = async (timestamp: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-03-25",
   adapter: {
     artela: {
       fetch: fetchData,

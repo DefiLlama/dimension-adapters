@@ -24,6 +24,9 @@ const superchainConfig = {
   },
   [CHAIN.FRAXTAL]: {
     sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
+  },
+  [CHAIN.UNICHAIN]: {
+    sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
   }
 }
 
@@ -43,7 +46,7 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   let chunkSize = 400;
@@ -116,7 +119,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
@@ -135,14 +138,18 @@ const adapters: SimpleAdapter = {
       fetch: fetch as any,
       start: '2024-11-19',
     },
-    // [CHAIN.INK]: {
-    //   fetch: fetch as any,
-    //   start: '2025-01-14',
-    // },
-    // [CHAIN.SONEIUM]: {
-    //   fetch: fetch as any,
-    //   start: '2025-01-14',
-    // },
+    [CHAIN.INK]: {
+      fetch: fetch as any,
+      start: '2025-01-14',
+    },
+    [CHAIN.SONEIUM]: {
+      fetch: fetch as any,
+      start: '2025-01-14',
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch: fetch as any,
+      start: '2025-03-04',
+    }
   }
 }
 export default adapters;

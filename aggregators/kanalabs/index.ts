@@ -1,9 +1,11 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { request, gql } from "graphql-request";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
+const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
 export enum KanaChainID {
   "solana" = 1,
@@ -20,7 +22,7 @@ export enum KanaChainID {
   "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
@@ -32,15 +34,25 @@ const fetch = (chain: KanaChainID) => async (timestamp: number, _t: any, options
   };
 };
 
-const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
-  const data = await fetchURL(
-    `${TRADE_URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
-  );
+  const query = gql`
+    query getTransactionVolumesForTransactions($timestamp: Float!, $chainId: Float!) {
+      getTransactionVolumesForTransactions(timestamp: $timestamp, chainId: $chainId)
+    }
+  `;
+  const variables = {
+    timestamp: dayTimestamp - 1,
+    chainId: KanaChainID.aptos,
+  };
+  const data = await request(GRAPHQL_URL, query, variables);
+  
+  const result = data.getTransactionVolumesForTransactions;
+  
   return {
     timestamp: timestamp,
-    dailyVolume: data.today.volume,
-    totalVolume: data.totalVolume.volume,
+    dailyVolume: result.today.volume,
+    totalVolume: result.totalVolume.volume,
   };
 };
 
@@ -73,12 +85,11 @@ const adapter: SimpleAdapter = {
       start: startTimeBlock,
     },
     [CHAIN.APTOS]: {
-      fetch: async (timestamp: number, _t: any, options: FetchOptions) => {
-        const swap = await fetch(KanaChainID.aptos)(options.startOfDay, _t, options)
-        const trade = await fetchDerivatives(KanaChainID.aptos)(options.startOfDay, _t, options);
+      fetch: async (timestamp: number, t: any, options: FetchOptions) => {
+        const swap = await fetchAptos(options.startOfDay, t, options);
         return {
-          dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
-          totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),
+          dailyVolume: swap.dailyVolume.toString(),
+          totalVolume: swap.totalVolume.toString(),
           timestamp,
         };
       },
@@ -95,5 +106,4 @@ const adapter: SimpleAdapter = {
   },
 };
 
-// Export the adapter
 export default adapter;

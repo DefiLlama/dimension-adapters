@@ -13,25 +13,25 @@ const startTimeV2: TStartTime = {
 
 export const v2Endpoints: any = {
   [CHAIN.SONIC]:
-    sdk.graph.modifyEndpoint('HGyx7TCqgbWieay5enLiRjshWve9TjHwiug3m66pmLGR'),
+    sdk.graph.modifyEndpoint("HGyx7TCqgbWieay5enLiRjshWve9TjHwiug3m66pmLGR"),
 };
 
-interface IPool {
-  id: string;
-  volumeUSD: string;
-  feesUSD: string;
-  isCL: boolean;
+interface IGraphRes {
+  clVolumeUSD: number;
+  clFeesUSD: number;
+  legacyVolumeUSD: number;
+  legacyFeesUSD: number;
 }
 
-export async function fetchPools(options: FetchOptions): Promise<IPool[]> {
+export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const query = `
     {
-      clPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      clProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
         startOfDay
         volumeUSD
         feesUSD
       }
-      legacyPoolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      legacyProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
         startOfDay
         volumeUSD
         feesUSD
@@ -40,25 +40,24 @@ export async function fetchPools(options: FetchOptions): Promise<IPool[]> {
   `;
   const rows = await request(v2Endpoints[options.chain], query);
 
-  const res: IPool[] = [
-    ...rows.clPoolDayDatas.map((row: any) => ({ ...row, isCL: true })),
-    ...rows.legacyPoolDayDatas.map((row: any) => ({ ...row, isCL: false })),
-  ]
-
-  return res
+  return {
+    clVolumeUSD: Number(rows.clProtocolDayDatas?.[0]?.volumeUSD ?? 0),
+    clFeesUSD: Number(rows.clProtocolDayDatas?.[0]?.feesUSD ?? 0),
+    legacyVolumeUSD: Number(rows.legacyProtocolDayDatas?.[0]?.volumeUSD ?? 0),
+    legacyFeesUSD: Number(rows.legacyProtocolDayDatas?.[0]?.feesUSD ?? 0),
+  }
 }
 
-const fetch = async (options: FetchOptions) => {
-  const pools = (await fetchPools(options)).filter((pool) => pool.isCL)
-  const dailyFees = pools.reduce((acc, pool) => acc + Number(pool.feesUSD), 0);
-  const dailyVolume = pools.reduce((acc, pool) => acc + Number(pool.volumeUSD), 0);
+const fetch = async (_:any, _1:any, options: FetchOptions) => {
+  const stats = await fetchStats(options)
+
+  const dailyFees = stats.clFeesUSD
+  const dailyVolume = stats.clVolumeUSD
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
   };
 
 }
@@ -69,7 +68,6 @@ const methodology = {
   HoldersRevenue: "User fees are distributed among holders.",
 };
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,

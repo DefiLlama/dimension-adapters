@@ -51,6 +51,7 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-09-12',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     solana: {

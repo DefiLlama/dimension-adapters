@@ -1,42 +1,9 @@
-import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { uniV3Exports } from "../../helpers/uniswap";
 
-const v3Endpoint = {
-  [CHAIN.PULSECHAIN]:
-    "https://graph.9mm.pro/subgraphs/name/pulsechain/9mm-v3",
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/80328/9mmbasev3/version/latest",
-};
 
-const v3Graph = getGraphDimensions2({
-  graphUrls: v3Endpoint,
-  totalVolume: {
-    factory: "factories",
-  },
-  totalFees: {
-    factory: "factories",
-  },
+export default uniV3Exports({
+  [CHAIN.PULSECHAIN]: { factory: "0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68" },
+  [CHAIN.BASE]: { factory: "0x7b72C4002EA7c276dd717B96b20f4956c5C904E7" },
+  [CHAIN.SONIC]: { factory: "0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5" },
 });
-
-const v3StartTimes = {
-  [CHAIN.PULSECHAIN]: 1701128040,
-  [CHAIN.BASE]: 1718318340,
-  
-} as IJSON<number>;
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: v3Graph(CHAIN.BASE),
-      start: v3StartTimes[CHAIN.BASE]
-    },
-    [CHAIN.PULSECHAIN]: {
-      fetch: v3Graph(CHAIN.PULSECHAIN),
-      start: v3StartTimes[CHAIN.PULSECHAIN]
-    },
-  },
-  version: 2
-};
-
-export default adapter;

@@ -5,7 +5,8 @@ import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { fromTimestamp } = options;
-  const perpsInfoApi = `https://backend.prod.mars-dev.net/v2/perps_overview?chain=neutron&days=30&response_type=global`;
+  const perpsInfoApi =
+    "https://backend.prod.mars-dev.net/v2/perps_overview?chain=neutron&days=30&response_type=global&granularity=day";
   const perpsVolumeData = await axios(perpsInfoApi);
   const globalOverview = perpsVolumeData.data.global_overview;
 
@@ -21,7 +22,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   if (globalOverview) {
     let foundLatestData = false;
 
-    globalOverview.daily_trading_volume.forEach((volumeData, index) => {
+    globalOverview.trading_volume.forEach((volumeData, index) => {
       const dataTimestamp = Math.round(
         new Date(volumeData.date).getTime() / 1000
       );
@@ -29,12 +30,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         const nextIndex = index + 1;
         last24HourVolume = convertToUsd(volumeData.value);
         fetchTimestamp = dataTimestamp;
-
         last24HourFees = convertToUsd(
-          globalOverview.fees.trading_fee[index].value -
-            Number(globalOverview.fees.trading_fee[nextIndex].value ?? 0)
+          globalOverview.fees.realized_trading_fee[index].value -
+            Number(
+              globalOverview.fees.realized_trading_fee[nextIndex].value ?? 0
+            )
         );
-
         last24HourRevenue = last24HourFees * 0.25;
         last24HoursShortOpenInterest = convertToUsd(
           globalOverview.open_interest.short[index].value
