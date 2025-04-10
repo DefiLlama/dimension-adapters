@@ -22,7 +22,7 @@ const questBoards = [
 ]
 
 const QuestBoardABI = {
-  quests: {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"quests","outputs":[{"internalType":"address","name":"creator","type":"address"},{"internalType":"address","name":"rewardToken","type":"address"},{"internalType":"address","name":"gauge","type":"address"},{"internalType":"uint48","name":"duration","type":"uint48"},{"internalType":"uint48","name":"periodStart","type":"uint48"},{"internalType":"uint256","name":"totalRewardAmount","type":"uint256"},{"internalType":"uint256","name":"rewardAmountPerPeriod","type":"uint256"},{"internalType":"uint256","name":"minRewardPerVote","type":"uint256"},{"internalType":"uint256","name":"maxRewardPerVote","type":"uint256"},{"internalType":"uint256","name":"minObjectiveVotes","type":"uint256"},{"internalType":"uint256","name":"maxObjectiveVotes","type":"uint256"},{"components":[{"internalType":"enum QuestDataTypes.QuestVoteType","name":"voteType","type":"uint8"},{"internalType":"enum QuestDataTypes.QuestRewardsType","name":"rewardsType","type":"uint8"},{"internalType":"enum QuestDataTypes.QuestCloseType","name":"closeType","type":"uint8"}],"internalType":"struct IQuestBoard.QuestTypes","name":"types","type":"tuple"}],"stateMutability":"view","type":"function"}
+  quests: "function quests(uint256) view returns (address creator, address rewardToken, address gauge, uint48 duration, uint48 periodStart, uint256 totalRewardAmount, uint256 rewardAmountPerPeriod, uint256 minRewardPerVote, uint256 maxRewardPerVote, uint256 minObjectiveVotes, uint256 maxObjectiveVotes, (uint8 voteType, uint8 rewardsType, uint8 closeType) types)"
 }
 
 const getBribe = async ({ createBalances, getLogs, api }: FetchOptions) => {
