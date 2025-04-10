@@ -11,6 +11,7 @@ const getGmxV1LogAdapter: any = ({
     const { createBalances, getLogs } = fetchOptions
     const dailyFees = createBalances()
     const dailyUserFees = createBalances()
+    const dailyVolume = createBalances()
 
     // Increase position
     const increasePositionLogs = await getLogs({
@@ -44,18 +45,26 @@ const getGmxV1LogAdapter: any = ({
       eventAbi: 'event CollectMarginFees(address token,uint256 feeUsd,uint256 feeTokens)',
     })
 
+    const liquidationPositionLogs = await getLogs({
+      target: vault,
+      eventAbi: 'event LiquidatePosition(bytes32 key,address account,address collateralToken,address indexToken,bool isLong,uint256 size,uint256 collateral,uint256 reserveAmount,int256 realisedPnl,uint256 markPrice)',
+    })
+
     // Calculate fees
     increasePositionLogs.forEach((log: any) => {
       dailyFees.addUSDValue(Number(log.fee)/1e30)
+      dailyVolume.addUSDValue(Number(log.sizeDelta)/1e30)
     })
     decreasePositionLogs.forEach((log: any) => {
       dailyFees.addUSDValue(Number(log.fee)/1e30)
+      dailyVolume.addUSDValue(Number(log.sizeDelta)/1e30)
     })
 
     // Calculate swap fees
     swapLogs.forEach((log: any) => {
       dailyFees.add(log.tokenOut, Number(log.amountOut)* Number(log.feeBasisPoints)*1e-4)
       dailyUserFees.add(log.tokenOut, Number(log.amountOut)* Number(log.feeBasisPoints)*1e-4)
+      dailyVolume.add(log.tokenIn, Number(log.amountIn))
     })
 
     // Calculate liquidation fees
@@ -74,7 +83,11 @@ const getGmxV1LogAdapter: any = ({
       dailyFees.addUSDValue((Number(log.usdgAmount)/1e18) * Number(log.feeBasisPoints) * 1e-4)
     })
 
-    const result = { dailyFees, dailyUserFees } as FetchResultV2
+    liquidationPositionLogs.forEach((log: any) => {
+      dailyVolume.addUSDValue(Number(log.size)/1e30)
+    })
+
+    const result = { dailyFees, dailyUserFees, dailyVolume } as FetchResultV2
     
     // Validate total revenue
     const totalRevenue = Number(ProtocolRevenue || 0) + Number(SupplySideRevenue || 0)  + Number(HoldersRevenue || 0)
@@ -100,7 +113,7 @@ export const gmxV1Exports = (config: IJSON<{
     ProtocolRevenue?: number,
     SupplySideRevenue?: number,
     HoldersRevenue?: number,
-    methodology?: any 
+    methodology?: any,
 } >) => {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
