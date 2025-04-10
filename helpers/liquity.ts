@@ -149,6 +149,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       result.dailyRevenue = dailyRevenue
     }
     result.dailySupplySideRevenue = supplySideFees
+    dailyFees.addBalances(supplySideFees)
 
     return result
   }
