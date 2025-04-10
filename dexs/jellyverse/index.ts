@@ -1,87 +1,50 @@
-import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
-import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultV2 } from "../../adapters/types";
+import request from "graphql-request";
+import { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.SEI]: "https://graph.jellyverse.org/"
 };
 
-interface IPool {
-  id: string;
-  swapVolume: string;
-  swapFees: string;
-}
 
-interface IPoolSnapshot {
-  today: IPool[];
-  yesterday: IPool[];
-}
-
-const v2Graphs = (chain: Chain) => {
-  return async ({ endTimestamp }): Promise<FetchResultV2> => {
-    const startTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-    const fromTimestamp = startTimestamp - 60 * 60 * 24
-    const toTimestamp = startTimestamp
-
-    const graphQuery = gql`
+async function fetch(_: any, _1: any, { toTimestamp, chain, createBalances, }: FetchOptions) {
+  const todayInt = Math.floor(toTimestamp / 86400)
+  const yesterdayInt = todayInt - 1
+  const query = `
       query volumes {
-        today: poolSnapshots(where: {timestamp: ${toTimestamp}}, orderBy: swapVolume, orderDirection: desc) {
-          id
-          swapVolume
-          swapFees
+        today: balancerSnapshot(id: "2-${todayInt}") {
+          totalSwapVolume
+          totalSwapFee
+          totalProtocolFee
         }
-        yesterday: poolSnapshots(where: {timestamp: ${fromTimestamp}}, orderBy: swapVolume, orderDirection: desc) {
-          id
-          swapVolume
-          swapFees
+        yesterday: balancerSnapshot(id: "2-${yesterdayInt}") {
+          totalSwapVolume
+          totalSwapFee
+          totalProtocolFee
         }
       }
-    `;
+    `
 
-    const graphRes: IPoolSnapshot = await request(endpoints[chain], graphQuery);
-
-    const { dailyVolume, dailyFees } = graphRes.today.reduce((acc, p: IPool) => {
-      const yesterdayPool = graphRes.yesterday.find((e: IPool) => e.id.split('-')[0] === p.id.split('-')[0]);
-      const yesterdayVolume = Number(yesterdayPool?.swapVolume || '0');
-      const yesterdayFees = Number(yesterdayPool?.swapFees || '0');
-
-      const volumeDiff = Number(p.swapVolume) - yesterdayVolume;
-      const feesDiff = Number(p.swapFees) - yesterdayFees;
-
-      acc.dailyVolume += volumeDiff;
-      acc.dailyFees += feesDiff;
-
-      return acc;
-    }, { dailyVolume: 0, dailyFees: 0 });
-
-    if (dailyVolume > 1_000_000_000) {
-      return {}
-    }
-
-    return {
-      dailyVolume: dailyVolume.toString(),
-      dailyFees: dailyFees.toString(),
-    };
-  };
-};
+  const { today, yesterday } = await request(endpoints[chain], query);
+  if (!today || !yesterday)
+    throw new Error("No data found");
+  
+  return {
+    dailyVolume: today.totalSwapVolume - yesterday.totalSwapVolume,
+    dailyFees: today.totalSwapFee - yesterday.totalSwapFee,
+    dailyRevenue: today.totalProtocolFee - yesterday.totalProtocolFee,
+    totalVolume: today.totalSwapVolume,
+    totalFees: today.totalSwapFee,
+    totalRevenue: today.totalProtocolFee,
+  }
+}
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v2: {
       [CHAIN.SEI]: {
-        fetch: v2Graphs(CHAIN.SEI),
-        start: getStartTimestamp({
-          endpoints,
-          chain: CHAIN.SEI,
-          dailyDataField: `balancerSnapshots`,
-          dateField: 'timestamp',
-          volumeField: 'totalSwapVolume'
-        }),
+        fetch,
+        start: '2024-06-01',
       }
     }
   }
