@@ -1,7 +1,11 @@
-import { Interface } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { CHAIN } from "../helpers/chains"
 import * as sdk from '@defillama/sdk'
+import * as solana from '../helpers/solana'
+import { getBlockNumber } from "@defillama/sdk/build/util/blocks"
+import axios from "axios"
+import { APTOS_PRC } from "../helpers/aptops"
+import { getObject } from '../helpers/sui'
 
 /**
  * 
@@ -19,68 +23,129 @@ const methodology = {
   SupplySideRevenue: 'Total yields were distributed to investors.',
 }
 
-const OUSG = '0x1B19C19393e2d034D8Ff31ff34c81252FcBbee92'
-const OracleOUSG = '0x0502c5ae08E7CD64fe1AEDA7D6e229413eCC6abe'
-
-const USDY = '0x96F6eF951840721AdBF46Ac996b59E0235CB985C'
-const OracleUSDY = '0xA0219AA5B31e65Bc920B5b6DFb8EdF0988121De0'
+const OndoContracts: any = {
+  [CHAIN.ETHEREUM]: {
+    OUSG: '0x1B19C19393e2d034D8Ff31ff34c81252FcBbee92',
+    OUSGOracle: '0x0502c5ae08E7CD64fe1AEDA7D6e229413eCC6abe',
+    USDY: '0x96F6eF951840721AdBF46Ac996b59E0235CB985C',
+    USDYc: '0xe86845788d6e3E5C2393ADe1a051AE617D974C09',
+    USDYOracle: '0xA0219AA5B31e65Bc920B5b6DFb8EdF0988121De0',
+  },
+  [CHAIN.SOLANA]: {
+    OUSG: 'i7u4r16TcsJTgq1kAG8opmVZyVnAKBwLKu6ZPMwzxNc',
+    USDY: 'A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6',
+  },
+  [CHAIN.POLYGON]: {
+    OUSG: '0xbA11C5effA33c4D6F8f593CFA394241CfE925811',
+  },
+  [CHAIN.MANTLE]: {
+    USDY: '0x5bE26527e817998A7206475496fDE1E68957c5A6',
+  },
+  [CHAIN.APTOS]: {
+    USDY: '0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc',
+  },
+  [CHAIN.ARBITRUM]: {
+    USDY: '0x35e050d3C0eC2d29D269a8EcEa763a183bDF9A9D',
+  },
+  [CHAIN.SUI]: {
+    // USDY_TREASURY_CAP_OBJECT_ID
+    USDY: '0x9dca9f57a78fa7f132f95a0cf5c4d1b796836145ead7337da6b94012db62267a',
+  },
+  [CHAIN.NOBLE]: {
+    USDY: 'ausdy',
+  },
+}
 
 const OndoAbis = {
   totalSupply: 'uint256:totalSupply',
-  getPrice: 'uint256:getPrice',
-  OracleOUSGUpdatedEvent: 'event RWAExternalComparisonCheckPriceSet(int256, uint80 indexed, int256, uint80 indexed, int256, int256)',
+  getPriceData: 'function getPriceData() view returns (uint256 price, uint256 timestamp)',
 }
 
-interface OusgOracleUpdateEvent {
-  increasedRate: number;
-  blockNumber: number;
+// use the same rates fetched on Ethereum for all chains
+async function getPrices(timestamp: number): Promise<{
+  OUSG: number;
+  USDY: number;
+}> {
+  const blockNumber = await getBlockNumber(CHAIN.ETHEREUM, timestamp)
+
+  const [ousgPriceData, usdyPriceData] = await sdk.api2.abi.multiCall({
+    chain: CHAIN.ETHEREUM,
+    abi: OndoAbis.getPriceData,
+    calls: [
+      OndoContracts[CHAIN.ETHEREUM].OUSGOracle,
+      OndoContracts[CHAIN.ETHEREUM].USDYOracle,
+    ],
+    block: blockNumber,
+  })
+
+  return {
+    OUSG: Number(ousgPriceData.price) / 1e18,
+    USDY: Number(usdyPriceData.price) / 1e18,
+  }
+}
+
+async function getSupply(useChainApi: sdk.ChainApi): Promise<{
+  OUSG: number;
+  USDY: number;
+}> {
+  if (useChainApi.chain === CHAIN.SOLANA) {
+    const [supplyOUSG, supplyUSDY] = await Promise.all([
+      solana.getTokenSupply(OndoContracts[CHAIN.SOLANA].OUSG),
+      solana.getTokenSupply(OndoContracts[CHAIN.SOLANA].USDY),
+    ])
+
+    return {
+      OUSG: Number(supplyOUSG),
+      USDY: Number(supplyUSDY),
+    }
+  } else if (useChainApi.chain === CHAIN.APTOS) {
+    const { data: { data: { decimals, supply } } } = await axios.get(`${APTOS_PRC}/v1/accounts/${OndoContracts[CHAIN.APTOS].USDY}/resource/0x1::coin::CoinInfo<${OndoContracts[CHAIN.APTOS].USDY}::usdy::USDY>`)
+
+    return {
+      OUSG: 0,
+      USDY: supply.vec[0].integer.vec[0].value / Math.pow(10, decimals),
+    }
+  } else if (useChainApi.chain === CHAIN.SUI) {
+    const treasuryCapInfo = await getObject(OndoContracts[CHAIN.SUI].USDY)
+    return {
+      OUSG: 0,
+      USDY: Number(treasuryCapInfo.fields.total_supply.fields.value) / 1e6,
+    }
+  } else if (useChainApi.chain === CHAIN.NOBLE) {
+    const res = await axios.get(`https://rest.cosmos.directory/noble/cosmos/bank/v1beta1/supply/by_denom?denom=${OndoContracts[CHAIN.NOBLE].USDY}`);
+    return {
+      OUSG: 0,
+      USDY: Number(parseInt(res.data.amount.amount)) / 1e18,
+    }
+  } else {
+    const [supplyOUSG, supplyUSDY, supplyUSDYc] = await useChainApi.multiCall({
+      abi: OndoAbis.totalSupply,
+      calls: [
+        OndoContracts[useChainApi.chain].OUSG,
+        OndoContracts[useChainApi.chain].USDY,
+        OndoContracts[useChainApi.chain].USDYc,
+      ],
+      permitFailure: true,
+    })
+
+    return {
+      OUSG: Number(supplyOUSG ? supplyOUSG : 0) / 1e18,
+      USDY: (Number(supplyUSDY ? supplyUSDY : 0) + Number(supplyUSDYc ? supplyUSDYc : 0)) / 1e18,
+    }
+  }
 }
 
 const fetch: any = async (options: FetchOptions) => {
   // USD value
   let dailyFees = 0
 
-  // get fees from OUSG
-  const ousgOracleContract: Interface = new Interface([
-    OndoAbis.OracleOUSGUpdatedEvent,
-  ])
-  const events: Array<OusgOracleUpdateEvent> = (await options.getLogs({
-    eventAbi: OndoAbis.OracleOUSGUpdatedEvent,
-    entireLog: true,
-    target: OracleOUSG,
-  }))
-  .map(log => {
-    const decodeLog: any = ousgOracleContract.parseLog(log)
-    return {
-      blockNumber: Number(log.blockNumber),
-      increasedRate: Number(decodeLog.args[5]) - Number(decodeLog.args[4]),
-    }
-  })
-  for (const event of events) {
-    // this event occurs daily once, no need to worry about rpc calls
-    const totalSupply = await sdk.api2.abi.call({
-      abi: OndoAbis.totalSupply,
-      target: OUSG,
-      block: event.blockNumber - 1,
-    })
-    dailyFees += Number(totalSupply) * event.increasedRate / 1e36
-  }
+  const oldPrices = await getPrices(options.fromTimestamp)
+  const newPrices = await getPrices(options.toTimestamp)
 
-  // get fees from USDY
-  const oldPrice = await options.fromApi.call({
-    abi: OndoAbis.getPrice,
-    target: OracleUSDY,
-  })
-  const newPrice = await options.toApi.call({
-    abi: OndoAbis.getPrice,
-    target: OracleUSDY,
-  })
-  const totalSupply = await sdk.api2.abi.call({
-    abi: OndoAbis.totalSupply,
-    target: USDY,
-  })
-  const increasePrice = Number(newPrice) - Number(oldPrice)
-  dailyFees += Number(totalSupply) * increasePrice / 1e36
+  const supply = await getSupply(options.api)
+
+  dailyFees += supply.OUSG * (newPrices.OUSG - oldPrices.OUSG)
+  dailyFees += supply.USDY * (newPrices.USDY - oldPrices.USDY)
 
   return { 
     dailyFees, 
@@ -97,6 +162,55 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology,
       }
+    },
+    [CHAIN.SOLANA]: { 
+      fetch: fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.POLYGON]: { 
+      fetch,
+      start: '2023-06-03',
+      meta: {
+        methodology,
+      }
+    },
+    [CHAIN.MANTLE]: { 
+      fetch,
+      start: '2023-10-25',
+      meta: {
+        methodology,
+      }
+    },
+    [CHAIN.APTOS]: { 
+      fetch: fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.ARBITRUM]: { 
+      fetch: fetch,
+      start: '2024-08-08',
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.SUI]: { 
+      fetch: fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology,
+      },
+    },
+    [CHAIN.NOBLE]: { 
+      fetch: fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology,
+      },
     },
   },
 }
