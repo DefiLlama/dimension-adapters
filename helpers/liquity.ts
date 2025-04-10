@@ -3,14 +3,17 @@ import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
 
 
-export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Config): FetchV2 => {
+export const getLiquityV2LogAdapter: any = ({
+  collateralRegistry,
+  stableTokenAbi = 'address:boldToken', // default to stableCoin
+}: LiquityV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
     const dailyFees = createBalances()
 
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
-    const stableCoin = await api.call({ abi: 'address:boldToken', target: collateralRegistry })
+    const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
     const tokens = await api.multiCall({ abi: 'address:collToken', calls: activePools })
     let interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: activePools })
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
@@ -50,6 +53,7 @@ export const getLiquityV2LogAdapter: any = ({ collateralRegistry }: LiquityV2Con
 
 type LiquityV2Config = {
   collateralRegistry: string,
+  stableTokenAbi?: string,
 }
 
 
