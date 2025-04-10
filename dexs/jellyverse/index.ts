@@ -7,7 +7,7 @@ const endpoints: ChainEndpoints = {
 };
 
 
-async function fetch(_: any, _1: any, { toTimestamp, chain, createBalances, }: FetchOptions) {
+async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
   const todayInt = Math.floor(toTimestamp / 86400)
   const yesterdayInt = todayInt - 1
   const query = `
