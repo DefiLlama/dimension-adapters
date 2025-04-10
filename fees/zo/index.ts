@@ -1,51 +1,43 @@
 import fetchURL from '../../utils/fetchURL';
-import { FetchResultFees, SimpleAdapter } from '../../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ZO_API_ENDPOINT = 'https://api.zofinance.io';
 const TREASURY_FEE_PERCENTAGE = 0.25;
 
-const fetchSui = async (timestamp: number): Promise<FetchResultFees> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (_1: number, _: any, { startOfDay, }: FetchOptions) => {
   const {
-    fee: dailyFee,
-    tradingFee: dailyTradingFee,
-    fundingFee: dailyFundingFee,
-    poolFee: dailyPoolFee,
-  } = await fetchURL(`${ZO_API_ENDPOINT}/fee?timestamp=${timestamp}`);
-  const { totalFee, totalTradingFee, totalFundingFee, totalPoolFee } =
-    await fetchURL(`${ZO_API_ENDPOINT}/totalFee`);
+    fee: dailyFees,
+    tradingFee: dailyTradingFee = 0,
+    fundingFee: dailyFundingFee = 0,
+    poolFee: dailyPoolFee = 0,
+  } = await fetchURL(`${ZO_API_ENDPOINT}/fee?timestamp=${startOfDay}`);
+  const { totalFee: totalFees, totalTradingFee, totalFundingFee, totalPoolFee = 0 } = await fetchURL(`${ZO_API_ENDPOINT}/totalFee`);
 
-  const dailyProtocolRevenue =
-    (Number(dailyTradingFee) || 0) * TREASURY_FEE_PERCENTAGE;
-  const totalProtocolRevenue =
-    (Number(totalTradingFee) || 0) * TREASURY_FEE_PERCENTAGE;
-  const dailySupplySideRevenue =
-    Number(dailyTradingFee || 0) * (1 - TREASURY_FEE_PERCENTAGE) +
-    Number(dailyPoolFee || 0) +
-    Number(dailyFundingFee);
-  const totalSupplySideRevenue =
-    Number(totalTradingFee || 0) * (1 - TREASURY_FEE_PERCENTAGE) +
-    Number(totalPoolFee || 0) +
-    Number(totalFundingFee);
+  const dailyProtocolRevenue = dailyTradingFee * TREASURY_FEE_PERCENTAGE
+  const totalProtocolRevenue = totalTradingFee * TREASURY_FEE_PERCENTAGE
+  const dailySupplySideRevenue = dailyTradingFee * (1 - TREASURY_FEE_PERCENTAGE) + +dailyPoolFee + +dailyFundingFee
+  const totalSupplySideRevenue = totalTradingFee * (1 - TREASURY_FEE_PERCENTAGE) + +totalPoolFee + +totalFundingFee
+
   return {
-    dailyFees: dailyFee ? `${dailyFee}` : undefined,
-    totalFees: totalFee ? `${totalFee}` : undefined,
-    dailyUserFees: dailyFee ? `${dailyFee}` : undefined,
-    totalUserFees: totalFee ? `${totalFee}` : undefined,
-    dailySupplySideRevenue: `${dailySupplySideRevenue}`,
-    totalSupplySideRevenue: `${totalSupplySideRevenue}`,
-    dailyRevenue: dailyProtocolRevenue ? `${dailyProtocolRevenue}` : undefined,
-    totalRevenue: totalProtocolRevenue ? `${totalProtocolRevenue}` : undefined,
-    timestamp: dayTimestamp,
+    dailyFees,
+    totalFees,
+    dailyUserFees: dailyFees,
+    totalUserFees: totalFees,
+    dailySupplySideRevenue,
+    totalSupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
+    totalRevenue: totalProtocolRevenue,
+    dailyProtocolRevenue,
+    totalProtocolRevenue,
+    timestamp: startOfDay,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetchSui,
+      fetch,
       start: '2025-03-24',
     },
   },

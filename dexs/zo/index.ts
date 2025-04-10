@@ -1,45 +1,27 @@
-import fetchURL from '../../utils/fetchURL';
-import { Chain } from '@defillama/sdk/build/general';
-import { SimpleAdapter } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
+import fetchURL from '../../utils/fetchURL'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 
-type IUrl = {
-  [s: string]: string;
-};
-
-const url: IUrl = {
+const url = {
   [CHAIN.SUI]: 'https://api.zofinance.io/volume',
-};
-
-interface IVolume {
-  totalVolume: number;
-  dailyVolume: number;
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const volume: IVolume = await fetchURL(
-      `${url[chain]}?timestamp=${timestamp}`
-    );
-    return {
-      totalVolume: `${volume?.totalVolume}`,
-      dailyVolume: `${volume?.dailyVolume}`,
-      timestamp: dayTimestamp,
-    };
-  };
-};
+const fetch = async (_1: number, _: any, { startOfDay, chain, }: FetchOptions) => {
+  const volume = await fetchURL(`${url[chain]}?timestamp=${startOfDay}`)
+  return {
+    totalVolume: volume?.totalVolume,
+    dailyVolume: volume?.dailyVolume,
+    timestamp: startOfDay,
+  }
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetch(CHAIN.SUI),
+      fetch,
       start: '2025-04-06',
     },
   },
-};
+}
 
-export default adapter;
+export default adapter
