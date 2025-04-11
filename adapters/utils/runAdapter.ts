@@ -118,7 +118,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached
-    await randomDelay()
+    // await randomDelay()
 
     let fromBlock, toBlock
     // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
