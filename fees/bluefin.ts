@@ -12,10 +12,10 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
     const totalFees=result.totalFees;
 
   return {
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    totalFees: totalFees ? `${totalFees}` : undefined,
-    dailyRevenue: dailyFees ? `${dailyFees}` : undefined,
-    totalRevenue: totalFees ? `${totalFees}` : undefined,
+    dailyFees,
+    totalFees,
+    dailyRevenue: dailyFees,
+    totalRevenue: totalFees,
     timestamp: timestamp,
   };
 };

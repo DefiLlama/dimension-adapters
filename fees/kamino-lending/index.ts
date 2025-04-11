@@ -29,10 +29,10 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     
     return {
         timestamp: startOfDay,
-        totalFees: `${totalFee}`,
-        dailyFees: `${dailyFee}`,
-        totalRevenue: `${totalRevenue}`,
-        dailyRevenue: `${dailyRevenue}`
+        totalFees: totalFee,
+        dailyFees: dailyFee,
+        totalRevenue: totalRevenue,
+        dailyRevenue
     };
 };
 const methodology = {

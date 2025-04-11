@@ -59,9 +59,9 @@ const graph = (_chain: Chain) => {
 		dailySupplySideRevenue.subtract(dailyRevenue);
 		
 		return {
-			dailyFees: dailyFees,
+			dailyFees,
 			dailyUserFees: dailyFees,
-			dailyRevenue: dailyRevenue,
+			dailyRevenue,
 			dailyProtocolRevenue: dailyRevenue,
 			dailyHoldersRevenue: dailyRevenue,
 			dailySupplySideRevenue,

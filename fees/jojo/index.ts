@@ -20,7 +20,7 @@ const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> 
     orderLogs.forEach(log => dailyFees.addUSDValue(Math.abs(Number(log.fee) / Number(1e6))))
     positionFinalizeLog.forEach(log => dailyFees.addUSDValue(Math.abs(Number(log.fee) / Number(1e6))))
     return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
     }
 }

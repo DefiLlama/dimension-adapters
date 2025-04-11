@@ -20,7 +20,7 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   })).map((e: any) => dailyFees.add(e.token, e.amount))
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };

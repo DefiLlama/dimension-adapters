@@ -20,7 +20,7 @@ const fetch = async (timestamp: number) => {
 
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

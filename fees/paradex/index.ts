@@ -20,7 +20,7 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
   return { 
     timestamp, 
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees
   };
 };

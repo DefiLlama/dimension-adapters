@@ -15,7 +15,7 @@ const fetchSpot = async (timestamp: number): Promise<FetchResultVolume> => {
   dailyVolume += Number(dailyVolumeTrades);
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp
   }
 }
@@ -37,7 +37,7 @@ const adapters: BreakdownAdapter = {
             return acc + Number(data[key].interval_1d.usd);
           }, 0);
           return {
-            dailyVolume: `${dailyVolume}`,
+            dailyVolume: dailyVolume,
             timestamp
           }
         },

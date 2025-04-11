@@ -23,8 +23,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem =>  dayItem.dateTime.split(' ')[0] === dateString)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

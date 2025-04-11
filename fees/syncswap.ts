@@ -32,7 +32,7 @@ async function getGraphData(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees += Number(v2DailyFees.toString())
 
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyUserFees: dailyFees,
       dailySupplySideRevenue: dailyFees,
     }

@@ -7,7 +7,7 @@ const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({ options, tokens: [ADDRESSES.base.WETH], fromAddressFilter: '0x3C0B43867Cd04fEdfD6a95497e5ea7e3aFF8cCaE' , target: '0x28253c1A76256bf1D9095587826AfCC5705aF98a' })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   }
 }

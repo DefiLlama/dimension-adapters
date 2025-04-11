@@ -97,10 +97,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: dailyFees?.toString(),
-        dailyRevenue: dailyRevenue?.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue?.toString(),
-      };
+        dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue: dailySupplySideRevenue,
+      } as any
     };
   };
 };

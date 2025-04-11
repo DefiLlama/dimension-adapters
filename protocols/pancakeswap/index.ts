@@ -237,7 +237,7 @@ const adapter: BreakdownAdapter = {
         fetch: async ({ startTimestamp }) => {
           const totalVolume = 103394400000;
           return {
-            totalVolume: `${totalVolume}`,
+            totalVolume: totalVolume,
             timestamp: startTimestamp
           }
         },

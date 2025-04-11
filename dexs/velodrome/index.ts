@@ -24,7 +24,7 @@ const fetch = (chain: Chain) => {
     const [v1] = await Promise.all([graphs(chain)(options)])
     const dailyVolume = Number(v1.dailyVolume);
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
     }
   }
 }

@@ -20,8 +20,8 @@ const adapter: Adapter = {
         const dailyRevenue = dailyFees.clone(0.5)
 
         return {
-          dailyFees: dailyFees,
-          dailyRevenue: dailyRevenue,
+          dailyFees,
+          dailyRevenue,
           dailyHoldersRevenue: dailyRevenue,
         };
       },

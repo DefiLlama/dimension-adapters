@@ -30,9 +30,9 @@ const fetch = async (timestamp: number) => {
   const dailyRevenue = dailyFees - dailyExpens;
   return {
     timestamp: dayTimestamp,
-    dailyFees: dailyFees.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
-    dailyRevenue: dailyRevenue.toString(),
+    dailyFees,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue,
   } as FetchResultFees;
 }
 

@@ -28,15 +28,15 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   `
   const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
   const res = await request(url , query)
-  const dailyFees = res.feesRecordDailies
+  const fees = res.feesRecordDailies
     .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
-  const totalFees = res.feesRecordDailies
+  const tfees = res.feesRecordDailies
     .reduce((acc: number, record: { totalFees: string }) => acc + Number(record.totalFees), 0)
-  if (dailyFees === 0) throw new Error('Not found daily data!.')
+  if (fees === 0) throw new Error('Not found daily data!.')
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees / (10 ** 20),
-    totalFees: totalFees / (10 ** 20)
+    dailyFees: fees / (10 ** 20),
+    totalFees: tfees / (10 ** 20)
   }
 }
 
@@ -255,11 +255,11 @@ const fetch = (chain: Chain) => {
     let totalFees = fees.reduce((acc: number, item: IFee) => acc + item.total_fees, 0);
 
     return {
-      dailyFees: `${dailyFees}`,
+      dailyFees,
       dailyRevenue: `${dailyFees * 0.37}`,
       dailyProtocolRevenue: `${dailyFees * 0.1}`,
       dailyHoldersRevenue: `${dailyFees * 0.27}`,
-      totalFees: `${totalFees}`,
+      totalFees,
       timestamp,
     };
   };

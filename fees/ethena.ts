@@ -68,7 +68,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
   const revenue = dailyFeesMint.clone();
   revenue.subtract(supplyRewards);
   return {
-    dailyFees: dailyFeesMint,
+    dailyFeesMint,
     dailyRevenue: revenue,
   };
 };

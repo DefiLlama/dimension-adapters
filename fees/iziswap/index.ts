@@ -48,8 +48,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.feesDay
 
     return {
-      totalFees: `${totalFees}`,
-      dailyFees: dailyFees ? `${dailyFees}` : undefined,
+      totalFees,
+      dailyFees,
       timestamp: dayTimestamp,
     };
   }

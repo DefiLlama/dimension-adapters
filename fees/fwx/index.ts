@@ -137,11 +137,11 @@ const fetch = (chain: Chain) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees,
+      dailyFees,
       dailyRevenue: dailyProtocolRevenue + dailySupplySideRevenue,
       dailyProtocolRevenue: dailyProtocolRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
-      totalFees: totalFees,
+      totalFees,
       totalRevenue: totalProtocolRevenue + totalSupplySideRevenue,
       totalProtocolRevenue: totalProtocolRevenue,
       totalSupplySideRevenue: totalSupplySideRevenue,

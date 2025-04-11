@@ -55,7 +55,7 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   const protocolFees = extractMetricDelta(protocolFeeValues);
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: protocolFees,
     dailyProtocolRevenue: protocolFees,
   };

@@ -39,8 +39,8 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   dailyRevenue.addBalances(dailyMaticXRev);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
@@ -58,8 +58,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyRevenue = dailyFees.clone(1 / 9);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 

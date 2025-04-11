@@ -47,8 +47,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
     
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
 }

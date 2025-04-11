@@ -12,8 +12,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 		totalVolume = totalVolume + Number(historicalVolume[key].usd_volume);
 	}
 	return {
-		dailyVolume: `${dailyVolume}`,
-		// totalVolume: `${totalVolume}`,
+		dailyVolume: dailyVolume,
+		// totalVolume: totalVolume,
 		timestamp
 	}
 };

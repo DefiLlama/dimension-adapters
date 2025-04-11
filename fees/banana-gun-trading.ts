@@ -30,8 +30,8 @@ const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
     dailyRevenue.addGasToken(Number('0x' + gasToken));
   });
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   }
 }
 
