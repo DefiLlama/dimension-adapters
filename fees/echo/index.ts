@@ -24,10 +24,10 @@ const ECHO_FEE_RECEIVER = '0x395426cE9081aE5ceA3f9fBA3078B00f16E7aE21'
 const DEAL_FUNDS_WITHDRAWN_TOPIC = "0x7e63be7447cb592fc5a80b0ca7ceb813b777d8aa50ec5c00b89578b892b4b8e9"
 
 const fetchFees = async (options: FetchOptions) => {
-  // const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {})
-  // const toBlock = await options.getBlock(options.toTimestamp, options.chain, {})
-  const fromBlock = 15111743
-  const toBlock = 28654931
+  const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {})
+  const toBlock = await options.getBlock(options.toTimestamp, options.chain, {})
+  // const fromBlock = 15111743
+  // const toBlock = 28654931
   
   const logs = await options.getLogs({
     eventAbi: "event DealFundsWithdrawn (address indexed token, address indexed to, uint256 amount)",
