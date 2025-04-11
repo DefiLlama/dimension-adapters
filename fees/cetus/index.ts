@@ -25,8 +25,8 @@ const fetchCetusStats: FetchV2 = async ({
   const dailyFees = data.fee;
   const dailyRevenue = data.protocolFee;
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 };

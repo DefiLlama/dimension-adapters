@@ -20,7 +20,7 @@ const fetch = async (timestamp: number) => {
     totalFees,
     totalSupplySideRevenue: totalFees * 0.8,
     totalRevenue: totalFees * 0.2,
-    dailyFees: dailyFees,
+    dailyFees,
     dailySupplySideRevenue: dailyFees * 0.8,
     dailyRevenue: dailyFees * 0.2,
     timestamp: startTime,

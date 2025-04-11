@@ -1,4 +1,4 @@
-import {httpGet} from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 //API
@@ -6,15 +6,15 @@ const config_rule = {
     headers: {
         'user-agent': 'axios/1.6.7'
     },
-    withCredentials:true
+    withCredentials: true
 }
 const cellanaDappUrl = 'https://api.cellana.finance/api/v1/tool/trading-volume-chart?timeframe=';
 
 const dayEndpoint = (endTimestamp: number, timeframe: string) =>
-    cellanaDappUrl + timeframe + `&endTimestamp=${endTimestamp}` 
+    cellanaDappUrl + timeframe + `&endTimestamp=${endTimestamp}`
 
 const totalEndpoint = (endTimestamp: number, timeframe: string) =>
-     cellanaDappUrl + timeframe 
+    cellanaDappUrl + timeframe
 
 interface IVolumeall {
     value: number;
@@ -37,13 +37,20 @@ const fetch = async (timestamp: number) => {
     const dailyProtocolRevenue = 0;
     const totalProtocolRevenue = 0;
 
+    const dailyHoldersRevenue = dailyFees;
+    const totalHoldersRevenue = totalFees;
+
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: `${dailyVolume}`,
-        totalFees: `${totalFees}`,
-        dailyFees: `${dailyFees}`,
-        totalProtocolRevenue: `${totalProtocolRevenue}`,
-        dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+        totalVolume,
+        dailyVolume,
+        totalFees,
+        dailyFees,
+        dailyRevenue: dailyFees,
+        totalRevenue: totalFees,
+        totalProtocolRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+        totalHoldersRevenue,
         timestamp,
     };
 };

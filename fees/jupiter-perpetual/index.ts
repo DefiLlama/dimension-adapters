@@ -9,7 +9,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }));
   const dailyFees = data[0].total_fees;
   return {
-    dailyFees: `${dailyFees}`,
+    dailyFees,
     dailyRevenue: `${dailyFees * (25/100)}`,
     dailyHoldersRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
     dailyProtocolRevenue: `${(dailyFees * (25/100)) * (50/100)}`,

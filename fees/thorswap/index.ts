@@ -61,7 +61,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchCacheURL(url: string) {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key])
     requests[key] = httpGet(url, { headers: {"x-client-id": "defillama"}});
   return requests[key]
@@ -114,12 +114,12 @@ const fetchFeesByChain = () => {
         const protocolRevenueByChainInDollars = protocolRevenuePerChainBasedOnRuneDepth.div(1e8).times(Number(selectedEarningInterval.runePriceUSD));
         const dailyHoldersRevenue = BigNumber(bondingRewardPerChainBasedOnRuneDepth).div(1e8).times(selectedEarningInterval.runePriceUSD);
         return {
-          dailyFees: dailyFees ? `${dailyFees}` : undefined, // Liquidity fees not include chain fees
-          dailyUserFees: dailyFees ? `${dailyFees}` : undefined, // Liquidity fees not include chain fees
+          dailyFees, // Liquidity fees not include chain fees
+          dailyUserFees: dailyFees, // Liquidity fees not include chain fees
           dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`, // dailyProtocolRevenue + dailyHoldersRevenue
-          dailyProtocolRevenue:  protocolRevenueByChainInDollars ? `${protocolRevenueByChainInDollars}` : undefined, // Output fees - reimbursments
-          dailyHoldersRevenue: dailyHoldersRevenue ? `${dailyHoldersRevenue}` : undefined, // Rewards for nodes pondered by chain liquidity
-          dailySupplySideRevenue: dailySupplysideRevenue ? `${dailySupplysideRevenue}` : undefined, // Earnings: rewards + liquidity fees per pool
+          dailyProtocolRevenue:  protocolRevenueByChainInDollars, // Output fees - reimbursments
+          dailyHoldersRevenue: dailyHoldersRevenue, // Rewards for nodes pondered by chain liquidity
+          dailySupplySideRevenue: dailySupplysideRevenue, // Earnings: rewards + liquidity fees per pool
           timestamp
         }
       }

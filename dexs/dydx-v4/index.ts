@@ -6,8 +6,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyolume = Object.values(markets).reduce((a: number, b: any) => a+Number(b.volume24H), 0)
   const dailyOpenInterest = Object.values(markets).reduce((a: number, b: any) => a+(Number(b.openInterest)*Number(b.oraclePrice)), 0)
   return {
-    dailyVolume: dailyolume ? `${dailyolume}` : undefined,
-    dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
+    dailyVolume: dailyolume,
+    dailyOpenInterest: dailyOpenInterest,
     timestamp: timestamp,
   };
 };

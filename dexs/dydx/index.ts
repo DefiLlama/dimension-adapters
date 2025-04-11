@@ -31,8 +31,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyOpenInterest = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.startingOpenInterest) * Number(b.close), 0)
   return {
-    dailyVolume: dailyolume ? `${dailyolume}` : undefined,
-    dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
+    dailyVolume: dailyolume,
+    dailyOpenInterest: dailyOpenInterest,
     timestamp: timestamp,
   };
 };

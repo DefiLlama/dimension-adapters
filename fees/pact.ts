@@ -10,7 +10,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const response = (await fetchURL(url)).map((e: any) => { return {fee_usd_24h: e.fee_usd_24h}}) as IAPIResponse[]
   const dailyFees = response.reduce((a: number, b: IAPIResponse) => a + Number(b.fee_usd_24h), 0)
   return {
-    dailyFees: `${dailyFees}`,
+    dailyFees,
     timestamp
   }
 }

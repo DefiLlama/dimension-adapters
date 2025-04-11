@@ -31,8 +31,8 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
     });
 
     return {
-        dailyFees: dailyFees,
-        totalFees: totalFees,
+        dailyFees,
+        totalFees,
         timestamp,
     };
 };

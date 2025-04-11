@@ -36,9 +36,9 @@ const fetchNAVIStats = async ({ startTimestamp }: any) => {
         (stats.flashLoanRevenue || 0);
 
     return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyRevenue,
+        dailyRevenue,
         dailyProtocolRevenue: dailyRevenue
     };
 };

@@ -16,10 +16,10 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
     const totalRevenue = totalFees * 0.2;
 
     return {
-        dailyFees: dailyFees ? `${dailyFees}` : undefined,
-        totalFees: totalFees ? `${totalFees}` : undefined,
-        dailyRevenue: dailyRevenue ? `${dailyRevenue}` : undefined,
-        totalRevenue: totalRevenue ? `${totalRevenue}` : undefined,
+        dailyFees,
+        totalFees,
+        dailyRevenue,
+        totalRevenue: totalRevenue,
         timestamp: timestamp,
     };
 };

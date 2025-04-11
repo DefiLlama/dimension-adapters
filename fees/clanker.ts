@@ -10,7 +10,7 @@ const fetchFees = async (options: FetchOptions) => {
   });
   dailyFees.addUSDValue(res[0].daily_fees);
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   };
 };

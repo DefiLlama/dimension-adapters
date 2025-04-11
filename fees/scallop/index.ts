@@ -41,11 +41,11 @@ const fetchScallopStats: FetchV2 = async ({ startTimestamp, endTimestamp }): Pro
     stats.borrowingInterestFee;
 
   return {
-    dailyFees: dailyFees.toString(),
-    dailyUserFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: stats.liquidityProviderInterest.toString(),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: stats.liquidityProviderInterest,
   };
 };
 

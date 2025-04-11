@@ -55,11 +55,11 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   // const rayPrice = (await fetchURL('https://api-v3.raydium.io/mint/price?mints=4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'))?.data['4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'] ?? 0
 
   return {
-    dailyVolume: `${dailyVolumeAmmPool}`,
+    dailyVolume: dailyVolumeAmmPool,
     timestamp: timestamp,
-    totalFees: `${dailyVolumeAmmPoolFee}`,
-    dailyFees: `${dailyVolumeAmmPoolFee}`,
-    dailyUserFees: `${dailyVolumeAmmPoolFee}`,
+    totalFees: dailyVolumeAmmPoolFee,
+    dailyFees: dailyVolumeAmmPoolFee,
+    dailyUserFees: dailyVolumeAmmPoolFee,
     totalRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     dailyProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
@@ -67,7 +67,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     dailySupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
     totalProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
     totalSupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
-    totalUserFees: `${dailyVolumeAmmPoolFee}`,
+    totalUserFees: dailyVolumeAmmPoolFee,
   };
 };
 

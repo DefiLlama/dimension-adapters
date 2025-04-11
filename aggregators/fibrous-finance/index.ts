@@ -15,7 +15,7 @@ interface IAPIResponse {
 }
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IAPIResponse = await fetchURL(`${URL}`);
+  const response: IAPIResponse = await fetchURL(URL);
   const dailyVolume = response.data.dailyVolume;
   const totalVolume = response.data.totalVolume;
   return {

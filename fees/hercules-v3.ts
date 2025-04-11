@@ -29,7 +29,7 @@ const fetch: FetchV2 = async (options) => {
   let dailyFees = endRes.reduce((acc: number, val: any) => acc + +val.totalFeesUSD, 0) - startRes.reduce((acc: number, val: any) => acc + +val.totalFeesUSD, 0)
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees * 0.15,
     dailyProtocolRevenue: dailyFees * 0.03,

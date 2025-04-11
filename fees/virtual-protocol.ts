@@ -26,7 +26,7 @@ const fetchFees = async (_t: any, _b: any ,options: FetchOptions) => {
   dailyFees.addUSDValue(fees.fees_usd);
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   }
 }

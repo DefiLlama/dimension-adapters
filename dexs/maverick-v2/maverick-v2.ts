@@ -91,7 +91,7 @@ export const createGetData = (factories: { [chain: string]: { factory: string; s
       });
       return {
         dailyVolume: dailyVolume,
-        dailyFees: dailyFees,
+        dailyFees,
       };
     }
 };

@@ -13,12 +13,12 @@ const fetch = (_: Chain) => {
       const dayItem = value[0]
       dailyFees.addGasToken((dayItem?.eth_value) * 1e18 || 0)
       return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
       }
     } catch (e) {
       return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
       }
     }

@@ -27,7 +27,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 const fetchCacheURL = (url: string) => {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key]) {
       const headers: any = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -68,10 +68,10 @@ const fetch = (chain: Chain) => {
     const totalRevenue = totalProtocolRevenue;
     if(type === "fees"){
         return {
-            dailyFees: dailyFees ? dailyFees : undefined,
-            dailyRevenue: dailyRevenue ? dailyRevenue : undefined,
-            totalRevenue: totalRevenue ? totalRevenue : undefined,
-            totalFees: totalFees ? totalFees: undefined,
+            dailyFees,
+            dailyRevenue,
+            totalRevenue: totalRevenue,
+            totalFees,
             timestamp
         }
     } else {

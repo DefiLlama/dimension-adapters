@@ -65,12 +65,12 @@ const fetch = async (timestamp: number) => {
 
   return {
     timestamp: timestamp,
-    dailyVolume: `${dailyVolume}`,
-    totalVolume: `${totalVolume}`,
-    dailyFees: `${dailyFees}`,
-    totalFees: `${totalFees}`,
-    dailyUserFees: `${dailyFees}`,
-    totalUserFees: `${totalFees}`,
+    dailyVolume: dailyVolume,
+    totalVolume: totalVolume,
+    dailyFees,
+    totalFees,
+    dailyUserFees: dailyFees,
+    totalUserFees: totalFees,
   };
 };
 

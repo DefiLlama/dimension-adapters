@@ -53,16 +53,16 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         totalFees: graphRes["today"]["totalSwapFee"],
-        dailyFees: dailyFee.toString(),
+        dailyFees: dailyFee,
         totalUserFees: graphRes["today"]["totalSwapFee"],
-        dailyUserFees: dailyFee.toString(),
+        dailyUserFees: dailyFee,
         totalRevenue: "0",
         dailyRevenue: "0",
         totalProtocolRevenue: "0",
         dailyProtocolRevenue: "0",
         totalSupplySideRevenue: graphRes["today"]["totalSwapFee"],
-        dailySupplySideRevenue: dailyFee.toString(),
-      };
+        dailySupplySideRevenue: dailyFee,
+      } as any
     };
   };
 };
@@ -135,12 +135,12 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
 
         return {
-          dailyUserFees: dailySwapFee.toString(),
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: dailyProtocolFee.toString(),
-          dailyProtocolRevenue: dailyProtocolFee.toString(),
-          dailySupplySideRevenue: dailySwapFee.toString(),
-        };
+          dailyUserFees: dailySwapFee,
+          dailyFees,
+          dailyRevenue: dailyProtocolFee,
+          dailyProtocolRevenue: dailyProtocolFee,
+          dailySupplySideRevenue: dailySwapFee,
+        } as any
       } catch (e) {
         return {
           dailyUserFees: "0",

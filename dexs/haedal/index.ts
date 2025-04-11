@@ -9,8 +9,8 @@ const fetchData = () => {
         const dailyVolume = (await fetchURL(`https://haedal.xyz/api/v1/hmm/volume?poolObjectId=&fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data.volume;
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
         return {
-            totalVolume: `${totalVolume}`,
-            dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+            totalVolume: totalVolume,
+            dailyVolume: dailyVolume,
             timestamp: dayTimestamp,
         };
     };

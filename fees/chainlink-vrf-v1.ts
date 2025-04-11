@@ -90,8 +90,8 @@ const fetch =  async (_: any, _1: any, options: FetchOptions): Promise<FetchResu
     const dailyRevenue = dailyFees.clone()
     dailyRevenue.subtract(dailyGasUsd)
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
     }
 }
 

@@ -36,10 +36,10 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: `${totalFee}`,
-        dailyFees: dailyFee ? `${dailyFee}` : '0',
-        totalRevenue: `${totalFee}`,
-        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
+        totalFees: totalFee,
+        dailyFees: dailyFee,
+        totalRevenue: totalFee,
+        dailyRevenue: dailyFee,
     };
 };
 
@@ -57,10 +57,10 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: `${totalFee}`,
-        dailyFees: dailyFee ? `${dailyFee}` : '0',
-        totalRevenue: `${totalFee}`,
-        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
+        totalFees: totalFee,
+        dailyFees: dailyFee,
+        totalRevenue: totalFee,
+        dailyRevenue: dailyFee,
     };
 };
 

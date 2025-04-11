@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
         })
         return {
             timestamp: options.startOfDay,
-            dailyFees: dailyFees,
+            dailyFees,
         }
       }
     },
