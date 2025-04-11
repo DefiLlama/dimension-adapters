@@ -92,10 +92,10 @@ const fetchVolume = async (_t: any, _ts: any, options: FetchOptions) => {
       const protocolFeesX = Number('0x' + log.protocolFees.replace('0x', '').slice(32, 64))
       const totalFeesY = Number('0x' + log.totalFees.replace('0x', '').slice(0, 32));
       const totalFeesX = Number('0x' + log.totalFees.replace('0x', '').slice(32, 64));
-      dailyFees.add(token0, totalFeesX / 10 ** (18 - decimalsX))
-      dailyFees.add(token1, totalFeesY / 10 ** (18 - decimalsY))
-      dailyRevenue.add(token0, protocolFeesX / 10 ** (18 - decimalsX))
-      dailyRevenue.add(token1, protocolFeesY / 10 ** (18 - decimalsY))
+      dailyFees.add(token0, totalFeesX)
+      dailyFees.add(token1, totalFeesY)
+      dailyRevenue.add(token0, protocolFeesX)
+      dailyRevenue.add(token1, protocolFeesY)
     })
   })
   // console.log(dailyRevenue)
