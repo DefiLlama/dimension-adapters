@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -9,8 +9,8 @@ interface IVolume {
   protocolFeesUsd: number;
 }
 const chainMap: any = {
-  [CHAIN.AVAX]:{ chainKey:"avalanche", start: "2024-11-01" },
-  [CHAIN.ARBITRUM]:{ chainKey:"arbitrum", start: "2024-11-01" },
+  [CHAIN.AVAX]:{ chainKey:"avalanche", start: "2024-07-01" },
+  [CHAIN.ARBITRUM]:{ chainKey:"arbitrum", start: "2024-07-01" },
   // [CHAIN.BSC]: "binance",
 }
 
