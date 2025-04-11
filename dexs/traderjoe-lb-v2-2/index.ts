@@ -8,6 +8,8 @@ import { Chain } from "@defillama/sdk/build/general";
 interface IVolume {
   timestamp: number;
   volumeUsd: number;
+  feesUsd: number;
+  protocolFeesUsd: number;
 }
 
 const mapChain = (chain: Chain): string => {
@@ -22,22 +24,28 @@ const fetchV22Volume = async (_t: any, _tt: any, options: FetchOptions): Promise
   const start = dayTimestamp;
   const end = start + 24 * 60 * 60;
   const url = `https://api.lfj.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}&version=v2.2`
-  const historicalVolume: IVolume[] = (await httpGet(url, {
+  const historicalVolumeAndFees: IVolume[] = (await httpGet(url, {
     headers: {
       'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
     }
   }));
 
-  const totalVolume = historicalVolume
+  const totalVolume = historicalVolumeAndFees
     .filter(volItem => volItem.timestamp <= dayTimestamp)
     .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
 
-  const dailyVolume = historicalVolume
+  const dailyFees = historicalVolumeAndFees
+    .find(dayItem => dayItem.timestamp === dayTimestamp)?.feesUsd
+  const dailyProtocolRevenue = historicalVolumeAndFees
+    .find(dayItem => dayItem.timestamp === dayTimestamp)?.protocolFeesUsd
+  const dailyVolume = historicalVolumeAndFees
     .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
   return {
     totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
     timestamp: dayTimestamp,
+    dailyFees: dailyFees !== undefined ? `${dailyFees}` : undefined,
+    dailyRevenue: dailyProtocolRevenue !== undefined ? `${dailyProtocolRevenue}` : undefined,
   }
 }
 
@@ -90,16 +98,17 @@ const fetchVolume = async (_t: any, _ts: any, options: FetchOptions) => {
       dailyRevenue.add(token1, protocolFeesY / 10 ** (18 - decimalsY))
     })
   })
+  // console.log(dailyRevenue)
   return { dailyVolume, dailyFees, dailyRevenue }
 }
 
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
-      fetch: fetchV22Volume,
+      fetch: fetchVolume,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchV22Volume,
+      fetch: fetchVolume,
     },
   }
 }
