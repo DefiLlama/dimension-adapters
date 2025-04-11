@@ -4,7 +4,7 @@ import * as sdk from '@defillama/sdk'
 import * as solana from '../helpers/solana'
 import { getBlockNumber } from "@defillama/sdk/build/util/blocks"
 import axios from "axios"
-import { APTOS_PRC } from "../helpers/aptops"
+import { APTOS_PRC, getCoinSupply } from "../helpers/aptops"
 import { getObject } from '../helpers/sui'
 
 /**
@@ -99,11 +99,10 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
       USDY: Number(supplyUSDY),
     }
   } else if (useChainApi.chain === CHAIN.APTOS) {
-    const { data: { data: { decimals, supply } } } = await axios.get(`${APTOS_PRC}/v1/accounts/${OndoContracts[CHAIN.APTOS].USDY}/resource/0x1::coin::CoinInfo<${OndoContracts[CHAIN.APTOS].USDY}::usdy::USDY>`)
-
+    const { supply, decimals } = await getCoinSupply(OndoContracts[CHAIN.APTOS].USDY)
     return {
       OUSG: 0,
-      USDY: supply.vec[0].integer.vec[0].value / Math.pow(10, decimals),
+      USDY: supply / Math.pow(10, decimals),
     }
   } else if (useChainApi.chain === CHAIN.SUI) {
     const treasuryCapInfo = await getObject(OndoContracts[CHAIN.SUI].USDY)
@@ -112,6 +111,8 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
       USDY: Number(treasuryCapInfo.fields.total_supply.fields.value) / 1e6,
     }
   } else if (useChainApi.chain === CHAIN.NOBLE) {
+    // haven't make sure that this is standard for all coins on noble yet
+    // will make it in nobel helper once we reuse this call somewhere
     const res = await axios.get(`https://rest.cosmos.directory/noble/cosmos/bank/v1beta1/supply/by_denom?denom=${OndoContracts[CHAIN.NOBLE].USDY}`);
     return {
       OUSG: 0,
@@ -148,7 +149,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyFees += supply.USDY * (newPrices.USDY - oldPrices.USDY)
 
   return { 
-    dailyFees, 
+    dailyFees,
     dailySupplySideRevenue: dailyFees,
     dailyRevenue: 0,
   }
