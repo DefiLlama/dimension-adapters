@@ -105,10 +105,10 @@ const fetchVolume = async (_t: any, _ts: any, options: FetchOptions) => {
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
-      fetch: fetchVolume,
+      fetch: fetchV22Volume,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchVolume,
+      fetch: fetchV22Volume,
     },
   }
 }
