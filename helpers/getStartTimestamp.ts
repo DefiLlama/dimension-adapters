@@ -30,7 +30,7 @@ const getStartTimestamp =
     first = 1000,
   }: IGetStartTimestamp) =>
     async () => {
-      let key = `${chain}-${dailyDataField}-${volumeField}-${dateField}`;
+      let key = `${chain}-${endpoints[chain]}-${dailyDataField}-${volumeField}-${dateField}`;
       if (startCache[key]) return startCache[key];
 
       const query = gql`
