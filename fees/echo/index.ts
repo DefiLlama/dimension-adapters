@@ -11,6 +11,7 @@
  * 
  */
 
+import { ethers } from "ethers"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
@@ -20,18 +21,17 @@ const ECHO_v2_DEAL_FACTORY = '0x31a85750a7fd18b598e1bc6dc5561ad1ef694fc4'
 const ECHO_v3_DEAL_FACTORY = '0xB6D2c5dc2d181E0E1D031F2b3B76Ea8b678EAA46'
 
 const ECHO_FEE_RECEIVER = '0x395426cE9081aE5ceA3f9fBA3078B00f16E7aE21'
-const ECHO_FEE_RECEIVER_TOPIC = "0x000000000000000000000000395426ce9081ae5cea3f9fba3078b00f16e7ae21"
 const DEAL_FUNDS_WITHDRAWN_TOPIC = "0x7e63be7447cb592fc5a80b0ca7ceb813b777d8aa50ec5c00b89578b892b4b8e9"
 
 const fetchFees = async (options: FetchOptions) => {
-  const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {})
-  const toBlock = await options.getBlock(options.toTimestamp, options.chain, {})
-  // const fromBlock = 15111743
-  // const toBlock = 28654931
+  // const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {})
+  // const toBlock = await options.getBlock(options.toTimestamp, options.chain, {})
+  const fromBlock = 15111743
+  const toBlock = 28654931
   
   const logs = await options.getLogs({
     eventAbi: "event DealFundsWithdrawn (address indexed token, address indexed to, uint256 amount)",
-    topic: DEAL_FUNDS_WITHDRAWN_TOPIC,
+    topics: [DEAL_FUNDS_WITHDRAWN_TOPIC, null as any, ethers.zeroPadValue(ECHO_FEE_RECEIVER, 32)],
     fromBlock,
     toBlock,
     entireLog: true,
@@ -42,7 +42,6 @@ const fetchFees = async (options: FetchOptions) => {
   
   // Process each log, keeping only the platform fee portion
   for (const log of logs) {
-    if (log.topics[2] !== ECHO_FEE_RECEIVER_TOPIC) continue;
     const token = '0x' + log.topics[1].slice(26);
     const amount = BigInt(log.data);
     const key = `${log.address.toLowerCase()}_${log.transactionHash.toLowerCase()}_${token}`;
@@ -53,7 +52,7 @@ const fetchFees = async (options: FetchOptions) => {
   
   const dailyFees = options.createBalances();
   for (const { token, amount } of uniqueFees.values()) {
-    dailyFees.add(token, amount.toString());
+    dailyFees.add(token, amount);
   }
 
   return {
