@@ -1,6 +1,45 @@
-import { abi } from "@defillama/sdk/build/api";
-import { Fetch, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, IJSON, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { httpGet } from "../../utils/fetchURL";
+import { Chain } from "@defillama/sdk/build/general";
+
+
+interface IVolume {
+  timestamp: number;
+  volumeUsd: number;
+}
+
+const mapChain = (chain: Chain): string => {
+  if (chain === CHAIN.BSC) return "binance"
+  if (chain === CHAIN.ARBITRUM) return "arbitrum"
+  if (chain === CHAIN.AVAX) return "avalanche"
+  return chain
+}
+
+const fetchV22Volume = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const start = dayTimestamp;
+  const end = start + 24 * 60 * 60;
+  const url = `https://api.lfj.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}&version=v2.2`
+  const historicalVolume: IVolume[] = (await httpGet(url, {
+    headers: {
+      'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
+    }
+  }));
+
+  const totalVolume = historicalVolume
+    .filter(volItem => volItem.timestamp <= dayTimestamp)
+    .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
+
+  const dailyVolume = historicalVolume
+    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
+  return {
+    totalVolume: `${totalVolume}`,
+    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    timestamp: dayTimestamp,
+  }
+}
 
 
 const factory = {
@@ -8,8 +47,10 @@ const factory = {
   [CHAIN.ARBITRUM]: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
 }
 const swap_event = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)'
-const fetchVolume = async (_t: any, _ts: any,options: FetchOptions) => {
-  const {api } = options;
+
+// unused code, as it underestimates volume in production
+const fetchVolume = async (_t: any, _ts: any, options: FetchOptions) => {
+  const { api } = options;
   const pools = await api.fetchList({ target: factory[options.chain], itemAbi: 'getLBPairAtIndex', lengthAbi: 'getNumberOfLBPairs', })
   const tokenA = await api.multiCall({ abi: 'address:getTokenX', calls: pools, })
   const tokenB = await api.multiCall({ abi: 'address:getTokenY', calls: pools, })
@@ -49,17 +90,17 @@ const fetchVolume = async (_t: any, _ts: any,options: FetchOptions) => {
       dailyRevenue.add(token1, protocolFeesY / 10 ** (18 - decimalsY))
     })
   })
-  return {dailyVolume, dailyFees, dailyRevenue}
+  return { dailyVolume, dailyFees, dailyRevenue }
 }
 
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
-      fetch: fetchVolume,
-          },
+      fetch: fetchV22Volume,
+    },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchVolume,
-          },
+      fetch: fetchV22Volume,
+    },
   }
 }
 export default adapters
