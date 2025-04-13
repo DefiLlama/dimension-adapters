@@ -26,9 +26,7 @@ const adapter: Adapter = {
 
         dailyFees.add('So11111111111111111111111111111111111111112', res[0].total_fees)
         dailyRevenue.add('So11111111111111111111111111111111111111112', res[0].total_base_fees/2)
-        if (endTimestamp > SIMD_0096_ACTIVATION_DATE) {
-          dailyRevenue.add('So11111111111111111111111111111111111111112', res[0].total_priority_fees)
-        } else {
+        if (endTimestamp < SIMD_0096_ACTIVATION_DATE) {
           // priority fees were going 50% to validator and remaining were getting burnt before SIMD-0096;
           dailyRevenue.add('So11111111111111111111111111111111111111112', res[0].total_priority_fees/2)
         }
