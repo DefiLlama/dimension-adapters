@@ -6,7 +6,6 @@ const thalaDappURL = "https://app.thala.fi/";
 const volumeQueryURL = `${thalaDappURL}/api/defillama/trading-volume-chart?project=thalaswap-v2&timeframe=`;
 const feesQueryURL = `${thalaDappURL}/api/defillama/trading-fee-chart?project=thalaswap-v2&timeframe=`;
 const revenueQueryURL = `${thalaDappURL}/api/defillama/protocol-revenue-chart?project=thalaswap-v2&timeframe=`;
-const protocolRatioQueryURL = `${thalaDappURL}/api/defillama/protocol-revenue-ratio`;
 
 const volumeEndpoint = (endTimestamp: number, timeframe: string) =>
   endTimestamp
