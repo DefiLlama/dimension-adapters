@@ -12,6 +12,7 @@ const getGmxV1LogAdapter: any = ({
     const dailyFees = createBalances()
     const dailyUserFees = createBalances()
     const dailyVolume = createBalances()
+    const dailyRevenue = createBalances()
 
     // Increase position
     const increasePositionLogs = await getLogs({
@@ -87,7 +88,7 @@ const getGmxV1LogAdapter: any = ({
       dailyVolume.addUSDValue(Number(log.size)/1e30)
     })
 
-    const result = { dailyFees, dailyUserFees, dailyVolume } as FetchResultV2
+    const result = { dailyFees, dailyUserFees, dailyVolume, dailyRevenue, } as FetchResultV2
     
     // Validate total revenue
     const totalRevenue = Number(ProtocolRevenue || 0) + Number(SupplySideRevenue || 0)  + Number(HoldersRevenue || 0)
@@ -96,9 +97,16 @@ const getGmxV1LogAdapter: any = ({
     }
     
     if (ProtocolRevenue || HoldersRevenue) result.dailyRevenue = dailyFees.clone(Number(ProtocolRevenue || 0) + Number(HoldersRevenue || 0)/100)
-    if (ProtocolRevenue) result.ProtocolRevenue = dailyFees.clone(ProtocolRevenue/100)
+    if (ProtocolRevenue) {
+      result.dailyProtocolRevenue = dailyFees.clone(ProtocolRevenue/100)
+      dailyRevenue.addBalances(result.dailyProtocolRevenue)
+    }
     if (SupplySideRevenue) result.dailySupplySideRevenue = dailyFees.clone(SupplySideRevenue/100)
-    if (HoldersRevenue) result.dailyHoldersRevenue = dailyFees.clone(HoldersRevenue/100)
+    if (HoldersRevenue) {
+      result.dailyHoldersRevenue = dailyFees.clone(HoldersRevenue/100)
+      dailyRevenue.addBalances(result.dailyHoldersRevenue)
+    }
+
 
     return result
   }
