@@ -1,53 +1,38 @@
-import * as sdk from "@defillama/sdk";
-import { Adapter} from "../../adapters/types";
-import { RONIN } from "../../helpers/chains";
-import ADDRESSES from '../../helpers/coreAssets.json';
-import BigNumber from "bignumber.js";
+import { Adapter, FetchOptions } from "../../adapters/types"
+import { CHAIN } from "../../helpers/chains"
+const sdk = require('@defillama/sdk')
 
-const fetch = async (timestamp : number) => {
+const fetch = async (timestamp: number, _1: any, { api, createBalances, }: FetchOptions) => {
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const LRON = '0xcad9e7aa2c3ef07bad0a7b69f97d059d8f36edd2'
+  const period = Math.floor(timestamp / 86400)
 
-  const ts = timestamp||Math.floor(Date.now()/1000);
 
-  const period = Math.floor(ts/86400); 
+  // need to sdk as we dont have archive node for ronin
+  const loggedFees = await sdk.api2.abi.call({ target: LRON, abi: "function loggedFees(uint256) view returns (uint256)", params: period, chain: CHAIN.RONIN })
+  const rewardsClaimed = await sdk.api2.abi.call({ target: LRON, abi: "function rewardsClaimed(uint256) view returns (uint256)", params: period, chain: CHAIN.RONIN })
 
-  const loggedFees = await sdk.api.abi.call({
-    chain : RONIN,
-    target: ADDRESSES.ronin.LRON,
-    abi: "function loggedFees(uint256) view returns (uint256)",
-    params: [period]
-  });
+  dailyFees.addGasToken(loggedFees)
+  dailyFees.addGasToken(rewardsClaimed)
+  dailyRevenue.addGasToken(rewardsClaimed * 0.065)
 
-  const rewardsClaimed = await sdk.api.abi.call({
-    chain : RONIN,
-    target: ADDRESSES.ronin.LRON,
-    abi: "function rewardsClaimed(uint256) view returns (uint256)",
-    params: [period]
-  });
-
-  const claimedRewards = new BigNumber(rewardsClaimed.output).div("1e18");
-
-  const dailyRevenue = claimedRewards.multipliedBy("0.065");
-  const dailyFees = new BigNumber(loggedFees.output).div("1e18").plus(claimedRewards).minus(dailyRevenue);
-
-  return {
-    dailyFees: await sdk.Balances.getUSDValue({ronin:dailyFees.toNumber()},ts),
-    dailyRevenue : await sdk.Balances.getUSDValue({ronin:dailyRevenue.toNumber()},ts),
-  };
-};
+  return { timestamp, dailyFees, dailyRevenue }
+}
 
 const adapter: Adapter = {
   adapter: {
-    [RONIN]: {
-        fetch: fetch,
-        start: '2025-04-09',
-        meta: {
-          methodology: {
-            Fees: "Deposit fee and staking rewards.",
-            Revenue: "Liquid RON takes 6.5% performance fee whenever staking rewards are claimed.",
-          }
+    [CHAIN.RONIN]: {
+      fetch,
+      start: '2025-04-09',
+      meta: {
+        methodology: {
+          Fees: "Deposit fee and staking rewards.",
+          Revenue: "Liquid RON takes 6.5% performance fee whenever staking rewards are claimed.",
         }
+      }
     },
   }
 }
 
-export default adapter;
+export default adapter
