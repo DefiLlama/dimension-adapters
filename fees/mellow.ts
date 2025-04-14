@@ -7,6 +7,7 @@ import { getERC4626VaultInfo } from "../helpers/erc4626";
 
 const methodology = {
   Fees: "Fees generated from staking assets in LRT vaults.",
+  SupplySideRevenue: "Fees are distributed to supply side depositors.",
 };
 
 const MellowAbis: any = {
@@ -89,6 +90,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
   return {
     dailyFees,
+    dailySupplySideRevenue: dailyFees,
   }
 }
 
