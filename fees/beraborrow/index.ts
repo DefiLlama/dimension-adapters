@@ -82,12 +82,15 @@ const fetchFees = async (options: FetchOptions) => {
   }));
 
 
+  const withdrawalFeesAssets = await options.api.multiCall({
+    abi: 'address:asset',
+    calls: CollVaults,
+  });
   const withdrawalFeesInAssets = await options.api.multiCall({
     abi: 'function convertToAssets(uint256) view returns (uint256)',
     calls,
   });
-  dailyFees.add(CollVaults, withdrawalFeesInAssets);
-
+  dailyFees.add(withdrawalFeesAssets, withdrawalFeesInAssets);
 
   // Borrowing Fee
 
