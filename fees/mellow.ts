@@ -103,6 +103,7 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology,
       },
+      start: '2024-09-01',
     },
   },
 };
