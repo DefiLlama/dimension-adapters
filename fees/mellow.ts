@@ -2,8 +2,8 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
-import { httpGet } from "../utils/fetchURL";
-import { getERC4626VaultInfo } from "../helpers/erc4626";
+import { getERC4626VaultsInfo } from "../helpers/erc4626";
+import { getConfig } from "../helpers/cache";
 
 const methodology = {
   Fees: "Fees generated from staking assets in LRT vaults.",
@@ -25,7 +25,7 @@ const MellowAbis: any = {
 const DVstETHVault = '0x5E362eb2c0706Bd1d134689eC75176018385430B'
 const DVstETHPriceOracle = '0x39D5F9aEbBEcba99ED5d707b11d790387B5acB63'
 async function getActiveVaults(): Promise<Array<string>> {
-  return ((await httpGet('https://points.mellow.finance/v1/vaults')).map((item: any) => item.address) as Array<string>)
+  return ((await getConfig('mellow', 'https://points.mellow.finance/v1/vaults')).map((item: any) => item.address) as Array<string>)
   .filter((vault: string) => String(vault).toLowerCase() !== String(DVstETHVault).toLowerCase())
 }
 
@@ -78,16 +78,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyFees.addGasToken(DVstETHVaultInfoOld.totalBaseTokenDeposited * lrtRateIncrease)
 
   const vaults = await getActiveVaults()
-  for (const vault of vaults) {
-    const vaultInfoOld = await getERC4626VaultInfo(options.fromApi, vault)
-    if (vaultInfoOld) {
-      const vaultInfoNew = await getERC4626VaultInfo(options.toApi, vault)
-      if (vaultInfoNew) {
-        const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
-        dailyFees.add(vaultInfoOld.asset, Number(vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18)))
-      }
+  const vaultInfosOld = await getERC4626VaultsInfo(options.fromApi, vaults)
+  const vaultInfosNew = await getERC4626VaultsInfo(options.toApi, vaults)
+
+  for (const [vault, vaultInfoOld] of Object.entries(vaultInfosOld)) {
+    const vaultInfoNew = vaultInfosNew[vault]
+    if (vaultInfoOld && vaultInfoNew) {
+      const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
+      dailyFees.add(vaultInfoOld.asset, Number(vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18)))
     }
   }
+
   return {
     dailyFees,
     dailySupplySideRevenue: dailyFees,
