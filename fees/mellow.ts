@@ -1,4 +1,3 @@
-//  Maverick v1 fee
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
@@ -85,12 +84,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const vaultInfoNew = vaultInfosNew[vault]
     if (vaultInfoOld && vaultInfoNew) {
       const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
-      dailyFees.add(vaultInfoOld.asset, Number(vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18)))
+      dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18))
     }
   }
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
