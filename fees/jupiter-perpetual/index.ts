@@ -1,12 +1,14 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const data: any[] = (await queryDune("4751411", {
+  // https://dune.com/queries/4751411
+  const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp
-  }));
+  });
+  const data: any[] = (await queryDuneSql(options, sql));
   const dailyFees = data[0].total_fees;
   return {
     dailyFees,
