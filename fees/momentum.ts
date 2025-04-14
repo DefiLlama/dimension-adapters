@@ -34,6 +34,9 @@ const buildQueryPayload = (metricName: string, start: number, end: number) => ({
       dataSource: 'METRICS',
     },
   ],
+  cachePolicy: {
+    noCache: true,
+  },
 });
 
 const extractMetricDelta = (values?: { value: string }[]): number => {
