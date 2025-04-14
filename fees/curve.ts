@@ -94,7 +94,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {
-    dailyFees: `${fees}`,
+    dailyFees: fees,
     dailyRevenue: `${fees/2}`,
     dailyHoldersRevenue: `${fees/2}`,
   };

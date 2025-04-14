@@ -100,12 +100,12 @@ const adapter: SimpleAdapter = {
         const block = metaData._meta.block.number;
 
         return {
-          dailyVolume: dailyVolumeUSD.toString(),
-          totalVolume: totalVolumeUSD.toString(),
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: protocolRevenue.toString(),
-          dailyProtocolRevenue: protocolRevenue.toString(),
-          dailySupplySideRevenue: supplySideRevenue.toString(),
+          dailyVolume: dailyVolumeUSD,
+          totalVolume: totalVolumeUSD,
+          dailyFees,
+          dailyRevenue: protocolRevenue,
+          dailyProtocolRevenue: protocolRevenue,
+          dailySupplySideRevenue: supplySideRevenue,
           block
         };
       },

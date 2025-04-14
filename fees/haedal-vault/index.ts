@@ -10,15 +10,15 @@ const methodology = {
 
 const fetchData = () => {
     return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-        const totalFeesAndRevenue = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=&toTimestamp=`)).data;
-        const dailyFeesAndRevenue = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data;
+        const tfees = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=&toTimestamp=`)).data;
+        const fees = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data;
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
         return {
-            totalFees: `${totalFeesAndRevenue.fee}`,
-            dailyFees: dailyFeesAndRevenue.fee ? `${dailyFeesAndRevenue.fee}` : undefined,
-            totalRevenue: `${totalFeesAndRevenue.revenue}`,
-            dailyRevenue: dailyFeesAndRevenue.revenue ? `${dailyFeesAndRevenue.revenue}` : undefined,
-            dailyProtocolRevenue: dailyFeesAndRevenue.revenue ? `${dailyFeesAndRevenue.revenue}` : undefined,
+            totalFees: tfees.fee,
+            dailyFees: fees.fee,
+            totalRevenue: tfees.revenue,
+            dailyRevenue: fees.revenue,
+            dailyProtocolRevenue: fees.revenue,
             timestamp: dayTimestamp,
         };
     };

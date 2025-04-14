@@ -84,8 +84,8 @@ const fetch = (chain: Chain) => {
     });
 
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
       timestamp,
     };

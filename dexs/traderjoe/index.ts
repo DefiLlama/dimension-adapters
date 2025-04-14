@@ -1,10 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter,  } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getChainVolume, } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
@@ -19,37 +17,6 @@ const endpointsV2: TEndpoint = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('9RoEdAwZiP651miLbKLYQczjckg7HxmyoKXWYXBDYsJc'),
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('9ANwfoCsnDa2fREYqEpGxWcTQHsmBDeTkdSDXGYAspN7'),
   [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
-}
-
-interface IVolume {
-  timestamp: number;
-  volumeUsd: number;
-}
-const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
-  const start = dayTimestamp;
-  const end = start + 24 * 60 * 60;
-  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
-  const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
-    'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
-  }}));
-
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.timestamp <= dayTimestamp)
-    .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
-  return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  }
-}
-const mapChain = (chain: Chain): string => {
-  if (chain === CHAIN.BSC) return "binance"
-  if (chain === CHAIN.AVAX) return "avalanche"
-  return chain
 }
 
 const graphsV1 = getChainVolume({

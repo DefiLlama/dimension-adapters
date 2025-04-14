@@ -53,12 +53,12 @@ const fetch = async (timestamp: number) => {
   const totalProtocolRevenue = totalFees * protocolFeeRatio;
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    totalProtocolRevenue: `${totalProtocolRevenue}`,
-    dailyProtocolRevenue: `${dailyProtocolRevenue}`,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
+    totalFees,
+    dailyFees,
+    totalProtocolRevenue: totalProtocolRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
     timestamp,
   };
 };

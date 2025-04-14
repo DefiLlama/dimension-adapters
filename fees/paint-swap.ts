@@ -34,7 +34,7 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBal
     timestamp: startOfDay,
     dailyUserFees,
     dailyFees: dailyUserFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailyHoldersRevenue: dailyRevenue,
     
   };

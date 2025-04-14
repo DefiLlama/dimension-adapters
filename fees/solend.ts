@@ -50,7 +50,7 @@ const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
   return {
     dailyFees: userFees,
     dailyUserFees: userFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
   };

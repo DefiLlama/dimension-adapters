@@ -8,7 +8,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
     'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
   ]})
   const dailyRevenue = dailyFees.clone()
-  return { dailyFees, dailyRevenue: dailyRevenue }
+  return { dailyFees, dailyRevenue }
 }
 
 

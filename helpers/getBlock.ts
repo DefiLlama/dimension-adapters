@@ -52,6 +52,7 @@ const blacklistedChains: string[] = [
   "dymension",
   CHAIN.DOGECHAIN,
   CHAIN.SEI,
+  CHAIN.ICP,
 ];
 
 const cache = {

@@ -32,7 +32,7 @@ const fetchData = async (timestamp: any, _b: any, options: FetchOptions) => {
   return {
     timestamp: timestamp,
     dailyVolume: dailyVolume,
-    dailyFees: dailyFees,
+    dailyFees,
   }
 }
 

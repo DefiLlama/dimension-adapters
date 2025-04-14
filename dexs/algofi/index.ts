@@ -15,7 +15,7 @@ const fetch = async (timestamp: number) => {
   const response: IAPIResponse = (await fetchURL(URL)).amm.volume.day;
 
   return {
-    dailyVolume: `${response}`,
+    dailyVolume: response,
     timestamp: dayTimestamp,
   };
 };

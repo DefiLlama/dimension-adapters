@@ -9,7 +9,7 @@ const fetchVolume = async (timestamp: number, _:any, options: FetchOptions): Pro
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(res.fees24.value);
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     timestamp: timestamp
   }
 }

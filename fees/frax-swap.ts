@@ -44,10 +44,10 @@ const graphs = () => {
         .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount
       return {
         timestamp,
-        dailyUserFees: dailyFees?.toString(),
-        totalFees: totalFees.toString(),
-        totalUserFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
+        dailyUserFees: dailyFees,
+        totalFees,
+        totalUserFees: totalFees,
+        dailyFees,
         totalRevenue: "0",
         dailyRevenue: "0",
       };

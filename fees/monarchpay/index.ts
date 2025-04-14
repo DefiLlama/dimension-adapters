@@ -12,7 +12,7 @@ const fetch = async ({ getLogs }: FetchOptions) => {
     return Number('0x' + tx.data) / 10 ** 6;
   }).reduce((a: number, b: number) => a + b, 0);
   return {
-    dailyFees: dailyFees
+    dailyFees
   };
 }
 

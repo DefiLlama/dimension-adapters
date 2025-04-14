@@ -1,6 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
 const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
@@ -29,8 +29,9 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
 
   const date = new Date(option.startOfDay * 1000).toISOString().split("T")[0];
 
-  const res: { user_rewards: string; stader_revenue: string }[] =
-    await queryDune("4936645", { target_date: date });
+  const sql = getSqlFromFile("helpers/queries/stader.sql", { target_date: date });
+  const res: { user_rewards: string; stader_revenue: string }[] = await queryDuneSql(option, sql);
+
   res.forEach((item) => {
     dailyFees.addUSDValue(item.user_rewards);
     dailyRevenue.addUSDValue(item.stader_revenue);
@@ -39,8 +40,8 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   dailyRevenue.addBalances(dailyMaticXRev);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
@@ -58,8 +59,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyRevenue = dailyFees.clone(1 / 9);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 

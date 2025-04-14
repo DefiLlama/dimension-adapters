@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { queryDuneSql } from "../helpers/dune";
 
 interface IStats {
   unix_ts: number;
@@ -33,10 +33,14 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
   const end = options.endTimestamp;
   const key = `${url}-${start}`;
   if (!requests[key])
-    requests[key] = queryDune("4192496", {
-      start: start,
-      end: end,
-    });
+    // https://dune.com/queries/4192496
+    requests[key] = queryDuneSql(options, `select
+        *
+      from
+        dune.gains.result_g_trade_stats_defi_llama
+      where
+        day >= from_unixtime(${start})
+        and day < from_unixtime(${end})`);
   return requests[key];
 }
 

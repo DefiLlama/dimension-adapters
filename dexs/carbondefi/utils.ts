@@ -82,14 +82,18 @@ export const getDimensionsSum = async (
     totalVolume,
     dailyFees,
     totalFees,
+    dailyRevenue: dailyFees,
+    totalRevenue: totalFees,
   };
 };
 
 export const getEmptyData = (options: FetchOptions) => {
   return {
-    dailyVolume: options.createBalances(),
-    dailyFees: options.createBalances(),
-    totalVolume: options.createBalances(),
-    totalFees: options.createBalances(),
+    dailyVolume: 0,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    totalVolume: 0,
+    totalFees: 0,
+    totalRevenue: 0,
   };
 };

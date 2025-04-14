@@ -32,11 +32,11 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dailySupplySideRevenue = data.vaultFee;
 
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
+    dailyFees,
+    dailyRevenue,
     dailyVolume: dailyVolume.length > 0 ? dailyVolume[0].volume : "0",
     totalVolume: dailyVolume.length > 0 ? dailyVolume[0].totalVolume : "0",
-    dailySupplySideRevenue: `${dailySupplySideRevenue}`,
+    dailySupplySideRevenue: dailySupplySideRevenue,
     timestamp: dayTimestamp,
   };
 };

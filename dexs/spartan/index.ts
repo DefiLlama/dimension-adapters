@@ -36,7 +36,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
 
   return {
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
     timestamp: dayTimestamp,
   }
