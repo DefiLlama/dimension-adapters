@@ -19,6 +19,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
+      meta: {
+        methodology: {
+          Fees: 'User pays 1% fee on each trade',
+        }
+      }
     },
   },
   isExpensiveAdapter: true,
