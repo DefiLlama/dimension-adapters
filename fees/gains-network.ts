@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune, queryDuneSql } from "../helpers/dune";
+import { queryDuneSql } from "../helpers/dune";
 
 interface IStats {
   unix_ts: number;

@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune, queryDuneSql } from "../helpers/dune";
+import { queryDuneSql } from "../helpers/dune";
 
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
