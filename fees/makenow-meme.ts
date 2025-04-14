@@ -26,7 +26,7 @@ const fetchFees = async (options: FetchOptions) => {
     // (5R48wJazTurDMHjERWW3ZTQ6nMdXegD6QH3sE5FsV89UjRCHbBN4n3Pt8y4ngTxi5P5CCt5jx83mRbG6GaPw9rY3)
     '76Mk7UH3nSjJXKLi7CVaKurUSywo6xXqhu1k1tJMFUSi'
   ]
-  const dailyFees = await getSolanaReceived({ options, targets: targets })
+  const dailyFees = await getSolanaReceived({ options, targets: targets, blacklists })
   return { dailyFees, dailyRevenue: dailyFees, }
 }
 
