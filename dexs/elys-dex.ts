@@ -2,10 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-let _data: any
 const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
-  if (!_data) _data = httpGet('https://supply.elys.network/stats/daily-volume')
-  const data = await _data
+  const data = await  httpGet('https://supply.elys.network/stats/daily-volume')
 
   let dailyVolume = 0
   data.forEach((item: any) => {
