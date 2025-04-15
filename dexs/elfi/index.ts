@@ -1,8 +1,6 @@
-import { GraphQLClient, gql } from "graphql-request";
-import BigNumber from "bignumber.js";
-import { SimpleAdapter } from "../../adapters/types";
+import { GraphQLClient, } from "graphql-request";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface VolumeData {
   volume: string;
@@ -17,7 +15,7 @@ const endpoints = {
     "https://subgraph.satsuma-prod.com/216876ddeec8/0xyzs-team--959441/elfi_stats_base/api",
 };
 
-const queryVolumes = gql`
+const queryVolumes = `
   query volumes($startDate: BigInt!, $endDate: BigInt!) {
     volumes(
       where: { date_gte: $startDate, date_lt: $endDate }
@@ -30,42 +28,30 @@ const queryVolumes = gql`
   }
 `;
 
-const fetch = async (timestamp: number, chain: string) => {
+const fetch = async (_: any, _1: any, { fromTimestamp, toTimestamp, chain, }: FetchOptions) => {
   const client = new GraphQLClient(endpoints[chain]);
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   const res = await client.request(queryVolumes, {
-    startDate: timestamp - 86400,
-    endDate: timestamp,
+    startDate: fromTimestamp,
+    endDate: toTimestamp,
   });
 
   const volumeList = res.volumes as VolumeData[];
-
-  const decimals = "1000000000000000000"; // 10**18
-
-  const dailyVolume = volumeList.reduce((acc, item) => {
-    return new BigNumber(item.volume).div(decimals).toNumber() + acc;
-  }, 0);
+  const dailyVolume = volumeList.reduce((acc, item: any) => item.volume / 1e18 + acc, 0);
 
   return {
     dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: (timeStamp: number) => {
-        return fetch(timeStamp, CHAIN.ARBITRUM);
-      },
-      start: "2025-04-12",
+      fetch, start: "2025-04-12",
     },
     [CHAIN.BASE]: {
-      fetch: (timeStamp: number) => {
-        return fetch(timeStamp, CHAIN.BASE);
-      },
-      start: "2025-04-12",
+      fetch, start: "2025-04-12",
     },
   },
 };
