@@ -10,7 +10,11 @@ const fetch: any = async (options: FetchOptions) => {
     'AaG6of1gbj1pbDumvbSiTuJhRCRkkUNaWVxijSbWvTJW',
   ];
 
-  const dailyFees = await getSolanaReceived({ options, targets });
+  const dailyFees = await getSolanaReceived({
+    blacklists: targets,
+    options,
+    targets,
+  });
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
