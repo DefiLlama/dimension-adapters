@@ -10,7 +10,7 @@ const CooldownOnServerError = 300 // 5 minute
 const GlobalEndpointsCooldown: { [key: string]: number } = {}
 
 async function sleep(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time))
+  return new Promise((resolve) => setTimeout(resolve, time * 1000))
 }
 
 function getEndpoint(endpoints: Array<string>): string {
@@ -28,30 +28,40 @@ function getEndpoint(endpoints: Array<string>): string {
   return endpoint
 }
 
+export async function makeCall(endpoint: string, subpath: string | null | undefined, httpMethod: 'POST' | 'GET', httpBody: any): Promise<any> {
+  const options: AxiosRequestConfig = {
+    method: httpMethod,
+    url: subpath ? `${endpoint}/${subpath}` : endpoint,
+    data: httpBody,
+
+    // accept any status, don't throw Exception on failed
+    validateStatus: (_: number) => true,
+  }
+
+  return await axios.request(options)
+}
+
 export async function loadBalanceRpcRequest(endpoints: Array<string>, subpath: string | null | undefined, httpMethod: 'POST' | 'GET', httpBody: any): Promise<any> {
-  do {
-    const endpointToCall = getEndpoint(endpoints);
+  if (endpoints.length === 1) {
+    return await makeCall(endpoints[0], subpath, httpMethod, httpBody)
+  }
 
-    const options: AxiosRequestConfig = {
-      method: httpMethod,
-      url: subpath ? `${endpointToCall}/${subpath}` : endpointToCall,
-      data: httpBody,
+  const endpointToCall = getEndpoint(endpoints)
+  
+  const httpResponse = await makeCall(endpointToCall, subpath, httpMethod, httpBody)
 
-      // accept any status, don't throw Exception on failed
-      validateStatus: (_: number) => true,
-    }
+  if (httpResponse.status === 200) {
+    return httpResponse.data
+  } else {
+    const anotherEndpointToCall = getEndpoint(endpoints.filter(endpoint => endpoint !== endpointToCall))
+    const anotherHttpResponse = await makeCall(anotherEndpointToCall, subpath, httpMethod, httpBody)
 
-    const httpResponse = await axios.request(options)
-
-    if (httpResponse.status === 200) {
-      return httpResponse.data
-    } else if (httpResponse.status >= 400 && httpResponse.status < 500) {
+    if (httpResponse.status >= 400 && httpResponse.status < 500 && anotherHttpResponse.status === 200) {
       GlobalEndpointsCooldown[endpointToCall] = Math.floor(new Date().getTime() / 1000) + CooldownOnClientError
-    } else if (httpResponse.status >= 500) {
+    } else if (httpResponse.status >= 500 && anotherHttpResponse.status === 200) {
       GlobalEndpointsCooldown[endpointToCall] = Math.floor(new Date().getTime() / 1000) + CooldownOnServerError
     }
 
-    // anyway, sleep one second
-    await sleep(1)
-  } while(true)
+    return anotherHttpResponse.data;
+  }
 }
