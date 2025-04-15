@@ -8,7 +8,7 @@ interface VolumeData {
   date: string;
 }
 
-const endpoints = {
+const endpoints: any = {
   [CHAIN.ARBITRUM]:
     "https://subgraph.satsuma-prod.com/216876ddeec8/0xyzs-team--959441/elfi_arbitrum/api",
   [CHAIN.BASE]:
@@ -28,7 +28,7 @@ const queryVolumes = `
   }
 `;
 
-const fetch = async (_: any, _1: any, { fromTimestamp, toTimestamp, chain, }: FetchOptions) => {
+const fetch = async ({ fromTimestamp, toTimestamp, chain, }: FetchOptions) => {
   const client = new GraphQLClient(endpoints[chain]);
 
   const res = await client.request(queryVolumes, {
@@ -45,13 +45,13 @@ const fetch = async (_: any, _1: any, { fromTimestamp, toTimestamp, chain, }: Fe
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch, start: "2025-04-12",
+      fetch, start: "2025-04-07",
     },
     [CHAIN.BASE]: {
-      fetch, start: "2025-04-12",
+      fetch, start: "2025-04-07",
     },
   },
 };
