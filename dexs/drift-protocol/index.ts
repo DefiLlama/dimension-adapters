@@ -1,9 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
-import { getSqlFromFile, queryDune, queryDuneSql } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
-const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
+// const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
