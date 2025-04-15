@@ -5,7 +5,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   const ammPoolStandard: any[] = [];
   let page = 1;
   while (true) {
-    const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=1000&page=${page}`);
+    const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page}`);
     const data = response.data.data;
     if (!data || data.length === 0) break;
     ammPoolStandard.push(...data);
