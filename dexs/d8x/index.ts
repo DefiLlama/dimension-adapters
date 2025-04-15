@@ -1,9 +1,5 @@
 import { Chain } from "@defillama/sdk/build/types";
-import {
-  Adapter,
-  FetchOptions,
-  FetchResultVolume,
-} from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type TManagers = {
@@ -12,17 +8,18 @@ type TManagers = {
 
 const managerContracts: TManagers = {
   [CHAIN.ARBITRUM]: "0x8f8BccE4c180B699F81499005281fA89440D1e95",
-  [CHAIN.BASE]: "0x7F3A4A9e5BB469F0F4977AA390760aF9EFCCd406",
   [CHAIN.BERACHAIN]: "0xb6329c7168b255Eca8e5c627b0CCe7A5289C8b7F",
-  [CHAIN.POLYGON_ZKEVM]: "0xaB7794EcD2c8e9Decc6B577864b40eBf9204720f",
 };
 
 const ABDKToFloat = (x: bigint): number => {
   // ABDK: value(x) = x / 2 ** 64
-  return Number(x) / 2 ** 64
+  return Number(x) / 2 ** 64;
 };
 
-const fetch = async ({ getLogs, chain, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({
+  getLogs,
+  chain,
+}: FetchOptions): Promise<FetchResultVolume> => {
   const managerAddr = managerContracts[chain];
 
   const [liquidations, trades] = await Promise.all(
@@ -52,16 +49,12 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch, start: "2023-03-26",
-    },
-    [CHAIN.BASE]: {
-      fetch, start: "2024-12-03",
+      fetch,
+      start: "2023-03-26",
     },
     [CHAIN.BERACHAIN]: {
-      fetch, start: "2025-02-10",
-    },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch, start: "2023-10-12",
+      fetch,
+      start: "2025-02-10",
     },
   },
 };
