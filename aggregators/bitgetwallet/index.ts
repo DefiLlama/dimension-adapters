@@ -25,8 +25,8 @@ const graph = (chain: Chain) => {
         const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
-            totalVolume: totalVolume && chain !== CHAIN.SOLANA ? `${totalVolume}` : undefined,
-            dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+            totalVolume: chain !== CHAIN.SOLANA ? totalVolume : undefined,
+            dailyVolume: dailyVolume,
             timestamp: dayTimestamp,
         };
     }

@@ -73,12 +73,12 @@ const fetchFees = (chain: Chain) => {
     },0);
 
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailyProtocolRevenue: `${dailyRevenue}`,
-      totalFees: `${totalFees}`,
-      totalRevenue: `${totalRevenue}`,
-      totalProtocolRevenue: `${totalRevenue}`,
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      totalFees,
+      totalRevenue: totalRevenue,
+      totalProtocolRevenue: totalRevenue,
     }
   }
 }

@@ -1,4 +1,3 @@
-import BigNumber from "bignumber.js";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { postURL } from "../../utils/fetchURL";
 
@@ -40,19 +39,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       whiteListUri: "https://static.web3.world/assets/manifest.json",
     }
   );
-  let dailyVolumeBN = new BigNumber(0);
-  let dailyFeesBN = new BigNumber(0);
-  let totalFeesBN = new BigNumber(0);
+  let dailyVolume = 0
+  let dailyFees = 0
+  let totalFees = 0
   response.pools.forEach((pool) => {
-    dailyVolumeBN = dailyVolumeBN.plus(pool.volume24h);
-    dailyFeesBN = dailyFeesBN.plus(pool.fee24h);
-    totalFeesBN = totalFeesBN.plus(pool.feeAllTime);
+    dailyVolume += +pool.volume24h;
+    dailyFees = +pool.fee24h;
+    totalFees = +pool.feeAllTime;
   });
   return {
-    dailyVolume: dailyVolumeBN.toString(10),
-    dailyFees: dailyFeesBN.toString(10),
-    dailyUserFees: dailyFeesBN.toString(10),
-    totalFees: totalFeesBN.toString(10),
+    dailyVolume, dailyFees, totalFees, dailyUserFees: dailyFees,
   };
 };
 const adapter: SimpleAdapter = {

@@ -22,7 +22,7 @@ const fetchSteammStats = async ({ endTimestamp }: FetchOptions) => {
   const stats: DailyStats = (await fetchURL(url));
   const dailyFees = parseFloat(stats.protocolFeesUsd) + parseFloat(stats.poolFeesUsd)
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: stats.poolFeesUsd,
     dailyRevenue: stats.protocolFeesUsd,

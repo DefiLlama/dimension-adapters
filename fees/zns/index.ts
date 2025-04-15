@@ -37,32 +37,8 @@ const methodology = {
 };
 
 const ABI = {
-  priceToRegister: {
-    "inputs": [
-        {
-            "internalType": "uint16",
-            "name": "len",
-            "type": "uint16"
-        }
-    ],
-    "name": "priceToRegister",
-    "outputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  priceToRenew: {
-    inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
-    name: "priceToRenew",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
+  "priceToRegister": "function priceToRegister(uint16 len) view returns (uint256)",
+  "priceToRenew": "function priceToRenew(uint16 len) view returns (uint256)"
 }
 
 const fetchLogsAndCalculateFees = async (

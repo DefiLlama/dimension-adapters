@@ -14,7 +14,7 @@ const fetchFees  = async (timestamp: number, _t: ChainBlocks ,options: FetchOpti
   const dailyFees = item.find((i) => i.day.split('T')[0] === dateStr)?.sum_tradingfeecollection
   const dailyFeesNum = dailyFees ? parseFloat(dailyFees) : undefined
   return {
-    dailyFees: dailyFeesNum,
+    dailyFeesNum,
     dailyRevenue: dailyFeesNum,
     dailyHoldersRevenue: dailyFeesNum,
     timestamp: timestamp,

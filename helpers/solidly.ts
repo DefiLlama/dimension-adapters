@@ -74,6 +74,6 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRE
         })
     });
 
-    return { dailyFees, dailyRevenue: dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
   }
 }

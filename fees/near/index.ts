@@ -13,14 +13,14 @@ const fetch = async (_timestamp: number, __: any, { dateString }: FetchOptions) 
 
   const feesData = await httpGet(feesAPI);
 
-  const dailyFees = feesData.charts.find((chart: ChartData) =>
+  const fees = feesData.charts.find((chart: ChartData) =>
     chart.date.split('T')[0] === dateString
   )
-  if (!dailyFees) throw new Error(`No data found for date: ${dateString}`)
+  if (!fees) throw new Error(`No data found for date: ${dateString}`)
 
   return {
-    dailyFees: dailyFees.txn_fee_usd,
-    dailyRevenue: dailyFees.txn_fee_usd,
+    dailyFees: fees.txn_fee_usd,
+    dailyRevenue: fees.txn_fee_usd,
   };
 };
 

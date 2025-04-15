@@ -217,8 +217,8 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
-              dailyVolume: `${dailyVolume}`,
-              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
+              dailyVolume: dailyVolume,
+              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  totalVolume,
             };
           },
                   }

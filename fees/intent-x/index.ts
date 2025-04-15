@@ -173,18 +173,18 @@ const fetchVolume = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
   const totalSupplySideRevenue = "0";
 
   return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
+    dailyFees: _dailyFees,
+    totalFees: _totalFees,
 
-    dailyUserFees: dailyUserFees ?? "0",
-    dailyRevenue: dailyRevenue ?? "0",
-    dailyProtocolRevenue: dailyProtocolRevenue ?? "0",
-    dailyHoldersRevenue: dailyHoldersRevenue ?? "0",
-    dailySupplySideRevenue: dailySupplySideRevenue ?? "0",
-    totalUserFees: totalUserFees ?? "0",
-    totalRevenue: totalRevenue ?? "0",
-    totalProtocolRevenue: totalProtocolRevenue ?? "0",
-    totalSupplySideRevenue: totalSupplySideRevenue ?? "0",
+    dailyUserFees: dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    totalUserFees: totalUserFees,
+    totalRevenue: totalRevenue,
+    totalProtocolRevenue: totalProtocolRevenue,
+    totalSupplySideRevenue: totalSupplySideRevenue,
   };
 };
 
@@ -224,18 +224,18 @@ const fetchVolumeBlast = async ({ endTimestamp, startTimestamp }: FetchOptions) 
   const totalSupplySideRevenue = "0";
 
   return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
+    dailyFees: _dailyFees,
+    totalFees: _totalFees,
 
-    dailyUserFees: dailyUserFees ?? "0",
-    dailyRevenue: dailyRevenue ?? "0",
-    dailyProtocolRevenue: dailyProtocolRevenue ?? "0",
-    dailyHoldersRevenue: dailyHoldersRevenue ?? "0",
-    dailySupplySideRevenue: dailySupplySideRevenue ?? "0",
-    totalUserFees: totalUserFees ?? "0",
-    totalRevenue: totalRevenue ?? "0",
-    totalProtocolRevenue: totalProtocolRevenue ?? "0",
-    totalSupplySideRevenue: totalSupplySideRevenue ?? "0",
+    dailyUserFees: dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    totalUserFees: totalUserFees,
+    totalRevenue: totalRevenue,
+    totalProtocolRevenue: totalProtocolRevenue,
+    totalSupplySideRevenue: totalSupplySideRevenue,
   };
 };
 
@@ -271,18 +271,18 @@ const fetchVolumeMantle = async ({ endTimestamp, startTimestamp }: FetchOptions)
   const totalSupplySideRevenue = "0";
 
   return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
+    dailyFees: _dailyFees,
+    totalFees: _totalFees,
 
-    dailyUserFees: dailyUserFees ?? "0",
-    dailyRevenue: dailyRevenue ?? "0",
-    dailyProtocolRevenue: dailyProtocolRevenue ?? "0",
-    dailyHoldersRevenue: dailyHoldersRevenue ?? "0",
-    dailySupplySideRevenue: dailySupplySideRevenue ?? "0",
-    totalUserFees: totalUserFees ?? "0",
-    totalRevenue: totalRevenue ?? "0",
-    totalProtocolRevenue: totalProtocolRevenue ?? "0",
-    totalSupplySideRevenue: totalSupplySideRevenue ?? "0",
+    dailyUserFees: dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    totalUserFees: totalUserFees,
+    totalRevenue: totalRevenue,
+    totalProtocolRevenue: totalProtocolRevenue,
+    totalSupplySideRevenue: totalSupplySideRevenue,
   };
 };
 
@@ -318,18 +318,18 @@ const fetchVolumeArbitrum = async ({ endTimestamp, startTimestamp }: FetchOption
   const totalSupplySideRevenue = "0";
 
   return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
+    dailyFees: _dailyFees,
+    totalFees: _totalFees,
 
-    dailyUserFees: dailyUserFees ?? "0",
-    dailyRevenue: dailyRevenue ?? "0",
-    dailyProtocolRevenue: dailyProtocolRevenue ?? "0",
-    dailyHoldersRevenue: dailyHoldersRevenue ?? "0",
-    dailySupplySideRevenue: dailySupplySideRevenue ?? "0",
-    totalUserFees: totalUserFees ?? "0",
-    totalRevenue: totalRevenue ?? "0",
-    totalProtocolRevenue: totalProtocolRevenue ?? "0",
-    totalSupplySideRevenue: totalSupplySideRevenue ?? "0",
+    dailyUserFees: dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    totalUserFees: totalUserFees,
+    totalRevenue: totalRevenue,
+    totalProtocolRevenue: totalProtocolRevenue,
+    totalSupplySideRevenue: totalSupplySideRevenue,
   };
 };
 const adapter: SimpleAdapter = {

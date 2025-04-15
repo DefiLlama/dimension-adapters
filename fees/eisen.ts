@@ -22,6 +22,7 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.HEMI]: ["0x3E257bD80C5e73f9A5D30D3D1a734251c4809Ad4"],
   [CHAIN.ROOTSTOCK]: ["0x7D1820c87BD5e4C231310D45E5f24eb571813738"],
   [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -42,7 +43,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
     }
   });
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   };
 };
@@ -64,6 +65,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HEMI]: { fetch, start: "2025-03-07" },
     [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-13" },
     [CHAIN.BSC]: { fetch, start: "2025-04-03" },
+    [CHAIN.ARBITRUM]: { fetch, start: "2025-04-08" },
   },
 };
 

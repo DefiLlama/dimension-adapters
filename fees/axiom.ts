@@ -10,6 +10,7 @@ const fetch: any = async (options: FetchOptions) => {
     'AaG6of1gbj1pbDumvbSiTuJhRCRkkUNaWVxijSbWvTJW',
   ];
 
+
   const dailyFees = await getSolanaReceived({
     blacklists: targets,
     options,
@@ -23,6 +24,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
+      meta: {
+        methodology: {
+          Fees: 'User pays 0.75%-1% fee on each trade',
+        }
+      }
     },
   },
   isExpensiveAdapter: true,

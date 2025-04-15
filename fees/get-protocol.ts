@@ -67,9 +67,9 @@ const graphs = () => {
 
     return {
       timestamp,
-      dailyFees: dailyFees,
+      dailyFees,
       dailyUserFees: dailyUserFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyHoldersRevenue: dailyHoldersRevenue,
       dailyProtocolRevenue: dailyProtocolRevenue,
     };

@@ -143,7 +143,7 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const dailyFees = managerFees + entryFees + exitFees;
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     timestamp: endTimestamp,
   };

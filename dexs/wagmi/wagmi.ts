@@ -81,12 +81,12 @@ const getData = async (chain: Chain, timestamp: number) => {
   const dailyFees = Number(data.uniswapDayData?.feesUSD ?? "0");
 
   return {
-    dailyFees: `${dailyFees}`,
-    totalFees: `${totalFee}`,
-    dailyUserFees: `${dailyFees}`,
-    totalUserFees: `${totalFee}`,
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
+    dailyFees,
+    totalFees: totalFee,
+    dailyUserFees: dailyFees,
+    totalUserFees: totalFee,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };

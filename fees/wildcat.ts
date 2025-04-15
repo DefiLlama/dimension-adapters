@@ -19,8 +19,8 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
     })
     const dailyRevenue = dailyFees.clone(0.05) 
     return {
-        dailyFees: dailyFees,
-        dailyRevenue: dailyRevenue
+        dailyFees,
+        dailyRevenue
     }
 }
 

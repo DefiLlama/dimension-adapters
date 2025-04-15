@@ -177,7 +177,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.addBalances(dailyProtocolRevenue)
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyProtocolRevenue: dailyProtocolRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
   }

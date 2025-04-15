@@ -117,7 +117,7 @@ const fetchFees = async (options: FetchOptions) => {
         const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
-    return { dailyFees: dailyFees }
+    return { dailyFees }
 };
 
 const adapter: Adapter = {

@@ -27,9 +27,9 @@ const getFeesFunction = (chain: Chain) => {
     const dailySupplySideRevenue = dailyFees * 0.8;
     return {
       timestamp,
-      dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
-      dailyProtocolRevenue: dailyRevenue !== undefined ? String(dailyRevenue) : undefined,
-      dailySupplySideRevenue: dailySupplySideRevenue !== undefined ? String(dailySupplySideRevenue) : undefined,
+      dailyFees,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
     } as FetchResultFees;
   }
 }

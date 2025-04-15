@@ -29,7 +29,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchCacheURL(url: string) {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key]) {
     requests[key] = httpGet(url,  {
       headers: {

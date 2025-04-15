@@ -7,8 +7,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const data = await fetchURL(`https://api.olab.xyz/api/v2/statistics/volume?startOfDay=${startOfDay}`);
   const {result: {totalVolume, dailyVolume}} = data;
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume
   };
 };
 

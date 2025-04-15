@@ -46,9 +46,9 @@ const getVolume = async (timestamp: number) => {
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
 
     return {
-        totalVolume: `${totalVolume}`,
-        dailyOpenInterest: `${dailyOpenInterest}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        totalVolume: totalVolume,
+        dailyOpenInterest: dailyOpenInterest,
+        dailyVolume: dailyVolume,
     };
 };
 
