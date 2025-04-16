@@ -140,6 +140,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
   const logs = await getLogs({
     targets: tokens,
     flatten: false,
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter as any],
   })
@@ -260,6 +261,7 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
       fromAddressFilter as any,
       toAddressFilter as any
     ],
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     entireLog: true,
   })
