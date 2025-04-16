@@ -1,6 +1,7 @@
-import { request, gql } from 'graphql-request';
+import { request, } from 'graphql-request';
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getConfig } from "../../helpers/cache";
 
 const methodology = {
   Fees: 'Total borrow interest paid by borrowers.',
@@ -14,13 +15,13 @@ type MorphoMarket = {
 };
 
 type MorphoBlueAccrueInterestEvent = {
-  market: MorphoMarket | undefined | null;
+  token: string | undefined | null;
   interest: bigint;
 }
 
 const BLUE_API_ENDPOINT = "https://blue-api.morpho.org/graphql";
 
-const query = gql`
+const query = `
   query GetMarketsData($chainId: Int!) {
     markets(where: { chainId_in: [$chainId] }) {
       items {
@@ -48,7 +49,7 @@ const MorphoBlueAbis = {
   AccrueInterest: 'event AccrueInterest(bytes32 indexed id, uint256 prevBorrowRate, uint256 interest, uint256 feeShares)',
 }
 
-const fetchMarkets = async (chainId: number, url: string): Promise<Array<MorphoMarket>> => {
+const _fetchMarkets = async (chainId: number, url: string): Promise<Array<MorphoMarket>> => {
   const res = await request(url, query, { chainId });
 
   return res.markets.items.map((item: any) => {
@@ -59,15 +60,25 @@ const fetchMarkets = async (chainId: number, url: string): Promise<Array<MorphoM
   });
 };
 
+async function fetchMarkets(chainId: number, url: string): Promise<Array<MorphoMarket>> {
+  return getConfig('morpho-blue/markets-'+chainId, '', {
+    fetcher: async () => _fetchMarkets(chainId, url),
+  })
+}
+
 const fetchEvents = async (options: FetchOptions): Promise<Array<MorphoBlueAccrueInterestEvent>> => {
   const markets = await fetchMarkets(MorphoBlues[options.chain].chainId, BLUE_API_ENDPOINT)
+  const marketMap = {} as any
+  markets.forEach((item) => {
+    marketMap[item.marketId.toLowerCase()] = item.loanAsset
+  })
 
   return (await options.getLogs({
     eventAbi: MorphoBlueAbis.AccrueInterest,
     target: MorphoBlues[options.chain].blue,
   })).map((log: any) => {
     return {
-      market: markets.find(item => item.marketId === String(log.id).toLowerCase()),
+      token: marketMap[String(log.id).toLowerCase()],
       interest: BigInt(log.interest),
     }
   })
@@ -78,8 +89,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   const events = await fetchEvents(options)
   for (const event of events) {
-    if (event.market) {
-      dailyFees.add(event.market.loanAsset, event.interest)
+    if (event.token) {
+      dailyFees.add(event.token, event.interest)
     }
   }
 
