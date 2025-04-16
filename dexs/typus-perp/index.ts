@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryEvents } from "../../helpers/sui";
 
@@ -22,14 +22,12 @@ async function getChainData(options: FetchOptions): Promise<FetchResultV2> {
   };
 }
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SUI]: {
-        fetch: getChainData,
-        start: "2025-4-1",
-      },
+  adapter: {
+    [CHAIN.SUI]: {
+      fetch: getChainData,
+      start: "2025-4-1",
     },
   },
 };
