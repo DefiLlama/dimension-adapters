@@ -6,7 +6,7 @@ export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
   [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://stats-celo-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', allStatsApi: 'https://stats.explorer.mainnet.aurora.dev', CGToken: 'ethereum' },
-  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'gnosis', },
+  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai',  allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01' },
   [CHAIN.CANTO]: { explorer: 'https://explorer.plexnode.wtf', CGToken: 'canto', },
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
