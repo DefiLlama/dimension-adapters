@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 // const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
