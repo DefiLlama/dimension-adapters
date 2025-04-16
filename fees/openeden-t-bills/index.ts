@@ -45,7 +45,6 @@ const fetch = async (
   ]);
 
   if (chain === CHAIN.ETHEREUM) {
-    console.log({before: totalUSDC})
     
     const balanceOnSol = await getTokenSupply(SOL_TBILL)
     const rippleCallRes = await rpcCall('gateway_balances', [
