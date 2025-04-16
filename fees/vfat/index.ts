@@ -64,38 +64,47 @@ const chainSettings: any = {
   },
 };
 
-const fetchFees = async (_t: any, _b: any,{ createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 
+  // Fetch Deploy events to get all Sickle contract addresses
+  const deployLogs = await getLogs({
+    target: settings.factory,
+    fromBlock: settings.fromBlock,
+    eventAbi: 'event Deploy(address indexed admin, address sickle)',
+    cacheInCloud: true,
+  });
 
-  /*     // Fetch Deploy events to get all Sickle contract addresses
-      const deployLogs = await getLogs({
-        target: settings.factory,
-        fromBlock: settings.fromBlock,
-        eventAbi: 'event Deploy(address indexed admin, address sickle)',
-        cacheInCloud: true,
-      });
-  
-      const sickleContracts = deployLogs.map((log: any) => log.sickle); */
+  const sickleContracts = deployLogs.map((log: any) => log.sickle.toLowerCase());
+  const sickleContractsSet = new Set(sickleContracts);
 
   const logs = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
   });
 
   const logs2 = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
   });
 
-
   logs.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   logs2.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   return {

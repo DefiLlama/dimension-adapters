@@ -55,6 +55,8 @@ export type FetchGetLogsOptions = {
   skipCacheRead?: boolean,
   skipIndexer?: boolean,
   topics?: string[],
+  noTarget?: boolean,
+  parseLog?: boolean,
 }
 
 export type Fetch = (

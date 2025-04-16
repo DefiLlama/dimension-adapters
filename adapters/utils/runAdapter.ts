@@ -110,11 +110,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
+      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached
