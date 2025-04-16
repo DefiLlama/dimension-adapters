@@ -27,14 +27,16 @@ export const fetchDataFromApi = async (
 ): Promise<CarbonAnalyticsResponse> => {
   const url = new URL(endpoint);
 
-  // Filter by date
   if (startTimestampS) {
     url.searchParams.append("start", startTimestampS.toString());
   }
   if (endTimestampS) {
     url.searchParams.append("end", endTimestampS.toString());
   }
-  return fetchWithPagination(url.href);
+  
+  url.searchParams.append("limit", "10000");
+
+  return fetchURL(url.href);
 };
 
 export const getDimensionsSum = async (
@@ -43,40 +45,31 @@ export const getDimensionsSum = async (
   endTimestamp: number,
   chainStartTimestamp: number
 ) => {
-  const dailyData: CarbonAnalyticsResponse = await fetchDataFromApi(
+  const allData: CarbonAnalyticsResponse = await fetchDataFromApi(
     endpoint,
-    startTimestamp,
+    chainStartTimestamp,
     endTimestamp
   );
-  const swapData: CarbonAnalyticsResponse = await fetchDataFromApi(
-    endpoint,
-    chainStartTimestamp
-  );
-
-  const { dailyVolume, dailyFees } = dailyData.reduce(
-    (prev, curr) => {
-      return {
-        dailyVolume: prev.dailyVolume + curr.volumeUsd,
-        dailyFees: prev.dailyFees + curr.feesUsd,
-      };
-    },
-    {
-      dailyVolume: 0,
-      dailyFees: 0,
+ 
+  let dailyVolume = 0;
+  let dailyFees = 0;
+  let totalVolume = 0;
+  let totalFees = 0;
+  
+  allData.forEach(item => {
+    const timestamp = Number(item.timestamp);
+    
+    if (timestamp <= endTimestamp) {
+      totalVolume += item.volumeUsd;
+      totalFees += item.feesUsd;
+      
+      if (timestamp >= startTimestamp && timestamp < endTimestamp) {
+        dailyVolume += item.volumeUsd;
+        dailyFees += item.feesUsd;
+      }
     }
-  );
-  const { totalVolume, totalFees } = swapData.reduce(
-    (prev, curr) => {
-      return {
-        totalVolume: prev.totalVolume + curr.volumeUsd,
-        totalFees: prev.totalFees + curr.feesUsd,
-      };
-    },
-    {
-      totalVolume: 0,
-      totalFees: 0,
-    }
-  );
+  });
+  
   return {
     dailyVolume,
     totalVolume,
