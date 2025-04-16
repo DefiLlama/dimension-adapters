@@ -83,7 +83,7 @@ const submitQuery = async (queryId: string, query_parameters = {}) => {
 }
 
 
-export const queryDune = async (queryId: string, query_parameters: any = {}) => {
+const queryDune = async (queryId: string, query_parameters: any = {}) => {
   checkCanRunDuneQuery()
 
   if (Object.keys(query_parameters).length === 0) {
