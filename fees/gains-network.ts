@@ -40,7 +40,7 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
         dune.gains.result_g_trade_stats_defi_llama
       where
         day >= from_unixtime(${start})
-        and day < from_unixtime(${end})`);
+        AND day < from_unixtime(${end})`)
   return requests[key];
 }
 
