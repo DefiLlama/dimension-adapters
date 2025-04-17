@@ -3,10 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryFlipside } from "../../helpers/flipsidecrypto";
 import { queryIndexer } from "../../helpers/indexer";
 
-const AUCTIONRESOLVED_EVENT_ABI =  'event AuctionResolved(bool indexed isMultiBidAuction, uint64 round, address indexed firstPriceBidder, address indexed firstPriceExpressLaneController, uint256 firstPriceAmount, uint256 price, uint64 roundStartTimestamp, uint64 roundEndTimestamp)'
-
-const WETH_ADDRESS = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1';
-
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
@@ -16,7 +12,6 @@ const adapter: Adapter = {
         const endblock = await getToBlock()
         const dailyFees = createBalances()
         const dailyRevenue = createBalances()
-        const timeboostFees = createBalances();
 
         const sequencerGas = `
             SELECT
@@ -33,23 +28,11 @@ const adapter: Adapter = {
         const feeQuery = await queryFlipside(`SELECT SUM(TX_FEE) from arbitrum.core.fact_transactions where BLOCK_NUMBER > ${startblock} AND BLOCK_NUMBER < ${endblock}`, 260)
         const fees = Number(feeQuery[0][0])
 
-        const logs = await options.getLogs({
-          target: '0x5fcb496a31b7ae91e7c9078ec662bd7a55cd3079',
-          eventAbi: AUCTIONRESOLVED_EVENT_ABI,
-          parseLog: true,
-        });
-
-        logs.map((log:any) => {
-          timeboostFees.add(WETH_ADDRESS, log.price);
-        });
-
         dailyFees.addGasToken(fees * 1e18)
         dailyRevenue.addGasToken(seqGas[0].sum * -1)
         dailyRevenue.addGasToken(fees * 1e18)
-        dailyFees.addBalances(timeboostFees);
-        dailyRevenue.addBalances(timeboostFees);
 
-        return { dailyFees, dailyRevenue, dailyProtocolRevenue: timeboostFees};
+        return { dailyFees, dailyRevenue, };
 
       }) as any,
       start: '2021-08-10',
