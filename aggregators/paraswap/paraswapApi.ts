@@ -36,7 +36,7 @@ const fetchCacheURL = (url: string) => {
         "priority": "u=0, i",
         "upgrade-insecure-requests": "1",
         "referrerPolicy": "strict-origin-when-cross-origin",
-    };
+      };
       requests[key] = httpGet(url, {headers});
   }
   return requests[key];
@@ -56,8 +56,8 @@ const fetch = (chain: Chain) => {
     const [totalVolume,totalPartnerRevenue, totalProtocolRevenue]: number[] = response.allTime[mapChainId[chain]];
     const [dailyVolume, partnerRevenue, protocolRevenue]: number[] = dailyResultFees.filter(([time]: any) => time === timestampToday)
       .map(([_, data]: any) => data[mapChainId[chain]]).flat()
-    const otherFees = partnerRevenue + protocolRevenue;
-    const otherProtocolReveune = protocolRevenue;
+    const otherFees = partnerRevenue || 0 + protocolRevenue || 0;
+    const otherProtocolReveune = protocolRevenue || 0;
 
     const dailyFees = otherFees;
     if (dailyFees > 1_000_000) {
