@@ -11,14 +11,14 @@ type TChainId = {
 }
 const mapChainId: TChainId = {
   [CHAIN.ETHEREUM]: '1',
-  [CHAIN.POLYGON]: '137',
-  [CHAIN.BSC]: '56',
-  [CHAIN.AVAX]: '43114',
-  [CHAIN.FANTOM]: '250',
-  [CHAIN.ARBITRUM]: '42161',
   [CHAIN.OPTIMISM]: '10',
+  [CHAIN.BSC]: '56',
+  [CHAIN.POLYGON]: '137',
+  [CHAIN.FANTOM]: '250',
+  [CHAIN.POLYGON_ZKEVM]: '1101',
   [CHAIN.BASE]: '8453',
-  [CHAIN.POLYGON_ZKEVM]: '1101'
+  [CHAIN.ARBITRUM]: '42161',
+  [CHAIN.AVAX]: '43114',
 } 
 
 type IRequest = {
@@ -50,6 +50,7 @@ interface IResponse {
 export function getParaswapAdapter(type:"fees"|"volume"){
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees|FetchResultVolume> => {
+    if (chain == CHAIN.FANTOM && timestamp > 1744416000) return {} as FetchResultFees; // fantom delisted at 2025-04-12
     const timestampToday = getTimestampAtStartOfDayUTC(timestamp)
     const response: IResponse = (await fetchCacheURL(feesMMURL));
     const dailyResultFees: any[] = response.daily;
@@ -68,15 +69,15 @@ const fetch = (chain: Chain) => {
     const totalRevenue = totalProtocolRevenue;
     if(type === "fees"){
         return {
-            dailyFees,
-            dailyRevenue,
+            dailyFees : dailyFees || 0,
+            dailyRevenue : dailyRevenue || 0,
             totalRevenue: totalRevenue,
-            totalFees,
+            totalFees: totalFees,
             timestamp
         }
     } else {
         return {
-            dailyVolume: dailyVolume,
+            dailyVolume: dailyVolume || 0,
             totalVolume: totalVolume,
             timestamp
         }

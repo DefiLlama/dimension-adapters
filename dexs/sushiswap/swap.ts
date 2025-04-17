@@ -223,12 +223,25 @@ const useSushiAPIPrice = (chain) => [
   CHAIN.MOONRIVER
 ].includes(chain)
 
+interface Log {
+  tokenIn: string;
+  amountIn: string;
+}
+
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
-  const logs = await Promise.all([
-    getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
-    getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
-    getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }),
-  ]).then(([rp4Logs, rp5Logs, rp6logs]) => [...rp4Logs, ...rp5Logs, ...rp6logs])
+  const logsPromises: Promise<Log[]>[] = []
+
+  if (RP4_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  }
+  if (RP5_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  }
+  if (RP6_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
+  }
+
+  const logs = (await Promise.all(logsPromises)).flat()
 
   if (useSushiAPIPrice(chain)) {
     const dailyVolume = createBalances()
