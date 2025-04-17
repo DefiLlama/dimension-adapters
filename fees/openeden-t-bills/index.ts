@@ -19,56 +19,53 @@ const eventAbi = `event ProcessDeposit(
   address treasury
 )`;
 
-const VAULT_ADDRESSES: Record<Chain, string> = {
+const CHAIN_CONFIGS: any = {
   [CHAIN.ETHEREUM]: "0xdd50C053C096CB04A3e3362E2b622529EC5f2e8a",
   [CHAIN.ARBITRUM]: "0xF84D28A8D28292842dD73D1c5F99476A80b6666A",
-};
-
-const SOL_TBILL = '4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6';
-const RIPPLE_TBILL = {
-  ACCOUNT: 'rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn',
-  HOT_WALLET: 'rB56JZWRKvpWNeyqM3QYfZwW4fS9YEyPWM',
+  [CHAIN.SOLANA]: "4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6",
+  [CHAIN.RIPPLE]: {
+    ACCOUNT: 'rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn',
+    HOT_WALLET: 'rB56JZWRKvpWNeyqM3QYfZwW4fS9YEyPWM',
+  },
 };
 
 const MANAGEMENT_FEES: number = 0.003;
 const DAILY_MANAGEMENT_FEES: number = MANAGEMENT_FEES / 365;
 
 const fetch = async (
-  vault: string,
+  config: any,
   { chain, api, getLogs, createBalances }: FetchOptions
 ): Promise<FetchResultV2> => {
   const dailyFees = createBalances();
 
-  let [logs, totalUSDC] = await Promise.all([
-    getLogs({ target: vault, eventAbi }),
-    api.call({ target: vault, abi: "uint256:totalAssets" }),
-  ]);
-
-  if (chain === CHAIN.ETHEREUM) {
-    
-    const balanceOnSol = await getTokenSupply(SOL_TBILL)
+  if (chain === CHAIN.RIPPLE) {
     const rippleCallRes = await rpcCall('gateway_balances', [
       {
-        account: RIPPLE_TBILL.ACCOUNT,
+        account: config.ACCOUNT,
         hotwallet: [
-          RIPPLE_TBILL.HOT_WALLET,
+          config.HOT_WALLET,
         ],
         ledger_index: "validated",
         strict: true
       }
     ])
     const balanceOnRipple = rippleCallRes.result && rippleCallRes.result.obligations ? Number(rippleCallRes.result.obligations.TBL) : 0
-    
-    // because USDC has 6 decimals on eth
-    totalUSDC = Number(totalUSDC) + balanceOnSol * 1e6 + balanceOnRipple * 1e6
+    dailyFees.addUSDValue(balanceOnRipple * DAILY_MANAGEMENT_FEES)
+  } else if (chain === CHAIN.SOLANA) {
+    dailyFees.addUSDValue((await getTokenSupply(config)) * DAILY_MANAGEMENT_FEES)
+  } else {
+    let [logs, totalUSDC] = await Promise.all([
+      getLogs({ target: config, eventAbi }),
+      api.call({ target: config, abi: "uint256:totalAssets" }),
+    ]);
+  
+    dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES);
+  
+    logs.forEach((log) => {
+      const feeAmount = log[4];
+      dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount);
+    });
   }
-
-  dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES);
-
-  logs.forEach((log) => {
-    const feeAmount = log[4];
-    dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount);
-  });
 
   return { dailyFees };
 };
@@ -78,13 +75,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
-        fetch(VAULT_ADDRESSES[CHAIN.ETHEREUM], options),
+        fetch(CHAIN_CONFIGS[CHAIN.ETHEREUM], options),
       start: '2023-10-18',
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) =>
-        fetch(VAULT_ADDRESSES[CHAIN.ARBITRUM], options),
+        fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
       start: '2024-02-13',
+    },
+    [CHAIN.RIPPLE]: {
+      fetch: (options: FetchOptions) =>
+        fetch(CHAIN_CONFIGS[CHAIN.RIPPLE], options),
+      runAtCurrTime: true,
+    },
+    [CHAIN.SOLANA]: {
+      fetch: (options: FetchOptions) =>
+        fetch(CHAIN_CONFIGS[CHAIN.SOLANA], options),
+      runAtCurrTime: true,
     },
   },
 };
