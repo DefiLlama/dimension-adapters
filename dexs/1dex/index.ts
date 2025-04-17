@@ -15,8 +15,8 @@ const graph = (chain: string) => {
     );
     let volume = 0;
     if (chain === CHAIN.EOS) {
-      const reponse: IVolume = (await fetchURL(endpoint))?.data;
-      volume = reponse?.volume_usd ? Number(reponse.volume_usd) : 0;
+      const response: IVolume = (await fetchURL(endpoint))?.data;
+      volume = response?.volume_usd ? Number(response.volume_usd) : 0;
     }
     return {
       dailyVolume: volume,
