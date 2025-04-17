@@ -14,7 +14,7 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
     }
     const spotTotalFees = Number(exchangeInfo.totalFee);
     const dailyRevenue = (spotFees * 0.2) + Number(rfqStats.feesUsd);
-    const totalRevenue = spotTotalFees * 0.2;
+    const totalRevenue = (spotTotalFees * 0.2) + Number(rfqStats.feesUsd);
     const dailyFees = spotFees + Number(rfqStats.feesUsd);
     const totalFees = Number(spotTotalFees) + Number(exchangeInfo.rfqTotalFee);
     return {
