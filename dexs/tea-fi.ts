@@ -48,6 +48,7 @@ const fetch: any = async (options: FetchOptions) => {
     chain: options.chain,
     fromTimestamp: options.fromTimestamp,
     toTimestamp: options.toTimestamp,
+    noTarget: true
   });
 
   const reducedLogs: Record<string, any> = groupLogsByTransactionHash(logs);
