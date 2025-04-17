@@ -12,11 +12,11 @@ const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
     for (const pool of pools) {
         spotFees += Number(pool.day.fee);
     }
-    const spotTotalFees = exchangeInfo.totalFee;
-    const dailyRevenue = (spotFees * 0.2) + rfqStats.feesUsd;
+    const spotTotalFees = Number(exchangeInfo.totalFee);
+    const dailyRevenue = (spotFees * 0.2) + Number(rfqStats.feesUsd);
     const totalRevenue = spotTotalFees * 0.2;
-    const dailyFees = spotFees + rfqStats.feesUsd
-    const totalFees = spotTotalFees + exchangeInfo.rfqTotalFee;
+    const dailyFees = spotFees + Number(rfqStats.feesUsd);
+    const totalFees = Number(spotTotalFees) + Number(exchangeInfo.rfqTotalFee);
     return {
         dailyFees,
         totalFees,
