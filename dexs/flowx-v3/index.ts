@@ -1,42 +1,18 @@
-import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { GraphQLClient } from "graphql-request"
+import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { CHAIN } from "../../helpers/chains"
 
-const getDailyVolume = (startTime: number, endTime: number) => {
-  return gql`
-    {
-      getClmmVolume(endTime: ${endTime}, startTime: ${startTime})
-      getClmmOverviewPoolMetrics24h {
-        feeUSD
-        txCount
-        volumeUSD
-      }
-    }
-  `;
-};
+const getDailyVolume = (startTime: number, endTime: number) => `{
+  getClmmVolume(endTime: ${endTime}, startTime: ${startTime})
+}`
 
-const graphQLClient = new GraphQLClient(
-  "https://api.flowx.finance/flowx-be/graphql"
-);
 
-const getGQLClient = () => {
-  return graphQLClient;
-};
+const fetch = async ({ fromTimestamp, toTimestamp, }: FetchOptions) => {
+  const graphQLClient = new GraphQLClient("https://api.flowx.finance/flowx-be/graphql")
+  const statsRes = await graphQLClient.request(getDailyVolume((fromTimestamp) * 1000, toTimestamp * 1000))
 
-const fetch = async ({
-  fromTimestamp,
-  toTimestamp,
-}: {
-  fromTimestamp: number;
-  toTimestamp: number;
-}) => {
-  const statsRes = await getGQLClient().request(
-    getDailyVolume(fromTimestamp * 1000, toTimestamp * 1000)
-  );
-
-  return { dailyVolume: statsRes.getClmmVolume };
-};
+  return { dailyVolume: statsRes.getClmmVolume }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -46,6 +22,6 @@ const adapter: SimpleAdapter = {
       start: "2024-05-10",
     },
   },
-};
+}
 
-export default adapter;
+export default adapter
