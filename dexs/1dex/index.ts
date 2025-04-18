@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
-const endpoint = `https://1dex.com/api/v1/24h-trade-info`;
+const endpoint = `https:///api.1dex.com/24h-trade-info`;
 
 interface IVolume {
-  volume_usd: string;
+  volume_usdt: string;
 }
 const graph = (chain: string) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
@@ -16,7 +16,7 @@ const graph = (chain: string) => {
     let volume = 0;
     if (chain === CHAIN.EOS) {
       const response: IVolume = (await fetchURL(endpoint))?.data;
-      volume = response?.volume_usd ? Number(response.volume_usd) : 0;
+      volume = response?.volume_usdt ? Number(response.volume_usdt) : 0;
     }
     return {
       dailyVolume: volume,
