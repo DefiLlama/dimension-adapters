@@ -1,21 +1,26 @@
 import fetchURL from "../utils/fetchURL";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const thalaDappURL = "https://app.echelon.market";
-const feesQueryURL = `${thalaDappURL}/api/defillama/fees?timeframe=`;
 
 interface IVolumeall {
   value: number;
   timestamp: string;
 }
 
-const feesEndpoint = (endTimestamp: number, timeframe: string) =>
-  endTimestamp
-    ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
-    : feesQueryURL + timeframe;
+const chainNetworkMap: any = {
+  [CHAIN.APTOS]: "aptos_mainnet",
+  [CHAIN.MOVE]: "movement_mainnet",
+}
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
+  const feesQueryURL = `${thalaDappURL}/api/defillama/fees?netowrk=${chainNetworkMap[chain]}&timeframe=`;
+  const feesEndpoint = (endTimestamp: number, timeframe: string) =>
+    endTimestamp
+      ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
+      : feesQueryURL + timeframe;
+
   const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
@@ -38,6 +43,10 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
+      fetch,
+      start: '2023-04-03',
+    },
+    [CHAIN.MOVE]: {
       fetch,
       start: '2023-04-03',
     },
