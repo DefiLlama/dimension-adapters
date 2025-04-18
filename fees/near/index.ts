@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
-import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { queryAllium } from "../../helpers/allium";
 
 interface ChartData {
   date: string;
@@ -9,18 +9,22 @@ interface ChartData {
 
 const feesAPI = 'https://api.nearblocks.io/v1/charts';
 
-const fetch = async (_timestamp: number, __: any, { dateString }: FetchOptions) => {
+const fetch = async (_timestamp: number, __: any, options: FetchOptions) => {
+  const query = `
+    SELECT 
+        SUM(transaction_fee_raw) AS total_tx_fees
+    FROM ${options.chain}.raw.transactions
+    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+    AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
 
-  const feesData = await httpGet(feesAPI);
-
-  const fees = feesData.charts.find((chart: ChartData) =>
-    chart.date.split('T')[0] === dateString
-  )
-  if (!fees) throw new Error(`No data found for date: ${dateString}`)
+  const res = await queryAllium(query);
+  const dailyFees = options.createBalances();
+  dailyFees.addCGToken('near', res[0].total_tx_fees / 1e24)
 
   return {
-    dailyFees: fees.txn_fee_usd,
-    dailyRevenue: fees.txn_fee_usd,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
