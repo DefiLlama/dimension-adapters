@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const AUCTIONRESOLVED_EVENT_ABI = 'event AuctionResolved(bool indexed isMultiBidAuction, uint64 round, address indexed firstPriceBidder, address indexed firstPriceExpressLaneController, uint256 firstPriceAmount, uint256 price, uint64 roundStartTimestamp, uint64 roundEndTimestamp)'
@@ -26,8 +26,6 @@ const adapter: Adapter = {
       start: '2021-08-10',
     },
   },
-  isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN,
   version: 2
 }
 
