@@ -54,9 +54,7 @@ const graph = (chain: Chain) => {
     rawData.map((e: IVolume) => {
       dailyFees.add(e.tokenAddress, e.amount)
     })
-
-    dailyFees.resizeBy(0.0085)
-
+    
     return {
       dailyFees: dailyFees,
       dailyProtocolRevenue: dailyFees,
