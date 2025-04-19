@@ -22,7 +22,7 @@ const address: TAddress = {
 }
 
 const graph = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions): Promise<FetchResultFees> => {
+  return async ({ createBalances, getFromBlock, getToBlock, }: FetchOptions): Promise<FetchResultFees> => {
 
     const query = `
         select
@@ -61,7 +61,6 @@ const graph = (chain: Chain) => {
       dailyFees: dailyFees,
       dailyProtocolRevenue: dailyFees,
       dailyRevenue: dailyFees,
-      timestamp
     }
 
   }
