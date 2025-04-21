@@ -1,3 +1,4 @@
+import axios from "axios";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -33,7 +34,7 @@ const chains: Record<string, string> = {
     [CHAIN.MOONBEAM]: 'moonbeam',
     [CHAIN.FUSE]: 'fuse',
     [CHAIN.CELO]: 'celo',
-    [CHAIN.OKEXCHAIN]: 'oke-x-chain',
+    // [CHAIN.OKEXCHAIN]: 'oke-x-chain',
     [CHAIN.CRONOS]: 'cronos',
     [CHAIN.MODE]: 'mode',
     [CHAIN.MERLIN]: 'merlin',
@@ -93,10 +94,27 @@ const chains: Record<string, string> = {
     total_volume_in_usd: string;
     total_transaction_count: string;
   }
+
+  async function sleep(time: number) {
+    return new Promise((resolve) => setTimeout(resolve, time * 1000))
+  }
+  
+  async function fetchAndRetry(url: string): Promise<ApiResponse> {
+    do {
+      const response = await axios.get(url, {
+        validateStatus: (status: number) => status === 200 || status === 429
+      })
+      if (response.status === 200) {
+        return response.data as ApiResponse
+      } else {
+        await sleep(5)
+      }
+    } while(true)
+  }
   
   const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
     const response: ApiResponse = (
-      await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chain}`)
+      await fetchAndRetry(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chain}`)
     );
   
     return {
