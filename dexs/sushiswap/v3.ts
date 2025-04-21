@@ -89,14 +89,20 @@ const v3 = Object.keys(endpointsV3).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         const res = (await v3Graphs(chain as Chain)(options))
-        return {
+        const result = {
           totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,
           totalFees: res.totalFees,
           totalUserFees: res.totalUserFees,
           dailyFees: res.dailyFees,
           dailyUserFees: res.dailyUserFees0
-        }
+        };
+
+        Object.entries(result).forEach(([key, value]) => {
+          if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+        });
+
+        return result;
       },
       start: startTimeV3[chain],
       meta: {
