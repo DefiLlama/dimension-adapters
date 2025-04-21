@@ -15,7 +15,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyVolume = response.find(item => item.day.split(" ")[0].trim() === dateString)?.dailyvolumeusd
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp
   }
 }

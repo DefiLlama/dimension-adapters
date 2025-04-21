@@ -98,7 +98,7 @@ const fetch: any = async (options: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees * 0.8;
   return {
     dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
   };
 };

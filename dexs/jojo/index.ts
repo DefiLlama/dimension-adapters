@@ -51,8 +51,8 @@ const getVolume = async (options: FetchOptions) => {
 
     const totalVolume = historical.map(item => item.totalVolume).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue), 0);
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        totalVolume: totalVolume,
+        dailyVolume: dailyVolume,
         timestamp: dayTimestamp,
     };
 };

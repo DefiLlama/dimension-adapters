@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, FetchV2 } from "../../adapters/types";
 
 const adapters = univ2Adapter2({
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
@@ -20,4 +21,26 @@ adapters.adapter.sonic.start = '2024-12-17';
 adapters.adapter.optimism.start = '2024-01-24';
 adapters.adapter.arbitrum.start = '2024-01-24';
 adapters.adapter.fantom.start = '2023-25-12';
+
+// Store original fetch functions and create wrapper
+const chains = ['ethereum', 'base', 'sonic', 'optimism', 'arbitrum', 'fantom'] as const;
+const originalFetches = new Map(
+  chains.map(chain => [chain, adapters.adapter[chain].fetch])
+);
+
+const wrapFetchWithZeroTotal = (originalFetch: FetchV2) => {
+  return async (options: FetchOptions) => {
+    const res = await originalFetch(options);
+    return {
+      dailyVolume: res.dailyVolume,
+      totalVolume: 0
+    };
+  };
+};
+
+// Apply wrapper to all chains
+chains.forEach(chain => {
+  adapters.adapter[chain].fetch = wrapFetchWithZeroTotal(originalFetches.get(chain) as FetchV2);
+});
+
 export default adapters;

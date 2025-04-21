@@ -18,8 +18,8 @@ const fetch = async (_:number, _t: any, options: FetchOptions): Promise<FetchRes
   dailyRevenue.resizeBy(0.5 / 100);
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyVolume: dailyVolume,
   };
 };

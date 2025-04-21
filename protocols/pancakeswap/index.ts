@@ -1,113 +1,197 @@
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import BigNumber from "bignumber.js";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL, { httpGet } from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
+import { Balances } from "@defillama/sdk";
 
-const endpoints = {
-  [CHAIN.BSC]: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx'),
-  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
-  [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`
+enum DataSource {
+  GRAPH = 'graph',
+  LOGS = 'logs',
+  CUSTOM = 'custom'
+}
+
+interface BaseChainConfig {
+  start: number | string;
+  dataSource: DataSource;
+}
+
+interface GraphChainConfig extends BaseChainConfig {
+  dataSource: DataSource.GRAPH;
+  endpoint?: string;
+  requestHeaders?: any;
+}
+
+interface LogsChainConfig extends BaseChainConfig {
+  dataSource: DataSource.LOGS;
+  endpoint?: string;
+  factory: string;
+}
+
+interface CustomChainConfig extends BaseChainConfig {
+  dataSource: DataSource.CUSTOM;
+  totalVolume?: number;
+}
+
+type ChainConfig = GraphChainConfig | LogsChainConfig | CustomChainConfig;
+
+const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
+  v1: {
+    [CHAIN.BSC]: {
+      start: '2023-04-01',
+      dataSource: DataSource.CUSTOM,
+      totalVolume: 103394400000
+    }
+  },
+  v2: {
+    [CHAIN.BSC]: {
+      start: 1619136000,
+      dataSource: DataSource.GRAPH,
+      endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
+      requestHeaders: {
+        "origin": "https://pancakeswap.finance",
+      }
+    },
+    [CHAIN.ETHEREUM]: {
+      start: 1664236800,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      start: 1687910400,
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
+      factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
+    },
+    [CHAIN.ERA]: {
+      start: 1690156800,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
+    },
+    [CHAIN.ARBITRUM]: {
+      start: 1691452800,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+    },
+    [CHAIN.LINEA]: {
+      start: 1692835200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
+    },
+    [CHAIN.BASE]: {
+      start: 1693440000,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
+    },
+    [CHAIN.OP_BNB]: {
+      start: 1695081600,
+      dataSource: DataSource.LOGS,
+      // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`,
+      factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
+    },
+    [CHAIN.APTOS]: {
+      start: '2023-11-09',
+      dataSource: DataSource.CUSTOM
+    }
+  },
+  v3: {
+    [CHAIN.BSC]: {
+      start: 1680307200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
+    },
+    [CHAIN.ETHEREUM]: {
+      start: 1680307200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS')
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      start: 1686182400,
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
+      factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
+    },
+    [CHAIN.ERA]: {
+      start: 1690156800,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+    },
+    [CHAIN.ARBITRUM]: {
+      start: 1691452800,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve')
+    },
+    [CHAIN.LINEA]: {
+      start: 1692835200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
+    },
+    [CHAIN.BASE]: {
+      start: 1692576000,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp')
+    },
+    [CHAIN.OP_BNB]: {
+      start: 1693440000,
+      dataSource: DataSource.LOGS,
+      // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`,
+      factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
+    }
+  },
+  stableswap: {
+    [CHAIN.ETHEREUM]: {
+      start: 1705363200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj')
+    },
+    [CHAIN.BSC]: {
+      start: 1663718400,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz')
+    },
+    [CHAIN.ARBITRUM]: {
+      start: 1705363200,
+      dataSource: DataSource.GRAPH,
+      endpoint: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
+    }
+  }
 };
 
-const stablesSwapEndpoints = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz'),
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
-}
-
-const v3Endpoint = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m'),
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS'),
-  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp'),
-  [CHAIN.OP_BNB]: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`
-}
-
-const graphs = getGraphDimensions2({
-  graphUrls: endpoints,
-  graphRequestHeaders: {
-    [CHAIN.BSC]: {
-      "origin": "https://pancakeswap.finance",
-    },
-  },
-  totalVolume: {
-    factory: "pancakeFactories"
-  },
-  feesPercent: {
-    type: "volume",
+const FEE_CONFIG = {
+  V2_V3: {
+    type: "volume" as const,
     Fees: 0.25,
     ProtocolRevenue: 0.0225,
     HoldersRevenue: 0.0575,
     UserFees: 0.25,
     SupplySideRevenue: 0.17,
     Revenue: 0.08
+  },
+  STABLESWAP: {
+    type: "volume" as const,
+    Fees: 0.25,
+    ProtocolRevenue: 0.025,
+    HoldersRevenue: 0.1,
+    UserFees: 0.25,
+    SupplySideRevenue: 0.125,
+    Revenue: 0.0225
   }
-});
+}
 
-const graphsStableSwap = getGraphDimensions2({
-  graphUrls: stablesSwapEndpoints,
-  totalVolume: {
-    factory: "factories"
+const ABIS = {
+  V2: {
+    POOL_CREATE: 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
+    SWAP_EVENT: 'event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)'
   },
-  feesPercent: {
-    type: "volume",
-    Fees: 0.25, // 0.25% volume
-    ProtocolRevenue: 0.025, // 10% fees
-    HoldersRevenue: 0.1, // 40% fees
-    UserFees: 0.25, // 25% volume
-    SupplySideRevenue: 0.125, // 50% fees
-    Revenue: 0.0225 // 50% fees
+  V3: {
+    POOL_CREATE: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    SWAP_EVENT: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
   }
-});
-
-const v3Graph = getGraphDimensions2({
-  graphUrls: v3Endpoint,
-  totalVolume: {
-    factory: "factories",
-  },
-  totalFees: {
-    factory: "factories",
-  },
-});
-
-const startTimes = {
-  [CHAIN.ETHEREUM]: 1664236800,
-  [CHAIN.BSC]: 1619136000,
-  [CHAIN.POLYGON_ZKEVM]: 1687910400,
-  [CHAIN.ERA]: 1690156800,
-  [CHAIN.ARBITRUM]: 1691452800,
-  [CHAIN.LINEA]: 1692835200,
-  [CHAIN.BASE]: 1693440000,
-  [CHAIN.OP_BNB]: 1695081600
-} as IJSON<number>
-
-const stableTimes = {
-  [CHAIN.ETHEREUM]: 1705363200,
-  [CHAIN.BSC]: 1663718400,
-  [CHAIN.ARBITRUM]: 1705363200
-} as IJSON<number>
-
-const v3StartTimes = {
-  [CHAIN.BSC]: 1680307200,
-  [CHAIN.ETHEREUM]: 1680307200,
-  [CHAIN.POLYGON_ZKEVM]: 1686182400,
-  [CHAIN.ERA]: 1690156800,
-  [CHAIN.ARBITRUM]: 1691452800,
-  [CHAIN.LINEA]: 1692835200,
-  [CHAIN.BASE]: 1692576000,
-  [CHAIN.OP_BNB]: 1693440000
-} as IJSON<number>
+}
 
 const methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
@@ -117,6 +201,71 @@ const methodology = {
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user."
 }
+
+const stableSwapMethodology = {
+  UserFees: "User pays 0.25% fees on each swap.",
+  ProtocolRevenue: "Treasury receives 10% of the fees.",
+  SupplySideRevenue: "LPs receive 50% of the fees.",
+  HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
+  Revenue: "Revenue is 50% of the fees paid by users.",
+  Fees: "All fees comes from the user fees, which is 025% of each trade."
+}
+
+const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {
+  const result: IJSON<string> = {};
+  
+  Object.entries(PROTOCOL_CONFIG[version]).forEach(([chain, config]) => {
+    if (config.dataSource === DataSource.GRAPH && (config as GraphChainConfig).endpoint) {
+      result[chain] = (config as GraphChainConfig).endpoint!;
+    }
+  });
+  
+  return result;
+};
+
+const createHeadersMap = (version: keyof typeof PROTOCOL_CONFIG) => {
+  const result: IJSON<any> = {};
+  
+  Object.entries(PROTOCOL_CONFIG[version]).forEach(([chain, config]) => {
+    if (config.dataSource === DataSource.GRAPH && (config as GraphChainConfig).requestHeaders) {
+      result[chain] = (config as GraphChainConfig).requestHeaders;
+    }
+  });
+  
+  return result;
+};
+
+const v2Endpoints = createEndpointMap('v2');
+const v2Headers = createHeadersMap('v2');
+const v3Endpoints = createEndpointMap('v3');
+const stableswapEndpoints = createEndpointMap('stableswap');
+
+const graphs = getGraphDimensions2({
+  graphUrls: v2Endpoints,
+  graphRequestHeaders: v2Headers,
+  totalVolume: {
+    factory: "pancakeFactories"
+  },
+  feesPercent: FEE_CONFIG.V2_V3
+});
+
+const graphsStableSwap = getGraphDimensions2({
+  graphUrls: stableswapEndpoints,
+  totalVolume: {
+    factory: "factories"
+  },
+  feesPercent: FEE_CONFIG.STABLESWAP
+});
+
+const v3Graph = getGraphDimensions2({
+  graphUrls: v3Endpoints,
+  totalVolume: {
+    factory: "factories",
+  },
+  totalFees: {
+    factory: "factories",
+  },
+});
 
 interface ISwapEventData {
   type: string;
@@ -228,65 +377,117 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 }
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
+const calculateFees = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+  if (!dailyVolume) return {};
+  const dailyVolumeNumber = Number(dailyVolume) || 0;
+
+  return {
+    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue).toString() || "0",
+    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue).toString() || "0", 
+    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue).toString() || "0",
+    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees).toString() || "0",
+  };
+};
+
+const fetchV2 = async (options: FetchOptions) => {
+  const chainConfig = PROTOCOL_CONFIG.v2[options.chain];
+  
+  if (chainConfig.dataSource === DataSource.LOGS) {
+    const logConfig = chainConfig as LogsChainConfig;
+    const adapter = getUniV2LogAdapter({ 
+      factory: logConfig.factory, 
+      eventAbi: ABIS.V2.SWAP_EVENT, 
+      pairCreatedAbi: ABIS.V2.POOL_CREATE 
+    });
+    const v2stats = await adapter(options);
+    const usdDailyVolume = await v2stats.dailyVolume.toString();
+    return {
+      ...v2stats,
+      ...calculateFees(usdDailyVolume, FEE_CONFIG.V2_V3)
+    };
+  } else if (chainConfig.dataSource === DataSource.GRAPH) {
+    const v2stats = await graphs(options.chain)(options);
+    return v2stats;
+  } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
+    return fetchVolume(options);
+  }
+  throw new Error('Invalid data source');
+}
+
+const fetchV3 = async (options: FetchOptions) => {
+  const chainConfig = PROTOCOL_CONFIG.v3[options.chain];
+  
+  if (chainConfig.dataSource === DataSource.LOGS) {
+    const logConfig = chainConfig as LogsChainConfig;
+    const adapter = getUniV3LogAdapter({ 
+      factory: logConfig.factory, 
+      poolCreatedEvent: ABIS.V3.POOL_CREATE, 
+      swapEvent: ABIS.V3.SWAP_EVENT 
+    });
+    return await adapter(options);   
+  } else if (chainConfig.dataSource === DataSource.GRAPH) {
+    const v3stats = await v3Graph(options.chain)(options);
+    // Ethereum-specific adjustment
+    if (options.chain === CHAIN.ETHEREUM) {
+      v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
+    }
+    return v3stats;
+  }
+  throw new Error('Invalid data source');
+}
+
+const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
+  const versionConfig = PROTOCOL_CONFIG[version];
+  const chains = Object.keys(versionConfig);
+  
+  return chains.reduce((acc, chain) => {
+    const config = versionConfig[chain];
+    
+    if (version === 'v1' && chain === CHAIN.BSC) {
+      const customConfig = config as CustomChainConfig;
+      acc[chain] = {
+        fetch: async ({ startTimestamp }) => {
+          return {
+            totalVolume: customConfig.totalVolume,
+            timestamp: startTimestamp
+          }
+        },
+        start: config.start,
+      };
+    } else if (version === 'v2') {
+      acc[chain] = {
+        fetch: fetchV2,
+        start: config.start,
+        meta: { methodology }
+      };
+    } else if (version === 'v3') {
+      acc[chain] = {
+        fetch: fetchV3,
+        start: config.start
+      };
+    } else if (version === 'stableswap') {
+      acc[chain] = {
+        fetch: graphsStableSwap(chain),
+        start: config.start,
+        meta: { methodology: stableSwapMethodology }
+      };
+    }
+    
+    return acc;
+  }, {} as BaseAdapter);
+};
+
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {
       [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      [CHAIN.BSC]: {
-        fetch: async ({ startTimestamp }) => {
-          const totalVolume = 103394400000;
-          return {
-            totalVolume: `${totalVolume}`,
-            timestamp: startTimestamp
-          }
-        },
-        start: '2023-04-01',
-      }
+      ...createAdapter('v1')
     },
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain),
-        start: startTimes[chain],
-        meta: {
-          methodology
-        }
-      }
-      return acc
-    }, {} as BaseAdapter),
-    v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: async (options: FetchOptions) => {
-          const v3stats = await v3Graph(chain)(options)
-          if (chain === CHAIN.ETHEREUM) v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString()
-          return v3stats
-        },
-        start: v3StartTimes[chain],
-      }
-      return acc
-    }, {} as BaseAdapter),
-    stableswap: Object.keys(stablesSwapEndpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphsStableSwap(chain),
-        start: stableTimes[chain],
-        meta: {
-          methodology: {
-            UserFees: "User pays 0.25% fees on each swap.",
-            ProtocolRevenue: "Treasury receives 10% of the fees.",
-            SupplySideRevenue: "LPs receive 50% of the fees.",
-            HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-            Revenue: "Revenue is 50% of the fees paid by users.",
-            Fees: "All fees comes from the user fees, which is 025% of each trade."
-          }
-        }
-      }
-      return acc
-    }, {} as BaseAdapter),
+    v2: createAdapter('v2'),
+    v3: createAdapter('v3'),
+    stableswap: createAdapter('stableswap')
   },
 };
-adapter.breakdown.v2[CHAIN.APTOS] = {
-  fetch: fetchVolume,
-  start: '2023-11-09',
-}
 
 export default adapter;

@@ -26,8 +26,8 @@ const fetchVolume = (poolType: 'basic' | 'precision') => {
         const totalVolume = Number(response[index].volume.usd.total);
 
         return {
-            dailyVolume: `${dailyVolume}`,
-            totalVolume: `${totalVolume}`,
+            dailyVolume: dailyVolume,
+            totalVolume: totalVolume,
             timestamp
         };
     };

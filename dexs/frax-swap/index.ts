@@ -19,7 +19,7 @@ const chains: TChains = {
   [CHAIN.ETHEREUM]: 'Ethereum',
   [CHAIN.FANTOM]: 'Fantom',
   [CHAIN.HARMONY]: 'Harmony',
-  [CHAIN.MOONBEAN]: 'Moonbeam',
+  [CHAIN.MOONBEAM]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
   [CHAIN.FRAXTAL]: 'Fraxtal',
@@ -45,8 +45,8 @@ const graphs = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }

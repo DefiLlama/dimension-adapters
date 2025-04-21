@@ -8,7 +8,7 @@ import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
+  [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
 }
 
 
@@ -42,8 +42,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.MOONBEAN]: {
-        fetch: graphs(endpoints)(CHAIN.MOONBEAN),
+    [CHAIN.MOONBEAM]: {
+        fetch: graphs(endpoints)(CHAIN.MOONBEAM),
         start: '2022-06-25',
     },
   }

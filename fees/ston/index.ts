@@ -54,7 +54,6 @@ const fetchFees = async (options: FetchOptions) => {
         total_protocol_fees += operation.protocol_fee_amount * price;
         referral_fees += (operation.referral_fee_amount || 0) * price;
       } else {
-        // console.log("Fee asset not found", operation.fee_asset_address)
         continue;
       }
     }

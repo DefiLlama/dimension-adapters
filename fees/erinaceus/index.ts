@@ -63,8 +63,8 @@ const fetch = (chain: Chain) => {
     const dailyRevenue = dailyFees - dailyGasUsd;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyFees,
+      dailyRevenue,
     }
 
   }

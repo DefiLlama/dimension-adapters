@@ -25,7 +25,7 @@ const adapter: SimpleAdapter= {
 
                 return {
                     dailyUserFees: dailyFees,
-                    dailyFees:  dailyFees,
+                    dailyFees,
                     dailyRevenue: `${dailyFees * 0.3}`,
                     dailyHoldersRevenue: `${dailyFees * 0.3}`,
                     timestamp: timestamp,

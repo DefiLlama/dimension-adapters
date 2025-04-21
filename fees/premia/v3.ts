@@ -41,7 +41,7 @@ interface IGraphResponse {
 async function getFeeRevenueData(
   url: string,
   timestamp: number
-): Promise<FetchResultFees & { totalHoldersRevenue: string }> {
+): Promise<FetchResultFees> {
   const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const fromTimestamp = startOfDay - (60 * 60 * 24);
   const dailyId = Math.floor(startOfDay / 86400);
@@ -84,18 +84,18 @@ async function getFeeRevenueData(
 
   return {
     timestamp: timestamp,
-    dailyFees: dailyFees.toString(),
-    dailyUserFees: dailyFees.toString(),
-    dailyRevenue: ((dailyFees) * .5).toString(),
-    dailyProtocolRevenue: (dailyProtocolFees * 0.1).toString(),
-    dailyHoldersRevenue: (dailyProtocolFees * 0.4).toString(),
-    // dailySupplySideRevenue: (dailyMakerRebates).toString(),
-    totalFees: totalFees.toString(),
-    totalUserFees: totalFees.toString(),
-    totalRevenue: (totalFees * .5).toString(),
-    totalProtocolRevenue: (totalProtocolFees * 0.2).toString(),
-    totalHoldersRevenue: (totalProtocolFees * 0.4).toString(),
-    // totalSupplySideRevenue: (totalMakerRebates).toString(),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: ((dailyFees) * .5),
+    dailyProtocolRevenue: (dailyProtocolFees * 0.1),
+    dailyHoldersRevenue: (dailyProtocolFees * 0.4),
+    // dailySupplySideRevenue: (dailyMakerRebates),
+    totalFees,
+    totalUserFees: totalFees,
+    totalRevenue: (totalFees * .5),
+    totalProtocolRevenue: (totalProtocolFees * 0.2),
+    totalHoldersRevenue: (totalProtocolFees * 0.4),
+    // totalSupplySideRevenue: (totalMakerRebates),
   };
 }
 

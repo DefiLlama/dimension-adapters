@@ -13,8 +13,8 @@ const CARBON_METADATA: {
   ],
   methodology: {
     Volume:
-      "Volume is calculated as the sum of the targetAmount tokens from TokensTraded events emitted by the CarbonController contract.",
-    Fees: "Fees are calculated as the sum of the tradingFeeAmount amount for the sourceToken if tradeByTarget is true or the targetToken if tradeByTarget is false, taken from TokensTraded events emitted by the CarbonController contract.",
+      "Volume data is sourced from the CarbonDeFi Analytics API, which aggregates volumeUsd metrics from all swaps on the protocol.",
+    Fees: "Fee data is sourced from the CarbonDeFi Analytics API, which aggregates feesUsd metrics from all trading fees collected by the protocol.",
   },
 };
 
@@ -37,28 +37,20 @@ const chainInfo: { [key: string]: any } = {
   },
 };
 
-const getData = async (options: FetchOptions) => {
+const getData = async (_a: any, _b: any, options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
-  const startTimestamp = options.fromTimestamp;
-  const endTimestamp = options.toTimestamp;
   const chainStartTimestamp = chainInfo[options.chain].startTimestamp;
 
-  try {
-    return getDimensionsSum(
-      analyticsEndpoint,
-      startTimestamp,
-      endTimestamp,
-      chainStartTimestamp
-    );
-  } catch (e) {
-    console.error(e);
-    // Return empty values
-    return getEmptyData(options);
-  }
+  return getDimensionsSum(
+    analyticsEndpoint,
+    options.fromTimestamp,
+    options.toTimestamp,
+    chainStartTimestamp
+  )
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: getData,

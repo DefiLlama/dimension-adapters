@@ -1,6 +1,7 @@
 import { IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const v3Endpoint = {
   [CHAIN.BASE]:
@@ -29,7 +30,7 @@ const v3Graph = getGraphDimensions2({
   },
 });
 
-const v3StartTimes = {
+export const v3StartTimes = {
   [CHAIN.BASE]: 1691712000,
   [CHAIN.OPTIMISM]: 1705993200,
   [CHAIN.ARBITRUM]: 1707885300,
@@ -49,10 +50,9 @@ const adapter: SimpleAdapter = {
       fetch: v3Graph(CHAIN.OPTIMISM),
       start: v3StartTimes[CHAIN.OPTIMISM]
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: v3Graph(CHAIN.ARBITRUM),
-      start: v3StartTimes[CHAIN.ARBITRUM]
-    },
+    [CHAIN.ARBITRUM]: { fetch : getUniV3LogAdapter({
+      factory: '0xaedc38bd52b0380b2af4980948925734fd54fbf4',
+    })},
     [CHAIN.BLAST]: {
       fetch: v3Graph(CHAIN.BLAST),
       start: v3StartTimes[CHAIN.BLAST]

@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpointsBeamex: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 

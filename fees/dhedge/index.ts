@@ -139,7 +139,7 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const dailyDaoFees = calculateDaoFees(dailyManagerFeesEvents);
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };

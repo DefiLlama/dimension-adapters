@@ -106,10 +106,10 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const totalFees = await getCumulativeFees(timestamp);
   const totalRev = await getCumulativeRevenue(timestamp);
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    totalRevenue: `${totalRev}`,
-    totalFees: `${totalFees}`,
+    dailyFees,
+    dailyRevenue,
+    totalRevenue: totalRev,
+    totalFees,
     timestamp,
   };
 };

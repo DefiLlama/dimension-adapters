@@ -1,7 +1,7 @@
 import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 type TChain = {
   [key: string]: number;
@@ -23,8 +23,9 @@ const fetch = async (_a, _b, options: FetchOptions) => {
   };
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2025-03-11',
   adapter: Object.keys(CHAINS).reduce((acc, chain) => {
     return {
       ...acc,

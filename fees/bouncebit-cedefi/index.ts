@@ -24,7 +24,7 @@ const fetchBounceBitCedefiStats = async (timestamp: any) => {
 
   return {
     timestamp,
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees * 0.3
   };
 };

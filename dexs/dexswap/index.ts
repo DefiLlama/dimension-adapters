@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
 		}`
 	)
 	const totalVolume = dataFactory.dexSwapFactories[0].totalVolumeETH;
-	let totalFees = new BigNumber(0);
+	let totalFees = 0;
 	let date = startDate;
 	let skip = 0;
 	while (true) {
@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
 			skip += 1000;
 		}
 		dataFees.dexSwapFees.forEach((data) => {
-			totalFees = totalFees.plus(data.volume);
+			totalFees += data.volume/1e18 
 		})
 		if (dataFees.dexSwapFees.length < 1000) break;
 	}
@@ -54,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
 	return {
 		...dailyData,
 		totalVolume,
-		totalFees: totalFees.div(10 ** 18).toString(),
+		totalFees,
 	}
 }
 

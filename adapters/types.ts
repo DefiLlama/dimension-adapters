@@ -38,6 +38,7 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  dateString: string,
 }
 
 export type FetchGetLogsOptions = {
@@ -54,6 +55,8 @@ export type FetchGetLogsOptions = {
   skipCacheRead?: boolean,
   skipIndexer?: boolean,
   topics?: string[],
+  noTarget?: boolean,
+  parseLog?: boolean,
 }
 
 export type Fetch = (
@@ -140,6 +143,7 @@ export type FetchResultFees = FetchResultBase & {
   totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
+  totalHoldersRevenue?: FetchResponseValue;
 };
 
 // INCENTIVES

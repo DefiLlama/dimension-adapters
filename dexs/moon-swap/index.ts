@@ -23,8 +23,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => Number(dayItem.date) === dayTimestamp)?.dailyVolumeUSD
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

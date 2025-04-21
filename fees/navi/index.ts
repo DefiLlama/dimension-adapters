@@ -5,7 +5,7 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const naviApiURL = 'https://open-api.naviprotocol.io/api/navi/fee';
+const naviApiURL = 'https://open-api.naviprotocol.io/api/internal/defillama/fee';
 
 interface DailyStats {
     fromTimestamp: number,
@@ -36,9 +36,9 @@ const fetchNAVIStats = async ({ startTimestamp }: any) => {
         (stats.flashLoanRevenue || 0);
 
     return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyRevenue,
+        dailyRevenue,
         dailyProtocolRevenue: dailyRevenue
     };
 };

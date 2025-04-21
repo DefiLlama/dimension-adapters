@@ -54,7 +54,13 @@ interface WhirlpoolWithNumberMetrics extends Omit<Whirlpool, 'rewardsUsdc24h' | 
     feesUsdc24h: number;
 }
 interface StatsApiResponse {
-    data: Whirlpool[]
+    data: Whirlpool[];
+    meta: {
+        cursor: {
+            previous: string;
+            next: string;
+        }
+    }
 }
 
 function convertWhirlpoolMetricsToNumbers(whirlpool: Whirlpool): WhirlpoolWithNumberMetrics {
@@ -84,9 +90,20 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
 }
 
 async function fetch(timestamp: number, url: string) {
-    const [whirlpools]: [StatsApiResponse] = await Promise.all([httpGet(url)]);
+    let allWhirlpools: Whirlpool[] = [];
+    let nextCursor: string | null = null;
+    let page = 0;
 
-    const validPools = whirlpools.data.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);
+    do {
+        page++;
+        const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
+        const response: StatsApiResponse = await httpGet(currentUrl);
+        allWhirlpools = allWhirlpools.concat(response.data);
+        nextCursor = response.meta?.cursor?.next || null;
+    } while (nextCursor);
+    const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
+    const validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
+    console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
 
     const dailyVolume = validPools.reduce(
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
@@ -100,14 +117,17 @@ async function fetch(timestamp: number, url: string) {
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = validPools.reduce(
+    const dailyRevenue = allPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
     return {
         dailyVolume,
         dailyFees,
-        dailyRevenue,
+        dailyUserFees: dailyFees, // All fees paid by users
+        dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
+        dailyProtocolRevenue: dailyRevenue, // Revenue going to protocol treasury
+        dailyRevenue, // Total protocol revenue (same as protocol revenue in this case)
         timestamp: timestamp
     }
 }

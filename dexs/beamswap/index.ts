@@ -5,7 +5,7 @@ import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2",
 };
 
@@ -28,7 +28,7 @@ const graphs = getGraphDimensions2({
 
 const v1graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.MOONBEAN]:
+    [CHAIN.MOONBEAM]:
       "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm",
   },
   totalVolume: {
@@ -68,11 +68,11 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     classic: {
-      [CHAIN.MOONBEAN]: {
-        fetch: graphs(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: graphs(CHAIN.MOONBEAM),
         start: getStartTimestamp({
           endpoints,
-          chain: CHAIN.MOONBEAN,
+          chain: CHAIN.MOONBEAM,
           dailyDataField: "uniswapDayDatas",
           dateField: "date",
           volumeField: "dailyVolumeUSD",
@@ -85,10 +85,10 @@ const adapter: BreakdownAdapter = {
       },
     },
     "stable-amm": {
-      [CHAIN.MOONBEAN]: {
-        fetch: v1graphs(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: v1graphs(CHAIN.MOONBEAM),
         start: '2022-07-04',
-        customBackfill: customBackfill(CHAIN.MOONBEAN, v1graphs),
+        customBackfill: customBackfill(CHAIN.MOONBEAM, v1graphs),
         meta: {
           methodology: {
             ...methodologyStable,
