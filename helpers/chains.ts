@@ -234,6 +234,7 @@ export enum CHAIN {
   HASHKEY = "hsk",
   NOBLE = "noble",
   ELYS = "elys",
+  BITKUB = "bitkub"
 }
 
 // Don´t use
