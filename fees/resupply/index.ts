@@ -6,13 +6,14 @@ const registry = "0x10101010E0C3171D894B71B3400668aF311e7D94"
 const abi = {
   addInterest: "event AddInterest(uint256 interestEarned, uint256 rate)",
   redeemed: "event Redeemed(address indexed _caller, uint256 _amount, uint256 _collateralFreed, uint256 _protocolFee, uint256 _debtReduction)",
-  splits: "function splits() external view returns (tuple(uint80 insurance, uint80 treasury, uint80 platform))"
+  splits: "function splits() external view returns (tuple(uint80 insurance, uint80 treasury, uint80 platform))",
+  getAddress: "function getAddress(string key) external view returns (address)"
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const pairContracts = await options.api.call({ abi: 'address[]:getAllPairAddresses', target: registry })
-  const feeDepositController = await options.api.call({ target: registry, abi: 'address:getAddress', params: ['FEE_DEPOSIT_CONTROLLER'] })
+  const feeDepositController = await options.api.call({ target: registry, abi: abi.getAddress, params: ['FEE_DEPOSIT_CONTROLLER'] })
   const splits = await options.api.call({ target: feeDepositController, abi: abi.splits })
 
   const addInterestLogs = (await options.getLogs({ targets: pairContracts as any, eventAbi: abi.addInterest, }))
