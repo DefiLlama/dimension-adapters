@@ -112,7 +112,7 @@ const classic = Object.keys(endpointsClassic).reduce(
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
           const values = (await call(chain)(options));
-          return {
+          const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
             dailyUserFees: values?.dailyUserFees || 0,
@@ -120,7 +120,13 @@ const classic = Object.keys(endpointsClassic).reduce(
             dailySupplySideRevenue: values?.dailySupplySideRevenue || 0,
             dailyHoldersRevenue: values?.dailyHoldersRevenue || 0,
             dailyRevenue: values?.dailyRevenue || 0,
-          }
+          };
+
+          Object.entries(result).forEach(([key, value]) => {
+            if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+          });
+
+          return result;
         } catch {
           return {
             dailyVolume: 0,
@@ -163,8 +169,10 @@ const fantomGraphs =  getChainVolumeWithGasToken2({
 classic[CHAIN.FANTOM] = {
   fetch: async (options: FetchOptions) =>   {
     const values = await fantomGraphs(CHAIN.FANTOM)(options);
-    const vol = Number(values.dailyVolume)
-    return {
+    const vol = Number(values.dailyVolume);
+    if (vol < 0) throw new Error(`Volume cannot be negative. Current value: ${vol}`);
+    
+    const result = {
       ...values,
       dailyFees: vol * 0.003,
       dailyUserFees: vol * 0.003,
@@ -172,7 +180,13 @@ classic[CHAIN.FANTOM] = {
       dailySupplySideRevenue: vol * 0.0025,
       dailyHoldersRevenue: 0,
       dailyRevenue: vol * 0.003,
-    }
+    };
+
+    Object.entries(result).forEach(([key, value]) => {
+      if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+    });
+
+    return result;
   },
 }
 

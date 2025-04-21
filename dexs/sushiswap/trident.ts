@@ -51,14 +51,20 @@ const trident = Object.keys(endpointsTrident).reduce(
           number: endBlock,
         });
 
-        return {
+        const result = {
           totalVolume: afterRes.factory.volumeUSD,
           totalFees: afterRes.factory.feesUSD,
           totalUserFees: afterRes.factory.feesUSD,
           dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
           dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
           dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
-        }
+        };
+
+        Object.entries(result).forEach(([key, value]) => {
+          if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+        });
+
+        return result;
       } catch {
         return {
           dailyVolume: 0,
