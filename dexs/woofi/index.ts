@@ -20,6 +20,7 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('EHcBkzfegM51XJmxb26DcB6RmvhNTaoY692aiNHC9Bm5'),
   [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
+  [CHAIN.BERACHAIN]: sdk.graph.modifyEndpoint('FGF5X13mGLYu2GN7pK4LYuMeS95WENHAgPDP8JDCJyTy'),
 };
 
 type TStartTime = {
@@ -38,6 +39,7 @@ const startTime: TStartTime = {
   [CHAIN.BASE]: 1692057600,
   [CHAIN.MANTLE]: 1706659200,
   [CHAIN.SONIC]: 1734480000,
+  [CHAIN.BERACHAIN]: 1742256000,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
