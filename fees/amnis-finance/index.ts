@@ -37,17 +37,17 @@ const fetch = async (timestamp: number) => {
 
     return {
         timestamp,
-        dailyUserFees: dailyUserFees.toString(),
-        totalUserFees: totalUserFees.toString(),
-        totalFees: totalFees.toString(),
-        dailyFees: dailyFees.toString(),
-        totalRevenue: totalUserFees.toString(),
-        dailyRevenue: dailyUserFees.toString(),
-        dailyProtocolRevenue: dailyUserFees.toString(),
-        totalProtocolRevenue: totalUserFees.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-        totalSupplySideRevenue: totalSupplySideRevenue.toString(),
-        dailyHoldersRevenue: '0',
+        dailyUserFees: dailyUserFees,
+        totalUserFees: totalUserFees,
+        totalFees: totalFees,
+        dailyFees: dailyFees,
+        totalRevenue: totalUserFees,
+        dailyRevenue: dailyUserFees,
+        dailyProtocolRevenue: dailyUserFees,
+        totalProtocolRevenue: totalUserFees,
+        dailySupplySideRevenue: dailySupplySideRevenue,
+        totalSupplySideRevenue: totalSupplySideRevenue,
+        dailyHoldersRevenue: 0,
       };
 }
 
