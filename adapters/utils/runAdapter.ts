@@ -3,6 +3,7 @@ import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOpti
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
+import { getDateString } from '../../helpers/utils';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -109,15 +110,15 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
+      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached
-    await randomDelay()
+    // await randomDelay()
 
     let fromBlock, toBlock
     // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
@@ -151,6 +152,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       endTimestamp,
       getStartBlock,
       getEndBlock,
+      dateString: getDateString(startOfDay),
     }
   }
 

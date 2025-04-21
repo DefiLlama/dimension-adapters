@@ -5,10 +5,10 @@ import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 
 const v2Endpoints: { [s: string]: string } = {
-  [CHAIN.INK]: "https://graph-node.internal.reservoir.tools/subgraphs/name/ink/v2-subgraph",
-  [CHAIN.ZERO]: "https://graph-node.internal.reservoir.tools/subgraphs/name/zero/v2-subgraph",
-  [CHAIN.SHAPE]: "https://graph-node.internal.reservoir.tools/subgraphs/name/shape/v2-subgraph",
-  [CHAIN.ABSTRACT]: "https://graph-node.internal.reservoir.tools/subgraphs/name/abstract/v2-subgraph",
+  [CHAIN.INK]: "https://graph-node.reservoir.tools/subgraphs/name/ink/v2-subgraph",
+  [CHAIN.ZERO]: "https://graph-node.reservoir.tools/subgraphs/name/zero/v2-subgraph",
+  [CHAIN.SHAPE]: "https://graph-node.reservoir.tools/subgraphs/name/shape/v2-subgraph",
+  [CHAIN.ABSTRACT]: "https://graph-node.reservoir.tools/subgraphs/name/abstract/v2-subgraph",
 }
 
 const v2Graph = getGraphDimensions2({

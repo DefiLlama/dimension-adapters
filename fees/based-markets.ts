@@ -104,6 +104,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume,
       start: '2023-08-06'
     }
-  }
+  },
+  deadFrom: '2025-02-01',
 }
 export default adapter;

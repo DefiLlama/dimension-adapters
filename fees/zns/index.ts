@@ -27,7 +27,8 @@ const addresses: TAddress = {
   [CHAIN.ABSTRACT]: '0xe0971a2b6e34bd060866081ae879630e83c4a0bd',
   [CHAIN.PLUME]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
   [CHAIN.BERACHAIN]: '0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5',
-  [CHAIN.UNICHAIN]:'0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D'
+  [CHAIN.UNICHAIN]:'0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
+  [CHAIN.HEMI]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D'
 };
 
 const methodology = {
@@ -36,32 +37,8 @@ const methodology = {
 };
 
 const ABI = {
-  priceToRegister: {
-    "inputs": [
-        {
-            "internalType": "uint16",
-            "name": "len",
-            "type": "uint16"
-        }
-    ],
-    "name": "priceToRegister",
-    "outputs": [
-        {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  priceToRenew: {
-    inputs: [{ internalType: "uint16", name: "len", type: "uint16" }],
-    name: "priceToRenew",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
+  "priceToRegister": "function priceToRegister(uint16 len) view returns (uint256)",
+  "priceToRenew": "function priceToRenew(uint16 len) view returns (uint256)"
 }
 
 const fetchLogsAndCalculateFees = async (
@@ -237,6 +214,13 @@ const adapter: Adapter = {
       }
     },
     [CHAIN.UNICHAIN]: {
+      fetch: fetchLogsAndCalculateFees,
+      start: '2024-06-24',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.HEMI]: {
       fetch: fetchLogsAndCalculateFees,
       start: '2024-06-24',
       meta: {

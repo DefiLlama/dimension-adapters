@@ -42,7 +42,7 @@ const evm = async (options: FetchOptions) => {
     }
 
     return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
     }
 }

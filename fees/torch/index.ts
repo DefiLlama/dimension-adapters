@@ -3,15 +3,15 @@ import { CHAIN } from '../../helpers/chains'
 import fetchURL, { postURL } from '../../utils/fetchURL'
 
 const fetchFees = async (): Promise<FetchResultV2> => {
-  const dailyFeesResult = await fetchURL(
+  const res = await fetchURL(
     'https://api.torch.finance/stats/daily-fees',
   )
 
   return {
-    dailyFees: dailyFeesResult.dailyUserFees,
-    dailyUserFees: dailyFeesResult.dailyUserFees,
-    dailyRevenue: dailyFeesResult.dailyRevenue,
-    dailySupplySideRevenue: dailyFeesResult.dailySupplySideRevenue
+    dailyFees: res.dailyUserFees,
+    dailyUserFees: res.dailyUserFees,
+    dailyRevenue: res.dailyRevenue,
+    dailySupplySideRevenue: res.dailySupplySideRevenue
   }
 }
 

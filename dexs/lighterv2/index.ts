@@ -40,7 +40,7 @@ const fetchV2 = async (timestamp: number) => {
     .reduce((acc, { volume0, close }) => acc + (volume0) * close, 0)
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     totalVolume: result ? `${result.totalVolume}` : undefined,
     timestamp: dayTimestamp,
   };

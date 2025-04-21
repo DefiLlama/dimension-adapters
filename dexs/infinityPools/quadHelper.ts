@@ -68,9 +68,7 @@ function toInt256(hexStr: string): bigint {
   
     // Normalized number
     const mantissa = BigInt(`0b1${mantissaStr}`); // Implicit leading 1
-    // console.log(`Mantissa: ${mantissa}`);
     const unbiasedExponent = BigInt(exponent - EXPONENT_BIAS);
-    // console.log(`Unbiased Exponent: ${unbiasedExponent}`);
   
     let result: bigint;
   

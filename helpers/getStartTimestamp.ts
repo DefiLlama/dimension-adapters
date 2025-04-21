@@ -16,6 +16,10 @@ interface IGetStartTimestamp {
   first?: number
 }
 
+const startCache: {
+  [key: string]: any
+} = {};
+
 const getStartTimestamp =
   ({
     endpoints,
@@ -26,6 +30,9 @@ const getStartTimestamp =
     first = 1000,
   }: IGetStartTimestamp) =>
     async () => {
+      let key = `${chain}-${endpoints[chain]}-${dailyDataField}-${volumeField}-${dateField}`;
+      if (startCache[key]) return startCache[key];
+
       const query = gql`
         {
             ${dailyDataField}(first: ${first}) {
@@ -40,6 +47,9 @@ const getStartTimestamp =
       const days = result?.[dailyDataField];
 
       const firstValidDay = days?.find((data: any) => data[volumeField] !== "0");
+
+      if (firstValidDay)
+        startCache[key] = firstValidDay[dateField];
 
       return firstValidDay?.[dateField];
     };

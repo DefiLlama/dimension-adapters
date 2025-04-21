@@ -7,7 +7,7 @@ const URL = "https://gateway.velar.network/watcherapp/pool";
 
 const fetch = async (): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp();
-  const { message }: any = await fetchURL(`${URL}`);
+  const { message }: any = await fetchURL(URL);
   let dailyVolume = 0
   let dailyFees = 0
   message.forEach((pool: any) => {

@@ -175,7 +175,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(EETH, totalStakeFees * BigInt(10));
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyRev,
   };
 };

@@ -23,6 +23,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    if (chain === CHAIN.KCC && timestamp > 1714867200) return {} // last tx date is 2024-05-05
     const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
 
     const totalVolume = historicalVolume
@@ -32,8 +33,8 @@ const graphs = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }

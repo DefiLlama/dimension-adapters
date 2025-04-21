@@ -140,6 +140,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
   const logs = await getLogs({
     targets: tokens,
     flatten: false,
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter as any],
   })
@@ -260,6 +261,7 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
       fromAddressFilter as any,
       toAddressFilter as any
     ],
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     entireLog: true,
   })
@@ -416,6 +418,8 @@ export async function getETHReceived({ options, balances, target, targets }: { o
   }
 
   target = target?.toLowerCase()
+
+  // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
     ethereum: 'ethereum',
     base: 'base',
@@ -423,12 +427,36 @@ export async function getETHReceived({ options, balances, target, targets }: { o
     scroll: 'scroll',
     bsc: 'bsc',
     arbitrum: 'arbitrum',
+    avax: 'avalanche',
     polygon: 'polygon',
     blast: 'blast',
     celo: 'celo',
+    tron: 'tron',
+    unichain: 'unichain',
+    worldchain: 'worldchain',
+    zora: 'zora',
+    sonic: 'sonic',
+    soneium: 'soneium',
+    rsk: 'rootstock',
+    mode: 'mode',
+    near: 'near',
+    xdai: 'gnosis',
   }
   const tableMap: any = {
     bsc: 'bnb_token_transfers',
+    avax: 'avax_token_transfers',
+    tron: 'trx_token_transfers',
+    near: 'near_token_transfers',
+    polygon: 'matic_token_transfers',
+    berachain: 'native_token_transfers',
+    ink: 'native_token_transfers',
+    xdai: 'native_token_transfers',
+    polygon_zkevm: 'native_token_transfers',
+    unichain: 'native_token_transfers',
+    sonic: 'native_token_transfers',
+    soneium: 'native_token_transfers',
+    rsk: 'native_token_transfers',
+    mode: 'native_token_transfers',
   }
   const chainKey = chainMap[options.chain]
   if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)

@@ -223,12 +223,25 @@ const useSushiAPIPrice = (chain) => [
   CHAIN.MOONRIVER
 ].includes(chain)
 
+interface Log {
+  tokenIn: string;
+  amountIn: string;
+}
+
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
-  const logs = await Promise.all([
-    getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
-    getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }),
-    getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }),
-  ]).then(([rp4Logs, rp5Logs, rp6logs]) => [...rp4Logs, ...rp5Logs, ...rp6logs])
+  const logsPromises: Promise<Log[]>[] = []
+
+  if (RP4_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  }
+  if (RP5_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  }
+  if (RP6_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
+  }
+
+  const logs = (await Promise.all(logsPromises)).flat()
 
   if (useSushiAPIPrice(chain)) {
     const dailyVolume = createBalances()
@@ -253,8 +266,10 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       const token = tokens[log.tokenIn.toLowerCase()]
       if (token && log.tokenIn !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
         const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
+        if (_dailyVolume < 0) throw new Error(`Daily volume cannot be negative. Current value: ${_dailyVolume}`)
         dailyVolume.addUSDValue(_dailyVolume)
       } else {
+        if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
     })
@@ -264,6 +279,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     const dailyVolume = createBalances()
 
     logs.forEach((log) => {
+      if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
         dailyVolume.addGasToken(log.amountIn)
       else

@@ -1,9 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
-const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
+// const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
@@ -20,12 +20,15 @@ const requests: IRequest = {}
 export async function fetchURLWithRetry(url: string, options: FetchOptions) {
   const start = options.startOfDay;
   const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4117889", {
+  if (!requests[key]) {
+    // dune.com/queries/4117889/
+    const sql = getSqlFromFile('helpers/queries/drift-protocol.sql', {
       start: start,
-      end: start + 24 * 60 * 60,
-    })
-  return requests[key]
+      end: start + 24 * 60 * 60
+    });
+    requests[key] = await queryDuneSql(options, sql);
+  }
+  return requests[key];
 }
 
 async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {

@@ -54,8 +54,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: dailyFees ? dailyFees.toString() : undefined,
-        dailyUserFees: dailyUserFees ?  dailyUserFees.toString() : undefined,
+        dailyFees,
+        dailyUserFees: dailyUserFees,
       };
     };
   };

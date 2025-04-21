@@ -26,6 +26,7 @@ const endpoints = {
 const CHAIN_ID = {
   [CHAIN.AVAX]: 43114,
   [CHAIN.BASE]: 8453,
+  [CHAIN.BSC]: 56,
 };
 
 const fetch = (chain: Chain) => {
@@ -42,6 +43,7 @@ const fetch = (chain: Chain) => {
       chain_id: CHAIN_ID[chain],
       is_perp: false,
     });
+
     const marginTradeResData = marginTradeRes as IDailyFeeData;
 
     const perpRes = await httpPost(endpoints.dailyFees, {
@@ -135,11 +137,11 @@ const fetch = (chain: Chain) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees,
+      dailyFees,
       dailyRevenue: dailyProtocolRevenue + dailySupplySideRevenue,
       dailyProtocolRevenue: dailyProtocolRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
-      totalFees: totalFees,
+      totalFees,
       totalRevenue: totalProtocolRevenue + totalSupplySideRevenue,
       totalProtocolRevenue: totalProtocolRevenue,
       totalSupplySideRevenue: totalSupplySideRevenue,
@@ -151,11 +153,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: '2023-11-01',
+      start: "2023-11-01",
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: '2024-09-04',
+      start: "2024-09-04",
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC),
+      start: "2024-01-22",
     },
   },
   version: 1,

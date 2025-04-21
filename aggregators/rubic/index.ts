@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL";
 import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
+import axios from "axios";
 
 
 const chains: Record<string, string> = {
@@ -32,14 +33,35 @@ const chains: Record<string, string> = {
   [CHAIN.MOONBEAM]: 'moonbeam',
   [CHAIN.FUSE]: 'fuse',
   [CHAIN.CELO]: 'celo',
-  [CHAIN.OKEXCHAIN]: 'oke-x-chain',
+  // [CHAIN.OKEXCHAIN]: 'oke-x-chain',
   [CHAIN.CRONOS]: 'cronos',
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
   [CHAIN.CORE]: 'core',
   [CHAIN.TAIKO]: 'taiko',
   [CHAIN.ZKLINK]: 'zklink',
-  [CHAIN.BITLAYER]: 'bitlayer'
+  [CHAIN.BITLAYER]: 'bitlayer',
+  [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.TON]: 'ton',
+  [CHAIN.SUI]: 'sui',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.MORPH]: 'morph',
+  [CHAIN.FRAXTAL]: 'fraxtal',
+  [CHAIN.SONIC]: 'sonic',
+  [CHAIN.SONEIUM]: 'soneium',
+  [CHAIN.GRAVITY]: 'gravity',
+  [CHAIN.ROOTSTOCK]: 'rootstock',
+  [CHAIN.KROMA]: 'kroma',
+  [CHAIN.XLAYER]: 'xlayer',
+  [CHAIN.SEI]: 'sei',
+  [CHAIN.EON]: 'horizen-eon',
+  [CHAIN.BAHAMUT]: 'bahamut',
+  [CHAIN.KLAYTN]: 'klaytn',
+  // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
+  [CHAIN.VELAS]: 'velas',
+  [CHAIN.SYSCOIN]: 'syscoin',
+  [CHAIN.BOBA_BNB]: 'boba-bsc',
+  [CHAIN.FLARE]: 'flare'
 };
 
 interface ApiResponse {
@@ -49,9 +71,27 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
+async function sleep(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time * 1000))
+}
+
+async function fetchAndRetry(url: string): Promise<ApiResponse> {
+  do {
+    const response = await axios.get(url, {
+      validateStatus: (status: number) => status === 200 || status === 429
+    })
+    if (response.status === 200) {
+      return response.data as ApiResponse
+    } else {
+      await sleep(5)
+    }
+  } while(true)
+}
+
 const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
+  await sleep(2)
   const response: ApiResponse = (
-    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
+    await fetchAndRetry(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
   );
 
   return {

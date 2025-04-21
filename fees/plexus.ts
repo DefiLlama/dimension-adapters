@@ -35,6 +35,7 @@ const fetch = (chainId: number) => {
   };
 };
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-03-02',
   adapter: Object.keys(ChainId).reduce((acc, chain) => {
     return {
       ...acc,

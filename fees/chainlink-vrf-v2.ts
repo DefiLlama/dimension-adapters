@@ -92,8 +92,8 @@ const fetch = (chain: Chain, version: number) => {
     const dailyRevenue = dailyFees - dailyGasUsd;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+      dailyFees,
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
     }
 
   }

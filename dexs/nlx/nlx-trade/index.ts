@@ -58,7 +58,7 @@ const fetch = (chain: Chain) => {
       .reduce((a: number, b: number) => a + b, 0);
 
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
     }
   }
 }

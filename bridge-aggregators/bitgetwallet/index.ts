@@ -5,9 +5,9 @@ import { httpGet } from "../../utils/fetchURL";
 
 
 const CHAINS: Array<CHAIN> = [
-    CHAIN.ETHEREUM,
+    // CHAIN.ETHEREUM,
     CHAIN.POLYGON,
-    CHAIN.SOLANA,
+    // CHAIN.SOLANA,
     CHAIN.BSC,
     CHAIN.OPTIMISM,
     CHAIN.BASE,

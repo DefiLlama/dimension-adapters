@@ -27,6 +27,9 @@ const superchainConfig = {
   },
   [CHAIN.UNICHAIN]: {
     sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
+  },
+  [CHAIN.SWELLCHAIN]: {
+    sugar: '0xF179eD1FBbDC975C45AB35111E6Bf7430cCca14F',
   }
 }
 
@@ -149,7 +152,11 @@ const adapters: SimpleAdapter = {
     [CHAIN.UNICHAIN]: {
       fetch: fetch as any,
       start: '2025-03-04',
-    }
+    },
+    [CHAIN.SWELLCHAIN]: {
+      fetch: fetch as any,
+      start: '2025-02-25',
+    },
   }
 }
 export default adapters;

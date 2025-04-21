@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('85R1ZetugVABa7BiqKFqE2MewRuJ8b2SaLHffyTHDAht')
+  [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('85R1ZetugVABa7BiqKFqE2MewRuJ8b2SaLHffyTHDAht')
 }, {
   factoriesName: "factories",
   dayData: "algebraDayData",

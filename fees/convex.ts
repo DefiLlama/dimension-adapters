@@ -9,7 +9,7 @@ import BigNumber from "bignumber.js";
 
 const endpoints = {
     [ETHEREUM]:
-        sdk.graph.modifyEndpoint('2jMwDRmUtTRAw9w3nMuZZPQtC97Ro28nLdJFWnFQnJdz'),
+        sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
 };
 
 
@@ -73,13 +73,13 @@ const graph = (graphUrls: ChainEndpoints) => {
 
             return {
                 timestamp,
-                dailyFees: dailyFees.toString(),
-                dailyUserFees: dailyUserFees.toString(),
-                dailyHoldersRevenue: dailyHoldersRevenue.toString(),
-                dailyProtocolRevenue: dailyTreasuryRevenue.toString(),
-                dailySupplySideRevenue: dailySupplySideRev.toString(),
-                dailyBribesRevenue: dailyBribeRevenue.toString(),
-                dailyRevenue: dailyRevenue.toString(),
+                dailyFees,
+                dailyUserFees: dailyUserFees,
+                dailyHoldersRevenue: dailyHoldersRevenue,
+                dailyProtocolRevenue: dailyTreasuryRevenue,
+                dailySupplySideRevenue: dailySupplySideRev,
+                dailyBribesRevenue: dailyBribeRevenue,
+                dailyRevenue,
             };
         }
     }

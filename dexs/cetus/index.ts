@@ -36,8 +36,8 @@ const fetch = (chain: Chain) => {
       const dailyVolume =(await fetchURL(`https://api-sui.cetus.zone/v2/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
       return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        totalVolume: totalVolume,
+        dailyVolume: dailyVolume,
         timestamp: dayTimestamp,
       };
     }
@@ -47,8 +47,8 @@ const fetch = (chain: Chain) => {
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };
