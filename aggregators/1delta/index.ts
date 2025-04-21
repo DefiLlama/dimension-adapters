@@ -77,8 +77,9 @@ const createEVMVolumeFetcher = (chain: string) => {
       },
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`)
+    if (!response.ok || response.status !== 200) {
+      // throw new Error(`HTTP error! Status: ${response.status}`)
+      return {}
     }
 
     const volumeByAsset = await response.json()
