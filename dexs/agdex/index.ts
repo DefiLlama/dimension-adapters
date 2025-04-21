@@ -2,8 +2,7 @@ import { httpPost } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const url =
-  "https://endpoint.sentio.xyz/liuxigekacha/agdex/defillama?version=0&cache_policy.ttl_secs=0&cache_policy.refresh_ttl_secs=0&size=0";
+const url = "https://endpoint.sentio.xyz/solution3_sentio/agdex/defillama";
 const method = "POST";
 
 const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
@@ -11,12 +10,12 @@ const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
   const payload = {
     date: date.toISOString(),
   };
-  
+
   const data: any = await httpPost(url, JSON.stringify(payload), {
     method,
     headers: {
       "Content-Type": "application/json",
-      "api-key": "4ehWOKxIe1wwQ03igqpV6HENJ0PLhkEte",
+      "api-key": "B3bAPWbN2hEslb62aYkOlSXWzb9mYvnV9",
     },
   });
 
