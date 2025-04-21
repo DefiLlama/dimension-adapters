@@ -63,6 +63,7 @@ const adapter: SimpleAdapter = {
 	version: 2,
 	adapter: {
 		[CHAIN.FLOW]: {
+			start: 1735962077,
 			fetch,
 		},
 	},
