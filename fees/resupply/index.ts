@@ -177,12 +177,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   // Process redemption fees (don't apply splits - all to protocol revenue)
-  let totalRedemptionFees = 0n; // Use BigInt
   redeemedLogs.forEach((log) => {
-    // Ensure we handle BigInt values properly
+    // Redemption fees go directly to daily fees, no splitting needed
     dailyFees.add(reUSD, log._protocolFee);
-    // Convert to BigInt for accumulation
-    totalRedemptionFees += BigInt(log._protocolFee);
   });
 
   // Create revenue balances
@@ -208,7 +205,6 @@ const fetch = async (options: FetchOptions) => {
 
   // Add redemption fees to protocol revenue (100% to protocol)
   redeemedLogs.forEach((log) => {
-    // Use the protocolFee directly for each log entry rather than accumulated total
     dailyProtocolRevenue.add(reUSD, log._protocolFee);
     dailyRevenue.add(reUSD, log._protocolFee);
   });
