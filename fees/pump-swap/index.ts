@@ -12,7 +12,7 @@ interface IData {
     quoteMint: string;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `WITH
         decoded_pool AS (
             SELECT
@@ -132,7 +132,7 @@ const adapter: SimpleAdapter = {
             }
         }
     },
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true
 }
 

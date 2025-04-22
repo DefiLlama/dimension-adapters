@@ -13,7 +13,7 @@ const contracts = {
 } as any
 
 
-const evm = async (options: FetchOptions) => {
+const evm = async (_a: any, _b: any, options: FetchOptions) => {
     const pre = await options.fromApi.sumTokens({
         token: nullAddress,
         owners: contracts[options.chain]
@@ -48,7 +48,7 @@ const evm = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: Object.keys(contracts).reduce((all, chain) => ({
         ...all,
         [chain]: {

@@ -1,8 +1,6 @@
 import { Adapter, FetchV2, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-import { queryDuneSql } from "../helpers/dune";
-
 const FEE_PER_TRADE = 20;
 const REVENUE_PER_TRADE = 6;
 const RATIO = 1000;

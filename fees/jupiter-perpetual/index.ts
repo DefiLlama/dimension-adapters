@@ -2,7 +2,7 @@ import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
   // https://dune.com/queries/4751411
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
@@ -20,7 +20,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     derivatives: {
       [CHAIN.SOLANA]: {
