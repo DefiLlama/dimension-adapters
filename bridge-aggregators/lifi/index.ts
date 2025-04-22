@@ -101,16 +101,16 @@ const fetchFromAPI = async (chain: Chain, startTime: number, endTime: number): P
 
     const url = `https://li.quest/v2/analytics/transfers?${params}`;
     const response = await fetchURL(url) as LifiResponseV2;
-    
+
     if (!response?.data || !Array.isArray(response.data)) {
       break;
     }
 
     const transfers = response.data;
-    
+
     transfers.forEach((tx) => {
       if (
-        tx.status === 'DONE' && 
+        tx.status === 'DONE' &&
         tx.receiving.chainId !== Number(contract[chain]) // Ensure it's a cross-chain transfer
       ) {
         const value = parseFloat(tx.sending.amountUSD) || 0;
@@ -120,7 +120,7 @@ const fetchFromAPI = async (chain: Chain, startTime: number, endTime: number): P
     nextCursor = response.next;
     hasMore = response.hasNext;
   }
-  
+
   return totalValue;
 };
 
@@ -135,14 +135,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = options.createBalances();
   const data: any[] = await options.getLogs({
     target: contract[options.chain],
-    topic: '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1'
+    topic: '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1',
+    eventAbi: LifiBridgeEvent,
   });
-  data.forEach((e: any) => {
-    const data = e.data.replace('0x', '');
-    const sendingAssetId = data.slice(5 * 64, 6 * 64);
-    const contract_address = '0x' + sendingAssetId.slice(24, sendingAssetId.length);
-    const minAmount = Number('0x' + data.slice(7 * 64, 8 * 64));
-    dailyVolume.add(contract_address, minAmount);
+  data.forEach(({ bridgeData: { sendingAssetId, minAmount } }: any) => {
+    dailyVolume.add(sendingAssetId, minAmount);
   });
 
   return { dailyBridgeVolume: dailyVolume } as any;
