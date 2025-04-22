@@ -126,8 +126,6 @@ import { formatEther } from "ethers";
 const fetchVolume = async (options: FetchOptions): Promise<FetchResultVolume> => {
   let volume = BigInt(0)
 
-  console.log("options", options)
-
   const logs = await getLogs({
     chain: "bsc",
     target: "0x994B9a6c85E89c42Ea7cC14D42afdf2eA68b72F1",
