@@ -5,7 +5,8 @@ import * as path from 'path';
 const plimit = require('p-limit');
 const limit = plimit(1);
 
-const isRestrictedMode = getEnv('DUNE_RESTRICTED_MODE') === 'true'
+// const isRestrictedMode = getEnv('DUNE_RESTRICTED_MODE') === 'true'
+const isRestrictedMode = false
 const API_KEYS = getEnv('DUNE_API_KEYS')?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
 let API_KEY_INDEX = 0;
 
