@@ -65,7 +65,6 @@ async function getChainData(
   }
   `
   const  response :GqlResult = await request(url, query);
-  console.log(response)
   const dailyPremiumVolume = (Number(response.today[0]?.premiumsUSD || '0') - Number(response.yesterday[0]?.premiumsUSD || '0')) / 1e18
   const dailyNotionalVolume = (Number(response.today[0]?.volumeUSD || '0') - Number(response.yesterday[0]?.volumeUSD || '0')) / 1e18
   const totalPremiumVolume = (Number(response.today[0]?.premiumsUSD || '0')) / 1e18
