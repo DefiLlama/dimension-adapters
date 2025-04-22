@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const res = await queryDuneSql(options, `
     WITH created_contracts AS (
@@ -112,7 +112,7 @@ const fetchFees = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,

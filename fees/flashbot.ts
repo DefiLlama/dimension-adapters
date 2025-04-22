@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   
   // https://dune.com/queries/4742045
@@ -22,7 +22,7 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,

@@ -8,7 +8,7 @@ interface IData  {
   fee_usd: string;
 }
 
-const fethcFeesSolana = async (options: FetchOptions) => {
+const fethcFeesSolana = async (_a: any, _b: any, options: FetchOptions) => {
   // limit order fees
   const dailyFees = await getSolanaReceived({ options, targets: [
     'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
@@ -77,7 +77,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,

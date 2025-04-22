@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // https://dune.com/queries/4187430
   const data = await queryDuneSql(options, `
@@ -21,7 +21,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: any = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

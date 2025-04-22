@@ -22,7 +22,7 @@ interface IResponse {
   fees: number;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const response: IResponse[] = (await queryDuneSql(options, `
     SELECT
         SUM(relay_fee_in_usd) as fees
@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
