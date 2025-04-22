@@ -17,6 +17,20 @@ async function getChainData(options: FetchOptions): Promise<FetchResultV2> {
     dailyVolume.add(trading_token_name, Number(parsedJson.position_size));
   }
 
+  const events2 = await queryEvents({
+    eventType: "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::LiquidateEvent",
+    options,
+  });
+
+  for (const curr of events2) {
+    const parsedJson = curr;
+    if (parsedJson.u64_padding.length > 0) {
+      const position_size = parsedJson.u64_padding[0];
+      const trading_token_name = "0x" + parsedJson.base_token.name;
+      dailyVolume.add(trading_token_name, Number(position_size));
+    }
+  }
+
   return {
     dailyVolume,
   };
