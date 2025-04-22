@@ -7,7 +7,7 @@ interface IData {
     daily_volume_sol: number;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
         WITH
         launchlab_trades AS (
@@ -75,7 +75,7 @@ const adapter: SimpleAdapter = {
             start: '2025-04-15'
         }
     },
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true
 }
 

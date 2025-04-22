@@ -1,8 +1,8 @@
-import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, Fetch, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
-const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
+const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   const dailyFees = option.createBalances();
   const dailyRevenue = option.createBalances();
   const dailyMaticXFees = option.createBalances();
@@ -45,7 +45,7 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   };
 };
 
-const fetch: FetchV2 = async (option: FetchOptions) => {
+const fetch: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   const dailyFees = option.createBalances();
 
   const logs = await option.getLogs({
@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  version: 2,
+  version: 1,
 };
 
 export default adapter;
