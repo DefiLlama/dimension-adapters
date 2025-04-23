@@ -14,7 +14,7 @@ const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
       "event DistributeFees(address indexed _treasury, uint256 _feeAmount)",
   });
   logsFees.map((e) => {
-    dailyMaticXRev.addCGToken("matic-network", Number(e._feeAmount / 1e18));
+    dailyMaticXRev.addCGToken("matic-network", Number(e._feeAmount) / 1e18);
   });
 
   const logs = await option.getLogs({
@@ -23,7 +23,7 @@ const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
       "event StakeRewards(uint256 indexed _validatorId, uint256 _stakedAmount)",
   });
   logs.map((e) => {
-    dailyMaticXFees.addCGToken("matic-network", Number(e._stakedAmount / 1e18));
+    dailyMaticXFees.addCGToken("matic-network", Number(e._stakedAmount) / 1e18);
   });
   dailyMaticXFees.addBalances(dailyMaticXRev); // StakeRewards excludes stader revenue
 
