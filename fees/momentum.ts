@@ -46,10 +46,10 @@ const extractMetricDelta = (values?: { value: string }[]): number => {
   return end - begin;
 };
 
-const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_t: any, _b: any, { startOfDay, chain }: FetchOptions): Promise<FetchResultV2> => {
   const [feeRes, protocolFeeRes] = await Promise.all([
-    postURL(url[chain], buildQueryPayload('FeeUsdCounter', startTimestamp, endTimestamp), 3, options),
-    postURL(url[chain], buildQueryPayload('ProtocolFeeUsdCounter', startTimestamp, endTimestamp), 3, options),
+    postURL(url[chain], buildQueryPayload('FeeUsdCounter', startOfDay, startOfDay + 86400), 3, options),
+    postURL(url[chain], buildQueryPayload('ProtocolFeeUsdCounter', startOfDay, startOfDay + 86400), 3, options),
   ]);
   const feeValues = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values;
   const protocolFeeValues = protocolFeeRes?.results?.[0]?.matrix?.samples?.[0]?.values;
@@ -65,7 +65,7 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SUI]: {
       fetch,
