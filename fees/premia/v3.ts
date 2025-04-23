@@ -1,4 +1,4 @@
-import { FetchResultFees } from "../../adapters/types";
+import { FetchOptions, FetchResultFees } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import { ethers } from "ethers";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
@@ -40,22 +40,21 @@ interface IGraphResponse {
 
 async function getFeeRevenueData(
   url: string,
-  timestamp: number
+  timestamp: number,
+  options: FetchOptions
 ): Promise<FetchResultFees> {
-  const startOfDay = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const fromTimestamp = startOfDay - (60 * 60 * 24);
-  const dailyId = Math.floor(startOfDay / 86400);
-  const yesterdayId = Math.floor(fromTimestamp / 86400);
+  const toBlock = await options.getToBlock()
+  const fromBlock = await options.getFromBlock();
   const query = gql`
   {
 
-      today:factoryDayData(id: ${dailyId}) {
+      today:factories(first: 1, block:{number: ${toBlock}}) {
         premiumsUSD
         exercisePayoutsUSD
         feeRevenueUSD
         protocolFeeRevenueUSD
       }
-      yesterday:factoryDayData(id: ${yesterdayId}) {
+      yesterday:factories(first: 1, block:{number: ${fromBlock}}) {
         premiumsUSD
         exercisePayoutsUSD
         feeRevenueUSD
