@@ -95,14 +95,17 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const response = await request(subgraph(), query(), {
     date: dateString,
   })
-  const totalBalance = Number(response.CollateralCurrent.eligibleTreasuries)
-  const yieldRate = Number(response.CollateralCurrent.yieldToMaturity)
+  if (response.CollateralCurrent) {
+    const totalBalance = Number(response.CollateralCurrent.eligibleTreasuries)
+    const yieldRate = Number(response.CollateralCurrent.yieldToMaturity)
+  
+    const YEAR = 365 * 24 * 60 * 60
+    const timeframe = options.fromTimestamp && options.toTimestamp ? (options.toTimestamp - options.fromTimestamp) : 24 * 60 * 60
+    const totalYield = totalBalance * yieldRate * timeframe / YEAR
 
-  const YEAR = 365 * 24 * 60 * 60
-  const timeframe = options.fromTimestamp && options.toTimestamp ? (options.toTimestamp - options.fromTimestamp) : 24 * 60 * 60
-  const totalYield = totalBalance * yieldRate * timeframe / YEAR
-  dailyFees.add(TokenM, totalYield)
-  dailySupplySideRevenue.add(TokenM, totalYield)
+    dailyFees.add(TokenM, totalYield)
+    dailySupplySideRevenue.add(TokenM, totalYield)
+  }
 
   return {
     dailyFees,
@@ -116,7 +119,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: '2024-05-08',
+      start: '2024-06-02',
       meta: {
         methodology,
       }
