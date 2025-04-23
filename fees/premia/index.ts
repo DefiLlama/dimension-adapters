@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains"
-import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types"
+import { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../../adapters/types"
 
 import getV2Data from "./v2"
 import getV3Data from "./v3"
@@ -58,7 +58,7 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: async (ts: number) => await getV3Data(v3Endpoints[chain], ts),
+          fetch: async (ts: number, _t: any, options: FetchOptions) => await getV3Data(v3Endpoints[chain], ts, options),
           start: v3StartTimes[chain],
           meta: {
             methodology: {

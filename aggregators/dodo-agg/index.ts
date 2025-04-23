@@ -1,4 +1,5 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 // https://api.dodoex.io/dodo-contract/list
 const config: any = {
@@ -120,6 +121,12 @@ const abis = {
     "event OrderHistory (address fromToken, address toToken, address sender, uint256 fromAmount, uint256 returnAmount)",
 };
 
+const blackList = {
+  [CHAIN.BSC]: [
+    "0x9e24415d1e549ebc626a13a482bb117a2b43e9cf"
+  ]
+}
+
 const fetch = async (
   timestamp: number,
   _: ChainBlocks,
@@ -131,6 +138,7 @@ const fetch = async (
     eventAbi: abis.OrderHistory,
   });
   logs.forEach((log: any) => {
+    if (blackList[chain]?.includes(log.toToken.toLowerCase())) return;
     dailyVolume.add(log.toToken, log.returnAmount);
   });
   return { timestamp, dailyVolume };

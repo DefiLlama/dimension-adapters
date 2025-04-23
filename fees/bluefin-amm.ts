@@ -5,16 +5,18 @@ import { CHAIN } from "../helpers/chains";
 
 
 const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
-    const exchangeInfo= await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/info");
+    const exchangeInfo = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/info");
     const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
-    let dailyFees = 0;
+    const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
+    let spotFees = 0;
     for (const pool of pools) {
-        dailyFees += Number(pool.day.fee);
+        spotFees += Number(pool.day.fee);
     }
-    const totalFees=exchangeInfo.totalFee;
-    const dailyRevenue = dailyFees * 0.2;
-    const totalRevenue = totalFees * 0.2;
-
+    const spotTotalFees = Number(exchangeInfo.totalFee);
+    const dailyRevenue = (spotFees * 0.2) + Number(rfqStats.feesUsd);
+    const totalRevenue = (spotTotalFees * 0.2) + Number(rfqStats.feesUsd);
+    const dailyFees = spotFees + Number(rfqStats.feesUsd);
+    const totalFees = Number(spotTotalFees) + Number(exchangeInfo.rfqTotalFee);
     return {
         dailyFees,
         totalFees,

@@ -126,12 +126,14 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, f
     const totalAssets = await toApi.multiCall({
         calls: accumulatedFees.map((fees, i) => ({
             target: vaults[i],
-            params: [fees.toString()]
+            params: [Math.abs(Number(fees)).toString()]
         })),
         abi: eulerVaultABI.convertToAssets,
+        permitFailure: true
     });
 
     totalAssets.forEach((assets, i) => {
+        if (!assets) return
         dailyRevenue.add(underlyings[i], assets)
     })
     const dailySupplySideRevenue = dailyFees.clone()

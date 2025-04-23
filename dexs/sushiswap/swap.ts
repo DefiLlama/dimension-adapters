@@ -266,8 +266,10 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       const token = tokens[log.tokenIn.toLowerCase()]
       if (token && log.tokenIn !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
         const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
+        if (_dailyVolume < 0) throw new Error(`Daily volume cannot be negative. Current value: ${_dailyVolume}`)
         dailyVolume.addUSDValue(_dailyVolume)
       } else {
+        if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
     })
@@ -277,6 +279,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     const dailyVolume = createBalances()
 
     logs.forEach((log) => {
+      if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
         dailyVolume.addGasToken(log.amountIn)
       else

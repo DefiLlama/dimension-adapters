@@ -50,30 +50,25 @@ async function getChainData(
 ): Promise<FetchResult> {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const fromTimestamp = dayTimestamp - 60 * 60 * 24;
-  const dailyId = Math.floor(dayTimestamp / 86400);
-  const yesterdayId = Math.floor(fromTimestamp / 86400);
-  const block = (await getBlock(fromTimestamp,chain, {}))
+  const todayBlock = (await getBlock(dayTimestamp, chain, {}))
+  const yesterdayBlock = (await getBlock(fromTimestamp, chain, {}))
   const query = gql`
   {
-      today:factoryDayData(id: ${dailyId}) {
+      today: factories(first: 1, block:{number: ${todayBlock}}) {
         volumeUSD
         premiumsUSD
       }
-      yesterday:factoryDayData(id: ${yesterdayId}) {
-        volumeUSD
-        premiumsUSD
-      }
-      factories(block:{number: ${block}}) {
+      yesterday: factories(first: 1, block:{number: ${yesterdayBlock}}) {
         volumeUSD
         premiumsUSD
       }
   }
   `
   const  response :GqlResult = await request(url, query);
-  const dailyPremiumVolume = (Number(response.today?.premiumsUSD || '0') - Number(response.yesterday?.premiumsUSD || '0')) / 1e18
-  const dailyNotionalVolume = (Number(response.today?.volumeUSD || '0') - Number(response.yesterday?.volumeUSD || '0')) / 1e18
-  const totalPremiumVolume = (Number(response.factories[0]?.premiumsUSD || '0')) / 1e18
-  const totalNotionalVolume = (Number(response.factories[0]?.volumeUSD || '0')) / 1e18
+  const dailyPremiumVolume = (Number(response.today[0]?.premiumsUSD || '0') - Number(response.yesterday[0]?.premiumsUSD || '0')) / 1e18
+  const dailyNotionalVolume = (Number(response.today[0]?.volumeUSD || '0') - Number(response.yesterday[0]?.volumeUSD || '0')) / 1e18
+  const totalPremiumVolume = (Number(response.today[0]?.premiumsUSD || '0')) / 1e18
+  const totalNotionalVolume = (Number(response.today[0]?.volumeUSD || '0')) / 1e18
 
   return {
     timestamp,

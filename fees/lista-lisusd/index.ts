@@ -175,15 +175,11 @@ const fetch = async (options: FetchOptions) => {
 
   // validaator rewards - stake ListaDAOCredit
   const validatorRewards = await options.getLogs({
-    target: "0xC096e7781c95a2fc6fEb1efE776B570270B3965d",
-    topics: [
-      transferHash,
-      zeroAddress,
-      "0x0000000000000000000000007766a5ee8294343bf6c8dcf3aa4b6d856606703a",
-    ],
-    // target: "0xc096e7781c95a2fc6feb1efe776b570270b3965d",
-    // eventAbi:
-    //   "event Transfer(address indexed from, address indexed to, uint256 value)",
+    target: "0x0D92Ac7a4590874a493eB62b37D3Ea3390966B13",
+    // topics: [
+    //   "0x8119d5d4b103c44e50f575099834c726e011a0ffd633ba386e8e0a0d61c659c3" // SafeReceived event topic
+    // ],
+    eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
   });
 
   // LP staking rewards
@@ -261,8 +257,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, amount);
   });
   [...validatorRewards].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(bnb, amount);
+    dailyFees.add(bnb, Number(log.value));
   });
   [...lpStakingListaRewards].forEach((log) => {
     const amount = Number(log.data);
