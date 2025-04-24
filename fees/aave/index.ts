@@ -236,6 +236,8 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           + reserveFactorUSD;
       }, 0);
 
+      if (chain === POLYGON && dailyFee > 1e6) throw new Error(`Polygon V2 daily fee is too high: ${dailyFee}`)
+
       let dailyRev = todaysReserves.reduce((acc: number, reserve: V2Reserve) => {
         const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
 
