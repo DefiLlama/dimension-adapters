@@ -88,7 +88,8 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   ]);
   // console.log(feeRes);
 
-  const dailyFees = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values.at(-1).value;
+  // Already calculated the rollup delta, so use the first value (which counts from start to end)
+  const dailyFees = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values.at(0).value;
   // console.log(dailyFees);
 
   return {

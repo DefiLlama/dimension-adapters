@@ -124,11 +124,48 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
       dataSource: "METRICS",
       sourceName: "",
     },
+    {
+      metricsQuery: {
+        query: "AccumulatedPremiumUSD",
+        alias: "{{coin_symbol}}",
+        id: "e",
+        labelSelector: {},
+        aggregate: {
+          op: "SUM",
+          grouping: ["coin_symbol"],
+        },
+        functions: [
+          {
+            name: "rollup_delta",
+            arguments: [
+              {
+                durationValue: {
+                  value: 1,
+                  unit: "d",
+                },
+              },
+            ],
+          },
+        ],
+        color: "",
+        disabled: true,
+      },
+      dataSource: "METRICS",
+      sourceName: "",
+    },
   ],
   formulas: [
     {
-      expression: "sum((a+b+d)*c)",
+      expression: "sum(e)",
       alias: "Total Fee",
+      id: "A",
+      disabled: false,
+      functions: [],
+      color: "",
+    },
+    {
+      expression: "sum((a+b+d)*c)",
+      alias: "Total Revenue",
       id: "B",
       disabled: false,
       functions: [],
@@ -146,13 +183,27 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   ]);
   // console.log(feeRes);
 
-  const dailyFees = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values.at(-1).value;
+  // @ts-ignore
+  const fee_usd = feeRes?.results?.find((res) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
+  // console.log(fee_usd);
+
+  // @ts-ignore
+  const revenue_fee_usd = feeRes?.results?.find((res) => res.alias === "Total Revenue").matrix?.samples?.[0]
+    ?.values;
+  // console.log(revenue_fee_usd);
+
+  // Already calculated the rollup delta, so use the first value
+  const dailyFees = fee_usd.at(0).value;
   // console.log(dailyFees);
+
+  const dailyRevenue = revenue_fee_usd.at(0).value;
+  // console.log(dailyRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailyFees - dailyRevenue,
   };
 };
 
