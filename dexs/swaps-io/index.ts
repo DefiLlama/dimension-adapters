@@ -32,7 +32,7 @@ const getRequestBody = (chainId: number, fromTime: number | null = null, toTime:
 const chain_total_cache = {};
 
 async function fetchTotalVolumeCached(chainId: number) {
-  const cacheKey = JSON.stringify(getRequestBody(chainId));
+  const cacheKey = JSON.stringify(chainId);
 
   if (chain_total_cache[cacheKey]) {
     return chain_total_cache[cacheKey];
