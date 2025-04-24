@@ -66,11 +66,11 @@ const fetch = async (timestamp: number) => {
   return {
     timestamp: timestamp,
     dailyVolume: dailyVolume,
-    totalVolume: totalVolume,
+    // totalVolume: totalVolume,
     dailyFees,
-    totalFees,
+    // totalFees,
     dailyUserFees: dailyFees,
-    totalUserFees: totalFees,
+    // totalUserFees: totalFees,
   };
 };
 
