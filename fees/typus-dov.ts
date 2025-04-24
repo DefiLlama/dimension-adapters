@@ -181,23 +181,16 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   const [feeRes] = await Promise.all([
     postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
   ]);
-  // console.log(feeRes);
 
-  // @ts-ignore
-  const fee_usd = feeRes?.results?.find((res) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
-  // console.log(fee_usd);
+  const fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
 
-  // @ts-ignore
-  const revenue_fee_usd = feeRes?.results?.find((res) => res.alias === "Total Revenue").matrix?.samples?.[0]
+  const revenue_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Revenue").matrix?.samples?.[0]
     ?.values;
-  // console.log(revenue_fee_usd);
 
   // Already calculated the rollup delta, so use the first value
   const dailyFees = fee_usd.at(0).value;
-  // console.log(dailyFees);
 
   const dailyRevenue = revenue_fee_usd.at(0).value;
-  // console.log(dailyRevenue);
 
   return {
     dailyFees,

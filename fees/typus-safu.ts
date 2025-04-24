@@ -86,11 +86,9 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   const [feeRes] = await Promise.all([
     postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
   ]);
-  // console.log(feeRes);
 
   // Already calculated the rollup delta, so use the first value (which counts from start to end)
   const dailyFees = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values.at(0).value;
-  // console.log(dailyFees);
 
   return {
     dailyFees,

@@ -72,22 +72,15 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
   const [feeRes] = await Promise.all([
     postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
   ]);
-  // console.log(feeRes);
 
-  // @ts-ignore
-  const tlp_fee_usd = feeRes?.results?.find((res) => res.alias === "tlp_fee_usd").matrix?.samples?.[0]
+  const tlp_fee_usd = feeRes?.results?.find((res: any) => res.alias === "tlp_fee_usd").matrix?.samples?.[0]
     ?.values;
-  // console.log(tlp_fee_usd);
 
-  // @ts-ignore
-  const protocol_fee_usd = feeRes?.results?.find((res) => res.alias === "protocol_fee_usd").matrix
+  const protocol_fee_usd = feeRes?.results?.find((res: any) => res.alias === "protocol_fee_usd").matrix
     ?.samples?.[0]?.values;
-  // console.log(protocol_fee_usd);
 
   const tlpFees = tlp_fee_usd.at(-1).value - tlp_fee_usd.at(0).value;
   const protocolFees = protocol_fee_usd.at(-1).value - protocol_fee_usd.at(0).value;
-  // console.log(tlpFees);
-  // console.log(protocolFees);
 
   return {
     dailyFees: tlpFees + protocolFees,
