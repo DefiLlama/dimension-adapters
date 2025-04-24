@@ -22,6 +22,7 @@ type TAdapter = {
 
 const chains: TChains =  {
   [CHAIN.IOTEX]: 4689,
+  [CHAIN.HEMI]: 43111,
 };
 
 const fetch = (chain: Chain) => {
