@@ -35,7 +35,8 @@ const fetchFees = async (options: FetchOptions) => {
     fromBlock,
     toBlock,
     entireLog: true,
-    skipIndexer: true
+    skipIndexer: true,
+    noTarget: true,
   })
 
   const uniqueFees = new Map<string, { token: string, amount: bigint }>();
