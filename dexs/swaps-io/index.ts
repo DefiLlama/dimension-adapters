@@ -23,44 +23,55 @@ const getRequestBody = (chainId: number, fromTime: number | null = null, toTime:
   return {
     "get_from_volume": true,
     "states": ["confirmed","awaiting_confirm"],
-    "get_send_gas": true,
     "from_created_at": fromTime,
     "to_created_at": toTime,
-    "from_or_to_chains": [chainId]
+    "from_chains": [String(chainId)]
   }
 }
 
+const chain_total_cache = {};
+
+async function fetchTotalVolumeCached(chainId: number) {
+  const cacheKey = JSON.stringify(getRequestBody(chainId));
+
+  if (chain_total_cache[cacheKey]) {
+    return chain_total_cache[cacheKey];
+  }
+
+  const total_res = await fetch(BASE_URL + AGGERAGATE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(getRequestBody(chainId))
+  }).then((response) => response.json());
+
+  chain_total_cache[cacheKey] = total_res;
+
+  return total_res;
+}
+
+
 function get_fetch_for_network(chain: Chain) {
-  const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+  return async (options: FetchOptions): Promise<FetchResult> => {
     const chainId: number | undefined = SUPPORTED_CHAIN_MAPPING[chain] ?? options.api.chainId
     if (!chainId) throw new Error(`Chain ${chain} is not supported`)
 
-    const daily_res_raw = await fetch(BASE_URL + AGGERAGATE_ENDPOINT, {
+    const daily_res = await fetch(BASE_URL + AGGERAGATE_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(getRequestBody(chainId, options.fromTimestamp, options.toTimestamp))
-    })
+    }).then((response) => response.json());
 
-    const total_res_raw = await fetch(BASE_URL + AGGERAGATE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(getRequestBody(chainId))
-    })
+    const total_res = await fetchTotalVolumeCached(chainId)
 
-    const daily_res = daily_res_raw.json()
-    const total_res = total_res_raw.json()
-
-    const dailyVolume = daily_res["entries"][0]["get"]["get_from_volume"]
-    const totalVolume = total_res["entries"][0]["get"]["get_from_volume"]
+    const dailyVolume = Math.trunc(daily_res["entries"][0]["get"]["from_volume"] / 100)
+    const totalVolume = Math.trunc(total_res["entries"][0]["get"]["from_volume"] / 100)
 
     return { dailyVolume, totalVolume }
   }
-
-  return fetch
 }
 
 export default {
