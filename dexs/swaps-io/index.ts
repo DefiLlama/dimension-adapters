@@ -17,7 +17,7 @@ const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: number } = {
 
 const BASE_URL = 'https://explorer.prod.swaps.io'
 const AGGERAGATE_ENDPOINT = '/api/v0/aggregate'
-const SWAPS_IO_LAUNCH_TIME = 1704067200
+const SWAPS_IO_LAUNCH_TIME = '2024-01-01'
 
 const getRequestBody = (chainId: number, fromTime: number | null = null, toTime: number | null = null) => {
   return {
