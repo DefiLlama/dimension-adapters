@@ -12,12 +12,9 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: FeeCollectedEvent,
     });
     // 0x0000000000000000000000000000000000000000 is the gas token for all chains, we already handle it in the Balances
-    const uniqueIntegrators = new Set();
     data.forEach((log: any) => {
-        uniqueIntegrators.add(log._integrator);
         dailyFees.add(log._token, log._integratorFee);
     });
-    console.log(uniqueIntegrators);
     return { dailyFees, dailyRevenue: dailyFees } as any;
 };
 
