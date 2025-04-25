@@ -30,8 +30,8 @@ const fetch: any = async (options: FetchOptions) => {
                     aa.address = 'EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T'
                     AND aa.balance_change > 0
                     AND aa.tx_success = true
-                    AND aa.block_time >= from_unixtime(1745480285)
-                    AND aa.block_time <= from_unixtime(1745566686)
+                    AND aa.block_time >= from_unixtime(${options.startTimestamp})
+                    AND aa.block_time <= from_unixtime(${options.endTimestamp})
                 UNION ALL
                 SELECT
                     aa.balance_change / 1e9 AS daily_fees
@@ -42,16 +42,16 @@ const fetch: any = async (options: FetchOptions) => {
                     aa.address = 'EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T'
                     AND aa.balance_change > 0
                     AND aa.tx_success = true
-                    AND aa.block_time >= from_unixtime(1745480285)
-                    AND aa.block_time <= from_unixtime(1745566686)
+                    AND aa.block_time >= from_unixtime(${options.startTimestamp})
+                    AND aa.block_time <= from_unixtime(${options.endTimestamp})
                     AND u.call_tx_id not in (
                         select
                             call_tx_id
                         from
                             sanctum_unstake_solana.unstake_call_unstake
                         where
-                            call_block_time >= from_unixtime(1745480285)
-                            AND call_block_time <= from_unixtime(1745566686)
+                            call_block_time >= from_unixtime(${options.startTimestamp})
+                            AND call_block_time <= from_unixtime(${options.endTimestamp})
                     )
                 UNION ALL 
                 SELECT
@@ -65,8 +65,8 @@ const fetch: any = async (options: FetchOptions) => {
                         from
                             dune.sanctumso.result_stakedex_fee_accounts
                     )
-                    AND block_time >= from_unixtime(1745480285)
-                    AND block_time <= from_unixtime(1745566686)
+                    AND block_time >= from_unixtime(${options.startTimestamp})
+                    AND block_time <= from_unixtime(${options.endTimestamp})
                 )
             
         SELECT
