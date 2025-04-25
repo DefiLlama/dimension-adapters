@@ -17,6 +17,7 @@ function getUnixTimeNow() {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1,
   isTest = false,
+  prefetch = null,
 }: any = {}) {
 
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
@@ -28,6 +29,16 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
   }
   await Promise.all(chains.map(setChainValidStart))
+
+  // Run prefetch if provided
+  let preFetchedResults = null;
+  if (prefetch && typeof prefetch === 'function') {
+    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    if (firstChain) {
+      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      preFetchedResults = await prefetch(cleanCurrentDayTimestamp, options);
+    }
+  }
 
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
@@ -49,6 +60,10 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      if (preFetchedResults !== null) {
+        options.preFetchedResults = preFetchedResults;
+      }
+
       let result: any
       if (adapterVersion === 1) {
         result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
