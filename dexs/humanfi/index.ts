@@ -10,24 +10,12 @@ const abi = {
     "event SwapExecuted(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 feeAmount, address[] path, uint24[] fees)",
 };
 
-const fetch: FetchV2 = async ({
-  getLogs,
-  createBalances,
-  chain,
-  getFromBlock,
-  getToBlock,
-  fromApi,
-}: FetchOptions): Promise<FetchResultV2> => {
-  const dailyVolume = createBalances();
+export const fetchHumanFiData: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolume = options.createBalances();
 
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
-
-  const logs = await getLogs({
+  const logs = await options.getLogs({
     target: HUMAN_CONTRACT,
     eventAbi: abi.SwapExecuted,
-    fromBlock,
-    toBlock,
   });
 
   for (const log of logs) {
@@ -42,23 +30,26 @@ const fetch: FetchV2 = async ({
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
+};
+
+const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { dailyVolume } = await fetchHumanFiData(options)
+  return {
+    dailyVolume,
+  }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.WC]: {
-      fetch,
+      fetch: fetch,
       start: "2025-04-19",
       meta: {
         methodology: {
-          dailyVolume:
-            "Volume is calculated as the sum of all amountIn in SwapExecuted events",
-          dailyFees:
-            "Fees are computed based on the 1% (FEE_BPS) cut taken from the input amount.",
-          dailyRevenue: "Revenue is equal to the fees collected by the protocol.",
+          dailyVolume: "Volume is calculated as the sum of all amountIn in SwapExecuted events",
         },
       },
     },
