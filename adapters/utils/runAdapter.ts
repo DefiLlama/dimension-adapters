@@ -61,6 +61,10 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       const ignoreKeys = ['timestamp', 'block']
       // if (id)
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
+
+      const improbableValue = 2e11 // 200 billion
+      const fieldsWithNegativeValues = new Set(['dailyFees', 'totalFees', 'dailyRevenue', 'totalRevenue', 'dailyProtocolRevenue', 'totalProtocolRevenue',])
+
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
         if (value === undefined || value === null) { // dont store undefined or null values
@@ -70,7 +74,10 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) result[key] = await value.getUSDString()
         result[key] = +Number(result[key]).toFixed(0)
-        if (isNaN(result[key] as number)) throw new Error(`[${chain}]Value: ${value} ${key} is NaN`)
+
+        if (isNaN(result[key] as number)) throw new Error(`[${chain}-${key}]  Value: ${value} is NaN`)
+        if (result[key] < 0 && !fieldsWithNegativeValues.has(key)) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is negative`)
+        if (result[key] > improbableValue) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
       }
 
       const endTime = getUnixTimeNow()
