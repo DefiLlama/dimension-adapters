@@ -22,18 +22,8 @@ const RainBowRouter = {
   [CHAIN.GRAVITY]: rainbowRouter,
 }
 
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
-
-const CHAIN_MAP = {
-  'bnb': CHAIN.BSC,
-  'avalanche_c': CHAIN.AVAX
-}
-
 // Prefetch function that will run once before any fetch calls
-const prefetch = async (timestamp: number, options: FetchOptions) => {
+const prefetch = async (_a: any, options: FetchOptions) => {
   return await queryDuneSql(options, `
     SELECT 
         CASE 
@@ -85,7 +75,7 @@ const chainAdapter = { fetch, start: '2023-01-01', meta: { methodology } }
 
 const adapter: Adapter = {
   adapter: Object.fromEntries(Object.entries(RainBowRouter).map(
-    ([chain, router]) => [chain, chainAdapter]
+    ([chain]) => [chain, chainAdapter]
   )),
   prefetch: prefetch,
 }
