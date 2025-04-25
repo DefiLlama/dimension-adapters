@@ -31,7 +31,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   await Promise.all(chains.map(setChainValidStart))
 
   // Run prefetch if provided
-  let preFetchedResults = null;
+  let preFetchedResults: any = null;
   if (prefetch && typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
