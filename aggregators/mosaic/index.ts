@@ -2,17 +2,23 @@ import { FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
+const STATS_BASE_URL = "https://stats.mosaic.ag";
+
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dateString = formatDate(timestamp);
-  const data = await fetchURL(
-    `https://analytics.mosaic.ag/report/volume?fromDate=${dateString}&toDate=${dateString}`
+  const dateVolumeData = await fetchURL(
+    `${STATS_BASE_URL}/v1/public/volume?from_date=${dateString}&to_date=${dateString}`
   );
-  const volumeData = data.data;
+  const volumeData = dateVolumeData.data;
   if (!volumeData) throw new Error(`Fail to query volume report`);
 
+  const totalVolumeData = await fetchURL(
+    `${STATS_BASE_URL}/v1/public/all_time`
+  );
+
   return {
-    dailyVolume: volumeData.volumeByDate[0]?.volume,
-    totalVolume: volumeData.totalVolume,
+    dailyVolume: volumeData.data[0]?.volume,
+    totalVolume: totalVolumeData.data.data.volume,
     timestamp,
   };
 };
