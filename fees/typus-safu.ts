@@ -66,12 +66,49 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
       dataSource: "METRICS",
       sourceName: "",
     },
+    {
+      metricsQuery: {
+        query: "SafuAccumulatedRewardGeneratedUSD",
+        alias: "{{coin_symbol}}",
+        id: "f",
+        labelSelector: {},
+        aggregate: {
+          op: "SUM",
+          grouping: ["coin_symbol"],
+        },
+        functions: [
+          {
+            name: "rollup_delta",
+            arguments: [
+              {
+                durationValue: {
+                  value: 1,
+                  unit: "d",
+                },
+              },
+            ],
+          },
+        ],
+        color: "",
+        disabled: true,
+      },
+      dataSource: "METRICS",
+      sourceName: "",
+    },
   ],
   formulas: [
     {
       expression: "sum(e*c)",
-      alias: "Total Fee",
+      alias: "Protocol Fee",
       id: "B",
+      disabled: false,
+      functions: [],
+      color: "",
+    },
+    {
+      expression: "sum(f)",
+      alias: "User Fee",
+      id: "C",
       disabled: false,
       functions: [],
       color: "",
@@ -87,13 +124,21 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
     postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
   ]);
 
+  const user_usd = feeRes?.results?.find((res: any) => res.alias === "User Fee").matrix?.samples?.[0]?.values;
+
+  const protocol_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Protocol Fee").matrix
+    ?.samples?.[0]?.values;
+
   // Already calculated the rollup delta, so use the first value (which counts from start to end)
-  const dailyFees = feeRes?.results?.[0]?.matrix?.samples?.[0]?.values.at(0).value;
+  const userFees = user_usd.at(0).value;
+  const protocolFees = protocol_fee_usd.at(0).value;
 
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees: userFees + protocolFees,
+    dailyRevenue: userFees + protocolFees,
+    dailyProtocolRevenue: protocolFees,
+    dailyUserFees: userFees,
+    dailySupplySideRevenue: userFees,
   };
 };
 
