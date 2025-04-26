@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
 
-
 const FeeCollectedEvent = "event FeesCollected(address indexed _token, address indexed _integrator, uint256 _integratorFee, uint256 _lifiFee)"
 
 const fetch = async (options: FetchOptions) => {

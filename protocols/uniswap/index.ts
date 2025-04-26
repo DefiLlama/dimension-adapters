@@ -7,6 +7,7 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { httpPost } from '../../utils/fetchURL';
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ESnjgAG9NjfmHypk4Huu4PVvz55fUwpyrRqHF21thoLJ'),
@@ -68,7 +69,7 @@ const v3Endpoints = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
+  // [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
 };
 
 // fees results are in eth, needs to be converted to a balances objects
@@ -247,17 +248,7 @@ const adapter: BreakdownAdapter = {
         },
       },
       [CHAIN.UNICHAIN]: {
-        fetch: async (options: FetchOptions) => {
-          const response = await v2Graph(options.chain)(options);
-          response.totalVolume =
-            Number(response.dailyVolume) + 1079453198606.2229;
-          response.totalFees = Number(response.totalVolume) * 0.003;
-          response.totalUserFees = Number(response.totalVolume) * 0.003;
-          response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
-          return {
-            ...response,
-          }
-        },
+        fetch: getUniV2LogAdapter({factory: "0x1F98400000000000000000000000000000000002"}),
         meta: {
           methodology
         },
@@ -340,6 +331,13 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.XDAI) return "gnosis"
   if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
   return chain
+}
+
+adapter.breakdown.v3[CHAIN.UNICHAIN] = {
+  fetch: getUniV3LogAdapter({factory: "0x1F98400000000000000000000000000000000003"}),
+  meta: {
+    methodology
+  }
 }
 
 const okuChains = [
