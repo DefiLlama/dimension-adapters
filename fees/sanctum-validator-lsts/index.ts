@@ -14,60 +14,63 @@ const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
-    with daily_fees as (SELECT 
-    sum(lamports/1e9) as daily_fees
-FROM solana.rewards rew
-JOIN dune.sanctumso.result_sanctum_stake_pools_validator_stake_accounts vsa
-    ON vsa.stake_account = rew.recipient
-WHERE block_time >= from_unixtime(${options.startTimestamp})
-AND block_time <= from_unixtime(${options.endTimestamp})
-AND reward_type = 'Staking'), 
-daily_revenue as (
-SELECT
-    sum(token_balance_change) as daily_revenue
-FROM
-    solana.account_activity aa
-INNER JOIN solana.instruction_calls ic ON aa.tx_id = ic.tx_id
-WHERE
- aa.block_time >= from_unixtime(${options.startTimestamp})
-    AND aa.block_time <= from_unixtime(${options.endTimestamp})
-    AND ic.executing_account IN (
-        'SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY',
-        'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn'
+    with daily_fees as (
+      SELECT 
+          COALESCE(sum(rew.lamports/1e9), 0) as daily_fees
+      FROM solana.rewards rew
+      JOIN dune.sanctumso.result_sanctum_stake_pools_validator_stake_accounts vsa
+          ON vsa.stake_account = rew.recipient
+      WHERE rew.block_time >= from_unixtime(${options.startTimestamp})
+        AND rew.block_time <= from_unixtime(${options.endTimestamp})
+        AND rew.reward_type = 'Staking'
+    ),
+    daily_revenue as (
+      SELECT
+          COALESCE(sum(aa.token_balance_change), 0) as daily_revenue
+      FROM
+          solana.account_activity aa
+      INNER JOIN solana.instruction_calls ic ON aa.tx_id = ic.tx_id
+      WHERE
+          aa.block_time >= from_unixtime(${options.startTimestamp})
+          AND aa.block_time <= from_unixtime(${options.endTimestamp})
+          AND ic.executing_account IN (
+              'SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY',
+              'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn'
+          )
+          AND ic.tx_success = true
+          AND bytearray_substring(ic.data, 1, 1) in (
+              0x0a, -- 11 withdraw stake
+              0x10, -- 17 withdraw sol
+              0x18, -- 25 withdrawstakewithslippage
+              0x1A, -- 27 withdrawsolwithslippage
+              0x07 -- 8 updatestakepoolbalance
+          )
+          AND ic.tx_signer != 'GFHMc9BegxJXLdHJrABxNVoPRdnmVxXiNeoUCEpgXVHw'
+          AND aa.address in (
+              SELECT
+                  fee_account
+              FROM
+                  dune.sanctumso.result_sanctum_lsts_manager_fee_accounts
+          )
     )
-    AND ic.tx_success = true
-    and bytearray_substring (data, 1, 1) in (
-        0x0a, -- 11 withdraw stake
-        0x10, -- 17 withdraw sol
-        0x18, -- 25 withdrawstakewithslippage
-        0x1A, -- 27 withdrawsolwithslippage
-        0x07 -- 8 updatestakepoolbalance
-    )
-and ic.tx_signer != 'GFHMc9BegxJXLdHJrABxNVoPRdnmVxXiNeoUCEpgXVHw'
-AND aa.address in (
-    select
-        fee_account
-    from
-        dune.sanctumso.result_sanctum_lsts_manager_fee_accounts
-)
-)
-
-select cast(df.daily_fees as BIGINT) as daily_fees, cast(daily_revenue as BIGINT) as daily_revenue from daily_revenue cross join daily_fees as df
-
-`
+    SELECT 
+        CAST(df.daily_fees AS DOUBLE) AS daily_fees, 
+        CAST(dr.daily_revenue AS DOUBLE) AS daily_revenue 
+    FROM daily_fees df, daily_revenue dr
+    `
   );
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  dailyFees.addCGToken("solana", fees[0].daily_fees);
+  dailyFees.addCGToken("solana", Number(fees[0].daily_fees) + Number(fees[0].daily_revenue));
   dailyRevenue.addCGToken("solana", fees[0].daily_revenue);
 
   return { dailyFees, dailyRevenue: dailyRevenue };
 };
 
 const methodology = {
-  Fees: "Staking rewards of all Sanctum LSTs",
-  Revenue: "Epoch fees and withdrawal fees from Sanctum LSTs",
+  Fees: "Staking rewards of all Sanctum LSTs + Epoch and withdrawals fees",
+  Revenue: "Epoch fees and withdrawals fees from Sanctum LSTs",
 };
 
 const adapter: SimpleAdapter = {
