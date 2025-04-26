@@ -21,8 +21,9 @@ const contract: IContract = {
   [CHAIN.LINEA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.MANTLE]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.SCROLL]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
-  [CHAIN.ZKSYNC]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
+  [CHAIN.ERA]: '0xadde7028e7ec226777e5dea5d53f6457c21ec7d6',
   [CHAIN.XDAI]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
+  [CHAIN.MODE]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
 }
 
 const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
