@@ -36,7 +36,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
-      preFetchedResults = await prefetch(cleanCurrentDayTimestamp, options);
+      preFetchedResults = await prefetch(options);
     }
   }
 

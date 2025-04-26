@@ -23,8 +23,8 @@ const RainBowRouter = {
 }
 
 // Prefetch function that will run once before any fetch calls
-const prefetch = async (_a: any, options: FetchOptions) => {
-  return await queryDuneSql(options, `
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `
     SELECT 
         CASE 
             WHEN blockchain = 'bnb' THEN 'bsc'
