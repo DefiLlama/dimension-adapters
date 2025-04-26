@@ -139,18 +139,18 @@ const contract: IContract = {
         id: '0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4',
         startTime: '2023-06-01'
     },
-    [CHAIN.ROOTSTOCK]: {
-        id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
-        startTime: '2024-05-27'
-    },
+    // [CHAIN.ROOTSTOCK]: {
+    //     id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
+    //     startTime: '2024-05-27'
+    // },
     [CHAIN.SCROLL]: {
         id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
         startTime: '2024-02-06'
     },
-    [CHAIN.SEI]: {
-        id: '0x7956280Ec4B4d651C4083Ca737a1fa808b5319D8',
-        startTime: '2024-05-27'
-    },
+    // [CHAIN.SEI]: {
+    //     id: '0x7956280Ec4B4d651C4083Ca737a1fa808b5319D8',
+    //     startTime: '2024-05-27'
+    // },
     // [CHAIN.SOLANA]: {
     //     id: '1151111081099710',
     //     startTime: '2024-01-01'
