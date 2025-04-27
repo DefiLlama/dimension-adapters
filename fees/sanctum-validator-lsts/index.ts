@@ -2,7 +2,10 @@
 
 Sanctum validator LSTs are LSTs deployed under the Sanctum stake pool programs (SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY or SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn)
 Total fees are the staking rewards (MEV + inflation) paid to all stake accounts from all Sanctum stake pools, paid to LST holders
-Total revenue is fees (withdrawal fees + epoch fees) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
+Total revenue is withdrawal fees (0.1%) + epoch fees (variable but no less than 2.5%) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
+
+Before the fee switch mid-March 2025, Sanctum stake pools were charging 0.1% deposit fees
+See https://x.com/sanctumso/status/1898234985372328274 for more details
 
 */
 
