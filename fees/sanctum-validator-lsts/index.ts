@@ -47,7 +47,7 @@ const fetch: any = async (options: FetchOptions) => {
               0x0a, -- 10 withdraw stake
               0x0e, -- 14 deposit sol
               0x10, -- 16 withdraw sol
-              0x17, -- 17 deposit stake with slippage
+              0x17, -- 23 deposit stake with slippage
               0x18, -- 24 withdraw stake with slippage
               0x19, -- 25 deposit sol with slippage
               0x1A -- 26 withdraw sol with slippage
