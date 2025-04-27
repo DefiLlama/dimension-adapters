@@ -69,8 +69,9 @@ const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ERA]: {
       start: 1690156800,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
+      factory: '0xd03D8D566183F0086d8D09A84E1e30b58Dd5619d'
     },
     [CHAIN.ARBITRUM]: {
       start: 1691452800,
@@ -467,7 +468,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: graphsStableSwap(chain),
+        fetch: async (options: FetchOptions) => {
+          const stablestats = await graphsStableSwap(options.chain)(options)
+          if (isNaN(Number(stablestats.dailyVolume))) {
+            return {}
+          }
+          return stablestats;
+        },
         start: config.start,
         meta: { methodology: stableSwapMethodology }
       };
