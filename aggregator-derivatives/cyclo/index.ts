@@ -72,7 +72,6 @@ const volAdapter: BaseAdapter = {
     [CHAIN.FLARE]: {
         fetch: fetchVolume,
         start: Object.values(ChainVaults[CHAIN.FLARE])
-            .flat()
             .reduce((a, b) => a.start < b.start ? a : b)
             .startTime,
         meta: {
