@@ -6,18 +6,18 @@ import { FetchOptions } from "../../adapters/types";
 
 const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
-    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('4vRhyrcGqN63T7FXvL9W5X72iQN8H9fDNfLcUQBG91Wi'),
-    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('HE31GSTGpXsRnuT4sAJoFayGBZX2xBQqWq4db48YuKmD'),
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96EYD64NqmnFxMELu2QLWB95gqCmA9N96ssYsZfFiYHg'),
+    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4BxsTB5ADnYdgJgdmzyddmnDGCauctDia28uxB1hgTBE'),
     [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'),
     [CHAIN.BOBA]: sdk.graph.modifyEndpoint('Du43Wz3rZ5ajzScgsTnuPv5NvRmQLTDPPkBxYEmFBmWM'),
-    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7okunX6MGm2pdFK7WJSwm9o82okpBLEzfGrqHDDMWYvq'),
-    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('6z2W9fLTVmhpCecSMTMpRNeSBTRPJLmKsSXrtdkpeJDz'),
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5nnoU1nUFeWqtXgbpC54L9PWdpgo7Y9HYinR3uTMsfzs'),
+    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4BzEvR229mwKjneCbJTDM8dsS3rjgoKcXt5C7J1DaUxK'),
     [CHAIN.FUSE]: sdk.graph.modifyEndpoint('7E265DKJJiTn8bVF1nqmBr6C2tmo5MVQFNb9sm4cxng5'),
     [CHAIN.XDAI]: sdk.graph.modifyEndpoint('GFvGfWBX47RNnvgwL6SjAAf2mrqrPxF91eA53F4eNegW'),
     // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('F46W9YVQXGism5iN9NZNhKm2DQCvjhr4u847rL1tRebS'),
     [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Dr3FkshPgTMMDwxckz3oZdwLxaPcbzZuAbE92i6arYtJ'),
-    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G1Q6dviDfMm6hVLvCqbfeB19kLmvs7qrnBvXeFndjhaU'),
-    // [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'),
+    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CqLnQY1d6DLcBYu7aZvGmt17LoNdTe4fDYnGbE2EgotR'),
+    [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'),
     // [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
     [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
     [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
@@ -89,6 +89,7 @@ const v3 = Object.keys(endpointsV3).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         const res = (await v3Graphs(chain as Chain)(options))
+        if (isNaN(Number(res.dailyVolume)) || isNaN(Number(res.dailyFees))) return {}
         const result = {
           totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,
