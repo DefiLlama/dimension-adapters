@@ -188,9 +188,9 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
     ?.values;
 
   // Already calculated the rollup delta, so use the first value
-  const dailyFees = fee_usd.at(0).value;
+  const dailyFees = fee_usd.at(-1).value;
 
-  const dailyRevenue = revenue_fee_usd.at(0).value;
+  const dailyRevenue = revenue_fee_usd.at(-1).value;
 
   return {
     dailyFees,
