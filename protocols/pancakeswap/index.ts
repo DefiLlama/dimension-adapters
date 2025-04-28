@@ -1,13 +1,10 @@
 import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import BigNumber from "bignumber.js";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
-import fetchURL, { httpGet } from "../../utils/fetchURL";
-import { getEnv } from "../../helpers/env";
-import { Balances } from "@defillama/sdk";
+import { httpGet } from "../../utils/fetchURL";
 
 enum DataSource {
   GRAPH = 'graph',

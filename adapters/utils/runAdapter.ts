@@ -1,5 +1,5 @@
 import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
+import { accumulativeKeySet, BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
@@ -77,7 +77,9 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
         if (isNaN(result[key] as number)) throw new Error(`[${chain}-${key}]  Value: ${value} is NaN`)
         if (result[key] < 0 && !fieldsWithNegativeValues.has(key)) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is negative`)
-        if (result[key] > improbableValue) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
+        if (result[key] > improbableValue && !accumulativeKeySet.has(key)) {
+          throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
+        }
       }
 
       const endTime = getUnixTimeNow()
