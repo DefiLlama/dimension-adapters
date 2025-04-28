@@ -29,7 +29,8 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
       ostiumItem = {dailyVolume: 0, totalVolume: 0}
     } 
     let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume)
+
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
         totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
