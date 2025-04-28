@@ -2,7 +2,10 @@
 
 Sanctum validator LSTs are LSTs deployed under the Sanctum stake pool programs (SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY or SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn)
 Total fees are the staking rewards (MEV + inflation) paid to all stake accounts from all Sanctum stake pools, paid to LST holders
-Total revenue is fees (withdrawal fees + epoch fees) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
+Total revenue is withdrawal fees (0.1%) + epoch fees (variable but no less than 2.5%) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
+
+Before the fee switch mid-March 2025, Sanctum stake pools were charging 0.1% deposit fees
+See https://x.com/sanctumso/status/1898234985372328274 for more details
 
 */
 
@@ -39,11 +42,15 @@ const fetch: any = async (options: FetchOptions) => {
           )
           AND ic.tx_success = true
           AND bytearray_substring(ic.data, 1, 1) in (
-              0x0a, -- 11 withdraw stake
-              0x10, -- 17 withdraw sol
-              0x18, -- 25 withdrawstakewithslippage
-              0x1A, -- 27 withdrawsolwithslippage
-              0x07 -- 8 updatestakepoolbalance
+              0x07, -- 7 update stake pool balance (mint epoch fees)
+              0x09, -- 9 deposit stake
+              0x0a, -- 10 withdraw stake
+              0x0e, -- 14 deposit sol
+              0x10, -- 16 withdraw sol
+              0x17, -- 23 deposit stake with slippage
+              0x18, -- 24 withdraw stake with slippage
+              0x19, -- 25 deposit sol with slippage
+              0x1A -- 26 withdraw sol with slippage
           )
           AND ic.tx_signer != 'GFHMc9BegxJXLdHJrABxNVoPRdnmVxXiNeoUCEpgXVHw'
           AND aa.address in (
@@ -62,7 +69,10 @@ const fetch: any = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  dailyFees.addCGToken("solana", Number(fees[0].daily_fees) + Number(fees[0].daily_revenue));
+  dailyFees.addCGToken(
+    "solana",
+    Number(fees[0].daily_fees) + Number(fees[0].daily_revenue)
+  );
   dailyRevenue.addCGToken("solana", fees[0].daily_revenue);
 
   return { dailyFees, dailyRevenue: dailyRevenue };
