@@ -1,92 +1,25 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { gql, GraphQLClient } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
 
-const graphQLClient = new GraphQLClient(
-  "https://api.studio.thegraph.com/query/109849/rabbit-dex/version/latest"
-);
 
-const getDailyVolume = () => {
-  return gql`
-    query RabbitSwapDailyVol($dateTimestamp: Int) {
-      daily: uniDayDatas(where: { timestamp: $dateTimestamp }) {
-        volumeUSD
-        feesUSD
-      }
-    }
-  `;
-};
+const fetch = async (_: number, _1: any, { startOfDay }: FetchOptions) => {
+  const graphQLClient = new GraphQLClient("https://api.studio.thegraph.com/query/109849/rabbit-dex/version/latest")
+  const res = await graphQLClient.request(`
+        query RabbitSwapDailyVol($dateTimestamp: Int) {
+          daily: uniDayDatas(where: { timestamp: $dateTimestamp }) {
+            volumeUSD
+            feesUSD
+          }
+          factories{    totalFeesUSD    totalVolumeUSD }
+        }`, { dateTimestamp: startOfDay })
 
-interface IDailyResponse {
-  daily: Array<{
-    volumeUSD: string;
-    feesUSD: string;
-  }>;
-}
-
-const getTotalVolume = () => {
-  return gql`
-    query RabbitSwapTotalVol($first: Int, $skip: Int) {
-      total: uniDayDatas(
-        orderBy: timestamp
-        orderDirection: desc
-        first: $first
-        skip: $skip
-      ) {
-        timestamp
-        volumeUSD
-        feesUSD
-      }
-    }
-  `;
-};
-
-interface ITotalResponse {
-  total: Array<{
-    volumeUSD: string;
-    feesUSD: string;
-  }>;
-}
-
-const MAX_RETRIES = 3;
-const BASE_DELAY = 1000;
-
-const retryRequest = async <T>(fn: () => Promise<T>): Promise<T> => {
-  let lastError;
-
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      if (i < MAX_RETRIES - 1) {
-        const delay =
-          error?.response?.status === 429
-            ? BASE_DELAY * Math.pow(2, i) // exponential backoff for 429
-            : BASE_DELAY; // constant delay for other errors
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError;
-};
-
-const fetch = async (timestamp: number) => {
-  const dateTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const [dailyResponse, [totalVolume, totalFees]] = await Promise.all([
-    retryRequest(() =>
-      graphQLClient.request(getDailyVolume(), { dateTimestamp })
-    ) as Promise<IDailyResponse>,
-    fetchTotalMetrics(),
-  ]);
-
-  const dailyVolume = dailyResponse?.daily?.[0]?.volumeUSD ?? "0";
-  const dailyFees = dailyResponse?.daily?.[0]?.feesUSD ?? "0";
+  const dailyVolume = res.daily[0].volumeUSD;
+  const dailyFees = res.daily[0].feesUSD;
+  const totalVolume = res.factories[0].totalVolumeUSD;
+  const totalFees = res.factories[0].totalFeesUSD;
 
   return {
-    timestamp,
     dailyVolume,
     totalVolume,
     dailyFees,
@@ -96,43 +29,10 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const fetchTotalMetrics = async (): Promise<[string, string]> => {
-  const PAGE_SIZE = 1000;
-  let skip = 0;
-  let hasMore = true;
-  let totalVolume = 0;
-  let totalFees = 0;
-
-  while (hasMore) {
-    const response = await retryRequest<ITotalResponse>(() =>
-      graphQLClient.request(getTotalVolume(), {
-        first: PAGE_SIZE,
-        skip,
-      })
-    );
-
-    const data = response?.total || [];
-    if (data.length === 0) {
-      hasMore = false;
-      continue;
-    }
-
-    for (const day of data) {
-      totalVolume += Number(day.volumeUSD);
-      totalFees += Number(day.feesUSD);
-    }
-
-    skip += PAGE_SIZE;
-    hasMore = data.length === PAGE_SIZE;
-  }
-
-  return [totalVolume.toString(), totalFees.toString()];
-};
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TOMOCHAIN]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-12",
       meta: {
         methodology: {
