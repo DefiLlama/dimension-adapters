@@ -14,11 +14,11 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`) // returns data for the day before
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
-        orderlyItem = {dailyVolume: 0, totalVolume: 0}
+        orderlyItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
     if (!synfuturesItem) {
-        synfuturesItem = {dailyVolume: 0, totalVolume: 0}
+        synfuturesItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
@@ -26,8 +26,9 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     }
     let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
     if (!ostiumItem) {
-      ostiumItem = {dailyVolume: 0, totalVolume: 0}
+      ostiumItem = [{dailyVolume: 0, totalVolume: 0}]
     } 
+
     let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
     let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume)
 
@@ -44,6 +45,24 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
         totalVolume,
         timestamp
     };
+};
+
+const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+  const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`)
+  let dailyVolume = 0
+  let totalVolume = 0
+
+  let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
+  if (hyperliquidItem) {
+    dailyVolume = Number(hyperliquidItem.dailyVolume)
+    totalVolume = Number(hyperliquidItem.totalVolume)
+  } 
+
+  return {
+      dailyVolume,
+      totalVolume,
+      timestamp
+  };
 };
 
 
@@ -89,6 +108,10 @@ const adapter: SimpleAdapter = {
             fetch: fetchBase,
             start: startTimestampBase
         },
+        [CHAIN.HYPERLIQUID]: {
+            fetch: fetchHyperliquid,
+            start: startTimestampBase
+        }
     },
 }
 export default adapter
