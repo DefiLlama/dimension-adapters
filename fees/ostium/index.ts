@@ -16,7 +16,7 @@ const fetchFees = async (options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    // Opening Fee (50% protocol, 50% MMV)
+    // Vault Opening Fee (100% MMV)
     const openingFeeLogs = await options.getLogs({
         target: OSTIUM_TRADING_CALLBACKS,
         eventAbi: VAULT_OPENING_FEE_EVENT
@@ -24,8 +24,7 @@ const fetchFees = async (options: FetchOptions) => {
     openingFeeLogs.map((log: any) => {
         const fee = Number(log.amount) / 1e6;
         dailyFees.addCGToken("usd-coin", fee);
-        dailyProtocolRevenue.addCGToken("usd-coin", fee * 0.5);
-        dailySupplySideRevenue.addCGToken("usd-coin", fee * 0.5);
+        dailySupplySideRevenue.addCGToken("usd-coin", fee);
     });
 
     // Liquidation Fee (100% MMV)
@@ -50,7 +49,7 @@ const fetchFees = async (options: FetchOptions) => {
         dailyProtocolRevenue.addCGToken("usd-coin", fee);
     });
 
-    // Dev Fee (100% protocol)
+    // Dev Opening Fee (100% protocol)
     const devFeeLogs = await options.getLogs({
         target: OSTIUM_TRADING_CALLBACKS,
         eventAbi: DEV_FEE_EVENT
