@@ -3,22 +3,23 @@ import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { FetchOptions } from "../../adapters/types";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const endpointsV3 = {
     [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
     [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96EYD64NqmnFxMELu2QLWB95gqCmA9N96ssYsZfFiYHg'),
     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4BxsTB5ADnYdgJgdmzyddmnDGCauctDia28uxB1hgTBE'),
     [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'),
-    [CHAIN.BOBA]: sdk.graph.modifyEndpoint('Du43Wz3rZ5ajzScgsTnuPv5NvRmQLTDPPkBxYEmFBmWM'),
+    // [CHAIN.BOBA]: sdk.graph.modifyEndpoint('71VWMKCvsWRqrJouxmEQwSEMqqnqiiVYSxTZvzR8PHRx'), // index error
     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5nnoU1nUFeWqtXgbpC54L9PWdpgo7Y9HYinR3uTMsfzs'),
-    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4BzEvR229mwKjneCbJTDM8dsS3rjgoKcXt5C7J1DaUxK'),
-    [CHAIN.FUSE]: sdk.graph.modifyEndpoint('7E265DKJJiTn8bVF1nqmBr6C2tmo5MVQFNb9sm4cxng5'),
+    // [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4BzEvR229mwKjneCbJTDM8dsS3rjgoKcXt5C7J1DaUxK'), // index error
+    // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('7E265DKJJiTn8bVF1nqmBr6C2tmo5MVQFNb9sm4cxng5'), // index error
     [CHAIN.XDAI]: sdk.graph.modifyEndpoint('GFvGfWBX47RNnvgwL6SjAAf2mrqrPxF91eA53F4eNegW'),
     // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('F46W9YVQXGism5iN9NZNhKm2DQCvjhr4u847rL1tRebS'),
     [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Dr3FkshPgTMMDwxckz3oZdwLxaPcbzZuAbE92i6arYtJ'),
-    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CqLnQY1d6DLcBYu7aZvGmt17LoNdTe4fDYnGbE2EgotR'),
-    [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'),
-    // [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore',
+    // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CqLnQY1d6DLcBYu7aZvGmt17LoNdTe4fDYnGbE2EgotR'), // index error
+    // [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'), // index error
+    // [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore', // index error
     [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
     [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
     [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
@@ -33,7 +34,7 @@ const endpointsV3 = {
     [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
     // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
     [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
-    [CHAIN.HEMI]: sdk.graph.modifyEndpoint('GQU44ZBv8NpiBUxA6eLSDSdd7bs6TVop9dASKzrdirUv'),
+    [CHAIN.HEMI]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-hemi/gn",
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -119,5 +120,13 @@ const v3 = Object.keys(endpointsV3).reduce(
   }),
   {}
 );
+
+v3[CHAIN.POLYGON] = {
+  fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2' })
+}
+
+v3[CHAIN.POLYGON_ZKEVM] = {
+  fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506' })
+}
 
 export default v3

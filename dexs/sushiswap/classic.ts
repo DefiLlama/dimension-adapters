@@ -57,12 +57,12 @@ const endpointsClassic = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
-  [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'),
+  // [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'), // index error
   // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
   // [CHAIN.XDAI]: sdk.graph.modifyEndpoint('4a8hcsttqsmycmmeFcpffGMZhBDU4NhHfyHH6YNcnu7b'),
   // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('3tNHz9aTBa2KUthYZiZZxayYYpxXACverKRrkafhoBru'),
   // [CHAIN.BOBA]: sdk.graph.modifyEndpoint('EC3ZtCpCaV5GyyhyPNHs584wdGA72nud7qcuxWNTfPr4'),
-  [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'),
+  // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'), // index error
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
 };
