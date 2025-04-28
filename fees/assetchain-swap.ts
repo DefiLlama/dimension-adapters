@@ -5,7 +5,7 @@ import { uniV3Exports } from "../helpers/uniswap";
 const poolFactoryAddress = '0xa9d53862D01190e78dDAf924a8F497b4F8bb5163';
 
 const methodology = {
-    UserFees: "Users pays 0% of each swap",
+    UserFees: "Users pay % of each swap",
     Fees: "Net Trading fees paid is the Sum of fees sent to LP & Protocol Fees",
     Revenue: "A variable % of the trading fee is collected as Protocol Fees.",
     ProtocolRevenue: "100% of Revenue is collected by Protocol Treasury.",
