@@ -24,8 +24,12 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     if (!kiloexItem) {
         kiloexItem = {dailyVolume: 0, totalVolume: 0}
     }
-    let dailyVolume = Number(orderlyItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume)
+    let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
+    if (!ostiumItem) {
+      ostiumItem = {dailyVolume: 0, totalVolume: 0}
+    } 
+    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.dailyVolume)
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
         totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
