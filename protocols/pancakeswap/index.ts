@@ -467,9 +467,6 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       acc[chain] = {
         fetch: async (options: FetchOptions) => {
           const stablestats = await graphsStableSwap(options.chain)(options)
-          if (isNaN(Number(stablestats.dailyVolume))) {
-            return {}
-          }
           return stablestats;
         },
         start: config.start,

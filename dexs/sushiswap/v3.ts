@@ -89,7 +89,6 @@ const v3 = Object.keys(endpointsV3).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         const res = (await v3Graphs(chain as Chain)(options))
-        if (isNaN(Number(res.dailyVolume)) || isNaN(Number(res.dailyFees))) return {}
         const result = {
           totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,

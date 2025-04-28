@@ -112,7 +112,6 @@ const classic = Object.keys(endpointsClassic).reduce(
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
           const values = (await call(chain)(options));
-          if (isNaN(Number(values.dailyVolume)) || isNaN(Number(values.dailyFees))) return {}
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
