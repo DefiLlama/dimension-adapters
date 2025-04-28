@@ -46,12 +46,11 @@ const fetch = (chain: Chain) => {
       target: chainConfig[chain].treasury,
       tokens: rewardTokens,
     });
-    const allFeeAccruedEvents = await getLogs({
+    const allFeeAccruedEvents = markets.length ? await getLogs({
       targets: markets,
       eventAbi: ABI.feeAccruedEvent,
       flatten: false,
-      noTarget: markets.length === 0
-    });
+    }): []
 
     markets.forEach((market, i) => {
       const token = marketToUnderlying.get(market);
