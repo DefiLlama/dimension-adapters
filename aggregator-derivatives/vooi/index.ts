@@ -8,6 +8,7 @@ const startTimestampArbitrum = 1714608000; // 02.05.2024
 const startTimestampBlast = 1719792000; // 01.07.2024
 const startTimestampOpBNB = 1717200000; // 01.06.2024
 const startTimestampBase = 1722470400; // 01.08.2024
+const startTimestampHyperliquid = 1730678400; // 04.11.2024
 
 const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
     // const timestamp = options.toTimestamp
@@ -110,7 +111,7 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.HYPERLIQUID]: {
             fetch: fetchHyperliquid,
-            start: startTimestampBase
+            start: startTimestampHyperliquid
         }
     },
 }
