@@ -16,7 +16,7 @@ const startTimeV2: TStartTime = {
 
 const v2Endpoints = {
   [CHAIN.AVAX]:
-    sdk.graph.modifyEndpoint('oM4WnuyAbSwPpjk6niUkp88AZg1hSTi9aC1ZM4RcsqR'),
+    sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
 };
 
 const VOLUME_USD = "volumeUSD";
