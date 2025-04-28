@@ -196,7 +196,6 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees - dailyRevenue,
   };
 };
 
