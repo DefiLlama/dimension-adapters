@@ -10,11 +10,11 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`)
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
-        orderlyItem = {dailyVolume: 0}
+        orderlyItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
     if (!synfuturesItem) {
-        synfuturesItem = [{dailyVolume: 0}]
+        synfuturesItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
@@ -22,8 +22,9 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     }
     let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
     if (!ostiumItem) {
-      ostiumItem = {dailyVolume: 0, totalVolume: 0}
+      ostiumItem = [{dailyVolume: 0, totalVolume: 0}]
     } 
+
     let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
     let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume)
 
@@ -44,6 +45,24 @@ const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOption
         dailyVolume: 0,
         timestamp
     };
+};
+
+const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+  const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`)
+  let dailyVolume = 0
+  let totalVolume = 0
+
+  let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
+  if (hyperliquidItem) {
+    dailyVolume = Number(hyperliquidItem.dailyVolume)
+    totalVolume = Number(hyperliquidItem.totalVolume)
+  } 
+
+  return {
+      dailyVolume,
+      totalVolume,
+      timestamp
+  };
 };
 
 
@@ -88,7 +107,7 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.HYPERLIQUID]: {
             fetch: fetchHyperliquid,
-            start: '2024-11-04'
+            start: startTimestampBase
         }
     },
 }
