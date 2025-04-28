@@ -1,14 +1,10 @@
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {
-  getTimestampAtStartOfDayUTC,
-  getTimestampAtStartOfNextDayUTC,
-} from "../../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { gql, GraphQLClient } from "graphql-request";
 
 const graphQLClient = new GraphQLClient(
-  "https://thegraph.com/explorer/api/playground/QmdNsE7Nmuj3o53y4dZ8YAeRrgesaXVp4s4GFj13dkevZG"
+  "https://api.studio.thegraph.com/query/109849/rabbit-dex/version/latest"
 );
 
 const getDailyVolume = () => {
@@ -54,7 +50,7 @@ interface ITotalResponse {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+const BASE_DELAY = 1000;
 
 const retryRequest = async <T>(fn: () => Promise<T>): Promise<T> => {
   let lastError;
@@ -62,10 +58,14 @@ const retryRequest = async <T>(fn: () => Promise<T>): Promise<T> => {
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
       return await fn();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
       if (i < MAX_RETRIES - 1) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+        const delay =
+          error?.response?.status === 429
+            ? BASE_DELAY * Math.pow(2, i) // exponential backoff for 429
+            : BASE_DELAY; // constant delay for other errors
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -97,7 +97,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const fetchTotalMetrics = async (): Promise<[string, string]> => {
-  const PAGE_SIZE = 500;
+  const PAGE_SIZE = 1000;
   let skip = 0;
   let hasMore = true;
   let totalVolume = 0;
