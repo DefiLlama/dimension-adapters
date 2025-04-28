@@ -11,21 +11,15 @@ const fetch = async (_: number, _1: any, { startOfDay }: FetchOptions) => {
             volumeUSD
             feesUSD
           }
-          factories{    totalFeesUSD    totalVolumeUSD }
         }`, { dateTimestamp: startOfDay })
 
   const dailyVolume = res.daily[0].volumeUSD;
   const dailyFees = res.daily[0].feesUSD;
-  const totalVolume = res.factories[0].totalVolumeUSD;
-  const totalFees = res.factories[0].totalFeesUSD;
 
   return {
     dailyVolume,
-    totalVolume,
     dailyFees,
-    totalFees,
     dailyUserFees: dailyFees,
-    totalUserFees: totalFees,
   };
 };
 
