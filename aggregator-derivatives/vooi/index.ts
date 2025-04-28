@@ -10,7 +10,7 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`)
     let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
     if (!orderlyItem) {
-        orderlyItem = [{dailyVolume: 0, totalVolume: 0}]
+        orderlyItem = {dailyVolume: 0, totalVolume: 0}
     }
     let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
     if (!synfuturesItem) {
@@ -18,11 +18,11 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     }
     let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
-        kiloexItem = [{dailyVolume: 0}]
+        kiloexItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
     if (!ostiumItem) {
-      ostiumItem = [{dailyVolume: 0, totalVolume: 0}]
+      ostiumItem = {dailyVolume: 0, totalVolume: 0}
     } 
 
     let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
