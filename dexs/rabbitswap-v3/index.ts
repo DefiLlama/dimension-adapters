@@ -136,8 +136,9 @@ const adapter: SimpleAdapter = {
       start: "2024-11-12",
       meta: {
         methodology: {
-          Volume: "USD Volume of RabbitSwap V3 using datasource from SubQuery.",
-          Fees: "USD Fees of RabbitSwap V3 using datasource from SubQuery.",
+          Volume:
+            "USD Volume of RabbitSwap V3 using datasource from The Graph.",
+          Fees: "USD Fees of RabbitSwap V3 using datasource from The Graph.",
         },
       },
     },
