@@ -1,2 +1,2 @@
 import adapter from "../dexs/assetchain-swap/index"
-export default adapters
+export default adapter
