@@ -26,10 +26,23 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     else ammFee += item.day.volumeFee
   }
 
-  const dailyVolumeAmmPoolFee = ammFee + clmmFee + cpmmFee
+  const dailyFees = ammFee + clmmFee + cpmmFee; // Total fees paid by users
+  const dailyUserFees = dailyFees; // Same as dailyFees for Raydium swaps
 
-  const dailyRevenueFund = ammFee * 0.03 + clmmFee * 0.04 + cpmmFee * 0.04
-  const dailyRevenueProtocol = ammFee * 0.0 + clmmFee * 0.12 + cpmmFee * 0.12
+  // Protocol Revenue (Treasury)
+  // AMM: 0%, CLMM: 4%, CPMM: 4%
+  const dailyProtocolRevenue = (clmmFee + cpmmFee) * 0.04;
+
+  // Holders Revenue (Buybacks)
+  // AMM: 12%, CLMM: 12%, CPMM: 12%
+  const dailyHoldersRevenue = (ammFee + clmmFee + cpmmFee) * 0.12;
+
+  // Total Revenue (Protocol + Holders)
+  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+
+  // Supply Side Revenue (LPs)
+  // Can be calculated as Total Fees - Total Revenue
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
   // // const buyRay = await postURL('https://explorer-api.mainnet-beta.solana.com/', JSON.stringify({
   // const buyRay = await postURL('https://api.mainnet-beta.solana.com', JSON.stringify({
@@ -57,17 +70,12 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   return {
     dailyVolume: dailyVolumeAmmPool,
     timestamp: timestamp,
-    totalFees: dailyVolumeAmmPoolFee,
-    dailyFees: dailyVolumeAmmPoolFee,
-    dailyUserFees: dailyVolumeAmmPoolFee,
-    totalRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    dailyRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    dailyProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    // dailyHoldersRevenue: `${buyRayAll * rayPrice}`, // seem it total value not daily
-    dailySupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
-    totalProtocolRevenue: `${dailyRevenueFund + dailyRevenueProtocol}`,
-    totalSupplySideRevenue: `${dailyVolumeAmmPoolFee - dailyRevenueFund - dailyRevenueProtocol}`,
-    totalUserFees: dailyVolumeAmmPoolFee,
+    dailyFees: `${dailyFees}`,
+    dailyUserFees: `${dailyUserFees}`,
+    dailyRevenue: `${dailyRevenue}`,          // ProtocolRevenue + HoldersRevenue
+    dailyProtocolRevenue: `${dailyProtocolRevenue}`, // Treasury
+    dailyHoldersRevenue: `${dailyHoldersRevenue}`,   // Buybacks
+    dailySupplySideRevenue: `${dailySupplySideRevenue}`, // LPs
   };
 };
 
