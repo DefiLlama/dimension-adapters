@@ -77,8 +77,10 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
         if (isNaN(result[key] as number)) throw new Error(`[${chain}-${key}]  Value: ${value} is NaN`)
         if (result[key] < 0 && !fieldsWithNegativeValues.has(key)) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is negative`)
-        if (result[key] > improbableValue && !accumulativeKeySet.has(key)) {
-          throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
+        if (result[key] > improbableValue) {
+          let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
+          if (showError)
+            throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
         }
       }
 
