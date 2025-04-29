@@ -130,8 +130,8 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
     ?.samples?.[0]?.values;
 
   // Already calculated the rollup delta, so use the first value (which counts from start to end)
-  const userFees = user_usd.at(0).value;
-  const protocolFees = protocol_fee_usd.at(0).value;
+  const userFees = user_usd.at(-1).value;
+  const protocolFees = protocol_fee_usd.at(-1).value;
 
   return {
     dailyFees: userFees + protocolFees,
