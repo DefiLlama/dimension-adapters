@@ -22,7 +22,7 @@ const fetch: any = async (options: FetchOptions) => {
           COALESCE(sum(rew.lamports/1e9), 0) as daily_fees
       FROM solana.rewards rew
       JOIN dune.sanctumso.result_sanctum_stake_pools_validator_stake_accounts vsa
-          ON vsa.stake_account = rew.recipient
+          ON vsa.stake_account = rew.recipient AND rew.block_date = vsa.epoch_block_date
       WHERE rew.block_time >= from_unixtime(${options.startTimestamp})
         AND rew.block_time <= from_unixtime(${options.endTimestamp})
         AND rew.reward_type = 'Staking'
