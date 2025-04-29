@@ -5,6 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { getChainVolumeWithGasToken2 }  from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -189,5 +190,8 @@ classic[CHAIN.FANTOM] = {
     return result;
   },
 }
+
+classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C' }) }
+classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4' }) }
 
 export default classic
