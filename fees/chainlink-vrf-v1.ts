@@ -102,14 +102,17 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2023-02-03',
+      allowNegativeValue: true  // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
     },
     [CHAIN.BSC]: {
       fetch: fetch,
       start: '2023-02-03',
+      allowNegativeValue: true
     },
     [CHAIN.POLYGON]: {
       fetch: fetch,
       start: '2023-02-03',
+      allowNegativeValue: true
     }
   }
 }

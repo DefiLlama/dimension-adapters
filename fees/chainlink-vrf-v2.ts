@@ -106,22 +106,27 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 2),
       start: '2023-02-03',
+      allowNegativeValue: true // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 2),
       start: '2023-02-03',
+      allowNegativeValue: true
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 2),
       start: '2023-02-03',
+      allowNegativeValue: true
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM, 2),
       start: '2023-02-03',
+      allowNegativeValue: true
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX, 2),
       start: '2023-02-03',
+      allowNegativeValue: true
     }
   }
 }

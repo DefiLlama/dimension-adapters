@@ -45,6 +45,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees as any,
       start: '2025-04-16',
+      allowNegativeValue: true, // Kairos pre-pays gas/auction costs for Arbitrum Timeboost slots.
       meta: {
         "methodology": "kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue"
       }

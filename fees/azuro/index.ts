@@ -91,26 +91,31 @@ const adapter: Adapter = {
             fetch: graphs(endpoints)(CHAIN.POLYGON),
             start: getStartTimestamp[CHAIN.POLYGON],
             meta: { methodology },
+            allowNegativeValue: true // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
             start: getStartTimestamp[CHAIN.XDAI],
             meta: { methodology },
+            allowNegativeValue: true // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
         },
         [CHAIN.ARBITRUM]: {
             fetch: graphs(endpoints)(CHAIN.ARBITRUM),
             start: getStartTimestamp[CHAIN.ARBITRUM],
             meta: { methodology },
+            allowNegativeValue: true // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
         },
         [CHAIN.LINEA]: {
             fetch: graphs(endpoints)(CHAIN.LINEA),
             start: getStartTimestamp[CHAIN.LINEA],
             meta: { methodology },
+            allowNegativeValue: true // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
         },
         [CHAIN.CHILIZ]: {
             fetch: graphs(endpoints)(CHAIN.CHILIZ),
             start: getStartTimestamp[CHAIN.CHILIZ],
             meta: { methodology },
+            allowNegativeValue: true // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
         },
     },
     version: 2
