@@ -27,10 +27,14 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
     if (!ostiumItem) {
       ostiumItem = {dailyVolume: 0, totalVolume: 0}
-    } 
+    }
+    let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
+    if (!hyperliquidItem) {
+        hyperliquidItem = {dailyVolume: 0, totalVolume: 0}
+    }
 
-    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume)
+    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume) + Number(hyperliquidItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume) + Number(hyperliquidItem.totalVolume)
 
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
@@ -52,21 +56,11 @@ const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOption
 };
 
 const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
-  const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`)
-  let dailyVolume = 0
-  let totalVolume = 0
-
-  let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
-  if (hyperliquidItem) {
-    dailyVolume = Number(hyperliquidItem.dailyVolume)
-    totalVolume = Number(hyperliquidItem.totalVolume)
-  } 
-
-  return {
-      dailyVolume,
-      totalVolume,
-      timestamp
-  };
+    return {
+        dailyVolume: 0,
+        totalVolume: 0,
+        timestamp
+    };
 };
 
 
