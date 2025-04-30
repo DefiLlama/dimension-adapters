@@ -74,19 +74,25 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
   const fees = await api.multiCall({ abi: abis.fees, calls: filteredPools.map(({ pair, stable }) => ({ target: CONFIG.factory, params: [pair, stable] })) })
   const poolsAndFees = filteredPools.map((pool, index) => ({ ...pool, fees: fees[index] / 1e4, logs: [] as any[] }));
 
+  const poolsByAddress = new Map(
+    poolsAndFees.map(pool => [pool.pair.toLowerCase(), pool])
+  );
+
   const blockStep = 5000;
-  const poolChunkSize = 10;
+  const poolChunkSize = 50;
   
-  for (let i = 0; i < poolsAndFees.length; i += poolChunkSize) {
-    const chunkPools = poolsAndFees.slice(i, i + poolChunkSize);
-  
-    for (let startBlock = fromBlock; startBlock <= toBlock; startBlock += blockStep) {
-      const endBlock = Math.min(startBlock + blockStep - 1, toBlock);
-  
-      const logsChunk = await sdk.indexer.getLogs({
-        chain,
-        targets: chunkPools.map(pool => pool.pair),
-        fromBlock: startBlock,
+  const processChunk = async (startIdx: number): Promise<void> => {
+    const chunkPools = poolsAndFees.slice(startIdx, startIdx + poolChunkSize);
+    const targetAddresses = chunkPools.map(pool => pool.pair);
+    
+    let currentBlock = fromBlock;
+    while (currentBlock <= toBlock) {
+      const endBlock = Math.min(currentBlock + blockStep - 1, toBlock);
+      
+      const logs = await sdk.indexer.getLogs({
+        chain: CHAIN.BASE,
+        targets: targetAddresses,
+        fromBlock: currentBlock,
         toBlock: endBlock,
         topics: [topics.event_swap],
         eventAbi: eventAbis.event_swap,
@@ -94,29 +100,23 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
         all: true
       });
 
-      for (const pool of chunkPools) {
-        const poolLogs = logsChunk.filter((log: any) => {
-          const emitter = log.address || log.source;
-          return emitter && emitter.toLowerCase() === pool.pair.toLowerCase();
-        });
-        pool.logs.push(...poolLogs);
-      }
+      logs.forEach((log: any) => {
+        const emitter = (log.address || log.source)?.toLowerCase();
+        if (emitter) {
+          const pool = poolsByAddress.get(emitter);
+          if (pool) pool.logs.push(log);
+        }
+      });
+
+      currentBlock += blockStep;
     }
-  }
+  };
 
-  // const totalPools = poolsAndFees.length;
-  // let totalLogs = 0;
-  // const logsByPool = poolsAndFees.map(pool => {
-  //   const logCount = pool.logs.length;
-  //   totalLogs += logCount;
-  //   return { pool: pool.pair, logCount };
-  // });
-
-  // const runtime = Date.now() - startTime;
-  // console.table(logsByPool);
-  // console.log(`Script execution time: ${runtime} ms`);
-  // console.log(`Total number of poolsAndFees: ${totalPools}`);
-  // console.log(`Total number of logs: ${totalLogs}`);
+  await Promise.all(
+    Array.from({ length: Math.ceil(poolsAndFees.length / poolChunkSize) }, 
+      (_, i) => processChunk(i * poolChunkSize)
+    )
+  );
 
   for (const pool of poolsAndFees) {
     const { token0, token1, fees, logs = [] } = pool;
