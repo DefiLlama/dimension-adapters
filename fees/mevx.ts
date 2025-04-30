@@ -21,10 +21,9 @@ const address: TAddress = {
 
 }
 
-const graph = (chain: Chain) => {
-  return async ({ createBalances, getFromBlock, getToBlock, }: FetchOptions): Promise<FetchResultFees> => {
+async function fetchEVM({ createBalances, getFromBlock, getToBlock, chain}: FetchOptions){
 
-    const query = `
+  const query = `
         select
           input_data,
           TX_HASH
@@ -37,31 +36,30 @@ const graph = (chain: Chain) => {
       `
 
 
-    const value: string[][] = (await queryFlipside(query, 260))
-    const rawData = value.map((a: string[]) => {
-      const data = a[0].replace('0x5f575529', '');
-      const address = data.slice(64, 128);
-      const amount = Number('0x' + data.slice(128, 192));
-      const tokenAddress = '0x' + address.slice(24, address.length);
-      return {
-        amount: amount,
-        tokenAddress: tokenAddress,
-        tx: a[1]
-      } as IVolume
-    })
-    const dailyFees = createBalances()
-
-    rawData.map((e: IVolume) => {
-      dailyFees.add(e.tokenAddress, e.amount)
-    })
-    
+  const value: string[][] = (await queryFlipside(query, 260))
+  const rawData = value.map((a: string[]) => {
+    const data = a[0].replace('0x5f575529', '');
+    const address = data.slice(64, 128);
+    const amount = Number('0x' + data.slice(128, 192));
+    const tokenAddress = '0x' + address.slice(24, address.length);
     return {
-      dailyFees: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-      dailyRevenue: dailyFees,
-    }
+      amount: amount,
+      tokenAddress: tokenAddress,
+      tx: a[1]
+    } as IVolume
+  })
+  const dailyFees = createBalances()
 
+  rawData.map((e: IVolume) => {
+    dailyFees.add(e.tokenAddress, e.amount)
+  })
+
+  return {
+    dailyFees: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyFees,
   }
+
 }
 
 
@@ -86,15 +84,15 @@ const adapter: Adapter = {
       fetch: fetch,
     },
     [CHAIN.ETHEREUM]: {
-      fetch: graph(CHAIN.ETHEREUM),
+      fetch: fetchEVM,
       start: '2025-01-01',
     },
     [CHAIN.BASE]: {
-      fetch: graph(CHAIN.BASE),
+      fetch: fetchEVM,
       start: '2025-01-01',
     },
     [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
+      fetch: fetchEVM,
       start: '2025-01-01',
     },
   },
