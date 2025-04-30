@@ -1,22 +1,23 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import fetchURL from '../../utils/fetchURL';
+import { getConfig } from '../../helpers/cache';
+import { EventFragment, id, zeroPadValue } from 'ethers';
 
 const STRATEGIES_URL = 'https://raw.githubusercontent.com/Lynexfi/lynex-lists/main/strategies/main.json';
 const POOLMANAGER = '0x67366782805870060151383f4bbff9dab53e5cd6'; // Uniswap v4 PoolManager on Polygon
 const COLLECT_EVENT = 'event Collect(bytes32 indexed poolId, address indexed recipient, uint256 amount0, uint256 amount1)';
 
 async function getCatexStrategies() {
-  const data = await fetchURL(STRATEGIES_URL);
+  const data = await getConfig('catex', STRATEGIES_URL);
   // Get only Polygon (137) strategies
   const polygonStrategies = data['137'] || [];
   // Filter for uniV4 strategies only since Catex only manages V4 pools
   return polygonStrategies.filter(strategy => strategy.variant === 'uniV4');
 }
 
-const fetchFees = async (timestamp: number, _chainBlocks: any, options: FetchOptions) => {
-  const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
+const fetchFees = async (options: FetchOptions) => {
   const strategies = await getCatexStrategies();
+  const eventAbiTopic = id(EventFragment.from(COLLECT_EVENT).format());
   const dailyFees = options.createBalances();
 
   for (const strategy of strategies) {
@@ -25,7 +26,7 @@ const fetchFees = async (timestamp: number, _chainBlocks: any, options: FetchOpt
     const logs = await options.getLogs({
       target: POOLMANAGER,
       eventAbi: COLLECT_EVENT,
-      topics: [v4PoolId, strategyAddress],
+      topics: [eventAbiTopic, v4PoolId, zeroPadValue(strategyAddress, 32)],
     });
     for (const log of logs) {
       dailyFees.add(token0.address, log.amount0);
@@ -33,13 +34,11 @@ const fetchFees = async (timestamp: number, _chainBlocks: any, options: FetchOpt
     }
   }
 
-  return {
-    timestamp: dayTimestamp,
-    dailyFees: (await dailyFees.getUSDValue()).toString(),
-  };
+  return { dailyFees, };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
