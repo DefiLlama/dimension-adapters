@@ -5,24 +5,20 @@ import fetchURL from '../../utils/fetchURL';
 import { getPrices } from '../../utils/prices';
 
 const STRATEGIES_URL = 'https://raw.githubusercontent.com/Lynexfi/lynex-lists/main/strategies/main.json';
-const GET_TOTAL_AMOUNTS_ABI = 'function getTotalAmounts() view returns (uint256 total0, uint256 total1, uint256 totalFee0, uint256 totalFee1)';
-const TOKEN0_ABI = 'function token0() view returns (address)';
-const TOKEN1_ABI = 'function token1() view returns (address)';
+const POOLMANAGER = '0x67366782805870060151383f4bbff9dab53e5cd6'; // Uniswap v4 PoolManager on Polygon
+const COLLECT_EVENT = 'event Collect(bytes32 indexed poolId, address indexed recipient, uint256 amount0, uint256 amount1)';
 
-async function getCatexPools() {
+async function getCatexStrategies() {
   const data = await fetchURL(STRATEGIES_URL);
   // Get only Polygon (137) strategies
   const polygonStrategies = data['137'] || [];
   // Filter for uniV4 strategies only since Catex only manages V4 pools
-  const pools = polygonStrategies
-    .filter(strategy => strategy.variant === 'uniV4')
-    .map(strategy => strategy.address);
-  return pools;
+  return polygonStrategies.filter(strategy => strategy.variant === 'uniV4');
 }
 
-const fetchFees = async (timestamp: number, chainBlocks: any, { api }: FetchOptions) => {
+const fetchFees = async (timestamp: number, chainBlocks: any, { api, getLogs }: FetchOptions) => {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-  const pools = await getCatexPools();
+  const strategies = await getCatexStrategies();
 
   // Get yesterday's and today's block
   const yesterdayTimestamp = dayTimestamp - 24 * 60 * 60;
@@ -31,38 +27,27 @@ const fetchFees = async (timestamp: number, chainBlocks: any, { api }: FetchOpti
 
   let dailyFeeUsd = 0;
 
-  for (const pool of pools) {
-    // Get token addresses
-    const [token0, token1] = await Promise.all([
-      api.call({ target: pool, abi: TOKEN0_ABI }),
-      api.call({ target: pool, abi: TOKEN1_ABI })
-    ]);
-
-    // Get fees at start and end of day
-    const [start, end] = await Promise.all([
-      api.call({ target: pool, abi: GET_TOTAL_AMOUNTS_ABI, block: yesterdayBlock }),
-      api.call({ target: pool, abi: GET_TOTAL_AMOUNTS_ABI, block: todayBlock })
-    ]);
-
-    const dailyFee0 = BigInt(end.totalFee0) - BigInt(start.totalFee0);
-    const dailyFee1 = BigInt(end.totalFee1) - BigInt(start.totalFee1);
-
+  for (const strategy of strategies) {
+    const { address: strategyAddress, v4PoolId, token0, token1 } = strategy;
+    // Get Collect events for this poolId and strategy address
+    const logs = await getLogs({
+      target: POOLMANAGER,
+      eventAbi: COLLECT_EVENT,
+      fromBlock: yesterdayBlock,
+      toBlock: todayBlock,
+      topics: [v4PoolId, strategyAddress],
+    });
+    let total0 = 0n, total1 = 0n;
+    for (const log of logs) {
+      total0 += BigInt(log.amount0);
+      total1 += BigInt(log.amount1);
+    }
     // Get token prices at the day's timestamp
-    const prices = await getPrices([token0, token1], dayTimestamp);
-    const price0 = prices[token0]?.price ?? 0;
-    const price1 = prices[token1]?.price ?? 0;
-
-    // Debug logs
-    console.log('Pool:', pool);
-    console.log('Token0:', token0, 'Token1:', token1);
-    console.log('Start:', start);
-    console.log('End:', end);
-    console.log('DailyFee0:', dailyFee0.toString(), 'DailyFee1:', dailyFee1.toString());
-    console.log('Price0:', price0, 'Price1:', price1);
-
-    const feeUsd0 = Number(dailyFee0) / 1e18 * price0;
-    const feeUsd1 = Number(dailyFee1) / 1e18 * price1;
-    console.log('FeeUsd0:', feeUsd0, 'FeeUsd1:', feeUsd1);
+    const prices = await getPrices([token0.address, token1.address], dayTimestamp);
+    const price0 = prices[token0.address]?.price ?? 0;
+    const price1 = prices[token1.address]?.price ?? 0;
+    const feeUsd0 = Number(total0) / 1e18 * price0;
+    const feeUsd1 = Number(total1) / 1e18 * price1;
     dailyFeeUsd += feeUsd0 + feeUsd1;
   }
 
