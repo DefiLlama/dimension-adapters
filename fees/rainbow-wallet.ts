@@ -23,6 +23,7 @@ const RainBowRouter = {
 }
 
 // Prefetch function that will run once before any fetch calls
+// don't do console.log(options) as there is circular dependency in ChainApi
 const prefetch = async (options: FetchOptions) => {
   return queryDuneSql(options, `
     SELECT 

@@ -99,7 +99,7 @@ export type AdapterBase = {
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
-  prefetch?: (options: FetchOptions) => Promise<any>
+  prefetch?: FetchV2;
 }
 
 export type SimpleAdapter = AdapterBase & {
