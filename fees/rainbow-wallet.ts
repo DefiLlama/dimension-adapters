@@ -1,7 +1,6 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-import { getTokenDiff } from "../helpers/token";
 
 const rainbowRouter = '0x00000000009726632680fb29d3f7a9734e3010e2'
 

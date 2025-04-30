@@ -83,7 +83,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     // Get adapter
     const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
-      prefetch: module?.prefetch,
+      _module: module,
     })
     printVolumes(volumes, adapter)
     console.info("\n")

@@ -17,9 +17,9 @@ function getUnixTimeNow() {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1,
   isTest = false,
-  prefetch = null,
+  _module = {},
 }: any = {}) {
-
+  const prefetch = _module?.prefetch
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
@@ -32,7 +32,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
   // Run prefetch if provided
   let preFetchedResults: any = null;
-  if (prefetch && typeof prefetch === 'function') {
+  if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
