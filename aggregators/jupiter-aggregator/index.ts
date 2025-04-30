@@ -7,7 +7,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // https://dune.com/queries/4187430
   const data = await queryDuneSql(options, `
     SELECT 
-      sum(COALESCE(input_usd,output_usd)) as volume
+      sum(output_usd) as volume
       , sum(case when (block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})) then COALESCE(input_usd,output_usd) else null end) as volume_24
     FROM jupiter_solana.aggregator_swaps
   `);
