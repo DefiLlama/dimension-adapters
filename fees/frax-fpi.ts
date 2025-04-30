@@ -41,7 +41,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: '2022-05-31'
+      start: '2022-05-31',
+      allowNegativeValue: true // High CPI Peg Costs, Temporary Losses, Operational or Arbitrage Costs, Yield Insufficiency
     },
   }
 }

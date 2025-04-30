@@ -121,6 +121,7 @@ const adapter: Adapter = {
       fetch: fetch,
       runAtCurrTime: true,
       start: '2024-03-12',
+      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
   },
 };

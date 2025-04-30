@@ -50,6 +50,7 @@ const adapter: Adapter = {
       fetch: fetch as any,
       start: '2023-08-14',
       runAtCurrTime: true,
+      allowNegativeValue: true // sequencer fees
     },
   },
   isExpensiveAdapter: true,
