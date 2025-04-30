@@ -5,7 +5,8 @@ import { CHAIN } from "../../helpers/chains";
 const tokenMap = {
     WETH: "weth",
     cbBTC: "coinbase-wrapped-btc",
-    USDC: "usd-coin"
+    USDC: "usd-coin",
+    JAV: "javsphere"
 };
 
 const methodology = {
@@ -24,6 +25,10 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
 
     Object.keys(statsLevX.yield.totalFees).forEach((key) => {
         totalFees.addCGToken(tokenMap[key], statsLevX.yield.totalFees[key]);
+    });
+
+    Object.keys(statsLevX.yieldJavVault.totalFees).forEach((key) => {
+        totalFees.addCGToken(tokenMap[key], statsLevX.yieldJavVault.totalFees[key]);
     });
 
     statsLevX.collaterals.forEach((item) => {
