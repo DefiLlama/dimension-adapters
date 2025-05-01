@@ -92,7 +92,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
       runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
-        prefetch: adapter?.prefetch,
+        _module: module,
         isTest: true,
       }).then(res => ({ version, res }))
     ))
