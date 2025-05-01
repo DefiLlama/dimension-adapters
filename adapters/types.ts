@@ -99,6 +99,7 @@ export type AdapterBase = {
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
+  allowNegativeValue?: boolean;
   prefetch?: FetchV2;
 }
 

@@ -51,11 +51,12 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       runAtCurrTime: true,
       fetch: fetchMangoStats,
-            meta: {
+      meta: {
         methodology,
       },
     },
   },
+  allowNegativeValue: true, // maker fees were negative in the past
 };
 
 export default adapter;

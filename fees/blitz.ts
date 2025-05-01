@@ -123,6 +123,7 @@ const adapter: Adapter = {
       start: '2024-03-12',
     },
   },
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
 };
 
 export default adapter;

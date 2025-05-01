@@ -53,8 +53,9 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: evm,
-                    }
-    }), {})
+        }
+    }), {}),
+    allowNegativeValue: true, // allow as there is specific case, from fetch function comment
 }
 
 export default adapter;

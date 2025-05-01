@@ -19,7 +19,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   isTest = false,
   _module = {},
 }: any = {}) {
-  const prefetch = _module?.prefetch
+  const { prefetch, allowNegativeValue = false } = _module
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
@@ -78,7 +78,6 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
 
       const improbableValue = 2e11 // 200 billion
-      const fieldsWithNegativeValues = new Set(['dailyFees', 'totalFees', 'dailyRevenue', 'totalRevenue', 'dailyProtocolRevenue', 'totalProtocolRevenue',])
 
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
@@ -89,13 +88,14 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) result[key] = await value.getUSDString()
         result[key] = +Number(result[key]).toFixed(0)
+        let errorPartialString = `| ${chain}-${key}: ${value}`
 
-        if (isNaN(result[key] as number)) throw new Error(`[${chain}-${key}]  Value: ${value} is NaN`)
-        if (result[key] < 0 && !fieldsWithNegativeValues.has(key)) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is negative`)
+        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
         if (result[key] > improbableValue) {
           let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
           if (showError)
-            throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
+            throw new Error(`value is too damn high ${errorPartialString}`)
         }
       }
 

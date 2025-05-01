@@ -40,6 +40,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
 // version 1 as it's using allium query
 const adapter: SimpleAdapter = {
+  allowNegativeValue: true, // Kairos pre-pays gas/auction costs for Arbitrum Timeboost slots.
   version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {

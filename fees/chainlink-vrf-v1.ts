@@ -111,6 +111,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: '2023-02-03',
     }
-  }
+  },
+  allowNegativeValue: true,  // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
 }
 export default adapter;
