@@ -30,8 +30,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees.add(event.token, event.claimedAmount)
   }
 
-  console.log(dailyFees)
-
   return {
     dailyFees,
     dailyProtocolRevenue: 0,
