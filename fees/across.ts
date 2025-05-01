@@ -19,21 +19,31 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 interface IResponse {
+  dst_chain: string;
   fees: number;
+  lp_fees: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const response: IResponse[] = (await queryDuneSql(options, `
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `
     SELECT
-        SUM(relay_fee_in_usd) as fees
+        dst_chain
+        , SUM(relay_fee_in_usd) as fees
         , SUM(lp_fee_in_usd) as lp_fees
     FROM dune.risk_labs.result_across_transfers_foundation
-    WHERE dst_chain = '${options.chain}'
-      AND relay_fee_in_usd is not null
-      AND TIME_RANGE
-   `));
+    WHERE relay_fee_in_usd is not null
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY dst_chain
+  `);
+};
 
-  const dailyFees = response.reduce((acc, item) => acc + item.fees, 0)
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const results: IResponse[] = options.preFetchedResults || [];
+  const chainData = results.find(item => item.dst_chain === options.chain);
+  
+  const dailyFees = chainData?.fees || 0;
 
   return {
     dailyFees,
@@ -85,6 +95,7 @@ const adapter: Adapter = {
       start: "2024-07-31",
     },
   },
+  prefetch: prefetch,
   isExpensiveAdapter: true,
 };
 
