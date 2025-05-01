@@ -54,8 +54,8 @@ export default {
         };
       }),
       start: 1732060800,
-      allowNegativeValue: true // casino lose money on some days
     },
   },
+  allowNegativeValue: true, // casino lose money on some days
   version: 2,
 } as Adapter;

@@ -54,9 +54,9 @@ const adapter: Adapter = {
       meta: {
         methodology,
       },
-      allowNegativeValue: true // maker fees were negative in the past
     },
   },
+  allowNegativeValue: true, // maker fees were negative in the past
 };
 
 export default adapter;

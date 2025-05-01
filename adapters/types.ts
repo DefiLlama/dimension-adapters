@@ -77,7 +77,6 @@ export type BaseAdapter = {
     fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch | FetchV2;
-    allowNegativeValue?: boolean;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
@@ -99,6 +98,7 @@ export type AdapterBase = {
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
+  allowNegativeValue?: boolean;
 }
 
 export type SimpleAdapter = AdapterBase & {

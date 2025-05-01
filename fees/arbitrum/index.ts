@@ -36,12 +36,12 @@ const adapter: Adapter = {
 
       }) as any,
       start: '2021-08-10',
-      allowNegativeValue: true // arbitrum sequencer fees
     },
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
   version: 2,
+  allowNegativeValue: true, // arbitrum sequencer fees
 }
 
 export default adapter;

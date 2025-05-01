@@ -176,48 +176,42 @@ const fetch = async (
 };
 
 const adapter: Adapter = {
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2023-04-26",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.MANTLE]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2023-04-26",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.SEI]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2024-08-13",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.BASE]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2024-09-04",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.SONIC]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2024-12-18",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.ABSTRACT]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2025-01-29",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
     [CHAIN.AVAX]: {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2025-03-26",
-      allowNegativeValue: true // when maker rebates exceed taker fees minus sequencer fees
     },
   },
 };

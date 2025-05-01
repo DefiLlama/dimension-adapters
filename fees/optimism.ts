@@ -15,9 +15,9 @@ const adapter: Adapter = {
     [CHAIN.OPTIMISM]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
       start: '2020-08-29',
-      allowNegativeValue: true // sequencer fees
     },
   },
+  allowNegativeValue: true, // sequencer fees
   protocolType: ProtocolType.CHAIN
 }
 

@@ -173,9 +173,9 @@ const adapters: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch: fetchFees,
       start: "2024-06-02",
-      allowNegativeValue: true // House reimbursed fees
     },
   },
+  allowNegativeValue: true, // House reimbursed fees
   version: 2,
 };
 export default adapters;

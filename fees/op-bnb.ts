@@ -50,11 +50,11 @@ const adapter: Adapter = {
       fetch: fetch as any,
       start: '2023-08-14',
       runAtCurrTime: true,
-      allowNegativeValue: true // sequencer fees
     },
   },
   isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  allowNegativeValue: true, // sequencer fees
 }
 
 export default adapter;
