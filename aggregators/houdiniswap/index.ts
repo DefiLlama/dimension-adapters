@@ -61,7 +61,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   )?.[0] || options.chain;
 
   const url = `${URL}${endpoint}startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&chain=${houdiniChain}`;
-  const defaultRes = {}
+  const defaultRes = {
+    dailyVolume: 0,
+  }
   try {
     const res = await httpGet(url);
     if (!res || !res.length) {
@@ -73,11 +75,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       return defaultRes
     }
     return {
-      dailyVolume: dailyData.totalUSD.toString(),
-      // totalVolume: dailyData.totalUSD.toString(),
-      // timestamp: dailyData.timestamp,
+      dailyVolume: dailyData.totalUSD,
     };
   } catch (error) {
+    console.error(`Error fetching data from HoudiniSwap: ${error}`);
     return defaultRes
   }
 };
