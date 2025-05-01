@@ -89,35 +89,54 @@ const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV
 
   const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
 
-  let logs: ILog[][] = [];
-  const targetChunkSize = 5;
-  let currentTargetOffset = 0;
-  unfinished = true;
+  const poolLogs = new Map<string, ILog[]>();
+  const poolChunkSize = 50;
+  const blockStep = 5000;
+  const [toBlock, fromBlock] = await Promise.all([options.getToBlock(), options.getFromBlock()]);
 
-  while (unfinished) {
-    let endOffset = currentTargetOffset + targetChunkSize;
-    if (endOffset >= targets.length) {
-      unfinished = false;
-      endOffset = targets.length;
+  const processChunk = async (startIdx: number): Promise<void> => {
+    const chunkTargets = targets.slice(startIdx, startIdx + poolChunkSize);
+    
+    let currentBlock = fromBlock;
+    while (currentBlock <= toBlock) {
+      const endBlock = Math.min(currentBlock + blockStep - 1, toBlock);
+      
+      const currentLogs = await options.getLogs({
+        targets: chunkTargets,
+        fromBlock: currentBlock,
+        toBlock: endBlock,
+        eventAbi: event_swap,
+        flatten: false
+      });
+
+      if (currentLogs) {
+        currentLogs.forEach((logs, index) => {
+          const poolAddress = chunkTargets[index].toLowerCase();
+          if (!poolLogs.has(poolAddress)) {
+            poolLogs.set(poolAddress, []);
+          }
+          poolLogs.get(poolAddress)?.push(...logs);
+        });
+      }
+      currentBlock += blockStep;
     }
+  };
 
-    let currentLogs: ILog[][] = await options.getLogs({
-      targets: targets.slice(currentTargetOffset, endOffset),
-      eventAbi: event_swap,
-      flatten: false,
-    })
+  await Promise.all(
+    Array.from({ length: Math.ceil(targets.length / poolChunkSize) }, 
+      (_, i) => processChunk(i * poolChunkSize)
+    )
+  );
 
-    logs.push(...currentLogs);
-    currentTargetOffset += targetChunkSize;
-  }
+  allForSwaps.forEach((pool) => {
+    const logs = poolLogs.get(pool.lp.toLowerCase());
+    if (!logs) return;
 
-  logs.forEach((logs: ILog[], idx: number) => {
-    const { token1, pool_fee } = allForSwaps[idx]
     logs.forEach((log: any) => {
-      dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
-      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
-    })
-  })
+      dailyVolume.add(pool.token1, BigInt(Math.abs(Number(log.amount1))))
+      dailyFees.add(pool.token1, BigInt(Math.round((((Math.abs(Number(log.amount1))) * Number(pool.pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
+    });
+  });
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }

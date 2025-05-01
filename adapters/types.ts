@@ -39,6 +39,7 @@ export type FetchOptions = {
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
   dateString: string,
+  preFetchedResults?: any,
 }
 
 export type FetchGetLogsOptions = {
@@ -99,6 +100,7 @@ export type AdapterBase = {
   version?: number;
   deadFrom?: string;
   allowNegativeValue?: boolean;
+  prefetch?: FetchV2;
 }
 
 export type SimpleAdapter = AdapterBase & {
