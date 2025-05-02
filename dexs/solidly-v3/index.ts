@@ -32,7 +32,6 @@ const wrapFetchWithZeroTotal = (originalFetch: FetchV2) => {
     const res = await originalFetch(options);
     return {
       dailyVolume: res.dailyVolume,
-      totalVolume: 0
     };
   };
 };
@@ -49,7 +48,6 @@ adapters.adapter[CHAIN.BASE] = {
     })(options)
     return {
       dailyVolume: res.dailyVolume,
-      totalVolume: 0
     }
   },
   start: '2024-01-24'
