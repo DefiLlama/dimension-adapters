@@ -28,7 +28,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     target: WBETH,
     abi: 'uint256:totalSupply',
   })
-  const totalFees = totalSupply * (exchangeRateAfter - exchangeRateBefore) * 0.75 / 1e18
+
+  // fees distributed to WBETH holders are deducted by 25% protocol fees
+  // it was 75% of total rewards earned from ETH staking
+  const totalFees = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.75 / 1e18
 
   let token = options.chain === CHAIN.BSC ? ETH_ON_BSC : ZeroAddress
 
