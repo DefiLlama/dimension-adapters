@@ -100,16 +100,43 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
+const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
+const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
+
+async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
+  const { getLogs, getFromBlock, getToBlock } = options;
+
+  const fromBlock = await getFromBlock();
+  const toBlock = await getToBlock();
+
+  const logs = await getLogs({
+    target: BERADROME_REWARD_VAULT,
+    fromBlock,
+    toBlock,
+    eventAbi: "event RewardAdded(uint256 reward)",
+  });
+
+  logs.forEach((log) => {
+    balances.add(BGT_ADDRESS, log.reward / BigInt(10 ** 36));
+  });
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyBribesRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
+  // Fees
   await addBondigCurveFees(options, dailyFees);
   await addBorrowFees(options, dailyFees);
 
+  // Bribes
   await addBribes(options, dailyBribesRevenue);
 
-  return { dailyFees, dailyBribesRevenue };
+  // Holders Revenue
+  await addHoldersRevenue(options, dailyHoldersRevenue);
+
+  return { dailyFees, dailyBribesRevenue, dailyHoldersRevenue };
 }
 
 const adapter: Adapter = {
