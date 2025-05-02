@@ -6,6 +6,9 @@ type TStartTime = {
   [key: string]: number;
 };
 
+const SHADOW_TOKEN_CONTRACT = "0x3333b97138d4b086720b5ae8a7844b1345a33333";
+const XSHADOW_TOKEN_CONTRACT = "0x5050bc082FF4A74Fb6B0B04385dEfdDB114b2424";
+
 const startTimeV2: TStartTime = {
   [CHAIN.SONIC]: 1735129946,
 };
@@ -28,6 +31,7 @@ interface IGraphRes {
   legacyProtocolRevenueUSD: number;
   clUserFeesRevenueUSD: number;
   legacyUserFeesRevenueUSD: number;
+  dailyXshadowInstantExitFeeUSD: number;
 }
 
 interface IVoteBribe {
@@ -204,6 +208,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
 
   const voteBribes = await getBribes(options);
   const tokenIds = new Set(voteBribes.map((e) => e.token.id));
+  tokenIds.add(SHADOW_TOKEN_CONTRACT.toLowerCase());
 
   const tokens = await getTokens(options, Array.from(tokenIds));
   const { clProtocolDayDatas, legacyProtocolDayDatas } = await request(
@@ -263,6 +268,22 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
   }, 0);
 
+  const InstantExitLogs = await options.getLogs({
+    target: XSHADOW_TOKEN_CONTRACT,
+    eventAbi: 'event InstantExit(address indexed user, uint256 amount)',
+    topic: '0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a'
+  })
+  let xshadowPenaltyAmount = 0;
+  // console.log(InstantExitLogs);
+  for (const log of InstantExitLogs) {
+    xshadowPenaltyAmount += (Number(log.amount) / 1e18);
+  }
+
+  // Calculate xSHADOW rebase revenue in USD
+  const shadowToken = tokens.find(t => t.id === SHADOW_TOKEN_CONTRACT);
+  const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
+  const dailyXshadowInstantExitFeeUSD = xshadowPenaltyAmount * shadowPriceUSD / 2; // XSHADOW is always 50% of the current shadow price.
+
   return {
     clVolumeUSD: Number(clProtocolDayDatas?.[0]?.volumeUSD ?? 0),
     clFeesUSD: Number(clProtocolDayDatas?.[0]?.feesUSD ?? 0),
@@ -274,17 +295,21 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     legacyUserFeesRevenueUSD: legacyUserFeesRevenueUSD,
     clProtocolRevenueUSD,
     legacyProtocolRevenueUSD,
+    dailyXshadowInstantExitFeeUSD,
   };
 }
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options);
-
-  const dailyFees = stats.clFeesUSD;
+  const dailyFees = stats.clFeesUSD + stats.dailyXshadowInstantExitFeeUSD;
   const dailyVolume = stats.clVolumeUSD;
   const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
   const dailyBribesRevenue = stats.clBribeRevenueUSD;
+
+  const clSupplySideRevenue = stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
+  const dailySupplySideRevenue = clSupplySideRevenue + stats.dailyXshadowInstantExitFeeUSD;
+  const dailyRevenue = dailyProtocolRevenue + dailySupplySideRevenue;
 
   return {
     dailyVolume,
@@ -292,8 +317,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
-    dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
-    dailySupplySideRevenue: dailyFees - dailyHoldersRevenue - dailyProtocolRevenue,
+    dailyRevenue,
+    dailySupplySideRevenue,
     dailyBribesRevenue,
   };
 };
@@ -303,6 +328,7 @@ const methodology = {
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
   BribesRevenue: "Bribes are distributed among holders.",
+  SupplySideRevenue: "Fees distributed to LPs (from gauged pools) and xSHADOW stakers (from early exit penalties).",
 };
 
 const adapter: SimpleAdapter = {
