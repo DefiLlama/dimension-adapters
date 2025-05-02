@@ -3,9 +3,7 @@ import { FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 
-const url: any = {
-  [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/typus/typus_v2/query",
-};
+const url = "https://app.sentio.xyz/api/v1/insights/typus/typus_v2/query";
 
 const options = {
   headers: {
@@ -19,7 +17,7 @@ const methodology = {
   ProtocolRevenue: "All Dov fees are included in the protocol revenue.",
 };
 
-const buildQueryPayload = (_metricName: string, start: number, end: number) => ({
+const buildQueryPayload = (start: number, end: number) => ({
   timeRange: {
     start: start.toString(),
     end: end.toString(),
@@ -177,9 +175,9 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
   },
 });
 
-const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_t: any, _b: any, { startOfDay }: FetchOptions): Promise<FetchResultV2> => {
   const [feeRes] = await Promise.all([
-    postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
+    postURL(url, buildQueryPayload(startOfDay, startOfDay + 86400), 3, options),
   ]);
 
   const fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
@@ -188,9 +186,9 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
     ?.values;
 
   // Already calculated the rollup delta, so use the first value
-  const dailyFees = fee_usd.at(-1).value;
+  const dailyFees = fee_usd.at(0).value;
 
-  const dailyRevenue = revenue_fee_usd.at(-1).value;
+  const dailyRevenue = revenue_fee_usd.at(0).value;
 
   return {
     dailyFees,
@@ -200,7 +198,7 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SUI]: {
       fetch,
