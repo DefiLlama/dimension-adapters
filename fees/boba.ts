@@ -12,7 +12,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BOBA]: {
       fetch: L2FeesFetcher({ ethereumWallets, }),
-      start: 1664582400,
+      start: '2022-10-01',
     },
   },
   protocolType: ProtocolType.CHAIN,

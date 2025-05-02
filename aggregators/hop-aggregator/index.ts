@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 
 const fetchVolume = async (_t: any, _b: any ,options: FetchOptions) => {
@@ -16,11 +16,12 @@ const fetchVolume = async (_t: any, _b: any ,options: FetchOptions) => {
   };
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
+  deadFrom: '2025-01-25',
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: 1714276800
+      start: '2024-04-28'
     },
   },
 };

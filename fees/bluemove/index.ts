@@ -23,10 +23,8 @@ const fetch = async (timestamp: number) => {
   const dailyFees = Number(dailyVolume) * rateFees;
   const totalFees = Number(totalVolume) * rateFees;
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    totalFees: `${totalFees}`,
-    dailyFees:  dailyFees ? `${dailyFees}` : undefined,
+    totalFees,
+    dailyFees,
     timestamp: dayTimestamp,
   };
 };
@@ -36,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: 1666224000,
+      start: '2022-10-20',
     },
   },
   version: 1

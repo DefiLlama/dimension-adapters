@@ -26,22 +26,22 @@ const adapter: Adapter = {
         [CHAIN.BSC]: {
             runAtCurrTime: true,
             fetch: request()(CHAIN.BSC),
-            start: 1689609600,
+            start: '2023-07-17',
         },
         [CHAIN.ARBITRUM]: {
             runAtCurrTime: true,
             fetch: request()(CHAIN.ARBITRUM),
-            start: 1689609600,
+            start: '2023-07-17',
           },
           [CHAIN.OP_BNB]: {
             runAtCurrTime: true,
             fetch: request()('opbnb'),
-            start: 1689609600,
+            start: '2023-07-17',
           },
           [CHAIN.BASE]: {
             runAtCurrTime: true,
             fetch: request()(CHAIN.BASE),
-            start: 1689609600,
+            start: '2023-07-17',
           }
     }
 }

@@ -22,8 +22,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => dayItem.dateId.split('T')[0] === dateString)?.amount
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
-      start: 1675814400,
+      start: '2023-02-08',
     },
   },
 };

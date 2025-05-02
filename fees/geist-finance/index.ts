@@ -28,10 +28,10 @@ const graphs = () => {
       const dailyRevenue = dailyFees && dailyFees * .5;
       return {
         timestamp,
-        totalFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
-        totalRevenue: totalRevenue.toString(),
-        dailyRevenue: dailyRevenue ? dailyRevenue.toString() : "0",
+        totalFees,
+        dailyFees,
+        totalRevenue: totalRevenue,
+        dailyRevenue,
       };
     };
   }
@@ -39,12 +39,13 @@ const graphs = () => {
 
 
 const adapter: Adapter = {
+  deadFrom: "2023-12-14",
   version: 1,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
-        start: 1633478400,
+        start: '2021-10-06',
     },
   },
 }

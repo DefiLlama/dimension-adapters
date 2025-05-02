@@ -58,11 +58,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+    deadFrom: "2024-12-14",
     adapter: {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {
             fetch: graphs(endpoints)(BSC),
-            start: 1689897600,
+            start: '2023-07-21',
             meta: {
                 methodology
             }

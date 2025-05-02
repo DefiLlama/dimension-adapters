@@ -68,14 +68,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },

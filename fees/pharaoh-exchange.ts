@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter, FetchResultFees, BaseAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { AVAX, CHAIN } from "../helpers/chains";
-
 import {
-  getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../helpers/getUniSubgraph";
 
 type TStartTime = {
@@ -17,27 +16,23 @@ const startTimeV2: TStartTime = {
 
 const v2Endpoints = {
   [CHAIN.AVAX]:
-    sdk.graph.modifyEndpoint('oM4WnuyAbSwPpjk6niUkp88AZg1hSTi9aC1ZM4RcsqR'),
+    sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
 };
 
 const VOLUME_USD = "volumeUSD";
 
-const v2Graphs = getGraphDimensions({
+const v2Graphs = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
-  },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 72,
-    UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80, // Revenue is 50% of collected fees
-    SupplySideRevenue: 20,
+    HoldersRevenue: 100,
+    UserFees: 100,
+    Revenue: 100,
+    SupplySideRevenue: 0,
     ProtocolRevenue: 8,
   },
 });

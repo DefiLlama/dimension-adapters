@@ -20,7 +20,7 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   })).map((e: any) => dailyFees.add(e.token, e.amount))
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch,
-      start: 1688172646,
+      start: '2023-07-01',
     },
   },
 };

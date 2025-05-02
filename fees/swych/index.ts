@@ -117,7 +117,7 @@ const fetchFees = async (options: FetchOptions) => {
         const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
-    return { dailyFees: dailyFees }
+    return { dailyFees }
 };
 
 const adapter: Adapter = {
@@ -125,7 +125,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
-            start: 1701720000,
+            start: '2023-12-04',
             meta: {
                 methodology: {
                     Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',

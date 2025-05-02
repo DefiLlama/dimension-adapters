@@ -100,11 +100,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: 1683450630,
+      start: '2023-05-07',
     },
     [CHAIN.BASE]: {
       fetch: graphs(CHAIN.BASE),
-      start: 1693449471,
+      start: '2023-08-31',
     },
   },
 };

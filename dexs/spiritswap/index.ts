@@ -1,25 +1,18 @@
 import { SimpleAdapter } from "../../adapters/types";
-
-const {
-  getChainVolumeWithGasToken,
-} = require("../../helpers/getUniSubgraphVolume");
+import * as sdk from "@defillama/sdk";
+import { getChainVolumeWithGasToken2 } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  fantom:
-    "https://api.thegraph.com/subgraphs/name/layer3org/spiritswap-analytics",
+  fantom: sdk.graph.modifyEndpoint('E6viiLSqVvjLy9re7aBPkaXAB2itNDho2LR3CP2q1uqP'),
 };
 
-const graphs = getChainVolumeWithGasToken({
+const graphs = getChainVolumeWithGasToken2({
   graphUrls: {
     fantom: endpoints.fantom,
   },
   totalVolume: {
     factory: "spiritswapFactories",
     field: 'totalVolumeFTM',
-  },
-  dailyVolume: {
-    factory: "spiritswapDayData",
-    field: 'dailyVolumeFTM',
   },
   priceToken: "coingecko:fantom"
 });
@@ -29,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     fantom: {
       fetch: graphs("fantom"),
-      start: 1620864000,
+      start: '2021-05-13',
     },
   },
 };

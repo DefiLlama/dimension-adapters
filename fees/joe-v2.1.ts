@@ -95,9 +95,9 @@ const graph = (chain: Chain) => {
     const dailySupplySideRevenue = dailyFees.clone();
     dailySupplySideRevenue.subtract(dailyRevenue);
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyUserFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue,
@@ -111,15 +111,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 1681084800,
+      start: '2023-04-10',
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
-      start: 1682467200,
+      start: '2023-04-26',
     },
   }
 };

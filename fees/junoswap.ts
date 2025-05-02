@@ -21,25 +21,26 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.date)) === dayTimestamp)?.volume_total
   const totalFeesUsd = totalVolume * TOTAL_FEES;
-  const dailyFeesUsd = dailyVolume ? Number(dailyVolume) * TOTAL_FEES : undefined
+  const fees = dailyVolume ? Number(dailyVolume) * TOTAL_FEES : undefined
   return {
-    totalFees: totalFeesUsd.toString(),
-    dailyFees: dailyFeesUsd ? dailyFeesUsd.toString(): undefined,
-    dailyVolume: dailyVolume ? dailyVolume.toString() : undefined,
-    totalVolume: `${totalVolume}`,
+    totalFeesUsd,
+    dailyFees: fees,
+    dailyVolume: dailyVolume,
+    totalVolume: totalVolume,
     timestamp: dayTimestamp,
   };
 };
 
 
 const adapter: Adapter = {
+  deadFrom: '2023-02-02',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.JUNO]: {
         fetch: fetch,
-        start: 1646784000,
+        start: '2022-03-09',
     },
-  }
+  },
 }
 
 export default adapter;

@@ -44,8 +44,8 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { tvol }) => acc + Number(tvol), 0);
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   }
 }
@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch:  fethcEmpty,
-      start: async () => START_TIME,
+      start: START_TIME,
     }
   },
 };

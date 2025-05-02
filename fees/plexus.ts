@@ -35,12 +35,13 @@ const fetch = (chainId: number) => {
   };
 };
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-03-02',
   adapter: Object.keys(ChainId).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: fetch(ChainId[chain]),
-        start: 1675209600,
+        start: '2023-02-01',
       },
     };
   }, {}),

@@ -50,7 +50,7 @@ const adapter_dexs_agg: any = {
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch(chain),
           runAtCurrTime: true,
-          start: 1704348000,
+          start: '2024-01-04',
         },
       };
     }, {}),

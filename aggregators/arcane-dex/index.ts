@@ -5,7 +5,6 @@ import request from "graphql-request"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getBlock } from "../../helpers/getBlock"
-import * as sdk from "@defillama/sdk"
 
 interface IResponse {
   today: {
@@ -54,7 +53,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: 1700092800
+      start: '2023-11-16'
       ,
     }
   }

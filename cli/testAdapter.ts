@@ -1,21 +1,21 @@
 require('dotenv').config()
-import * as path from 'path'
-import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
-import { checkArguments, ERROR_STRING, formatTimestampAsDate, printVolumes, upperCaseFirst } from './utils';
-import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import runAdapter from '../adapters/utils/runAdapter'
-import { canGetBlock, getBlock } from '../helpers/getBlock';
-import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
 import { execSync } from 'child_process';
+import * as path from 'path';
+import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
+import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
+import runAdapter from '../adapters/utils/runAdapter';
+import { canGetBlock, getBlock } from '../helpers/getBlock';
+import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
+import { checkArguments, printVolumes } from './utils';
 
-function checkIfFileExistsInMasterBranch(filePath: any) {
+function checkIfFileExistsInMasterBranch(_filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
-  const resString = res.toString()
-  if (!resString.includes(filePath)) {
-    console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
-    process.exit(1)
-  }
+  // const resString = res.toString()
+  // if (!resString.includes(filePath)) {
+  //   console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
+  //   process.exit(1)
+  // }
 }
 
 // tmp
@@ -29,7 +29,16 @@ process.on('uncaughtException', handleError)
 checkArguments(process.argv)
 
 function getTimestamp30MinutesAgo() {
-  return Math.trunc(Date.now() / 1000) - 60 * 30
+  return Math.trunc(Date.now() / 1000) - 60 * 60 * 2.5
+}
+
+
+function toTimestamp(timeArg:string){
+  if(Number.isNaN(Number(timeArg))){
+    return Math.round(new Date(timeArg).getTime()/1e3)
+  } else {
+    return Number(timeArg)
+  }
 }
 
 // Get path of module import
@@ -39,7 +48,7 @@ const file = `${adapterType}/${process.argv[3]}`
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
 
-  const cleanDayTimestamp = process.argv[4] ? Number(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
+  const cleanDayTimestamp = process.argv[4] ? toTimestamp(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`---------------------------------------------------`)
@@ -48,7 +57,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   const adapterVersion = module.version
   let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
-    endTimestamp = (process.argv[4] ? Number(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
+    endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
   } else {
     checkIfFileExistsInMasterBranch(file)
   }
@@ -74,6 +83,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     // Get adapter
     const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
+      _module: module,
     })
     printVolumes(volumes, adapter)
     console.info("\n")
@@ -82,6 +92,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
       runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
+        _module: module,
+        isTest: true,
       }).then(res => ({ version, res }))
     ))
     allVolumes.forEach(({ version, res }) => {

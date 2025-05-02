@@ -34,7 +34,7 @@ const getStartTimestamp = async () => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
-      start: 1648080000,
+      start: '2022-03-24',
       fetch: fetch,
     }
   }

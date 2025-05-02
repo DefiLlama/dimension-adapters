@@ -1,37 +1,11 @@
-import fetchURL from "../../utils/fetchURL"
-import { DISABLED_ADAPTER_KEY, type SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { getFeesExport } from "../../helpers/balancer";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
-
-const URL = "https://api.darkcrypto.finance/api/darkness"
-
-interface IAPIResponse {
-  volume24h: number;
-};
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse = (await fetchURL(URL))?.data;
-  const dailyVolume = response.volume24h;
-
-  return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
-  };
-};
-
-const adapter: SimpleAdapter = {
+const adapters: SimpleAdapter = {
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.CRONOS]: {
-      fetch,
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1672790400,
-    },
-  }
+    [CHAIN.CRONOS]: {fetch: getFeesExport('0x92631e0e84ff01853ef1bb88fc9c9f7d1e1af1ca'), },
+  },
+  version: 2,
 };
-
-export default adapter;
+export default adapters;

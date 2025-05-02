@@ -57,7 +57,7 @@ export const fetchV1 = () => {
 //   adapter: {
 //     [OPTIMISM]: {
 //       fetch: getFees(),
-//       start: 1677110400, // TODO: Add accurate timestamp
+//       start: '2023-02-23', // TODO: Add accurate timestamp
 //     },
 //   },
 // };

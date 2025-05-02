@@ -89,12 +89,12 @@ const graphs = (chain: Chain) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees?.toString(),
-      dailyRevenue: dailyFees?.toString(),
-      dailyUserFees: dailyFees?.toString(),
-      totalFees: totalFees.toString(),
-      totalUserFees: totalFees.toString(),
-      totalRevenue: totalFees.toString(),
+      dailyFees,
+      dailyRevenue: dailyFees,
+      dailyUserFees: dailyFees,
+      totalFees,
+      totalUserFees: totalFees,
+      totalRevenue: totalFees,
 
     };
   };
@@ -113,7 +113,7 @@ const adapter: Adapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: 1629504000,
+        start: '2021-08-21',
         meta: {
           methodology
         }

@@ -53,7 +53,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1681516800,
+      start: '2023-04-15',
     },
   },
 };

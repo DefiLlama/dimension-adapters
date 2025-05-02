@@ -33,8 +33,8 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch,
-      start: 1662508800,
+      start: '2022-09-07',
     },
   },
 };

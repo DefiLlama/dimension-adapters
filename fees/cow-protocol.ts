@@ -1,28 +1,31 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-type TAddress = {
-  [l: string | Chain]: string;
-}
-const address: TAddress = {
-  [CHAIN.ETHEREUM]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41',
-  [CHAIN.XDAI]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41'
-}
-
-
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    const logs = await options.getLogs({
-      target: address[chain],
-      eventAbi: "event Trade (address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)",
-    })
+const fetch = (_: Chain) => {
+  return async (_a: any, _ts: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    logs.forEach((tx: any) => {
-      dailyFees.add(tx.sellToken, tx.feeAmount)
-    })
-    const dailyRevenue = dailyFees.clone()
-    return { dailyUserFees: dailyFees, dailyFees, dailyRevenue }
+    try {
+      const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+      // https://dune.com/queries/4736286
+      const sql = getSqlFromFile("helpers/queries/cow-protocol.sql", {
+        start: startOfDay
+      });
+      const value = (await queryDuneSql(options, sql));
+      const dayItem = value[0]
+      dailyFees.addGasToken((dayItem?.eth_value) * 1e18 || 0)
+      return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+      }
+    } catch (e) {
+      return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+      }
+    }
   }
 }
 
@@ -33,23 +36,24 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM) as any,
-      start: 1675382400,
+      start: '2023-02-03',
       meta: {
         methodology
       }
     },
     // [CHAIN.XDAI]: {
     //   fetch: fetch(CHAIN.XDAI) as any,
-    //   start: 1675382400,
+    //   start: '2023-02-03',
     //   meta: {
     //     methodology
     //   }
     // }
-  }
+  },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;

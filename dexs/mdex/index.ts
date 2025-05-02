@@ -22,6 +22,7 @@ const mapChainId: ChainMapId = {
 };
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const queryByChainId = `?chain_id=${mapChainId[chain]}`;
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
@@ -33,8 +34,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.created_time)) === dayTimestamp)?.max_swap_amount
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };
@@ -51,7 +52,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: async () => getStartTimestamp(chain),
+        // start: async () => getStartTimestamp(chain),
         customBackfill: customBackfill(chain as Chain, fetch),
       }
     }

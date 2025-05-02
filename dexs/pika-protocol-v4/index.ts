@@ -23,7 +23,7 @@ interface IValume {
 }
 
 const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('5dP9FpbXxmNPRaERfzyKEGuRKh2NRQuwPBWfMLGoSRX5')
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6Z7dcfhWCWxvM5EWYtS9ZRmJSKmButFjuTvvDoCWEef')
 }
 
 const fetch = (chain: Chain) => {
@@ -61,7 +61,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1687910400,
+      start: '2023-06-28',
     },
   },
 };

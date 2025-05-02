@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1678406400,
+      start: '2023-03-10',
     },
   }
 };

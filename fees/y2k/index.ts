@@ -14,7 +14,7 @@ const adapter: Adapter = {
     v1: {
       [CHAIN.ARBITRUM]: {
         fetch: v1Fetch as any,
-        start: 1667088000,
+        start: '2022-10-30',
         meta: {
           methodology,
         },
@@ -23,7 +23,7 @@ const adapter: Adapter = {
     v2: {
       [CHAIN.ARBITRUM]: {
         fetch: v2Fetch as any,
-        start: 1685404800,
+        start: '2023-05-30',
       },
     },
   },

@@ -17,7 +17,7 @@ const rpc = (url: string, method: string, params: any) =>
 const adapter: SimpleAdapter = {
   adapter: {
     concordium: {
-      start: 1688198518,
+      start: '2023-07-01',
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
           timestamp: ts,

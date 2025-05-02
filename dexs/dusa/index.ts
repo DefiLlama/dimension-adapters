@@ -19,10 +19,10 @@ const fetchVolume = async (options: FetchOptions) => {
   const totalFee = historicalVolume.totalVolume.fees;
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-    dailyFees: `${dailyFees}`,
-    totalFees: `${totalFee}`,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
+    dailyFees,
+    totalFees: totalFee,
   };
 };
 
@@ -31,7 +31,7 @@ const adapter: Adapter = {
   adapter: {
     massa: {
       fetch: fetchVolume,
-      start: 1713170000
+      start: '2024-04-15'
     },
   }
 }

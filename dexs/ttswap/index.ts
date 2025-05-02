@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.THUNDERCORE]: {
       fetch,
-      start: 1673308800,
+      start: '2023-01-10',
       runAtCurrTime: true
     },
   },

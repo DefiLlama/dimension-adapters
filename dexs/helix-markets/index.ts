@@ -14,7 +14,7 @@ const fetch: FetchV2 = async (_: FetchOptions): Promise<FetchResultV2> => {
   const quoteVolume: IVolume[] = (await httpGet(URL));
   const dailyVolume = quoteVolume.reduce((e: number, a: IVolume) => parseFloat(a.quoteVolume) + e, 0);
   return {
-    dailyVolume: `${dailyVolume}`
+    dailyVolume: dailyVolume
   }
 }
 
@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
       [CHAIN.ICP]: {
         fetch: fetch,
-        start: 1713830400,
+        start: '2024-04-23',
         runAtCurrTime: true,
       }
     }

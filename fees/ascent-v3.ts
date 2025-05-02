@@ -1,18 +1,8 @@
 import { Chain } from "@defillama/sdk/build/general";
-
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import {
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-} from "../helpers/getUniSubgraphVolume";
-
-import { getGraphDimensions } from "../helpers/getUniSubgraph";
-
-interface IPoolData {
-  id: number;
-  feesUSD: string;
-}
+import { DEFAULT_TOTAL_VOLUME_FIELD } from "../helpers/getUniSubgraphVolume";
+import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 type IURL = {
   [l: string | Chain]: string;
@@ -23,19 +13,11 @@ const endpoints: IURL = {
     "https://eon-graph.horizenlabs.io/subgraphs/name/surfacing8671/v3AscentFull2",
 };
 
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "pancakeDayData",
-    field: "volumeUSD",
-  },
-  dailyFees: {
-    factory: "pancakeDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -49,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.EON]: {
       fetch: v3Graphs(CHAIN.EON),
-      start: 1699401600,
+      start: '2023-11-08',
     },
   },
 };

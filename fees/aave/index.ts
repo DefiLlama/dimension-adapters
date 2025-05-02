@@ -20,6 +20,7 @@ const poolIDs = {
   V3_METIS: '0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af',
   V3_BASE: '0xe20fcbdbffc4dd138ce8b2e6fbb6cb49777ad64d',
   V3_SCROLL: '0x69850d0b276776781c063771b161bd8894bcdd04',
+  V3_SONIC: '0x5c2e738f6e27bce0f7558051bf90605dd6176900'
 }
 type THeader = {
   [s: string]: string;
@@ -54,8 +55,9 @@ const v3Endpoints = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
   [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
   [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
-  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GQFbb95cE6d8mV989mL5figjaGaKCQB3xqYrr1bRyXqF'),
   [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint('FQcacc4ZJaQVS9euWb76nvpSq2GxavBnUM6DU6tmspbi'),
 }
 
 
@@ -234,6 +236,8 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           + reserveFactorUSD;
       }, 0);
 
+      if (chain === POLYGON && dailyFee > 1e6) throw new Error(`Polygon V2 daily fee is too high: ${dailyFee}`)
+
       let dailyRev = todaysReserves.reduce((acc: number, reserve: V2Reserve) => {
         const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
 
@@ -325,6 +329,9 @@ const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: n
   else if (chain === CHAIN.SCROLL) {
     poolid = poolIDs.V3_SCROLL;
   }
+  else if (chain === CHAIN.SONIC){
+    poolid = poolIDs.V3_SONIC;
+  }
   else {
     poolid= poolIDs.V3;
   }
@@ -403,6 +410,18 @@ const v3Graphs = (graphUrls: ChainEndpoints) => {
 
         const outstandingTreasuryIncomeUSD = outstandingTreasuryIncome * priceInUsd / (10 ** reserve.reserve.decimals);
 
+        if (depositorInterestUSD < 0 || depositorInterestUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
+        if (treasuryIncomeUSD < 0 || treasuryIncomeUSD > 1_000_000) {
+          return acc
+        }
+
         acc.outstandingTreasuryIncomeUSD += outstandingTreasuryIncomeUSD;
         acc.treasuryIncomeUSD += treasuryIncomeUSD;
         acc.depositorInterestUSD += depositorInterestUSD;
@@ -437,71 +456,75 @@ const adapter = {
 //    v1: {
 //      [ETHEREUM]: {
 //        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-//        start: 1578459600
+//        start: '2020-01-08'
 //      },
 //    },
     v2: {
       [AVAX]: {
         fetch: v2Graphs(v2Endpoints)(AVAX),
-        start: 1606971600
+        start: '2020-12-03'
       },
       [ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: 1606971600
+        start: '2020-12-03'
       },
       [POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: 1606971600
+        start: '2020-12-03'
       },
     },
     v3: {
       [AVAX]: {
         fetch: v3Graphs(v3Endpoints)(AVAX),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [POLYGON]: {
         fetch: v3Graphs(v3Endpoints)(POLYGON),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [ARBITRUM]: {
         fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [OPTIMISM]: {
         fetch: v3Graphs(v3Endpoints)(OPTIMISM),
-        start: 1647230400
+        start: '2022-03-14'
       },
-      [FANTOM]: {
-        fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: 1647230400
-      },
+      // [FANTOM]: { // index error
+      //   fetch: v3Graphs(v3Endpoints)(FANTOM),
+      //   start: '2022-03-14'
+      // },
       [HARMONY]: {
         fetch: v3Graphs(v3Endpoints)(HARMONY),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [CHAIN.ETHEREUM]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
-        start: 1647230400
+        start: '2022-03-14'
       },
       [CHAIN.BSC]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.BSC),
-        start: 1700222400
+        start: '2023-11-17'
       },
       [CHAIN.XDAI]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.XDAI),
-        start: 1696420800
+        start: '2023-10-04'
       },
       [CHAIN.METIS]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.METIS),
-        start: 1682164800
+        start: '2023-04-22'
       },
       [CHAIN.BASE]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.BASE),
-        start: 1691496000
+        start: '2023-08-08'
       },
       [CHAIN.SCROLL]: {
         fetch: v3Graphs(v3Endpoints)(CHAIN.SCROLL),
-        start: 1705741200
+        start: '2024-01-20'
+      },
+      [CHAIN.SONIC]: {
+        fetch: v3Graphs(v3Endpoints)(CHAIN.SONIC),
+        start: '2025-02-15'
       },
     }
   },

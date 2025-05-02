@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
+const adapters = univ2Adapter2({
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
 }, {
   factoriesName: "factories",

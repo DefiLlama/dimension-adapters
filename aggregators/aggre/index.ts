@@ -27,7 +27,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1698660910,
+                start: '2023-10-30',
             }
         }
     }, {}),

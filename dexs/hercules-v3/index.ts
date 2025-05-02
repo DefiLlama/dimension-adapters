@@ -1,13 +1,10 @@
-// https://metisapi.0xgraph.xyz/subgraphs/name/cryptoalgebra/analytics
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
+const adapters = univ2Adapter2({
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/cryptoalgebra/analytics"
 }, {
   factoriesName: "factories",
-  dayData: "algebraDayData",
-  dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
 

@@ -40,7 +40,7 @@ const fetchV2 = async (timestamp: number) => {
     .reduce((acc, { volume0, close }) => acc + (volume0) * close, 0)
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     totalVolume: result ? `${result.totalVolume}` : undefined,
     timestamp: dayTimestamp,
   };
@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchV2,
-      start: 1697144400,
+      start: '2023-10-12',
     },
   },
 };

@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: 1643673600,
+      start: '2022-02-01',
     },
   },
 };

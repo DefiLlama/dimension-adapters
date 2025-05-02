@@ -1,6 +1,7 @@
 import retry from "async-retry";
 import fetchURL from "../utils/fetchURL";
 import { getEnv } from "./env";
+import { checkCanRunDuneQuery } from "./dune";
 
 const API_KEYS = getEnv('DUNE_API_KEYS')?.split(",") ?? [];
 type IRequest = {
@@ -9,9 +10,8 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchURLWithRetry(url: string) {
-  /* const error = new Error("Dune: queryId is required")
-  delete error.stack
-  throw error */
+  checkCanRunDuneQuery()
+
   if (!requests[url])
     requests[url] = _fetchURLWithRetry(url)
   return requests[url]

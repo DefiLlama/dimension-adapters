@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch,
-      start: 1438228800,
+      start: '2015-07-30',
     },
   },
   protocolType: ProtocolType.CHAIN

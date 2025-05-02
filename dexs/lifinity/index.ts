@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = "https://lifinity.io/api/dashboard/volume"
+const historicalVolumeEndpoint = "https://api.lifinity.io/api/dashboard/volume"
 
 interface IVolumeall {
   volume: number;
@@ -26,8 +26,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => dayItem.date === formattedDate)?.volume;
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

@@ -80,7 +80,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: 1684397388,
+      start: '2023-05-18',
     },
   },
 };

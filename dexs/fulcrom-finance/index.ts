@@ -8,6 +8,7 @@ const endpoints: { [key: string]: string } = {
     "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
   [CHAIN.ERA]:
     "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 
 const historicalDataSwap = gql`
@@ -39,51 +40,52 @@ interface IGraphResponse {
 
 const getFetch =
   (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
-    const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "daily:" + String(dayTimestamp),
-      period: "daily",
-    });
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "total",
-      period: "total",
-    });
+    (chain: string): Fetch =>
+      async (timestamp: number) => {
+        const dayTimestamp = getUniqStartOfTodayTimestamp(
+          new Date(timestamp * 1000)
+        );
+        const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+          id: "daily:" + String(dayTimestamp),
+          period: "daily",
+        });
+        const totalData: IGraphResponse = await request(endpoints[chain], query, {
+          id: "total",
+          period: "total",
+        });
 
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume:
-        dailyData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+        return {
+          timestamp: dayTimestamp,
+          dailyVolume:
+            dailyData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
+              )
+              : undefined,
+          totalVolume:
+            totalData.volumeStats.length == 1
+              ? String(
+                Number(
+                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+                    String(Number(sum) + Number(element))
+                  )
+                ) *
                 10 ** -30
-            )
-          : undefined,
-    };
-  };
+              )
+              : undefined,
+        };
+      };
 
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.CRONOS]: 1677470400,
-    [CHAIN.ERA]: 1696496400,
-  };
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.CRONOS]: 1677470400,
+  [CHAIN.ERA]: 1696496400,   
+  [CHAIN.CRONOS_ZKEVM]: 1723698700, 
+};
 
 const adapter: BreakdownAdapter = {
   breakdown: {

@@ -61,8 +61,8 @@ const fetch = async (timestamp: number) => {
     .reduce((a: number, b: IGraphResponse) => a+Number(b.volume24hUsd), 0)
 
   return {
-    // totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    // totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 }
@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HEDERA]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1664928000
+      start: '2022-10-05'
     },
   },
 };

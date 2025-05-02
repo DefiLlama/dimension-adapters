@@ -81,7 +81,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: 1662595200
+      start: '2022-09-08'
     }
   }
 }

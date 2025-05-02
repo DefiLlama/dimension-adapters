@@ -1,10 +1,11 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
+import { request, gql } from "graphql-request";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
+const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
 export enum KanaChainID {
   "solana" = 1,
@@ -21,8 +22,8 @@ export enum KanaChainID {
   "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
@@ -33,15 +34,25 @@ const fetch = (chain: KanaChainID) => async (timestamp: number) => {
   };
 };
 
-const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-  const data = await fetchURL(
-    `${TRADE_URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
-  );
+const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
+  const query = gql`
+    query getTransactionVolumesForTransactions($timestamp: Float!, $chainId: Float!) {
+      getTransactionVolumesForTransactions(timestamp: $timestamp, chainId: $chainId)
+    }
+  `;
+  const variables = {
+    timestamp: dayTimestamp - 1,
+    chainId: KanaChainID.aptos,
+  };
+  const data = await request(GRAPHQL_URL, query, variables);
+  
+  const result = data.getTransactionVolumesForTransactions;
+  
   return {
     timestamp: timestamp,
-    dailyVolume: data.today.volume,
-    totalVolume: data.totalVolume.volume,
+    dailyVolume: result.today.volume,
+    totalVolume: result.totalVolume.volume,
   };
 };
 
@@ -51,59 +62,48 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(KanaChainID.ethereum),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.BSC]: {
       fetch: fetch(KanaChainID.bsc),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(KanaChainID.Avalanche),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(KanaChainID.Arbitrum),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(KanaChainID.polygon),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.ERA]: {
       fetch: fetch(KanaChainID.zkSync),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.APTOS]: {
-      fetch: async (timestamp: number) => {
-         const swap = await fetch(KanaChainID.aptos)(timestamp); 
-        const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
+      fetch: async (timestamp: number, t: any, options: FetchOptions) => {
+        const swap = await fetchAptos(options.startOfDay, t, options);
         return {
-          dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
-          totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),
+          dailyVolume: swap.dailyVolume.toString(),
+          totalVolume: swap.totalVolume.toString(),
           timestamp,
         };
       },
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.SUI]: {
       fetch: fetch(KanaChainID.sui),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(KanaChainID.solana),
-      runAtCurrTime: false,
       start: startTimeBlock,
     },
   },
 };
 
-// Export the adapter
 export default adapter;

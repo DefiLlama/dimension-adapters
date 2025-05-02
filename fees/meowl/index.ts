@@ -11,7 +11,7 @@ const adapter: Adapter = {
                     dailyRevenue: fees.toString(),
                 };
             },
-            start: 1685332595
+            start: '2023-05-29'
         },
     },
     version: 2

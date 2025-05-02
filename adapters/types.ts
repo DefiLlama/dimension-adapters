@@ -9,7 +9,7 @@ export type ChainEndpoints = {
 }
 
 export type FetchResultBase = {
-  timestamp: number;
+  timestamp?: number;
   block?: number;
 };
 
@@ -38,6 +38,8 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  dateString: string,
+  preFetchedResults?: any,
 }
 
 export type FetchGetLogsOptions = {
@@ -52,7 +54,10 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipIndexer?: boolean,
   topics?: string[],
+  noTarget?: boolean,
+  parseLog?: boolean,
 }
 
 export type Fetch = (
@@ -69,10 +74,10 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start: IStartTimestamp | number
-    fetch: Fetch|FetchV2;
+    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+    fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch|FetchV2;
+    customBackfill?: Fetch | FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
@@ -93,6 +98,9 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
+  deadFrom?: string;
+  allowNegativeValue?: boolean;
+  prefetch?: FetchV2;
 }
 
 export type SimpleAdapter = AdapterBase & {
@@ -138,6 +146,7 @@ export type FetchResultFees = FetchResultBase & {
   totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
+  totalHoldersRevenue?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -172,10 +181,24 @@ export enum AdapterType {
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
   ROYALTIES = 'royalties',
-  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives'
+  AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
+  BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
+
+export const whitelistedDimensionKeys = new Set([
+  'startTimestamp', 'chain', 'timestamp', 'block',
+
+  'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
+  'tokenIncentives',
+  'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+])
+export const accumulativeKeySet = new Set([
+  'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
+])
 
 // End of specific adaptors type
 

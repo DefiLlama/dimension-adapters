@@ -55,9 +55,9 @@ const getVolume = async (timestamp: number) => {
     const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
     return {
-        totalVolume: `${totalVolume}`,
-        dailyOpenInterest: `${dailyOpenInterest}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        totalVolume: totalVolume,
+        dailyOpenInterest: dailyOpenInterest,
+        dailyVolume: dailyVolume,
         timestamp: dayTimestamp,
     };
 };
@@ -67,7 +67,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: getVolume,
-            start: 1664928000,
+            start: '2022-10-05',
         }
     },
 };

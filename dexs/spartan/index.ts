@@ -36,7 +36,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
 
   return {
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
     timestamp: dayTimestamp,
   }
@@ -46,7 +46,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1633305600,
+      start: '2021-10-04',
       customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
     },
   },

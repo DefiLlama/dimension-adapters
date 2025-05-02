@@ -1,27 +1,19 @@
 import { SimpleAdapter } from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoint = {
     [CHAIN.FUSE]: "https://api.studio.thegraph.com/query/78455/exchange-v3/version/latest",
 };
 
-const v3Graph = getGraphDimensions({
+const v3Graph = getGraphDimensions2({
     graphUrls: endpoint,
     totalVolume: {
         factory: "factories"
     },
-    dailyVolume: {
-        factory: "pancakeDayData",
-        field: 'volumeUSD'
-    },
     totalFees: {
         factory: "factories"
     },
-    dailyFees: {
-        factory: "pancakeDayData",
-        field: "feesUSD"
-    }
 })
 
 const v3StartTimes = {

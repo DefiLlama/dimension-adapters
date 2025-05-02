@@ -37,9 +37,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: finalDailyFee.toString(),
-        totalFees: totalFees.toString(),
-        //dailyRevenue: (finalDailyFee * 0.3).toString(),
+        dailyFees: finalDailyFee,
+        totalFees,
+        //dailyRevenue: (finalDailyFee * 0.3),
       };
     };
   };
@@ -49,7 +49,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: graphs(endpoints)(CHAIN.BSC),
-      start: async () => 1706832000,
+      start: '2024-02-02',
       meta: {
         methodology: "All treasury, pool and keeper fees are collected",
       },

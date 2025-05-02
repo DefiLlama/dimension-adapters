@@ -1,7 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import disabledAdapter from "../../helpers/disabledAdapter";
 
 const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/markets"
 const candles = (market: string, fromISO: string) => `https://api.dydx.exchange/v3/candles/${market}?resolution=1DAY&fromISO=${fromISO}`
@@ -30,17 +31,19 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyOpenInterest = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.startingOpenInterest) * Number(b.close), 0)
   return {
-    dailyVolume: dailyolume ? `${dailyolume}` : undefined,
-    dailyOpenInterest: dailyOpenInterest ? `${dailyOpenInterest}` : undefined,
+    dailyVolume: dailyolume,
+    dailyOpenInterest: dailyOpenInterest,
     timestamp: timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-02-02',
   adapter: {
+    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1614211200,
+      start: '2021-02-25',
     },
   },
 };

@@ -78,7 +78,6 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch as any,
-      start: 194784191,
       meta: {
         methodology: methodology,
       },

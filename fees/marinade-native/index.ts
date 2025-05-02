@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1689120000, // 2023-07-12T00:00:00Z
+      start: '2023-07-12', // 2023-07-12T00:00:00Z
       runAtCurrTime: true,
       meta: {
         methodology: {

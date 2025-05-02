@@ -9,7 +9,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFeesExport(FriendtechSharesAddress, [event_trade]),
-      start: 1696204800,
+      start: '2023-10-02',
     },
   },
   version: 2,

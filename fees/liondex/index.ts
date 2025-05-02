@@ -46,12 +46,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2024-12-14",
   version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [ARBITRUM]: {
       fetch: graphs(endpoints)(ARBITRUM),
-      start: 1686614400,
+      start: '2023-06-13',
       meta: {
         methodology,
       },

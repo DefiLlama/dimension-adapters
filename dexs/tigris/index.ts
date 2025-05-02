@@ -1,75 +1,27 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const API_ENDPOINT = "https://flask.tigristrade.info";
+const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
+  const { data: { volumes } } = await httpGet('https://subgraph.tigris.trade/api/platform')
+  const volData = volumes.find((e: any) => e.date === dateString)
+  if (!volData) throw new Error('No data found for the given date');
 
-interface ApiResponse {
-  dailyVolume: number;
-  day: number;
-  totalVolume: number;
-}
-
-const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
-  let endpoint;
-  if (chain === CHAIN.POLYGON) {
-    endpoint = "/fetch-polygon-data";
-  } else if (chain === CHAIN.ARBITRUM) {
-    endpoint = "/fetch-arbitrum-data";
-  } else {
-    throw new Error(`Unsupported chain: ${chain}`);
-  }
-
-  const response = await httpGet(`${API_ENDPOINT}${endpoint}`, {
-    params: {
-      chain: chain,
-      timestamp: timestamp
-    }
-  });
-
-  return response;
-}
-
-function startOfDayTimestamp(timestamp: number): number {
-  const date = new Date(timestamp * 1000);
-  date.setUTCHours(0, 0, 0, 0);
-  return Math.floor(date.getTime() / 1000);
-}
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dataPoints = await fetchFromAPI(chain, timestamp);
-    const adjustedTimestamp = startOfDayTimestamp(timestamp);
-    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
-
-    if (!matchingData) {
-      console.warn(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
-      return {
-        dailyVolume: '0',
-        totalVolume: '0',
-        timestamp: adjustedTimestamp
-      };
-    }
-
-    return {
-      dailyVolume: matchingData.dailyVolume.toString(),
-      totalVolume: matchingData.totalVolume.toString(),
-      timestamp: matchingData.day
-    };
-  }
+  return {
+    dailyVolume: volData.volumeUSDFormatted,
+  };
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1663023600,
+      fetch,
+      start: '2022-09-13',
     },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: 1663023600,
-    }
+    // [CHAIN.POLYGON]: {
+    //   fetch: fetch(CHAIN.POLYGON),
+    //   start: '2022-09-13',
+    // }
   }
 }
 

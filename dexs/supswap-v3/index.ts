@@ -1,26 +1,16 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints = {
   [CHAIN.MODE]: "https://api.goldsky.com/api/public/project_clrhmyxsvvuao01tu4aqj653e/subgraphs/supswap-exchange-v3/1.0.0/gn"
 }
 
-const VOLUME_USD = "volumeUSD";
-
-const v3Graphs = getGraphDimensions({
+const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "supDayData",
-    field: VOLUME_USD,
-  },
-  dailyFees: {
-    factory: "supDayData",
-    field: "feesUSD",
   },
   feesPercent: {
     type: "fees",
@@ -38,7 +28,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: {
       fetch: v3Graphs(CHAIN.MODE),
-      start: 1706313600,
+      start: '2024-01-27',
     },
   },
 };

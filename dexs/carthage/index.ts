@@ -1,15 +1,11 @@
 import { BreakdownAdapter } from "../../adapters/types";
-
 const {
-  getChainVolume,
+  getChainVolume2,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
 } = require("../../helpers/getUniSubgraphVolume");
-
 const { CANDLE } = require("../../helpers/chains");
-
 const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
-
 
 const v3Endpoints = {
   [CANDLE]:
@@ -18,17 +14,13 @@ const v3Endpoints = {
 
 const VOLUME_USD = "volumeUSD";
 
-const v3Graphs = getChainVolume({
+const v3Graphs = getChainVolume2({
   graphUrls: {
     ...v3Endpoints,
   },
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
   },
 });
 
@@ -42,8 +34,8 @@ const adapter: BreakdownAdapter = {
           endpoints: v3Endpoints,
           chain: CANDLE,
           volumeField: VOLUME_USD,
-        })
-      }
+        }),
+      },
     },
   },
 };

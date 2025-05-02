@@ -1,10 +1,11 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { ARBITRUM, CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
   getGraphDimensions,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
+  getGraphDimensions2,
 } from "../../helpers/getUniSubgraph"
 
 type TStartTime = {
@@ -31,33 +32,27 @@ const v2Endpoints = {
   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/",
 };
 
-const VOLUME_USD = "volumeUSD";
-
-const v2Graphs = getGraphDimensions({
+const v2Graphs = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: "factories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: VOLUME_USD,
-  },
   feesPercent: {
     type: "fees",
-    HoldersRevenue: 72,
+    HoldersRevenue: 92,
     ProtocolRevenue: 8,
-    SupplySideRevenue: 20,
+    SupplySideRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80 // Revenue is 100% of collected fees
+    Revenue: 100 // Revenue is 100% of collected fees
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
-  SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
+  ProtocolRevenue: "Revenue going to the protocol. 8% of collected fees. (is probably right because the distribution is dynamic.)",
+  HoldersRevenue: "User fees are distributed among holders. 92% of collected fees. (is probably right because the distribution is dynamic.)",
+  SupplySideRevenue: "0% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
 }
 
 const adapter: Adapter = {

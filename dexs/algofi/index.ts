@@ -15,20 +15,19 @@ const fetch = async (timestamp: number) => {
   const response: IAPIResponse = (await fetchURL(URL)).amm.volume.day;
 
   return {
-    dailyVolume: `${response}`,
+    dailyVolume: response,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '1688947200',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ALGORAND]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    },
+          },
   }
 };
 

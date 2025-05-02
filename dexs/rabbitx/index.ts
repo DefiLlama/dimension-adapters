@@ -36,16 +36,16 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     .reduce((a: number, b: IVolumeall) => a + Number(b.volume), 0)
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.STARKNET]: {
+    [CHAIN.ETHEREUM]: {
       fetch: fetchVolume,
-      start: 1700179200, // Replace with actual start timestamp
+      start: '2023-11-17', // Replace with actual start timestamp
     },
   },
 };

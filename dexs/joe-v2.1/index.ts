@@ -48,22 +48,11 @@ const pools: TPool = {
 }
 
 const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyVolume = options.createBalances();
-  const lpTokens = pools[options.chain]
-  try {
+    const dailyVolume = options.createBalances();
+    const lpTokens = pools[options.chain]
     const tokens0 = await options.api.multiCall({ abi: 'address:getTokenX', calls: lpTokens! })
     const tokens1 = await options.api.multiCall({ abi: 'address:getTokenY', calls: lpTokens! })
-    const fromBlock = await options.getBlock(options.fromTimestamp, options.chain, {});
-    const toBlock = await options.getBlock(options.toTimestamp, options.chain, {});
-
-    const logs: any[][] = (await Promise.all(lpTokens.map((lp: string) => options.getLogs({
-      target: lp,
-      eventAbi: event_swap,
-      flatten: false,
-      fromBlock,
-      toBlock,
-    }))))
-
+    const logs: any[][] = await options.getLogs({ targets: lpTokens, eventAbi: event_swap, flatten: false });
     logs.map((log: any, index: number) => {
       const token0 = tokens0[index];
       const token1 = tokens1[index];
@@ -74,20 +63,15 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
         dailyVolume.add(token1, amountInX);
       })
     });
-    console.info(`joe-v2.1: ${options.chain} done`)
     return { dailyVolume };
-  } catch (err: any) {
-    console.error(`joe-v2.1: ${options.chain} error ${err}`)
-    return { dailyVolume };
-  }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.AVAX]: { fetch, start: 1682467200, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1682121600, },
-    [CHAIN.BSC]: { fetch, start: 1681084800, },
+    [CHAIN.AVAX]: { fetch, start: '2023-04-26', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-04-22', },
+    [CHAIN.BSC]: { fetch, start: '2023-04-10', },
   }
 };
 

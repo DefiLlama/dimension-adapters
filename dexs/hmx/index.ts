@@ -108,11 +108,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1687806000,
+      start: '2023-06-26',
     },
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints)(CHAIN.BLAST),
-      start: 1707094598,
+      start: '2024-02-05',
     },
   },
 };

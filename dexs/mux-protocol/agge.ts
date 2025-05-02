@@ -47,8 +47,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
@@ -76,7 +76,7 @@ const adapteragges: any = {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: 1708387200,
+        start: '2024-02-20',
       }
     }
   }, {})

@@ -10,12 +10,12 @@ const adapter: Adapter = {
         const dailyFees = await getTokenDiff({ target: '0x0100000000000000000000000000000000000000', includeGasToken: true, options})
 
         return {
-          dailyFees: dailyFees,
+          dailyFees,
           dailyRevenue: dailyFees,
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: 1609459200
+      start: '2021-01-01'
     },
   },
   protocolType: ProtocolType.CHAIN

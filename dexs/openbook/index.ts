@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1668643200,
+      start: '2022-11-17',
     },
   },
 };

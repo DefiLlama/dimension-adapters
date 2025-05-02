@@ -33,7 +33,7 @@ const formatMetaBaseData = (cols: Array<any>, rows: Array<Array<any>>) => {
 }
 
 const formatDate = (date: number) => {
-  return date < 10 ? `0${date}` : `${date}`
+  return date < 10 ? `0${date}` : `${date }`
 }
 
 const computeRevenue = (fee: number, por: number) => {
@@ -76,11 +76,11 @@ const getFees = (chainId: CHAIN_ID) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: computeRevenue(dailyFees, por).toString(),
-      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por).toString(),
-      dailyProtocolRevenue: computeProtocolRevenue(dailyFees).toString(),
-      totalFees: totalFees.toString(),
+      dailyFees,
+      dailyRevenue: computeRevenue(dailyFees, por),
+      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por),
+      dailyProtocolRevenue: computeProtocolRevenue(dailyFees),
+      totalFees,
     };
   }
 }
@@ -89,23 +89,23 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getFees(CHAIN_ID.ARB),
-      start: 1659312000, // 2022-08-01
+      start: '2022-08-01', // 2022-08-01
     },
     [BSC]: {
       fetch: getFees(CHAIN_ID.BSC),
-      start: 1659312000, // 2022-08-01
+      start: '2022-08-01', // 2022-08-01
     },
     [AVAX]: {
       fetch: getFees(CHAIN_ID.AVALANCHE),
-      start: 1659312000, // 2022-08-01
+      start: '2022-08-01', // 2022-08-01
     },
     [FANTOM]: {
       fetch: getFees(CHAIN_ID.FTM),
-      start: 1659312000, // 2022-08-01
+      start: '2022-08-01', // 2022-08-01
     },
     [OPTIMISM]: {
       fetch: getFees(CHAIN_ID.OPTIMISM),
-      start: 1672876800, // 2023-01-05
+      start: '2023-01-05', // 2023-01-05
     },
   }
 }

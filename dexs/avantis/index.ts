@@ -39,8 +39,8 @@ const fetchData = (_: Chain) => {
 		const dailyVolume = value.history.find((d) => d.date === dateStr)?.volume;
 		const totalVolume = value.history[value.history.length - 1]?.cumulativeVolume;
 		return {
-			dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-			totalVolume: totalVolume ? `${totalVolume}` : undefined,
+			dailyVolume: dailyVolume,
+			totalVolume: totalVolume,
 			timestamp: todaysTimestamp,
 		};
 	};
@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.BASE]: {
 			fetch: fetchData(CHAIN.BASE),
-			start: 1706313600,
+			start: '2024-01-27',
 		},
 	},
 };

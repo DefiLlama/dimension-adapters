@@ -81,7 +81,7 @@ const adapter: BreakdownAdapter = {
         "gamma": {
             [CHAIN.ETHEREUM]: {
                 fetch,
-                start: 1609200000
+                start: '2020-12-29'
             }
         }
     }

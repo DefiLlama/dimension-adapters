@@ -23,7 +23,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology: {
           Fees: "YOLO Games collects a 1% fee for Moon Or Doom and YOLO winnings, and a 3% fee on Poke The Bear winnings.",

@@ -17,7 +17,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MOONRIVER]: {
       fetch: feeAdapter.moonriver.fetch,
-      start:  1630903340
+      start: '2021-09-06'
     }
   }
 };

@@ -109,7 +109,7 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
-      start: 1691211277,
+      start: '2023-08-05',
     },
   },
   version: 1

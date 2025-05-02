@@ -21,16 +21,16 @@ const graphs = () => {
       .reduce((acc, { added }) => acc + Number(added), 0)
 
       const dailyFees = historicalVolume
-        .find((dayItem:IFees) => dayItem.timestamp === dayTimestamp)?.added
+        .find((dayItem:IFees) => dayItem.timestamp === dayTimestamp)?.added ?? 0
 
       const totalRevenue = totalFees * .5;
-      const dailyRevenue = dailyFees && dailyFees * .5;
+      const dailyRevenue = dailyFees * .5;
       return {
         timestamp,
-        totalFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
-        totalRevenue: totalRevenue.toString(),
-        dailyRevenue: (dailyRevenue && dailyFees) ? dailyRevenue.toString() : undefined,
+        totalFees,
+        dailyFees,
+        totalRevenue: totalRevenue,
+        dailyRevenue,
       };
     };
   }
@@ -42,7 +42,7 @@ const adapter: Adapter = {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
         fetch: graphs()(CHAIN.BSC),
-        start: 1647734400,
+        start: '2022-03-20',
     },
   },
 }

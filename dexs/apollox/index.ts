@@ -68,14 +68,12 @@ async function sleep (time: number) {
 }
 let sleepCount = 0
 const fetchV2Volume = async (chain: Chain) => {
-  console.log('fetch ', chain, sleepCount * 2 * 1e3)
   // This is very important!!! because our API will throw error when send >=2 requests at the same time.
   await sleep(sleepCount++ * 2 * 1e3)
   const res = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
   ) as  { data: ResponseItem[], success: boolean }
   if (res.data === null && res.success === false) {
-    console.log(res, v2VolumeAPI, { chain, excludeCake: true })
     return fetchV2Volume(chain)
   }
   const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
@@ -108,7 +106,6 @@ const fetchTotalV2Volume = async (chain: Chain) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v1, v2, totalV2Volume, { v1 : totalV1Volume }] = await Promise.all([
           fetchV2Volume(CHAIN.BSC),
@@ -122,10 +119,9 @@ const adapter: SimpleAdapter = {
           timestamp,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.ARBITRUM]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.ARBITRUM),
@@ -137,10 +133,9 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.OP_BNB]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume('opbnb'),
@@ -152,10 +147,9 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
     [CHAIN.BASE]: {
-      // runAtCurrTime: true,
       fetch: async (timestamp) => {
         const [v2, totalVolume] = await Promise.all([
           fetchV2Volume(CHAIN.BASE),
@@ -167,7 +161,7 @@ const adapter: SimpleAdapter = {
           totalVolume,
         };
       },
-      start: 1682035200,
+      start: '2023-04-21',
     },
   },
 };

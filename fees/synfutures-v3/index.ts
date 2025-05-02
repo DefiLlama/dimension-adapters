@@ -95,14 +95,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints),
-      start: 1709049600,
+      start: '2024-02-27',
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints),
-      start: 1719383967,
+      start: '2024-06-26',
       meta: {
         methodology
       }

@@ -62,7 +62,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
+      start: '2024-07-02',
       meta: {
         methodology,
       },

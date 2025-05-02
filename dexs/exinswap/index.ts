@@ -27,8 +27,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time * 1000))) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MIXIN]: {
       fetch,
-      start: 1600704000,
+      start: '2020-09-21',
     },
   }
 };

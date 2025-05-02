@@ -27,11 +27,12 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-12-14',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1690675200,
+      start: '2023-07-30',
     },
   },
 };

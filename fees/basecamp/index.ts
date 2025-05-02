@@ -13,8 +13,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: 0,
-    },
+          },
   },
 };
 

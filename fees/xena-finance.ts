@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),
-      start: 1696856400,
+      start: '2023-10-09',
       meta: {
         methodology: {
           Fees: 'All mint, burn, margin, liquidation and swap fees are collect',

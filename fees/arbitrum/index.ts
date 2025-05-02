@@ -35,13 +35,13 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue, };
 
       }) as any,
-      start: 1628553600,
-      runAtCurrTime: true,
+      start: '2021-08-10',
     },
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
-  version: 2
+  version: 2,
+  allowNegativeValue: true, // arbitrum sequencer fees
 }
 
 export default adapter;

@@ -15,12 +15,12 @@ const adapter: Adapter = {
 
         return {
           timestamp,
-          dailyFees: dailyFees,
+          dailyFees,
           dailyRevenue: dailyFees,
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: 1575158400
+      start: '2019-12-01'
     },
   },
   protocolType: ProtocolType.CHAIN

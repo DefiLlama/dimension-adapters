@@ -26,8 +26,8 @@ const fetchFees = (poolType: 'basic' | 'precision') => {
         const totalFees = Number(response[index].fees.usd.total);
 
         return {
-            dailyFees: `${dailyFees}`,
-            totalFees: `${totalFees}`,
+            dailyFees,
+            totalFees,
             timestamp
         };
     };
@@ -39,14 +39,14 @@ const adapters: BreakdownAdapter = {
         basic: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('basic'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('precision'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         }

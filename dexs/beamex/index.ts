@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpointsBeamex: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 const historicalDataSwap = gql`
@@ -99,9 +99,9 @@ const methodologyBeamex = {
 const adapter: BreakdownAdapter = {
   breakdown: {
     "beamex-swap": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAN),
-        start: 1687421388,
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAM),
+        start: '2023-06-22',
         meta: {
           methodology: {
             ...methodologyBeamex,
@@ -110,9 +110,9 @@ const adapter: BreakdownAdapter = {
       },
     },
     "beamex-perps": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAN),
-        start: 1687421388,
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAM),
+        start: '2023-06-22',
         meta: {
           methodology: {
             ...methodologyBeamex,

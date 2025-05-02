@@ -9,7 +9,7 @@ export default {
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: 1698685200,
+            start: '2023-10-30',
             meta: {
                 hallmarks: [
                     [1698685200, 'Hipo Launch'],

@@ -37,12 +37,12 @@ const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
   })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees
   }
 }
 
-const options: any = { fetch: fetchFees, start: 1651363200 }
+const options: any = { fetch: fetchFees, start: '2022-05-01' }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: options,

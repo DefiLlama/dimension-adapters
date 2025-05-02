@@ -47,11 +47,12 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2022-11-12',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 1643188527,
+      start: '2022-01-26',
       customBackfill: customBackfill(CHAIN.SOLANA as Chain, () => fetch)
     },
   },

@@ -17,7 +17,7 @@ const getFees = async (options: FetchOptions) => {
   })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
@@ -28,7 +28,7 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: getFees,
-      start: 1712727843,
+      start: '2024-04-10',
     },
   },
 };

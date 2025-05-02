@@ -14,10 +14,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
-      start: 1687474800,
+      start: '2023-06-23',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  allowNegativeValue: true, // sequencer fees
 }
 
 export default adapter;

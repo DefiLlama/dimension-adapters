@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: getFetch(CHAIN.XDAI),
-      start: 1699488000,
+      start: '2023-11-09',
     },
   },
 };

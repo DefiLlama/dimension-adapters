@@ -1,10 +1,8 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, IJSON, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { getBlock } from "../helpers/getBlock";
-import { Chain, getProvider } from "@defillama/sdk/build/general";
+import { Chain, } from "@defillama/sdk/build/general";
 import getTxReceipts from "../helpers/getTxReceipts";
-const sdk = require('@defillama/sdk')
 
 
 const topic0_v1 = '0xa2e7a402243ebda4a69ceeb3dfb682943b7a9b3ac66d6eefa8db65894009611c';
@@ -65,14 +63,10 @@ const gasTokenId: IGasTokenId = {
 
 
 const fetch = (chain: Chain, version: number) => {
-  return async ({ getFromBlock, getToBlock, toTimestamp }: FetchOptions) => {
-    const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
-    const logs_1: ITx[] = (await sdk.getEventLogs({
+  return async (_: any, _1: any, { toTimestamp, getLogs }: FetchOptions) => {
+    const logs_1: ITx[] = (await getLogs({
       target: version === 1 ? address_v1[chain] : address_v2[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
       topics: version === 1 ? [topic0_v1] : [topic0_v2],
-      chain: chain
     })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
     const amount_fullfill = logs_1.map((e: ITx) => {
@@ -98,8 +92,8 @@ const fetch = (chain: Chain, version: number) => {
     const dailyRevenue = dailyFees - dailyGasUsd;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+      dailyFees,
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
     }
 
   }
@@ -107,28 +101,29 @@ const fetch = (chain: Chain, version: number) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX, 2),
-      start: 1675382400,
+      start: '2023-02-03',
     }
-  }
+  },
+  allowNegativeValue: true, // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
 }
 export default adapter;

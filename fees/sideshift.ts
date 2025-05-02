@@ -16,17 +16,16 @@ const fetchFees = async (options: FetchOptions) => {
     dailyFees.add(token, Number(log.data))
   })
   const holderRevenue = dailyFees.clone()
-  holderRevenue.resizeBy(4)
+  dailyFees.resizeBy(4)
 
-  return { dailyFees, dailyRevenue: holderRevenue, holdersRevenue: holderRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: holderRevenue }
 }
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 0,
-    }
+          }
   }
 }
 export default adapters

@@ -25,8 +25,8 @@ const fetchCetusStats: FetchV2 = async ({
   const dailyFees = data.fee;
   const dailyRevenue = data.protocolFee;
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 };
@@ -35,10 +35,8 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchCetusStats,
-      start: 1704067200,
+      start: '2024-01-01',
       meta: {
         methodology,
       },

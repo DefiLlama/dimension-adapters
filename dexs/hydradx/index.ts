@@ -15,7 +15,7 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = response[0].volume_usd;
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -25,8 +25,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYDRADX]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1692662400,
+      start: '2023-08-22',
     },
   }
 };

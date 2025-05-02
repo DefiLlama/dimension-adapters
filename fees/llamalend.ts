@@ -33,7 +33,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp: timestamp,
-        dailyFees: dailyFees,
+        dailyFees,
         dailyUserFees: dailyFees,
         dailySupplySideRevenue: dailyFees,
       };
@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-      start: 1667260800,
+      start: '2022-11-01',
       meta: {
         methodology: {
           Fees: "Interest paid by borrowers",

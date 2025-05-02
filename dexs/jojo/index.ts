@@ -1,70 +1,37 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter, Fetch, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.` + chain + `-mainnet.jojo.exchange/v1/platform/tradeVolume?marketId=${symbol}`
-const coins = {
-    'ethusdc': 'coingecko:ethereum',
-    'btcusdc': 'coingecko:bitcoin',
-    'solusdc': 'coingecko:solana',
-    'wifusdc': 'coingecko:wif',
-    'enausdc': 'coingecko:ena',
-    'ckbusdc': 'coingecko:ckb',
-    'bomeusdc': 'coingecko:bome',
-    'wusdc': 'coingecko:w',
-    'ethfiusdc': 'coingecko:ethfi',
-    'ondousdc': 'coingecko:ondo',
-    'dogeusdc': 'coingecko:doge',
-    'memeusdc': 'coingecko:meme',
-    'ordiusdc': 'coingecko:ordi',
-    'wldusdc': 'coingecko:wld',
-    'agixusdc': 'coingecko:agix',
-    'tiausdc': 'coingecko:tia',
-    'rndrusdc': 'coingecko:rndr',
-    'altusdc': 'coingecko:alt',
-    'xaiusdc': 'coingecko:xai',
-    'linkusdc': 'coingecko:link'
+import { FetchOptions, SimpleAdapter, FetchV2, FetchResultV2 } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 
-}
+const OrderFilledEvent = "event OrderFilled(bytes32 indexed orderHash,address indexed trader,address indexed perp,int256 orderFilledPaperAmount,int256 filledCreditAmount,uint256 positionSerialNum,int256 fee)";
+const PositionFinalizeLogEvent = "event PositionFinalizeLog(address indexed trader, int256 paperAmount, int256 creditAmount, int256 fee, int256 pnl, string perp)"
 
-interface IVolumeall {
-    id: string;
-    volume: string;
-    timestamp: number;
-}
-
-const getVolume = async (options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
-
-    const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, options.chain)))));
-
-    const historicalVolume = historical.map((item => item?.dailyVolume || []))
-    const historicalUSD = historicalVolume.map((a: any, index: number) => a.map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, id: Object.values(coins)[index] } })).flat()
-    const historicalUSD2 = historicalUSD.map((e: IVolumeall) => {
-        return {
-            ...e,
-            volumeUSD: Number(e.volume)
-        }
-    });
-    const dailyVolume = historicalUSD2.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-
-    const totalVolume = historical.map(item => item.totalVolume).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue), 0);
+const degenDealerAddress = '0xb7ffeaf4af97aece3c9ae7e5f68b9cd66d02f8ac';
+const perpAddress = '0x2f7c3cF9D9280B165981311B822BecC4E05Fe635';
+const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { createBalances, getLogs, api } = options
+    const dailyVolume = createBalances()
+    const orderLogs = await getLogs({
+        target: perpAddress,
+        eventAbi: OrderFilledEvent,
+    })
+    const positionFinalizeLog = await getLogs({
+        target: degenDealerAddress,
+        eventAbi: PositionFinalizeLogEvent,
+    })
+    orderLogs.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.filledCreditAmount) / Number(1e6))))
+    positionFinalizeLog.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.creditAmount) / Number(1e6))))
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-        timestamp: dayTimestamp,
-    };
-};
+        dailyVolume
+    }
+}
 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.BASE]: {
-            fetch: getVolume,
-            start: 1711965100,
-        },
-    },
-};
+            fetch: getFetch,
+            start: '2024-04-09',
+        }
+    }
+}
 
-export default adapter;
+export default adapter

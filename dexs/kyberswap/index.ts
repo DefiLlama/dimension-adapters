@@ -217,18 +217,18 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
-              dailyVolume: `${dailyVolume}`,
-              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
+              dailyVolume: dailyVolume,
+              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  totalVolume,
             };
           },
-          start: 0,
-        }
+                  }
         return acc
       }, {} as BaseAdapter)
 }
 
 const adapter: BreakdownAdapter = {
   version: 2,
+  deadFrom: '2025-01-01',
   breakdown: {
     classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)

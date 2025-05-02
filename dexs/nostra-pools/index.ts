@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: async () => 1718236800,
+      start: '2024-06-13',
     },
   },
 };

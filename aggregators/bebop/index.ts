@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
+import {queryDuneSql} from "../../helpers/dune"
 
 const abis = {
   "AggregateOrderExecuted": "event AggregateOrderExecuted(bytes32 order_hash)",
@@ -43,7 +44,7 @@ const jamAddress = {
 }
 
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async (_:any, _1:any, { createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
   const logs = await getLogs({
@@ -86,7 +87,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   const jamLogs = await getLogs({
     target: jamAddress[chain] || jamAddress.default,
     topics: ['0x7a70845dec8dc098eecb16e760b0c1569874487f0459ae689c738e281b28ed38'] // Settlement,
-
   });
 
   const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
@@ -105,23 +105,51 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
     })
   }
 
-  return { timestamp, dailyVolume }
+  return { dailyVolume }
 };
 
-const adapter: any = {
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `
+    SELECT 
+      blockchain,
+      SUM(amount_usd) AS vol 
+    FROM bebop.trades 
+    WHERE block_time >= from_unixtime(${options.startTimestamp})
+    AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY blockchain
+  `);
+};
+
+async function fetchDune(_:any, _1:any, options: FetchOptions){
+  const results = options.preFetchedResults || [];
+  const chainData = results.find(item => item.blockchain.toLowerCase() === options.chain.toLowerCase());
+  
+  const dailyVolume = options.createBalances();
+  if (chainData) {
+    dailyVolume.addCGToken("tether", chainData.vol);
+  }
+  
+  return { dailyVolume };
+}
+
+const adapter: Adapter = {
+  version: 1,
+  isExpensiveAdapter: true,
   adapter: {
-    arbitrum: { fetch, start: 1685491200, },
-    ethereum: { fetch, start: 1685491200, },
-    polygon: { fetch, start: 1685491200, },
-    bsc: { fetch, start: 1685491200, },
-    blast: { fetch, start: 1685491200, },
-    era: { fetch, start: 1685491200, },
-    optimism: { fetch, start: 1685491200, },
-    mode: { fetch, start: 1685491200, },
-    base: { fetch, start: 1685491200, },
-    scroll: { fetch, start: 1685491200, },
-    taiko: { fetch, start: 1685491200, },
+    arbitrum: { fetch: fetchDune, start: '2023-05-31', },
+    ethereum: { fetch: fetchDune, start: '2023-05-31', },
+    polygon: { fetch: fetchDune, start: '2023-05-31', },
+    bsc: { fetch: fetchDune, start: '2023-05-31', },
+    blast: { fetch, start: '2023-05-31', },
+    era: { fetch, start: '2023-05-31', },
+    optimism: { fetch: fetchDune, start: '2023-05-31', },
+    mode: { fetch, start: '2023-05-31', },
+    base: { fetch: fetchDune, start: '2023-05-31', },
+    scroll: { fetch: fetchDune, start: '2023-05-31', },
+    taiko: { fetch, start: '2023-05-31', },
   },
+  prefetch: prefetch,
 };
 
 export default adapter;

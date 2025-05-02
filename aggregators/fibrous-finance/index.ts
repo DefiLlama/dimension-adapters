@@ -15,7 +15,7 @@ interface IAPIResponse {
 }
 const fetch = async (timestamp: number): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IAPIResponse = await fetchURL(`${URL}`);
+  const response: IAPIResponse = await fetchURL(URL);
   const dailyVolume = response.data.dailyVolume;
   const totalVolume = response.data.totalVolume;
   return {
@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: 1683408691,
+      start: '2023-05-06',
       runAtCurrTime: true
     },
   },

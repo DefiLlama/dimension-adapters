@@ -26,7 +26,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
   const totalDailyVolume = response.data.preChain.reduce((acc,cur) => {return acc + parseInt(cur.volume)/10**18}, 0)
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   return {
-    dailyVolume: `${totalDailyVolume}`,
+    dailyVolume: totalDailyVolume,
     timestamp: t,
   };
 };
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetch(chain),
-        start: 1679097600,
+        start: '2023-03-18',
         runAtCurrTime: true
       }
     }
