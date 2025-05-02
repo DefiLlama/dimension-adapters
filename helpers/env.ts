@@ -16,6 +16,7 @@ const DEFAULTS: any = {
   HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
   FUSE_ARCHIVAL_RPC: 'https://explorer.fuse.io/api/eth-rpc',
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
+  MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
 }
 
 export const ENV_KEYS = new Set([
