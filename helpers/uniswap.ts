@@ -160,6 +160,7 @@ type UniV2Config = {
   voter?: string,
   maxPairSize?: number,
   customLogic?: any,
+  start?: number|string,
 }
 
 type UniV3Config = {
@@ -178,7 +179,8 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {
     const fetch: any = getUniV2LogAdapter(chainConfig)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options)
+      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      start: chainConfig.start,
     }
   })
 

@@ -14,7 +14,8 @@ const DEFAULTS: any = {
   HARMONY_RPC: 'https://explorer.harmony.one/api/eth-rpc',
   SMARTBCH_RPC: 'https://smartscout.cash//api/eth-rpc',
   HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
-  FUSE_RPC: 'https://explorer.fuse.io/api/eth-rpc',
+  FUSE_ARCHIVAL_RPC: 'https://explorer.fuse.io/api/eth-rpc',
+  SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
 }
 
 export const ENV_KEYS = new Set([
