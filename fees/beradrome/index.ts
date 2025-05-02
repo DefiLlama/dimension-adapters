@@ -48,15 +48,10 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
-  const { getLogs, getFromBlock, getToBlock } = options;
-
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
+  const { getLogs } = options;
 
   const borrowLogs = await getLogs({
     target: VOTER,
-    fromBlock,
-    toBlock,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
   });
 
@@ -69,9 +64,6 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
 
 async function addBribes(options: FetchOptions, totalFees: Balances) {
   const { getLogs, getFromBlock, getToBlock } = options;
-
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
 
   const plugins = await options.api.call({
     target: VOTER,
@@ -88,8 +80,6 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   for (const bribe of bribes) {
     const logs = await getLogs({
       target: bribe,
-      fromBlock,
-      toBlock,
       eventAbi:
         "event Bribe__RewardNotified(address indexed rewardToken, uint256 reward)",
     });
