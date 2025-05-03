@@ -1,6 +1,5 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import request, { gql } from 'graphql-request';
 import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultGeneric } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
@@ -153,7 +152,7 @@ const chainv2mapping: any = {
 
 async function fetchV2Volume(options: FetchOptions) {
   const { api } = options
-  const endpoint = `https://interface.gateway.uniswap.org/v2/uniswap.explore.v1.ExploreStatsService/ProtocolStats?connect=v1&encoding=json&message=%7B%22chainId%22%3A%22${api.chainId}%22%7D`
+  const endpoint = `https://interface.gateway.uniswap.org/v2/uniswap.explore.v1.ExploreStatsService/ExploreStats?connect=v1&encoding=json&message=%7B%22chainId%22%3A%22${api.chainId}%22%7D`
   const res = await httpGet(endpoint, {
     headers: {
       'accept': '*/*',
@@ -169,8 +168,8 @@ async function fetchV2Volume(options: FetchOptions) {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     } 
   })
-
-  const dailyVolume = res.historicalProtocolVolume.Month.v2.find((item: any) => item.timestamp === options.startOfDay)?.value;
+  const dailyVolume = res.stats.historicalProtocolVolume.Month.v2
+    .find((item: any) => item.timestamp === options.startOfDay)?.value;
   return { dailyVolume, dailyFees: Number(dailyVolume) * 0.003 }
 }
 
