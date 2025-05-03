@@ -309,7 +309,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
   const clSupplySideRevenue = stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
   const dailySupplySideRevenue = clSupplySideRevenue + stats.dailyXshadowInstantExitFeeUSD;
-  const dailyRevenue = dailyProtocolRevenue + dailySupplySideRevenue;
+  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
 
   return {
     dailyVolume,
