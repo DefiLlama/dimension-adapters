@@ -306,9 +306,10 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
   const dailyBribesRevenue = stats.clBribeRevenueUSD;
+  const dailyTokenTax = stats.dailyXshadowInstantExitFeeUSD;
 
   const clSupplySideRevenue = stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue + stats.dailyXshadowInstantExitFeeUSD;
+  const dailySupplySideRevenue = clSupplySideRevenue;
   const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
 
   return {
@@ -320,6 +321,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyBribesRevenue,
+    dailyTokenTax,
   };
 };
 
@@ -328,7 +330,8 @@ const methodology = {
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
   BribesRevenue: "Bribes are distributed among holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools) and xSHADOW stakers (from early exit penalties).",
+  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
+  TokenTax: "xSHADOW stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {
