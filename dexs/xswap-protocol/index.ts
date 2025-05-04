@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.XDC]: "https://analytics.xspswap.finance/subgraphs/name/some/factory"
+  [CHAIN.XDC]: "https://analytics.xspswap.finance/subgraphs/name/xswap/factory"
 }
 
 const graphs = getGraphDimensions2({

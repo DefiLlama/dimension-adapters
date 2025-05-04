@@ -22,7 +22,7 @@ const fetch = async (timestamp: number) => {
   const results: IVolume = (await request(API_URL, VolumeQuery)).defillama;
   const dailyVolume = results?.totalVolumeUSD24h;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 }

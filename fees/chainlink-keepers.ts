@@ -61,13 +61,13 @@ const fetchKeeper = (chain: Chain) => {
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
-    const dailyFeesUsd = dailyFees * linkPrice;
+    const feeUSD = dailyFees * linkPrice;
     const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const dailyGasUsd = dailyGas * gagPrice;
-    const dailyRevenue = dailyFeesUsd - dailyGasUsd;
+    const dailyRevenue = feeUSD - dailyGasUsd;
     return {
-      dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+      dailyFees: feeUSD,
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
     }
   }
 }

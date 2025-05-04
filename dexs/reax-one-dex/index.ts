@@ -23,6 +23,7 @@ const graphs = getChainVolume2({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: '2024-10-08',
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,

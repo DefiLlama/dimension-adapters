@@ -29,7 +29,7 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
     variables: value
   });
 
-  const headers =  {"X-API-KEY": getEnv('BIT_QUERY_API_KEY'), "Content-Type": "application/json"};
+  const headers =  {"Authorization": `Bearer ${getEnv('BIT_QUERY_API_KEY')}`, "Content-Type": "application/json"};
   const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
 
   return result;
@@ -61,6 +61,7 @@ const adapter: Adapter = {
         start: '2020-01-01',
     },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

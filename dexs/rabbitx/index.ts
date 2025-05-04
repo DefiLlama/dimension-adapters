@@ -36,7 +36,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     .reduce((a: number, b: IVolumeall) => a + Number(b.volume), 0)
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };

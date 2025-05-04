@@ -60,8 +60,8 @@ const fetch: FetchV2 = async({ startOfDay }: FetchOptions) => {
     dailyFees /= 1e30
     totalFees /= 1e30
     return {
-        dailyFees: dailyFees.toString(),
-        totalFees: totalFees.toString(),
+        dailyFees,
+        totalFees,
     }
 }
 

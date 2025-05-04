@@ -37,6 +37,7 @@ const chains: TChains =  {
   [CHAIN.ZETA]: 7000,
   [CHAIN.MODE]: 34443,
   [CHAIN.IOTEX]: 4689,
+  [CHAIN.HEMI]: 43111,
 };
 
 const fetch = (chain: Chain) => {
@@ -63,8 +64,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }

@@ -1,18 +1,15 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('9R6uvVYXn9V1iAxkTLXL1Ajka75aD7mmHRj86DbXnyYQ'),
-  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll'
+  [CHAIN.ERA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-zksync',
+  [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea',
+  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll',
+  [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
 
-const v3Endpoints = {
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('6pXVWtpsLXMLAyS7UU49ftu38MCSVh5fqVoSWLiLBkmP'),
-};
 
 const graphs = getChainVolume2({
   graphUrls: endpoints,
@@ -22,28 +19,12 @@ const graphs = getChainVolume2({
   },
 });
 
-const v3Graphs = getChainVolume2({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: 'volumeUSD',
-  }
-});
-
 const fetch = (chain: Chain) => {
   return async (options: FetchOptions) => {
     const [v2] = await Promise.all([graphs(chain)(options)])
     let dailyVolume = Number(v2.dailyVolume)
-    if(v3Endpoints[chain]) {
-      const [v3] = await Promise.all([v3Graphs(chain)(options)])
-      dailyVolume += Number(v3.dailyVolume);
-    }
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
     }
   }
 }
@@ -63,6 +44,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.SCROLL]: {
       fetch: fetch(CHAIN.SCROLL),
       start: '2023-10-17'
+    },
+    [CHAIN.SOPHON]: {
+      fetch: fetch(CHAIN.SOPHON),
+      start: '2024-12-16'
     }
   },
 };

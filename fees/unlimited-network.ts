@@ -55,15 +55,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const totalHoldersRevenue = totalFees * 0.18;
       const totalRevenue = (totalProtocolRevenue + totalHoldersRevenue)
       return {
-        dailyFees: `${dailyFees}`,
-        totalFees: `${totalFees}`,
-        dailySupplySideRevenue: `${dailySupplySideRevenue}`,
-        dailyProtocolRevenue: `${dailyProtocolRevenue}`,
-        dailyHoldersRevenue: `${dailyHoldersRevenue}`,
-        dailyRevenue: `${dailyRevenue}`,
-        totalProtocolRevenue: `${totalProtocolRevenue}`,
-        totalSupplySideRevenue: `${totalSupplySideRevenue}`,
-        totalRevenue: `${totalRevenue}`,
+        dailyFees,
+        totalFees,
+        dailySupplySideRevenue: dailySupplySideRevenue,
+        dailyProtocolRevenue: dailyProtocolRevenue,
+        dailyHoldersRevenue: dailyHoldersRevenue,
+        dailyRevenue,
+        totalProtocolRevenue: totalProtocolRevenue,
+        totalSupplySideRevenue: totalSupplySideRevenue,
+        totalRevenue: totalRevenue,
         timestamp
       }
     }
@@ -71,6 +71,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 }
 
 const adapter: Adapter = {
+  deadFrom: '2024-01-30',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),

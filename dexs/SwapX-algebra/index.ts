@@ -8,7 +8,7 @@ import {
 } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 
-const ENDPOINT =
+export const SWAPX_GRAPHQL_ENDPOINT =
   "https://subgraph.satsuma-prod.com/fd5b99ed1c6a/swapx--800812/swapx-big/api";
 
 type Feed = "volumeUSD" | "feesUSD";
@@ -32,7 +32,7 @@ export const fetchSwapXV3Data = async (
         }
     }`;
 
-  const req = await request(ENDPOINT, query);
+  const req = await request(SWAPX_GRAPHQL_ENDPOINT, query);
   let dailyUSD = "0";
   req.v3PoolDayDatas.map((d) => {
     dailyUSD = new BigNumber(dailyUSD).plus(d[feedKey]).toString();

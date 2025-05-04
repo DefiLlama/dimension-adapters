@@ -7,9 +7,7 @@ import {
   FetchResultFees,
 } from "../../adapters/types";
 import BigNumber from "bignumber.js";
-
-const ENDPOINT =
-  "https://subgraph.satsuma-prod.com/fd5b99ed1c6a/swapx--800812/swapx-big/version/v1.0.8/api";
+import { SWAPX_GRAPHQL_ENDPOINT } from "../SwapX-algebra";
 
 type Feed = "volumeUSD" | "feesUSD";
 
@@ -31,7 +29,7 @@ export const fetchSwapXV2Data = async (
             ${feedKey}
         }
     }`;
-  const req = await request(ENDPOINT, query);
+  const req = await request(SWAPX_GRAPHQL_ENDPOINT, query);
 
   let dailyUSD = "0";
   req.v2PoolDayDatas.map((d) => {
@@ -46,13 +44,13 @@ export const fetchSwapXV2Data = async (
   return feedKey == "volumeUSD"
     ? {
         dailyVolume: dailyUSD,
-        totalVolume: totalUSD,
+        // totalVolume: totalUSD,  // value have spike 
         timestamp,
       }
     : {
         timestamp,
         dailyFees: dailyUSD,
-        totalFees: totalUSD,
+        // totalFees: totalUSD, // value have spike 
       };
 };
 

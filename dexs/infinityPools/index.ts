@@ -55,7 +55,6 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
         throw new Error("Event not found");
       }
       const logs = await getLogs({ target: pair, eventAbi: event });
-      // console.log('logs', logs)
       logs.forEach((log) => {
         const tenToPowerDecimals0 = fromUInt(
           BigInt(10 ** Number(decimals[pair][0]))

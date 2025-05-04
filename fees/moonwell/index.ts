@@ -116,7 +116,8 @@ function moonwellExport(config: IJSON<string>) {
             }),
                     }
     })
-    return { adapter: exportObject, version: 2 } as SimpleAdapter
+    // dailySupplySideRevenue could be negative if protocol revenue exceeds total fees, though unlikely in normal conditions(like bad liquidations)
+    return { adapter: exportObject, version: 2, allowNegativeValue: true, } as SimpleAdapter
 }
 
 export default moonwellExport({ base: baseUnitroller, moonbeam: moonbeamUnitroller, moonriver: moonriverUnitroller, optimism: optimismUnitroller });

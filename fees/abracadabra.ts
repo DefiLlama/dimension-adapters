@@ -58,8 +58,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeUsd = dailyFee;
       const dailyRevenue = dailyFeeUsd * .5;
       return {
-        dailyFees: dailyFeeUsd.toString(),
-        dailyRevenue: dailyRevenue.toString(),
+        dailyFees: dailyFeeUsd,
+        dailyRevenue,
       };
     };
   };

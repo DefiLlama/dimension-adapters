@@ -40,8 +40,8 @@ const fetchFromChain = (chain: CHAIN) => {
 
     return {
       timestamp: options.startOfDay,
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
     };
   }
 };

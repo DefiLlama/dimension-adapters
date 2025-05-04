@@ -10,6 +10,13 @@ const DEFAULTS: any = {
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
   BERACHAIN_RPC: "https://rpc.berachain.com",
+  VELAS_RPC: 'https://evmexplorer.velas.com/api/eth-rpc',
+  HARMONY_RPC: 'https://explorer.harmony.one/api/eth-rpc',
+  SMARTBCH_RPC: 'https://smartscout.cash//api/eth-rpc',
+  HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
+  FUSE_ARCHIVAL_RPC: 'https://explorer.fuse.io/api/eth-rpc',
+  SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
+  MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
 }
 
 export const ENV_KEYS = new Set([

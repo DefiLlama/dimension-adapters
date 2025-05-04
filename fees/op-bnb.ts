@@ -53,7 +53,8 @@ const adapter: Adapter = {
     },
   },
   isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  allowNegativeValue: true, // sequencer fees
 }
 
 export default adapter;

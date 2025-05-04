@@ -4,6 +4,7 @@ import disabledAdapter from "../../helpers/disabledAdapter";
 
 // created a new adapter called astroport-v2
 const adapter: SimpleAdapter = {
+  deadFrom: '2022-02-04',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.TERRA]: {

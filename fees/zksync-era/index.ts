@@ -47,9 +47,10 @@ const adapter: Adapter = {
         return { timestamp, dailyFees, dailyRevenue, }
 
       }) as any,
-      start: '2023-03-24' // March 24, 2023
+      start: '2023-03-24', // March 24, 2023
     },
   },
+  allowNegativeValue: true, // sequencer fees
   protocolType: ProtocolType.CHAIN
 }
 

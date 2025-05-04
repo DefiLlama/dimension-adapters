@@ -1,12 +1,12 @@
-import { Adapter, FetchResultVolume } from "../../adapters/types"
+import { Adapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const response = await fetchURL('https://api.kongswap.io/api/defillama/total_volume');
+const fetch = async () => {
+  const response = await fetchURL('https://api.kongswap.io/api/pools/totals');
   return {
-    dailyVolume: response['24h_volume'],
-    timestamp
+    dailyVolume: response.total_volume_24h,
+    dailyFees: response.total_fees_24h,
   }
 };
 

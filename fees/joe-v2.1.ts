@@ -95,9 +95,9 @@ const graph = (chain: Chain) => {
     const dailySupplySideRevenue = dailyFees.clone();
     dailySupplySideRevenue.subtract(dailyRevenue);
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyUserFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue,

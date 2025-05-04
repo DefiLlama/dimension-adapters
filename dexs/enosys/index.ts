@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const URL_FLARE = "http://flare.index.enosys.global/v1/public/24hourV3Volume";
 
-const fetchVolume: FetchV2 = async (options: FetchOptions) => {
+const fetchVolume: FetchV2 = async () => {
   const dailyVolume = await fetchURL(URL_FLARE);
 
   return { dailyVolume };
@@ -14,6 +14,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.FLARE]: {
+      runAtCurrTime: true,
       fetch: fetchVolume,
       start: 1741023000,
     },
