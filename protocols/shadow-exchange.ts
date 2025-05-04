@@ -306,7 +306,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
   const dailyBribesRevenue = stats.clBribeRevenueUSD;
-  const dailyTokenTaxs = stats.dailyXshadowInstantExitFeeUSD;
+  const dailyTokenTaxes = stats.dailyXshadowInstantExitFeeUSD;
 
   const clSupplySideRevenue = stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
   const dailySupplySideRevenue = clSupplySideRevenue;
@@ -321,7 +321,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyBribesRevenue,
-    dailyTokenTaxs,
+    dailyTokenTaxes,
   };
 };
 
