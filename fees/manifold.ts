@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
-import { getEtherscanFees } from "../helpers/etherscanFees";
-import { addGasTokensReceived, getETHReceived, nullAddress } from "../helpers/token";
+import { nullAddress } from "../helpers/token";
 
 // Found by looking at contracts deployed by 0xa8863bf1c8933f649e7b03eb72109e5e187505ea
 // Yes, i manually checked hundreds of txs T_T
