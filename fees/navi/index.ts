@@ -14,7 +14,9 @@ interface DailyStats {
     borrowInterestFee: number,
     borrowRevenue: number,
     flashLoanRevenue: number,
+    liquidationRevenue: number,
     naviDailyRevenue: number,
+    naviDailyFee: number,
 }
 
 const methodology = {
@@ -27,19 +29,11 @@ const fetchNAVIStats = async ({ startTimestamp }: any) => {
     const url = `${naviApiURL}?fromTimestamp=${startTimestamp}&cf_pass=b35f13a110a4`
     const stats: DailyStats = (await fetchURL(url)).data;
 
-    const dailyFees = stats.borrowInterestFee +
-        stats.borrowInterestRevenue +
-        stats.borrowRevenue;
-    const dailyRevenue =
-        (stats.borrowInterestRevenue || 0) +
-        (stats.borrowRevenue || 0) +
-        (stats.flashLoanRevenue || 0);
-
     return {
-        dailyFees: dailyFees,
-        dailyUserFees: dailyFees,
-        dailyRevenue: dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue
+        dailyFees: stats.naviDailyFee,
+        dailyUserFees: stats.naviDailyFee,
+        dailyRevenue: stats.naviDailyRevenue,
+        dailyProtocolRevenue: stats.naviDailyRevenue
     };
 };
 
