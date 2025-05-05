@@ -17,8 +17,9 @@ export async function addGasTokensReceived(params: {
   options: FetchOptions;
   balances?: sdk.Balances;
   fromAddresses?: string[];
+  blacklist_fromAddresses?: string[];
 }) {
-  let { multisig, multisigs, options, balances, fromAddresses } = params;
+  let { multisig, multisigs, options, balances, fromAddresses, blacklist_fromAddresses } = params;
   if (multisig) multisigs = [multisig];
   if (!balances) balances = options.createBalances();
   if (!multisigs?.length) throw new Error('multisig or multisigs required');
@@ -49,16 +50,22 @@ export async function addGasTokensReceived(params: {
     offset += batchSize;
   }
 
-  if (fromAddresses) {
-    const normalized = fromAddresses.map(a => a.toLowerCase());
-    allLogs.forEach(log => {
-      if (normalized.includes(log.sender?.toLowerCase?.())) {
-        balances!.addGasToken(log.value);
-      }
-    });
-  } else {
-    allLogs.forEach(i => balances!.addGasToken(i.value));
-  }
+  const fromAddressSet = fromAddresses ? new Set(fromAddresses.map(a => a.toLowerCase())) : null;
+  const blacklistSet = blacklist_fromAddresses ? new Set(blacklist_fromAddresses.map(a => a.toLowerCase())) : null;
+
+
+  allLogs.forEach(log => {
+    const sender = log.sender?.toLowerCase?.();
+    if (!sender) return;
+    if (blacklistSet?.has(sender)) {
+      return;
+    }
+    if (fromAddressSet && !fromAddressSet.has(sender)) {
+      return;
+    }
+    balances!.addGasToken(log.value);
+  });
+
 
   return balances;
 }
