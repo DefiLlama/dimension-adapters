@@ -91,7 +91,6 @@ async function getCollateralVaults(options: FetchOptions): Promise<{[key: string
 
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   // get vaults and assets
   const collateralVaults = await getCollateralVaults(options)
@@ -111,7 +110,6 @@ const fetchFees = async (options: FetchOptions) => {
       vaultToken = eventToken
     }
     dailyFees.add(vaultToken, event.amount);
-    dailyProtocolRevenue.add(vaultToken, event.amount);
   }
 
   //
@@ -155,8 +153,7 @@ const fetchFees = async (options: FetchOptions) => {
     ],
   })
   lspTransferEvents.forEach((event: any) => {
-    dailyFees.add(Contracts.LiquidStabilityPool, event.value)
-    dailyProtocolRevenue.add(Contracts.LiquidStabilityPool, event.value)
+    dailyFees.add(Contracts.NECT, event.value)
   })
 
   //
@@ -254,11 +251,8 @@ const fetchFees = async (options: FetchOptions) => {
     dailyFees.add(log.stable, log.fee);
   });
 
-  console.log(dailyFees)
-
   return { 
     dailyFees,
-    dailyProtocolRevenue,
   }
 };
 
