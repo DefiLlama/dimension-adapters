@@ -22,15 +22,18 @@ const fetchFees = async (options: FetchOptions) => {
 
   for (const strategy of strategies) {
     const { address: strategyAddress, v4PoolId, token0, token1 } = strategy;
-    // Get ModifyLiquidity events for this poolId and strategy address
+    // Get ModifyLiquidity events for this poolId where the strategy is the sender
     const logs = await options.getLogs({
       target: POOLMANAGER,
       eventAbi: MODIFY_LIQUIDITY_EVENT,
       topics: [eventAbiTopic, v4PoolId, zeroPadValue(strategyAddress, 32)],
     });
     for (const log of logs) {
-      dailyFees.add(token0.address, log.feesAccrued0);
-      dailyFees.add(token1.address, log.feesAccrued1);
+      // Only count fees if the strategy is the one collecting them
+      if (log.sender.toLowerCase() === strategyAddress.toLowerCase()) {
+        dailyFees.add(token0.address, log.feesAccrued0);
+        dailyFees.add(token1.address, log.feesAccrued1);
+      }
     }
   }
 
