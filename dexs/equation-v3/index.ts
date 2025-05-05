@@ -41,6 +41,7 @@ interface ITotalResponse {
 }
 
 const getFetch = () => (chain: string): FetchV2 => async ({ startOfDay }) => {
+    if (startOfDay > 1743940800) return {}
     const dailyData: IDailyResponse = await request(endpoints[chain], queryVolume, {
         id: 'Daily:' + startOfDay,
     })
@@ -54,6 +55,7 @@ const getFetch = () => (chain: string): FetchV2 => async ({ startOfDay }) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    deadFrom: "2025-04-06",
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),

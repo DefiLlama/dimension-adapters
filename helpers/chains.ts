@@ -27,7 +27,6 @@ export enum CHAIN {
   AURORA = "aurora",
   MOONRIVER = "moonriver",
   TRON = "tron",
-  MOONBEAN = "moonbeam",
   KLAYTN = "klaytn",
   JUNO = "juno",
   KCC = "kcc",
@@ -136,6 +135,9 @@ export enum CHAIN {
   SCROLL = "scroll",
   RADIXDLT = "radixdlt",
   LIGHTLINK_PHOENIX = "lightlink_phoenix",
+  ETHERLINK = "etlk",
+  ETHEREUM_CLASSIC = "ethereumclassic",
+  NULS = "nuls",
   EON = "eon",
   MANTA = "manta",
   NEAR = "near",
@@ -219,6 +221,20 @@ export enum CHAIN {
   FORMNETWORK = "formnetwork",
   HEMI = "hemi",
   MOVE = "move",
+  SUPERPOSITION = "spn",
+  SWELLCHAIN = "swellchain",
+  ANCIENT8 = "ancient8",
+  ARWEAVE = "arweave",
+  WINR = "winr",
+  SOPHON = "sophon",
+  KARAK = "karak",
+  VERUS = "verus",
+  PERENNIAL = "perennial",
+  GOAT = "goat",
+  HASHKEY = "hsk",
+  NOBLE = "noble",
+  ELYS = "elys",
+  BITKUB = "bitkub"
 }
 
 // Don´t use

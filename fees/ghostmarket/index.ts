@@ -52,6 +52,7 @@ const apis = (apiUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2024-12-14",
   version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,

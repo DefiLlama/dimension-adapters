@@ -26,8 +26,8 @@ const fetchFees = (poolType: 'basic' | 'precision') => {
         const totalFees = Number(response[index].fees.usd.total);
 
         return {
-            dailyFees: `${dailyFees}`,
-            totalFees: `${totalFees}`,
+            dailyFees,
+            totalFees,
             timestamp
         };
     };

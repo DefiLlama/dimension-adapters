@@ -33,7 +33,7 @@ const formatMetaBaseData = (cols: Array<any>, rows: Array<Array<any>>) => {
 }
 
 const formatDate = (date: number) => {
-  return date < 10 ? `0${date}` : `${date}`
+  return date < 10 ? `0${date}` : `${date }`
 }
 
 const computeRevenue = (fee: number, por: number) => {
@@ -76,11 +76,11 @@ const getFees = (chainId: CHAIN_ID) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: computeRevenue(dailyFees, por).toString(),
-      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por).toString(),
-      dailyProtocolRevenue: computeProtocolRevenue(dailyFees).toString(),
-      totalFees: totalFees.toString(),
+      dailyFees,
+      dailyRevenue: computeRevenue(dailyFees, por),
+      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por),
+      dailyProtocolRevenue: computeProtocolRevenue(dailyFees),
+      totalFees,
     };
   }
 }

@@ -29,7 +29,7 @@ const fetchVolume = async (timestamp: number) => {
   const dailyFees = dayItem.swap_fee_24h;
   return {
     dailyVolume: dailyVolume,
-    dailyFees: dailyFees,
+    dailyFees,
     timestamp
   }
 }

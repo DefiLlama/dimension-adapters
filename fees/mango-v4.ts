@@ -46,15 +46,17 @@ const fetchMangoStats = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 const adapter: Adapter = {
+  deadFrom: '2025-02-05',
   adapter: {
     [CHAIN.SOLANA]: {
       runAtCurrTime: true,
       fetch: fetchMangoStats,
-            meta: {
+      meta: {
         methodology,
       },
     },
   },
+  allowNegativeValue: true, // maker fees were negative in the past
 };
 
 export default adapter;

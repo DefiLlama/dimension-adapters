@@ -18,7 +18,7 @@ const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets, })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees.clone(0.04),
   }
 }

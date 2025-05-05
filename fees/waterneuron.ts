@@ -34,8 +34,8 @@ async function fetchMetrics(options: FetchOptions) {
     dailyRevenue.addCGToken("internet-computer", Number(res.get("revenue")) / E8S)
     return {
         dailyUserFees: dailyFees,
-        dailyFees: dailyFees,
-        dailyRevenue: dailyRevenue,
+        dailyFees,
+        dailyRevenue,
         dailyHoldersRevenue: dailyRevenue,
     };
 }
