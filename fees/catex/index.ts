@@ -4,7 +4,7 @@ import fetchURL from '../../utils/fetchURL';
 
 const STRATEGIES_URL = 'https://raw.githubusercontent.com/Lynexfi/lynex-lists/main/strategies/main.json';
 const POOLMANAGER = '0x67366782805870060151383f4bbff9dab53e5cd6'; // Uniswap v4 PoolManager on Polygon
-const COLLECT_EVENT = 'event Collect(bytes32 indexed poolId, address indexed recipient, uint256 amount0, uint256 amount1)';
+const MODIFY_LIQUIDITY_EVENT = 'event ModifyLiquidity(bytes32 indexed poolId, address indexed sender, int256 liquidityDelta, uint256 amount0, uint256 amount1, uint256 feesAccrued0, uint256 feesAccrued1)';
 
 async function getCatexStrategies() {
   const data = await fetchURL(STRATEGIES_URL);
@@ -21,15 +21,15 @@ const fetchFees = async (timestamp: number, _chainBlocks: any, options: FetchOpt
 
   for (const strategy of strategies) {
     const { address: strategyAddress, v4PoolId, token0, token1 } = strategy;
-    // Get Collect events for this poolId and strategy address
+    // Get ModifyLiquidity events for this poolId and strategy address
     const logs = await options.getLogs({
       target: POOLMANAGER,
-      eventAbi: COLLECT_EVENT,
+      eventAbi: MODIFY_LIQUIDITY_EVENT,
       topics: [v4PoolId, strategyAddress],
     });
     for (const log of logs) {
-      dailyFees.add(token0.address, log.amount0);
-      dailyFees.add(token1.address, log.amount1);
+      dailyFees.add(token0.address, log.feesAccrued0);
+      dailyFees.add(token1.address, log.feesAccrued1);
     }
   }
 
