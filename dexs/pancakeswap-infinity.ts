@@ -43,10 +43,10 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
       return;
     }
     const { currency0, currency1 } = pool
-    const amoun0Fees = amount0 * fee / BigIntE6
-    const amoun1Fees = amount1 * fee / BigIntE6
-    const amount0ProtocolFees = amount0 * protocolFee / BigIntE6
-    const amount1ProtocolFees = amount1 * protocolFee / BigIntE6
+    const amoun0Fees = (amount0 * BigInt(fee)) / BigIntE6
+    const amoun1Fees = (amount1 * BigInt(fee)) / BigIntE6
+    const amount0ProtocolFees = (amount0 * BigInt(protocolFee)) / BigIntE6
+    const amount1ProtocolFees = (amount1 * BigInt(protocolFee)) / BigIntE6
     addOneToken({ chain, balances: dailyVolume, token0: currency0, amount0: amount0, token1: currency1, amount1: amount1 })
     addOneToken({ chain, balances: dailyFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
     addOneToken({ chain, balances: dailyRevenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
