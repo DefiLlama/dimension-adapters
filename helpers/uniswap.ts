@@ -107,9 +107,15 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
 
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic }: UniV3Config): FetchV2 => {
+const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
+const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
+    if (isAlgebraV3) {
+      poolCreatedEvent = algebraV3PoolCreatedEvent
+      swapEvent = algebraV3SwapEvent
+    }
 
     if (!chain) throw new Error('Wrong version?')
 
@@ -122,10 +128,16 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     logs = logs.map((log: any) => iface.parseLog(log)?.args)
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
+    
     logs.forEach((log: any) => {
       pairObject[log.pool] = [log.token0, log.token1]
       fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
     })
+
+    if (isAlgebraV3) {
+      let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool) })
+      _fees.forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+    }
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
     const dailyFees = createBalances()
@@ -168,6 +180,7 @@ type UniV3Config = {
   poolCreatedEvent?: string,
   swapEvent?: string,
   customLogic?: any,
+  isAlgebraV3?: boolean,
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {}) {
