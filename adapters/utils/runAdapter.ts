@@ -22,6 +22,9 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   const { prefetch, allowNegativeValue = false } = _module
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+  if (chains.some(c => !c) || chains.includes('undefined') ) {
+    throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
+  }
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
