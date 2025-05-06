@@ -40,6 +40,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1706659200,
   [CHAIN.LINEA]: 1708473600,
   [CHAIN.OP_BNB]: 1727443900,
+  [CHAIN.BSC]: 1742165391,
 }
 
 const adapter: SimpleAdapter = {
@@ -62,6 +63,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.OP_BNB]: {
       fetch: getFetch,
       start: startTimestamps[CHAIN.OP_BNB],
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BSC]: {
+      fetch: getFetch,
+      start: startTimestamps[CHAIN.BSC],
       meta: {
         methodology
       }

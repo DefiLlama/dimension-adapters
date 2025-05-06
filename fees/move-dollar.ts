@@ -29,8 +29,8 @@ const fetch = async (timestamp: number) => {
   );
 
   return {
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
+    totalFees,
+    dailyFees,
     timestamp,
   };
 };

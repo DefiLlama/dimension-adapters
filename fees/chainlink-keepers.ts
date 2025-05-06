@@ -39,7 +39,7 @@ const gasTokenId: IGasTokenId = {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async ({ toTimestamp, getLogs, }: FetchOptions) => {
+  return async (_: any, _1: any, { toTimestamp, getLogs, }: FetchOptions) => {
     const logs: ITx[] = (await getLogs({
       target: address_keeper[chain],
       topics: [topic0_keeper],
@@ -61,19 +61,19 @@ const fetchKeeper = (chain: Chain) => {
     const linkPrice = prices[linkAddress].price
     const gagPrice = prices[gasToken].price
     const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
-    const dailyFeesUsd = dailyFees * linkPrice;
+    const feeUSD = dailyFees * linkPrice;
     const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
     const dailyGasUsd = dailyGas * gagPrice;
-    const dailyRevenue = dailyFeesUsd - dailyGasUsd;
+    const dailyRevenue = feeUSD - dailyGasUsd;
     return {
-      dailyFees: dailyFeesUsd.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+      dailyFees: feeUSD,
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
     }
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),

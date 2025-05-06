@@ -39,10 +39,10 @@ const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
     const totalFees = totalUserFees;
 
     return {
-        dailyFees: dailyFees.toString(),
-        totalFees: totalFees.toString(),
-        dailyUserFees: dailyUserFees.toString(),
-        totalUserFees: totalUserFees.toString(),
+        dailyFees,
+        totalFees,
+        dailyUserFees: dailyUserFees,
+        totalUserFees: totalUserFees,
     };
 };
 
@@ -56,7 +56,7 @@ const adapter: SimpleAdapter = {
                 start: '2023-11-01',
                 meta: {
                     methodology: {
-                        Fees: "Users pay 0.3% for each swap along with a base fee",
+                        Fees: "Users pay 0.3% flat fee for each swap",
                     },
                 },
             },

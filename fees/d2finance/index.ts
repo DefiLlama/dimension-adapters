@@ -38,15 +38,15 @@ const tokens = [
     decimals: 6,
   },
   {
-    ticker: 'sUSDe',
-    geckoId: 'coingecko:ethena-staked-usde',
+    ticker: "sUSDe",
+    geckoId: "coingecko:ethena-staked-usde",
     decimals: 18,
   },
   {
-    ticker: 'solvBTC',
-    geckoId: 'coingecko:solv-btc',
+    ticker: "solvBTC",
+    geckoId: "coingecko:solv-btc",
     decimals: 18,
-  }
+  },
 ];
 
 const fetchFeeData = async (url: string, timestamp: number) => {
@@ -202,7 +202,8 @@ const fetchOnBerachain: FetchV2 = async ({ startTimestamp }) => {
   const monthStartTimeStamp = getTimestampAtStartOfMonth(startTimestamp);
   const monthEndTimestamp = getTimestampAtStartOfNextMonth(startTimestamp);
 
-  const graphQlUrl = "https://api.goldsky.com/api/public/project_cm65f59cocamq01waduix0fu3/subgraphs/bera-d2/1.0.0/gn";
+  const graphQlUrl =
+    "https://api.goldsky.com/api/public/project_cm65f59cocamq01waduix0fu3/subgraphs/bera-d2/1.0.1/gn";
   const result = await fetchFeeData(graphQlUrl, startTimestamp);
   const tokenPrices = await fetchTokenPrices(startTimestamp);
 
@@ -247,11 +248,11 @@ export default {
       start: "2024-01-20",
       runAtCurrTime: true,
     },
-    [CHAIN.BASE]: {
-      fetch: fetchOnBase,
-      start: "2024-10-31",
-      runAtCurrTime: true,
-    },
+    // [CHAIN.BASE]: {
+    //   fetch: fetchOnBase,
+    //   start: "2024-10-31",
+    //   runAtCurrTime: true,
+    // }, // on base vault is no fees
     [CHAIN.ETHEREUM]: {
       fetch: fetchOnEthereum,
       start: "2025-01-09",
@@ -261,6 +262,6 @@ export default {
       fetch: fetchOnBerachain,
       start: "2025-01-26",
       runAtCurrTime: true,
-    }
+    },
   },
 };

@@ -1,24 +1,28 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain, } from "@defillama/sdk/build/general";
-import { queryDune } from "../helpers/dune";
-import { getTimestampAtStartOfDay } from "../utils/date";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const fetch = (_: Chain) => {
   return async (_a: any, _ts: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     try {
-      const startOfDay = getTimestampAtStartOfDay(options.startOfDay);
-      const value = (await queryDune("4736286", { start: startOfDay }));
+      const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+      // https://dune.com/queries/4736286
+      const sql = getSqlFromFile("helpers/queries/cow-protocol.sql", {
+        start: startOfDay
+      });
+      const value = (await queryDuneSql(options, sql));
       const dayItem = value[0]
       dailyFees.addGasToken((dayItem?.eth_value) * 1e18 || 0)
       return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
       }
     } catch (e) {
       return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
       }
     }

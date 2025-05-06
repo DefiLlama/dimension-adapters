@@ -16,6 +16,7 @@ export async function getEarliestAvailableTimestamp() {
 const adapter: SimpleAdapter = {
   adapter: {
     arbitrum: {
+      runAtCurrTime: true,
       fetch: fetchArbitrumAnalyticsData,
       start: getEarliestAvailableTimestamp,
     },

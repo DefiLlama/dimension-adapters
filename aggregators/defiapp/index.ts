@@ -2,7 +2,6 @@ import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const DEFIAPP_24H_VOLUME_URL = "http://api.defi.app/api/stats/volume/24h"; // requires authentication
 const START_TIMESTAMP = 1739433600; // 02.13.2025
 
 type TChainId = {
@@ -30,7 +29,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 export async function fetchCacheURL(url: string) {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key]) {
     requests[key] = httpGet(url,  {
       headers: {
@@ -44,23 +43,24 @@ export async function fetchCacheURL(url: string) {
   return requests[key]
 }
 
+const tsToISO = (ts:number) => new Date(ts*1e3).toISOString()
+
 const fetch = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
+  return async ({startTimestamp, endTimestamp}): Promise<FetchResultVolume> => {
     const dayResponse = <IDefiAppResponse>(
-      await fetchCacheURL(DEFIAPP_24H_VOLUME_URL)
+      await fetchCacheURL(`https://api.defi.app/api/stats/volume/between?startRefTime=${tsToISO(startTimestamp)}&endRefTime=${tsToISO(endTimestamp)}`)
     );
 
     const dailyVolume = dayResponse.perChainUsdVolume[defiAppChainIdMap[chain]];
     return {
-      dailyVolume: dailyVolume || "0",
-      timestamp,
+      dailyVolume
     };
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {},
-  isExpensiveAdapter: true,
+  version: 2,
 };
 
 const chainKeys = Object.keys(defiAppChainIdMap);

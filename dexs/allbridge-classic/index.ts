@@ -19,6 +19,7 @@ const getVolume = async (chainCode: string, fromDate: string, toDate: string): P
 
 const getVolumeFunction = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultVolume> => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const chainCode = chainCodeMap[chain];
     const dateString = formatTimestampAsIsoDate(timestamp);
     const dailyVolume = await getVolume(chainCode, dateString, dateString);

@@ -1,5 +1,6 @@
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 type IConfig = {
   [s: string | Chain] : {
@@ -9,6 +10,8 @@ type IConfig = {
     vaultResolverExistAfterBlock: number
   }
 }
+
+export const zeroAddress = ADDRESSES.null
 
 export const LIQUIDITY = "0x52aa899454998be5b000ad077a46bbe360f4e497"
 
@@ -33,6 +36,13 @@ export const CONFIG_FLUID: IConfig = {
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1723484700,
     vaultResolverExistAfterBlock: 18347681,
+  },
+  [CHAIN.POLYGON]: {
+    dataStartTimestamp: 1741205235, // ~ before any activity started (block 68688825)
+    revenueResolverExistAfterBlock: 68688825,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1741205235,
+    vaultResolverExistAfterBlock: 68688825,
   },
 };
 

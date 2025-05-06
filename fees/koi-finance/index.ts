@@ -9,8 +9,8 @@ const getFees = async (options: FetchOptions) => {
   const dailyRevenue = Number(feeV1.dailyRevenue);
 
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
+    dailyFees,
+    dailyRevenue,
   }
 }
 

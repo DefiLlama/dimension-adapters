@@ -68,6 +68,7 @@ const adapter: BreakdownAdapter = {
     },
   },
   protocolType: ProtocolType.PROTOCOL,
+  deadFrom: '2025-02-05',
 };
 
 export default adapter;

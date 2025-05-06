@@ -16,7 +16,7 @@ const fetchFees = async (_t: number, _b: ChainBlocks, options: FetchOptions)  =>
   })
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
+    dailyFees,
   }
 }
 

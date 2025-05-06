@@ -3,8 +3,8 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-const feeEndpoint = "https://fjord-api.vercel.app/api/daily-stats?version=2";
 const feeEndpointV1 = "https://fjord-api.vercel.app/api/daily-stats?version=1";
+const feeEndpointV2 = "https://fjord-api.vercel.app/api/daily-stats?version=2";
 
 const v2ChainIDs = {
     [CHAIN.ETHEREUM]: 1,
@@ -24,9 +24,9 @@ const v1ChainIDs = {
 
 const getV2Data = async (endTimestamp: number, chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-    const historicalVolume = (await fetchURL(feeEndpoint))
+    const historicalVolume = (await fetchURL(feeEndpointV2))
 
-    const chainData = historicalVolume.stats.find(cd => cd.chainId === chainId);
+    const chainData = historicalVolume.stats.evm.find(cd => cd.chainId === chainId);
 
     const totalVolume = chainData.stats
         .filter(item => item.timestamp <= dayTimestamp)
@@ -36,8 +36,8 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.volume
 
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : '0',
+        totalVolume: totalVolume,
+        dailyVolume: dailyVolume,
     };
 };
 
@@ -55,8 +55,8 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
         .find(dayItem => dayItem.timestamp === dayTimestamp)?.volume
 
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : '0',
+        totalVolume: totalVolume,
+        dailyVolume: dailyVolume,
     };
 };
 

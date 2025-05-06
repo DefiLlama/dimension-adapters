@@ -18,14 +18,15 @@ const fetchData = (_: Chain) => {
     const totalFees  = value.filter((e: IData) => e.timestamp <= todaysTimestamp)
       .reduce((acc: number, e: IData) => acc + e.feesKwenta, 0)
     return {
-      dailyFees: dailyFee ? `${dailyFee}` : undefined,
-      totalFees: totalFees ? `${totalFees}` : undefined,
+      dailyFees: dailyFee,
+      totalFees,
       timestamp: todaysTimestamp
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2024-12-14",
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OPTIMISM]: {

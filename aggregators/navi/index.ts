@@ -2,29 +2,33 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 import axios from "axios";
 
-const sentioApiKey = '3taTsrTS3cZq4tcKkKVSajWSJxkjZmcet'; //Read Only
+const sentioApiKey = "s0T3OflD18sDuN6DeSy7XyVsPqHQTbD4z"; //Read Only
 
-const fetchDailyVolume = async ({ fromTimestamp, toTimestamp, startOfDay }: FetchOptions) => {
-  const url = 'https://app.sentio.xyz/api/v1/analytics/navi/dex-aggregator/sql/execute';
+const fetchDailyVolume = async ({
+  fromTimestamp,
+  toTimestamp,
+  startOfDay,
+}: FetchOptions) => {
+  const url =
+    "https://app.sentio.xyz/api/v1/analytics/navi/dex-aggregator/sql/execute";
   const res = await axios(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'api-key': sentioApiKey,
-      'Content-Type': 'application/json'
+      "api-key": sentioApiKey,
+      "Content-Type": "application/json",
     },
     data: JSON.stringify({
       sqlQuery: {
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
-              FROM \'swapEvent\'
-              WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`
-      },
-      version: 21
-    })
-  }).then(response => response.data);
+              FROM 'swapEvent'
+              WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`,
+      }
+    }),
+  }).then((response) => response.data);
 
   return {
     dailyVolume: res.result.rows[0].usdValue,
-  }
+  };
 };
 
 //NAVI Aggregator Volume
@@ -33,7 +37,7 @@ const navi_aggregator: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchDailyVolume,
-      start: '2024-10-05',
+      start: "2024-10-05",
     },
   },
 };

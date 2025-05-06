@@ -5,7 +5,7 @@ const { request, gql } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getBlock } from "../../helpers/getBlock";
 import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, FetchResult } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
   [CHAIN.ERA]: {
@@ -63,30 +63,48 @@ const getData = async (chain: Chain, timestamp: number) => {
       feesUSD
       volumeUSD
     }
+  }
+  `;
+
+  const queryTotal = gql`{
     factories(first: 1, subgraphError: allow, block: { number: ${block} }) {
       txCount
       totalVolumeUSD
       totalFeesUSD
       totalValueLockedUSD
     }
+  }`;
+  
+  const res: FetchResult = {
+    totalVolume: 0,
+    totalFees: 0,
+    dailyFees: 0,
+    dailyUserFees: 0,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: 0,
+    dailyHoldersRevenue: 0,
+    dailyRevenue: 0,
   }
-  `;
 
+  if (![CHAIN.ETHEREUM, CHAIN.FANTOM].includes(chain as CHAIN)) {
+    const totalData = await request(LINKS[chain].subgraph, queryTotal);
+    const totalVolume = Number(totalData.factories[0].totalVolumeUSD);
+    const totalFee = Number(totalData.factories[0].totalFeesUSD);
+    res.totalVolume = totalVolume;
+    res.totalFees = totalFee;
+  }
   const data: IGraph = await request(LINKS[chain].subgraph, query);
-
-  const totalVolume = Number(data.factories[0].totalVolumeUSD);
-  const totalFee = Number(data.factories[0].totalFeesUSD);
 
   const dailyVolume = Number(data.uniswapDayData?.volumeUSD ?? "0");
   const dailyFees = Number(data.uniswapDayData?.feesUSD ?? "0");
 
   return {
-    dailyFees: `${dailyFees}`,
-    totalFees: `${totalFee}`,
-    dailyUserFees: `${dailyFees}`,
-    totalUserFees: `${totalFee}`,
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
+    dailyFees,
+    totalFees: res.totalFees,
+    dailyUserFees: dailyFees,
+    totalUserFees: res.totalUserFees,
+    totalVolume: res.totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };

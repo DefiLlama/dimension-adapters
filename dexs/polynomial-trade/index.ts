@@ -29,6 +29,7 @@ const fetch = async (timestamp: number) => {
     adapter: {
       [CHAIN.POLYNOMIAL]: {
         fetch,
+        runAtCurrTime: true,
         start: '2024-08-22',
       },
     },

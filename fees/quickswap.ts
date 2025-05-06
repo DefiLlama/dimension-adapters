@@ -1,13 +1,11 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
+import { BreakdownAdapter, BaseAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 const v2Endpoints = {
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
-    "FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd",
-  ),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint("FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd"),
 };
 const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
@@ -23,9 +21,7 @@ const v2Graph = getGraphDimensions2({
 });
 
 const v3Endpoints = {
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
-    "CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7",
-  ),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint("FqsRcH1XqSjqVx9GRTvEJe959aCbKrcyGgDWBrUkG24g"),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU")
 };
@@ -71,7 +67,16 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
-        fetch: v2Graph(CHAIN.POLYGON),
+        fetch: async (options: FetchOptions) => {
+          try {
+            const res = (await v2Graph(CHAIN.POLYGON)(options))
+            if (Object.values(res).includes(NaN)) return {}
+            return res
+          } catch (e) {
+            console.error(e)
+            return {}
+          }
+        },
         start: '2020-10-08',
         meta: {
           methodology,

@@ -52,40 +52,59 @@ const chainSettings: any = {
     chainName: 'sonic',
     fromBlockSickle: 1449481
   },
+  fraxtal: {
+    factory: '0x53d9780DbD3831E3A797Fd215be4131636cD5FDf',
+    chainName: 'fraxtal',
+    fromBlockSickle: 13191747
+  },
+  avax: {
+    factory: '0x53d9780DbD3831E3A797Fd215be4131636cD5FDf',
+    chainName: 'avax',
+    fromBlockSickle: 52924795
+  },
 };
 
-const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 
+  // Fetch Deploy events to get all Sickle contract addresses
+  const deployLogs = await getLogs({
+    target: settings.factory,
+    fromBlock: settings.fromBlock,
+    eventAbi: 'event Deploy(address indexed admin, address sickle)',
+    cacheInCloud: true,
+  });
 
-  /*     // Fetch Deploy events to get all Sickle contract addresses
-      const deployLogs = await getLogs({
-        target: settings.factory,
-        fromBlock: settings.fromBlock,
-        eventAbi: 'event Deploy(address indexed admin, address sickle)',
-        cacheInCloud: true,
-      });
-  
-      const sickleContracts = deployLogs.map((log: any) => log.sickle); */
+  const sickleContracts = deployLogs.map((log: any) => log.sickle.toLowerCase());
+  const sickleContractsSet = new Set(sickleContracts);
 
   const logs = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
   });
 
   const logs2 = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
   });
 
-
   logs.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   logs2.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   return {
@@ -95,7 +114,7 @@ const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
@@ -136,6 +155,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch: fetchFees,
       start: '2024-12-24',
+    },
+    [CHAIN.FRAXTAL]: {
+      fetch: fetchFees,
+      start: '2024-12-03',
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchFees,
+      start: '2024-11-11',
     },
   }
 }

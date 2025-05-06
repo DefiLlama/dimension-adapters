@@ -42,8 +42,8 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   });
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
     timestamp
