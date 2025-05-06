@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const volumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/7734/card/6988'
@@ -10,7 +10,7 @@ interface IVolumeData {
   }
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (timestamp: number): Promise<FetchResultOptions> => {
   const volumesData = await fetchURL(volumeEndpoint) as IVolumeData
   const timestampStr = new Date(timestamp * 1000).toISOString().split('T')[0] + "T00:00:00Z"
   
@@ -26,8 +26,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   
   return { 
     timestamp,
-    dailyVolume,
-    totalVolume
+    dailyNotionalVolume: dailyVolume,
+    totalNotionalVolume: totalVolume
   };
 };
 
