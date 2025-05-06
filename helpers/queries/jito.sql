@@ -1,6 +1,6 @@
 -- JitoSOL Related Fees
 WITH
-    withdrawal_fees AS (
+    jitostake_pool_fees AS (
         -- Withdrawal Fees / Rewards Fee / Orphaned Acc Fees from query_4908703 logic
         SELECT
             block_date,
@@ -45,7 +45,7 @@ WITH
             AND block_date < FROM_UNIXTIME({{end}})
     ),
     revenue AS (
-        SELECT block_date, jitoSOL_amt, usd_amt FROM withdrawal_fees
+        SELECT block_date, jitoSOL_amt, usd_amt FROM jitostake_pool_fees
         UNION ALL
         SELECT block_date, jitoSOL_amt, usd_amt FROM interceptor_fees
         UNION ALL
