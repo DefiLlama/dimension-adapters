@@ -16,7 +16,7 @@ const blacklistedChains: string[] = [
   "elrond",
   "defichain",
   "stacks",
-  "KARURA",
+  "karura",
   "eos",
   "icon",
   "stellar",
