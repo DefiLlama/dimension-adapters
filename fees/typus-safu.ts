@@ -113,6 +113,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees: userFees + protocolFees,
     dailyRevenue: protocolFees,
     dailySupplySideRevenue: userFees,
+    dailyProtocolRevenue: protocolFees,
   };
 };
 
