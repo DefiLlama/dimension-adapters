@@ -84,8 +84,8 @@ const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Pro
 
   return {
     dailyFees: tlpFees + protocolFees,
-    dailyRevenue: tlpFees + protocolFees,
-    dailyProtocolRevenue: protocolFees,
+    dailyRevenue: protocolFees,
+    dailySupplySideRevenue: tlpFees,
   };
 };
 

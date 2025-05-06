@@ -111,7 +111,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     totalFees: totalFees + protocolFees,
     dailyFees: userFees + protocolFees,
-    dailyRevenue: userFees + protocolFees,
+    dailyRevenue: protocolFees,
+    dailySupplySideRevenue: userFees,
   };
 };
 
