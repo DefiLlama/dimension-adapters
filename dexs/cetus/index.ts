@@ -32,8 +32,8 @@ interface IVolumeall {
 const fetch = (chain: Chain) => {
   return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
     if (chain === CHAIN.SUI) {
-      const totalVolume =(await fetchURL(`https://api-sui.cetus.zone/v2/sui/vol/time_range?date_type=hour&start_time=0&end_time=${endTimestamp}`)).data.vol_in_usd;
-      const dailyVolume =(await fetchURL(`https://api-sui.cetus.zone/v2/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
+      const totalVolume =(await fetchURL(`https://api-sui.cetus.zone/v3/sui/clmm/statistics`)).data.cumulativeVol;
+      const dailyVolume =(await fetchURL(`https://api-sui.cetus.zone/v3/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
       const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
       return {
         totalVolume: `${totalVolume}`,
