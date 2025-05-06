@@ -40,7 +40,7 @@ const buildQueryPayload = (start: number, end: number) => ({
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -106,7 +106,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const protocol_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Protocol Fee").matrix
     ?.samples?.[0]?.values;
-  const protocolFees = protocol_fee_usd.at(0).value;
+  const protocolFees = protocol_fee_usd.at(-1).value;
 
   return {
     totalFees: totalFees + protocolFees,

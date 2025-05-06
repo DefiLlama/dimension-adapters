@@ -29,7 +29,7 @@ const buildQueryPayload = (start: number, end: number) => ({
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -58,7 +58,7 @@ const buildQueryPayload = (start: number, end: number) => ({
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -98,7 +98,7 @@ const buildQueryPayload = (start: number, end: number) => ({
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -164,7 +164,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const revenue_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Revenue").matrix
     ?.samples?.[0]?.values;
-  const dailyRevenue = revenue_fee_usd.at(0).value;
+  const dailyRevenue = revenue_fee_usd.at(-1).value;
 
   return {
     dailyFees,
