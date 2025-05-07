@@ -39,9 +39,13 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
-export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, }: UniV2Config): FetchV2 => {
+export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses }: UniV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
+    let blacklistedAddressesSet: any
+    if (blacklistedAddresses) {
+      blacklistedAddressesSet = new Set(blacklistedAddresses.map(i => i.toLowerCase()))
+    }
 
     if (!chain) throw new Error('Wrong version?')
 
@@ -71,12 +75,19 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
       let _fees = isStablePair[index] ? stableFees : fees
       const [token0, token1] = pairObject[pair]
       logs.forEach((log: any) => {
+        if (blacklistedAddressesSet) {
+          if (
+            blacklistedAddressesSet.has(log.sender.toLowerCase()) ||
+            blacklistedAddressesSet.has(log.to.toLowerCase()))
+            return;
+        }
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * _fees, amount1: Number(log.amount1In) * _fees })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
       })
     })
+
     if (customLogic)
       return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
 
@@ -128,7 +139,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     logs = logs.map((log: any) => iface.parseLog(log)?.args)
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
-    
+
     logs.forEach((log: any) => {
       pairObject[log.pool] = [log.token0, log.token1]
       fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
@@ -172,7 +183,8 @@ type UniV2Config = {
   voter?: string,
   maxPairSize?: number,
   customLogic?: any,
-  start?: number|string,
+  start?: number | string,
+  blacklistedAddresses?: string[],
 }
 
 type UniV3Config = {
