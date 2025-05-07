@@ -20,7 +20,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.SEI]: {
             fetch: getFees,
-            start: 1719432193, // TODO: Add accurate timestamp
+            start: 1719432193,
         },
     },
 };
@@ -29,12 +29,12 @@ export default adapter;
 
 const STABLE_FEES = 0.0004;
 const VOLATILE_FEES = 0.0018;
-// const endpoint = "https://api.studio.thegraph.com/query/82132/yaka-finance/version/latest";
+const PROTOCOL_FEE_RATE = 0.12;
 const endpoint = "https://api.goldsky.com/api/public/project_cltwdng5fw97s01x16mntew1i/subgraphs/yaka-finance/1.0.0/gn"
 const blocksEndpoint = "https://api.studio.thegraph.com/query/82132/sei-blocks/version/latest"
 
 function getUnixTimeNow() {
-  return Math.floor(Date.now() / 1000)
+    return Math.floor(Date.now() / 1000)
 }
 
 function getBlocks(timestamps) {
@@ -45,32 +45,24 @@ function getBlocks(timestamps) {
         }`
     })
     queryString += '}'
-    // console.log(queryString)
     return gql`${queryString}`
 }
 
 
 
 const fetchV1 = () => {
-    return async ({ getToBlock, getFromBlock }: FetchOptions) => {
-        // const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+    return async ({ }: FetchOptions) => {
         const utcCurrentTime = getUnixTimeNow()
         const utcOneDayBack = utcCurrentTime - 86400
-        const utcTwoDaysBack = utcCurrentTime - 172800
 
-        const blocksQuery = getBlocks([utcTwoDaysBack, utcOneDayBack])
+        const blocksQuery = getBlocks([utcOneDayBack])
         const blocksRes = await request(blocksEndpoint, blocksQuery)
         console.log(blocksRes)
         let blocks = []
         for (const block in blocksRes) {
             blocks.push(blocksRes[block][0].number)
         }
-        // console.log(blocks)
         const fromBlock = blocks[0]
-        const toBlock = blocks[1]
-        console.log(fromBlock, toBlock)
-
-
         const query = gql`
       query fees {
         yesterday: pairs(block: {number: ${fromBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
@@ -78,7 +70,7 @@ const fetchV1 = () => {
           isStable
           volumeUSD
         }
-        today: pairs(block: {number: ${toBlock}}, where: {volumeUSD_gt: "0"}, first: 1000) {
+        today: pairs(where: {volumeUSD_gt: "0"}, first: 1000) {
           id
           isStable
           volumeUSD
@@ -106,8 +98,8 @@ const fetchV1 = () => {
 
         return {
             dailyFees: dailyFee.toString(),
-            dailyRevenue: dailyFee.toString(),
-            dailyHoldersRevenue: dailyFee.toString(),
+            dailyRevenue: dailyFee.times(PROTOCOL_FEE_RATE).toString(),
+            dailyHoldersRevenue: dailyFee.minus(dailyFee.times(PROTOCOL_FEE_RATE)).toString(),
         };
     };
 };
