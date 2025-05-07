@@ -29,11 +29,47 @@ export default adapter;
 
 const STABLE_FEES = 0.0004;
 const VOLATILE_FEES = 0.0018;
-const endpoint = "https://api.studio.thegraph.com/query/82132/yaka-finance/version/latest";
+// const endpoint = "https://api.studio.thegraph.com/query/82132/yaka-finance/version/latest";
+const endpoint = "https://api.goldsky.com/api/public/project_cltwdng5fw97s01x16mntew1i/subgraphs/yaka-finance/1.0.0/gn"
+const blocksEndpoint = "https://api.studio.thegraph.com/query/82132/sei-blocks/version/latest"
+
+function getUnixTimeNow() {
+  return Math.floor(Date.now() / 1000)
+}
+
+function getBlocks(timestamps) {
+    let queryString = 'query blocks {'
+    queryString += timestamps.map((timestamp) => {
+        return `t${timestamp}:blocks(first: 1, orderBy: timestamp, orderDirection: desc, where: { timestamp_gt: ${timestamp}, timestamp_lt: ${timestamp + 600} }) {
+        number
+        }`
+    })
+    queryString += '}'
+    // console.log(queryString)
+    return gql`${queryString}`
+}
+
+
 
 const fetchV1 = () => {
     return async ({ getToBlock, getFromBlock }: FetchOptions) => {
-        const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+        // const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+        const utcCurrentTime = getUnixTimeNow()
+        const utcOneDayBack = utcCurrentTime - 86400
+        const utcTwoDaysBack = utcCurrentTime - 172800
+
+        const blocksQuery = getBlocks([utcTwoDaysBack, utcOneDayBack])
+        const blocksRes = await request(blocksEndpoint, blocksQuery)
+        console.log(blocksRes)
+        let blocks = []
+        for (const block in blocksRes) {
+            blocks.push(blocksRes[block][0].number)
+        }
+        // console.log(blocks)
+        const fromBlock = blocks[0]
+        const toBlock = blocks[1]
+        console.log(fromBlock, toBlock)
+
 
         const query = gql`
       query fees {
