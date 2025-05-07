@@ -24,7 +24,7 @@ async function fetch(_: any, _1: any, { startOfDay, chain, }: FetchOptions) {
 }
 
 async function fetchSUI(_: any, _1: any, { startTimestamp, endTimestamp }: FetchOptions) {
-  const dailyVolume = (await fetchURL(`https://api-sui.cetus.zone/v2/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
+  const dailyVolume = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
   return {
     dailyVolume: dailyVolume,
   };
