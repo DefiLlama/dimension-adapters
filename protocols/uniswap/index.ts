@@ -166,7 +166,7 @@ async function fetchV2Volume(options: FetchOptions) {
       'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
       'sec-ch-ua-mobile': '?0',
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-    } 
+    }
   })
   const dailyVolume = res.stats.historicalProtocolVolume.Month.v2
     .find((item: any) => item.timestamp === options.startOfDay)?.value;
@@ -224,7 +224,7 @@ const adapter: BreakdownAdapter = {
         },
       },
       [CHAIN.UNICHAIN]: {
-        fetch: getUniV2LogAdapter({factory: "0x1F98400000000000000000000000000000000002"}),
+        fetch: getUniV2LogAdapter({ factory: "0x1F98400000000000000000000000000000000002" }),
         meta: {
           methodology
         },
@@ -288,7 +288,7 @@ const mappingChain = (chain: string) => {
 }
 
 adapter.breakdown.v3[CHAIN.UNICHAIN] = {
-  fetch: getUniV3LogAdapter({factory: "0x1F98400000000000000000000000000000000003"}),
+  fetch: getUniV3LogAdapter({ factory: "0x1F98400000000000000000000000000000000003" }),
   meta: {
     methodology
   }
@@ -317,6 +317,7 @@ const okuChains = [
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.SAGA,
+  CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
   CHAIN.ARBITRUM,
 ]
