@@ -17,6 +17,7 @@ const DEFAULTS: any = {
   FUSE_RPC: 'https://explorer.fuse.io/api/eth-rpc',
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
+  CANTO_RPC: 'https://tuber.build/api/eth-rpc',
 }
 
 export const ENV_KEYS = new Set([
