@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 
-
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
 const DEPLOYMENT_BLOCK = 784968;
@@ -15,7 +14,6 @@ const PROVIDER_FEE = 2000n;
 const DIVISOR = 10000n;
 
 async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
-
   const buyLogs = await options.getLogs({
     target: BERO,
     eventAbi:
@@ -42,7 +40,6 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
-
   const borrowLogs = await options.getLogs({
     target: VOTER,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
@@ -56,7 +53,6 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBribes(options: FetchOptions, totalFees: Balances) {
-
   const plugins = await options.api.call({
     target: VOTER,
     abi: "address[]:getPlugins",
@@ -82,19 +78,22 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
+const BERACHAIN_DISTRIBUTOR = "0xD2f19a79b026Fb636A7c300bF5947df113940761";
 const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
 
 async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
-
   const logs = await options.getLogs({
-    target: BERADROME_REWARD_VAULT,
-    eventAbi: "event RewardAdded(uint256 reward)",
+    target: BERACHAIN_DISTRIBUTOR,
+    eventAbi:
+      "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
   });
 
-  logs.forEach((log) => {
-    balances.add(BGT_ADDRESS, log.reward);
-  });
+  for (const log of logs) {
+    if (log.receiver.toLowerCase() === BERADROME_REWARD_VAULT.toLowerCase()) {
+      balances.add(BGT_ADDRESS, log.amount);
+    }
+  }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
