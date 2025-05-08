@@ -98,7 +98,7 @@ const adapter: Adapter = {
       runAtCurrTime: true,
             meta,
     },
-    haqq: {
+    islm: {
       fetch: fetch("haqq"),
       runAtCurrTime: true,
             meta,
