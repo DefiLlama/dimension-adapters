@@ -3,7 +3,6 @@ import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
 import { normalizeAddress } from "@defillama/sdk/build/util";
-import { Interface } from "ethers";
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -114,12 +113,11 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
 
   // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
   if (pool.version === 3) {
-    const liquidationLogs: Array<any> = await options.getLogs({
+    const liquidationEvents: Array<any> = await options.getLogs({
       target: pool.lendingPoolProxy,
       eventAbi: AaveAbis.LiquidationEvent,
-      entireLog: true,
     })
-    if (liquidationLogs.length > 0) {
+    if (liquidationEvents.length > 0) {
       const liquidationProtocolFees = (await options.api.multiCall({
         abi: AaveAbis.getConfiguration,
         target: pool.lendingPoolProxy,
@@ -139,15 +137,6 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
         }
       }
 
-      const lendingPoolContract: Interface = new Interface([AaveAbis.LiquidationEvent])
-      const liquidationEvents = liquidationLogs.map(log => {
-        const decodeLog: any = lendingPoolContract.parseLog(log)
-        return {
-          tx: log.transactionHash,
-          collateralAsset: decodeLog.args[0],
-          liquidatedCollateralAmount: decodeLog.args[4],
-        }
-      })
       for (const event of liquidationEvents) {
         /**
          * The math calculation for liquidation fees
