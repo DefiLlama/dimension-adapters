@@ -1,6 +1,9 @@
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
+import {decodeReserveConfig} from "./helper";
+import { normalizeAddress } from "@defillama/sdk/build/util";
+import { Interface } from "ethers";
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -16,6 +19,7 @@ const LiquidityIndexDecimals = BigInt(1e27);
 
 async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
+  dailySupplySideRevenue: sdk.Balances,
   dailyProtocolRevenue: sdk.Balances,
 }) {
   // get reserve (token) list which are supported by the lending pool
@@ -29,14 +33,17 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
     return;
   }
 
+  // get reserve configs
+  const reserveConfigs = pool.version === 1 ? [] : await options.fromApi.multiCall({
+    abi: AaveAbis.getReserveConfiguration,
+    target: pool.dataProvider,
+    calls: reservesList,
+  })
+  
   // get reserves factors
   const reserveFactors: Array<number> = pool.version === 1
     ? reservesList.map(_ => 0)
-    : (await options.api.multiCall({
-      abi: AaveAbis.getReserveConfiguration,
-      target: pool.dataProvider,
-      calls: reservesList,
-    })).map((config: any) => Number(config.reserveFactor))
+    : reserveConfigs.map((config: any) => Number(config.reserveFactor))
 
   // count fees by growth liquidity index
   const reserveDataBefore = await options.fromApi.multiCall({
@@ -72,7 +79,116 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
     const revenueAccrued = Number(interestAccrued) * reserveFactor
 
     balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
+    balances.dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
     balances.dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+  }
+
+  // get flashloan fees
+  const flashloanEvents = await options.getLogs({
+    target: pool.lendingPoolProxy,
+    eventAbi: AaveAbis.FlashloanEvent,
+  })
+  if (flashloanEvents.length > 0) {
+    const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
+      target: pool.lendingPoolProxy,
+      abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
+    })
+    const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
+      target: pool.lendingPoolProxy,
+      abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
+    })
+    const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
+    const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
+
+    for (const event of flashloanEvents) {
+      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate / flashloanFeeRate
+
+      balances.dailyFees.add(event.asset, flashloanPremiumForProtocol)
+      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol)
+      
+      // we don't count flashloan premium for LP as fees
+      // because they have already counted in liquidity index
+      balances.dailySupplySideRevenue.add(event.asset, 0)
+    }
+  }
+
+  // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
+  if (pool.version === 3) {
+    const liquidationLogs: Array<any> = await options.getLogs({
+      target: pool.lendingPoolProxy,
+      eventAbi: AaveAbis.LiquidationEvent,
+      entireLog: true,
+    })
+    if (liquidationLogs.length > 0) {
+      const liquidationProtocolFees = (await options.api.multiCall({
+        abi: AaveAbis.getConfiguration,
+        target: pool.lendingPoolProxy,
+        calls: reservesList,
+      })).map((config: any) => {
+        return Number(decodeReserveConfig(config.data).liquidationProtocolFee)
+      })
+  
+      const reserveLiquidationConfigs: {[key: string]: {
+        bonus: number;
+        protocolFee: number;
+      }} = {}
+      for (let i = 0; i < reservesList.length; i++) {
+        reserveLiquidationConfigs[normalizeAddress(reservesList[i])] = {
+          bonus: Number(reserveConfigs[i].liquidationBonus),
+          protocolFee: liquidationProtocolFees[i],
+        }
+      }
+
+      const lendingPoolContract: Interface = new Interface([AaveAbis.LiquidationEvent])
+      const liquidationEvents = liquidationLogs.map(log => {
+        const decodeLog: any = lendingPoolContract.parseLog(log)
+        return {
+          tx: log.transactionHash,
+          collateralAsset: decodeLog.args[0],
+          liquidatedCollateralAmount: decodeLog.args[4],
+        }
+      })
+      for (const event of liquidationEvents) {
+        /**
+         * The math calculation for liquidation fees
+         * 
+         * where:
+         * e - collateral amount emitted from the event
+         * x - liquidation bonus rate
+         * y - liquidation protocol fee rate
+         * a - liquidated collateral amount
+         * b - liquidation bonus
+         * b2 - liquidation bonus fees for protocol
+         * 
+         * 1. b2 = yb
+         * 
+         * 2. e = a + b
+         * 
+         * from 1, 2:
+         * b = (e - e / x)
+         * b2 = b * y
+         * 
+         */
+  
+        // PercentageMath uses 4 decimals
+        const e = Number(event.liquidatedCollateralAmount)
+        const x = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].bonus / 1e4
+        const y = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].protocolFee / 1e4
+
+        // protocol fees from liquidation bonus
+        const b = (e - e / x)
+        const b2 = b * y
+
+        // count liquidation bonus as fees
+        balances.dailyFees.add(event.collateralAsset, b)
+
+        // count liquidation bonus for liquidator as supply side fees
+        balances.dailySupplySideRevenue.add(event.collateralAsset, b - b2)
+
+        // count liquidation bonus protocol fee as revenue
+        balances.dailyProtocolRevenue.add(event.collateralAsset, b2)
+      }
+    }
   }
 }
 
@@ -83,17 +199,16 @@ export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
       fetch: (async (options: FetchOptions) => {
         let dailyFees = options.createBalances()
         let dailyProtocolRevenue = options.createBalances()
+        let dailySupplySideRevenue = options.createBalances()
 
         for (const pool of pools) {
           await getPoolFees(pool, options, {
             dailyFees,
+            dailySupplySideRevenue,
             dailyProtocolRevenue,
           })
         }
 
-        const dailySupplySideRevenue = dailyFees.clone();
-        dailySupplySideRevenue.subtract(dailyProtocolRevenue);
-        
         return { dailyFees, dailyProtocolRevenue, dailySupplySideRevenue }
       }),
     }
