@@ -11,7 +11,7 @@ export interface AaveLendingPoolConfig {
 }
 
 // PercentageMath uses 4 decimals: https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F17#L15
-const ReserveFactorDecimals = 1e4;
+const PercentageMathDecimals = 1e4;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
@@ -70,7 +70,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
     }
 
-    const reserveFactor = reserveFactors[reserveIndex] / ReserveFactorDecimals
+    const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
     const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
     const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
     const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
@@ -153,16 +153,17 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
          * 
          * 2. e = a + b
          * 
-         * from 1, 2:
+         * 3. b = xa
+         * 
+         * from 1, 2, 3:
          * b = (e - e / x)
          * b2 = b * y
          * 
          */
   
-        // PercentageMath uses 4 decimals
         const e = Number(event.liquidatedCollateralAmount)
-        const x = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].bonus / 1e4
-        const y = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].protocolFee / 1e4
+        const x = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
+        const y = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
 
         // protocol fees from liquidation bonus
         const b = (e - e / x)
