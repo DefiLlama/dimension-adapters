@@ -1,5 +1,9 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { sliceIntoChunks } from "@defillama/sdk/build/util";
+import { filterPools2 } from "../../helpers/uniswap";
+import * as sdk from '@defillama/sdk';
+
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 const abis: any = {
@@ -27,6 +31,9 @@ const superchainConfig = {
   },
   [CHAIN.UNICHAIN]: {
     sugar: '0xB1d0DFFe6260982164B53EdAcD3ccd58B081889d',
+  },
+  [CHAIN.SWELLCHAIN]: {
+    sugar: '0xF179eD1FBbDC975C45AB35111E6Bf7430cCca14F',
   }
 }
 
@@ -46,7 +53,7 @@ interface ILog {
 }
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   let chunkSize = 400;
@@ -68,10 +75,10 @@ const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV
       abi: abis.forSwaps,
       chain: options.chain,
     }));
-    
+
     const forSwaps: IForSwap[] = forSwapsUnfiltered.filter(t => Number(t.type) > 0).map((e: any) => {
       return {
-        lp: e.lp,
+        lp: e.lp.toLowerCase(),
         type: e.type,
         token0: e.token0,
         token1: e.token1,
@@ -84,43 +91,55 @@ const fetch = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultV
     allForSwaps.push(...forSwaps);
   }
 
-  const targets = allForSwaps.map((forSwap: IForSwap) => forSwap.lp)
+  const pairInfoMap: any = {};
+  const allPools = [] as any;
+  const allToken0s = [] as any;
+  const allToken1s = [] as any;
+  allForSwaps.forEach((forSwap: IForSwap) => {
+    pairInfoMap[forSwap.lp] = forSwap;
+    allPools.push(forSwap.lp);
+    allToken0s.push(forSwap.token0);
+    allToken1s.push(forSwap.token1);
+  })
 
-  let logs: ILog[][] = [];
-  const targetChunkSize = 5;
-  let currentTargetOffset = 0;
-  unfinished = true;
+  const { pairs, } = await filterPools2({
+    fetchOptions: options,
+    pairs: allPools,
+    token0s: allToken0s,
+    token1s: allToken1s,
+    minUSDValue: 5000,
+    maxPairSize: 500
+  })
 
-  while (unfinished) {
-    let endOffset = currentTargetOffset + targetChunkSize;
-    if (endOffset >= targets.length) {
-      unfinished = false;
-      endOffset = targets.length;
-    }
+  sdk.log('velodrome pairs', pairs.length, 'all pairs', allForSwaps.length, options.chain)
+  const targetChunkSize = options.chain === CHAIN.OPTIMISM ? 10 : 32;
+  const pairChunks = sliceIntoChunks(pairs, targetChunkSize);
+  let chunkCount = pairChunks.length;
+  let chunkIndex = 0;
 
-    let currentLogs: ILog[][] = await options.getLogs({
-      targets: targets.slice(currentTargetOffset, endOffset),
+  for (const targets of pairChunks) {
+    let logs: ILog[][] = await options.getLogs({
+      targets,
       eventAbi: event_swap,
       flatten: false,
     })
-
-    logs.push(...currentLogs);
-    currentTargetOffset += targetChunkSize;
-  }
-
-  logs.forEach((logs: ILog[], idx: number) => {
-    const { token1, pool_fee } = allForSwaps[idx]
-    logs.forEach((log: any) => {
-      dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
-      dailyFees.add(token1, BigInt( Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
+    logs.forEach((logs: ILog[], idx: number) => {
+      const pool = targets[idx]
+      const { token1, pool_fee } = pairInfoMap[pool]
+      logs.forEach((log: any) => {
+        dailyVolume.add(token1, BigInt(Math.abs(Number(log.amount1))))
+        dailyFees.add(token1, BigInt(Math.round((((Math.abs(Number(log.amount1))) * Number(pool_fee)) / 1000000)))) // 1% fee represented as pool_fee=10000
+      })
     })
-  })
+    
+    chunkIndex++;
+    sdk.log(`Velodrome ${options.chain} chunk ${chunkIndex}/${chunkCount} processed`)
+  }
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
 }
 const adapters: SimpleAdapter = {
   version: 1,
-  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch as any,
@@ -149,7 +168,11 @@ const adapters: SimpleAdapter = {
     [CHAIN.UNICHAIN]: {
       fetch: fetch as any,
       start: '2025-03-04',
-    }
+    },
+    [CHAIN.SWELLCHAIN]: {
+      fetch: fetch as any,
+      start: '2025-02-25',
+    },
   }
 }
 export default adapters;

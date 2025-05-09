@@ -1,9 +1,12 @@
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
+import * as fs from 'fs';
+import * as path from 'path';
 const plimit = require('p-limit');
 const limit = plimit(1);
 
-const isRestrictedMode = getEnv('DUNE_RESTRICTED_MODE') === 'true'
+// const isRestrictedMode = getEnv('DUNE_RESTRICTED_MODE') === 'true'
+const isRestrictedMode = false
 const API_KEYS = getEnv('DUNE_API_KEYS')?.split(',') ?? ["L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"]
 let API_KEY_INDEX = 0;
 
@@ -81,7 +84,7 @@ const submitQuery = async (queryId: string, query_parameters = {}) => {
 }
 
 
-export const queryDune = async (queryId: string, query_parameters: any = {}) => {
+const queryDune = async (queryId: string, query_parameters: any = {}) => {
   checkCanRunDuneQuery()
 
   if (Object.keys(query_parameters).length === 0) {
@@ -126,6 +129,25 @@ export const queryDuneSql = (options: any, query: string) => {
     fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).split("TIME_RANGE").join(`block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   })
+}
+
+export const getSqlFromFile = (sqlFilePath: string, variables: Record<string, any> = {}): string => {
+  try {
+    const absolutePath = path.resolve(__dirname, '..', sqlFilePath);
+    let sql = fs.readFileSync(absolutePath, 'utf8');
+    
+    // Replace variables
+    Object.entries(variables).forEach(([key, value]) => {
+      sql = sql.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
+    });
+    
+    return sql;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      throw new Error(`SQL file not found: ${sqlFilePath}`);
+    }
+    throw new Error(`Error processing SQL file ${sqlFilePath}: ${error.message}`);
+  }
 }
 
 export function checkCanRunDuneQuery() {

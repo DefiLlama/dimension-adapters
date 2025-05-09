@@ -90,8 +90,8 @@ const fetch =  async (_: any, _1: any, options: FetchOptions): Promise<FetchResu
     const dailyRevenue = dailyFees.clone()
     dailyRevenue.subtract(dailyGasUsd)
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
     }
 }
 
@@ -111,6 +111,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: '2023-02-03',
     }
-  }
+  },
+  allowNegativeValue: true,  // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
 }
 export default adapter;

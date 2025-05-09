@@ -2,12 +2,7 @@ import { ChainApi } from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import axios from "axios";
 import BigNumber from "bignumber.js";
-import {
-  ChainBlocks,
-  FetchOptions,
-  FetchResultFees,
-  SimpleAdapter,
-} from "../adapters/types";
+import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
@@ -20,12 +15,8 @@ async function fetchMarkets(api: ChainApi): Promise<FetchMarketsResult> {
   const res = await axios.get<any[]>(url);
 
   const markets = res.data.map((m) => m.metadata.address);
-  const marketToUnderlying = new Map(
-    res.data.map((m) => [m.metadata.address, m.tokens.targetToken.id])
-  );
-  const splitFeePcts = res.data.map(
-    (m) => new BigNumber(m.fees.splitFeePercentage)
-  );
+  const marketToUnderlying = new Map(res.data.map((m) => [m.metadata.address, m.tokens.targetToken.id]));
+  const splitFeePcts = res.data.map((m) => new BigNumber(m.fees.splitFeePercentage));
 
   const rewardTokensDuplicated = res.data.flatMap((m) =>
     m.metrics.underlyingRewards.map((r: any) => r.rewardToken.address)
@@ -43,15 +34,10 @@ export type FetchMarketsResult = {
 };
 
 const fetch = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    options: FetchOptions
-  ): Promise<FetchResultFees> => {
+  return async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
     const { getLogs, createBalances } = options;
 
-    const { markets, marketToUnderlying, splitFeePcts, rewardTokens } =
-      await fetchMarkets(options.api);
+    const { markets, marketToUnderlying, splitFeePcts, rewardTokens } = await fetchMarkets(options.api);
 
     const dailyFees = createBalances();
     const dailySupplySideRevenue = createBalances();
@@ -60,12 +46,11 @@ const fetch = (chain: Chain) => {
       target: chainConfig[chain].treasury,
       tokens: rewardTokens,
     });
-
-    const allFeeAccruedEvents = await getLogs({
+    const allFeeAccruedEvents = markets.length ? await getLogs({
       targets: markets,
       eventAbi: ABI.feeAccruedEvent,
       flatten: false,
-    });
+    }): []
 
     markets.forEach((market, i) => {
       const token = marketToUnderlying.get(market);
@@ -73,9 +58,7 @@ const fetch = (chain: Chain) => {
 
       fees.forEach(([fee]: bigint[]) => {
         const feeBn = new BigNumber(fee.toString());
-        const curatorFeeBn = feeBn
-          .times(splitFeePcts[i])
-          .dividedToIntegerBy(100);
+        const curatorFeeBn = feeBn.times(splitFeePcts[i]).dividedToIntegerBy(100);
 
         dailyFees.add(token!, feeBn);
         dailySupplySideRevenue.add(token!, curatorFeeBn.toNumber());
@@ -84,8 +67,8 @@ const fetch = (chain: Chain) => {
     });
 
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
       timestamp,
     };
@@ -93,15 +76,12 @@ const fetch = (chain: Chain) => {
 };
 
 const methodology = {
-  UserFees:
-    "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, and post-settlement fee",
+  UserFees: "Users pay multiple types of fees: issuance fee, performance fee, redemption fee, and post-settlement fee",
   Fees: "Total of all fees paid by users including issuance, performance, redemption, and post-settlement fees",
-  Revenue:
-    "A portion of all fees is collected by the protocol based on the split fee percentage",
+  Revenue: "A portion of all fees is collected by the protocol based on the split fee percentage",
   ProtocolRevenue:
     "Protocol revenue is the portion of fees not distributed to curators, determined by the split fee percentage",
-  SupplySideRevenue:
-    "Curators receive a percentage of the fees as specified by each pool's splitFeePercentage",
+  SupplySideRevenue: "Curators receive a percentage of the fees as specified by each pool's splitFeePercentage",
 };
 
 const chainConfig: Record<Chain, Config> = {

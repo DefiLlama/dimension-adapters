@@ -24,8 +24,8 @@ const fetch = (chain: string) => async (timestamp: number) => {
         totalVolume += result.accumulated_volume_usd;
     }
     return {
-        dailyVolume: `${dailyVolume}`,
-        totalVolume: `${totalVolume}`,
+        dailyVolume: dailyVolume,
+        totalVolume: totalVolume,
         timestamp: dayTimestamp,
     };
 };

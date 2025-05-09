@@ -68,7 +68,7 @@ const graph = (chain: Chain): any => {
     multiswapLogs.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01/100))) // 0.01% fixed fee
 
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyRevenue: dailyFees,
       dailyHoldersRevenue: 0,
       dailySupplySideRevenue: 0,

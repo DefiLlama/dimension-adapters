@@ -18,8 +18,8 @@ const fetchData = (_: Chain) => {
     const totalFees  = value.filter((e: IData) => e.timestamp <= todaysTimestamp)
       .reduce((acc: number, e: IData) => acc + e.feesKwenta, 0)
     return {
-      dailyFees: dailyFee ? `${dailyFee}` : undefined,
-      totalFees: totalFees ? `${totalFees}` : undefined,
+      dailyFees: dailyFee,
+      totalFees,
       timestamp: todaysTimestamp
     }
   }

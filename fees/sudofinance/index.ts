@@ -30,14 +30,14 @@ const fetchSui = async (timestamp: number): Promise<FetchResultFees> => {
     Number(totalPoolFee || 0) +
     Number(totalFundingFee);
   return {
-    dailyFees: dailyFee ? `${dailyFee}` : undefined,
-    totalFees: totalFee ? `${totalFee}` : undefined,
-    dailyUserFees: dailyFee ? `${dailyFee}` : undefined,
-    totalUserFees: totalFee ? `${totalFee}` : undefined,
-    dailySupplySideRevenue: `${dailySupplySideRevenue}`,
-    totalSupplySideRevenue: `${totalSupplySideRevenue}`,
-    dailyRevenue: dailyProtocolRevenue ? `${dailyProtocolRevenue}` : undefined,
-    totalRevenue: totalProtocolRevenue ? `${totalProtocolRevenue}` : undefined,
+    dailyFees: dailyFee,
+    totalFees: totalFee,
+    dailyUserFees: dailyFee,
+    totalUserFees: totalFee,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    totalSupplySideRevenue: totalSupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
+    totalRevenue: totalProtocolRevenue,
     timestamp: dayTimestamp,
   };
 };

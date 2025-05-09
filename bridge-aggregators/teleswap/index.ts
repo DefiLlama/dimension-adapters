@@ -41,6 +41,7 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-04-16',
   adapter: {
     ...Object.entries(chains).reduce((acc, chain) => {
       const [key, value] = chain;

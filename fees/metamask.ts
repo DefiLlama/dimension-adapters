@@ -66,7 +66,7 @@ const graph = (chain: Chain) => {
     dailyFees.resizeBy(0.0085)
 
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyProtocolRevenue: dailyFees,
       dailyRevenue: dailyFees,
       timestamp

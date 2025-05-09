@@ -5,60 +5,7 @@ const SUPERFLUID_CONTRACT = "0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c";
 const STREAM_ID = 100034;
 
 const ABI = {
-  getStream: {
-    "inputs": [
-        {
-            "internalType": "uint256",
-            "name": "streamId",
-            "type": "uint256"
-        }
-    ],
-    "name": "getStream",
-    "outputs": [
-        {
-            "internalType": "address",
-            "name": "sender",
-            "type": "address"
-        },
-        {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-        },
-        {
-            "internalType": "uint256",
-            "name": "deposit",
-            "type": "uint256"
-        },
-        {
-            "internalType": "address",
-            "name": "tokenAddress",
-            "type": "address"
-        },
-        {
-            "internalType": "uint256",
-            "name": "startTime",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "stopTime",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "remainingBalance",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "ratePerSecond",
-            "type": "uint256"
-        }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-}
+  getStream:  "function getStream(uint256 streamId) view returns (address sender, address recipient, uint256 deposit, address tokenAddress, uint256 startTime, uint256 stopTime, uint256 remainingBalance, uint256 ratePerSecond)"
 }
 
 const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {

@@ -33,8 +33,8 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
