@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { Adapter, BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -203,5 +203,5 @@ export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
       }),
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return exportObject
 }

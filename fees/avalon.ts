@@ -1,3 +1,4 @@
+import { SimpleAdapter } from "../adapters/types";
 import { aaveExport, AaveLendingPoolConfig, } from "../helpers/aave";
 import { CHAIN } from "../helpers/chains";
 
@@ -292,24 +293,31 @@ const AvalonMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-export default aaveExport({ 
-  [CHAIN.ETHEREUM]: AvalonMarkets[CHAIN.ETHEREUM],
-  [CHAIN.BASE]: AvalonMarkets[CHAIN.BASE],
-  [CHAIN.ARBITRUM]: AvalonMarkets[CHAIN.ARBITRUM],
-  [CHAIN.BSC]: AvalonMarkets[CHAIN.BSC],
-  // [CHAIN.MERLIN]: AvalonMarkets[CHAIN.MERLIN],
-  [CHAIN.BITLAYER]: AvalonMarkets[CHAIN.BITLAYER],
-  [CHAIN.BSQUARED]: AvalonMarkets[CHAIN.BSQUARED],
-  [CHAIN.MODE]: AvalonMarkets[CHAIN.MODE],
-  [CHAIN.TAIKO]: AvalonMarkets[CHAIN.TAIKO],
-  [CHAIN.SONIC]: AvalonMarkets[CHAIN.SONIC],
-  [CHAIN.BOB]: AvalonMarkets[CHAIN.BOB],
-  [CHAIN.CORE]: AvalonMarkets[CHAIN.CORE],
-  [CHAIN.SCROLL]: AvalonMarkets[CHAIN.SCROLL],
-  [CHAIN.IOTEX]: AvalonMarkets[CHAIN.IOTEX],
-  [CHAIN.KLAYTN]: AvalonMarkets[CHAIN.KLAYTN],
-  [CHAIN.ZETA]: AvalonMarkets[CHAIN.ZETA],
-  [CHAIN.CORN]: AvalonMarkets[CHAIN.CORN],
-  [CHAIN.DUCKCHAIN]: AvalonMarkets[CHAIN.DUCKCHAIN],
-  // [CHAIN.SEI]: AvalonMarkets[CHAIN.SEI],
-})
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    ...aaveExport({
+      [CHAIN.ETHEREUM]: AvalonMarkets[CHAIN.ETHEREUM],
+      [CHAIN.BASE]: AvalonMarkets[CHAIN.BASE],
+      [CHAIN.ARBITRUM]: AvalonMarkets[CHAIN.ARBITRUM],
+      [CHAIN.BSC]: AvalonMarkets[CHAIN.BSC],
+      // [CHAIN.MERLIN]: AvalonMarkets[CHAIN.MERLIN],
+      [CHAIN.BITLAYER]: AvalonMarkets[CHAIN.BITLAYER],
+      [CHAIN.BSQUARED]: AvalonMarkets[CHAIN.BSQUARED],
+      [CHAIN.MODE]: AvalonMarkets[CHAIN.MODE],
+      [CHAIN.TAIKO]: AvalonMarkets[CHAIN.TAIKO],
+      [CHAIN.SONIC]: AvalonMarkets[CHAIN.SONIC],
+      [CHAIN.BOB]: AvalonMarkets[CHAIN.BOB],
+      [CHAIN.CORE]: AvalonMarkets[CHAIN.CORE],
+      [CHAIN.SCROLL]: AvalonMarkets[CHAIN.SCROLL],
+      [CHAIN.IOTEX]: AvalonMarkets[CHAIN.IOTEX],
+      [CHAIN.KLAYTN]: AvalonMarkets[CHAIN.KLAYTN],
+      [CHAIN.ZETA]: AvalonMarkets[CHAIN.ZETA],
+      [CHAIN.CORN]: AvalonMarkets[CHAIN.CORN],
+      [CHAIN.DUCKCHAIN]: AvalonMarkets[CHAIN.DUCKCHAIN],
+      // [CHAIN.SEI]: AvalonMarkets[CHAIN.SEI],
+    })
+  }
+}
+
+export default adapter

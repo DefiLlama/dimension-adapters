@@ -1,19 +1,43 @@
+import { BreakdownAdapter } from "../../adapters/types";
 import { aaveExport, AaveLendingPoolConfig, } from "../../helpers/aave";
 import { CHAIN } from "../../helpers/chains";
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+const AaveV1Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     {
       version: 1,
       lendingPoolProxy: '0x398eC7346DcD622eDc5ae82352F02bE94C62d119',
       dataProvider: '0x082B0cA59f2122c94E5F57Db0085907fa9584BA6',
     },
+  ]
+}
+
+const AaveV2Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+  [CHAIN.ETHEREUM]: [
     {
       version: 2,
       lendingPoolProxy: '0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9',
       dataProvider: '0x057835ad21a177dbdd3090bb1cae03eacf78fc6d',
     },
-    
+  ],
+  [CHAIN.POLYGON]: [
+    {
+      version: 2,
+      lendingPoolProxy: '0x8dff5e27ea6b7ac08ebfdf9eb090f32ee9a30fcf',
+      dataProvider: '0x7551b5d2763519d4e37e8b81929d336de671d46d',
+    },
+  ],
+  [CHAIN.AVAX]: [
+    {
+      version: 2,
+      lendingPoolProxy: '0x4f01aed16d97e3ab5ab2b501154dc9bb0f1a5a2c',
+      dataProvider: '0x65285e9dfab318f57051ab2b139cccf232945451',
+    },
+  ],
+}
+
+const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+  [CHAIN.ETHEREUM]: [
     // core market
     {
       version: 3,
@@ -51,22 +75,12 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
   [CHAIN.POLYGON]: [
     {
-      version: 2,
-      lendingPoolProxy: '0x8dff5e27ea6b7ac08ebfdf9eb090f32ee9a30fcf',
-      dataProvider: '0x7551b5d2763519d4e37e8b81929d336de671d46d',
-    },
-    {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
     },
   ],
   [CHAIN.AVAX]: [
-    {
-      version: 2,
-      lendingPoolProxy: '0x4f01aed16d97e3ab5ab2b501154dc9bb0f1a5a2c',
-      dataProvider: '0x65285e9dfab318f57051ab2b139cccf232945451',
-    },
     {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
@@ -145,20 +159,35 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-export default aaveExport({ 
-  [CHAIN.ETHEREUM]: AaveMarkets[CHAIN.ETHEREUM],
-  [CHAIN.OPTIMISM]: AaveMarkets[CHAIN.OPTIMISM],
-  [CHAIN.ARBITRUM]: AaveMarkets[CHAIN.ARBITRUM],
-  [CHAIN.POLYGON]: AaveMarkets[CHAIN.POLYGON],
-  [CHAIN.AVAX]: AaveMarkets[CHAIN.AVAX],
-  [CHAIN.FANTOM]: AaveMarkets[CHAIN.FANTOM],
-  [CHAIN.BASE]: AaveMarkets[CHAIN.BASE],
-  [CHAIN.BSC]: AaveMarkets[CHAIN.BSC],
-  [CHAIN.METIS]: AaveMarkets[CHAIN.METIS],
-  [CHAIN.XDAI]: AaveMarkets[CHAIN.XDAI],
-  [CHAIN.SCROLL]: AaveMarkets[CHAIN.SCROLL],
-  [CHAIN.ERA]: AaveMarkets[CHAIN.ERA],
-  [CHAIN.LINEA]: AaveMarkets[CHAIN.LINEA],
-  [CHAIN.SONIC]: AaveMarkets[CHAIN.SONIC],
-  [CHAIN.CELO]: AaveMarkets[CHAIN.CELO],
-})
+const adapter: BreakdownAdapter = {
+  version: 2,
+  breakdown: {
+    v1: aaveExport({
+      [CHAIN.ETHEREUM]: AaveV1Markets[CHAIN.ETHEREUM],
+    }),
+    v2: aaveExport({
+      [CHAIN.ETHEREUM]: AaveV2Markets[CHAIN.ETHEREUM],
+      [CHAIN.POLYGON]: AaveV2Markets[CHAIN.POLYGON],
+      [CHAIN.AVAX]: AaveV2Markets[CHAIN.AVAX],
+    }),
+    v3: aaveExport({
+      [CHAIN.ETHEREUM]: AaveMarkets[CHAIN.ETHEREUM],
+      [CHAIN.OPTIMISM]: AaveMarkets[CHAIN.OPTIMISM],
+      [CHAIN.ARBITRUM]: AaveMarkets[CHAIN.ARBITRUM],
+      [CHAIN.POLYGON]: AaveMarkets[CHAIN.POLYGON],
+      [CHAIN.AVAX]: AaveMarkets[CHAIN.AVAX],
+      [CHAIN.FANTOM]: AaveMarkets[CHAIN.FANTOM],
+      [CHAIN.BASE]: AaveMarkets[CHAIN.BASE],
+      [CHAIN.BSC]: AaveMarkets[CHAIN.BSC],
+      [CHAIN.METIS]: AaveMarkets[CHAIN.METIS],
+      [CHAIN.XDAI]: AaveMarkets[CHAIN.XDAI],
+      [CHAIN.SCROLL]: AaveMarkets[CHAIN.SCROLL],
+      [CHAIN.ERA]: AaveMarkets[CHAIN.ERA],
+      [CHAIN.LINEA]: AaveMarkets[CHAIN.LINEA],
+      [CHAIN.SONIC]: AaveMarkets[CHAIN.SONIC],
+      [CHAIN.CELO]: AaveMarkets[CHAIN.CELO],
+    }),
+  }
+}
+
+export default adapter
