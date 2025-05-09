@@ -121,7 +121,6 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<
   ]);
 
   return {
-    timestamp: endTimestamp,
     dailyVolume: calculateOpensVolume(dailyOpensData)
         + calculateAdjustsVolume(dailyAdjustsData)
         + calculateClosesVolume(dailyClosesData),

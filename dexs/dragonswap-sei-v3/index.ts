@@ -6,7 +6,7 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
     const dayID = Math.floor(options.startOfDay / 86400);
     const query =gql`
     {
-        pancakeDayData(id:${dayID}) {
+        uniswapDayData(id:${dayID}) {
             id
             volumeUSD
         }
@@ -14,10 +14,10 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
             totalVolumeUSD
         }
     }`;
-    const url = "https://gateway.graph.dgswap.io/dgswap-exchange-v3-kaia";
+    const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-v3-prod/1.0.5/gn";
     const req = await request(url, query);
     return {
-        dailyVolume: req.pancakeDayData.volumeUSD,
+        dailyVolume: req.uniswapDayData.volumeUSD,
         totalVolume: req.factories[0].totalVolumeUSD,
         timestamp: timestamp,
     }

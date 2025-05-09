@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+// import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const adapter = univ2Adapter({
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE'),
@@ -39,5 +40,6 @@ adapter.adapter.optimism.start = 1651542817;
 // adapter.adapter.fuse.start = 1639187617;
 // adapter.adapter.iotex.start = 1639792417;
 // adapter.adapter.telos.start = 1648684800;
+// adapter.adapter[CHAIN.XDAI].fetch = getUniV2LogAdapter({ factory: '0xCB018587dA9590A18f49fFE2b85314c33aF3Ad3B'.toLowerCase });
 
 export default adapter;

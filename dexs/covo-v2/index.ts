@@ -69,6 +69,7 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2024-02-21',
   breakdown: {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {

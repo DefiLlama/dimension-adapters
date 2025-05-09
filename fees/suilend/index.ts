@@ -44,7 +44,7 @@ const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
   return {
     dailyFees: userFees,
     dailyUserFees: userFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 };

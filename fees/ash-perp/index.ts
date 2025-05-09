@@ -19,7 +19,7 @@ const fetch = async ({ endTimestamp, startTimestamp}: FetchOptions) => {
     const dailyRevenue = Number(dailyFee.trading.getDailyFee.daily_holders_revenue) + Number(dailyFee.trading.getDailyFee.daily_protocol_revenue);
     return {
       dailyFees: `${dailyFee.trading.getDailyFee.daily_fees}`,
-      dailyRevenue: `${dailyRevenue}`,
+      dailyRevenue,
       dailyHoldersRevenue: `${dailyFee.trading.getDailyFee.daily_holders_revenue}`,
       dailyProtocolRevenue: `${dailyFee.trading.getDailyFee.daily_protocol_revenue}`,
     };
@@ -30,10 +30,8 @@ const adapter: Adapter = {
     [CHAIN.ELROND]: {
       fetch,
       start: '2024-02-01',
-      runAtCurrTime: true,
     }
   },
-  isExpensiveAdapter: true,
   version: 2
 };
 export default adapter;

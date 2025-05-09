@@ -11,7 +11,7 @@ const methodology = {
 
 const v3Graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.SAPPHIRE]: "https://api.goldsky.com/api/public/project_clzi4lu67khgw01072ibvekvt/subgraphs/neby-dex-sapphire-mainnet/1.0.0/gn"
+    [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex"
   },
   totalVolume: {
     factory: "factories",

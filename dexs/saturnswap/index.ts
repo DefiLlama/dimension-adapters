@@ -9,7 +9,7 @@ const fetch = async (timestamp: any): Promise<FetchResultVolume> => {
     );
     const dailyVolume = response.volume.volume;
     return {
-        dailyVolume: `${dailyVolume}`,
+        dailyVolume: dailyVolume,
         timestamp: startOfDay,
     };
 };

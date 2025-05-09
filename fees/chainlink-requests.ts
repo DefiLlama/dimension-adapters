@@ -1,22 +1,8 @@
-import { SimpleAdapter, ChainBlocks, FetchResultFees, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getPrices } from "../utils/prices";
 import { queryFlipside } from "../helpers/flipsidecrypto";
 import { Chain } from "@defillama/sdk/build/general";
 
-
-type IGasTokenId = {
-  [l: string | Chain]: string;
-}
-const gasTokenId: IGasTokenId = {
-  [CHAIN.ETHEREUM]: "coingecko:ethereum",
-  [CHAIN.BSC]: "coingecko:binancecoin",
-  [CHAIN.POLYGON]: "coingecko:matic-network",
-  [CHAIN.FANTOM]: "coingecko:fantom",
-  [CHAIN.AVAX]: "coingecko:avalanche-2",
-  [CHAIN.ARBITRUM]: "coingecko:ethereum",
-  [CHAIN.OPTIMISM]: "coingecko:ethereum"
-}
 
 interface ILog {
   data: string;
@@ -43,8 +29,9 @@ const build_link_query = (from: number, to: number): string => {
 }
 
 const fetchRequests = (chain: Chain) => {
-  return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
+  return async (_: any, _1: any, { fromTimestamp, toTimestamp, createBalances, }: FetchOptions) => {
     const query_paid = build_link_query(fromTimestamp, toTimestamp)
+    const dailyFees = createBalances();
 
     const linkPaid_logs: ILog[] = (await queryFlipside(query_paid, 260))
       .map(([data, topics, transactionHash, chain]: [string, string[], string, string]) => {
@@ -58,26 +45,20 @@ const fetchRequests = (chain: Chain) => {
 
     const link_amount: number = linkPaid_logs.map((e: ILog) => {
       const data = e.data.replace('0x', '');
-      const payments = Number('0x'+data.slice(128, 192)) / 10 ** 18;
+      const payments = Number('0x' + data.slice(128, 192)) / 10 ** 18;
       return payments;
     }).reduce((a: number, b: number) => a + b, 0);
 
-    const linkAddress = "coingecko:chainlink";
-    const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], fromTimestamp))
-    const linkPrice = prices[linkAddress].price
-    const dailyFeesUsd = link_amount * linkPrice;
+    dailyFees.addCGToken('chainlink', link_amount)
 
-    return {
-      dailyFees: dailyFeesUsd.toString()
-    }
+    return { dailyFees }
   }
 
 }
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchRequests(CHAIN.ETHEREUM),

@@ -7,8 +7,10 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.LIGHTLINK_PHOENIX]:
     "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
   [CHAIN.SONIC]:
-    "https://api.studio.thegraph.com/query/91379/amped-trades-sonic/version/latest",
-  [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
+    "https://api.studio.thegraph.com/query/91379/trades-sonic/version/latest",
+  // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
+  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
 };
 
 const historicalDataSwap = gql`
@@ -54,37 +56,38 @@ const getFetch =
           period: "total",
         });
 
+        const dailyVolume = dailyData.volumeStats.length == 1
+          ? Number(
+            Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
+            )
+          ) * 10 ** -30
+          : undefined;
+
+        const totalVolume = totalData.volumeStats.length == 1
+          ? Number(
+            Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
+            )
+          ) * 10 ** -30
+          : undefined;
+
         return {
           timestamp: dayTimestamp,
-          dailyVolume:
-            dailyData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
-          totalVolume:
-            totalData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
+          dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
+          totalVolume: totalVolume !== undefined ? String(totalVolume) : undefined,
         };
       };
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.LIGHTLINK_PHOENIX]: 1717199544,
-  [CHAIN.SONIC]: 1735685544,
-  [CHAIN.BSC]: 1727740344,
+
+  [CHAIN.SONIC]: 1735685544,   
+  // [CHAIN.BSC]: 1727740344, 
+  [CHAIN.BERACHAIN]: 1738882079,
+  [CHAIN.BASE]: 1740056400,
+
+
 };
 
 const adapter: BreakdownAdapter = {
@@ -95,6 +98,16 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
+          meta: {
+            methodology: {
+              Fees: "Trading fees vary based on liquidity and market conditions",
+              UserFees: "Users pay variable trading fees",
+              Revenue: "No revenue is taken by the protocol",
+              HoldersRevenue: "No revenue is distributed to token holders",
+              ProtocolRevenue: "Protocol does not take any revenue",
+              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
+            },
+          },
         },
       };
     }, {}),
@@ -104,6 +117,16 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
+          meta: {
+            methodology: {
+              Fees: "Trading fees vary based on liquidity and market conditions",
+              UserFees: "Users pay variable trading fees",
+              Revenue: "No revenue is taken by the protocol",
+              HoldersRevenue: "No revenue is distributed to token holders",
+              ProtocolRevenue: "Protocol does not take any revenue",
+              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
+            },
+          },
         },
       };
     }, {}),

@@ -38,18 +38,18 @@ const fetch = (chain: string, totalFees: number, revenueFee: number) => {
 }
 
 const methodology = {
-  Fees: "A 0.1% trading fee is collected",
-  UserFees: "Users pays 0.1% of each swap",
-  Revenue: "A 0.05% fees goes to the protocol",
-  ProtocolRevenue: "A 0.05% fees goes to the protocol",
-  SupplySideRevenue:  "A 0.05% is distributed proportionally to liquidity providers (ZFLP token holders)"
+  Fees: "A 0.2% trading fee is collected",
+  UserFees: "Users pays 0.2% of each swap",
+  Revenue: "A 0.067% fees goes to the protocol",
+  ProtocolRevenue: "A 0.067% fees goes to the protocol",
+  SupplySideRevenue:  "A 0.133% is distributed proportionally to liquidity providers (ZFLP token holders)"
 }
 
 const baseAdapter: BaseAdapter = {
   [CHAIN.ERA]: {
     ...adapterObj[CHAIN.ERA],
-    fetch: fetch(CHAIN.ERA, 0.001, 0.0005),
-    customBackfill: fetch(CHAIN.ERA, 0.001, 0.0005),
+    fetch: fetch(CHAIN.ERA, 0.002, 0.00067),
+    customBackfill: fetch(CHAIN.ERA, 0.002, 0.00067),
     start: '2024-12-17',
     meta: {
       methodology

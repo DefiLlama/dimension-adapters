@@ -7,6 +7,7 @@ import { getEnv } from '../../helpers/env'
 const apiKey = getEnv('PERENNIAL_V2_SUBGRAPH_API_KEY')
 const graphUrls: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
+  [CHAIN.PERENNIAL]: 'https://api.perennial.foundation/subgraphs/perennial',
 }
 
 const volumeDataQuery = gql`
@@ -83,6 +84,7 @@ const getFetch =
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1695945600,
+  [CHAIN.PERENNIAL]: 1739482625,
 }
 
 const adapter: BreakdownAdapter = {

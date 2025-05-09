@@ -13,9 +13,8 @@ const fees = async (_:any, _b: any, options: FetchOptions): Promise<FetchResultF
   const feesData: IFees = (await httpGet(url, { timeout: 10000 })).data;
   const dailyFees = feesData?.feeOfDate || '0';
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
-    timestamp: todaysTimestamp
   }
 }
 const adapter: SimpleAdapter = {

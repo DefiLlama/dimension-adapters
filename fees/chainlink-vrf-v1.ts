@@ -46,7 +46,7 @@ const gasTokenId: IGasTokenId = {
   [CHAIN.OPTIMISM]: "ethereum"
 }
 
-const fetch =  async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch =  async (_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> => {
     const version = 1;
     const chain = options.chain
     const logs_1: ITx[] = (await options.getLogs({
@@ -90,14 +90,14 @@ const fetch =  async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyRevenue = dailyFees.clone()
     dailyRevenue.subtract(dailyGasUsd)
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
     }
 }
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
@@ -111,6 +111,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: '2023-02-03',
     }
-  }
+  },
+  allowNegativeValue: true,  // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
 }
 export default adapter;

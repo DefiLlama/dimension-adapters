@@ -23,6 +23,12 @@ const archiveBaseUrl = "https://archive.base-prod.vertexprotocol.com/v1";
 const gatewaySonicUrl = "https://gateway.sonic-prod.vertexprotocol.com/v1";
 const archiveSonicUrl = "https://archive.sonic-prod.vertexprotocol.com/v1";
 
+const gatewayAbstractUrl = "https://gateway.abstract-prod.vertexprotocol.com/v1";
+const archiveAbstractUrl = "https://archive.abstract-prod.vertexprotocol.com/v1";
+
+const gatewayAvaxUrl = "https://gateway.avax-prod.vertexprotocol.com/v1";
+const archiveAvaxUrl = "https://archive.avax-prod.vertexprotocol.com/v1";
+
 type TURL = {
   [s: string]: {
     gateway: string;
@@ -49,6 +55,14 @@ const url: TURL = {
   [CHAIN.SONIC]: {
     gateway: gatewaySonicUrl,
     archive: archiveSonicUrl
+  },
+  [CHAIN.ABSTRACT]: {
+    gateway: gatewayAbstractUrl,
+    archive: archiveAbstractUrl
+  },
+  [CHAIN.AVAX]: {
+    gateway: gatewayAvaxUrl,
+    archive: archiveAvaxUrl
   }
 };
 
@@ -115,8 +129,8 @@ const computeVolume = async (
     );
     const dailyVolume = totalVolume - totalVolumeOneDayAgo;
     return {
-      totalVolume: totalVolume ? `${totalVolume}` : undefined,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: timestamp,
     };
   } else {
@@ -157,6 +171,8 @@ const startTime = 1682514000;
 const seiStartTime = 1723547681;
 const baseStartTime = 1725476671;
 const sonicStartTime = 1734543997;
+const abstractStartTime = 1738158858;
+const avaxStartTime = 1742994000;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -180,16 +196,24 @@ const adapter: BreakdownAdapter = {
       [CHAIN.SONIC]: {
         fetch: fetchSpots,
         start: sonicStartTime,
-      }
+      },
+      [CHAIN.ABSTRACT]: {
+        fetch: fetchSpots,
+        start: abstractStartTime,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchSpots,
+        start: avaxStartTime,
+      },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchPerps,
-        start: '2024-06-20',
+        start: "2024-06-20",
       },
       [CHAIN.MANTLE]: {
         fetch: fetchPerps,
-        start: '2024-06-20',
+        start: "2024-06-20",
       },
       [CHAIN.SEI]: {
         fetch: fetchPerps,
@@ -201,8 +225,16 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.SONIC]: {
         fetch: fetchPerps,
-        start: sonicStartTime
-      }
+        start: sonicStartTime,
+      },
+      [CHAIN.ABSTRACT]: {
+        fetch: fetchPerps,
+        start: abstractStartTime,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchPerps,
+        start: avaxStartTime,
+      },
     },
   },
 };

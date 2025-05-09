@@ -10,10 +10,10 @@ import type {
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
-  [ETHEREUM]:
-    sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
+  [ETHEREUM]: sdk.graph.modifyEndpoint(
+    "CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo"
+  ),
 };
-
 const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (
@@ -22,25 +22,29 @@ const graph = (graphUrls: ChainEndpoints) => {
       { createBalances, startOfDay }: FetchOptions
     ) => {
       let dailyRevenue = createBalances();
+      let dailyRevenueFxV2 = createBalances();
       const dateId = Math.floor(startOfDay);
 
-      const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { wstETHRevenue } }`;
-
+      const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { wstETHRevenueFxV2  wstETHRevenue } }`;
       const { dailyRevenueSnapshot: snapshot } = await request(
         graphUrls[chain],
         graphQuery
       );
-
       if (!snapshot) {
         dailyRevenue.addCGToken("wrapped-steth", 0);
+        dailyRevenueFxV2.addCGToken("wrapped-steth", 0);
       } else {
         dailyRevenue.addCGToken("wrapped-steth", snapshot.wstETHRevenue * 1e18);
+        dailyRevenueFxV2.addCGToken(
+          "wrapped-steth",
+          snapshot.wstETHRevenueFxV2 * 1e18
+        );
       }
 
-
       const usd = await dailyRevenue.getUSDValue();
+      const usdFxV2 = await dailyRevenueFxV2.getUSDValue();
       const revenue = (usd / 1e18).toFixed(0);
-      const dailyFees = (usd / 0.75 / 1e18).toFixed(0);
+      const dailyFees = (usd / 0.75 / 1e18 + usdFxV2 / 1e18).toFixed(0);
       return { timestamp: startOfDay, dailyFees, dailyRevenue: revenue };
     };
   };
@@ -50,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: '2023-11-21',
+      start: "2023-11-21",
     },
   },
 };

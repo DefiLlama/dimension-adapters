@@ -40,10 +40,10 @@ const fetchData = (_: Chain) => {
 		const dailyFee = value.history.find((d) => d.date === dateStr)?.totalFees;
 		const totalFees = value.history[value.history.length - 1]?.cumulativeFee;
 		return {
-			dailyUserFees: dailyFee ? `${dailyFee}` : undefined,
-			dailyFees: dailyFee ? `${dailyFee}` : undefined,
-			totalFees: totalFees ? `${totalFees}` : undefined,
-			totalUserFees: totalFees ? `${totalFees}` : undefined,
+			dailyUserFees: dailyFee,
+			dailyFees: dailyFee,
+			totalFees,
+			totalUserFees: totalFees,
 			timestamp: todaysTimestamp,
 		};
 	};

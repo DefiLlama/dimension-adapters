@@ -3,7 +3,13 @@ import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
-const volumeURL = "https://api.stabble.org/stats/volume";
+const volumeURL = "https://api.stabble.org/metric";
+
+interface DailyStats {
+  volume: number;
+  fees: number;
+  revenue: number;
+}
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(
@@ -11,11 +17,11 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   );
 
   const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
-  const dailyVolume = await fetchURL(url);
+  const stats: DailyStats = await fetchURL(url);
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyVolume,
+    dailyVolume: stats.volume,
   };
 };
 

@@ -25,6 +25,8 @@ const dexReservesResolver = (chain: string) => {
       return "0xE8a07a32489BD9d5a00f01A55749Cf5cB854Fd13";
     case CHAIN.ARBITRUM: 
       return "0xb8f526718FF58758E256D9aD86bC194a9ff5986D";
+    case CHAIN.POLYGON: 
+      return "0xA508fd16Bf3391Fb555cce478C616BDe4a613052";
     default: 
       throw new Error("DexReservesResolver not defined");
   }
@@ -88,7 +90,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-10-26' },
     [CHAIN.ARBITRUM]: { fetch, start: '2024-12-23' },
+    [CHAIN.POLYGON]: { fetch, start: '2025-04-03' },
   },
 };
 
 export default adapter;
+
+// test: yarn test dexs fluid-dex

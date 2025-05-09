@@ -36,6 +36,9 @@ const superchainConfig = {
   },
   [CHAIN.FRAXTAL]: {
     start_block: 12603117,
+  },
+  [CHAIN.UNICHAIN]: {
+    start_block: 9387000,
   }
 }
 
@@ -105,6 +108,8 @@ export default uniV2Exports({
   [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, customLogic, },
   [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic},
   [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic},
-  //[CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
-  //[CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
+  [CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
+  [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
+  [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic},
+  [CHAIN.SWELLCHAIN]: {factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,}
 })

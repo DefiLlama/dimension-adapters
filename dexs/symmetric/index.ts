@@ -57,7 +57,7 @@ const v2Graphs = (chain: Chain) => {
       }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
       return {
-        dailyVolume: `${dailyVolume}`,
+        dailyVolume: dailyVolume,
         timestamp,
       };
     };

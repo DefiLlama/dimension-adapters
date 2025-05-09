@@ -44,8 +44,8 @@ const graphs = (chain: Chain) => {
     const totalFee = Number(response.today[0].totalFee) / 10 ** 6;
 
       return {
-        totalFees: totalFee.toString(),
-        dailyFees: dailyFees.toString(),
+        totalFees: totalFee,
+        dailyFees,
       };
   };
 };
@@ -57,6 +57,7 @@ const adapter: Adapter = {
       start: '2024-01-31',
     },
   },
+  deadFrom: '2024-10-31',
   version: 2
 };
 

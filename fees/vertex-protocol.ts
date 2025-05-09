@@ -31,6 +31,8 @@ const archiveMantleUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
 const archiveSeiUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
 const archiveBaseUrl = "https://archive.base-prod.vertexprotocol.com/v1";
 const archiveSonicUrl = "https://archive.sonic-prod.vertexprotocol.com/v1";
+const archiveAbstractUrl = "https://archive.abstract-prod.vertexprotocol.com/v1";
+const archiveAvaxUrl = "https://archive.avax-prod.vertexprotocol.com/v1";
 
 type TURL = {
   [s: string]: string;
@@ -42,6 +44,8 @@ const url: TURL = {
   [CHAIN.SEI]: archiveSeiUrl,
   [CHAIN.BASE]: archiveBaseUrl,
   [CHAIN.SONIC]: archiveSonicUrl,
+  [CHAIN.ABSTRACT]: archiveAbstractUrl,
+  [CHAIN.AVAX]: archiveAvaxUrl,
 };
 
 const query = async (
@@ -163,15 +167,16 @@ const fetch = async (
   const totalFees = await getCumulativeFees(timestamp, fetchOptions);
   const totalRev = await getCumulativeRevenue(timestamp, fetchOptions);
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    totalRevenue: `${totalRev}`,
-    totalFees: `${totalFees}`,
+    dailyFees,
+    dailyRevenue,
+    totalRevenue: totalRev,
+    totalFees,
     timestamp,
   };
 };
 
 const adapter: Adapter = {
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
@@ -197,6 +202,16 @@ const adapter: Adapter = {
       fetch: fetch,
       runAtCurrTime: true,
       start: "2024-12-18",
+    },
+    [CHAIN.ABSTRACT]: {
+      fetch: fetch,
+      runAtCurrTime: true,
+      start: "2025-01-29",
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetch,
+      runAtCurrTime: true,
+      start: "2025-03-26",
     },
   },
 };

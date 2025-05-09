@@ -54,8 +54,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: dailyFees ? dailyFees.toString() : undefined,
-        dailyUserFees: dailyUserFees ?  dailyUserFees.toString() : undefined,
+        dailyFees,
+        dailyUserFees: dailyUserFees,
       };
     };
   };
@@ -72,7 +72,8 @@ const adapter: Adapter = {
       }),
       start: '2023-04-21',
     },
-  }
+  },
+  deadFrom: '2024-09-31',
 }
 
 export default adapter;

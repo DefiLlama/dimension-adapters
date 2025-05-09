@@ -1,59 +1,59 @@
-import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {getPrices} from "../../utils/prices";
-
-const tokenMap = {
-    WETH: "coingecko:weth",
-    cbBTC: "coingecko:coinbase-wrapped-btc",
-    USDC: "coingecko:usd-coin"
-};
 
 const methodology = {
-    Volume: "LeverageX traders paying fees for open trades.",
+  Fees: "LeverageX traders paying fees for open trades.",
 }
 
-const API_LEVERAGE_STAT = 'https://1f5i4e87mf.execute-api.eu-central-1.amazonaws.com/prod/cols-stats'
+const tokens = [
+  // weth
+  "0x4200000000000000000000000000000000000006",
+  // cbbtc
+  "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+  // usdc
+  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  // jav
+  "0xEdC68c4c54228D273ed50Fc450E253F685a2c6b9"
+]
 
-const fetch = async (timestamp: number) => {
-    const [statsLevX, prices] = await Promise.all([
-        fetchURL(API_LEVERAGE_STAT),
-        getPrices([tokenMap.WETH, tokenMap.cbBTC, tokenMap.USDC], timestamp)
-    ]);
+const fetchBase = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const DIAMOND = "0xBF35e4273db5692777EA475728fDbBa092FFa1B3";
 
-    const totalFeesInUSD = Object.keys(statsLevX.yield.totalFees).reduce((total, token) => {
-        const tokenKey = token as keyof typeof tokenMap;
-        const volume = statsLevX.yield.totalFees[token];
-        const price = prices[tokenMap[tokenKey]];
-        return total + (volume * price.price);
-    }, 0);
+  const [govFee, referralFee, triggerFee, rewardFee, borrowingFee]: any = await Promise.all(
+    [
+      "event GovFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event ReferralFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event TriggerFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event RewardsFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event BorrowingProviderFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+    ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
+  );
 
-    const totalDailyFeesInUSD = statsLevX.collaterals.reduce((total: number, collateral: any) => {
-        const tokenKey = collateral.collateralName as keyof typeof tokenMap;
-        const volume = collateral.lastDayEarned.totalFees;
-        const price = prices[tokenMap[tokenKey]]?.price;
+  [govFee, referralFee, triggerFee, rewardFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(tokens[i.collateralIndex], i.amountCollateral));
+  [govFee, rewardFee, triggerFee].flat().forEach((i: any) => dailyRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
+  [borrowingFee].flat().forEach((i: any) => dailySupplySideRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
+  [rewardFee].flat().forEach((i: any) => dailyHoldersRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
+  [govFee, triggerFee].flat().forEach((i: any) => dailyProtocolRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
 
-        return total + (volume * price || 0);
-    }, 0);
-
-
-    return {
-        dailyFees: totalDailyFeesInUSD,
-        totalFees: totalFeesInUSD,
-        timestamp,
-    };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch,
-            runAtCurrTime: true,
-            meta: {
-                methodology
-            },
-        },
+  version: 2,
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: fetchBase,
+      start: "2024-12-18",
+      meta: {
+        methodology
+      },
     },
+  },
 };
 
 export default adapter;

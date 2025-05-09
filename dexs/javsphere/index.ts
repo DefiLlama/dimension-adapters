@@ -1,60 +1,44 @@
-import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {getPrices} from "../../utils/prices";
-
-const tokenMap = {
-    WETH: "coingecko:weth",
-    cbBTC: "coingecko:coinbase-wrapped-btc",
-    USDC: "coingecko:usd-coin"
-};
 
 const methodology = {
-    Volume: "LeverageX Traders create Volume by placing Trades. User buys and sell JAV token on CEXes and DEXes.",
+  Volume: "LeverageX Traders create Volume by placing Trades.",
 }
 
-const API_VOLUME_DEX = `https://aws-api.javlis.com/api/javsphere/coin-volume`;
-const API_LEVERAGE_STAT = 'https://1f5i4e87mf.execute-api.eu-central-1.amazonaws.com/prod/cols-stats'
+const fetchBase: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
+  const DIAMOND = "0xBF35e4273db5692777EA475728fDbBa092FFa1B3";
+  const [limitLogs, marketLogs] = await Promise.all(
+    [
+      "event LimitExecuted((address user, uint32 index) orderId, (address user, uint32 index, uint16 pairIndex, uint24 leverage, bool long, bool isOpen, uint8 collateralIndex, uint8 tradeType, uint120 collateralAmount, uint64 openPrice, uint64 tp, uint64 sl, uint192 __placeholder) t, address indexed triggerCaller, uint8 orderType, uint256 price, uint256 priceImpactP, int256 percentProfit, uint256 amountSentToTrader, uint256 collateralPriceUsd, bool exactExecution)",
+      "event MarketExecuted((address user, uint32 index) orderId, (address user, uint32 index, uint16 pairIndex, uint24 leverage, bool long, bool isOpen, uint8 collateralIndex, uint8 tradeType, uint120 collateralAmount, uint64 openPrice, uint64 tp, uint64 sl, uint192 __placeholder) t, bool open, uint64 price, uint256 priceImpactP, int256 percentProfit, uint256 amountSentToTrader, uint256 collateralPriceUsd)",
+    ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
+  );
 
-const fetch = async (timestamp: number) => {
-    const [stats, statsLevX, prices] = await Promise.all([
-        fetchURL(API_VOLUME_DEX),
-        fetchURL(API_LEVERAGE_STAT),
-        getPrices([tokenMap.WETH, tokenMap.cbBTC, tokenMap.USDC], timestamp)
-    ]);
+  const volumeLimitsAndMarkets = limitLogs
+    .concat(marketLogs)
+    .map((e: any) => {
+      const collateralAmount = Number(e.t.collateralAmount) / 1e18
+      const leverage = Number(e.t.leverage) / 1e3
+      const collateralPriceUsd = Number(e.collateralPriceUsd) / 1e8
+      return collateralAmount * leverage * collateralPriceUsd
+    })
+    .reduce((a: number, b: number) => a + b, 0);
 
-    const totalVolumeInUSD = Object.keys(statsLevX.yield.totalVolume).reduce((total, token) => {
-        const tokenKey = token as keyof typeof tokenMap;
-        const volume = statsLevX.yield.totalVolume[token];
-        const price = prices[tokenMap[tokenKey]];
-        return total + (volume * price.price);
-    }, 0);
 
-    const totalDailyVolumeInUSD = statsLevX.collaterals.reduce((total: number, collateral: any) => {
-        const tokenKey = collateral.collateralName as keyof typeof tokenMap;
-        const volume = collateral.lastDayEarned.totalVolume;
-        const price = prices[tokenMap[tokenKey]]?.price;
-
-        return total + (volume * price || 0);
-    }, 0);
-
-    return {
-        dailyVolume: totalDailyVolumeInUSD + stats.volume24,
-        totalVolume: totalVolumeInUSD + stats.volumeTotal,
-        timestamp,
-    };
+  return { dailyVolume: volumeLimitsAndMarkets, };
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch,
-            runAtCurrTime: true,
-            meta: {
-                methodology
-            },
-        },
+  version: 2,
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: fetchBase,
+      start: "2024-12-18",
+      meta: {
+        methodology
+      },
     },
+  },
 };
 
 export default adapter;

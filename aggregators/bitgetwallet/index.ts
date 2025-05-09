@@ -15,17 +15,19 @@ interface IVolumeall {
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
+        if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {}} // skip HECO for now
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
         const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
         const totalVolume = historicalVolume?.filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+            .filter(volItem => Number(volItem.volume) < 1000_000_000)
             .reduce((acc, { volume }) => acc + Number(volume), 0)
 
         const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
-            totalVolume: totalVolume ? `${totalVolume}` : undefined,
-            dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+            totalVolume: totalVolume,
+            dailyVolume: dailyVolume,
             timestamp: dayTimestamp,
         };
     }

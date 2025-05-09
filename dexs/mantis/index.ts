@@ -9,7 +9,6 @@ const MANTIS_VOLUME_API = `${MANTIS_INDEXER_API}/api/domain/getvolume`;
 function removeInvalidKeys(obj: any) {
   Object.keys(obj).forEach(key => {
     if (key.includes("…")) {
-      console.log("Removing key", key);
       delete obj[key];
     }
   });

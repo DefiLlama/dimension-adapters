@@ -5,9 +5,9 @@ import { httpGet } from "../../utils/fetchURL";
 
 
 const CHAINS: Array<CHAIN> = [
-    CHAIN.ETHEREUM,
+    // CHAIN.ETHEREUM,
     CHAIN.POLYGON,
-    CHAIN.SOLANA,
+    // CHAIN.SOLANA,
     CHAIN.BSC,
     CHAIN.OPTIMISM,
     CHAIN.BASE,
@@ -36,7 +36,7 @@ interface IVolumeBridge {
 async function queryDataByApi(timestamp:string, path:string){
     const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st";
     let info = await  httpGet(`${historicalVolumeEndpoint}${path}`);
-    const data  : IVolumeBridge[] = (info)?.data.list;
+    const data  : IVolumeBridge[] = (info)?.data?.list || [];
     return data
 }
 

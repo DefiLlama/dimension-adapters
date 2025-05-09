@@ -26,7 +26,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
   const totalDailyVolume = response.data.preChain.reduce((acc,cur) => {return acc + parseInt(cur.volume)/10**18}, 0)
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   return {
-    dailyVolume: `${totalDailyVolume}`,
+    dailyVolume: totalDailyVolume,
     timestamp: t,
   };
 };
