@@ -199,7 +199,12 @@ export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
           })
         }
 
-        return { dailyFees, dailyProtocolRevenue, dailySupplySideRevenue }
+        return {
+          dailyFees,
+          dailyRevenue: dailyProtocolRevenue,
+          dailyProtocolRevenue,
+          dailySupplySideRevenue,
+        }
       }),
     }
   })
