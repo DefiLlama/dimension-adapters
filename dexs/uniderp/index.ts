@@ -1,0 +1,43 @@
+import { Adapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const volumeRes = await queryDuneSql(options, `
+        select
+            SUM(amount_usd) as volume
+        from dex.trades
+        where blockchain = 'unichain'
+            and project = 'uniswap'
+            and version = '4'
+            and tx_hash in (
+                select
+                    evt_tx_hash
+                from uniswap_v4_unichain.poolmanager_evt_swap
+                where id in (
+                        select
+                            id
+                        from uniswap_v4_unichain.poolmanager_evt_initialize
+                        where hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444))
+            and block_time >= from_unixtime(${options.startTimestamp})
+                        AND block_time < from_unixtime(${options.endTimestamp})
+    `);
+    const dailyVolume = volumeRes[0].volume;
+
+    return {
+        dailyVolume
+    }
+}
+
+const adapter: Adapter = {
+    version: 1,
+    adapter: {
+        [CHAIN.UNICHAIN]: {
+            fetch: fetch as any,
+            start: '2025-05-01'
+        },
+    },
+    isExpensiveAdapter: true
+}
+
+export default adapter;
