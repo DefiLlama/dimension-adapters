@@ -148,6 +148,7 @@ const chainv2mapping: any = {
   [CHAIN.POLYGON]: "POLYGON",
   [CHAIN.BASE]: "BASE",
   [CHAIN.BSC]: "BNB",
+  [CHAIN.UNICHAIN]: "UNI"
 }
 
 async function fetchV2Volume(options: FetchOptions) {
@@ -175,11 +176,11 @@ async function fetchV2Volume(options: FetchOptions) {
 
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (options) => {
+        fetch: async (_t:any, _tb: any , options: FetchOptions) => {
           const response = await v1Graph(options.chain)(options);
           const keys = {
             "dailyUserFees": options.createBalances(),
@@ -204,7 +205,7 @@ const adapter: BreakdownAdapter = {
     },
     v2: {
       [CHAIN.ETHEREUM]: {
-        fetch: async (options) => {
+        fetch: async (_t:any, _tb: any , options: FetchOptions) => {
           const response = await v2Graph(options.chain)(options);
           response.totalVolume =
             Number(response.dailyVolume) + 1079453198606.2229;
@@ -223,22 +224,16 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
-      [CHAIN.UNICHAIN]: {
-        fetch: getUniV2LogAdapter({ factory: "0x1F98400000000000000000000000000000000002" }),
-        meta: {
-          methodology
-        },
-      },
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
-          fetch: fetchV2Volume,
+          fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchV2Volume(options),
         }
         return acc
       }, {})
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(chain as Chain)(options),
         start: startTimeV3[chain],
         meta: {
           methodology: {
@@ -288,7 +283,11 @@ const mappingChain = (chain: string) => {
 }
 
 adapter.breakdown.v3[CHAIN.UNICHAIN] = {
-  fetch: getUniV3LogAdapter({ factory: "0x1F98400000000000000000000000000000000003" }),
+  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x1F98400000000000000000000000000000000003" })
+    const response = await adapter(options)
+    return response;
+  },
   meta: {
     methodology
   }
@@ -326,7 +325,7 @@ const okuChains = [
 
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
-    fetch: fetchFromOku,
+    fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
     meta: {
       methodology
     }
