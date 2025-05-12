@@ -29,7 +29,8 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
   // get reserve (token) list which are supported by the lending pool
   const reservesList: Array<string> = await options.fromApi.call({
     target: pool.lendingPoolProxy,
-    abi: pool.version === 1 ? AaveAbis.getReserves : AaveAbis.getReservesList
+    abi: pool.version === 1 ? AaveAbis.getReserves : AaveAbis.getReservesList,
+    permitFailure: true,
   })
 
   // in this case the market is not exists yet
