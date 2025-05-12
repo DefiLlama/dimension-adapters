@@ -41,7 +41,7 @@ const RECORDS = {
                 '0x80B98d3aa09ffff255c3ba4A241111Ff1262F045', // USDFC
         },
         subgraphEndpoint:
-            'https://api.goldsky.com/api/public/project_cm8i6ca9k24d601wy45zzbsrq/subgraphs/sf-filecoin-mainnet/0.0.3/gn',
+            'https://api.goldsky.com/api/public/project_cm8i6ca9k24d601wy45zzbsrq/subgraphs/sf-filecoin-mainnet/latest/gn',
     },
 };
 
