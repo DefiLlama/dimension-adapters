@@ -1,4 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { getChainStats } from "./clamm";
 import { CHAIN } from "../../helpers/chains";
 
@@ -23,19 +23,17 @@ const clammStartTimes: { [chain: string]: number } = {
   [CHAIN.MANTLE]: 1706957688,
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    clamm: Object.keys(clammEndpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: async (timestamp: string) =>
-            await getChainStats({ graphUrl: clammEndpoints[chain], timestamp }),
-          start: clammStartTimes[chain],
-        },
-      };
-    }, {}),
-  },
+const adapter: SimpleAdapter = {
+  adapter: Object.keys(clammEndpoints).reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: async (timestamp: string) =>
+          await getChainStats({ graphUrl: clammEndpoints[chain], timestamp }),
+        start: clammStartTimes[chain],
+      },
+    };
+  }, {}),
 };
 
 export default adapter;

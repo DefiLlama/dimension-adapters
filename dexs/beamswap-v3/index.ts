@@ -1,4 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import {
@@ -34,10 +34,9 @@ const methodologyv3 = {
   HoldersRevenue: "Holders have no revenue.",
 };
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    v3: {
+  adapter: {
       [CHAIN.MOONBEAM]: {
         fetch: v3Graphs(CHAIN.MOONBEAM),
         start: '2023-05-18',
@@ -49,7 +48,6 @@ const adapter: BreakdownAdapter = {
         },
       },
     },
-  },
 };
 
 export default adapter;
