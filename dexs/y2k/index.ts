@@ -1,10 +1,10 @@
-import { Adapter } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import v1Fetch from "./y2k-finance";
 import v2Fetch from "./y2k-finance-v2";
 
 
-const adapter: Adapter = {
+const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.ARBITRUM]: {
