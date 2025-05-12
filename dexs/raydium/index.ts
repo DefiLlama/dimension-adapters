@@ -4,17 +4,12 @@ import fetchURL, { postURL } from "../../utils/fetchURL"
 const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
   const ammPoolStandard: any[] = [];
   let page = 1;
-  const step = 15;
   while (true) {
-    const responses = await Promise.all(
-      Array(step)
-        .fill(0)
-        .map((_, i) => fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page + i}`))
-    );
-    const data = responses.map(r => r.data.data).flat();
-    if (data.length === 0) break;
+    const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page}`);
+    const data = response.data.data;
+    if (!data || data.length === 0) break;
     ammPoolStandard.push(...data);
-    page += step;
+    page++;
   }
   const validPools = ammPoolStandard.filter((i: any) => ((Number(i.tvl) >  10_000) || (Number(i.feeRate) > 0.001)));
   console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${ammPoolStandard.length}`);
