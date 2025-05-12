@@ -1,3 +1,5 @@
+// https://sosovalue.gitbook.io/sosovalue-indices/resources/faq
+
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
