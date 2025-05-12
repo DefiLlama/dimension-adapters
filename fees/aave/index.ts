@@ -163,29 +163,67 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: aaveExport({
-      [CHAIN.ETHEREUM]: AaveV1Markets[CHAIN.ETHEREUM],
+      [CHAIN.ETHEREUM]: {
+        pools: AaveV1Markets[CHAIN.ETHEREUM],
+      },
     }),
     v2: aaveExport({
-      [CHAIN.ETHEREUM]: AaveV2Markets[CHAIN.ETHEREUM],
-      [CHAIN.POLYGON]: AaveV2Markets[CHAIN.POLYGON],
-      [CHAIN.AVAX]: AaveV2Markets[CHAIN.AVAX],
+      [CHAIN.ETHEREUM]: {
+        pools: AaveV2Markets[CHAIN.ETHEREUM],
+      },
+      [CHAIN.POLYGON]: {
+        pools: AaveV2Markets[CHAIN.POLYGON],
+      },
+      [CHAIN.AVAX]: {
+        pools: AaveV2Markets[CHAIN.AVAX],
+      },
     }),
     v3: aaveExport({
-      [CHAIN.ETHEREUM]: AaveMarkets[CHAIN.ETHEREUM],
-      [CHAIN.OPTIMISM]: AaveMarkets[CHAIN.OPTIMISM],
-      [CHAIN.ARBITRUM]: AaveMarkets[CHAIN.ARBITRUM],
-      [CHAIN.POLYGON]: AaveMarkets[CHAIN.POLYGON],
-      [CHAIN.AVAX]: AaveMarkets[CHAIN.AVAX],
-      [CHAIN.FANTOM]: AaveMarkets[CHAIN.FANTOM],
-      [CHAIN.BASE]: AaveMarkets[CHAIN.BASE],
-      [CHAIN.BSC]: AaveMarkets[CHAIN.BSC],
-      [CHAIN.METIS]: AaveMarkets[CHAIN.METIS],
-      [CHAIN.XDAI]: AaveMarkets[CHAIN.XDAI],
-      [CHAIN.SCROLL]: AaveMarkets[CHAIN.SCROLL],
-      [CHAIN.ERA]: AaveMarkets[CHAIN.ERA],
-      [CHAIN.LINEA]: AaveMarkets[CHAIN.LINEA],
-      [CHAIN.SONIC]: AaveMarkets[CHAIN.SONIC],
-      [CHAIN.CELO]: AaveMarkets[CHAIN.CELO],
+      [CHAIN.ETHEREUM]: {
+        pools: AaveMarkets[CHAIN.ETHEREUM],
+      },
+      [CHAIN.OPTIMISM]: {
+        pools: AaveMarkets[CHAIN.OPTIMISM],
+      },
+      [CHAIN.ARBITRUM]: {
+        pools: AaveMarkets[CHAIN.ARBITRUM],
+      },
+      [CHAIN.POLYGON]: {
+        pools: AaveMarkets[CHAIN.POLYGON],
+      },
+      [CHAIN.AVAX]: {
+        pools: AaveMarkets[CHAIN.AVAX],
+      },
+      [CHAIN.FANTOM]: {
+        pools: AaveMarkets[CHAIN.FANTOM],
+      },
+      [CHAIN.BASE]: {
+        pools: AaveMarkets[CHAIN.BASE],
+      },
+      [CHAIN.BSC]: {
+        pools: AaveMarkets[CHAIN.BSC],
+      },
+      [CHAIN.METIS]: {
+        pools: AaveMarkets[CHAIN.METIS],
+      },
+      [CHAIN.XDAI]: {
+        pools: AaveMarkets[CHAIN.XDAI],
+      },
+      [CHAIN.SCROLL]: {
+        pools: AaveMarkets[CHAIN.SCROLL],
+      },
+      [CHAIN.ERA]: {
+        pools: AaveMarkets[CHAIN.ERA],
+      },
+      [CHAIN.LINEA]: {
+        pools: AaveMarkets[CHAIN.LINEA],
+      },
+      [CHAIN.SONIC]: {
+        pools: AaveMarkets[CHAIN.SONIC],
+      },
+      [CHAIN.CELO]: {
+        pools: AaveMarkets[CHAIN.CELO],
+      },
     }),
   }
 }
