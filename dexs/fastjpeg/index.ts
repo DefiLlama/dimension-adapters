@@ -30,20 +30,18 @@ function calculateSaleReturn(coinAmount: bigint, currentSupply: bigint): bigint 
 	return calculatePriceForTokens(coinAmount, currentSupply - coinAmount);
 }
 
-const calculateGweiFees = (side: string, volume: bigint, amountCoinA: bigint) => {
+const calculateGweiVolume = (side: string, volume: bigint, amountCoinA: bigint) => {
     const totalCoins = amountCoinA;
     if (side === 'buy') {
-        const gweiVolume = (calculateSaleReturn(volume, totalCoins) * 10000n) / 9900n;
-        return gweiVolume * 100n / 10000n;
+        return (calculateSaleReturn(volume, totalCoins) * 10000n) / 9900n;
     } else {
-        const gweiVolume = (calculateSaleReturn(volume, totalCoins + volume) * 9900n) / 10000n;
-        return gweiVolume * 100n / 9900n;
+        return (calculateSaleReturn(volume, totalCoins + volume) * 9900n) / 10000n;
     }
 };
 
 
 const fetch = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
+    const dailyVolume = options.createBalances();
     const data: any[] = await options.getLogs({
         target: FastJpegFactory,
         eventAbi: SwapCoinEvent,
@@ -53,11 +51,11 @@ const fetch = async (options: FetchOptions) => {
         const volume = log.volume;
         const side = log.side;
 
-        const ethFees = calculateGweiFees(side, volume, amountA);
+        const gweiVolume = calculateGweiVolume(side, volume, amountA);
         
-        dailyFees.addGasToken(ethFees);
+        dailyVolume.addGasToken(gweiVolume);
     });
-    return { dailyFees, dailyRevenue: dailyFees };
+    return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
