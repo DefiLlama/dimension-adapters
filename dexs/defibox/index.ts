@@ -23,7 +23,7 @@ const graph = (chain: string) => {
     }
 
     return {
-      dailyVolume: volume === 0? undefined: `${volume}`,
+      dailyVolume: volume,
       timestamp: dayTimestamp,
     };
   };

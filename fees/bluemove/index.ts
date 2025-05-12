@@ -23,8 +23,8 @@ const fetch = async (timestamp: number) => {
   const dailyFees = Number(dailyVolume) * rateFees;
   const totalFees = Number(totalVolume) * rateFees;
   return {
-    totalFees: `${totalFees}`,
-    dailyFees:  dailyFees ? `${dailyFees}` : undefined,
+    totalFees,
+    dailyFees,
     timestamp: dayTimestamp,
   };
 };

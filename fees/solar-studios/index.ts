@@ -2,14 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const statsurl = 'https://stats.invariant.app/svm/full_snap/eclipse-mainnet';
+const statsurl = 'https://api.solarstudios.co/pools/info/list?poolType=all&poolSortField=fee24h&sortType=desc&pageSize=1000&page=1';
 
 const fetchVolume = async (timestamp: number, _:any, options: FetchOptions): Promise<any> => {
   const res = await httpGet(statsurl);
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(res.fees24.value);
+  res.data.data.map((i: any) => {
+    dailyFees.addUSDValue(Number(i.day.volumeFee))
+  });
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     timestamp: timestamp
   }
 }

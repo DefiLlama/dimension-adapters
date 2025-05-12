@@ -1,24 +1,14 @@
-import { httpPost } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const url =
-  "https://endpoint.sentio.xyz/liuxigekacha/agdex/defillama?version=0&cache_policy.ttl_secs=0&cache_policy.refresh_ttl_secs=0&size=0";
+const url = "https://prod.backend.agdex.io/stats/data?timestamp=";
 const method = "POST";
 
 const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
-  const date = new Date(options.startOfDay * 1000);
-  const payload = {
-    date: date.toISOString(),
-  };
-  
-  const data: any = await httpPost(url, JSON.stringify(payload), {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": "4ehWOKxIe1wwQ03igqpV6HENJ0PLhkEte",
-    },
-  });
+  const date = options.startOfDay.toString();
+  const res: any = await httpGet(url + date);
+  const data = res.data;
 
   return {
     totalVolume: `${

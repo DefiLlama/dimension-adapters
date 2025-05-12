@@ -83,6 +83,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     // Get adapter
     const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
+      _module: module,
     })
     printVolumes(volumes, adapter)
     console.info("\n")
@@ -91,6 +92,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
       runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
+        _module: module,
         isTest: true,
       }).then(res => ({ version, res }))
     ))

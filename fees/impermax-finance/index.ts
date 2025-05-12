@@ -123,8 +123,8 @@ const graphs = () => {
 
       return {
         timestamp,
-        dailyFees: dailyFees,
-        dailyRevenue: dailyRevenue,
+        dailyFees,
+        dailyRevenue,
       };
     };
   };

@@ -30,9 +30,9 @@ const fetch = async (timestamp: number) => {
   const dailyRevenue = dailyFees - dailyExpens;
   return {
     timestamp: dayTimestamp,
-    dailyFees: dailyFees.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
-    dailyRevenue: dailyRevenue.toString(),
+    dailyFees,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue,
   } as FetchResultFees;
 }
 
@@ -41,9 +41,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: '2022-05-31'
+      start: '2022-05-31',
     },
-  }
+  },
+  allowNegativeValue: true, // High CPI Peg Costs, Temporary Losses, Operational or Arbitrage Costs, Yield Insufficiency
 }
 
 export default adapter;

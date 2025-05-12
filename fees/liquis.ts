@@ -19,7 +19,7 @@ const fetch = () => {
     return {
       timestamp,
       dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
       dailyHoldersRevenue: dailyHoldersRevenue,
     } as FetchResultFees

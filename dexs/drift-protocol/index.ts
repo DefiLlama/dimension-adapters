@@ -1,9 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
-const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
+// const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
 type DimentionResult = {
   dailyVolume?: number;
@@ -12,33 +12,26 @@ type DimentionResult = {
   dailyRevenue?: number;
 };
 
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
-
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startOfDay;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4117889", {
-      start: start,
-      end: start + 24 * 60 * 60,
-    })
-  return requests[key]
-}
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  const sql = getSqlFromFile('helpers/queries/drift-protocol.sql', {
+    start: options.startOfDay,
+    end: options.startOfDay + 24 * 60 * 60
+  });
+  return queryDuneSql(options, sql);
+};
 
 async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = Number(Number(volumeResponse[0].perpetual_volume).toFixed(0))
-  const dailyFees = Number(Number(volumeResponse[0].total_taker_fee).toFixed(0))
-  const dailyRevenue = Number(Number(volumeResponse[0].total_revenue).toFixed(0))
+  const volumeResponse = options.preFetchedResults || [];
+  const dailyVolume = Number(Number(volumeResponse[0]?.perpetual_volume || 0).toFixed(0))
+  const dailyFees = Number(Number(volumeResponse[0]?.total_taker_fee || 0).toFixed(0))
+  const dailyRevenue = Number(Number(volumeResponse[0]?.total_revenue || 0).toFixed(0))
   return { dailyVolume, dailyFees, dailyRevenue };
 }
 
 async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
-  const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = Number(Number(volumeResponse[0].spot_volume).toFixed(0))
+  const volumeResponse = options.preFetchedResults || [];
+  const dailyVolume = Number(Number(volumeResponse[0]?.spot_volume || 0).toFixed(0))
   return { dailyVolume };
 }
 
@@ -73,6 +66,7 @@ const adapter: BreakdownAdapter = {
       },
     },
   },
+  prefetch: prefetch,
   isExpensiveAdapter: true,
 };
 

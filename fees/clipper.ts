@@ -13,7 +13,7 @@ const endpoints: TEndpoint = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
-  // [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+  // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
 };
 
@@ -73,12 +73,12 @@ const fetchFees = (chain: Chain) => {
     },0);
 
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailyProtocolRevenue: `${dailyRevenue}`,
-      totalFees: `${totalFees}`,
-      totalRevenue: `${totalRevenue}`,
-      totalProtocolRevenue: `${totalRevenue}`,
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      totalFees,
+      totalRevenue: totalRevenue,
+      totalProtocolRevenue: totalRevenue,
     }
   }
 }
@@ -99,7 +99,7 @@ const adapters: SimpleAdapter = {
       start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
-    //   fetch: fetchFees(CHAIN.MOONBEAN),
+    //   fetch: fetchFees(CHAIN.MOONBEAM),
     //   start: '2022-08-05',
     // },
     [CHAIN.ARBITRUM]: {

@@ -24,6 +24,8 @@ const methodology = {
 
 const graphs = (chain: string) => async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  if (todaysTimestamp > 1737936000) return {};
+
   const searchTimestamp = todaysTimestamp + ":daily";
 
   const graphQuery = gql`{
@@ -60,6 +62,7 @@ const graphs = (chain: string) => async (timestamp: number) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2025-01-27",
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),

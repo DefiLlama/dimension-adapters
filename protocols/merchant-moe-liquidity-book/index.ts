@@ -26,13 +26,13 @@ const graph = async (timestamp: number, _c: ChainBlocks, { chain, startOfDay }: 
   const dailyVolume = historical
     .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd || 0
   return {
-    dailyVolume:`${dailyVolume}`,
-    dailyUserFees: `${dailyFees}`,
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    dailyHoldersRevenue: `${dailyRevenue}`,
+    dailyVolume:dailyVolume,
+    dailyUserFees: dailyFees,
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
     dailySupplySideRevenue: dailyFees ? `${(dailyFees || 0) - (dailyRevenue || 0)}` : undefined,
-    dailyProtocolRevenue: `${dailyRevenue}`,
+    dailyProtocolRevenue: dailyRevenue,
     timestamp
   }
 

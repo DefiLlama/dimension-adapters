@@ -3,10 +3,9 @@ import {
   Fetch,
   FetchOptions,
   FetchResult,
-  FetchResultV2,
   FetchV2
 } from "../../adapters/types";
-import { queryDune } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 
 const arbitrumStartTimestamp = 1696982400; // 2023-10-11 00:00:00
 
@@ -26,15 +25,67 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
   async (options: FetchOptions): Promise<FetchResult> => {
     chain;
 
-    const date = new Date(options.startOfDay * 1000);
-
+    const daytime = new Date(options.startOfDay * 1000).toISOString();
 
     // throw new Error('Dune query is broken, fix it by turning adapter on chain')
-
+    // https://dune.com/queries/3855069
     let data = (
-      await queryDune("3855069", {
-        daytime: date.toISOString(),
-      })
+      await queryDuneSql(options, `
+        WITH
+          PERPIE_TRADES_DAILY AS (
+            SELECT
+              volume_date,
+              daily_volume
+            FROM
+              query_3289719
+          ),
+          PERPIE_FEES_DAILY AS (
+            SELECT
+              transfer_date,
+              usd_total
+            FROM
+              query_3289650
+          ),
+          volume_24hr AS (
+            SELECT
+              SUM(daily_volume) AS volume_24hr
+            FROM
+              PERPIE_TRADES_DAILY
+            WHERE
+              volume_date = DATE_TRUNC('day', CAST('${daytime}' AS TIMESTAMP))
+          ),
+          total_volume AS (
+            SELECT
+              SUM(daily_volume) AS total_volume
+            FROM
+              PERPIE_TRADES_DAILY
+          ),
+          fees_24hr AS (
+            SELECT
+              SUM(usd_total) AS fees_24hr
+            FROM
+              PERPIE_FEES_DAILY
+            WHERE
+              transfer_date = DATE_TRUNC('day', CAST('${daytime}' AS TIMESTAMP))
+          ),
+          total_fees AS (
+            SELECT
+              SUM(usd_total) AS total_fees
+            FROM
+              PERPIE_FEES_DAILY
+          )
+        SELECT
+          volume_24hr.volume_24hr,
+          total_volume.total_volume,
+          fees_24hr.fees_24hr,
+          total_fees.total_fees
+        FROM
+          volume_24hr,
+          total_volume,
+          fees_24hr,
+          total_fees
+        `
+        )
     )[0] as StatRow;
 
     return {

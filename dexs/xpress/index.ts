@@ -34,8 +34,8 @@ const getData = async (chain: string, timestamp: number) => {
   const dailyVolume = Number(data.dailyVolume?.volumeUsd ?? "0");
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };

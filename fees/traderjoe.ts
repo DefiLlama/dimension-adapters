@@ -58,14 +58,14 @@ const graph = async (_t: any, _tt: any, options: FetchOptions) => {
       historical.find((dayItem) => dayItem.timestamp === dayTimestamp)
         ?.protocolFeesUsd || 0;
     return {
-      dailyUserFees: `${dailyFees}`,
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailyHoldersRevenue: `${dailyRevenue}`,
+      dailyUserFees: dailyFees,
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailyFees
         ? `${(dailyFees || 0) - (dailyRevenue || 0)}`
         : undefined,
-      dailyProtocolRevenue: `${dailyRevenue}`,
+      dailyProtocolRevenue: dailyRevenue,
       timestamp: options.startOfDay,
     };
 };

@@ -26,6 +26,9 @@ const archiveSonicUrl = "https://archive.sonic-prod.vertexprotocol.com/v1";
 const gatewayAbstractUrl = "https://gateway.abstract-prod.vertexprotocol.com/v1";
 const archiveAbstractUrl = "https://archive.abstract-prod.vertexprotocol.com/v1";
 
+const gatewayAvaxUrl = "https://gateway.avax-prod.vertexprotocol.com/v1";
+const archiveAvaxUrl = "https://archive.avax-prod.vertexprotocol.com/v1";
+
 type TURL = {
   [s: string]: {
     gateway: string;
@@ -56,6 +59,10 @@ const url: TURL = {
   [CHAIN.ABSTRACT]: {
     gateway: gatewayAbstractUrl,
     archive: archiveAbstractUrl
+  },
+  [CHAIN.AVAX]: {
+    gateway: gatewayAvaxUrl,
+    archive: archiveAvaxUrl
   }
 };
 
@@ -122,8 +129,8 @@ const computeVolume = async (
     );
     const dailyVolume = totalVolume - totalVolumeOneDayAgo;
     return {
-      totalVolume: totalVolume ? `${totalVolume}` : undefined,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: timestamp,
     };
   } else {
@@ -165,6 +172,7 @@ const seiStartTime = 1723547681;
 const baseStartTime = 1725476671;
 const sonicStartTime = 1734543997;
 const abstractStartTime = 1738158858;
+const avaxStartTime = 1742994000;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
@@ -193,6 +201,10 @@ const adapter: BreakdownAdapter = {
         fetch: fetchSpots,
         start: abstractStartTime,
       },
+      [CHAIN.AVAX]: {
+        fetch: fetchSpots,
+        start: avaxStartTime,
+      },
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
@@ -218,6 +230,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ABSTRACT]: {
         fetch: fetchPerps,
         start: abstractStartTime,
+      },
+      [CHAIN.AVAX]: {
+        fetch: fetchPerps,
+        start: avaxStartTime,
       },
     },
   },
