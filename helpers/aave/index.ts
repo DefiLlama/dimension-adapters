@@ -1,4 +1,4 @@
-import { Adapter, BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, IStartTimestamp } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -8,6 +8,11 @@ export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
   lendingPoolProxy: string;
   dataProvider: string;
+}
+
+export interface AaveAdapterExportConfig {
+  start?: IStartTimestamp | number | string;
+  pools: Array<AaveLendingPoolConfig>;
 }
 
 // PercentageMath uses 4 decimals: https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F17#L15
@@ -182,16 +187,16 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
   }
 }
 
-export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
+export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig}) {
   const exportObject: BaseAdapter = {}
-  Object.entries(config).map(([chain, pools]) => {
+  Object.entries(exportConfig).map(([chain, config]) => {
     exportObject[chain] = {
       fetch: (async (options: FetchOptions) => {
         let dailyFees = options.createBalances()
         let dailyProtocolRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
-        for (const pool of pools) {
+        for (const pool of config.pools) {
           await getPoolFees(pool, options, {
             dailyFees,
             dailySupplySideRevenue,
@@ -206,6 +211,7 @@ export function aaveExport(config: IJSON<Array<AaveLendingPoolConfig>>) {
           dailySupplySideRevenue,
         }
       }),
+      start: config.start,
     }
   })
   return exportObject
