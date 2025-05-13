@@ -1,33 +1,16 @@
-import { httpGet, httpPost } from "../../utils/fetchURL";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { httpGet, } from "../../utils/fetchURL";
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const totalEndpoint = "https://api.moonlander.trade/v1/trading-volumes/sum-all";
-const dailyEndpoint =
-  "https://api.moonlander.trade/v1/trading-volumes/sum-by-date";
+const dailyEndpoint = "https://api.moonlander.trade/v1/trading-volumes/sum-by-date";
 
 const chains: { [key: string]: string } = {
   [CHAIN.CRONOS]: "CRONOS",
   [CHAIN.CRONOS_ZKEVM]: "CRONOS_ZKEVM",
 };
 
-const getTotalUri = ({ chain }: { chain: string }) => {
-  return `${totalEndpoint}?chains=${chains[chain]}`;
-};
-
-const getDailyUri = ({
-  chain,
-  startTime,
-  endTime,
-}: {
-  chain: string;
-  startTime: Date;
-  endTime: Date;
-}) => {
-  return `${dailyEndpoint}?chains=${
-    chains[chain]
-  }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
+const getDailyUri = ({ chain, startTime, endTime, }: any) => {
+  return `${dailyEndpoint}?chains=${chains[chain]}&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
 };
 
 interface APIResponse {
@@ -35,48 +18,28 @@ interface APIResponse {
   usdVol: string;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
+async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
+  const dailyData: APIResponse = await httpGet(getDailyUri({
+    chain,
+    startTime: new Date(startTimestamp * 1000),
+    endTime: new Date(endTimestamp * 1000),
+  }));
 
-    const endTimestamp = dayTimestamp + 86400; // 86400 = 24 hours * 60 minutes * 60 seconds
-
-    const dailyData: APIResponse = await httpGet(
-      getDailyUri({
-        chain,
-        startTime: new Date(dayTimestamp * 1000),
-        endTime: new Date(endTimestamp * 1000),
-      })
-    );
-    const totalData: APIResponse = await httpGet(getTotalUri({ chain }));
-
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: dailyData.usdVol,
-      totalVolume: totalData.usdVol,
-    };
+  return {
+    dailyVolume: dailyData.usdVol,
   };
+}
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.CRONOS]: 1745919647,
-  [CHAIN.CRONOS_ZKEVM]: 1734431393,
+const startTimestamps: { [chain: string]: string } = {
+  [CHAIN.CRONOS]: '2025-04-29',
+  [CHAIN.CRONOS_ZKEVM]: '2024-12-17',
 };
+const adapter: any = {}
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    derivatives: Object.keys(chains).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(chain),
-          start: startTimestamps[chain],
-        },
-      };
-    }, {}),
-  },
-};
+Object.keys(chains).forEach((chain) => adapter[chain] = { fetch, start: startTimestamps[chain], })
 
-export default adapter;
+export default {
+  adapter,
+  version: 2,
+}
+
