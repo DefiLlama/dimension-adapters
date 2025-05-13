@@ -79,7 +79,6 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
-const BERACHAIN_DISTRIBUTOR = "0xD2f19a79b026Fb636A7c300bF5947df113940761";
 const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
 
