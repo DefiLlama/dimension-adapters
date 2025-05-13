@@ -31,7 +31,7 @@ const getV3CustomBlock = async (timestamp: number) => {
     ).blocks;
     return Number(blocks[0].number);
   } catch (e) {
-    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e as any).message}`)
   }
 };
 

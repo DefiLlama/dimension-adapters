@@ -485,7 +485,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }) => {
+        fetch: async ({ startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp

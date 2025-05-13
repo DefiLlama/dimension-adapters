@@ -182,7 +182,7 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ETHEREUM]: {
         fetch: async (_t:any, _tb: any , options: FetchOptions) => {
           const response = await v1Graph(options.chain)(options);
-          const keys = {
+          const keys: any = {
             "dailyUserFees": options.createBalances(),
             "dailyProtocolRevenue": options.createBalances(),
             "dailySupplySideRevenue": options.createBalances(),
@@ -224,7 +224,7 @@ const adapter: BreakdownAdapter = {
           methodology
         },
       },
-      ...Object.keys(chainv2mapping).reduce((acc, chain) => {
+      ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
         acc[chain] = {
           fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchV2Volume(options),
         }

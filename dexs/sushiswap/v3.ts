@@ -84,7 +84,7 @@ const startTimeV3: { [key: string]: number } = {
   [CHAIN.SONIC]: 1711982400,
 }
 
-const v3 = Object.keys(endpointsV3).reduce(
+const v3: any = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
