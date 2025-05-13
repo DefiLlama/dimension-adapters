@@ -30,7 +30,6 @@ export async function retrieveAlliumResults(queryId: string) {
 }
 
 export async function queryAllium(sqlQuery: string) {
-  throw new Error('Allium adapter is temp stopped')
     return await retry(
       async (bail) => {
         if (!token[sqlQuery]) {
