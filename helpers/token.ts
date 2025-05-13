@@ -395,7 +395,7 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
 
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
-      SELECT mint as token, SUM(raw_amount) as amount
+      SELECT 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as token, SUM(usd_amount * 1000000) as amount
       FROM solana.assets.transfers
       WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
