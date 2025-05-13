@@ -22,9 +22,13 @@ async function solanaUsers(start: number, end: number) {
 }
 
 // Last 24h active users
-async function elrondUsers(start: number, end: number) {
+async function elrondUsers() {
     const result = (await httpGet('https://tools.multiversx.com/growth-api/explorer/headers/accounts')).activeAccountsToday;
-    return result;
+    return {
+        all: {
+            users: result
+        }
+    };
 }
 
 /*
