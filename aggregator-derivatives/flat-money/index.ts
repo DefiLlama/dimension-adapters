@@ -80,31 +80,22 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<
   const config = CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const { decimals, startTimestamp: chainStartTimestamp, endpoint } = config;
+  const { decimals, } = config;
 
   const [
     dailyOpensData,
     dailyAdjustsData,
     dailyClosesData,
-    totalOpensData,
-    totalAdjustsData,
-    totalClosesData
   ] = await Promise.all([
-    fetchVolume(chain as CHAIN, leverageOpensQuery, "leverageOpens", startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, leverageAdjustsQuery, "leverageAdjusts", startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, leverageClosesQuery, "leverageCloses", startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, leverageOpensQuery, "leverageOpens", chainStartTimestamp, endTimestamp),
-    fetchVolume(chain as CHAIN, leverageAdjustsQuery, "leverageAdjusts", chainStartTimestamp, endTimestamp),
-    fetchVolume(chain as CHAIN, leverageClosesQuery, "leverageCloses", chainStartTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageOpensQuery, "leverageOpens", startTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageAdjustsQuery, "leverageAdjusts", startTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageClosesQuery, "leverageCloses", startTimestamp, endTimestamp),
   ]);
 
   return {
     dailyVolume: calculateOpensVolume(dailyOpensData, decimals.amount)
         + calculateAdjustsVolume(dailyAdjustsData, decimals.amount)
         + calculateClosesVolume(dailyClosesData, decimals.amount),
-    totalVolume: calculateOpensVolume(totalOpensData, decimals.amount)
-        + calculateAdjustsVolume(totalAdjustsData, decimals.amount)
-        + calculateClosesVolume(totalClosesData, decimals.amount),
   };
 };
 
