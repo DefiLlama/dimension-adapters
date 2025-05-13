@@ -30,7 +30,7 @@ const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
     dailyFees: dailyProtocolRevenue,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue: "0",
   }
 }
 
