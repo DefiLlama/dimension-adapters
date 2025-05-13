@@ -3,7 +3,8 @@ import {
   Fetch,
   FetchOptions,
   FetchResult,
-  FetchV2
+  FetchV2,
+  SimpleAdapter
 } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -102,10 +103,9 @@ const fetchAll: (chain: string) => Fetch =
     const volumeAndFees = await fetchVolumeAndFees(chain)(options);
     return { ...volumeAndFees } as FetchResult;
   };
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
-  breakdown: {
-    derivatives: {
+  adapter: {
       ...Object.values(chainsMap).reduce((acc, chain) => {
         return {
           ...acc,
@@ -115,7 +115,6 @@ const adapter: BreakdownAdapter = {
           },
         };
       }, {}),
-    },
   },
 };
 

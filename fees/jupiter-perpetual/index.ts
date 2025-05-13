@@ -12,22 +12,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const dailyFees = data[0].total_fees;
   return {
     dailyFees,
-    dailyRevenue: `${dailyFees * (25/100)}`,
-    dailyHoldersRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
-    dailyProtocolRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
-    dailySupplySideRevenue: `${dailyFees * (75/100)}`,
+    dailyRevenue: `${dailyFees * (25 / 100)}`,
+    dailyHoldersRevenue: `${(dailyFees * (25 / 100)) * (50 / 100)}`,
+    dailyProtocolRevenue: `${(dailyFees * (25 / 100)) * (50 / 100)}`,
+    dailySupplySideRevenue: `${dailyFees * (75 / 100)}`,
   }
 };
 
 const adapter = {
   version: 1,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        runAtCurrTime: true,
-        start: '2024-01-23',
-      },
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2024-01-23',
     },
   },
   isExpensiveAdapter: true,

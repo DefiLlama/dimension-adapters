@@ -20,6 +20,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   _module = {},
 }: any = {}) {
   const { prefetch, allowNegativeValue = false } = _module
+  if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   if (chains.some(c => !c) || chains.includes('undefined') ) {

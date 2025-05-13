@@ -180,7 +180,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
-  ROYALTIES = 'royalties',
+  // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }

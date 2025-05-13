@@ -1,4 +1,4 @@
-import {BreakdownAdapter} from "../../adapters/types";
+import {BreakdownAdapter, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {httpGet} from "../../utils/fetchURL";
 
@@ -20,16 +20,14 @@ const fetchSUI = async (timestamp: number) => {
     }
 };
 
-const adapter: BreakdownAdapter = {
-    breakdown: {
-        dexes: {
+const adapter: SimpleAdapter = {
+    adapter: {
             [CHAIN.SUI]: {
                 fetch: fetchSUI,
                 start: '2024-11-19',
                 runAtCurrTime: true
             },
         },
-    },
 };
 
 export default adapter;
