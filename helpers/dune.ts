@@ -123,8 +123,6 @@ const tableName = {
 } as any
 
 export const queryDuneSql = (options: any, query: string) => {
-  throw new Error('Dune adapter is temp stopped')
-
   checkCanRunDuneQuery()
 
   return queryDune("3996608", {
