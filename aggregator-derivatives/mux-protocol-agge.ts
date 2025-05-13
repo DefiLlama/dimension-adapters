@@ -4,5 +4,5 @@ const { breakdown,  ...rest } = adapter
 
 export default {
   ...rest,
-  adapter: breakdown['mux-protocol-aggre'],
+  adapter: breakdown['mux-protocol-agge'],
 }
