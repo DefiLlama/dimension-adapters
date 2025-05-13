@@ -5,43 +5,19 @@ import { gql, GraphQLClient } from "graphql-request";
 const CONFIG = {
   [CHAIN.BASE]: {
     startTimestamp: 1721161357,
-    endpoint: "https://api.studio.thegraph.com/query/48129/flatcoin-base/version/latest",
-    leverageOpensQuery: gql`
-      query leverageOpens($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        leverageOpens(
-          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) {
-          margin,
-          size,
-          entryPrice
-        }
-      }`,
-    leverageAdjustsQuery: gql`
-      query leverageAdjusts($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        leverageAdjusts(
-          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) {
-          marginDelta,
-          sizeDelta,
-          adjustPrice
-        }
-      }`,
-    leverageClosesQuery: gql`
-      query leverageCloses($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-        leverageCloses(
-          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
-          first: 1000, orderBy: blockTimestamp, orderDirection: asc
-        ) {
-          settledMargin,
-          size,
-          closePrice
-        }
-      }`,
-    leverageOpensField: "leverageOpens",
-    leverageAdjustsField: "leverageAdjusts",
-    leverageClosesField: "leverageCloses"
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/HnQeWxwtLY5ZnBS39GmYt84gcHToG7cqjb8KVPApm89h",
+    decimals: {
+      price: 18,
+      amount: 18,
+    }
+  },
+  [CHAIN.OPTIMISM]: {
+    startTimestamp: 1744830648,
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/C5B1KnswowpwwVGNCVw8Ph7X4rqEuyoZZN7UWjjckEtm",
+    decimals: {
+      price: 18,
+      amount: 8,
+    }
   },
 };
 
@@ -76,27 +52,27 @@ const fetchVolume = async (chainId: CHAIN, query: string, volumeField: string, s
   return allData;
 };
 
-const calculateOpensVolume = (data: any): number =>
+const calculateOpensVolume = (data: any, amountDecimals: number): number =>
   data.reduce((acc: number, item: any) => {
     const priceFormatted = Number(item.entryPrice) / 1e18;
-    const marginFormatted = Number(item.margin) / 1e18;
-    const sizeFormatted = Number(item.size) / 1e18;
+    const marginFormatted = Number(item.margin) / 10 ** amountDecimals;
+    const sizeFormatted = Number(item.size) / 10 ** amountDecimals;
     return acc + (marginFormatted + sizeFormatted) * priceFormatted;
   }, 0);
 
-const calculateAdjustsVolume = (data: any): number =>
+const calculateAdjustsVolume = (data: any, amountDecimals: number): number =>
   data.reduce((acc: number, item: any) => {
     const priceFormatted = Number(item.adjustPrice) / 1e18;
-    const marginDeltaFormatted = Number(Math.abs(item.marginDelta)) / 1e18;
-    const sizeDeltaFormatted = Number(Math.abs(item.sizeDelta)) / 1e18;
+    const marginDeltaFormatted = Number(Math.abs(item.marginDelta)) / 10 ** amountDecimals;
+    const sizeDeltaFormatted = Number(Math.abs(item.sizeDelta)) / 10 ** amountDecimals;
     return acc + (marginDeltaFormatted + sizeDeltaFormatted) * priceFormatted;
   }, 0);
 
-const calculateClosesVolume = (data: any): number =>
+const calculateClosesVolume = (data: any, amountDecimals: number): number =>
   data.reduce((acc: number, item: any) => {
     const priceFormatted = Number(item.closePrice) / 1e18;
-    const settledMarginFormatted = Number(item.settledMargin) / 1e18;
-    const sizeFormatted = Number(item.size) / 1e18;
+    const settledMarginFormatted = Number(item.settledMargin) / 10 ** amountDecimals;
+    const sizeFormatted = Number(item.size) / 10 ** amountDecimals;
     return acc + (settledMarginFormatted + sizeFormatted) * priceFormatted;
   }, 0);
 
@@ -104,29 +80,22 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<
   const config = CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
+  const { decimals, } = config;
+
   const [
     dailyOpensData,
     dailyAdjustsData,
     dailyClosesData,
-    totalOpensData,
-    totalAdjustsData,
-    totalClosesData
   ] = await Promise.all([
-    fetchVolume(chain as CHAIN, config.leverageOpensQuery, config.leverageOpensField, startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, config.leverageAdjustsQuery, config.leverageAdjustsField, startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, config.leverageClosesQuery, config.leverageClosesField, startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, config.leverageOpensQuery, config.leverageOpensField, config.startTimestamp, endTimestamp),
-    fetchVolume(chain as CHAIN, config.leverageAdjustsQuery, config.leverageAdjustsField, config.startTimestamp, endTimestamp),
-    fetchVolume(chain as CHAIN, config.leverageClosesQuery, config.leverageClosesField, config.startTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageOpensQuery, "leverageOpens", startTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageAdjustsQuery, "leverageAdjusts", startTimestamp, endTimestamp),
+    fetchVolume(chain as CHAIN, leverageClosesQuery, "leverageCloses", startTimestamp, endTimestamp),
   ]);
 
   return {
-    dailyVolume: calculateOpensVolume(dailyOpensData)
-        + calculateAdjustsVolume(dailyAdjustsData)
-        + calculateClosesVolume(dailyClosesData),
-    totalVolume: calculateOpensVolume(totalOpensData)
-        + calculateAdjustsVolume(totalAdjustsData)
-        + calculateClosesVolume(totalClosesData)
+    dailyVolume: calculateOpensVolume(dailyOpensData, decimals.amount)
+        + calculateAdjustsVolume(dailyAdjustsData, decimals.amount)
+        + calculateClosesVolume(dailyClosesData, decimals.amount),
   };
 };
 
@@ -143,5 +112,41 @@ const adapter: SimpleAdapter = {
   ),
   version: 2
 };
+
+const leverageOpensQuery = gql`
+  query leverageOpens($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
+    leverageOpens(
+      where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+      first: 1000, orderBy: blockTimestamp, orderDirection: asc
+    ) {
+      margin,
+      size,
+      entryPrice
+    }
+  }`;
+
+const leverageAdjustsQuery = gql`
+  query leverageAdjusts($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
+    leverageAdjusts(
+      where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+      first: 1000, orderBy: blockTimestamp, orderDirection: asc
+    ) {
+      marginDelta,
+      sizeDelta,
+      adjustPrice
+    }
+  }`;
+
+const leverageClosesQuery = gql`
+  query leverageCloses($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
+    leverageCloses(
+      where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+      first: 1000, orderBy: blockTimestamp, orderDirection: asc
+    ) {
+      settledMargin,
+      size,
+      closePrice
+    }
+  }`;
 
 export default adapter;
