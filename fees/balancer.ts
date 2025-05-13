@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
 import { CHAIN }from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../adapters/types"
+import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters/types"
 import { Chain } from '@defillama/sdk/build/general';
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -163,7 +162,7 @@ const methodology = {
   SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
 }
 
-const adapter: Adapter = {
+const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {

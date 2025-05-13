@@ -1,5 +1,5 @@
-import {BreakdownAdapter, FetchOptions} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 
 interface IChainData {
@@ -21,16 +21,16 @@ const chainsData: { [key: string]: IChainData } = {
     stETHs: []
   },
   [CHAIN.ARBITRUM]: {
-      startTimestamp: 1708504270,
-      iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
-      stables: [],
-      stETHs: []
+    startTimestamp: 1708504270,
+    iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
+    stables: [],
+    stETHs: []
   },
   [CHAIN.BASE]: {
-      startTimestamp: 1731067807,
-      iporProtocolRouter: '0x21d337eBF86E584e614ecC18A2B1144D3C375918',
-      stables: [],
-      stETHs: []
+    startTimestamp: 1731067807,
+    iporProtocolRouter: '0x21d337eBF86E584e614ecC18A2B1144D3C375918',
+    stables: [],
+    stETHs: []
   }
 }
 
@@ -65,18 +65,16 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
   return { timestamp, dailyVolume: dailyNotionalVolume };
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "derivatives": {
-      [CHAIN.ETHEREUM]: {
-        fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
-      },
-      [CHAIN.ARBITRUM]: {
-        fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
-      },
-      [CHAIN.BASE]: {
-        fetch, start: chainsData[CHAIN.BASE].startTimestamp
-      }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
+    },
+    [CHAIN.BASE]: {
+      fetch, start: chainsData[CHAIN.BASE].startTimestamp
     }
   }
 }

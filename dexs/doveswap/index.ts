@@ -1,5 +1,5 @@
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, BaseAdapter } from "../../adapters/types";
+import { BaseAdapter, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -40,10 +40,9 @@ type TStartTime = {
 const startTimeV3: TStartTime = {
   [CHAIN.POLYGON_ZKEVM]: 1679875200,
 };
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
+  adapter:  Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
         start: startTimeV3[chain],
@@ -56,7 +55,6 @@ const adapter: BreakdownAdapter = {
       };
       return acc;
     }, {} as BaseAdapter),
-  },
 };
 
 export default adapter;
