@@ -1,4 +1,5 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
 import { Balances } from "@defillama/sdk";
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
@@ -83,16 +84,21 @@ const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
 
 async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
-  const logs = await options.getLogs({
-    target: BERACHAIN_DISTRIBUTOR,
-    eventAbi:
-      "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
-  });
+  const results = await queryDuneSql(
+    options,
+    `
+    SELECT SUM(amount) as bgt_received
+    FROM berachain_berachain.distributor_evt_distributed
+    WHERE receiver = ${BERADROME_REWARD_VAULT}
+    AND evt_block_time >= FROM_UNIXTIME(${options.startTimestamp})
+    AND evt_block_time < FROM_UNIXTIME(${options.endTimestamp})
+    `
+  );
 
-  for (const log of logs) {
-    if (log.receiver.toLowerCase() === BERADROME_REWARD_VAULT.toLowerCase()) {
-      balances.add(BGT_ADDRESS, log.amount);
-    }
+  if (results && results.length > 0) {
+    results.forEach((row) => {
+      balances.add(BGT_ADDRESS, row.bgt_received);
+    });
   }
 }
 
