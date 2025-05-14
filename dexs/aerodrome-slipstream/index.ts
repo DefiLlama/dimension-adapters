@@ -66,7 +66,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const blockStep = 500;
   let i = 0;
   let startBlock = fromBlock;
-  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
+  const iface = new ethers.Interface([eventAbis.event_swap]);
 
   while (startBlock < toBlock) {
     const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
