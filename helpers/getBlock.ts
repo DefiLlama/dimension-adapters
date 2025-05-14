@@ -51,7 +51,7 @@ const blacklistedChains: string[] = [
   "heco",
   "dymension",
   CHAIN.DOGECHAIN,
-  CHAIN.SEI,
+  // CHAIN.SEI,
   CHAIN.ICP,
 ];
 
