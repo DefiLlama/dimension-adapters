@@ -1,4 +1,4 @@
-import type { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
@@ -65,18 +65,16 @@ const fetchVolume = async (chainId: string, startOfDay: number) => {
   };
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "orderly-network": {
-      [CHAIN.NEAR]: {
-        fetch: async (timestamp: number) => {
-          return {
-            timestamp: timestamp,
-          };
-        },
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.NEAR]: {
+      fetch: async (timestamp: number) => {
+        return {
+          timestamp: timestamp,
+        };
       },
     },
-    "orderly-network-derivatives": Object.entries(chainIdToChainInfo).reduce(
+    ...Object.entries(chainIdToChainInfo).reduce(
       (acc, [chainId, { chain, startDate }]) => ({
         ...acc,
         [chain]: {
@@ -86,8 +84,8 @@ const adapter: BreakdownAdapter = {
         },
       }),
       {}
-    ),
-  },
+    )
+  }
 };
 
 export default adapter;
