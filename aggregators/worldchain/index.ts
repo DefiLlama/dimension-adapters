@@ -14,9 +14,10 @@ const event_fillQuoteTokenToToken =
   "event FillQuoteTokenToToken(address indexed sellToken,address indexed buyToken,address indexed user,address target,uint256 amountSold,uint256 amountBought,uint8 feeToken,uint256 feeAmount)";
 
 const fetch = async (options: FetchOptions) => {
-  const [fromBlock, toBlock] = await Promise.all([
-    options.getFromBlock(),
-    options.getToBlock(),
+  const { getToBlock, getFromBlock } = options;
+  const [toBlock, fromBlock] = await Promise.all([
+    getToBlock(),
+    getFromBlock(),
   ]);
 
   const [
