@@ -14,7 +14,8 @@ const eventAbis = {
   event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
   event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
   event_gaugeCreated: 'event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)',
-  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)'
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)',
+  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)',
 }
 
 const abis = {
@@ -23,7 +24,7 @@ const abis = {
 
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
   const { createBalances, getLogs } = fetchOptions
-  const iface = new ethers.Interface([eventAbis.event_claim_rewards]);
+  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
   const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
@@ -34,7 +35,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     .map((log) => log[4].toLowerCase())
   const bribeSet = new Set(bribes_contract)
 
-  const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_claim_rewards, entireLog: true, })
+  const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
   logs.forEach((log: any) => {
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
