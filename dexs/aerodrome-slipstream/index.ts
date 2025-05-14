@@ -66,6 +66,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const blockStep = 500;
   let i = 0;
   let startBlock = fromBlock;
+  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   while (startBlock < toBlock) {
     const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
@@ -81,8 +82,9 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
       const pool = (log.address || log.source).toLowerCase()
       if (!aeroPoolSet.has(pool)) return;
       const { token0, token1, fee } = poolInfoMap[pool]
-      const amount0 = Number(log.args.amount0)
-      const amount1 = Number(log.args.amount1)
+      const parsedLog = iface.parseLog(log)
+      const amount0 = Number(parsedLog!.args.amount0)
+      const amount1 = Number(parsedLog!.args.amount1)
       const fee0 = amount0 * fee
       const fee1 = amount1 * fee
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
