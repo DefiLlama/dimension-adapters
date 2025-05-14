@@ -98,7 +98,6 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
           eventAbi: eventAbis.event_swap,
           topics: [event_topics.swap],
           entireLog: true,
-          skipIndexer: true,
           skipCache: true,
         })
         sdk.log(`Aerodrome got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)

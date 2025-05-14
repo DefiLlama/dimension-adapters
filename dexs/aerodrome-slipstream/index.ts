@@ -92,7 +92,6 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
           toBlock: endBlock,
           eventAbi: eventAbis.event_swap,
           entireLog: true,
-          skipIndexer: true,
           skipCache: true,
         })
         sdk.log(`Aerodrome slipstream got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
