@@ -3,6 +3,7 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
+import PromisePool from "@supercharge/promise-pool";
 
 const CONFIG = {
   PoolFactory: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
@@ -69,37 +70,59 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
   })
 
 
-  const blockStep = 1000;
+  const blockStep = 2000;
   let i = 0;
   let startBlock = fromBlock;
+  let ranges: any = []
+
+
 
   while (startBlock < toBlock) {
     const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    const logs = await fetchOptions.getLogs({
-      noTarget: true,
-      fromBlock: startBlock,
-      toBlock: endBlock,
-      eventAbi: eventAbis.event_swap,
-      topics: [event_topics.swap],
-      entireLog: true,
-    })
-    sdk.log(`Aerodrome got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
-    const iface = new ethers.Interface([eventAbis.event_swap]);
-
-    logs.forEach((log: any) => {
-      const pool = (log.address || log.source).toLowerCase()
-      if (!aeroPoolSet.has(pool)) return;
-      const parsedLog = iface.parseLog(log)
-      const { token0, token1, fee } = poolInfoMap[pool]
-      const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
-      const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
-      const fee0 = amount0 * fee
-      const fee1 = amount1 * fee
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
-    })
+    ranges.push([startBlock, endBlock])
     startBlock += blockStep
   }
+
+  let errorFound = false
+
+  await PromisePool
+    .withConcurrency(5)
+    .for(ranges)
+    .process(async ([startBlock, endBlock]: any) => {
+      if (errorFound) return;
+      try {
+        const logs = await fetchOptions.getLogs({
+          noTarget: true,
+          fromBlock: startBlock,
+          toBlock: endBlock,
+          eventAbi: eventAbis.event_swap,
+          topics: [event_topics.swap],
+          entireLog: true,
+          skipIndexer: true,
+          skipCache: true,
+        })
+        sdk.log(`Aerodrome got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
+        const iface = new ethers.Interface([eventAbis.event_swap]);
+
+        logs.forEach((log: any) => {
+          const pool = (log.address || log.source).toLowerCase()
+          if (!aeroPoolSet.has(pool)) return;
+          const parsedLog = iface.parseLog(log)
+          const { token0, token1, fee } = poolInfoMap[pool]
+          const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
+          const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
+          const fee0 = amount0 * fee
+          const fee1 = amount1 * fee
+          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+        })
+      } catch (e) {
+        errorFound = e
+        throw e
+      }
+    })
+
+  if (errorFound) throw errorFound
 
   return { dailyVolume, dailyFees }
 }

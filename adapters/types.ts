@@ -54,6 +54,7 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipCache?: boolean,
   skipIndexer?: boolean,
   topics?: string[],
   noTarget?: boolean,
