@@ -65,18 +65,16 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.CRONOS_ZKEVM]: 1734431393,
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    derivatives: Object.keys(chains).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(chain),
-          start: startTimestamps[chain],
-        },
-      };
-    }, {}),
-  },
+const adapter: SimpleAdapter = {
+  adapter: Object.keys(chains).reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: getFetch(chain),
+        start: startTimestamps[chain],
+      },
+    };
+  }, {}),
 };
 
 export default adapter;
