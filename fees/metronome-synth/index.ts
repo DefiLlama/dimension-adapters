@@ -61,7 +61,8 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
   });
 
   const dailyFees = fees.clone();
-  const dailyRevenue = fees.clone();
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(fees);                
   const dailyHoldersRevenue = options.createBalances();
 
   const vaults = VAULTS[chain] ?? [];
