@@ -1,14 +1,8 @@
 import fetchURL from '../../utils/fetchURL';
-import { Chain } from '@defillama/sdk/build/general';
 import { FetchResultV2, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 
-type Url = {
-  [s: string]: string;
-};
-
-const url: Url = {
+const url: any = {
   [CHAIN.SUI]: `https://api.interestlabs.io/v1/sui/mainnet/stable/metrics`,
 };
 
@@ -29,29 +23,20 @@ interface Metrics {
   revenue30D: string;
 }
 
-const fetch = (chain: Chain) => {
-  return async ({ endTimestamp }): Promise<FetchResultV2> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(endTimestamp * 1000)
-    );
+async function fetch(_: any, _1: any, { startOfDay, chain }): Promise<FetchResultV2> {
+  const metrics: Metrics = await fetchURL(`${url[chain]}?timestamp=${startOfDay}`);
 
-    const metrics: Metrics = await fetchURL(
-      `${url[chain]}?timestamp=${dayTimestamp}`
-    );
-
-    return {
-      totalVolume: metrics.volume,
-      dailyVolume: metrics.volume1D,
-      timestamp: dayTimestamp,
-    };
+  return {
+    dailyVolume: metrics.volume1D,
+    dailyFees: metrics.fees1D,
+    dailyRevenue: metrics.revenue1D,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetch(CHAIN.SUI),
+      fetch,
       start: '2025-04-04',
     },
   },
