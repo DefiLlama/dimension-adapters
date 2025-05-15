@@ -1,30 +1,55 @@
 import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import fetchURL, { postURL } from "../../utils/fetchURL"
+import * as sdk from "@defillama/sdk"
+import PromisePool from "@supercharge/promise-pool";
+
 
 const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
   const ammPoolStandard: any[] = [];
   let page = 1;
-  while (true) {
-    const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page}`);
-    const data = response.data.data;
-    if (!data || data.length === 0) break;
-    ammPoolStandard.push(...data);
-    page++;
-  }
-  const validPools = ammPoolStandard.filter((i: any) => ((Number(i.tvl) >  10_000) || (Number(i.feeRate) > 0.001)));
-  console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${ammPoolStandard.length}`);
-
-  const dailyVolumeAmmPool = validPools
-    .reduce((a: number, b) => a + b.day.volume, 0)
 
   let ammFee = 0
   let clmmFee = 0
   let cpmmFee = 0
-  for (const item of validPools){
-    if (item.programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') clmmFee += item.day.volumeFee
-    else if (item.programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') cpmmFee += item.day.volumeFee
-    else ammFee += item.day.volumeFee
+  let dailyVolumeAmmPool = 0
+  let totalPoolCount = 0
+  let validPoolCount = 0
+  let hasMore = true
+  const pullChunkSize = 20
+
+  while (hasMore) {
+
+    const { errors } = await PromisePool
+      .withConcurrency(pullChunkSize)
+      .for(Array.from({ length: pullChunkSize }))
+      .process(async (_: any, index: number) => {
+        const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page + index}`)
+        const data = response.data.data
+        const validPoolCount = addPoolData(data)
+        if (validPoolCount === 0) {
+          hasMore = false
+        }
+      })
+
+    if (errors?.length) throw errors
+
+    page += pullChunkSize
+    sdk.log(`page: ${page} and valid pools: ${validPoolCount} and all pools: ${totalPoolCount}`);
   }
+
+  function addPoolData(ammPoolStandard: any[]) {
+    const validPools = ammPoolStandard.filter((i: any) => ((Number(i.tvl) > 10_000) || (Number(i.feeRate) > 0.001)));
+    dailyVolumeAmmPool += validPools.reduce((a: number, b) => a + b.day.volume, 0)
+    for (const item of validPools) {
+      if (item.programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') clmmFee += item.day.volumeFee
+      else if (item.programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') cpmmFee += item.day.volumeFee
+      else ammFee += item.day.volumeFee
+    }
+    validPoolCount += validPools.length
+    totalPoolCount += ammPoolStandard.length
+    return validPools.length
+  }
+  sdk.log(`total pages: ${page} and valid pools: ${validPoolCount} and all pools: ${totalPoolCount}`);
 
   const dailyFees = ammFee + clmmFee + cpmmFee; // Total fees paid by users
   const dailyUserFees = dailyFees; // Same as dailyFees for Raydium swaps
