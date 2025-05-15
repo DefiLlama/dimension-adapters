@@ -12,6 +12,7 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 `
 
 const adapter: Adapter = {
+  version: 1,
   adapter: ["ethereum", "bsc", "polygon", "arbitrum", "aurora", "boba"].reduce((all, chain)=>({
     ...all,
     [chain]: {
@@ -34,8 +35,4 @@ const adapter: Adapter = {
   }), {} as any)
 };
 
-
-export default {
-  version: 1,
-  adapter
-}
+export default adapter
