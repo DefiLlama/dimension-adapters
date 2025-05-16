@@ -117,7 +117,7 @@ const adapter: SimpleAdapter = {
             start: '2025-03-15',
             meta: {
                 methodology: {
-                    Fees: "Total fees collected from all sources, including LP fees, protocol fees, and coin creator fees from each trade",
+                    Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
                     Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
                     SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
                     Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
