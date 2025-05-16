@@ -14,7 +14,6 @@ const fetch = async (options: FetchOptions) => {
     for (const log of logs) {
         dailyFees.addGasToken(log.args.amount);
     }
-    console.log(dailyFees);
     return { dailyFees }
 }
 
