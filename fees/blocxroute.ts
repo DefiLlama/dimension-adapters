@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-
+import { getETHReceived } from "../helpers/token";
 
 const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
   const query = `
@@ -103,6 +103,15 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
 
 }
 
+// https://docs.bloxroute.com/bsc-and-eth/apis/transaction-bundles/bundle-submission/bsc-bundle-submission
+const fetchBSC: any = async (_a:any, _b:any, options: FetchOptions) => {
+  const dailyFees = await getETHReceived({
+    options,
+    target: '0x74c5F8C6ffe41AD4789602BDB9a48E6Cad623520',
+  })
+  return { dailyFees }
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
@@ -114,6 +123,15 @@ const adapter: SimpleAdapter = {
         }
       }
     },
+    [CHAIN.BSC]: {
+      fetch: fetchBSC,
+      start: '2024-04-15',
+      meta:{
+        methodology: {
+          fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+        }
+      }
+    }
   },
   isExpensiveAdapter: true
 };
