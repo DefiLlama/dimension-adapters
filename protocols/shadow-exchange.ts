@@ -13,8 +13,12 @@ const startTimeV2: TStartTime = {
   [CHAIN.SONIC]: 1735129946,
 };
 
-export const v2Endpoints: any = {
-  [CHAIN.SONIC]: "https://sonicv2.kingdomsubgraph.com/subgraphs/name/core-full",
+export const subgraphEndpoints: any = {
+  [CHAIN.SONIC]: "https://shadow.kingdomsubgraph.com/subgraphs/name/core-full",
+};
+
+export const envioEndpoints: any = {
+  [CHAIN.SONIC]: "https://indexer.hyperindex.xyz/cf4b043/v1/graphql",
 };
 
 const secondsInADay = 24 * 60 * 60;
@@ -45,16 +49,6 @@ interface IVoteBribe {
 interface IToken {
   id: string;
   priceUSD: string;
-}
-
-interface IPoolDayData {
-  pool: { gauge: { id: string }; gaugeV2: { id: string } };
-  feesUSD: string;
-}
-
-interface IGauge {
-  id: string;
-  isAlive: boolean;
 }
 
 async function paginate<T>(
@@ -102,7 +96,7 @@ async function getBribes(options: FetchOptions) {
   `;
 
   const getData = async (first: number, skip: number) =>
-    request<any>(v2Endpoints[options.chain], query, {
+    request<any>(subgraphEndpoints[options.chain], query, {
       from: options.startOfDay,
       to: options.startOfDay + secondsInADay,
       first,
@@ -110,63 +104,6 @@ async function getBribes(options: FetchOptions) {
     }).then((data) => data.voteBribes);
 
   return paginate<IVoteBribe>(getData, subgraphQueryLimit);
-}
-
-async function getClPoolDayDatas(options: FetchOptions) {
-  const query = gql`
-    query poolDayData($first: Int!, $skip: Int!) {
-      clPoolDayDatas(first: $first, skip: $skip, where: { startOfDay: ${options.startOfDay}, feesUSD_gt: 0 }) {
-        pool { gauge { id } gaugeV2 { id }}
-        feesUSD
-      }
-    }
-  `;
-
-  const getData = async (first: number, skip: number) =>
-    request<any>(v2Endpoints[options.chain], query, {
-      first,
-      skip,
-    }).then((data) => data.clPoolDayDatas);
-
-  return paginate<IPoolDayData>(getData, subgraphQueryLimit);
-}
-
-async function getLegacyPoolDayDatas(options: FetchOptions) {
-  const query = gql`
-    query poolDayData($first: Int!, $skip: Int!) {
-      legacyPoolDayDatas(first: $first, skip: $skip, where: { startOfDay: ${options.startOfDay}, feesUSD_gt: 0 }) {
-        pool { gauge { id } gaugeV2 { id }}
-        feesUSD
-      }
-    }
-  `;
-
-  const getData = async (first: number, skip: number) =>
-    request<any>(v2Endpoints[options.chain], query, {
-      first,
-      skip,
-    }).then((data) => data.legacyPoolDayDatas);
-
-  return paginate<IPoolDayData>(getData, subgraphQueryLimit);
-}
-
-async function getAliveGauges(options: FetchOptions) {
-  const startBlock = await options.getStartBlock();
-  const query = gql`
-    query gauges($first: Int!, $skip: Int!) {
-      gauges(block: { number: ${startBlock} }, first: $first, skip: $skip, where: { isAlive: true }) {
-        id
-      }
-    }
-  `;
-
-  const getData = async (first: number, skip: number) =>
-    request<any>(v2Endpoints[options.chain], query, {
-      first,
-      skip,
-    }).then((data) => data.gauges);
-
-  return paginate<IGauge>(getData, subgraphQueryLimit);
 }
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
@@ -182,7 +119,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
   `;
 
   const getData = async (first: number, skip: number) =>
-    request<any>(v2Endpoints[options.chain], query, {
+    request<any>(subgraphEndpoints[options.chain], query, {
       first,
       skip,
     }).then((data) => data.tokens);
@@ -193,15 +130,19 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const statsQuery = `
     {
-      clProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      ClProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
         startOfDay
-        volumeUSD
-        feesUSD
+        volumeUsd
+        feesUsd
+        voterFeesUsd
+        treasuryFeesUsd
       }
-      legacyProtocolDayDatas(where:{startOfDay: ${options.startOfDay}}) {
+      LegacyProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
         startOfDay
-        volumeUSD
-        feesUSD
+        volumeUsd
+        feesUsd
+        voterFeesUsd
+        treasuryFeesUsd
       }
     }
   `;
@@ -211,53 +152,13 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   tokenIds.add(SHADOW_TOKEN_CONTRACT.toLowerCase());
 
   const tokens = await getTokens(options, Array.from(tokenIds));
-  const { clProtocolDayDatas, legacyProtocolDayDatas } = await request(
-    v2Endpoints[options.chain],
-    statsQuery,
-  );
+  const {
+    ClProtocolDayData: clProtocolDayData,
+    LegacyProtocolDayData: legacyProtocolDayData,
+  } = await request(envioEndpoints[options.chain], statsQuery);
 
-  const clPoolDayDatas = await getClPoolDayDatas(options);
-  const legacyPoolDayDatas = await getLegacyPoolDayDatas(options);
-  const aliveGauges = (await getAliveGauges(options)).map((e) => e.id);
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
-
-  const legacyGaugelessPools = legacyPoolDayDatas.filter(
-    (day) =>
-      !aliveGauges.includes(day.pool.gauge?.id) &&
-      !aliveGauges.includes(day.pool.gaugeV2?.id),
-  );
-  const clGaugelessPools = clPoolDayDatas.filter(
-    (day) =>
-      !aliveGauges.includes(day.pool.gauge?.id) &&
-      !aliveGauges.includes(day.pool.gaugeV2?.id),
-  );
-  const clGaugedPools = clPoolDayDatas.filter(
-    (day) =>
-      aliveGauges.includes(day.pool.gauge?.id) ||
-      aliveGauges.includes(day.pool.gaugeV2?.id),
-  );
-  const legacyGaugedPools = legacyPoolDayDatas.filter(
-    (day) =>
-      aliveGauges.includes(day.pool.gauge?.id) ||
-      aliveGauges.includes(day.pool.gaugeV2?.id),
-  );
-
-  // 5% of non-gauge fees goes to protocol
-  const clProtocolRevenueUSD = clGaugelessPools.reduce((acc, pool) => {
-    return acc + Number(pool.feesUSD) * 0.05;
-  }, 0);
-  const legacyProtocolRevenueUSD = legacyGaugelessPools.reduce((acc, pool) => {
-    return acc + Number(pool.feesUSD) * 0.05;
-  }, 0);
-
-  // 100% of gauged pool fees goes to holders
-  const clUserFeesRevenueUSD = clGaugedPools.reduce((acc, pool) => {
-    return acc + Number(pool.feesUSD);
-  }, 0);
-  const legacyUserFeesRevenueUSD = legacyGaugedPools.reduce((acc, pool) => {
-    return acc + Number(pool.feesUSD);
-  }, 0);
 
   const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
     const token = tokens.find((t) => t.id === bribe.token.id);
@@ -270,31 +171,35 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
 
   const InstantExitLogs = await options.getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
-    eventAbi: 'event InstantExit(address indexed user, uint256 amount)',
-    topic: '0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a'
-  })
-  let xshadowPenaltyAmount = 0;
-  // console.log(InstantExitLogs);
+    eventAbi: "event InstantExit(address indexed user, uint256 amount)",
+    topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
+  });
+  let shadowPenaltyAmount = 0;
+
   for (const log of InstantExitLogs) {
-    xshadowPenaltyAmount += (Number(log.amount) / 1e18);
+    shadowPenaltyAmount += Number(log.amount) / 1e18;
   }
 
   // Calculate xSHADOW rebase revenue in USD
-  const shadowToken = tokens.find(t => t.id === SHADOW_TOKEN_CONTRACT);
+  const shadowToken = tokens.find((t) => t.id === SHADOW_TOKEN_CONTRACT);
   const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
-  const dailyXshadowInstantExitFeeUSD = xshadowPenaltyAmount * shadowPriceUSD / 2; // XSHADOW is always 50% of the current shadow price.
+  const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD;
 
   return {
-    clVolumeUSD: Number(clProtocolDayDatas?.[0]?.volumeUSD ?? 0),
-    clFeesUSD: Number(clProtocolDayDatas?.[0]?.feesUSD ?? 0),
-    legacyVolumeUSD: Number(legacyProtocolDayDatas?.[0]?.volumeUSD ?? 0),
-    legacyFeesUSD: Number(legacyProtocolDayDatas?.[0]?.feesUSD ?? 0),
+    clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
+    clFeesUSD: Number(clProtocolDayData?.[0]?.feesUsd ?? 0),
+    legacyVolumeUSD: Number(legacyProtocolDayData?.[0]?.volumeUsd ?? 0),
+    legacyFeesUSD: Number(legacyProtocolDayData?.[0]?.feesUsd ?? 0),
     clBribeRevenueUSD: clUserBribeRevenueUSD,
     legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
-    clUserFeesRevenueUSD: clUserFeesRevenueUSD,
-    legacyUserFeesRevenueUSD: legacyUserFeesRevenueUSD,
-    clProtocolRevenueUSD,
-    legacyProtocolRevenueUSD,
+    clUserFeesRevenueUSD: Number(clProtocolDayData?.[0]?.voterFeesUsd ?? 0),
+    legacyUserFeesRevenueUSD: Number(
+      legacyProtocolDayData?.[0]?.voterFeesUsd ?? 0,
+    ),
+    clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
+    legacyProtocolRevenueUSD: Number(
+      legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
+    ),
     dailyXshadowInstantExitFeeUSD,
   };
 }
@@ -308,7 +213,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyBribesRevenue = stats.clBribeRevenueUSD;
   const dailyTokenTaxes = stats.dailyXshadowInstantExitFeeUSD;
 
-  const clSupplySideRevenue = stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
+  const clSupplySideRevenue =
+    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
   const dailySupplySideRevenue = clSupplySideRevenue;
   const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
 
