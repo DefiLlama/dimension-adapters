@@ -23,15 +23,21 @@ interface Metrics {
   revenue30D: string;
 }
 
-async function fetch(_: any, _1: any, { startOfDay, chain }): Promise<FetchResultV2> {
-  const metrics: Metrics = await fetchURL(`${url[chain]}?timestamp=${startOfDay}`);
+async function fetch(
+  _: any,
+  _1: any,
+  { endTimestamp, chain }
+): Promise<FetchResultV2> {
+  const metrics: Metrics = await fetchURL(
+    `${url[chain]}?timestamp=${endTimestamp}`
+  );
 
   return {
     dailyVolume: metrics.volume1D,
     dailyFees: metrics.fees1D,
     dailyRevenue: metrics.revenue1D,
   };
-};
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
