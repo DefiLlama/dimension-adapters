@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const FASTLANE_AUCTION_HANDLER = '0x5003676390dfe662Af408Eb0bf13e182aDcaCE0a';
+const FASTLANE_AUCTION_HANDLER = '0xCACe8D78269ba00f1C4D5Fc3B1228C7DF0a7C8BA';
 
 const fetch = async (options: FetchOptions) => {
     const logs = await options.getLogs({
@@ -14,6 +14,7 @@ const fetch = async (options: FetchOptions) => {
     for (const log of logs) {
         dailyFees.addGasToken(log.args.amount);
     }
+    console.log(dailyFees);
     return { dailyFees }
 }
 
