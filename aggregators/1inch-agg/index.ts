@@ -1,5 +1,5 @@
-import { FetchOptions, FetchResult, } from "../../adapters/types";
-import { queryDune } from "../../helpers/dune";
+import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
@@ -12,33 +12,36 @@ const chainsMap: Record<string, string> = {
   GNOSIS: "xdai",
   FANTOM: "fantom",
 };
-let _data: any = {}
 
-const fetch = async ({ startOfDay, chain, }: FetchOptions): Promise<FetchResult> => {
-  if (!_data[startOfDay]) _data[startOfDay] = queryDune(`1736855`, {})
-  const data = await _data[startOfDay]
-  const chainData = data.find((row: any) => chainsMap[row.blockchain] === chain);
-  if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`)
+const prefetch = async (options: FetchOptions) => {
+  const sql_query = getSqlFromFile('helpers/queries/1inch_agg.sql', {})
+  return await queryDuneSql(options, sql_query);
+}
+
+const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult> => {
+  const results = options.preFetchedResults || [];
+  const chainData = results.find(item => chainsMap[item.blockchain] === options.chain.toLowerCase());
+
   return {
     dailyVolume: chainData.volume_24h,
   };
 }
 
-const adapter: any = {
-  timetravel: false,
-  version: 2,
+
+const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     ...Object.values(chainsMap).reduce((acc, chain) => {
       return {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
-          fetch,
-          runAtCurrTime: true,
+          fetch: fetch,
           start: '2023-12-05',
         },
       };
     }, {}),
   },
+  prefetch,
   isExpensiveAdapter: true,
 };
 
