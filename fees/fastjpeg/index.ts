@@ -47,8 +47,8 @@ const calculateGweiFees = (side: string, volume: bigint, amountCoinA: bigint) =>
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const graduationFees = options.createBalances();
-    const creatorFees = options.createBalances();
+    const protocolFees = options.createBalances();
+    const userFees = options.createBalances();
 
     const swapEventLogs: any[] = await options.getLogs({
         target: FastJpegFactory,
@@ -61,6 +61,7 @@ const fetch = async (options: FetchOptions) => {
 
         const ethFees = calculateGweiFees(side, volume, amountA);
         
+        protocolFees.addGasToken(ethFees);
         dailyFees.addGasToken(ethFees);
     });
 
@@ -70,12 +71,14 @@ const fetch = async (options: FetchOptions) => {
     });
 
     graduateCoinLogs.forEach((log: any) => {
-        graduationFees.addGasToken(GRADUATION_FEE);
-        creatorFees.addGasToken(CREATOR_FEE);
+        protocolFees.addGasToken(GRADUATION_FEE);
+        userFees.addGasToken(CREATOR_FEE);
+        
         dailyFees.addGasToken(GRADUATION_FEE + CREATOR_FEE);
     });
+
     
-    return { dailyFees, dailyRevenue: dailyFees, graduationRevenue: graduationFees, creatorRevenue: creatorFees };
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: protocolFees, dailyUserFees: userFees };
 };
 
 const adapter: SimpleAdapter = {
