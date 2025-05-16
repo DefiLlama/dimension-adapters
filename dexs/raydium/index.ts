@@ -15,7 +15,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   let totalPoolCount = 0
   let validPoolCount = 0
   let hasMore = true
-  const pullChunkSize = 42
+  const pullChunkSize = 21
 
   while (hasMore) {
 
