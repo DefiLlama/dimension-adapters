@@ -113,6 +113,15 @@ export const queryDune = async (queryId: string, query_parameters: any = {}) => 
     await elastic.addRuntimeLog({ runtime: endTime - startTime, success, metadata, })
     await elastic.addErrorLog({ error: (e?.toString()) as any, metadata, })
 
+    if (e.isAxiosError) {
+      let specificErrorMessage = e.message;
+      if (e.status === 401) {
+        specificErrorMessage = "Dune API Key is invalid";
+      }
+      const newErr = new Error(e.message);
+      (newErr as any).axiosError = specificErrorMessage;
+      throw newErr;
+    }
     throw e;
   }
 }
