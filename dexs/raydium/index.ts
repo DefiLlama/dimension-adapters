@@ -15,7 +15,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
   let totalPoolCount = 0
   let validPoolCount = 0
   let hasMore = true
-  const pullChunkSize = 20
+  const pullChunkSize = 42
 
   while (hasMore) {
 
@@ -26,9 +26,16 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
         const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page + index}`)
         const data = response.data.data
         const validPoolCount = addPoolData(data)
-        if (validPoolCount === 0) {
+        if (data.length === 0) {
           hasMore = false
         }
+        /* if (data.length) {
+          const highestTvl = data.reduce((a: any, b: any) => Math.max(a, Number(b.tvl)), 0)
+          const highestVolume = data.reduce((a: any, b: any) => Math.max(a, Number(b.day.volume)), 0)
+          const lowestTvl = data.reduce((a: any, b: any) => Math.min(a, Number(b.tvl)), 0)
+          const lowestVolume = data.reduce((a: any, b: any) => Math.min(a, Number(b.day.volume)), 0)
+          sdk.log(`page: ${page + index} and highestTvl: ${highestTvl} and lowestTvl: ${lowestTvl} and highestVolume: ${highestVolume} and lowestVolume: ${lowestVolume} and validPools: ${validPoolCount} and all pools: ${data.length}`);
+        } */
       })
 
     if (errors?.length) throw errors
