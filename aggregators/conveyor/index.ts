@@ -1,6 +1,6 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { FetchOptions, FetchResult, } from "../../adapters/types";
+import { queryDune } from "../../helpers/dune";
+let _data: any = {}
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
@@ -13,17 +13,14 @@ const chainsMap: Record<string, string> = {
 
 const fetch =
   (chain: string) =>
-    async (_: number): Promise<FetchResult> => {
-      const unixTimestamp = getUniqStartOfTodayTimestamp();
+    async ({ startOfDay }: FetchOptions): Promise<FetchResult> => {
+      if (!_data[startOfDay]) _data[startOfDay] = queryDune(`3325921`, {})
+      const data = await _data[startOfDay]
 
-      const data = await fetchURLWithRetry(`https://api.dune.com/api/v1/query/3325921/results`)
-      const chainData = data?.result?.rows?.find(
-        (row: any) => chainsMap[row.blockchain] === chain
-      );
+      const chainData = data.find((row: any) => chainsMap[row.blockchain] === chain);
 
       return {
         dailyVolume: chainData.volume_24h,
-        timestamp: unixTimestamp,
       };
     };
 

@@ -1,5 +1,5 @@
-import { FetchResult, } from "../../adapters/types";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { FetchOptions, FetchResult, } from "../../adapters/types";
+import { queryDune } from "../../helpers/dune";
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
@@ -12,19 +12,17 @@ const chainsMap: Record<string, string> = {
   GNOSIS: "xdai",
   FANTOM: "fantom",
 };
+let _data: any = {}
 
-const fetch =
-  (chain: string) =>
-    async (): Promise<FetchResult> => {
-      const data = await fetchURLWithRetry(`https://api.dune.com/api/v1/query/1736855/results`)
-      const chainData = data.result.rows.find(
-        (row: any) => chainsMap[row.blockchain] === chain
-      );
-      if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`)
-      return {
-        dailyVolume: chainData.volume_24h,
-      };
-    };
+const fetch = async ({ startOfDay, chain, }: FetchOptions): Promise<FetchResult> => {
+  if (!_data[startOfDay]) _data[startOfDay] = queryDune(`1736855`, {})
+  const data = await _data[startOfDay]
+  const chainData = data.find((row: any) => chainsMap[row.blockchain] === chain);
+  if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`)
+  return {
+    dailyVolume: chainData.volume_24h,
+  };
+}
 
 const adapter: any = {
   timetravel: false,
@@ -34,7 +32,7 @@ const adapter: any = {
       return {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
-          fetch: fetch(chain),
+          fetch,
           runAtCurrTime: true,
           start: '2023-12-05',
         },

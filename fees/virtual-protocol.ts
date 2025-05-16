@@ -8,9 +8,9 @@ type IRequest = {
 }
 const requests: IRequest = {}
 
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
+async function cachedCall(id: string, options: FetchOptions) {
   const start = options.startOfDay;
-  const key = `${url}-${start}`;
+  const key = `${id}-${start}`;
   if (!requests[key]){
     const end = start + (24 * 60 * 60);
     // https://dune.com/queries/4514149
@@ -255,7 +255,7 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
 
 const fetchFees = async (_t: any, _b: any ,options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const res = await fetchURLWithRetry("4514149", options);
+  const res = await cachedCall("4514149", options);
   const fees = res.find((e: any) => e.chain === options.chain);
   dailyFees.addUSDValue(fees.fees_usd);
   return {
