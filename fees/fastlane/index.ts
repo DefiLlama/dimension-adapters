@@ -7,12 +7,10 @@ const fetch = async (options: FetchOptions) => {
     const logs = await options.getLogs({
         target: FASTLANE_AUCTION_HANDLER,
         eventAbi: 'event RelayFeeCollected(address indexed payor, address indexed payee, uint256 amount)',
-        parseLog: true,
-        entireLog: true
     });
     const dailyFees = options.createBalances();
     for (const log of logs) {
-        dailyFees.addGasToken(log.args.amount);
+        dailyFees.addGasToken(log.amount);
     }
     return { dailyFees }
 }
