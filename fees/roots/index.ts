@@ -1,0 +1,40 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+
+const BORROWER_OPERATIONS = "0xed35ff90e6593ad71ed15082e24c204c379d3599";
+
+const BorrowingFeePaidEvent = "event BorrowingFeePaid(address indexed borrower, address collateralToken, uint256 amount)";
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const logs = await options.getLogs({
+    target: BORROWER_OPERATIONS,
+    eventAbi: BorrowingFeePaidEvent,
+  });
+
+  logs.forEach((log: any) => {
+    // Add berachain: prefix to the collateral token address
+    const tokenAddress = log.collateralToken.toLowerCase();
+    dailyFees.add(tokenAddress, log.amount);
+    dailyRevenue.add(tokenAddress, log.amount);
+  });
+
+  return {
+    dailyFees,
+    dailyRevenue,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.BERACHAIN]: {
+      fetch,
+      start: 1746482400,
+    },
+  },
+  version: 2,
+};
+
+export default adapter;
