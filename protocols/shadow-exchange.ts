@@ -183,7 +183,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   // Calculate xSHADOW rebase revenue in USD
   const shadowToken = tokens.find((t) => t.id === SHADOW_TOKEN_CONTRACT);
   const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
-  const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD / 2; // XSHADOW is always 50% of the current shadow price
+  const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD; // Voters will get the shadow token as rebase
 
   return {
     clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
