@@ -21,6 +21,16 @@ async function solanaUsers(start: number, end: number) {
     }
 }
 
+// Last 24h active users
+async function elrondUsers() {
+    const result = (await httpGet('https://tools.multiversx.com/growth-api/explorer/headers/accounts')).activeAccountsToday;
+    return {
+        all: {
+            users: result
+        }
+    };
+}
+
 /*
 async function solanaUsers(start: number, _end: number) {
     const usersQuery = await request("https://api-solalpha.solscan.io/api/graphql", gql`
@@ -189,6 +199,12 @@ export default [
         name: "solana",
         id: `chain#solana`,
         getUsers: solanaUsers
+    }
+]).concat([
+    {
+        name: "elrond",
+        id: `chain#elrond`,
+        getUsers: elrondUsers
     }
 ]).concat([
     "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base", "scroll", "polygon_zkevm", "bsc", "starknet"
