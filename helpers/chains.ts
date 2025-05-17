@@ -237,6 +237,7 @@ export enum CHAIN {
   ELYS = "elys",
   BITKUB = "bitkub",
   INITIA = "initia",
+  COTI = "coti",
 }
 
 // Don´t use
