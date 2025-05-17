@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
 import { Balances } from "@defillama/sdk";
-
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
@@ -15,7 +15,6 @@ const PROVIDER_FEE = 2000n;
 const DIVISOR = 10000n;
 
 async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
-
   const buyLogs = await options.getLogs({
     target: BERO,
     eventAbi:
@@ -42,7 +41,6 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
-
   const borrowLogs = await options.getLogs({
     target: VOTER,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
@@ -56,7 +54,6 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBribes(options: FetchOptions, totalFees: Balances) {
-
   const plugins = await options.api.call({
     target: VOTER,
     abi: "address[]:getPlugins",
@@ -86,15 +83,22 @@ const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
 
 async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
+  const results = await queryDuneSql(
+    options,
+    `
+    SELECT SUM(amount) as bgt_received
+    FROM berachain_berachain.distributor_evt_distributed
+    WHERE receiver = ${BERADROME_REWARD_VAULT}
+    AND evt_block_time >= FROM_UNIXTIME(${options.startTimestamp})
+    AND evt_block_time < FROM_UNIXTIME(${options.endTimestamp})
+    `
+  );
 
-  const logs = await options.getLogs({
-    target: BERADROME_REWARD_VAULT,
-    eventAbi: "event RewardAdded(uint256 reward)",
-  });
-
-  logs.forEach((log) => {
-    balances.add(BGT_ADDRESS, log.reward);
-  });
+  if (results && results.length > 0) {
+    results.forEach((row) => {
+      balances.add(BGT_ADDRESS, row.bgt_received);
+    });
+  }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
