@@ -3,55 +3,7 @@ import { FetchOptions, FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const abi = {
-  gamesFunction: {
-    "type": "function",
-    "name": "games",
-    "inputs": [
-      {
-        "name": "gameId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "players",
-        "type": "uint128",
-        "internalType": "uint128"
-      },
-      {
-        "name": "capacity",
-        "type": "uint128",
-        "internalType": "uint128"
-      },
-      {
-        "name": "resolver",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "creator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "settled",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
+  gamesFunction: 'function games(bytes32 gameId) view returns (uint128 players, uint128 capacity, address resolver, address creator, uint256 amount, address token, bool settled)',
   resolveEvent: 'event Resolved(bytes32 gameId, address[] winners, uint256[] amounts)'
 }
 const RoyaleTokenContract = {
