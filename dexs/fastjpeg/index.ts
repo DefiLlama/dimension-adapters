@@ -5,8 +5,8 @@ import { CHAIN } from "../../helpers/chains";
 const SwapCoinEvent = "event SwapCoin(address indexed sender, address indexed coin, uint256 amountA, uint256 amountB, uint256 volume, uint8 side)"
 const FastJpegFactory = '0x3BB7FBEeE877BD240de72A89AFd806BD3C1C8034';
 // Constants
-const UNDERGRADUATE_SUPPLY = parseEther('800000000'); // Example value, replace with actual
-const GRADUATE_ETH = parseEther('10.6'); // Example value, replace with actual
+const UNDERGRADUATE_SUPPLY = parseEther('800000000'); // Max undergraduate supply
+const GRADUATE_ETH = parseEther('10.6'); // ETH value of graduation
 
 export function calculatePriceForTokens(coinAmount: bigint, currentSupply: bigint): bigint {
 	// For a quadratic curve: E = (GRADUATE_ETH * ((currentSupply + T)² - currentSupply²)) / UNDERGRADUATE_SUPPLY²
