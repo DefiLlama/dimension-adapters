@@ -4,6 +4,10 @@ import { getSolanaReceived } from '../helpers/token';
 
 const fetch: any = async (options: FetchOptions) => {
   const targets = [
+    '7LCZckF6XXGQ1hDY6HFXBKWAtiUgL9QY5vj1C4Bn1Qjj',
+    '4V65jvcDG9DSQioUVqVPiUcUY9v6sb6HKtMnsxSKEz5S',
+    'CeA3sPZfWWToFEBmw5n1Y93tnV66Vmp8LacLzsVprgxZ',
+    'AaG6of1gbj1pbDumvbSiTuJhRCRkkUNaWVxijSbWvTJW',
     "7oi1L8U9MRu5zDz5syFahsiLUric47LzvJBQX6r827ws",
     "9kPrgLggBJ69tx1czYAbp7fezuUmL337BsqQTKETUEhP",
     "DKyUs1xXMDy8Z11zNsLnUg3dy9HZf6hYZidB6WodcaGy",
@@ -19,7 +23,7 @@ const fetch: any = async (options: FetchOptions) => {
     "DYVeNgXGLAhZdeLMMYnCw1nPnMxkBN7fJnNpHmizTrrF",
     "Hbj6XdxX6eV4nfbYTseysibp4zZJtVRRPn2J3BhGRuK9",
     "846ah7iBSu9ApuCyEhA5xpnjHHX7d4QJKetWLbwzmJZ8",
-    "5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg", 
+    "5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg"
   ];
 
 
