@@ -7,7 +7,6 @@ const BorrowingFeePaidEvent = "event BorrowingFeePaid(address indexed borrower, 
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const logs = await options.getLogs({
     target: BORROWER_OPERATIONS,
@@ -15,15 +14,14 @@ const fetch = async (options: FetchOptions) => {
   });
 
   logs.forEach((log: any) => {
-    // Add berachain: prefix to the collateral token address
-    const tokenAddress = log.collateralToken.toLowerCase();
-    dailyFees.add(tokenAddress, log.amount);
-    dailyRevenue.add(tokenAddress, log.amount);
+
+
+    dailyFees.add(log.collateralToken, log.amount);
+
   });
 
   return {
-    dailyFees,
-    dailyRevenue,
+    dailyFees
   };
 };
 
