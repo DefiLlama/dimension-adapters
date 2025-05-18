@@ -1,8 +1,6 @@
+import { CHAIN } from "../helpers/chains";
+import { getSaddleExports } from "../helpers/saddle";
 
-import adapter from './zyberswap'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
-  adapter: breakdown['stable'],
-}
+export default getSaddleExports({
+  [CHAIN.ARBITRUM]: { pools: ['0x969f7699fbB9C79d8B61315630CDeED95977Cfb8']}
+})
