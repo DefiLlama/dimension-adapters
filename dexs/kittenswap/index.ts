@@ -10,20 +10,14 @@ const CONFIG = {
 };
 
 const event_topics = {
-  swap: "0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b",
+  swap: "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
 };
 
 const eventAbis = {
   event_pool_created:
-    "event PoolCreated(address indexed token0,address indexed token1,bool indexed stable,address pool,uint256)",
+    "event PairCreated(address indexed token0,address indexed token1,bool indexed stable,address pool,uint256)",
   event_swap:
-    "event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)",
-  event_gaugeCreated:
-    "event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)",
-  event_notify_reward:
-    "event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)",
-  event_claim_rewards:
-    "event ClaimRewards(address indexed from, address indexed reward, uint256 amount)",
+    "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)",
 };
 
 const abis = {
@@ -43,11 +37,8 @@ const getVolumeAndFees = async (
     target: CONFIG.PoolFactory,
     fromBlock: 28543,
     eventAbi: eventAbis.event_pool_created,
-    onlyArgs: true,
-    cacheInCloud: true,
     skipIndexer: true,
   });
-
   const fees = await api.multiCall({
     abi: abis.fees,
     target: CONFIG.PoolFactory,
