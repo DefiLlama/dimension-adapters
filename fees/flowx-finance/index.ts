@@ -38,9 +38,6 @@ const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
   const totalFees: IExchangeStats = statsRes.exchangeTotalFeesInPeriod;
   return {
     dailyFees: totalFees.totalFees,
-    dailyRevenue: totalFees.totalFees,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
   };
 };
 
