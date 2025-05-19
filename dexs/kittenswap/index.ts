@@ -15,7 +15,7 @@ const event_topics = {
 
 const eventAbis = {
   event_pool_created:
-    "event PairCreated(address indexed token0,address indexed token1,bool indexed stable,address pool,uint256)",
+    "event PairCreated(address indexed token0,address indexed token1,bool stable,address pair,uint)",
   event_swap:
     "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)",
 };
@@ -33,16 +33,26 @@ const getVolumeAndFees = async (
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
 
-  const rawPools = await fetchOptions.getLogs({
+  const rawPoolsData = await fetchOptions.getLogs({
     target: CONFIG.PoolFactory,
     fromBlock: 28543,
+    toBlock,
     eventAbi: eventAbis.event_pool_created,
-    skipIndexer: true,
+  });
+  const rawPools = rawPoolsData.map((i) => {
+    return {
+      token0: i[0],
+      token1: i[1],
+      stable: i[2],
+      pool: i[3],
+    };
   });
   const fees = await api.multiCall({
     abi: abis.fees,
     target: CONFIG.PoolFactory,
-    calls: rawPools.map((i) => ({ params: [i.pool, i.stable] })),
+    calls: rawPools.map((i) => ({
+      params: [i.pool, i.stable],
+    })),
   });
   const poolInfoMap = {} as any;
   const kittenswapPoolSet = new Set();
@@ -65,7 +75,6 @@ const getVolumeAndFees = async (
   }
 
   let errorFound = false;
-
   await PromisePool.withConcurrency(5)
     .for(ranges)
     .process(async ([startBlock, endBlock]: any) => {

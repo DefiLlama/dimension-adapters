@@ -117,6 +117,7 @@ const fetch = async (
           });
         });
       } catch (e) {
+        console.log("Error", e);
         errorFound = e as boolean;
         throw e;
       }
