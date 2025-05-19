@@ -31,38 +31,57 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         AND rew.block_time <= from_unixtime(${options.endTimestamp})
         AND rew.reward_type = 'Staking'
     ),
-    daily_revenue as (
-      SELECT
-          COALESCE(sum(aa.token_balance_change), 0) as daily_revenue
-      FROM
-          solana.account_activity aa
-      INNER JOIN solana.instruction_calls ic ON aa.tx_id = ic.tx_id
-      WHERE
-          aa.block_time >= from_unixtime(${options.startTimestamp})
-          AND aa.block_time <= from_unixtime(${options.endTimestamp})
-          AND ic.executing_account IN (
-              'SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY',
-              'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn'
-          )
-          AND ic.tx_success = true
-          AND bytearray_substring(ic.data, 1, 1) in (
-              0x07, -- 7 update stake pool balance (mint epoch fees)
-              0x09, -- 9 deposit stake
-              0x0a, -- 10 withdraw stake
-              0x0e, -- 14 deposit sol
-              0x10, -- 16 withdraw sol
-              0x17, -- 23 deposit stake with slippage
-              0x18, -- 24 withdraw stake with slippage
-              0x19, -- 25 deposit sol with slippage
-              0x1A -- 26 withdraw sol with slippage
-          )
-          AND ic.tx_signer != 'GFHMc9BegxJXLdHJrABxNVoPRdnmVxXiNeoUCEpgXVHw'
-          AND aa.address in (
-              SELECT
-                  fee_account
-              FROM
-                  dune.sanctumso.result_sanctum_lsts_manager_fee_accounts
-          )
+    stake_pool_instructions AS (
+        select 
+            tx_id, 
+            block_time,
+            case 
+                when bytearray_substring (data, 1, 1) in (0x07,0x09,0x0e,0x17,0x19) then 'MintTo' 
+            else 'Transfer' end as spl_instruction_type,
+            bytearray_substring (data, 1, 1) as instruction
+    from solana.instruction_calls
+        where 
+            executing_account IN (
+                'SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY',
+                'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn'
+            )
+            and bytearray_substring (data, 1, 1) in (
+                0x0a, -- withdraw stake
+                0x10, -- withdraw sol
+                0x18, -- withdrawstakewithslippage
+                0x1A, -- withdrawsolwithslippage )
+                0x07, -- updatestakepoolbalance
+                0x09, -- deposit stake
+                0x0e, -- deposit sol
+                0x17,-- deposit stake with slippage
+                0x19 -- deposit sol with slippage
+            )
+            and tx_success = true
+            AND block_time >= from_unixtime(${options.startTimestamp})
+            AND block_time <= from_unixtime(${options.endTimestamp})
+    ),
+    transfer_txns as (
+        SELECT 
+            tx_id, 
+            case when bytearray_substring (data, 1, 1) in (0x07) then 'MintTo' else 'Transfer' end as spl_instruction_type,
+            varbinary_to_uint256(varbinary_reverse(varbinary_substring(data, 2, 8))) as amount
+        from solana.instruction_calls
+        where 
+            executing_account = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+            and bytearray_substring (data, 1, 1) in (0x0c,0x03,0x07)
+            and (
+                bytearray_substring (data, 1, 1) in (0x0c,0x03) and element_at(account_arguments, 3) in (select fee_account from dune.sanctumso.result_sanctum_lsts_manager_fee_accounts)
+                OR bytearray_substring (data, 1, 1) in (0x07) and element_at(account_arguments, 2) in (select fee_account from dune.sanctumso.result_sanctum_lsts_manager_fee_accounts)
+            )
+            and tx_success = true
+            AND block_time >= from_unixtime(${options.startTimestamp})
+            AND block_time <= from_unixtime(${options.endTimestamp})
+    ),
+    daily_revenue AS (
+        SELECT
+          sum(COALESCE(amount, 0) / 1e9) as daily_revenue
+        FROM
+          stake_pool_instructions inner join transfer_txns using (tx_id, spl_instruction_type)
     )
     SELECT 
         CAST(df.daily_fees AS DOUBLE) AS daily_fees, 
