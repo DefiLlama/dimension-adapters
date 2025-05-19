@@ -17,10 +17,15 @@ function getUnixTimeNow() {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1,
   isTest = false,
+  _module = {},
 }: any = {}) {
-
+  const { prefetch, allowNegativeValue = false } = _module
+  if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+  if (chains.some(c => !c) || chains.includes('undefined') ) {
+    throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
+  }
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
@@ -28,6 +33,16 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
   }
   await Promise.all(chains.map(setChainValidStart))
+
+  // Run prefetch if provided
+  let preFetchedResults: any = null;
+  if (typeof prefetch === 'function') {
+    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    if (firstChain) {
+      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      preFetchedResults = await prefetch(options);
+    }
+  }
 
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
@@ -49,6 +64,10 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      if (preFetchedResults !== null) {
+        options.preFetchedResults = preFetchedResults;
+      }
+
       let result: any
       if (adapterVersion === 1) {
         result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
@@ -63,7 +82,6 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
 
       const improbableValue = 2e11 // 200 billion
-      const fieldsWithNegativeValues = new Set(['dailyFees', 'totalFees', 'dailyRevenue', 'totalRevenue', 'dailyProtocolRevenue', 'totalProtocolRevenue',])
 
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
@@ -74,13 +92,14 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) result[key] = await value.getUSDString()
         result[key] = +Number(result[key]).toFixed(0)
+        let errorPartialString = `| ${chain}-${key}: ${value}`
 
-        if (isNaN(result[key] as number)) throw new Error(`[${chain}-${key}]  Value: ${value} is NaN`)
-        if (result[key] < 0 && !fieldsWithNegativeValues.has(key)) throw new Error(`[${chain}-${key}]  Value: ${result[key]} is negative`)
+        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
         if (result[key] > improbableValue) {
           let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
           if (showError)
-            throw new Error(`[${chain}-${key}]  Value: ${result[key]} is too damn high`)
+            throw new Error(`value is too damn high ${errorPartialString}`)
         }
       }
 
@@ -121,11 +140,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, ...rest }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
+      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached

@@ -27,10 +27,6 @@ const v3Methodology = {
   Fees: "All fees come from the user.",
 };
 
-const startTimeV3 = {
-  [CHAIN.BASE]: 1693150193,
-};
-
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -47,7 +43,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: getUniV3LogAdapter({ factory: '0x38015d05f4fec8afe15d7cc0386a126574e8077b' }),
-        start: startTimeV3[chain],
+        start: '2023-07-28',
         meta: {
           methodology: v3Methodology,
         },

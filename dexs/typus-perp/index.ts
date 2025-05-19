@@ -14,7 +14,7 @@ async function getChainData(options: FetchOptions): Promise<FetchResultV2> {
     const parsedJson = curr;
 
     const trading_token_name = "0x" + parsedJson.symbol.base_token.name;
-    dailyVolume.add(trading_token_name, Number(parsedJson.position_size));
+    dailyVolume.add(trading_token_name, Number(parsedJson.filled_size));
   }
 
   const events2 = await queryEvents({

@@ -176,6 +176,7 @@ const fetch = async (
 };
 
 const adapter: Adapter = {
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,

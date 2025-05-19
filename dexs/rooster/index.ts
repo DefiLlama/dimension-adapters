@@ -5,6 +5,11 @@ import { CHAIN } from "../../helpers/chains";
 export const factories: { [key: string]: any } = {
   [CHAIN.PLUME]: {
     factory: "0x056A588AfdC0cdaa4Cab50d8a4D2940C5D04172E",
+    startBlock: 12119,
+    startTimestamp: 1741823395,
+  },
+  [CHAIN.PLUME_LEGACY]: {
+    factory: "0x056A588AfdC0cdaa4Cab50d8a4D2940C5D04172E",
     startBlock: 91952,
     startTimestamp: 1734665440,
   },
@@ -16,6 +21,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.PLUME]: {
+      fetch: getData,
+      start: factories[CHAIN.PLUME].startTimestamp,
+    },
+    [CHAIN.PLUME_LEGACY]: {
       fetch: getData,
       start: factories[CHAIN.PLUME].startTimestamp,
     },

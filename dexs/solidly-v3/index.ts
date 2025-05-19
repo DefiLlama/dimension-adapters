@@ -2,10 +2,10 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, FetchV2 } from "../../adapters/types";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const adapters = univ2Adapter2({
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('C8G1vfqsgWTg4ydzxWdsLj1jCKsxAKFamP5GjuSdRF8W'),
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('6m7Dp7MFFLW1V7csgeBxqm9khNkfbn2U9qgADSdECfMA'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('HCThb3gJC45qUYmNEaYmZZTqJW3pSq7X6tb4MqNHEvZf'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ALCsbp7jWC6EQjwgicvZkG6dDEFGMV32QUZJvJGqL9Kx'),
@@ -16,14 +16,13 @@ const adapters = univ2Adapter2({
 });
 
 adapters.adapter.ethereum.start = '2023-08-18';
-adapters.adapter.base.start = '2024-01-24';
 adapters.adapter.sonic.start = '2024-12-17';
 adapters.adapter.optimism.start = '2024-01-24';
 adapters.adapter.arbitrum.start = '2024-01-24';
 adapters.adapter.fantom.start = '2023-25-12';
 
 // Store original fetch functions and create wrapper
-const chains = ['ethereum', 'base', 'sonic', 'optimism', 'arbitrum', 'fantom'] as const;
+const chains = ['ethereum', 'sonic', 'optimism', 'arbitrum', 'fantom'] as const;
 const originalFetches = new Map(
   chains.map(chain => [chain, adapters.adapter[chain].fetch])
 );
@@ -33,7 +32,6 @@ const wrapFetchWithZeroTotal = (originalFetch: FetchV2) => {
     const res = await originalFetch(options);
     return {
       dailyVolume: res.dailyVolume,
-      totalVolume: 0
     };
   };
 };
@@ -42,5 +40,17 @@ const wrapFetchWithZeroTotal = (originalFetch: FetchV2) => {
 chains.forEach(chain => {
   adapters.adapter[chain].fetch = wrapFetchWithZeroTotal(originalFetches.get(chain) as FetchV2);
 });
+
+adapters.adapter[CHAIN.BASE] = {
+  fetch: async (options: FetchOptions) => {
+    const res = await getUniV3LogAdapter({
+      factory: '0x70fe4a44ea505cfa3a57b95cf2862d4fd5f0f687'
+    })(options)
+    return {
+      dailyVolume: res.dailyVolume,
+    }
+  },
+  start: '2024-01-24'
+}
 
 export default adapters;

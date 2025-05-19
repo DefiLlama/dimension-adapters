@@ -7,13 +7,17 @@ Total revenue is withdrawal fees (0.1%) + epoch fees (variable but no less than 
 Before the fee switch mid-March 2025, Sanctum stake pools were charging 0.1% deposit fees
 See https://x.com/sanctumso/status/1898234985372328274 for more details
 
+Here are the different materialized query you can find in the query below:
+- dune.sanctumso.result_sanctum_validator_stake_accounts (https://dune.com/queries/5061762): list of stake accounts from sanctum stake pools
+- dune.sanctumso.result_sanctum_lsts_manager_fee_accounts (https://dune.com/queries/4787643): list of manager fee accounts that stake pools fees get sent to from stake pools with an ATH stake of more than 1k SOL
+
 */
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
@@ -21,8 +25,8 @@ const fetch: any = async (options: FetchOptions) => {
       SELECT 
           COALESCE(sum(rew.lamports/1e9), 0) as daily_fees
       FROM solana.rewards rew
-      JOIN dune.sanctumso.result_sanctum_stake_pools_validator_stake_accounts vsa
-          ON vsa.stake_account = rew.recipient AND rew.block_date = vsa.epoch_block_date
+      JOIN dune.sanctumso.result_sanctum_validator_stake_accounts vsa
+          ON vsa.stake_account = rew.recipient
       WHERE rew.block_time >= from_unixtime(${options.startTimestamp})
         AND rew.block_time <= from_unixtime(${options.endTimestamp})
         AND rew.reward_type = 'Staking'
@@ -84,7 +88,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,

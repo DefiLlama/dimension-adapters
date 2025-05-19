@@ -39,6 +39,7 @@ export type FetchOptions = {
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
   dateString: string,
+  preFetchedResults?: any,
 }
 
 export type FetchGetLogsOptions = {
@@ -53,6 +54,7 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipCache?: boolean,
   skipIndexer?: boolean,
   topics?: string[],
   noTarget?: boolean,
@@ -98,6 +100,8 @@ export type AdapterBase = {
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
+  allowNegativeValue?: boolean;
+  prefetch?: FetchV2;
 }
 
 export type SimpleAdapter = AdapterBase & {
@@ -177,7 +181,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
-  ROYALTIES = 'royalties',
+  // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }

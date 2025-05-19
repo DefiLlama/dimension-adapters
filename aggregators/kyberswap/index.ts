@@ -49,10 +49,10 @@ const adapter = {
       fetch: fetch,
       start: '2021-06-01',
     },
-    [CHAIN.BLAST]: {
-      fetch: fetch,
-      start: '2021-06-01',
-    },
+    // [CHAIN.BLAST]: {
+    //   fetch: fetch,
+    //   start: '2021-06-01',
+    // },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch,
       start: '2021-06-01',
@@ -77,10 +77,10 @@ const adapter = {
       fetch: fetch,
       start: '2021-06-01',
     },
-    [CHAIN.FANTOM]: {
-      fetch: fetch,
-      start: '2021-06-01',
-    },
+    // [CHAIN.FANTOM]: {
+    //   fetch: fetch,
+    //   start: '2021-06-01',
+    // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
       start: '2021-09-22',
@@ -93,10 +93,10 @@ const adapter = {
       fetch: fetch,
       start: '2021-09-22',
     },
-    [CHAIN.SCROLL]: {
-      fetch: fetch,
-      start: '2021-09-22',
-    },
+    // [CHAIN.SCROLL]: {
+    //   fetch: fetch,
+    //   start: '2021-09-22',
+    // },
     [CHAIN.ERA]: {
       fetch: fetch,
       start: '2021-09-22',

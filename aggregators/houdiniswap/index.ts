@@ -9,34 +9,34 @@ const houdiniToDefiLlamaMap: Record<string, string> = {
   arbitrum: CHAIN.ARBITRUM,
   avalanche: CHAIN.AVAX,
   cardano: CHAIN.CARDANO,
-  // cronos: CHAIN.CRONOS,
+  cronos: CHAIN.CRONOS,
   polygon: CHAIN.POLYGON,
   ripple: CHAIN.RIPPLE,
   solana: CHAIN.SOLANA,
   tron: CHAIN.TRON,
-  // fantom: CHAIN.FANTOM,
+  fantom: CHAIN.FANTOM,
   litecoin: CHAIN.LITECOIN,
   base: CHAIN.BASE,
   optimism: CHAIN.OPTIMISM,
-  // celo: CHAIN.CELO,
-  // aurora: CHAIN.AURORA,
-  // moonbeam: CHAIN.MOONBEAM,
-  // moonriver: CHAIN.MOONRIVER,
-  // hedera: CHAIN.HEDERA,
+  celo: CHAIN.CELO,
+  aurora: CHAIN.AURORA,
+  moonbeam: CHAIN.MOONBEAM,
+  moonriver: CHAIN.MOONRIVER,
+  hedera: CHAIN.HEDERA,
   algorand: CHAIN.ALGORAND,
-  // telos: CHAIN.TELOS,
-  // thorchain: CHAIN.THORCHAIN,
-  // aptos: CHAIN.APTOS,
-  // phantasma: CHAIN.PHANTASMA,
+  telos: CHAIN.TELOS,
+  thorchain: CHAIN.THORCHAIN,
+  aptos: CHAIN.APTOS,
+  phantasma: CHAIN.PHANTASMA,
   ton: CHAIN.TON,
   sui: CHAIN.SUI,
   icp: CHAIN.ICP,
   linea: CHAIN.LINEA,
-  // mantle: CHAIN.MANTLE,
-  // near: CHAIN.NEAR,
-  // scroll: CHAIN.SCROLL,
-  // taiko: CHAIN.TAIKO,
-  // zklink: CHAIN.ZKLINK,
+  mantle: CHAIN.MANTLE,
+  near: CHAIN.NEAR,
+  scroll: CHAIN.SCROLL,
+  taiko: CHAIN.TAIKO,
+  zklink: CHAIN.ZKLINK,
   // "zksync-era": CHAIN.ERA,
   // sei: CHAIN.SEI,
   // morph: CHAIN.MORPH,
@@ -44,7 +44,7 @@ const houdiniToDefiLlamaMap: Record<string, string> = {
   // gravity: CHAIN.GRAVITY,
   sonic: CHAIN.SONIC,
   // hype: CHAIN.HYPERLIQUID,
-  // bera: CHAIN.BERACHAIN,
+  bera: CHAIN.BERACHAIN,
   // "cosmoshub-4": CHAIN.COSMOS,
 };
 
@@ -61,7 +61,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   )?.[0] || options.chain;
 
   const url = `${URL}${endpoint}startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&chain=${houdiniChain}`;
-  const defaultRes = {}
+  const defaultRes = {
+    dailyVolume: 0,
+  }
   try {
     const res = await httpGet(url);
     if (!res || !res.length) {
@@ -73,11 +75,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       return defaultRes
     }
     return {
-      dailyVolume: dailyData.totalUSD.toString(),
-      // totalVolume: dailyData.totalUSD.toString(),
-      // timestamp: dailyData.timestamp,
+      dailyVolume: dailyData.totalUSD,
     };
   } catch (error) {
+    console.error(`Error fetching data from HoudiniSwap: ${error}`);
     return defaultRes
   }
 };

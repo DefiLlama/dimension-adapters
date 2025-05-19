@@ -40,7 +40,8 @@ const adapter: Adapter = {
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
-  version: 2
+  version: 2,
+  allowNegativeValue: true, // arbitrum sequencer fees
 }
 
 export default adapter;

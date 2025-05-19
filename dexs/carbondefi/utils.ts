@@ -2,24 +2,6 @@ import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const fetchWithPagination = async (endpoint: string, limit: number = 10000) => {
-  let offset = 0;
-  let data = [];
-  let unfinished = true;
-  while (unfinished) {
-    const url = new URL(endpoint);
-    url.searchParams.append("limit", limit.toString());
-    url.searchParams.append("offset", offset.toString());
-
-    const newData = await fetchURL(url.href);
-    data = data.concat(newData);
-
-    unfinished = newData?.length === limit;
-    offset += limit;
-  }
-  return data;
-};
-
 export const fetchDataFromApi = async (
   endpoint: string,
   startTimestampS?: number,

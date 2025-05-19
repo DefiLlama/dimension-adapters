@@ -3,23 +3,14 @@ import { FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 
-const url: any = {
-  [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/typus/typus_v2/query",
-};
-
-const options = {
-  headers: {
-    "Content-Type": "application/json",
-    "api-key": "RIobs1PpAZ4SmHxY2InErtz0pL5LqHTtY",
-  },
-};
+const url = "https://app.sentio.xyz/api/v1/insights/typus/typus_v2/query";
 
 const methodology = {
   Fees: "Typus Dov fees are charged from depositor's premium fee and bider's trading fee.",
   ProtocolRevenue: "All Dov fees are included in the protocol revenue.",
 };
 
-const buildQueryPayload = (_metricName: string, start: number, end: number) => ({
+const buildQueryPayload = (start: number, end: number) => ({
   timeRange: {
     start: start.toString(),
     end: end.toString(),
@@ -38,7 +29,7 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -67,7 +58,7 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -107,7 +98,7 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -127,42 +118,22 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
     {
       metricsQuery: {
         query: "AccumulatedPremiumUSD",
-        alias: "{{coin_symbol}}",
+        alias: "Total Fee",
         id: "e",
         labelSelector: {},
         aggregate: {
           op: "SUM",
-          grouping: ["coin_symbol"],
+          grouping: [],
         },
-        functions: [
-          {
-            name: "rollup_delta",
-            arguments: [
-              {
-                durationValue: {
-                  value: 1,
-                  unit: "d",
-                },
-              },
-            ],
-          },
-        ],
+        functions: [],
         color: "",
-        disabled: true,
+        disabled: false,
       },
       dataSource: "METRICS",
       sourceName: "",
     },
   ],
   formulas: [
-    {
-      expression: "sum(e)",
-      alias: "Total Fee",
-      id: "A",
-      disabled: false,
-      functions: [],
-      color: "",
-    },
     {
       expression: "sum((a+b+d)*c)",
       alias: "Total Revenue",
@@ -177,23 +148,27 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
   },
 });
 
-const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const [feeRes] = await Promise.all([
-    postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
+    postURL(url, buildQueryPayload(options.startTimestamp, options.endTimestamp), 3, {
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": "RIobs1PpAZ4SmHxY2InErtz0pL5LqHTtY",
+      },
+    }),
   ]);
 
   const fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
+  const totalFees = fee_usd.at(-1).value;
+  const dailyFees = totalFees - fee_usd.at(0).value;
 
-  const revenue_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Revenue").matrix?.samples?.[0]
-    ?.values;
-
-  // Already calculated the rollup delta, so use the first value
-  const dailyFees = fee_usd.at(-1).value;
-
+  const revenue_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Revenue").matrix
+    ?.samples?.[0]?.values;
   const dailyRevenue = revenue_fee_usd.at(-1).value;
 
   return {
     dailyFees,
+    totalFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };

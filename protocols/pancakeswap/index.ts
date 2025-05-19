@@ -2,9 +2,11 @@ import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, Fetc
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
-import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
+import { filterPools, getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
+import { ethers } from "ethers";
+import { cache } from "@defillama/sdk";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -434,6 +436,45 @@ const fetchV3 = async (options: FetchOptions) => {
   throw new Error('Invalid data source');
 }
 
+const fetchStableSwap = async (options: FetchOptions, {factory}: {factory: string}) => {
+    const cacheKey = `tvl-adapter-cache/cache/logs/${options.chain}/${factory.toLowerCase()}.json`
+    let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
+    const eventAbi = 'event NewStableSwapPair(address indexed swapContract, address tokenA, address tokenB, address tokenC, address LP)'
+    const iface = new ethers.Interface([eventAbi])
+    logs = logs.map((log: any) => iface.parseLog(log)?.args)
+    const pairs = logs.filter((log: any) => log.swapContract)
+    const _token0: string[] = pairs.map((pair: any) => pair.tokenA)
+    const _token1: string[] = pairs.map((pair: any) => pair.tokenB)
+    const _token2: string[] = pairs.map((pair: any) => pair.tokenC)
+    const swap_logs = await options.getLogs({ 
+      targets: pairs.map((pair: any) => pair.swapContract), 
+      eventAbi: 'event TokenExchange(address indexed buyer,uint256 sold_id,uint256 tokens_sold,uint256 bought_id,uint256 tokens_bought)',
+      flatten: false
+    })
+    const dailyVolume = options.createBalances()
+    swap_logs.map((logs: any, index: number) => {
+      logs.map((log: any) => {
+        const tokens = [_token0[index], _token1[index], _token2[index]]
+        const sold_id = log.sold_id
+        const tokens_sold = log.tokens_sold
+        dailyVolume.add(tokens[sold_id], tokens_sold)
+      })
+    })
+    const dailyFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.Fees/100)
+    const dailyProtocolRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.ProtocolRevenue/100)
+    const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.SupplySideRevenue/100)
+    const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.HoldersRevenue/100)
+    const dailyUserFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.UserFees/100)
+    return {
+      dailyVolume: dailyVolume,
+      dailyFees,
+      dailyProtocolRevenue,
+      dailySupplySideRevenue,
+      dailyHoldersRevenue,
+      dailyUserFees,
+    }
+}
+
 const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
   const versionConfig = PROTOCOL_CONFIG[version];
   const chains = Object.keys(versionConfig);
@@ -444,7 +485,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }) => {
+        fetch: async ({ startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp
@@ -465,13 +506,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: async (options: FetchOptions) => {
-          const stablestats = await graphsStableSwap(options.chain)(options)
-          if (isNaN(Number(stablestats.dailyVolume))) {
-            return {}
-          }
-          return stablestats;
-        },
+        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options.chain)(options),
         start: config.start,
         meta: { methodology: stableSwapMethodology }
       };
