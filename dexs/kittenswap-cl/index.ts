@@ -47,7 +47,6 @@ const fetch = async (
     eventAbi: eventAbis.event_poolCreated,
     skipIndexer: true,
   });
-  console.log("Raw pools", rawPools);
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase());
   const fees = await api.multiCall({ abi: abis.fee, calls: _pools });
   const kittenswapPoolSet = new Set();
