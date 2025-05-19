@@ -1,0 +1,51 @@
+import { gql, GraphQLClient } from "graphql-request";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+
+const getFee = () => {
+  return gql`
+    query ExchangeTotalFeesInPeriod($startTime: Float!, $endTime: Float!) {
+      exchangeTotalFeesInPeriod(startTime: $startTime, endTime: $endTime) {
+        totalFees
+      }
+    }
+  `;
+};
+
+const graphQLClient = new GraphQLClient(
+  "https://api.flowx.finance/flowx-be/graphql"
+);
+
+const getGQLClient = () => {
+  return graphQLClient;
+};
+
+export interface IExchangeStats {
+  totalFees: string;
+}
+
+const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
+  const statsRes = await getGQLClient().request(getFee(), {
+    startTime: fromTimestamp * 1000,
+    endTime: toTimestamp * 1000,
+  });
+  const totalFees: IExchangeStats = statsRes.exchangeTotalFeesInPeriod;
+  return {
+    dailyFees: totalFees.totalFees,
+    dailyRevenue: totalFees.totalFees,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: 0,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.SUI]: {
+      fetch: fetch,
+      start: "2023-01-13",
+    },
+  },
+};
+
+export default adapter;
