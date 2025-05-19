@@ -331,6 +331,7 @@ const okuChains = [
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
   CHAIN.ARBITRUM,
+  CHAIN.LENS,
 ]
 
 
