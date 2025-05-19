@@ -127,7 +127,7 @@ const getVolumeAndFees = async (
           });
         });
       } catch (e) {
-        errorFound = e;
+        errorFound = e as boolean;
         throw e;
       }
     });
