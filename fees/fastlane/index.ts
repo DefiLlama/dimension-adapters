@@ -23,6 +23,7 @@ const fetch = async (options: FetchOptions) => {
     const v1_iface = new ethers.Interface([eventAbis.v1]);
     const v21_iface = new ethers.Interface([eventAbis.v21]);
     const v22_iface = new ethers.Interface([eventAbis.v22]);
+    const v23_iface = new ethers.Interface([eventAbis.v23]);
 
     const v21_logs = await options.getLogs({
         target: FASTLANE_AUCTION_HANDLER_V2,
@@ -37,6 +38,7 @@ const fetch = async (options: FetchOptions) => {
     const v23_logs = await options.getLogs({
         target: FASTLANE_AUCTION_HANDLER_V2,
         eventAbi: eventAbis.v23,
+        entireLog: true,
     });
 
     for (const log of v1_logs) {
@@ -52,7 +54,8 @@ const fetch = async (options: FetchOptions) => {
         dailyFees.addGasToken(parsedLog!.args.bidAmount);
     }
     for (const log of v23_logs) {
-        dailyFees.addGasToken(log.args.amount);
+        const parsedLog = v23_iface.parseLog(log)
+        dailyFees.addGasToken(parsedLog!.args.amount);
     }
 
     return { dailyFees }
