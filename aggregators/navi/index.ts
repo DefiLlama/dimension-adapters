@@ -22,8 +22,7 @@ const fetchDailyVolume = async ({
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
               FROM 'swapEvent'
               WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`,
-      },
-      version: 34,
+      }
     }),
   }).then((response) => response.data);
 

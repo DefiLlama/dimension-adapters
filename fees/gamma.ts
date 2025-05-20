@@ -133,10 +133,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("gnosis"),
       start: '2023-04-22',
     },
-    [CHAIN.ASTRZK]: {
-      fetch: fetchFees("astar_zkevm"),
-      start: '2023-04-22',
-    },
+    // [CHAIN.ASTRZK]: {
+    //   fetch: fetchFees("astar_zkevm"),
+    //   start: '2023-04-22',
+    // },
     [CHAIN.IMX]: {
       fetch: fetchFees("immutable_zkevm"),
       start: '2023-04-22',

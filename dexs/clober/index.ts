@@ -31,6 +31,7 @@ const fetch = (chain: string) => async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+    deadFrom: '2023-11-23',
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch('1'),

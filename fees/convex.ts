@@ -9,7 +9,7 @@ import BigNumber from "bignumber.js";
 
 const endpoints = {
     [ETHEREUM]:
-        sdk.graph.modifyEndpoint('2jMwDRmUtTRAw9w3nMuZZPQtC97Ro28nLdJFWnFQnJdz'),
+        sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
 };
 
 

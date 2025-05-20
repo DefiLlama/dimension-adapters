@@ -3,6 +3,7 @@ import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOpti
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
+import { getDateString } from '../../helpers/utils';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -151,6 +152,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       endTimestamp,
       getStartBlock,
       getEndBlock,
+      dateString: getDateString(startOfDay),
     }
   }
 

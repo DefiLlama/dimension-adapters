@@ -19,7 +19,7 @@ const chains: TChains = {
   [CHAIN.ETHEREUM]: 'Ethereum',
   [CHAIN.FANTOM]: 'Fantom',
   [CHAIN.HARMONY]: 'Harmony',
-  [CHAIN.MOONBEAN]: 'Moonbeam',
+  [CHAIN.MOONBEAM]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
   [CHAIN.FRAXTAL]: 'Fraxtal',

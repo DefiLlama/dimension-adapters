@@ -247,11 +247,11 @@ export default {
       start: "2024-01-20",
       runAtCurrTime: true,
     },
-    [CHAIN.BASE]: {
-      fetch: fetchOnBase,
-      start: "2024-10-31",
-      runAtCurrTime: true,
-    },
+    // [CHAIN.BASE]: {
+    //   fetch: fetchOnBase,
+    //   start: "2024-10-31",
+    //   runAtCurrTime: true,
+    // }, // on base vault is no fees
     [CHAIN.ETHEREUM]: {
       fetch: fetchOnEthereum,
       start: "2025-01-09",

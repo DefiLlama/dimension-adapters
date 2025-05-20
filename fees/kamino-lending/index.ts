@@ -1,34 +1,34 @@
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+
 
 // Define the URL of the endpoint
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
-const KaminoStartTimestamp = 1697068700;
 
 // Function to make the GET request
-const fetch: FetchV2 = async ({ endTimestamp }) =>  {
-    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
+const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
+    const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+    const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0];
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
 
     const totalFee = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KlendFeesUsd}) => acc + KlendFeesUsd, 0);
+    .filter(row => row.timestamp <= startOfDay)
+    .reduce((acc, {KlendFeesUSD}) => acc + Number(KlendFeesUSD || 0), 0);
 
     const totalRevenue = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KlendRevenueUsd}) => acc + KlendRevenueUsd, 0);
+    .filter(row => row.timestamp <= startOfDay)
+    .reduce((acc, {KaminoRevenueUSD}) => acc + Number(KaminoRevenueUSD || 0), 0);
     
-
     const dailyFee = historicalFeesRes['data']
-    .find(row => Math.abs(row.timestamp - dayTimestamp) < 3600*24 - 1)?.KlendFeesUsd;
+        .find(row => row.day === dateString).KlendFeesUSD
     
     const dailyRevenue = historicalFeesRes['data']
-    .find(row => Math.abs(row.timestamp - dayTimestamp) < 3600*24 - 1)?.KlendRevenueUsd;
+        .find(row => row.day === dateString).KaminoRevenueUSD
     
     return {
-        timestamp: dayTimestamp,
+        timestamp: startOfDay,
         totalFees: `${totalFee}`,
         dailyFees: `${dailyFee}`,
         totalRevenue: `${totalRevenue}`,
@@ -40,11 +40,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            runAtCurrTime: true,
             start: '2023-10-12',
             meta: {
                 methodology

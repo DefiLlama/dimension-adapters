@@ -8,7 +8,7 @@ const factory = {
   [CHAIN.ARBITRUM]: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
 }
 const swap_event = 'event Swap(address indexed sender,address indexed to,uint24 id,bytes32 amountsIn,bytes32 amountsOut,uint24 volatilityAccumulator,bytes32 totalFees,bytes32 protocolFees)'
-const fetchVolume = async (options: FetchOptions) => {
+const fetchVolume = async (_t: any, _ts: any,options: FetchOptions) => {
   const {api } = options;
   const pools = await api.fetchList({ target: factory[options.chain], itemAbi: 'getLBPairAtIndex', lengthAbi: 'getNumberOfLBPairs', })
   const tokenA = await api.multiCall({ abi: 'address:getTokenX', calls: pools, })
@@ -53,7 +53,6 @@ const fetchVolume = async (options: FetchOptions) => {
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchVolume,

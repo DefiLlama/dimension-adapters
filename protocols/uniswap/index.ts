@@ -66,9 +66,9 @@ const v3Endpoints = {
   [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('GqzP4Xaehti8KSfQmv3ZctFSjnSUYZ4En5NRsiTbvZpz'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX') 
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
 };
 
 // fees results are in eth, needs to be converted to a balances objects
@@ -129,11 +129,11 @@ const methodology = {
 type TStartTime = {
   [key: string]: number;
 }
-const startTimeV3:TStartTime = {
-  [CHAIN.ETHEREUM]:  1620172800,
-  [CHAIN.OPTIMISM]:  1636675200,
+const startTimeV3: TStartTime = {
+  [CHAIN.ETHEREUM]: 1620172800,
+  [CHAIN.OPTIMISM]: 1636675200,
   [CHAIN.ARBITRUM]: 1630368000,
-  [CHAIN.POLYGON]:  1640044800,
+  [CHAIN.POLYGON]: 1640044800,
   [CHAIN.CELO]: 1657324800,
   [CHAIN.BSC]: 1678665600,
   [CHAIN.AVAX]: 1689033600,
@@ -173,7 +173,7 @@ const fetchV2 = async (options: FetchOptions) => {
     }
   }`;
   try {
-    const response:IGraphResponse  = await request(url, query, { chain: chainv2mapping[options.chain], duration: "MONTH" }, {
+    const response: IGraphResponse = await request(url, query, { chain: chainv2mapping[options.chain], duration: "MONTH" }, {
       'accept': '*/*',
       'accept-language': 'th,en-US;q=0.9,en;q=0.8',
       'cache-control': 'no-cache',
@@ -208,9 +208,9 @@ const adapter: BreakdownAdapter = {
             "dailyUserFees": options.createBalances(),
             "dailyProtocolRevenue": options.createBalances(),
             "dailySupplySideRevenue": options.createBalances(),
-            "dailyHoldersRevenue":  options.createBalances(),
-            "dailyRevenue":  options.createBalances(),
-            "dailyFees":  options.createBalances(),
+            "dailyHoldersRevenue": options.createBalances(),
+            "dailyRevenue": options.createBalances(),
+            "dailyFees": options.createBalances(),
           };
           for (const key of Object.keys(keys)) {
             if (typeof response[key] === 'string') {
@@ -265,7 +265,7 @@ const adapter: BreakdownAdapter = {
       ...Object.keys(chainv2mapping).reduce((acc, chain) => {
         acc[chain] = {
           fetch: fetchV2,
-                  }
+        }
         return acc
       }, {})
     },
@@ -274,7 +274,6 @@ const adapter: BreakdownAdapter = {
         fetch: async (options: FetchOptions) => {
           try {
             const res = (await v3Graphs(chain as Chain)(options))
-            // console.log("res", res)
             return {
               totalVolume: res?.totalVolume || 0,
               dailyVolume: res?.dailyVolume || 0,
@@ -362,6 +361,7 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.LISK,
   CHAIN.CORN,
+  CHAIN.GOAT,
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.SAGA,
@@ -373,7 +373,7 @@ const okuChains = [
 okuChains.forEach(chain => {
   adapter.breakdown.v3[chain] = {
     fetch: fetchFromOku,
-        meta: {
+    meta: {
       methodology
     }
   }

@@ -39,6 +39,7 @@ const graphs = () => {
 
 
 const adapter: Adapter = {
+  deadFrom: "2023-12-14",
   version: 1,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,

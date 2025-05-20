@@ -2,11 +2,6 @@ import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
-interface IVolumeall {
-  totalVolume: number;
-  dailyVolume: number;
-}
-
 const fetch = async (timestamp: number) => {
   return {
     dailyVolume: '0',
@@ -16,6 +11,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-03-04',
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ARBITRUM]: {

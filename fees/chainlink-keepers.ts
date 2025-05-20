@@ -39,7 +39,7 @@ const gasTokenId: IGasTokenId = {
 }
 
 const fetchKeeper = (chain: Chain) => {
-  return async ({ toTimestamp, getLogs, }: FetchOptions) => {
+  return async (_: any, _1: any, { toTimestamp, getLogs, }: FetchOptions) => {
     const logs: ITx[] = (await getLogs({
       target: address_keeper[chain],
       topics: [topic0_keeper],
@@ -73,7 +73,7 @@ const fetchKeeper = (chain: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchKeeper(CHAIN.ETHEREUM),

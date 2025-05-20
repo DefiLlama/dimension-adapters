@@ -30,31 +30,30 @@ export async function fetchURLWithRetry(url: string, options: FetchOptions) {
 
 async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult> {
   const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = volumeResponse[0].perpetual_volume;
-  const dailyFees = volumeResponse[0].total_taker_fee;
-  const dailyRevenue = volumeResponse[0].total_revenue;
+  const dailyVolume = Number(Number(volumeResponse[0].perpetual_volume).toFixed(0))
+  const dailyFees = Number(Number(volumeResponse[0].total_taker_fee).toFixed(0))
+  const dailyRevenue = Number(Number(volumeResponse[0].total_revenue).toFixed(0))
   return { dailyVolume, dailyFees, dailyRevenue };
 }
 
 async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {
   const volumeResponse = await fetchURLWithRetry("4117889", options)
-  const dailyVolume = volumeResponse[0].spot_volume;
+  const dailyVolume = Number(Number(volumeResponse[0].spot_volume).toFixed(0))
   return { dailyVolume };
 }
 
 async function fetch(type: "perp" | "spot", options: FetchOptions) {
-  const timestamp = Date.now() / 1e3;
   if (type === "perp") {
     const results = await getPerpDimensions(options);
     return {
       ...results,
-      timestamp,
+      timestamp: options.startOfDay,
     };
   } else {
     const results = await getSpotDimensions(options);
     return {
       ...results,
-      timestamp: Date.now() / 1e3,
+      timestamp: options.startOfDay
     };
   }
 }

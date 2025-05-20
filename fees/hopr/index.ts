@@ -30,16 +30,11 @@ const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) =>
     target: channels_address,
     eventAbi: 'event TicketRedeemed (bytes32 indexed channelId, uint48 newTicketIndex)', entireLog: true,
   })
-  const ticketRedeemedHashSet = new Set(ticketRedeemedLogs.map(ticket => ticket.transactionHash.toLowerCase()));
-  console.log('ticketRedeemedHashSet', ticketRedeemedHashSet.size);
-
 
   const erc20transferLog: ITx[] = await getLogs({
     target: wxHOPR_address, topics: [topic1, topic2], entireLog: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
   });
-  const erc20transferHashSet = new Set(erc20transferLog.map(transaction => transaction.transactionHash.toLowerCase()));
-  console.log('erc20transferHashSet', erc20transferHashSet.size);
   const erc20TransferMap = new Map(erc20transferLog.map(transaction => [transaction.transactionHash.toLowerCase(), transaction.data]));
 
   let dailyRevenueStayedInChannelsTXs: string[] = [];

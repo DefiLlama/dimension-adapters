@@ -1,24 +1,47 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
+import * as sdk from '@defillama/sdk';
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const address = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
 const topics0_buy = '0x7db52723a3b2cdd6164364b3b766e65e540d7be48ffa89582956d8eaebe62942';
 const topics0_sell_1 = '0x0a5575b3648bae2210cee56bf33254cc1ddfbc7bf637c0af2ac18b14fb1bae19';
 
+async function fetchVolumeFromIndexers(params: { target: string; options: FetchOptions, topics: string[] }) {
+  let { target, options, topics } = params;
 
+  const batchSize = 5000;
+  const allLogs: any[] = [];
+  let batchLogs: any[];
+  let offset = 0;
+  const fromBlock = (await options.getFromBlock()) - 200
+  const toBlock = (await options.getToBlock()) - 200
+
+  for (;;) {
+    batchLogs = await sdk.indexer.getLogs({
+      chain: options.chain,
+      target,
+      topics,
+      onlyArgs: true,
+      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
+      fromBlock,
+      toBlock,
+      limit: batchSize,
+      offset,
+      all: false
+    });
+    allLogs.push(...batchLogs);
+    if (batchLogs.length < batchSize) break;
+    offset += batchSize;
+  }
+
+  return allLogs
+}
 
 const fetchVolume = async (options: FetchOptions) => {
-  const buy_logs: any[] = await options.getLogs({
-    target: address,
-    topics: [topics0_buy],
-  })
-
-  const sell_logs_1: any[] = await options.getLogs({
-    target: address,
-    topics: [topics0_sell_1],
-  })
-
   const dailyVolume = options.createBalances()
+  const buy_logs: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_buy], options })
+  const sell_logs_1: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_sell_1], options })
+
   buy_logs.concat(sell_logs_1).forEach((log) => {
     const data = log.data.replace('0x', '');
     const amount = Number('0x' + data.slice(4 * 64, 5 * 64))

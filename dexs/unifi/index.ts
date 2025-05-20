@@ -33,6 +33,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    if(dayTimestamp > 1687478400) return {}
     const historicalVolume: IVolumeall[] = (await fetchURL(poolsDataEndpoint(chains[chain]))).results;
 
     const totalVolume = historicalVolume
@@ -55,6 +56,7 @@ const getStartTimestamp = async (chain: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2023-06-23",
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,

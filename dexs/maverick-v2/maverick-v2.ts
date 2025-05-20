@@ -46,21 +46,22 @@ export const createGetData = (factories: { [chain: string]: { factory: string; s
     const dailyFees = options.createBalances();
     const dailyVolume = options.createBalances();
 
-    try {
-      const logs = await options.getLogs({
-        target: factory,
-        fromBlock: factoryFromBlock,
-        eventAbi: mavV2PoolCreated,
-      });
+    const logs = await options.getLogs({
+      target: factory,
+      fromBlock: factoryFromBlock,
+      eventAbi: mavV2PoolCreated,
+    });
 
-      const pools = [...new Set(logs.map((log: any) => log.poolAddress))];
-      const tokenAs = await options.api.multiCall({
-        abi: "address:tokenA",
+    const pools = [...new Set(logs.map((log: any) => log.poolAddress))];
+    const tokenAs = await options.api.multiCall({
+      abi: "address:tokenA",
         calls: pools!,
+        permitFailure: true
       });
       const tokenBs = await options.api.multiCall({
         abi: "address:tokenB",
         calls: pools!,
+        permitFailure: true
       });
 
       const swapLogs = await options.getLogs({
@@ -92,14 +93,7 @@ export const createGetData = (factories: { [chain: string]: { factory: string; s
         dailyVolume: dailyVolume,
         dailyFees: dailyFees,
       };
-    } catch (e) {
-      console.error(e);
-      return {
-        dailyVolume: dailyVolume,
-        dailyFees: dailyFees,
-      };
     }
-  };
 };
 
 // Export a function that calls createGetData with the maverickV2Factories

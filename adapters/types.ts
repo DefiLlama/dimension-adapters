@@ -38,6 +38,7 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  dateString: string,
 }
 
 export type FetchGetLogsOptions = {
@@ -94,6 +95,7 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
+  deadFrom?: string;
 }
 
 export type SimpleAdapter = AdapterBase & {

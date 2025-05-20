@@ -19,6 +19,7 @@ const getFees = async (chainCode: string, fromDate: string, toDate: string): Pro
 
 const getFeesFunction = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const chainCode = chainCodeMap[chain];
     const dateString = formatTimestampAsIsoDate(timestamp);
     const dailyFees = await getFees(chainCode, dateString, dateString);

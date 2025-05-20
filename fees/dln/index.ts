@@ -3,13 +3,26 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+const fetchCacheURL = (url: string) => {
+  const key = `${url}`;
+  if (!requests[key]) {
+      requests[key] = fetchURL(url);
+  }
+  return requests[key];
+}
+
 const fetch = (chainId: number) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const dateFrom = formatTimestampAsDate(todaysTimestamp);
     const dateTo = dateFrom;
     const url = `https://stats-api.dln.trade/api/Satistics/getDaily?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const response = await fetchURL(url);
+    const response = await fetchCacheURL(url);
     const dailyDatas = response.dailyData;
     let fees = 0;
     for (const dailyData of dailyDatas) {
@@ -79,6 +92,42 @@ const adapter: Adapter = {
     [CHAIN.FANTOM]: {
       fetch: fetch(250),
       start: '2023-03-31',
+    },
+    [CHAIN.NEON]: {
+      fetch: fetch(100000001),
+      start: '2023-03-31',
+    },
+    [CHAIN.METIS]: {
+      fetch: fetch(100000004),
+      start: '2024-06-05',
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetch(100000014),
+      start: '2024-12-26',
+    },
+    [CHAIN.CRONOS_ZKEVM]: {
+      fetch: fetch(100000010),
+      start: '2025-01-21',
+    },
+    [CHAIN.ABSTRACT]: {
+      fetch: fetch(100000017),
+      start: '2025-01-27',
+    },
+    [CHAIN.BERACHAIN]: {
+      fetch: fetch(100000020),
+      start: '2025-02-06',
+    },
+    [CHAIN.STORY]: {
+      fetch: fetch(100000013),
+      start: '2025-02-13',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetch(100000022),
+      start: '2025-02-20',
+    },
+    [CHAIN.ZIRCUIT]: {
+      fetch: fetch(100000015),
+      start: '2025-03-07',
     },
   },
 };

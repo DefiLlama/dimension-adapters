@@ -2,7 +2,7 @@ import { Adapter, FetchResultFees, FetchResultVolume } from "../../adapters/type
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "@defillama/sdk/build/general";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 
 const feesMMURL = "https://api.paraswap.io/stk/volume-stats/breakdown-by-chain";
@@ -21,6 +21,27 @@ const mapChainId: TChainId = {
   [CHAIN.POLYGON_ZKEVM]: '1101'
 } 
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+const fetchCacheURL = (url: string) => {
+  const key = `${url}`;
+  if (!requests[key]) {
+      const headers: any = {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "max-age=0",
+        "priority": "u=0, i",
+        "upgrade-insecure-requests": "1",
+        "referrerPolicy": "strict-origin-when-cross-origin",
+    };
+      requests[key] = httpGet(url, {headers});
+  }
+  return requests[key];
+}
+
 interface IResponse {
   daily: any[];
   allTime: any;
@@ -30,7 +51,7 @@ export function getParaswapAdapter(type:"fees"|"volume"){
 const fetch = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees|FetchResultVolume> => {
     const timestampToday = getTimestampAtStartOfDayUTC(timestamp)
-    const response: IResponse = (await fetchURL(feesMMURL));
+    const response: IResponse = (await fetchCacheURL(feesMMURL));
     const dailyResultFees: any[] = response.daily;
     const [totalVolume,totalPartnerRevenue, totalProtocolRevenue]: number[] = response.allTime[mapChainId[chain]];
     const [dailyVolume, partnerRevenue, protocolRevenue]: number[] = dailyResultFees.filter(([time]: any) => time === timestampToday)
@@ -64,6 +85,7 @@ const fetch = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  version : 1,
   adapter: Object.keys(mapChainId).reduce((all, chain)=>({
     ...all,
     [chain]:{

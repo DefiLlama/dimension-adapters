@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions) => {
   logs.forEach(log => {
     dailyVolume.add(log.destAsset, log.destAmount)
   })
-  console.log(options.chain, dailyVolume, logs.length)
   return { dailyVolume }
 };
 

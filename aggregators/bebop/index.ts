@@ -44,7 +44,7 @@ const jamAddress = {
 }
 
 
-const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async (_:any, _1:any, { createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
   const logs = await getLogs({
@@ -108,7 +108,7 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   return { dailyVolume }
 };
 
-async function fetchDune(options: FetchOptions){
+async function fetchDune(_:any, _1:any, options: FetchOptions){
   const vol = await queryDuneSql(options, `SELECT SUM(amount_usd) AS vol FROM bebop.trades WHERE blockchain = 'CHAIN' AND TIME_RANGE`)
   const dailyVolume = options.createBalances()
   dailyVolume.addCGToken("tether", vol[0].vol)
@@ -116,7 +116,7 @@ async function fetchDune(options: FetchOptions){
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   adapter: {
     arbitrum: { fetch: fetchDune, start: '2023-05-31', },
