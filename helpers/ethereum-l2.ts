@@ -1,5 +1,6 @@
 import ADDRESSES from './coreAssets.json'
 import { ChainBlocks, FetchOptions, FetchResultFees, } from "../adapters/types";
+import { queryDuneSql } from "../helpers/dune";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 
 const feeWallet = '0x4200000000000000000000000000000000000011';
@@ -55,3 +56,61 @@ export function L2FeesFetcher({
     return { dailyFees, dailyRevenue, }
   }
 }
+
+export interface DuneFeeOptions {
+    chainName: string;
+    ethereumWallets: string[];
+    blobSubmitterLabel: string;
+}
+
+export const fetchL2FeesWithDune = async (options: FetchOptions, feeParams: DuneFeeOptions) => {
+    const { startTimestamp, endTimestamp, createBalances } = options;
+    const { chainName, ethereumWallets, blobSubmitterLabel } = feeParams;
+
+    const walletsString = ethereumWallets.map(w => `${w.toLowerCase()}`).join(',');
+
+    const query = `
+        WITH total_tx_fees_cte AS (
+            SELECT
+                SUM(tx_fee_raw / 1e18) AS total_tx_fees
+            FROM gas.fees
+            WHERE blockchain = '${chainName}'
+                AND block_time >= from_unixtime(${startTimestamp})
+                AND block_time <= from_unixtime(${endTimestamp})
+            ),
+            total_calldata_costs_cte AS (
+            SELECT
+                SUM(t.gas_used * (CAST(t.gas_price AS DOUBLE) / 1e18)) AS calldata_cost
+            FROM
+                ethereum.transactions t
+            WHERE t.to IN (${walletsString})
+                AND t.block_time >= from_unixtime(${startTimestamp})
+                AND t.block_time <= from_unixtime(${endTimestamp})
+            ),
+            total_blob_costs_cte AS (
+            SELECT
+                SUM((CAST(b.blob_base_fee AS DOUBLE) / 1e18) * b.blob_gas_used) AS blob_cost
+            FROM ethereum.blobs_submissions b
+            WHERE b.blob_submitter_label = '${blobSubmitterLabel}'
+                AND b.block_time >= from_unixtime(${startTimestamp}) /* blobs data often starts later */
+                AND b.block_time <= from_unixtime(${endTimestamp})
+            )
+        SELECT
+            COALESCE((SELECT total_tx_fees FROM total_tx_fees_cte), 0) AS total_fee,
+            COALESCE((SELECT calldata_cost FROM total_calldata_costs_cte), 0) +
+            COALESCE((SELECT blob_cost FROM total_blob_costs_cte), 0) AS total_cost,
+            (COALESCE((SELECT total_tx_fees FROM total_tx_fees_cte), 0)) -
+            (COALESCE((SELECT calldata_cost FROM total_calldata_costs_cte), 0) +
+            COALESCE((SELECT blob_cost FROM total_blob_costs_cte), 0)) AS total_revenue
+        `;
+
+    const feesResult: any[] = await queryDuneSql(options, query);
+
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+
+    dailyFees.addGasToken(feesResult[0].total_fee * 1e18);
+    dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18);
+
+    return { dailyFees, dailyRevenue };
+}; 
