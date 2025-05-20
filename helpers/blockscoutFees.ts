@@ -146,6 +146,10 @@ export function blockscoutFeeAdapter2(chain: string) {
 
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
+          if (!fees || fees.result === undefined || fees.result === null) {
+            console.log(chain,' Error fetching fees', fees)
+            throw new Error('Error fetching fees')
+          }
           if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
