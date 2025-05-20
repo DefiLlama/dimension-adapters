@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: '2024-04-30',
+      start: '2022-11-01',
       meta:{
         methodology: {
           fees: 'MEV/tips paid by users/searchers',
