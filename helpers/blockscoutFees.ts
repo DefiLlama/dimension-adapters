@@ -92,7 +92,6 @@ export function blockscoutFeeAdapter2(chain: string) {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
 
-          await sleep(3000)
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
           let todayPrice = undefined
