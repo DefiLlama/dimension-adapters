@@ -23,8 +23,7 @@ const adapter: Adapter = {
             start: '2020-05-30'
         },
     },
-    protocolType: ProtocolType.CHAIN,
-    allowNegativeValue: true, // calldata and blob costs
+    protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
