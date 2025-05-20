@@ -1,4 +1,3 @@
-import { BreakdownAdapter } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
@@ -51,11 +50,7 @@ const classic = Object.keys(endpointsClassic).reduce(
   {},
 ) as any;
 
-const adapter: BreakdownAdapter = {
+export default {
   version: 2,
-  breakdown: {
-    classic: classic,
-  },
+  adapter: classic
 };
-
-export default adapter;

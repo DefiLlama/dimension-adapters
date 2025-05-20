@@ -1,5 +1,5 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from "../helpers/allium";
 import { nullAddress } from "../helpers/token";
 
 // Found by looking at contracts deployed by 0xa8863bf1c8933f649e7b03eb72109e5e187505ea
@@ -13,7 +13,7 @@ const contracts = {
 } as any
 
 
-const evm = async (options: FetchOptions) => {
+const evm = async (_a: any, _b: any, options: FetchOptions) => {
     const pre = await options.fromApi.sumTokens({
         token: nullAddress,
         owners: contracts[options.chain]
@@ -33,28 +33,41 @@ const evm = async (options: FetchOptions) => {
         But withdrawals don't emit any event
         So, given that withdrawals are very rare, what we do is just track the balance difference and when there's a withdrawal we fetch from traces
         */
-        const nativeTransfers = await queryDuneSql(options, `select sum(value) as withdrawn from CHAIN.traces
-        where "from" IN (${contracts[options.chain].join(', ')})
-        AND to IN (0x93fd235c56964e0ffb49229e8d642c3fd81310a5, 0xfa0f022aac5a1fd99094df8aadb947ce08f79d5b, 0x3a0079197027d80c260f8cd482210fdc48ec51e5, 0x267bfe2905dccec10cb22115ca1d0b1da11ddad5)
-        AND success = TRUE
-        AND TIME_RANGE`)
+        // const nativeTransfers = await queryDuneSql(options, `select sum(value) as withdrawn from 
+        //     CHAIN.traces
+        //     where "from" IN (${contracts[options.chain].join(', ')})
+        //     AND to IN (0x93fd235c56964e0ffb49229e8d642c3fd81310a5, 
+        //     0xfa0f022aac5a1fd99094df8aadb947ce08f79d5b, 0x3a0079197027d80c260f8cd482210fdc48ec51e5, 
+        //     0x267bfe2905dccec10cb22115ca1d0b1da11ddad5)
+        //     AND success = TRUE
+        //     AND TIME_RANGE`)
+        const nativeTransfers = await queryAllium(`
+          SELECT SUM(value) as withdrawn
+          FROM ${options.chain}.raw.traces
+          WHERE from_address IN (${contracts[options.chain].map((a: string) => `'${a.toLowerCase()}'`).join(', ')})
+          AND to_address IN ('0x93fd235c56964e0ffb49229e8d642c3fd81310a5', '0xfa0f022aac5a1fd99094df8aadb947ce08f79d5b', '0x3a0079197027d80c260f8cd482210fdc48ec51e5', '0x267bfe2905dccec10cb22115ca1d0b1da11ddad5')
+          AND status = 1
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        `)
+
         dailyFees.add(nullAddress, nativeTransfers[0].withdrawn)
     }
 
     return {
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyFees,
     }
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: Object.keys(contracts).reduce((all, chain) => ({
         ...all,
         [chain]: {
             fetch: evm,
-                    }
-    }), {})
+        }
+    }), {}),
+    allowNegativeValue: true, // allow as there is specific case, from fetch function comment
 }
 
 export default adapter;

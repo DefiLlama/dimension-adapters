@@ -17,6 +17,7 @@ const adapter: Adapter = {
       start: '2020-08-29',
     },
   },
+  allowNegativeValue: true, // sequencer fees
   protocolType: ProtocolType.CHAIN
 }
 

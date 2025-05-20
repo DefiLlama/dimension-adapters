@@ -41,9 +41,9 @@ async function getDailyFees(timestamp: number) {
   // This means 100% of fees go to liquidity providers and 0% to the protocol
   
   return {
-    dailyFees: dailyFees.toString(),
+    dailyFees,
     dailyRevenue: "0", // Protocol revenue is 0
-    dailyHoldersRevenue: dailyFees.toString(), // All fees go to holders
+    dailyHoldersRevenue: dailyFees, // All fees go to holders
     dailyVolume: response.dfxdayDatas[0].dailyVolumeUSD
   };
 }

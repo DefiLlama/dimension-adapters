@@ -17,8 +17,9 @@ export async function addGasTokensReceived(params: {
   options: FetchOptions;
   balances?: sdk.Balances;
   fromAddresses?: string[];
+  blacklist_fromAddresses?: string[];
 }) {
-  let { multisig, multisigs, options, balances, fromAddresses } = params;
+  let { multisig, multisigs, options, balances, fromAddresses, blacklist_fromAddresses } = params;
   if (multisig) multisigs = [multisig];
   if (!balances) balances = options.createBalances();
   if (!multisigs?.length) throw new Error('multisig or multisigs required');
@@ -30,7 +31,7 @@ export async function addGasTokensReceived(params: {
   const fromBlock = (await options.getFromBlock()) - 200
   const toBlock = (await options.getToBlock()) - 200
 
-  for (;;) {
+  for (; ;) {
     batchLogs = await sdk.indexer.getLogs({
       chain: options.chain,
       targets: multisigs,
@@ -49,16 +50,22 @@ export async function addGasTokensReceived(params: {
     offset += batchSize;
   }
 
-  if (fromAddresses) {
-    const normalized = fromAddresses.map(a => a.toLowerCase());
-    allLogs.forEach(log => {
-      if (normalized.includes(log.sender?.toLowerCase?.())) {
-        balances!.addGasToken(log.value);
-      }
-    });
-  } else {
-    allLogs.forEach(i => balances!.addGasToken(i.value));
-  }
+  const fromAddressSet = fromAddresses ? new Set(fromAddresses.map(a => a.toLowerCase())) : null;
+  const blacklistSet = blacklist_fromAddresses ? new Set(blacklist_fromAddresses.map(a => a.toLowerCase())) : null;
+
+
+  allLogs.forEach(log => {
+    const sender = log.sender?.toLowerCase?.();
+    if (!sender) return;
+    if (blacklistSet?.has(sender)) {
+      return;
+    }
+    if (fromAddressSet && !fromAddressSet.has(sender)) {
+      return;
+    }
+    balances!.addGasToken(log.value);
+  });
+
 
   return balances;
 }
@@ -140,6 +147,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
   const logs = await getLogs({
     targets: tokens,
     flatten: false,
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter as any],
   })
@@ -152,7 +160,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 }
 
 async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
-  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens,  logFilter = () => true,  } = params
+  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens, logFilter = () => true, } = params
   const { createBalances, chain, getFromBlock, getToBlock } = options
   if (!balances) balances = createBalances()
   if (fromAdddesses && fromAdddesses.length) (fromAddressFilter as any) = fromAdddesses
@@ -260,6 +268,7 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
       fromAddressFilter as any,
       toAddressFilter as any
     ],
+    noTarget: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     entireLog: true,
   })
@@ -327,10 +336,10 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     if (tokens.length > 0) {
       await addTokensReceived({ options, tokens: tokens, target: receiverWallet, balances: dailyFees })
     }
-  //   const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.traces
-  // where to = ${receiverWallet} AND tx_success = TRUE
-  // AND TIME_RANGE`)
-  //   dailyFees.add(nullAddress, nativeTransfers[0].received)
+    //   const nativeTransfers = await queryDuneSql(options, `select sum(value) as received from CHAIN.traces
+    // where to = ${receiverWallet} AND tx_success = TRUE
+    // AND TIME_RANGE`)
+    //   dailyFees.add(nullAddress, nativeTransfers[0].received)
     await getETHReceived({ options, balances: dailyFees, target: receiverWallet })
 
     return {
@@ -339,54 +348,54 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
     }
   }
 
-  /**
-   * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
-   * 
-   * @param options - FetchOptions containing timestamp range and other configuration
-   * @param balances - Optional sdk.Balances object to add the results to
-   * @param target - Single Solana address to query
-   * @param targets - Array of Solana addresses to query (alternative to target)
-   * @param blacklists - Optional array of addresses to exclude from the sender side
-   * @param blacklist_signers - Optional array of transaction signers to exclude
-   * @returns The balances object with added USD value from received tokens
-   */
-  export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
-    options: FetchOptions;
-    balances?: sdk.Balances;
-    target?: string;
-    targets?: string[];
-    blacklists?: string[];
-    blacklist_signers?: string[];
-  }) {
-    // Initialize balances if not provided
-    if (!balances) balances = options.createBalances();
+/**
+ * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
+ * 
+ * @param options - FetchOptions containing timestamp range and other configuration
+ * @param balances - Optional sdk.Balances object to add the results to
+ * @param target - Single Solana address to query
+ * @param targets - Array of Solana addresses to query (alternative to target)
+ * @param blacklists - Optional array of addresses to exclude from the sender side
+ * @param blacklist_signers - Optional array of transaction signers to exclude
+ * @returns The balances object with added USD value from received tokens
+ */
+export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
+  options: FetchOptions;
+  balances?: sdk.Balances;
+  target?: string;
+  targets?: string[];
+  blacklists?: string[];
+  blacklist_signers?: string[];
+}) {
+  // Initialize balances if not provided
+  if (!balances) balances = options.createBalances();
 
-    // If targets is provided, use that instead of single target
-    const addresses = targets?.length ? targets : target ? [target] : [];
-    if (addresses.length === 0) return balances;
+  // If targets is provided, use that instead of single target
+  const addresses = targets?.length ? targets : target ? [target] : [];
+  if (addresses.length === 0) return balances;
 
-    // Build SQL condition to exclude blacklisted sender addresses
-    let blacklistCondition = '';
-    
-    if (blacklists && blacklists.length > 0) {
-      const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
-      blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
-    }
-    
-    // Build SQL condition to exclude blacklisted transaction signers
-    let blacklist_signersCondition = '';
-    
-    if (blacklist_signers && blacklist_signers.length > 0) {
-      const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
-      blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
-    }
+  // Build SQL condition to exclude blacklisted sender addresses
+  let blacklistCondition = '';
 
-    // Format addresses for IN clause
-    const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
-  
-    // Construct SQL query to get sum of received token values in USD and native amount
-    const query = `
-      SELECT mint as token, SUM(raw_amount) as amount
+  if (blacklists && blacklists.length > 0) {
+    const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
+    blacklistCondition = `AND from_address NOT IN (${formattedBlacklist})`;
+  }
+
+  // Build SQL condition to exclude blacklisted transaction signers
+  let blacklist_signersCondition = '';
+
+  if (blacklist_signers && blacklist_signers.length > 0) {
+    const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+    blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
+  }
+
+  // Format addresses for IN clause
+  const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
+
+  // Construct SQL query to get sum of received token values in USD and native amount
+  const query = `
+      SELECT 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as token, SUM(usd_amount * 1000000) as amount
       FROM solana.assets.transfers
       WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
@@ -394,28 +403,27 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
       ${blacklist_signersCondition}
       GROUP BY mint
     `;
-  
-    // Execute query against Allium database
-    const res = await queryAllium(query);
-    
-    // Add the USD value to the balances object (defaulting to 0 if no results)
-    res.forEach((row: any) => {
-      balances!.add(row.token, row.amount)
-    })
-    return balances;
-  }
-  
 
-export async function getETHReceived({ options, balances, target, targets }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+  // Execute query against Allium database
+  const res = await queryAllium(query);
+
+  // Add the USD value to the balances object (defaulting to 0 if no results)
+  res.forEach((row: any) => {
+    balances!.add(row.token, row.amount)
+  })
+  return balances;
+}
+
+
+export async function getETHReceived({ options, balances, target, targets = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
   if (!balances) balances = options.createBalances()
 
-  if (targets?.length) {
-    for (const target of targets)
-      await getETHReceived({ options, balances, target })
-    return balances
-  }
+  if (!target && !targets?.length) return balances
 
-  target = target?.toLowerCase()
+  if (target) targets.push(target)
+
+  targets = targets.map(i => i.toLowerCase())
+  targets = [...new Set(targets)]
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
@@ -459,13 +467,17 @@ export async function getETHReceived({ options, balances, target, targets }: { o
   const chainKey = chainMap[options.chain]
   if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)
 
+  const targetList = '( ' + targets.map(i => `'${i}'`).join(', ') + ' )'
+
   const query = `
     SELECT SUM(raw_amount) as value
     FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
-    WHERE to_address = '${target}' 
+    WHERE to_address in ${targetList} 
+    ${targets.length > 1 ? `AND from_Address not in ${targetList} ` : ' '}
     AND transfer_type = 'value_transfer'
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `
+
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)
   return balances

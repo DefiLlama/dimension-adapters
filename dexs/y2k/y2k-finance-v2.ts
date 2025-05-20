@@ -7,7 +7,7 @@ const event_market_create =
 const event_deposit = "event Deposit (address indexed user, address indexed receiver, uint256 id, uint256 assets)";
 
 
-const fetch: any = async (timestamp: number, _, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = createBalances()
   const logs_market_create = await getLogs({
     target: factory,

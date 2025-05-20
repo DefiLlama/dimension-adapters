@@ -13,7 +13,7 @@ const fees = async (timestamp: number): Promise<FetchResultFees> => {
   const feesData: IFees = (await fetchURL(url)).data;
   const dailyFees = feesData?.feeOfDate || '0';
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
     timestamp
   }

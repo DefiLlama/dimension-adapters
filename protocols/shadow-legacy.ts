@@ -11,31 +11,40 @@ const startTimeV2: TStartTime = {
 };
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
-  const stats = await fetchStats(options)
+  const stats = await fetchStats(options);
 
-  const dailyFees = stats.legacyFeesUSD
-  const dailyVolume = stats.legacyVolumeUSD
+  const dailyFees = stats.legacyFeesUSD;
+  const dailyVolume = stats.legacyVolumeUSD;
+  const dailyHoldersRevenue = stats.legacyUserFeesRevenueUSD;
+  const dailyProtocolRevenue = stats.legacyProtocolRevenueUSD;
+  const dailyBribesRevenue = stats.legacyBribeRevenueUSD;
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
+    dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
+    dailySupplySideRevenue: dailyFees - dailyHoldersRevenue - dailyProtocolRevenue,
+    dailyBribesRevenue,
   };
-
-}
+};
 
 const methodology = {
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
+  BribesRevenue: "Bribes are distributed among holders.",
 };
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
       start: startTimeV2[CHAIN.SONIC],
       meta: {
-        methodology: methodology
+        methodology: methodology,
       },
     },
   },

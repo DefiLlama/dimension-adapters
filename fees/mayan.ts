@@ -52,7 +52,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 const fetchCacheURL = (url: string) => {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key]) {
     requests[key] = fetchURL(url);
   }
@@ -70,8 +70,8 @@ const fetch = (chain: string) => {
 
     return {
       timestamp: dayTimestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString()
+      dailyFees,
+      dailyRevenue: dailyFees
     };
   };
 };

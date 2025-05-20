@@ -33,15 +33,15 @@ const fetchApi = async (type: FetchType, startTime: number, endTime: number) => 
 const fetchFees = async (_t: any, _tts: any, { fromTimestamp, toTimestamp, api }: FetchOptions) => {
   const chainId = api.chainId
   const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, fromTimestamp, toTimestamp )
-  const dailyFees = dailyAlls.find((daily: Data)=> daily.chainId === chainId)
+  const fees = dailyAlls.find((daily: Data)=> daily.chainId === chainId)
 
   const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, fromTimestamp, toTimestamp )
-  const totalFees = totalAlls.find((daily: Data)=> daily.chainId === chainId)
+  const tFees = totalAlls.find((daily: Data)=> daily.chainId === chainId)
 
   return {
     timestamp: toTimestamp,
-    totalFees: totalFees?.tradingFee,
-    dailyFees: dailyFees?.tradingFee,
+    totalFees: tFees?.tradingFee,
+    dailyFees: fees?.tradingFee,
   }
 }
 

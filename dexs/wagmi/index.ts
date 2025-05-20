@@ -1,5 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getUniV3LogAdapter, } from "../../helpers/uniswap";
 import { fetchVolume } from "./wagmi";
 
 const adapter: SimpleAdapter = {
@@ -10,11 +11,11 @@ const adapter: SimpleAdapter = {
     //   start: '2023-04-12',
     // },
     [CHAIN.FANTOM]: {
-      fetch: fetchVolume,
+      fetch: getUniV3LogAdapter({ factory: '0xaf20f5f19698f1D19351028cd7103B63D30DE7d7', }),
       start: "2023-04-12",
     },
     [CHAIN.ETHEREUM]: {
-      fetch: fetchVolume,
+      fetch: getUniV3LogAdapter({ factory: '0xB9a14EE1cd3417f3AcC988F61650895151abde24', }),
     },
     [CHAIN.METIS]: {
       fetch: fetchVolume,

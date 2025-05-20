@@ -33,7 +33,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp: timestamp,
-        dailyFees: dailyFees,
+        dailyFees,
         dailyUserFees: dailyFees,
         dailySupplySideRevenue: dailyFees,
       };

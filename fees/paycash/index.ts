@@ -48,13 +48,13 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
   const totalRevenue = totalHoldersRevenue + totalProtocolRevenue;
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyUserFees: dailyFees,
     dailyProtocolRevenue: dailyProtocolRevenue,
     dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailyLiquidityProviderFee,
-    totalFees: totalFees,
+    totalFees,
     totalUserFees: totalFees,
     totalRevenue: totalRevenue,
     totalProtocolRevenue: totalProtocolRevenue,

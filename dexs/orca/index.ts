@@ -92,15 +92,18 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
 async function fetch(timestamp: number, url: string) {
     let allWhirlpools: Whirlpool[] = [];
     let nextCursor: string | null = null;
+    let page = 0;
 
     do {
+        page++;
         const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
         const response: StatsApiResponse = await httpGet(currentUrl);
         allWhirlpools = allWhirlpools.concat(response.data);
         nextCursor = response.meta?.cursor?.next || null;
     } while (nextCursor);
-
-    const validPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers).filter((pool) => pool.tvlUsdc > 100_000);
+    const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
+    const validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
+    console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
 
     const dailyVolume = validPools.reduce(
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
@@ -114,7 +117,7 @@ async function fetch(timestamp: number, url: string) {
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = validPools.reduce(
+    const dailyRevenue = allPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 

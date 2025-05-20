@@ -3,7 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const endpoints = {
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49271/zf-exchange-v3-version-2/version/latest"
+  // [CHAIN.ERA]: "https://gateway.thegraph.com/api/88ec88f205b57dce13befebc60ef5e0c/subgraphs/id/BeYacqRmNFgoNgPwqmD9CNzcH3Hqqy5WeQHhi3khQHPu"
+  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49271/zf-exchange-v3-version-2/v0.1.8"
 }
 
 const graph = getGraphDimensions2({

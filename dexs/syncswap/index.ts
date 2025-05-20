@@ -1,12 +1,11 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { Chain } from "@defillama/sdk/build/general";
 
 const endpoints = {
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('9R6uvVYXn9V1iAxkTLXL1Ajka75aD7mmHRj86DbXnyYQ'),
+  [CHAIN.ERA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-zksync',
+  [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea',
   [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll',
   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
@@ -25,7 +24,7 @@ const fetch = (chain: Chain) => {
     const [v2] = await Promise.all([graphs(chain)(options)])
     let dailyVolume = Number(v2.dailyVolume)
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
     }
   }
 }

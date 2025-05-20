@@ -11,7 +11,7 @@ const fetchVolume: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = response.volume_usd;
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined
+    dailyVolume: dailyVolume
   };
 };
 

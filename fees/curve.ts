@@ -88,13 +88,13 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
   if(options.toTimestamp < Date.now()/1e3-36*3600){
     return graph(endpoints)(chain)(options)
   }
-  const response = (await fetchURL(`https://prices.curve.fi/v1/chains/${chain}`));
+  const response = (await fetchURL(`https://prices.curve.finance/v1/chains/${chain}`));
   const fees = (response.data as any[])
   .filter(e => e.trading_fee_24h < 1_000_000).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {
-    dailyFees: `${fees}`,
+    dailyFees: fees,
     dailyRevenue: `${fees/2}`,
     dailyHoldersRevenue: `${fees/2}`,
   };

@@ -24,8 +24,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
     return { 
         timestamp, 
-        dailyVolume: dailyVol? `${dailyVol}`: undefined, 
-        totalVolume: totalVol? `${totalVol}`: undefined
+        dailyVolume: dailyVol, 
+        totalVolume: totalVol
     };
 };
 

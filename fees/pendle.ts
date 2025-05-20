@@ -201,8 +201,8 @@ const fetch = (chain: Chain) => {
     dailyFees.addBalances(dailySupplySideFees);
 
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailySupplySideFees,
       timestamp,
