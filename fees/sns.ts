@@ -16,7 +16,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const url = `${API_URL}?from=${fromTimestamp}&to=${todaysTimestamp-1}`;
   const data: IData = await httpGet(url);
   return {
-    timestamp: todaysTimestamp,
+    timestamp: fromTimestamp,
     dailyFees: data.daily_fees.toString(),
     dailyRevenue: data.daily_fees.toString(),
     totalFees: data.total_fees.toString(),
