@@ -6,8 +6,9 @@ import { addTokensReceived } from '../../helpers/token';
 const fees = {
   [CHAIN.ETHEREUM]: {
     tokens: [ADDRESSES.ethereum.USDT, ADDRESSES.ethereum.STETH, ADDRESSES.ethereum.CRVUSD, ADDRESSES.ethereum.CRV,
+             ADDRESSES.ethereum.USDC,
              "0x57B96D4aF698605563A4653D882635da59Bf11AF"], //RCH
-    collectors: ["0x4140AB4AFc36B93270a9659BD8387660cC6509b5", "0x322665298cFa800518D4Ef7919893b59514BA9D1"],
+    collectors: ["0x4140AB4AFc36B93270a9659BD8387660cC6509b5"],
     start: 1717679579,
   },
   [CHAIN.ARBITRUM]: {
@@ -26,18 +27,21 @@ const fees = {
     start: 1733383076,
   },
   [CHAIN.SEI]: {
-    tokens: ["0x6aB5d5E96aC59f66baB57450275cc16961219796"], //sUSDa
+    tokens: ["0x6aB5d5E96aC59f66baB57450275cc16961219796", //sUSDa
+             ADDRESSES.sei.USDC],
     collectors: ["0x6a7F97eD710A162cf5F1Eb8024e613FC9Ce9d563"],
     start: 1739963336,
   },
 }
+const RCHPool = "0xc39E83fE4E412A885c0577C08eB53BdB6548004a".toLowerCase();
 
 const fetch: any = async (options: FetchOptions) => {
   const chain = options.chain as keyof typeof fees;
   const dailyFees = await addTokensReceived({
     options,
     tokens: fees[chain].tokens,
-    targets: fees[chain].collectors
+    targets: fees[chain].collectors,
+    logFilter: (log) => log.from.toLowerCase() !== RCHPool,
   })
   return { dailyFees }
 }
@@ -48,19 +52,24 @@ export default {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: fees[CHAIN.ETHEREUM].start,
+      meta: {
+        methodology: {
+          Fees: "Fees are collected, transferred to the mainnet, swapped to RCH, and then burned.",
+        }
+      }
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: fees[CHAIN.ARBITRUM].start,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: fees[CHAIN.BSC].start,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch,
-      start: fees[CHAIN.POLYGON].start,
-    },
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch,
+    //   start: fees[CHAIN.ARBITRUM].start,
+    // },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch,
+    //   start: fees[CHAIN.BSC].start,
+    // },
+    // [CHAIN.POLYGON]: {
+    //   fetch: fetch,
+    //   start: fees[CHAIN.POLYGON].start,
+    // },
     // [CHAIN.SEI]: {
     //   fetch: fetch,
     //   start: fees[CHAIN.SEI].start,
