@@ -546,13 +546,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    // v1: {
-    //   [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    //   ...createAdapter('v1')
-    // },
-    // v2: createAdapter('v2'),
+    v1: {
+      [DISABLED_ADAPTER_KEY]: disabledAdapter,
+      ...createAdapter('v1')
+    },
+    v2: createAdapter('v2'),
     v3: createAdapter('v3'),
-    // stableswap: createAdapter('stableswap')
+    stableswap: createAdapter('stableswap')
   },
 };
 
