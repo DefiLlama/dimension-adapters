@@ -24,16 +24,16 @@ const abis = {
   fees: "function getFee(address pool, bool _stable) external view returns (uint256)",
 };
 
-const getVolumeAndFees = async (
-  fromBlock: number,
-  toBlock: number,
-  fetchOptions: FetchOptions
-) => {
-  const { createBalances, api, chain } = fetchOptions;
-  const dailyVolume = createBalances();
-  const dailyFees = createBalances();
 
-  const rawPoolsData = await fetchOptions.getLogs({
+const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
+  const [toBlock, fromBlock] = await Promise.all([
+    options.getToBlock(),
+    options.getFromBlock(),
+  ]);
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  const rawPoolsData = await options.getLogs({
     target: CONFIG.PoolFactory,
     fromBlock: 28543,
     toBlock,
@@ -47,7 +47,7 @@ const getVolumeAndFees = async (
       pool: i[3],
     };
   });
-  const fees = await api.multiCall({
+  const fees = await options.api.multiCall({
     abi: abis.fees,
     target: CONFIG.PoolFactory,
     calls: rawPools.map((i) => ({
@@ -80,7 +80,7 @@ const getVolumeAndFees = async (
     .process(async ([startBlock, endBlock]: any) => {
       if (errorFound) return;
       try {
-        const logs = await fetchOptions.getLogs({
+        const logs = await options.getLogs({
           noTarget: true,
           fromBlock: startBlock,
           toBlock: endBlock,
@@ -110,7 +110,7 @@ const getVolumeAndFees = async (
           const fee0 = amount0 * fee;
           const fee1 = amount1 * fee;
           addOneToken({
-            chain,
+            chain: options.chain,
             balances: dailyVolume,
             token0,
             token1,
@@ -118,7 +118,7 @@ const getVolumeAndFees = async (
             amount1,
           });
           addOneToken({
-            chain,
+            chain: options.chain,
             balances: dailyFees,
             token0,
             token1,
@@ -135,24 +135,6 @@ const getVolumeAndFees = async (
   if (errorFound) throw errorFound;
 
   return { dailyVolume, dailyFees };
-};
-
-const fetch = async (
-  _t: any,
-  _a: any,
-  options: FetchOptions
-): Promise<FetchResult> => {
-  const { getToBlock, getFromBlock } = options;
-  const [toBlock, fromBlock] = await Promise.all([
-    getToBlock(),
-    getFromBlock(),
-  ]);
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(
-    fromBlock,
-    toBlock,
-    options
-  );
-  return { dailyFees, dailyVolume };
 };
 
 const adapters: SimpleAdapter = {
