@@ -4,13 +4,7 @@ import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-	const {dailyFees, dailyRevenue} = await fetchL2FeesWithDune(options, 'zkevm');
-
-	// TODO: dailyRevenue is more than fee sometimes, need to check if this is correct
-
-	return {
-		dailyFees
-	}
+	return await fetchL2FeesWithDune(options, 'zkevm');
 }
 
 const adapter: Adapter = {
