@@ -111,13 +111,17 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		)
 		SELECT
 			COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) AS total_fee,
-			(COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) - (COALESCE((SELECT l1_calldata_cost FROM l1_fees_cte), 0) -
-			COALESCE((SELECT l1_blob_cost FROM l1_fees_cte), 0) -
-			COALESCE((SELECT l1_verify_cost FROM l1_fees_cte), 0))) AS total_revenue,
+			(COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) - (
+				COALESCE((SELECT l1_calldata_cost FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_blob_cost FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_verify_cost FROM l1_fees_cte), 0))
+			) AS total_revenue,
 			COALESCE((SELECT l2_fees_usd FROM l2_fees_cte), 0) AS total_fee_usd,
-			(COALESCE((SELECT l2_fees_usd FROM l2_fees_cte), 0) - (COALESCE((SELECT l1_calldata_cost_usd FROM l1_fees_cte), 0) -
-			COALESCE((SELECT l1_blob_cost_usd FROM l1_fees_cte), 0) -
-			COALESCE((SELECT l1_verify_cost_usd FROM l1_fees_cte), 0))) AS total_revenue_usd
+			(COALESCE((SELECT l2_fees_usd FROM l2_fees_cte), 0) - (
+				COALESCE((SELECT l1_calldata_cost_usd FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_blob_cost_usd FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_verify_cost_usd FROM l1_fees_cte), 0))
+			) AS total_revenue_usd
     `;
 
     const feesResult: any[] = await queryDuneSql(options, query);
