@@ -10,11 +10,7 @@ const ethereumWallets = [
 ]
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  return fetchL2FeesWithDune(options, {
-    chainName: 'base',
-    ethereumWallets,
-    blobSubmitterLabel: 'Base'
-  });
+  return await fetchL2FeesWithDune(options);
 }
 
 const adapter: Adapter = {
@@ -26,7 +22,8 @@ const adapter: Adapter = {
     },
   },
   protocolType: ProtocolType.CHAIN,
-  allowNegativeValue: true, // calldata and blob costs
+  isExpensiveAdapter: true,
+  allowNegativeValue: true, // L1 Costs
 }
 
 export default adapter;
