@@ -13,10 +13,11 @@ interface HyperswapResponse {
 }
 
 const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const url = (page: number) =>  `https://api.hyperswap.exchange/api/pairs?page=${page}&maxPerPage=50`
+    const url = (page: number) =>  `https://api-partner.hyperswap.exchange/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
     const data: HyperswapPair[] = []
-    while(true) {
+    let continueLoop = true;
+    do {
         const res = (await httpGet(url(page), {
             headers: {
                 "Content-Type": "application/json",
@@ -32,15 +33,14 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
                 "Sec-Fetch-Site": "same-origin",
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                 "Origin": "https://hyperswap.exchange",
-                "Referer": "https://hyperswap.exchange/"
+                'Referer': 'https://hyperswap.exchange/'
             }
         })) as { data: HyperswapResponse };
         page++
 
-        if (res.data.pageCount < page) break
-
-        data.push(...res.data.pairs)   
-    }
+        data.push(...res.data.pairs);
+        continueLoop = page <= res.data.pageCount;
+    } while (continueLoop);
 
     const dailyVolume = options.createBalances()
     const dailyFees = options.createBalances()
