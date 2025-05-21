@@ -13,7 +13,8 @@ interface HyperswapResponse {
 }
 
 const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const url = (page: number) =>  `https://api.hyperswap.exchange/api/pairs?page=${page}&maxPerPage=50`
+    const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
+    const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
     const data: HyperswapPair[] = []
     while(true) {
@@ -30,6 +31,7 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
                 "Sec-Fetch-Dest": "empty",
                 "Sec-Fetch-Mode": "cors",
                 "Sec-Fetch-Site": "same-origin",
+                "x-client-token": `${clientToken}`,
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                 "Origin": "https://hyperswap.exchange",
                 "Referer": "https://hyperswap.exchange/"
