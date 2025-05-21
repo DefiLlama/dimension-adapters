@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
@@ -11,6 +11,7 @@ import { cache } from "@defillama/sdk";
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
+  PANCAKE_EXPLORER = 'pacnake_explorer',
   CUSTOM = 'custom'
 }
 
@@ -31,13 +32,19 @@ interface LogsChainConfig extends BaseChainConfig {
   factory: string;
 }
 
+interface ExplorerChainConfig extends BaseChainConfig {
+  dataSource: DataSource.PANCAKE_EXPLORER;
+
+  // bsc, ethereum, base, opbnb, zksync, polygon-zkevm,linea, arbitrum
+  explorerChainSlug: string;
+}
+
 interface CustomChainConfig extends BaseChainConfig {
   dataSource: DataSource.CUSTOM;
   totalVolume?: number;
 }
 
-type ChainConfig = GraphChainConfig | LogsChainConfig | CustomChainConfig;
-
+type ChainConfig = GraphChainConfig | LogsChainConfig | CustomChainConfig | ExplorerChainConfig;
 const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v1: {
     [CHAIN.BSC]: {
@@ -101,8 +108,10 @@ const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v3: {
     [CHAIN.BSC]: {
       start: 1680307200,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
+      dataSource: DataSource.PANCAKE_EXPLORER,
+      // endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
+      // factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+      explorerChainSlug: 'bsc',
     },
     [CHAIN.ETHEREUM]: {
       start: 1680307200,
@@ -337,6 +346,21 @@ const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances
   }
 }
 
+function explorerApiEndpoint(version: 2 | 3, explorerChainSlug: string): string {
+  return `https://explorer.pancakeswap.com/api/cached/protocol/v${version}/${explorerChainSlug}/stats`;
+}
+async function getDataFromPancakeExplorer(version: 2 | 3, chainConfig: ChainConfig): Promise<FetchResult>{
+  if (chainConfig.dataSource === DataSource.PANCAKE_EXPLORER) {
+    const stats = await httpGet(explorerApiEndpoint(version, chainConfig.explorerChainSlug));
+    return {
+      dailyVolume: Number(stats.volumeUSD24h),
+      dailyFees: Number(stats.totalFeeUSD24h) - Number(stats.totalFeeUSD48h),
+    }
+  } else {
+    throw Error('invalid ChainConfig for pancakeswap adapter');
+  }
+}
+
 const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: number): Promise<ISwapEventData[]> => {
   const limit = 100;
   const swap_events: any[] = [];
@@ -432,6 +456,8 @@ const fetchV3 = async (options: FetchOptions) => {
       v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
     }
     return v3stats;
+  } else if (chainConfig.dataSource === DataSource.PANCAKE_EXPLORER) {
+    return await getDataFromPancakeExplorer(3, chainConfig)
   }
   throw new Error('Invalid data source');
 }
@@ -502,7 +528,8 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     } else if (version === 'v3') {
       acc[chain] = {
         fetch: fetchV3,
-        start: config.start
+        start: config.start,
+        runAtCurrTime: versionConfig[chain].dataSource === DataSource.PANCAKE_EXPLORER,
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
@@ -519,13 +546,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      ...createAdapter('v1')
-    },
-    v2: createAdapter('v2'),
+    // v1: {
+    //   [DISABLED_ADAPTER_KEY]: disabledAdapter,
+    //   ...createAdapter('v1')
+    // },
+    // v2: createAdapter('v2'),
     v3: createAdapter('v3'),
-    stableswap: createAdapter('stableswap')
+    // stableswap: createAdapter('stableswap')
   },
 };
 
