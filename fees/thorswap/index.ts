@@ -13,6 +13,8 @@ const chainMapping = {
   BCH: CHAIN.BITCOIN_CASH,
   DOGE: CHAIN.DOGECHAIN,
   GAIA: CHAIN.COSMOS,
+  BASE: CHAIN.BASE,
+  THOR: CHAIN.THORCHAIN
 }
 
 interface Pool {
@@ -68,9 +70,11 @@ export async function fetchCacheURL(url: string) {
   return requests[key]
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 const fetchFeesByChain = () => {
   const adapter = {}
-  const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH']
+  const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR']
   chains.forEach((chain: string) => {
     adapter[chainMapping[chain]] = {
       runAtCurrTime: true,
@@ -80,8 +84,11 @@ const fetchFeesByChain = () => {
         const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`
         const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
         const earnings = await fetchCacheURL(earningsUrl);
+        await sleep(3000)
         const revenue = await fetchCacheURL(reserveUrl);
+        await sleep(2000)
         const pools = await fetchCacheURL(poolsUrl);
+        await sleep(2000)
         const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
         const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
 
