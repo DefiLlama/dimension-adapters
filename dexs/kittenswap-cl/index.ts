@@ -26,29 +26,18 @@ const abis = {
   fee: "uint256:fee",
 };
 
-const fetch = async (
-  _: any,
-  _1: any,
-  fetchOptions: FetchOptions
-): Promise<FetchResult> => {
-  const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } =
-    fetchOptions;
-  const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const [toBlock, fromBlock] = await Promise.all([
-    getToBlock(),
-    getFromBlock(),
-  ]);
+const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  const rawPools = await getLogs({
+  const rawPools = await options.getLogs({
     target: CONFIG.factory,
     fromBlock: 2033100,
-    toBlock,
     eventAbi: eventAbis.event_poolCreated,
     skipIndexer: true,
   });
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase());
-  const fees = await api.multiCall({ abi: abis.fee, calls: _pools });
+  const fees = await options.api.multiCall({ abi: abis.fee, calls: _pools });
   const kittenswapPoolSet = new Set();
   const poolInfoMap = {} as any;
   rawPools.forEach(({ token0, token1, pool }, index) => {
@@ -57,6 +46,7 @@ const fetch = async (
     poolInfoMap[pool] = { token0, token1, fee };
     kittenswapPoolSet.add(pool);
   });
+  const [toBlock, fromBlock] = await Promise.all([options.getToBlock(), options.getFromBlock()])
 
   const blockStep = 1000;
   let i = 0;
@@ -77,7 +67,7 @@ const fetch = async (
     .process(async ([startBlock, endBlock]: any) => {
       if (errorFound) return;
       try {
-        const logs = await fetchOptions.getLogs({
+        const logs = await options.getLogs({
           noTarget: true,
           fromBlock: startBlock,
           toBlock: endBlock,
@@ -100,7 +90,7 @@ const fetch = async (
           const fee0 = amount0 * fee;
           const fee1 = amount1 * fee;
           addOneToken({
-            chain,
+            chain: options.chain,
             balances: dailyVolume,
             token0,
             token1,
@@ -108,7 +98,7 @@ const fetch = async (
             amount1,
           });
           addOneToken({
-            chain,
+            chain: options.chain,
             balances: dailyFees,
             token0,
             token1,
