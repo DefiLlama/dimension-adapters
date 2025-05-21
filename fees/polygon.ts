@@ -5,11 +5,7 @@ import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 const ethereumWallets = ['null']
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const { dailyFees, dailyRevenue } = await fetchL2FeesWithDune(options, {
-        chainName: 'polygon',
-        ethereumWallets,
-        blobSubmitterLabel: 'Polygon'
-    });
+    const { dailyFees, dailyRevenue } = await fetchL2FeesWithDune(options);
     return {
         dailyFees
     }
@@ -23,7 +19,9 @@ const adapter: Adapter = {
             start: '2020-05-30'
         },
     },
-    protocolType: ProtocolType.CHAIN
+    protocolType: ProtocolType.CHAIN,
+    isExpensiveAdapter: true,
+    allowNegativeValue: true, // L1 Costs
 }
 
 export default adapter;

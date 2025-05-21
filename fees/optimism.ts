@@ -10,11 +10,7 @@ const ethereumWallets = [
 ];
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  return fetchL2FeesWithDune(options, {
-    chainName: 'optimism',
-    ethereumWallets,
-    blobSubmitterLabel: 'Optimism'
-  });
+  return await fetchL2FeesWithDune(options);
 }
 
 const adapter: Adapter = {
@@ -25,8 +21,9 @@ const adapter: Adapter = {
       start: '2020-08-29',
     },
   },
+  protocolType: ProtocolType.CHAIN,
+  isExpensiveAdapter: true,
   allowNegativeValue: true, // calldata and blob costs
-  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;

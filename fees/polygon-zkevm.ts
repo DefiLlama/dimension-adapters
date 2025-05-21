@@ -4,15 +4,21 @@ import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-	return await fetchL2FeesWithDune(options);
+	const {dailyFees, dailyRevenue} = await fetchL2FeesWithDune(options, 'zkevm');
+
+	// TODO: dailyRevenue is more than fee sometimes, need to check if this is correct
+
+	return {
+		dailyFees
+	}
 }
 
 const adapter: Adapter = {
 	version: 1,
 	adapter: {
-		[CHAIN.MANTLE]: {
+		[CHAIN.POLYGON_ZKEVM]: {
 			fetch,
-			start: '2023-07-02'
+			start: '2023-03-24'
 		},
 	},
 	protocolType: ProtocolType.CHAIN,
