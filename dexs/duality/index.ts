@@ -17,7 +17,7 @@ const fetchVolumeWithAuth = async ()=>{
   return historicalVolume
 }
 
-const fetch = async (timestamp: number, _at: any, options: FetchOptions) => {
+const fetch = async (_timestamp: number, _at: any, options: FetchOptions) => {
 
   const historicalVolume = await fetchVolumeWithAuth()
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
