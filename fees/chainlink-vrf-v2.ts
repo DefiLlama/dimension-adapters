@@ -92,8 +92,8 @@ const fetch = (chain: Chain, version: number) => {
     const dailyRevenue = dailyFees - dailyGasUsd;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue.toString(),
+      dailyFees,
+      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
     }
 
   }
@@ -123,6 +123,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.AVAX, 2),
       start: '2023-02-03',
     }
-  }
+  },
+  allowNegativeValue: true, // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
 }
 export default adapter;

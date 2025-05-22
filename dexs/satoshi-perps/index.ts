@@ -42,7 +42,7 @@ interface IGraphResponseOI {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], query, {
     id: String(dayTimestamp) + ':daily',
@@ -87,18 +87,16 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.CORE]: 1734914400,
 }
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(historicalDataDerivatives)(chain),
-          start: startTimestamps[chain]
-        }
+const adapter: SimpleAdapter = {
+  adapter: Object.keys(endpoints).reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: getFetch(historicalDataDerivatives)(chain),
+        start: startTimestamps[chain]
       }
-    }, {})
-  }
+    }
+  }, {})
 }
 
 export default adapter;

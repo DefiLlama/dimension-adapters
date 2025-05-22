@@ -63,8 +63,8 @@ const getFetch = (endpoint: string) => async (timestamp: number) => {
 
   return {
     timestamp: dayTimestamp,
-    dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
-    totalFees: totalFees !== undefined ? String(totalFees) : undefined,
+    dailyFees,
+    totalFees,
   };
 };
 

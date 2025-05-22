@@ -1,9 +1,6 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const adapters = univ2Adapter2({
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('HgSAfZvHEDbAVuZciPUYEqFzhAUnjJWmyix5C1R2tmTp')
-}, {});
-adapters.adapter.moonbeam.start = 1641960253;
-export default adapters;
+export default uniV2Exports({
+  [CHAIN.MOONBEAM]: { factory: '0x68A384D826D3678f78BB9FB1533c7E9577dACc0E', fees: 0.0025, revenueRatio: 0.2, protocolRevenueRatio: 0.2},
+})

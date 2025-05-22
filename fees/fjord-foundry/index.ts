@@ -6,7 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 const feeEndpoint = "https://fjord-api.vercel.app/api/daily-stats?version=2";
 const feeEndpointV1 = "https://fjord-api.vercel.app/api/daily-stats?version=1";
 
-const v2ChainIDs = {
+const v2ChainIDs: any = {
     [CHAIN.ETHEREUM]: 1,
     [CHAIN.POLYGON]: 137,
     [CHAIN.ARBITRUM]: 42161,
@@ -16,7 +16,7 @@ const v2ChainIDs = {
     [CHAIN.BSC]: 56,
 };
 
-const v1ChainIDs = {
+const v1ChainIDs: any = {
     [CHAIN.ETHEREUM]: 1,
     [CHAIN.POLYGON]: 137,
     [CHAIN.ARBITRUM]: 42161,
@@ -29,17 +29,17 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
     const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
 
     const totalFee = chainData.stats
-        .filter(item => item.timestamp <= dayTimestamp)
-        .reduce((acc, { fees }) => acc + fees, 0)
+        .filter((item: any) => item.timestamp <= dayTimestamp)
+        .reduce((acc: any, { fees }: any) => acc + fees, 0)
 
     const dailyFee = chainData.stats
-        .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
+        .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: `${totalFee}`,
-        dailyFees: dailyFee ? `${dailyFee}` : '0',
-        totalRevenue: `${totalFee}`,
-        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
+        totalFees: totalFee,
+        dailyFees: dailyFee,
+        totalRevenue: totalFee,
+        dailyRevenue: dailyFee,
     };
 };
 
@@ -47,20 +47,20 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalFees = (await fetchURL(feeEndpointV1))
 
-    const chainData = historicalFees.stats.find(cd => cd.chainId === chainId);
+    const chainData = historicalFees.stats.find((cd: any) => cd.chainId === chainId);
 
     const totalFee = chainData.stats
-        .filter(item => item.timestamp <= dayTimestamp)
-        .reduce((acc, { fees }) => acc + fees, 0)
+        .filter((item: any) => item.timestamp <= dayTimestamp)
+        .reduce((acc: any, { fees }: any) => acc + fees, 0)
 
     const dailyFee = chainData.stats
-        .find(dayItem => dayItem.timestamp === dayTimestamp)?.fees
+        .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: `${totalFee}`,
-        dailyFees: dailyFee ? `${dailyFee}` : '0',
-        totalRevenue: `${totalFee}`,
-        dailyRevenue: dailyFee ? `${dailyFee}` : '0',
+        totalFees: totalFee,
+        dailyFees: dailyFee,
+        totalRevenue: totalFee,
+        dailyRevenue: dailyFee,
     };
 };
 

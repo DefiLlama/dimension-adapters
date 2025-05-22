@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: file_changes
-        uses: trilom/file-changes-action@v1.2.4
+        uses: trilom/file-changes-action@ce38c8ce2459ca3c303415eec8cb0409857b4272
         with:
           output: 'json'
           fileOutput: 'json'

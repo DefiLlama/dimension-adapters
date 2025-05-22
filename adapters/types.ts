@@ -39,6 +39,7 @@ export type FetchOptions = {
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
   dateString: string,
+  preFetchedResults?: any,
 }
 
 export type FetchGetLogsOptions = {
@@ -53,8 +54,11 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipCache?: boolean,
   skipIndexer?: boolean,
   topics?: string[],
+  noTarget?: boolean,
+  parseLog?: boolean,
 }
 
 export type Fetch = (
@@ -96,6 +100,8 @@ export type AdapterBase = {
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
+  allowNegativeValue?: boolean;
+  prefetch?: FetchV2;
 }
 
 export type SimpleAdapter = AdapterBase & {
@@ -141,6 +147,7 @@ export type FetchResultFees = FetchResultBase & {
   totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
+  totalHoldersRevenue?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -174,7 +181,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
-  ROYALTIES = 'royalties',
+  // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }
@@ -182,12 +189,16 @@ export enum AdapterType {
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
 
 export const whitelistedDimensionKeys = new Set([
-  'startTimestamp', 'chain', 'timestamp','block',
+  'startTimestamp', 'chain', 'timestamp', 'block',
 
   'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+])
+export const accumulativeKeySet = new Set([
+  'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
 ])
 
 // End of specific adaptors type

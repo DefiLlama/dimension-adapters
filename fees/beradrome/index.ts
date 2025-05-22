@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 
+
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
 const DEPLOYMENT_BLOCK = 784968;
@@ -14,22 +15,15 @@ const PROVIDER_FEE = 2000n;
 const DIVISOR = 10000n;
 
 async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
-  const { getLogs, getFromBlock, getToBlock } = options;
 
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
-
-  const buyLogs = await getLogs({
+  const buyLogs = await options.getLogs({
     target: BERO,
-    fromBlock,
-    toBlock,
     eventAbi:
       "event TOKEN__Buy(address indexed sender, address indexed toAccount, uint256 amountBase)",
   });
 
-  const sellLogs = await getLogs({
+  const sellLogs = await options.getLogs({
     target: BERO,
-    fromBlock,
     eventAbi:
       "event TOKEN__Sell(address indexed sender, address indexed toAccount, uint256 amountToken)",
   });
@@ -48,15 +42,9 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
-  const { getLogs, getFromBlock, getToBlock } = options;
 
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
-
-  const borrowLogs = await getLogs({
+  const borrowLogs = await options.getLogs({
     target: VOTER,
-    fromBlock,
-    toBlock,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
   });
 
@@ -68,10 +56,6 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBribes(options: FetchOptions, totalFees: Balances) {
-  const { getLogs, getFromBlock, getToBlock } = options;
-
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
 
   const plugins = await options.api.call({
     target: VOTER,
@@ -86,10 +70,8 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   });
 
   for (const bribe of bribes) {
-    const logs = await getLogs({
+    const logs = await options.getLogs({
       target: bribe,
-      fromBlock,
-      toBlock,
       eventAbi:
         "event Bribe__RewardNotified(address indexed rewardToken, uint256 reward)",
     });
@@ -100,16 +82,37 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
+const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
+const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
+
+async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
+
+  const logs = await options.getLogs({
+    target: BERADROME_REWARD_VAULT,
+    eventAbi: "event RewardAdded(uint256 reward)",
+  });
+
+  logs.forEach((log) => {
+    balances.add(BGT_ADDRESS, log.reward);
+  });
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyBribesRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
+  // Fees
   await addBondigCurveFees(options, dailyFees);
   await addBorrowFees(options, dailyFees);
 
+  // Bribes
   await addBribes(options, dailyBribesRevenue);
 
-  return { dailyFees, dailyBribesRevenue };
+  // Holders Revenue
+  await addHoldersRevenue(options, dailyHoldersRevenue);
+
+  return { dailyFees, dailyBribesRevenue, dailyHoldersRevenue };
 }
 
 const adapter: Adapter = {

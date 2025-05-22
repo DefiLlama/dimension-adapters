@@ -6,7 +6,7 @@ export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
   [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://stats-celo-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', allStatsApi: 'https://stats.explorer.mainnet.aurora.dev', CGToken: 'ethereum' },
-  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'gnosis', },
+  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai',  allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01' },
   [CHAIN.CANTO]: { explorer: 'https://explorer.plexnode.wtf', CGToken: 'canto', },
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
@@ -54,8 +54,8 @@ export const chainConfigMap: any = {
 
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
   [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
-  [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
-  // [CHAIN.ZORA]: { explorer: 'https://explorer.zora.energy', CGToken: 'ethereum', allStatsApi: 'https://stats-l2-zora-mainnet.k8s-prod-1.blockscout.com' },
+  [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
+  [CHAIN.ZORA]: { explorer: 'https://explorer.zora.co', CGToken: 'ethereum', allStatsApi: 'https://explorer.zora.co' },
   [CHAIN.WC]: { explorer: 'https://worldchain-mainnet.explorer.alchemy.com', CGToken: 'ethereum', allStatsApi: 'https://stats-alchemy-worldchain-mainnet.k8s.blockscout.com' },
   // [CHAIN.ASSETCHAIN]: { explorer: 'https://scan.assetchain.org', CGToken: 'ethereum', allStatsApi: 'https://stats.assetchain.org' },
   [CHAIN.ANCIENT8]: { explorer: 'https://scan.ancient8.gg', CGToken: 'ethereum', allStatsApi: 'https://explorer-ancient8-mainnet-0.t.conduit.xyz' },
@@ -65,6 +65,10 @@ export const chainConfigMap: any = {
   // [CHAIN.LUKSO]: {    explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: 'lukso-token-2', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network'  },
   [CHAIN.LIGHTLINK_PHOENIX]: { explorer: 'https://phoenix.lightlink.io', CGToken: 'lightlink', allStatsApi: 'https://stats-lightlink-phoenix.k8s.blockscout.com' },
   [CHAIN.IOTAEVM]: { CGToken: 'iota', explorer: 'https://explorer.evm.iota.org', allStatsApi: 'https://stats-iota-evm.k8s.blockscout.com' },
+  [CHAIN.FILECOIN]: { CGToken: 'filecoin', explorer: 'https://filecoin.blockscout.com/', allStatsApi: 'https://stats-filecoin.k8s-prod-1.blockscout.com' },
+  [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
+  [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
+  [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
 
 }
 
@@ -88,7 +92,6 @@ export function blockscoutFeeAdapter2(chain: string) {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
 
-          await sleep(3000)
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
           let todayPrice = undefined
@@ -143,6 +146,10 @@ export function blockscoutFeeAdapter2(chain: string) {
 
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
+          if (!fees || fees.result === undefined || fees.result === null) {
+            console.log(chain,' Error fetching fees', fees)
+            throw new Error('Error fetching fees')
+          }
           if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)

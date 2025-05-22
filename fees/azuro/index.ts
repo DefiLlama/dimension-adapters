@@ -86,6 +86,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+    allowNegativeValue: true, // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),

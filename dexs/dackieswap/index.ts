@@ -1,74 +1,18 @@
-import { IJSON, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const v3Endpoint = {
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/50473/v3-base/version/latest",
-  [CHAIN.OPTIMISM]:
-    "https://api.studio.thegraph.com/query/50473/v3-optimism/version/latest",
-  [CHAIN.ARBITRUM]:
-      "https://api.studio.thegraph.com/query/50473/v3-arbitrum/version/latest",
-  [CHAIN.BLAST]:
-      "https://api.studio.thegraph.com/query/50473/v3-blast/version/latest",
-  [CHAIN.MODE]:
-      "https://api.studio.thegraph.com/query/50473/v3-mode/version/latest",
-  [CHAIN.XLAYER]:
-      "https://api.studio.thegraph.com/query/50473/v3-xlayer/version/latest",
-  [CHAIN.LINEA]:
-      "https://api.studio.thegraph.com/query/50473/v3-linea/version/latest",
-};
-
-const v3Graph = getGraphDimensions2({
-  graphUrls: v3Endpoint,
-  totalVolume: {
-    factory: "factories",
-  },
-  totalFees: {
-    factory: "factories",
-  },
-});
-
-const v3StartTimes = {
-  [CHAIN.BASE]: 1691712000,
-  [CHAIN.OPTIMISM]: 1705993200,
-  [CHAIN.ARBITRUM]: 1707885300,
-  [CHAIN.BLAST]: 1722556800,
-  [CHAIN.MODE]: 1712371653,
-  [CHAIN.XLAYER]: 1712369493,
-  [CHAIN.LINEA]: 1725062400,
-} as IJSON<number>;
+const swapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.BASE]: {
-      fetch: v3Graph(CHAIN.BASE),
-      start: v3StartTimes[CHAIN.BASE]
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: v3Graph(CHAIN.OPTIMISM),
-      start: v3StartTimes[CHAIN.OPTIMISM]
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: v3Graph(CHAIN.ARBITRUM),
-      start: v3StartTimes[CHAIN.ARBITRUM]
-    },
-    [CHAIN.BLAST]: {
-      fetch: v3Graph(CHAIN.BLAST),
-      start: v3StartTimes[CHAIN.BLAST]
-    },
-    [CHAIN.MODE]: {
-      fetch: v3Graph(CHAIN.MODE),
-      start: v3StartTimes[CHAIN.MODE]
-    },
-    [CHAIN.XLAYER]: {
-      fetch: v3Graph(CHAIN.XLAYER),
-      start: v3StartTimes[CHAIN.XLAYER]
-    },
-    [CHAIN.LINEA]: {
-      fetch: v3Graph(CHAIN.LINEA),
-      start: v3StartTimes[CHAIN.LINEA]
-    },
+    [CHAIN.BASE]: { fetch: getUniV3LogAdapter({ factory: '0x3D237AC6D2f425D2E890Cc99198818cc1FA48870', swapEvent, }) },
+    [CHAIN.OPTIMISM]: { fetch: getUniV3LogAdapter({ factory: '0xc2BC7A73613B9bD5F373FE10B55C59a69F4D617B', swapEvent, }) },
+    [CHAIN.ARBITRUM]: { fetch: getUniV3LogAdapter({ factory: '0xaedc38bd52b0380b2af4980948925734fd54fbf4', swapEvent, }) },
+    [CHAIN.BLAST]: { fetch: getUniV3LogAdapter({ factory: '0xCFC8BfD74422472277fB5Bc4Ec8851d98Ecb2976', swapEvent, }) },
+    [CHAIN.MODE]: { fetch: getUniV3LogAdapter({ factory: '0xc6f3966E5D08Ced98aC30f8B65BeAB5882Be54C7', swapEvent, }) },
+    [CHAIN.LINEA]: { fetch: getUniV3LogAdapter({ factory: '0xc6255ec7CDb11C890d02EBfE77825976457B2470', swapEvent, }) },
+    [CHAIN.XLAYER]: { fetch: getUniV3LogAdapter({ factory: '0xc6f3966e5d08ced98ac30f8b65beab5882be54c7', swapEvent, }) },
   },
   version: 2
 };

@@ -32,9 +32,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         fetchTimestamp = dataTimestamp;
         last24HourFees = convertToUsd(
           globalOverview.fees.realized_trading_fee[index].value -
-            Number(
-              globalOverview.fees.realized_trading_fee[nextIndex].value ?? 0
-            )
+          Number(
+            globalOverview.fees.realized_trading_fee[nextIndex].value ?? 0
+          )
         );
         last24HourRevenue = last24HourFees * 0.25;
         last24HoursShortOpenInterest = convertToUsd(
@@ -65,27 +65,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.NEUTRON]: {
-        fetch,
-        runAtCurrTime: true,
-        start: "2024-12-13",
-        meta: {
-          methodology: {
-            dailyVolume:
-              "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
-            dailyFees:
-              "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
-            dailyProtocolRevenue:
-              "The daily revenue going to the protocol is 25% of the daily fees.",
-            dailyShortOpenInterest:
-              "The total value of all short positions on the protocol.",
-            dailyLongOpenInterest:
-              "The total value of all long positions on the protocol.",
-            dailyOpenInterest:
-              "The total value of all positions on the protocol.",
-          },
+  adapter: {
+    [CHAIN.NEUTRON]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2024-12-13",
+      meta: {
+        methodology: {
+          dailyVolume:
+            "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
+          dailyFees:
+            "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
+          dailyProtocolRevenue:
+            "The daily revenue going to the protocol is 25% of the daily fees.",
+          dailyShortOpenInterest:
+            "The total value of all short positions on the protocol.",
+          dailyLongOpenInterest:
+            "The total value of all long positions on the protocol.",
+          dailyOpenInterest:
+            "The total value of all positions on the protocol.",
         },
       },
     },

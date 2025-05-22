@@ -3,13 +3,26 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
+type IRequest = {
+  [key: string]: Promise<any>;
+}
+const requests: IRequest = {}
+
+const fetchCacheURL = (url: string) => {
+  const key = url;
+  if (!requests[key]) {
+      requests[key] = fetchURL(url);
+  }
+  return requests[key];
+}
+
 const fetch = (chainId: number) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
     const dateFrom = formatTimestampAsDate(todaysTimestamp);
     const dateTo = dateFrom;
     const url = `https://stats-api.dln.trade/api/Satistics/getDaily?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const response = await fetchURL(url);
+    const response = await fetchCacheURL(url);
     const dailyDatas = response.dailyData;
     let fees = 0;
     for (const dailyData of dailyDatas) {

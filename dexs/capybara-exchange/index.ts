@@ -58,10 +58,10 @@ const fetchVolume = (chain: Chain) => {
     const dailyFees = new BigNumber(dailyVolume ? dailyVolume : '0').multipliedBy(feesRatio).toString()
     const totalFees = new BigNumber(totalTradeVolumeUSD ? totalTradeVolumeUSD : '0').multipliedBy(feesRatio).toString()
     return {
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
-      dailyFees: dailyFees,
-      totalFees: totalFees,
+      dailyVolume: dailyVolume,
+      totalVolume: totalTradeVolumeUSD,
+      dailyFees,
+      totalFees,
       timestamp: dayTimestamp
     };
   };

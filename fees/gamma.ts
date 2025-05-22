@@ -48,8 +48,8 @@ const fetchFees = (chain: string) => {
     const dailyRevenue = result.items.filter((e: Item) => e.chain === chain)
       .reduce((a: number, b: Item) => a + b.total_revenue, 0);
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
+      dailyFees,
+      dailyRevenue,
       timestamp
     }
   }
@@ -133,10 +133,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees("gnosis"),
       start: '2023-04-22',
     },
-    [CHAIN.ASTRZK]: {
-      fetch: fetchFees("astar_zkevm"),
-      start: '2023-04-22',
-    },
+    // [CHAIN.ASTRZK]: {
+    //   fetch: fetchFees("astar_zkevm"),
+    //   start: '2023-04-22',
+    // },
     [CHAIN.IMX]: {
       fetch: fetchFees("immutable_zkevm"),
       start: '2023-04-22',

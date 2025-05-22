@@ -27,6 +27,7 @@ const config: any = {
   [CHAIN.BSC]: 'bsc',
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.TON]: 'ton',
+  [CHAIN.HEMI]: 'hemi',
 }
 
 async function fetch({ chain }: FetchOptions) {
