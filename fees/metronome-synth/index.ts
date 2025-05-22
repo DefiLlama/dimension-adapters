@@ -1,11 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
-import { getPrices, getTokenPrice } from "../../utils/prices";
 
 const TREASURY = {
   [CHAIN.ETHEREUM]: "0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33",
-  [CHAIN.BASE]:     "0xe01df4ac1e1e57266900e62c37f12c986495a618",
+  [CHAIN.BASE]: "0xe01df4ac1e1e57266900e62c37f12c986495a618",
   [CHAIN.OPTIMISM]: "0xE01Df4ac1E1e57266900E62C37F12C986495A618",
 };
 
@@ -50,27 +49,20 @@ const VAULTS = {
 
 const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
 const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
-const COINGECKO_ID = "metronome";
-const TRANSFER_EVENT = 'event Transfer(address indexed from, address indexed to, uint256 value)';
 
 const fetch = (chain: string) => async (options: FetchOptions) => {
-  const fees = await addTokensReceived({
-    options,
-    tokens: SYNTHS[chain],
-    targets: [TREASURY[chain]],
-  });
+  const dailyFees = await addTokensReceived({ options, tokens: SYNTHS[chain], targets: [TREASURY[chain]], });
 
-  const dailyFees = fees.clone();
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(fees);                
+  dailyRevenue.addBalances(dailyFees);
   const dailyHoldersRevenue = options.createBalances();
 
   const vaults = VAULTS[chain] ?? [];
   for (const v of vaults) {
     const [pps0, pps1, sharesRaw] = await Promise.all([
-      options.api.call({ abi: "uint256:pricePerShare", target: v.vault, block: options.startBlock }),
-      options.api.call({ abi: "uint256:pricePerShare", target: v.vault, block: options.endBlock }),
-      options.api.call({ abi: "erc20:balanceOf", target: v.vault, params: [v.holder], block: options.endBlock }),
+      options.fromApi.call({ abi: "uint256:pricePerShare", target: v.vault, }),
+      options.toApi.call({ abi: "uint256:pricePerShare", target: v.vault, }),
+      options.toApi.call({ abi: "erc20:balanceOf", target: v.vault, params: [v.holder], }),
     ]);
 
     const delta = BigInt(pps1.toString()) - BigInt(pps0.toString());
@@ -80,26 +72,12 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     const gainRaw = (delta * shares) / 10n ** 18n;
     if (gainRaw <= 0n) continue;
 
-    const price = await getTokenPrice(v.underlying, options.endTimestamp);
-    const usd = Number(gainRaw) * price;
-
-    if (usd > 0) dailyRevenue.addCGToken("usd-coin", usd);
+    dailyRevenue.add(v.underlying, gainRaw)
   }
 
-  if (chain === CHAIN.ETHEREUM && options.fromBlock && options.toBlock) {
-    const logs = await options.getLogs({
-      target: MET_TOKEN,
-      eventAbi: TRANSFER_EVENT,
-      fromBlock: options.fromBlock,
-      toBlock: options.toBlock,
-    });
-
-    for (const log of logs) {
-      if (log.to?.toLowerCase() === DISTRIBUTOR.toLowerCase()) {
-        const amount = Number(log.value) / 1e18;
-        dailyHoldersRevenue.addCGToken(COINGECKO_ID, amount);
-      }
-    }
+  if (chain === CHAIN.ETHEREUM) {
+    const metTransfers = await addTokensReceived({ options, tokens: [MET_TOKEN], targets: [DISTRIBUTOR], });
+    dailyHoldersRevenue.addBalances(metTransfers);
   }
 
   return {
