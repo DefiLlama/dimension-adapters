@@ -1,4 +1,5 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 interface ApiResponse {
@@ -10,7 +11,7 @@ const api = "https://flipsidecrypto.xyz/api/v1/queries/72e88d8e-3fa6-43d9-9938-1
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "near": {
+    [CHAIN.NEAR]: {
       start: '2024-11-05',
       fetch: async (_ts, _t: any, options: FetchOptions) => {
         if (!data) data = httpGet(api)
