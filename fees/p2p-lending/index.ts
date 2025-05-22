@@ -3,9 +3,10 @@ import { request } from "graphql-request";
 import type { FetchOptions, FetchResult } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const headers = {
+const headers: HeadersInit = {
   origin: "https://subgraph.smardex.io",
   referer: "https://subgraph.smardex.io",
+  "x-api-key": process.env.SMARDEX_SUBGRAPH_API_KEY || "",
 };
 
 type TokenSubgraphData = {
