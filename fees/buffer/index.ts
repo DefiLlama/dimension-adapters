@@ -36,7 +36,6 @@ const graphs = (baseUrls: ChainEndpoints) => {
       url.searchParams.append("day", dateId);
 
       const response = await request(baseUrls[chain], query, { startTimestamp: timestamp - 86400, endTimestamp: timestamp });
-      console.log(response.defillamaFeeStats)
       const dailyFee = response.defillamaFeeStats[0]?.fee / 1000000 || 0;
 
       return {
