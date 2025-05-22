@@ -26,7 +26,7 @@ const abi: { [event: string]: string } = {
     "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
 };
 
-const chains: { [chain: string]: { id: number; start: number } } = {
+const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.ETHEREUM]: { id: 1, start: '2023-06-09' },
   [CHAIN.ARBITRUM]: { id: 42161, start: '2023-06-09' },
   [CHAIN.MANTLE]: { id: 5000, start: '2024-03-27' },
@@ -79,9 +79,13 @@ async function limitOrder(
     ytToSy[market.yt.address.toLowerCase()] = market.sy.address;
   });
 
-  fills.map((fill) =>
-    balances.add(ytToSy[fill.YT.toLowerCase()], fill.notionalVolume),
-  );
+  fills.map((fill) => {
+    if (ytToSy[fill.YT.toLowerCase()]) {
+      balances.add(ytToSy[fill.YT.toLowerCase()], fill.notionalVolume);
+    } else {
+      console.log(fill.YT, ytToSy[fill.YT.toLowerCase()]);
+    }
+  });
 }
 
 const fetch = (chain: Chain) => {
