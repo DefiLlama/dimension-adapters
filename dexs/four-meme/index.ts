@@ -1,52 +1,27 @@
-import * as sdk from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addGasTokensReceived } from '../../helpers/token';
 
-const address = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
-const topics0_buy = '0x7db52723a3b2cdd6164364b3b766e65e540d7be48ffa89582956d8eaebe62942';
-const topics0_sell_1 = '0x0a5575b3648bae2210cee56bf33254cc1ddfbc7bf637c0af2ac18b14fb1bae19';
+const feeReceiverMultisig = [
+  "0x48735904455eda3aa9a0c9e43ee9999c795e30b9",
+  "0x55d571b7475F4382C2a15D24A7C864cA679407c4",
+  "0x60Be34554F193f4f6862b0E12DC16BA30163D6d0",
+  "0x31120f443365efa63330d2D962f537aE28f0d672",
+  "0xf89b36B36A634745eEFbbF17d5F777A494F8B6F7",
+  "0xC1865A53609eaEC415b530632F43F4297392b224"
+] // source: https://dune.com/queries/4068894/6851717
 
-async function fetchVolumeFromIndexers(params: { target: string; options: FetchOptions, topics: string[] }) {
-  let { target, options, topics } = params;
+const fromAddresses = [
+  "0xEC4549caDcE5DA21Df6E6422d448034B5233bFbC",
+  "0x5c952063c7fc8610FFDB798152D69F0B9550762b"
+]
 
-  const batchSize = 5000;
-  const allLogs: any[] = [];
-  let batchLogs: any[];
-  let offset = 0;
-  const fromBlock = (await options.getFromBlock()) - 200
-  const toBlock = (await options.getToBlock()) - 200
+const fetch = async (options: FetchOptions) => {
+  let dailyVolume = options.createBalances()
 
-  for (;;) {
-    batchLogs = await sdk.indexer.getLogs({
-      chain: options.chain,
-      target,
-      topics,
-      onlyArgs: true,
-      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
-      fromBlock,
-      toBlock,
-      limit: batchSize,
-      offset,
-      all: false
-    });
-    allLogs.push(...batchLogs);
-    if (batchLogs.length < batchSize) break;
-    offset += batchSize;
-  }
+  await addGasTokensReceived({ multisigs: feeReceiverMultisig, balances: dailyVolume, options, fromAddresses })
+  dailyVolume = dailyVolume.resizeBy(100) // because of 1% fixed platform fee as per docs
 
-  return allLogs
-}
-
-const fetchVolume = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances()
-  const buy_logs: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_buy], options })
-  const sell_logs_1: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_sell_1], options })
-
-  buy_logs.concat(sell_logs_1).forEach((log) => {
-    const data = log.data.replace('0x', '');
-    const amount = Number('0x' + data.slice(4 * 64, 5 * 64))
-    if (amount/1e18 < 100) dailyVolume.addGasToken(amount)
-  });
   return {
     dailyVolume: dailyVolume
   }
@@ -56,7 +31,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetchVolume,
+      fetch,
       start: 1735129946,
     },
   },
