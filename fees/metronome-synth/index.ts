@@ -53,8 +53,6 @@ const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
 const fetch = (chain: string) => async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({ options, tokens: SYNTHS[chain], targets: [TREASURY[chain]], });
 
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(dailyFees);
   const dailyHoldersRevenue = options.createBalances();
 
   const vaults = VAULTS[chain] ?? [];
@@ -72,7 +70,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     const gainRaw = (delta * shares) / 10n ** 18n;
     if (gainRaw <= 0n) continue;
 
-    dailyRevenue.add(v.underlying, gainRaw)
+    dailyFees.add(v.underlying, gainRaw)
   }
 
   if (chain === CHAIN.ETHEREUM) {
@@ -82,7 +80,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue,
   };
 };
