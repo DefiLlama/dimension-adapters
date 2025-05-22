@@ -19,7 +19,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
             AND t.block_date < from_unixtime(${options.endTimestamp})
         group by
             1
-    ), 
+    ),
     block_with_eob_payment as (
         select
             t.block_number
@@ -58,7 +58,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: '2022-09-15'
+      start: '2022-09-15',
+      meta: {
+        methodology: {
+            fees: "Total MEV Tips for Eden Builders"
+        }
+      }
     },
   },
   isExpensiveAdapter: true,
