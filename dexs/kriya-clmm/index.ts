@@ -7,21 +7,25 @@ type IUrl = {
     [s: string]: string;
 }
 
+// https://api.kriya.finance/defillama/clmm
+
 const url: IUrl = {
-    [CHAIN.SUI]: `https://api.kriya.finance/defillama/clmm`
+    [CHAIN.SUI]: 'https://api-service-81678480858.asia-northeast1.run.app/pools/v3'
 }
 
 interface IVolume {
-    dailyVolume: number
+    volume24h: string
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startTimestamp * 1000));
-    const volumeUrl = `${url[options.chain]}?timestamp=${dayTimestamp}`;
-    const volume: IVolume = (await fetchURL(volumeUrl))?.data;
+    const data: IVolume[] = (await fetchURL(url[options.chain]))?.data;
+    let totalVolume = 0;
+    data.map((item) => {
+        totalVolume += Number(item.volume24h);
+    })
 
     return {
-        dailyVolume: `${volume?.dailyVolume || 0}`
+        dailyVolume: `${totalVolume || 0}`
     };
 };
 
@@ -31,6 +35,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.SUI]: {
             fetch,
             start: '2023-05-09',
+            runAtCurrTime: true,
         }
     },
 };
