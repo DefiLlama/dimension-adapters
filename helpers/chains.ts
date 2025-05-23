@@ -238,6 +238,7 @@ export enum CHAIN {
   BITKUB = "bitkub",
   INITIA = "initia",
   COTI = "coti",
+  LENS = "lens",
 }
 
 // Don´t use
