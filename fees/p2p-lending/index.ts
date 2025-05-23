@@ -1,7 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import type { FetchOptions, FetchResult } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
 
 const headers: HeadersInit = {
   origin: "https://subgraph.smardex.io",
@@ -9,28 +8,15 @@ const headers: HeadersInit = {
   "x-api-key": process.env.SMARDEX_SUBGRAPH_API_KEY || "",
 };
 
-type TokenSubgraphData = {
+type DailyTokenMetric = {
   id: string;
-  totalInterestPaid: number;
+  totalInterestPaid: string;
 };
 
 const sdexAddress = "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef";
 const subgraphUrl = "https://subgraph.smardex.io/ethereum/spro";
 
-const getTokenPriceAtTimestamp = async (timestamp: number, tokenAddress: string) => {
-  try {
-    const prices = await fetchURL(`https://coins.llama.fi/prices/historical/${timestamp}/ethereum:${tokenAddress}`);
-    const tokenPriceData = prices.coins[`ethereum:${tokenAddress}`];
-    if (!tokenPriceData) {
-      throw new Error(`No price data found for token ${tokenAddress} at timestamp ${timestamp}`);
-    }
-    return tokenPriceData.price;
-  } catch (error) {
-    return 0;
-  }
-};
-
-const getDailyTokenMetrics = async (timestamp: number): Promise<TokenSubgraphData[]> => {
+const getDailyTokenMetrics = async (timestamp: number): Promise<DailyTokenMetric[]> => {
   const dailyTokenMetricsQuery = `
       {
         dailyTokenMetrics_collection (where: {
@@ -46,11 +32,11 @@ const getDailyTokenMetrics = async (timestamp: number): Promise<TokenSubgraphDat
 };
 
 /*
- * Fetch the fees from the subgraph for a given timestamp.
+ * Fetch the metrics from the subgraph for a given timestamp.
  * @param timestamp - The timestamp to fetch fees for.
- * @returns An object containing the total SDEX burnt and the total interest paid.
+ * @returns An object containing the total SDEX burnt and daily token metrics.
  */
-const getFeesFromSubgraph = async (timestamp: number) => {
+const getMetricsFromSubgraph = async (timestamp: number) => {
   try {
     const dailyGlobalMetricsQuery = `{
       dailyGlobalMetrics_collection (where: {
@@ -64,35 +50,40 @@ const getFeesFromSubgraph = async (timestamp: number) => {
       .dailyGlobalMetrics_collection[0];
 
     const dailyTokenMetrics = await getDailyTokenMetrics(timestamp);
-    const totalInterestPaidsInUsd = await Promise.all(
-      dailyTokenMetrics.map(async (token: TokenSubgraphData) => {
-        const tokenAddress = token.id.split("-")[1];
-        const price = await getTokenPriceAtTimestamp(timestamp, tokenAddress);
-        return token.totalInterestPaid * price;
-      })
-    );
-    const totalInterestPaidInUsd = totalInterestPaidsInUsd.reduce((acc: number, curr: number) => acc + curr, 0) / 1e18;
-    const sdexPrice = await getTokenPriceAtTimestamp(timestamp, sdexAddress);
 
     return {
-      totalSdexBurntInUsd: (dailyGlobalMetrics?.totalSdexBurnt * sdexPrice) / 1e18 || 0,
-      totalInterestPaidInUsd,
+      totalSdexBurnt: dailyGlobalMetrics?.totalSdexBurnt || 0,
+      dailyTokenMetrics: dailyTokenMetrics.map((token) => ({
+        // Token id is in the form <timestamp>-<tokenId>
+        id: token.id.split("-")[1],
+        totalInterestPaid: parseFloat(token.totalInterestPaid),
+      })),
     };
   } catch (error) {
     return {
-      totalSdexBurntInUsd: 0,
-      totalInterestPaidInUsd: 0,
+      totalSdexBurnt: 0,
+      dailyTokenMetrics: [],
     };
   }
 };
 
-const fetch = async (_: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
-  const timestamp = options.startOfDay;
-  const metrics = await getFeesFromSubgraph(timestamp);
+const fetch = async (_: number, _t: any, { startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {
+  const timestamp = startOfDay;
+  const metrics = await getMetricsFromSubgraph(timestamp);
+
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+
+  dailyFees.addToken(sdexAddress, metrics.totalSdexBurnt);
+  metrics.dailyTokenMetrics.forEach((token) => {
+    dailyFees.addToken(token.id, token.totalInterestPaid);
+  });
+
+  dailyRevenue.addToken(sdexAddress, metrics.totalSdexBurnt);
 
   return {
-    dailyFees: metrics.totalSdexBurntInUsd + metrics.totalInterestPaidInUsd,
-    dailyRevenue: metrics.totalSdexBurntInUsd,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
