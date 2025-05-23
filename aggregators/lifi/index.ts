@@ -1,0 +1,45 @@
+import { ethers } from "ethers";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { LifiDiamonds } from "../../helpers/aggregators/lifi";
+import { CHAIN } from "../../helpers/chains";
+
+
+const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
+const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
+
+const EVMLifIDiamonds = Object.keys(LifiDiamonds).filter(
+  (chain) => chain !== CHAIN.BITCOIN && chain !== CHAIN.SOLANA
+);
+
+const iface = new ethers.Interface([LifiSwapEvent]);
+
+const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = options.createBalances();
+  const logs: any[] = await options.getLogs({
+    target: LifiDiamonds[options.chain].id,
+    topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
+    eventAbi: LifiSwapEvent,
+    entireLog: true
+  });
+
+  logs.forEach((e: any) => {
+    const parsedLog = iface.parseLog(e);
+    if (!integrators.includes(parsedLog?.args.integrator)) {
+      dailyVolume.add(parsedLog?.args.fromAssetId, parsedLog?.args.fromAmount);
+    }
+  });
+
+  return { dailyVolume } as any;
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: EVMLifIDiamonds.reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
+    }
+  }, {})
+};
+
+export default adapter;
