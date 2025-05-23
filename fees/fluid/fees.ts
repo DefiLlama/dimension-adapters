@@ -23,8 +23,8 @@ export const getDexResolver = async (api: ChainApi) => {
       break;
 
     case CHAIN.BASE:
-      if (block < 25847553) break;
-      address = "0x800104086BECa15A54e8c61dC1b419855fdA3377";
+      if (block < 30500000) break;
+      address = "0xa3B18522827491f10Fc777d00E69B3669Bf8c1f8";
       break;
 
     case CHAIN.POLYGON:
