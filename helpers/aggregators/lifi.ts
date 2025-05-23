@@ -370,7 +370,7 @@ export const LifiFeeCollectors: IContract = {
   }
 }
 
-export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[]): Promise<number> => {
+export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[], exclude_integrators?: string[], swapType?: 'cross-chain' | 'same-chain'): Promise<number> => {
   let hasMore = true;
   let totalValue = 0;
   let nextCursor: string | undefined;
@@ -400,8 +400,9 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
     transfers.forEach((tx) => {
       if (
         tx.status === 'DONE' &&
-        tx.receiving.chainId !== Number(LifiDiamonds[chain].id) && // Ensure it's a cross-chain transfer
-        (integrators ? integrators.includes(tx.metadata.integrator) : true)
+        (swapType === 'cross-chain' ? tx.receiving.chainId !== Number(LifiDiamonds[chain].id) : tx.receiving.chainId === Number(LifiDiamonds[chain].id)) && 
+        (integrators && integrators.length > 0 ? integrators.includes(tx.metadata.integrator) : true) &&
+        (exclude_integrators && exclude_integrators.length > 0 ? !exclude_integrators.includes(tx.metadata.integrator) : true)
       ) {
         const value = parseFloat(tx.sending.amountUSD) || 0;
         totalValue += value;
