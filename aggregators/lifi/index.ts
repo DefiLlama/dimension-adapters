@@ -1,19 +1,22 @@
 import { ethers } from "ethers";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
 
-const EVMLifIDiamonds = Object.keys(LifiDiamonds).filter(
-  (chain) => chain !== CHAIN.BITCOIN && chain !== CHAIN.SOLANA
-);
-
 const iface = new ethers.Interface([LifiSwapEvent]);
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators, [], 'same-chain');
+    return {
+      dailyVolume: dailyVolume
+    };
+  }
+
   const dailyVolume = options.createBalances();
   const logs: any[] = await options.getLogs({
     target: LifiDiamonds[options.chain].id,
@@ -34,7 +37,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: EVMLifIDiamonds.reduce((acc, chain) => {
+  adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
