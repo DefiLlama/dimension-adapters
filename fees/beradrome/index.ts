@@ -1,3 +1,4 @@
+import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { Balances } from "@defillama/sdk";
@@ -79,25 +80,27 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
+const BERACHAIN_DISTRIBUTOR = "0xD2f19a79b026Fb636A7c300bF5947df113940761";
 const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
+const DISTRIBUTED_TOPIC_0 =
+  "0x027042b00b5da1362792832f3775452610369da8ce2c07af183cdabd276e3a11";
 
 async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
-  const results = await queryDuneSql(
-    options,
-    `
-    SELECT SUM(amount) as bgt_received
-    FROM berachain_berachain.distributor_evt_distributed
-    WHERE receiver = ${BERADROME_REWARD_VAULT}
-    AND evt_block_time >= FROM_UNIXTIME(${options.startTimestamp})
-    AND evt_block_time < FROM_UNIXTIME(${options.endTimestamp})
-    `
-  );
+  const logs = await options.getLogs({
+    target: BERACHAIN_DISTRIBUTOR,
+    eventAbi:
+      "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
+    topics: [
+      DISTRIBUTED_TOPIC_0,
+      null,
+      null,
+      ethers.zeroPadValue(BERADROME_REWARD_VAULT, 32),
+    ],
+  });
 
-  if (results && results.length > 0) {
-    results.forEach((row) => {
-      balances.add(BGT_ADDRESS, row.bgt_received);
-    });
+  for (const log of logs) {
+    balances.add(BGT_ADDRESS, log.amount);
   }
 }
 
