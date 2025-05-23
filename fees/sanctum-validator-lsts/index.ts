@@ -97,7 +97,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         AND rew.reward_type = 'Staking'
     )
     SELECT 
-        CAST(df.epoch_fees AS DOUBLE) AS daily_fees, 
+        CAST(df.daily_fees AS DOUBLE) AS daily_fees, 
         CAST(wddf.withdraw_and_deposit_daily_fees AS DOUBLE) AS withdraw_and_deposit_daily_fees
     FROM epoch_fees df, withdraw_and_deposit_daily_fees wddf
     `
