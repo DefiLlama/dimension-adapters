@@ -67,7 +67,7 @@ async function getPrices(chain: string): Promise<{ [key: string]: { usd: number 
 async function getCurveAnalytics(chain: string, prices: { [key: string]: { usd: number } }, externalPoolData: { registryId: string; address: string }) {
   const output: any = {};
 
-  const curveApiCallData = await fetch(`https://api.curve.fi/api/getPools/arbitrum/${externalPoolData.registryId}`).then((response) => response.json());
+  const curveApiCallData = await fetch(`https://api.curve.finance/api/getPools/arbitrum/${externalPoolData.registryId}`).then((response) => response.json());
   const curveApiCall = curveApiCallData.data.poolData;
 
   for (const pool of curveApiCall) {

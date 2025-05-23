@@ -23,7 +23,6 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request } from "graphql-request";
-import { v3StartTimes } from "../dexs/dackieswap";
 
 const methodology = {
   Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
@@ -157,42 +156,36 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: v3StartTimes[CHAIN.BASE],
       meta: {
         methodology,
       }
     },
     [CHAIN.OPTIMISM]: {
       fetch,
-      start: v3StartTimes[CHAIN.OPTIMISM],
       meta: {
         methodology,
       }
     },
     [CHAIN.BLAST]: {
       fetch,
-      start: v3StartTimes[CHAIN.BLAST],
       meta: {
         methodology,
       }
     },
     [CHAIN.MODE]: {
       fetch,
-      start: v3StartTimes[CHAIN.MODE],
       meta: {
         methodology,
       }
     },
     [CHAIN.XLAYER]: {
       fetch,
-      start: v3StartTimes[CHAIN.XLAYER],
       meta: {
         methodology,
       }
     },
     [CHAIN.LINEA]: {
       fetch,
-      start: v3StartTimes[CHAIN.LINEA],
       meta: {
         methodology,
       }

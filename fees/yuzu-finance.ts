@@ -18,7 +18,8 @@ async function fetch() {
     dailyFees += item.volume24h * (item.feeRate / 1e6)
     dailyVolume += +item.volume24h
   }
-  return { dailyFees, dailyVolume }
+  const dailyRevenue = dailyFees * (20/100)
+  return { dailyFees, dailyVolume, dailyRevenue }
 }
 
 export default {

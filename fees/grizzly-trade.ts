@@ -26,15 +26,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
             const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
             const searchTimestamp = todaysTimestamp + ":daily"
 
-            const graphQuery = gql
-                `{
-        feeStat(id: "${searchTimestamp}") {
-          mint
-          burn
-          marginAndLiquidation
-          swap
-        }
-      }`;
+            const graphQuery = gql`
+                {
+                    feeStat(id: "${searchTimestamp}") {
+                        mint
+                        burn
+                        marginAndLiquidation
+                        swap
+                    }
+                }`;
 
             const graphRes = await request(graphUrls[chain], graphQuery);
 

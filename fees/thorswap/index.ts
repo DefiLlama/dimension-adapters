@@ -1,7 +1,8 @@
 import BigNumber from "bignumber.js";
-import { SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const chainMapping = {
   ETH: CHAIN.ETHEREUM,
@@ -12,6 +13,8 @@ const chainMapping = {
   BCH: CHAIN.BITCOIN_CASH,
   DOGE: CHAIN.DOGECHAIN,
   GAIA: CHAIN.COSMOS,
+  BASE: CHAIN.BASE,
+  THOR: CHAIN.THORCHAIN
 }
 
 interface Pool {
@@ -67,22 +70,27 @@ export async function fetchCacheURL(url: string) {
   return requests[key]
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 const fetchFeesByChain = () => {
   const adapter = {}
-  const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH']
+  const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR']
   chains.forEach((chain: string) => {
     adapter[chainMapping[chain]] = {
       runAtCurrTime: true,
-      fetch:  async (timestamp: number) => {
-
-        const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
-        const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
+      fetch:  async (_t: number, _block: any, options: FetchOptions) => {
+        const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay)
+        const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`
+        const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`
         const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
         const earnings = await fetchCacheURL(earningsUrl);
+        await sleep(3000)
         const revenue = await fetchCacheURL(reserveUrl);
+        await sleep(2000)
         const pools = await fetchCacheURL(poolsUrl);
-        const selectedEarningInterval = findInterval(timestamp, earnings.intervals);
-        const selectedRevenueInterval = findInterval(timestamp, revenue.intervals);
+        await sleep(2000)
+        const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
+        const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
 
         const poolsByChainEarnings: Pool[] = selectedEarningInterval?.pools?.filter(pool => assetFromString(pool.pool)?.chain === chain)
 
@@ -120,7 +128,7 @@ const fetchFeesByChain = () => {
           dailyProtocolRevenue:  protocolRevenueByChainInDollars, // Output fees - reimbursments
           dailyHoldersRevenue: dailyHoldersRevenue, // Rewards for nodes pondered by chain liquidity
           dailySupplySideRevenue: dailySupplysideRevenue, // Earnings: rewards + liquidity fees per pool
-          timestamp
+          timestamp: startOfDay
         }
       }
     }
