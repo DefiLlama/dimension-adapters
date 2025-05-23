@@ -1,77 +1,51 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter, univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { queryDuneSql } from '../../helpers/dune';
 
-// Define the old and new adapters
-const adapterOld = univ2Adapter2({
-  [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Arbitrum_V2',
-  [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Optimism_V2'
-}, {
-  factoriesName: "rubicons",
-  totalVolume: "total_volume_usd",
-});
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
 
-adapterOld.adapter.arbitrum.start = 0;
-adapterOld.adapter.optimism.start = 0;
-
-const adapterNew = univ2Adapter2({
-  [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Optimism_V2',
-  [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Arbitrum_V2',
-  [CHAIN.BASE]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Base_V2',
-  [CHAIN.ETHEREUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Mainnet_V2',
-}, {
-  factoriesName: "rubicons",
-  totalVolume: "total_volume_usd",
-});
-
-adapterNew.adapter.arbitrum.start = 183178326;
-adapterNew.adapter.optimism.start = 116354792;
-adapterNew.adapter.base.start = 10029602;
-adapterNew.adapter.ethereum.start = 19361393;
-
-// Define the function to fetch and combine data from both adapters
-async function combinedFetch(chain, timestamp, chainBlocks, options) {
-  let oldData = null;
-  let newData = null;
-
-  if (adapterOld.adapter[chain] && adapterOld.adapter[chain].fetch) {
-    oldData = await adapterOld.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
+  const results = await queryDuneSql(
+    options,
+    `
+      WITH filltxs AS (
+        SELECT
+          tx_hash,
+          topic3
+        FROM evms.logs
+        WHERE
+          blockchain = 'optimism'
+          AND tx_to = 0x95b7f3662ba73b3ff35874af0e09b050db03118b
+          AND topic0 = 0x78ad7ec0e9f89e74012afa58738b6b661c024cb0fd185ee2f616c0a28924bd66
+      ), transfers AS (
+        SELECT
+          tokens.transfers.tx_hash, SUM(tokens.transfers.amount) as volume, tokens.transfers.contract_address
+        FROM tokens.transfers, filltxs
+        WHERE
+          tokens.transfers.tx_hash IN (filltxs.tx_hash)
+          AND blockchain = 'optimism' 
+          AND "from" = 0x95b7f3662ba73b3ff35874af0e09b050db03118b
+          AND lower(cast(tokens.transfers."to" as varchar)) = lower('0x' || substr(cast(filltxs.topic3 as varchar), 27))
+        GROUP BY tokens.transfers.contract_address
+      )
+      SELECT
+        *
+      FROM transfers`
+  )
+  if (results && results.length > 0) {
+    results.forEach(row => {
+      dailyVolume.add(row.contract_address, row.volume);
+    });
   }
-
-  if (adapterNew.adapter[chain] && adapterNew.adapter[chain].fetch) {
-    newData = await adapterNew.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
-  }
-
-  if (!oldData) return newData;
-  if (!newData) return oldData;
-
-  return {
-    totalVolume: (oldData.totalVolume || 0) + (newData.totalVolume || 0),
-    dailyVolume: (oldData.dailyVolume || 0) + (newData.dailyVolume || 0),
-    // Add any other fields that need to be combined here
-  };
 }
 
-// Create the combined adapter
-const combinedAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: (timestamp, chainBlocks, options) => combinedFetch(CHAIN.ARBITRUM, timestamp, chainBlocks, options),
-      start: adapterOld.adapter.arbitrum.start,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: (timestamp, chainBlocks, options) => combinedFetch(CHAIN.OPTIMISM, timestamp, chainBlocks, options),
-      start: adapterOld.adapter.optimism.start,
-    },
-    [CHAIN.BASE]: {
-      fetch: (timestamp, chainBlocks, options) => adapterNew.adapter.base.fetch(timestamp, chainBlocks, options),
-      start: adapterNew.adapter.base.start,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: (timestamp, chainBlocks, options) => adapterNew.adapter.ethereum.fetch(timestamp, chainBlocks, options),
-      start: adapterNew.adapter.ethereum.start,
-    },
-  },
+const adapter: SimpleAdapter = {
   version: 2,
-};
+  adapter: {
+      [CHAIN.OPTIMISM]: {
+          fetch: fetch as any,
+          }
+      },
+}
 
-export default combinedAdapter;
+export default adapter;
