@@ -123,8 +123,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Staking rewards of all Sanctum LSTs + Epoch and withdrawals fees",
-  Revenue: "Epoch fees and withdrawals fees from Sanctum LSTs",
+  Fees: "Staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  Revenue:
+    "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
 };
 
 const adapter: SimpleAdapter = {
