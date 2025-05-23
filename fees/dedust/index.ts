@@ -73,7 +73,7 @@ const fetchFees = async (): Promise<FetchResultV2> => {
 
     return {
         dailyUserFees: dailyFees,
-        dailyFees: dailyFees,
+        dailyFees,
         dailySupplySideRevenue: dailyFees * FEES_PERCENT_TO_LP,
         dailyRevenue: dailyFees * (1 - FEES_PERCENT_TO_LP)
     }

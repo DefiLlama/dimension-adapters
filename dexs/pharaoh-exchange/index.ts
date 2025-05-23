@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter2({
-  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('oM4WnuyAbSwPpjk6niUkp88AZg1hSTi9aC1ZM4RcsqR')
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns')
 }, {
   factoriesName: "factories",
   totalVolume: "totalVolumeUSD",

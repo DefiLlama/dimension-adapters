@@ -39,7 +39,7 @@ const fetch = async (timestamp: number) => {
     dailyFees: `${fees + teamRevenue}`,
     dailyUserFees: `${fees + teamRevenue}`,
     dailyRevenue: `${response.overall.day.governanceFee}`,
-    dailyProtocolRevenue: `${teamRevenue}`,
+    dailyProtocolRevenue: teamRevenue,
     dailyHoldersRevenue: `${response.overall.day.governanceFee}`,
     dailySupplySideRevenue: `${response.overall.day.liquidityFee}`,
     timestamp: timestamp,

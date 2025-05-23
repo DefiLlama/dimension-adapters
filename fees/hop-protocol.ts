@@ -12,7 +12,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 const fetchCacheURL = (url: string) => {
-    const key = `${url}`;
+    const key = url;
     if (!requests[key]) {
         requests[key] = httpGet(url);
     }

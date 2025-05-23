@@ -16,8 +16,8 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyFees = historical.filter((e: IStats) => e.fees !== '0')
     .reduce((a: number, b: IStats) => a+Number(b.fees), 0)
   return {
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    dailyRevenue: dailyFees ? `${dailyFees}` : undefined,
+    dailyFees,
+    dailyRevenue: dailyFees,
     timestamp: timestamp,
   };
 };

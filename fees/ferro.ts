@@ -28,9 +28,9 @@ const fetchVolume = async (options: FetchOptions) => {
   const dailySupplySideRevenue = dailyVolume * (0.02 /100);
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyUserFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
   };

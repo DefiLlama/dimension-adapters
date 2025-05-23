@@ -1,6 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -13,29 +12,24 @@ const url: IUrl = {
 }
 
 interface IVolume {
-    totalVolume: number,
     dailyVolume: number
 }
 
-const fetch = (chain: Chain) => {
-    return async ({ endTimestamp }): Promise<FetchResultV2> => {
-        const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000));
-        const volumeUrl = `${url[chain]}?timestamp=${dayTimestamp}`;
-        const volume: IVolume = (await fetchURL(volumeUrl))?.data;
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startTimestamp * 1000));
+    const volumeUrl = `${url[options.chain]}?timestamp=${dayTimestamp}`;
+    const volume: IVolume = (await fetchURL(volumeUrl))?.data;
 
-        return {
-            totalVolume: `${volume?.totalVolume || undefined}`,
-            dailyVolume: `${volume?.dailyVolume || undefined}`,
-            timestamp: dayTimestamp,
-        };
+    return {
+        dailyVolume: `${volume?.dailyVolume || 0}`
     };
-}
+};
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SUI]: {
-            fetch: fetch(CHAIN.SUI),
+            fetch,
             start: '2023-05-09',
         }
     },

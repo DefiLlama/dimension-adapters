@@ -39,10 +39,10 @@ const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
     const totalFees = totalUserFees;
 
     return {
-        dailyFees: dailyFees.toString(),
-        totalFees: totalFees.toString(),
-        dailyUserFees: dailyUserFees.toString(),
-        totalUserFees: totalUserFees.toString(),
+        dailyFees,
+        totalFees,
+        dailyUserFees: dailyUserFees,
+        totalUserFees: totalUserFees,
     };
 };
 

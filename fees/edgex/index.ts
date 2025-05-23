@@ -34,8 +34,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const dailyRevenue = dayData.fee;
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     timestamp: options.startOfDay,
   };
 };

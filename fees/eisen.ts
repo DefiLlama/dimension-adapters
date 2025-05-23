@@ -45,7 +45,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
     }
   });
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   };
 };

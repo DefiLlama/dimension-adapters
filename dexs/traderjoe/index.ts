@@ -1,15 +1,15 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
-import { BreakdownAdapter, FetchOptions, FetchResult, FetchResultV2 } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions,  } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getChainVolume2, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
+import { getChainVolume, } from "../../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { httpGet } from "../../utils/fetchURL";
 
-const endpoints = {
-  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9ZjERoA7jGANYNz1YNuFMBt11fK44krveEhzssJTWokM'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('3VgCBQh13PseR81hPNAbKua3gD8b8r33LauKjVnMbSAs'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3jFnXqk6UXZyciPu5jfUuPR7kzGXPSndsLNrWXQ6xAxk'),
+const endpoints: { [s: string | Chain]: string } = {
+  [CHAIN.AVAX]: "https://barn.lfj.gg/v1/joev1/dex/analytics/avalanche?startTime=1731974400&aggregateBy=daily",
+  [CHAIN.BSC]: "https://barn.lfj.gg/v1/joev1/dex/analytics/binance?startTime=1731974400&aggregateBy=daily",
+  [CHAIN.ARBITRUM]: "https://barn.lfj.gg/v1/joev1/dex/analytics/arbitrum?startTime=1731974400&aggregateBy=daily",
 };
 type TEndpoint = {
   [s: string | Chain]: string;
@@ -21,44 +21,36 @@ const endpointsV2: TEndpoint = {
   [CHAIN.ETHEREUM]: "https://barn.traderjoexyz.com/v1/dex/analytics/ethereum?startTime=1695513600&aggregateBy=daily"
 }
 
-interface IVolume {
-  timestamp: number;
-  volumeUsd: number;
-}
-const fetchV2 = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
-  const start = dayTimestamp;
-  const end = start + 24 * 60 * 60;
-  const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
-  const historicalVolume: IVolume[] = (await httpGet(url, { headers: {
-    'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
-  }}));
-
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.timestamp <= dayTimestamp)
-    .reduce((acc, { volumeUsd }) => acc + Number(volumeUsd), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUsd
-  return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume !== undefined ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  }
-}
-const mapChain = (chain: Chain): string => {
-  if (chain === CHAIN.BSC) return "binance"
-  if (chain === CHAIN.AVAX) return "avalanche"
-  return chain
+const TOTAL_FEES = 0.003;
+const LP_FEE = 0.0025;
+const PROTOCOL_FEES = 0.0005;
+const HOLDER_REV = 0.0005;
+interface IResponse {
+  date: string;
+  volumeUsd: number 
 }
 
-const graphsV1 = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: "volumeUSD",
-  },
-});
+const fetchV1 = async (_t: any, _b: any, options: FetchOptions) => {
+    const { createBalances, chain, startOfDay } = options
+    const date = getTimestampAtStartOfDayUTC(startOfDay)
+    const dateStr = new Date(date * 1000).toISOString().split('T')[0]
+    const response: IResponse[] = await httpGet(endpoints[chain])
+    const dailyVolume = createBalances()
+    const volume = response.find((item) => item.date.split('T')[0] === dateStr)?.volumeUsd || 0
+    dailyVolume.addUSDValue(volume)
+    const dailyFees = dailyVolume.clone(TOTAL_FEES)
+    const dailyRevenue = dailyVolume.clone(PROTOCOL_FEES)
+    const dailyHoldersRevenue = dailyVolume.clone(HOLDER_REV)
+    const dailySupplySideRevenue = dailyVolume.clone(LP_FEE)
+    return {
+      dailyVolume,
+      timestamp: date,
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+    }
+}
 
 
 const graphsV2 = getChainVolume({
@@ -74,15 +66,15 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       [CHAIN.AVAX]: {
-        fetch: graphsV1(CHAIN.AVAX),
+        fetch:  fetchV1,
         start: '2021-08-09',
       },
       [CHAIN.BSC]: {
-        fetch: graphsV1(CHAIN.BSC),
+        fetch: fetchV1,
         start: '2022-10-04',
       },
       [CHAIN.ARBITRUM]: {
-        fetch: graphsV1(CHAIN.ARBITRUM),
+        fetch: fetchV1,
         start: '2022-10-04',
       },
     },

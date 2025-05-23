@@ -33,8 +33,8 @@ _:any, _1:any, options: FetchOptions
 
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
-    totalFees: totalFees,
+    dailyFees,
+    totalFees,
     dailyRevenue: dailyFees,
   };
 };

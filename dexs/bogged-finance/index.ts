@@ -35,8 +35,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => Math.floor(Number(dayItem.timestamp)/1000) === dayTimestamp)?.dailyVolume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }

@@ -24,8 +24,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyRevenue = dailyFees.clone(1/3);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 

@@ -195,7 +195,7 @@ function aggregateFee(
     let totalRevenue = borrowTotalRevenue + coreTotalRevenue;
     let totalFees = borrowTotalRevenue + coreTotalFees;
 
-    return { totalRevenue: totalRevenue, totalFees: totalFees };
+    return { totalRevenue: totalRevenue, totalFees };
 }
 
 

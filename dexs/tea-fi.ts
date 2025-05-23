@@ -39,15 +39,13 @@ const fetch: any = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const logs = await getLogs({
+  const logs = await options.getLogs({
     topics: [
       id("Transfer(address,address,uint256)"),
-      null,
+      null as any,
       zeroPadValue(proxyTrade.toLowerCase(), 32),
     ],
-    chain: options.chain,
-    fromTimestamp: options.fromTimestamp,
-    toTimestamp: options.toTimestamp,
+    noTarget: true,
   });
 
   const reducedLogs: Record<string, any> = groupLogsByTransactionHash(logs);

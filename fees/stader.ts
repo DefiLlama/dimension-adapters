@@ -1,8 +1,8 @@
-import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, Fetch, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
-const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
+const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   const dailyFees = option.createBalances();
   const dailyRevenue = option.createBalances();
   const dailyMaticXFees = option.createBalances();
@@ -14,7 +14,7 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
       "event DistributeFees(address indexed _treasury, uint256 _feeAmount)",
   });
   logsFees.map((e) => {
-    dailyMaticXRev.addCGToken("matic-network", Number(e._feeAmount / 1e18));
+    dailyMaticXRev.addCGToken("matic-network", Number(e._feeAmount) / 1e18);
   });
 
   const logs = await option.getLogs({
@@ -23,14 +23,15 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
       "event StakeRewards(uint256 indexed _validatorId, uint256 _stakedAmount)",
   });
   logs.map((e) => {
-    dailyMaticXFees.addCGToken("matic-network", Number(e._stakedAmount / 1e18));
+    dailyMaticXFees.addCGToken("matic-network", Number(e._stakedAmount) / 1e18);
   });
   dailyMaticXFees.addBalances(dailyMaticXRev); // StakeRewards excludes stader revenue
 
   const date = new Date(option.startOfDay * 1000).toISOString().split("T")[0];
 
-  const res: { user_rewards: string; stader_revenue: string }[] =
-    await queryDune("4936645", { target_date: date });
+  const sql = getSqlFromFile("helpers/queries/stader.sql", { target_date: date });
+  const res: { user_rewards: string; stader_revenue: string }[] = await queryDuneSql(option, sql);
+
   res.forEach((item) => {
     dailyFees.addUSDValue(item.user_rewards);
     dailyRevenue.addUSDValue(item.stader_revenue);
@@ -39,12 +40,12 @@ const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   dailyRevenue.addBalances(dailyMaticXRev);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
-const fetch: FetchV2 = async (option: FetchOptions) => {
+const fetch: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   const dailyFees = option.createBalances();
 
   const logs = await option.getLogs({
@@ -58,8 +59,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyRevenue = dailyFees.clone(1 / 9);
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
@@ -75,7 +76,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  version: 2,
+  version: 1,
 };
 
 export default adapter;

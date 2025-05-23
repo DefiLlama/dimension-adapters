@@ -22,6 +22,7 @@ type TAdapter = {
 
 const chains: TChains =  {
   [CHAIN.IOTEX]: 4689,
+  [CHAIN.HEMI]: 43111,
 };
 
 const fetch = (chain: Chain) => {
@@ -48,8 +49,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.feesDay
 
     return {
-      totalFees: `${totalFees}`,
-      dailyFees: dailyFees ? `${dailyFees}` : undefined,
+      totalFees,
+      dailyFees,
       timestamp: dayTimestamp,
     };
   }

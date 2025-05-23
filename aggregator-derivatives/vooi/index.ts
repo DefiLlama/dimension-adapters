@@ -8,6 +8,7 @@ const startTimestampArbitrum = 1714608000; // 02.05.2024
 const startTimestampBlast = 1719792000; // 01.07.2024
 const startTimestampOpBNB = 1717200000; // 01.06.2024
 const startTimestampBase = 1722470400; // 01.08.2024
+const startTimestampHyperliquid = 1730678400; // 04.11.2024
 
 const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
     // const timestamp = options.toTimestamp
@@ -18,14 +19,24 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     }
     let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
     if (!synfuturesItem) {
-        synfuturesItem = {dailyVolume: 0, totalVolume: 0}
+        synfuturesItem = [{dailyVolume: 0, totalVolume: 0}]
     }
     let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
     if (!kiloexItem) {
-        kiloexItem = {dailyVolume: 0, totalVolume: 0}
+        kiloexItem = [{dailyVolume: 0, totalVolume: 0}]
     }
-    let dailyVolume = Number(orderlyItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume)
+    let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
+    if (!ostiumItem) {
+      ostiumItem = {dailyVolume: 0, totalVolume: 0}
+    }
+    let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
+    if (!hyperliquidItem) {
+        hyperliquidItem = {dailyVolume: 0, totalVolume: 0}
+    }
+
+    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume) + Number(hyperliquidItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume) + Number(hyperliquidItem.totalVolume)
+
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
         totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
@@ -37,6 +48,14 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
     return {
         dailyVolume,
         totalVolume,
+        timestamp
+    };
+};
+
+const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+    return {
+        dailyVolume: 0,
+        totalVolume: 0,
         timestamp
     };
 };
@@ -84,6 +103,10 @@ const adapter: SimpleAdapter = {
             fetch: fetchBase,
             start: startTimestampBase
         },
+        [CHAIN.HYPERLIQUID]: {
+            fetch: fetchHyperliquid,
+            start: startTimestampHyperliquid
+        }
     },
 }
 export default adapter
