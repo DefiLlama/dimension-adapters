@@ -13,7 +13,7 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   });
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
   };
 };
 

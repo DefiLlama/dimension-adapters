@@ -10,7 +10,7 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   // fees is 0.5% of the withdrawal amount https://docs.usdo.finance/mint-and-redeem
   const withdrawLogs = await getLogs({ target: usdo, eventAbi: 'event Withdrawal(address indexed wdrAdd, uint256 usdoIn, uint256 usdOut)', })
   withdrawLogs.forEach((log: any) => {
-    dailyFees.add(BUSD, log.usdOut * 0.005)
+    dailyFees.add(BUSD, Number(log.usdOut) * 0.005)
   })
   return { dailyFees, dailyRevenue: dailyFees }
 }

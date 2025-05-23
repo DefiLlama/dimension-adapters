@@ -56,8 +56,8 @@ const v2Graphs = (chain: Chain) => {
     const dailyVolume = graphRes.daySnapshots.length == 0 ? 0 : Number(graphRes.daySnapshots[0].volume);
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: `${dailyVolume}`,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };

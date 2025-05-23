@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 // const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
@@ -12,7 +12,7 @@ interface IData {
     quoteMint: string;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `WITH
         decoded_pool AS (
             SELECT
@@ -103,7 +103,7 @@ const adapter: SimpleAdapter = {
             start: '2025-03-15'
         }
     },
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true
 }
 

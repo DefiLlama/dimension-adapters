@@ -18,7 +18,7 @@ const chains: TChains = {
   [CHAIN.ETHEREUM]: 'Ethereum',
   [CHAIN.FANTOM]: 'Fantom',
   [CHAIN.HARMONY]: 'Harmony',
-  [CHAIN.MOONBEAN]: 'Moonbeam',
+  [CHAIN.MOONBEAM]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
 };
@@ -44,10 +44,10 @@ const graphs = () => {
         .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount
       return {
         timestamp,
-        dailyUserFees: dailyFees?.toString(),
-        totalFees: totalFees.toString(),
-        totalUserFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
+        dailyUserFees: dailyFees,
+        totalFees,
+        totalUserFees: totalFees,
+        dailyFees,
         totalRevenue: "0",
         dailyRevenue: "0",
       };
@@ -111,8 +111,8 @@ const adapter: Adapter = {
         methodology
       }
     },
-    [CHAIN.MOONBEAN]: {
-      fetch: graphs()(CHAIN.MOONBEAN),
+    [CHAIN.MOONBEAM]: {
+      fetch: graphs()(CHAIN.MOONBEAM),
       meta: {
         methodology
       }

@@ -1,4 +1,4 @@
-import { FetchOptions, BreakdownAdapter, FetchV2 } from "../../adapters/types";
+import { FetchOptions, BreakdownAdapter, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -8,19 +8,17 @@ const fetchVolume: FetchV2 = async (options: FetchOptions) => {
   if (volumeResponse.tag !== 'OK') throw new Error('Failed to fetch volume data')
 
   return {
-    dailyVolume: volumeResponse?.contents['1D']/1e6,
+    dailyVolume: volumeResponse?.contents['1D'] / 1e6,
   }
 }
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.CARDANO]: {
-        fetch: fetchVolume,
-        start: '2024-06-01',
-      }
-    },
+  adapter: {
+    [CHAIN.CARDANO]: {
+      fetch: fetchVolume,
+      start: '2024-06-01',
+    }
   },
 };
 

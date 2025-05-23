@@ -23,6 +23,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    if(dayTimestamp > 1735516800) return {}
     const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).result;
     const totalVolume = historicalVolume
       .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
@@ -31,8 +32,8 @@ const graphs = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
@@ -44,6 +45,7 @@ const getStartTimestamp = async (chain: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2024-12-30",
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,

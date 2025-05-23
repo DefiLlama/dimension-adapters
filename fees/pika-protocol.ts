@@ -111,10 +111,10 @@ const fetch = (chain: Chain) => {
     const dailyProtocolRevenue = dailyFees * 0.3;
     return {
       timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyProtocolRevenue.toString(),
-      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-      dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+      dailyFees,
+      dailyRevenue: dailyProtocolRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
+      dailyProtocolRevenue: dailyProtocolRevenue,
     };
   }
 }

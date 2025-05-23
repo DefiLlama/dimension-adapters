@@ -21,9 +21,20 @@ const v2Graph = getGraphDimensions2({
 });
 
 const v3Endpoints = {
+  // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
+  [CHAIN.IMX]: "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",
+};
+
+const algebraEndpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint("FqsRcH1XqSjqVx9GRTvEJe959aCbKrcyGgDWBrUkG24g"),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU")
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
+  [CHAIN.SONEIUM]: sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu")
+};
+
+const allV3Chains = {
+  ...v3Endpoints,
+  ...algebraEndpoints,
 };
 
 type TStartTime = {
@@ -33,7 +44,8 @@ type TStartTime = {
 const startTimeV3: TStartTime = {
   [CHAIN.POLYGON]: 1662425243,
   [CHAIN.POLYGON_ZKEVM]: 1679875200,
-  [CHAIN.DOGECHAIN]: 1660694400,
+  [CHAIN.SONEIUM]: 1681559,
+  [CHAIN.IMX]: 356091,
 };
 
 const v3Graphs = getGraphDimensions2({
@@ -48,8 +60,25 @@ const v3Graphs = getGraphDimensions2({
     HoldersRevenue: 0,
     Fees: 0,
     UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0, // Revenue is 100% of collected fees
+    SupplySideRevenue: 85, // 100% of fees are going to LPs
+    Revenue: 15, // Revenue is 100% of collected fees
+  },
+});
+
+const algebraGraphs = getGraphDimensions2({
+  graphUrls: algebraEndpoints,
+  totalVolume: {
+    factory: "factories",
+    field: "totalVolumeUSD",
+  },
+  feesPercent: {
+    type: "fees",
+    ProtocolRevenue: 0,
+    HoldersRevenue: 0,
+    Fees: 0,
+    UserFees: 100, // User fees are 100% of collected fees
+    SupplySideRevenue: 85, // 100% of fees are going to LPs
+    Revenue: 15, // Revenue is 100% of collected fees
   },
 });
 
@@ -83,9 +112,12 @@ const adapter: BreakdownAdapter = {
         },
       },
     },
-    v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
+    v3: Object.keys(allV3Chains).reduce((acc, chain) => {
+      const useAlgebra = Object.keys(algebraEndpoints).includes(chain);
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: useAlgebra
+          ? algebraGraphs(chain as Chain)
+          : v3Graphs(chain as Chain),
         start: startTimeV3[chain],
         meta: {
           methodology,

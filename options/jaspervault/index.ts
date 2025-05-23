@@ -80,7 +80,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.underlyingAmount).dividedBy(new BigNumber(10).pow(decimals_underlyingAsset)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
         balances.add(orderDetails.strikeAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} underlyingAmount:${orderDetails.underlyingAmount},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
       else if (order.putOrder) {
         balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
@@ -97,7 +96,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
         balances.add(orderDetails.strikeAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
       else if (order.putOrder) {
         let decimals_lockAsset: number = getDecimals(orderDetails.lockAsset);
@@ -108,7 +106,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.lockAmount).dividedBy(new BigNumber(10).pow(decimals_lockAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_lockAsset)).multipliedBy(new BigNumber(10).pow(decimals_lockAsset));
         balances.add(orderDetails.lockAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} lockAsset: ${orderDetails.lockAsset}, lockAmount : ${orderDetails.lockAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
 
     }

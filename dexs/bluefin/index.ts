@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -11,14 +11,12 @@ const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
 };
 
 
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SUI]: {
-        fetch,
-        start: 1695600000,
-      },
+  adapter: {
+    [CHAIN.SUI]: {
+      fetch,
+      start: 1695600000,
     },
   },
 };

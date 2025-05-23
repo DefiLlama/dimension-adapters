@@ -25,7 +25,7 @@ const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
   const res = await new GraphQLClient(historicalVolumeEndpoint).request(query);
   const dailyVolume = res.poolDayData.aggregates.sum.volumeInUSD;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

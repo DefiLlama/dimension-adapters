@@ -48,8 +48,8 @@ const fetchFees = (chain: string) => {
     const dailyRevenue = result.items.filter((e: Item) => e.chain === chain)
       .reduce((a: number, b: Item) => a + b.total_revenue, 0);
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
+      dailyFees,
+      dailyRevenue,
       timestamp
     }
   }

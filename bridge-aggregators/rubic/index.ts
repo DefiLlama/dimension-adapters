@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 
-
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
     [CHAIN.ETHEREUM]: 'ethereum',
@@ -33,7 +32,7 @@ const chains: Record<string, string> = {
     [CHAIN.MOONBEAM]: 'moonbeam',
     [CHAIN.FUSE]: 'fuse',
     [CHAIN.CELO]: 'celo',
-    [CHAIN.OKEXCHAIN]: 'oke-x-chain',
+    // [CHAIN.OKEXCHAIN]: 'oke-x-chain',
     [CHAIN.CRONOS]: 'cronos',
     [CHAIN.MODE]: 'mode',
     [CHAIN.MERLIN]: 'merlin',
@@ -85,43 +84,36 @@ const chains: Record<string, string> = {
     [CHAIN.WAX]: 'wax',
     [CHAIN.XDC]: 'xdc',
     [CHAIN.NEO]: 'neo'
+};
+
+interface ApiResponse {
+  daily_volume_in_usd: string;
+  daily_transaction_count: string;
+  total_volume_in_usd: string;
+  total_transaction_count: string;
+}
+
+const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+  const response: ApiResponse = (
+    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chains[options.chain]}`, 3)
+  );
+
+  return {
+    dailyBridgeVolume: response?.daily_volume_in_usd || '0'
   };
-  
-  interface ApiResponse {
-    daily_volume_in_usd: string;
-    daily_transaction_count: string;
-    total_volume_in_usd: string;
-    total_transaction_count: string;
-  }
-  
-  const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-    const response: ApiResponse = (
-      await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chain}`)
-    );
-  
-    return {
-      dailyVolume: response?.daily_volume_in_usd || '0',
-      totalVolume: response?.total_volume_in_usd || '0',
-      timestamp: options.startTimestamp,
-    };
-  };
-  
-  const adapter: SimpleAdapter = {
-    adapter: {
-      ...Object.entries(chains).reduce((acc, chain) => {
-        const [key, value] = chain;
-  
-        return {
-          ...acc,
-          [key]: {
-            fetch: fetch(value),
-            start: '2023-01-01', // 01.01.2023
-          },
-        };
-      }, {}),
-    },
-    version: 2
-  };
-  
-  export default adapter;
-  
+};
+
+const adapter: SimpleAdapter = {
+  adapter: Object.fromEntries(
+    Object.keys(chains).map(chain => [
+      chain,
+      {
+        fetch,
+        start: '2023-01-01'
+      }
+    ])
+  ),
+  version: 2
+};
+
+export default adapter;

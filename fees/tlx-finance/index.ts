@@ -17,7 +17,7 @@ const getFees = async (options: FetchOptions) => {
   })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };

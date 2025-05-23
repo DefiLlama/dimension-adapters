@@ -20,13 +20,14 @@ const graph = (chain: Chain) => {
         const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
         const totalVolume = historicalVolume?.filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
+            .filter(volItem => Number(volItem.volume) < 1000_000_000)
             .reduce((acc, { volume }) => acc + Number(volume), 0)
 
         const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
         return {
-            totalVolume: totalVolume && chain !== CHAIN.SOLANA ? `${totalVolume}` : undefined,
-            dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+            totalVolume: totalVolume,
+            dailyVolume: dailyVolume,
             timestamp: dayTimestamp,
         };
     }

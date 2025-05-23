@@ -21,7 +21,7 @@ const fetchVolumeADA = async (timestamp: number): Promise<FetchResultVolume> => 
   const dailyVolume = Number(response.volume) * adaPrice;
 
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp
   };
 }
@@ -31,7 +31,7 @@ const fetchVolumeERGO = async (timestamp: number): Promise<FetchResultVolume> =>
   const response: IResponseERGO = (await fetchURL(`https://api.spectrum.fi/v1/amm/platform/stats?from=${from}`));
   const dailyVolume = Number(response.volume.value);
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp
   };
 }

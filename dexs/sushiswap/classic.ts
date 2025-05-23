@@ -5,6 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { getChainVolumeWithGasToken2 }  from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const blacklistTokens = {
   [CHAIN.ARBITRUM]: [
@@ -56,13 +57,13 @@ const endpointsClassic = {
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8nFDCAhdnJQEhQF3ZRnfWkJ6FkRsfAiiVabVn4eGoAZH'),
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('8roCC7H2tsGYGvxD52QQbUoHXXx77H9tPhNn1qcjB5yj'),
-  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
-  [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'),
+  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6VAhbtW5u2sPYkJKAcMsxgqTBu4a1rqmbiVQWgtNjrvT'),
+  // [CHAIN.HARMONY]: sdk.graph.modifyEndpoint('FrcJBCCKCYGTLLXJmhppXfPKsNoyod4zqNLjHfXj1KHg'), // index error
   // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('5skUrJzgVm6vXAmdKN7gw4CjYx3pgLDeUeUqVzqLXkWT'),
   // [CHAIN.XDAI]: sdk.graph.modifyEndpoint('4a8hcsttqsmycmmeFcpffGMZhBDU4NhHfyHH6YNcnu7b'),
   // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('3tNHz9aTBa2KUthYZiZZxayYYpxXACverKRrkafhoBru'),
   // [CHAIN.BOBA]: sdk.graph.modifyEndpoint('EC3ZtCpCaV5GyyhyPNHs584wdGA72nud7qcuxWNTfPr4'),
-  [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'),
+  // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'), // index error
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
 };
@@ -112,7 +113,7 @@ const classic = Object.keys(endpointsClassic).reduce(
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
           const values = (await call(chain)(options));
-          return {
+          const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
             dailyUserFees: values?.dailyUserFees || 0,
@@ -120,7 +121,13 @@ const classic = Object.keys(endpointsClassic).reduce(
             dailySupplySideRevenue: values?.dailySupplySideRevenue || 0,
             dailyHoldersRevenue: values?.dailyHoldersRevenue || 0,
             dailyRevenue: values?.dailyRevenue || 0,
-          }
+          };
+
+          Object.entries(result).forEach(([key, value]) => {
+            if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+          });
+
+          return result;
         } catch {
           return {
             dailyVolume: 0,
@@ -163,8 +170,10 @@ const fantomGraphs =  getChainVolumeWithGasToken2({
 classic[CHAIN.FANTOM] = {
   fetch: async (options: FetchOptions) =>   {
     const values = await fantomGraphs(CHAIN.FANTOM)(options);
-    const vol = Number(values.dailyVolume)
-    return {
+    const vol = Number(values.dailyVolume);
+    if (vol < 0) throw new Error(`Volume cannot be negative. Current value: ${vol}`);
+    
+    const result = {
       ...values,
       dailyFees: vol * 0.003,
       dailyUserFees: vol * 0.003,
@@ -172,8 +181,18 @@ classic[CHAIN.FANTOM] = {
       dailySupplySideRevenue: vol * 0.0025,
       dailyHoldersRevenue: 0,
       dailyRevenue: vol * 0.003,
-    }
+    };
+
+    Object.entries(result).forEach(([key, value]) => {
+      if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+    });
+
+    return result;
   },
 }
+
+classic[CHAIN.AVAX] = { fetch: getUniV2LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4' }) }
+classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C' }) }
+classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4' }) }
 
 export default classic

@@ -65,10 +65,6 @@ const adapter: SimpleAdapter = {
           fetchAllPages(endpoints[CHAIN.CORE], totalVolumeQuery, "dailyVolumes")
         ]);
 
-        console.log("Daily exchanges count:", dailyExchanges.tokenExchanges.length);
-        console.log("Daily underlying exchanges count:", dailyExchangeUnderlyings.tokenExchangeUnderlyings.length);
-        console.log("Total volumes count:", allVolumes.length);
-
         let dailyVolumeBTC = 0;
         dailyExchanges.tokenExchanges.forEach((exchange: any) => {
           dailyVolumeBTC += parseFloat(exchange.tokensSold);
@@ -104,12 +100,12 @@ const adapter: SimpleAdapter = {
         const block = metaData._meta.block.number;
 
         return {
-          dailyVolume: dailyVolumeUSD.toString(),
-          totalVolume: totalVolumeUSD.toString(),
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: protocolRevenue.toString(),
-          dailyProtocolRevenue: protocolRevenue.toString(),
-          dailySupplySideRevenue: supplySideRevenue.toString(),
+          dailyVolume: dailyVolumeUSD,
+          totalVolume: totalVolumeUSD,
+          dailyFees,
+          dailyRevenue: protocolRevenue,
+          dailyProtocolRevenue: protocolRevenue,
+          dailySupplySideRevenue: supplySideRevenue,
           block
         };
       },

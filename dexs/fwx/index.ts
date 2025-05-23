@@ -17,6 +17,7 @@ interface IRes {
 const CHAIN_ID = {
   [CHAIN.AVAX]: 43114,
   [CHAIN.BASE]: 8453,
+  [CHAIN.BSC]: 56,
 };
 
 const endpoints = {
@@ -39,6 +40,7 @@ const fetch = (chain: Chain) => {
       chain_id: CHAIN_ID[chain],
       is_perp: true,
     });
+
     const tradingVolumePerp = tradingVolumePerpRes as IRes;
     const dailyPerpVolumeData = tradingVolumePerp?.data.find(
       (x: IDailyData) =>
@@ -86,11 +88,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: '2023-12-07',
+      start: "2023-12-07",
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: '2024-09-04',
+      start: "2024-09-04",
+    },
+    [CHAIN.BSC]: {
+      fetch: fetch(CHAIN.BSC),
+      start: "2024-01-22",
     },
   },
 };
@@ -102,7 +108,12 @@ function convertStringNumber(number: bigint) {
   const divisor = BigInt(1e18);
   let integerPart = number / divisor;
   let fractionalPart = number % divisor;
+
+  // Ensure fractional part is positive for correct formatting
+  if (fractionalPart < 0) {
+    fractionalPart = -fractionalPart;
+  }
+
   let fractionalString = fractionalPart.toString().padStart(18, "0");
-  let result = `${integerPart}.${fractionalString}`;
-  return result;
+  return `${integerPart}.${fractionalString}`;
 }

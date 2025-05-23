@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
+import { modifyEndpoint } from '@defillama/sdk/build/util/graph';
 
 interface IGraph {
 	totalFeesEth: string;
@@ -11,8 +12,7 @@ interface IGraph {
 	id: string;
 }
 
-const URL = 'https://api.studio.thegraph.com/query/84618/spacewhale1/0.0.5';
-
+const URL = modifyEndpoint('C9xUT6c9uRH4f4yT6aMvhZizk89GpgcUBjraJFdmHrYQ');
 const fetch = async (timestamp: number): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 	const chain = CHAIN.ARBITRUM;
@@ -26,11 +26,11 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 			}
 		}`
 
-	const response: IGraph = (await request(URL, query)).dayData;
-	const element = response;
-
-	balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, element.totalFeesUsdc);
-	balances._add(ADDRESSES.arbitrum.WETH, element.totalFeesEth);
+	const dayData: IGraph = (await request(URL, query)).dayData;
+	if (dayData) {
+		balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, dayData.totalFeesUsdc);
+		balances._add(ADDRESSES.arbitrum.WETH, dayData.totalFeesEth);
+	}
 
 	return {
 		dailyFees: await balances.getUSDString(),

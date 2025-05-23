@@ -3,12 +3,14 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
-import { DISABLED_ADAPTER_KEY, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
+import { DISABLED_ADAPTER_KEY, FetchOptions, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
-import { getAsset } from "./queries";
 import disabledAdapter from "../../helpers/disabledAdapter";
+
+
+const ControllerAbi =  ["function getAsset(uint256 _id) view returns ((uint256 id, uint256 pairGroupId, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) stablePool, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) underlyingPool, (uint256 riskRatio, int24 rangeSize, int24 rebalanceThreshold) riskParams, (address uniswapPool, int24 tickLower, int24 tickUpper, uint64 numRebalance, uint256 totalAmount, uint256 borrowedAmount, uint256 lastRebalanceTotalSquartAmount, uint256 lastFee0Growth, uint256 lastFee1Growth, uint256 borrowPremium0Growth, uint256 borrowPremium1Growth, uint256 fee0Growth, uint256 fee1Growth, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionUnderlying, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionStable, int256 rebalanceFeeGrowthUnderlying, int256 rebalanceFeeGrowthStable) sqrtAssetStatus, bool isMarginZero, bool isIsolatedMode, uint256 lastUpdateTimestamp))"]
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
@@ -42,7 +44,7 @@ let decimalByAddress: { [key: string]: number } = {
 
 const graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number) => {
+    return async (timestamp: number, _: any, options: FetchOptions) => {
       const dayTime = getTimestampAtStartOfDayUTC(timestamp);
       const graphUrl = graphUrls[chain];
 
@@ -90,17 +92,17 @@ const graphs = (graphUrls: ChainEndpoints) => {
           true
         );
       } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) { 
-        dailyFees = await v5DailyFees(todaysDateString, graphUrl);
+        dailyFees = await v5DailyFees(todaysDateString, graphUrl, options);
         dailyRevenue = undefined;
         dailySupplySideRevenue = undefined;
       }
 
       return {
         timestamp,
-        dailyFees: dailyFees?.toString(),
-        dailyRevenue: dailyRevenue?.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue?.toString(),
-      };
+        dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue: dailySupplySideRevenue,
+      } as any
     };
   };
 };
@@ -248,7 +250,8 @@ const v320DailyFeesAndSupplySideRevenue = async (
 
 const v5DailyFees = async (
   todaysDateString: string,
-  graphUrl: string
+  graphUrl: string,
+  options: FetchOptions,
 ): Promise<BigNumber | undefined> => {
 
   // Get latest pair number
@@ -269,13 +272,19 @@ const v5DailyFees = async (
   const latestPairNumber = result.pairEntities[0].id;
 
   const controllerAddress = "0x06a61e55d4d4659b1a23c0f20aedfc013c489829";
+  const calls: any = []
+  for (let i = 1; i <= latestPairNumber; i++) 
+    calls.push(i)
+
+  const queryRes = await options.api.multiCall({  abi: ControllerAbi[0], calls, target: controllerAddress,  })
+
   
   let usersPaymentFees: BigNumber = BigNumber(0);
   
   // Retrieve daily fees for each pair
   for (let i = 1; i <= latestPairNumber; i++) {
     const pairId = i;
-    const pairStatus = await getAsset(controllerAddress, pairId);
+    const pairStatus = queryRes[i - 1]
 
     // Each pair has two tokens, stableToken and underlyingToken.
     // Several tokens have different decimals, we need to set decimals for each token.

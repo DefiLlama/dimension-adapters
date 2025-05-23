@@ -28,10 +28,10 @@ const graphs = () => {
       const dailyRevenue = dailyFees && dailyFees * .5;
       return {
         timestamp,
-        totalFees: totalFees.toString(),
-        dailyFees: dailyFees?.toString(),
-        totalRevenue: totalRevenue.toString(),
-        dailyRevenue: dailyRevenue ? dailyRevenue.toString() : "0",
+        totalFees,
+        dailyFees,
+        totalRevenue: totalRevenue,
+        dailyRevenue,
       };
     };
   }

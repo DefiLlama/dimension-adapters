@@ -44,8 +44,8 @@ const fetch = (chain: Chain) => {
     const totalFees = afterRes.protocol.totalTradeFee / 10 ** 18;
 
     return {
-      dailyFees: dailyFees.toString(),
-      totalFees: totalFees.toString(),
+      dailyFees,
+      totalFees,
     };
   };
 };

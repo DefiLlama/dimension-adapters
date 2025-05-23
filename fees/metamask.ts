@@ -41,7 +41,7 @@ const graph = (chain: Chain) => {
         WHERE
         BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
         and to_address = '${address[chain]}'
-        and status = 'SUCCESS'
+        and TX_SUCCEEDED = TRUE
       `
 
 
@@ -66,7 +66,7 @@ const graph = (chain: Chain) => {
     dailyFees.resizeBy(0.0085)
 
     return {
-      dailyFees: dailyFees,
+      dailyFees,
       dailyProtocolRevenue: dailyFees,
       dailyRevenue: dailyFees,
       timestamp

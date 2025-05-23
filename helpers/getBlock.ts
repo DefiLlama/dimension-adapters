@@ -16,7 +16,7 @@ const blacklistedChains: string[] = [
   "elrond",
   "defichain",
   "stacks",
-  "KARURA",
+  "karura",
   "eos",
   "icon",
   "stellar",
@@ -51,7 +51,8 @@ const blacklistedChains: string[] = [
   "heco",
   "dymension",
   CHAIN.DOGECHAIN,
-  CHAIN.SEI,
+  // CHAIN.SEI,
+  CHAIN.ICP,
 ];
 
 const cache = {
