@@ -1,4 +1,4 @@
-import { encodeBase58 } from "ethers";
+import { encodeBase58, dataSlice, getAddress } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -40,22 +40,30 @@ const fetch = async (options: FetchOptions) => {
         return {
             kernel_pool_address: pool.kernel_pool_address,
             description: pool.description,
-            periphery_token0_address: (options.api.chain === CHAIN.SOLANA || options.api.chain === CHAIN.ECLIPSE) ? encodeBase58(pool.periphery_token0_address) : pool.periphery_token0_address, 
-            periphery_token1_address: (options.api.chain === CHAIN.SOLANA || options.api.chain === CHAIN.ECLIPSE) ? encodeBase58(pool.periphery_token1_address) : pool.periphery_token1_address,
+            periphery_token0_address: (options.api.chain === CHAIN.SOLANA || options.api.chain === CHAIN.ECLIPSE) 
+                                        ? encodeBase58(pool.periphery_token0_address) 
+                                        : getAddress(dataSlice(pool.periphery_token0_address, 12)), // Convert bytes32 Address to bytes20 Address
+            periphery_token1_address: (options.api.chain === CHAIN.SOLANA || options.api.chain === CHAIN.ECLIPSE) 
+                                        ? encodeBase58(pool.periphery_token1_address) 
+                                        : getAddress(dataSlice(pool.periphery_token1_address, 12)), // Convert bytes32 Address to bytes20 Address
             total_token0_volume_in: parseFloat(pool.total_token0_volume_in),
             total_token1_volume_in: parseFloat(pool.total_token1_volume_in),
         }
     })
 
     for (const pair of tokenVolume) {
-        // Look for the matching pair by kernelPool
-        const matching_pool = token_details.find(pool => pool.kernelPool.toLowerCase() === pair.kernel_pool_address.toLowerCase());
-        
-        // Retrieve by periphery chainId
-        const matching_pool_details = matching_pool.peripheryInfo[skateChainIds[options.api.chain]];
-
-        dailyVolume.add(pair.periphery_token0_address, pair.total_token0_volume_in * 10**(matching_pool_details['token0'].decimal));
-        dailyVolume.add(pair.periphery_token1_address, pair.total_token1_volume_in * 10**(matching_pool_details['token1'].decimal));
+        try {
+            // Look for the matching pair by kernelPool
+            const matching_pool = token_details.find(pool => pool.kernelPool.toLowerCase() === pair.kernel_pool_address.toLowerCase());
+            // Retrieve by periphery chainId
+            const matching_pool_details = matching_pool.peripheryInfo[skateChainIds[options.api.chain]];
+    
+            dailyVolume.add(pair.periphery_token0_address, pair.total_token0_volume_in * 10**(matching_pool_details['token0'].decimal));
+            dailyVolume.add(pair.periphery_token1_address, pair.total_token1_volume_in * 10**(matching_pool_details['token1'].decimal));
+        } catch (e) {
+            // Silently fail
+            // console.log("Error: ", e);
+        }
     }
         
     return {
@@ -63,34 +71,46 @@ const fetch = async (options: FetchOptions) => {
     }
 };
 
+const meta = {
+    methodology: {
+        "Volume": "Describes the amount of tokens swapped into the pool."
+    }
+}
+
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
-            start: '2025-03-24'
+            start: '2025-03-24',
+            meta: meta
         },
         [CHAIN.BSC]: {
             fetch,
-            start: '2025-04-07'
+            start: '2025-04-07',
+            meta: meta
         },
         [CHAIN.BASE]: {
             fetch,
-            start: '2025-03-17'
+            start: '2025-03-17',
+            meta: meta
         },
         [CHAIN.ARBITRUM]: {
             fetch,
-            start: '2025-03-17'
+            start: '2025-03-17',
+            meta: meta
         },
         [CHAIN.SOLANA]: {
             fetch,
-            start: '2025-04-01'
+            start: '2025-04-01',
+            meta: meta
         },
         [CHAIN.ECLIPSE]: {
             fetch,
-            start: '2025-04-02'
+            start: '2025-04-02',
+            meta: meta
         }
-    }
+    },
 }
 
 export default adapter;
