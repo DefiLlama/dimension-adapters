@@ -16,14 +16,12 @@ const skateDataApi = "https://data.skatechain.org/pools/stats";
 const tokenDetailsApi = "https://api.amm.skatechain.org/config/deployment/pools"
 
 const fetch = async (options: FetchOptions) => {
-    let dailyVolume: any = 1000;
-
     // Get token details
     const token_details_response = await httpGet(tokenDetailsApi);
     const token_details = Object.values(token_details_response.data);
 
     // Get the swaps 
-    dailyVolume = options.createBalances();
+    let dailyVolume = options.createBalances();
     
     const tokenVolume_options = {
         params: {
