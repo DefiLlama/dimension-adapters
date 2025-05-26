@@ -3,16 +3,22 @@ import fetchURL from "../../utils/fetchURL"
 import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions) => {
-    const endpoint = 'https://ds.rhoservice.com/api/v1/stats/volume';
-    const response = await fetchURL(endpoint);
+    let endpoint = 'https://ds.rhoservice.com/api/v1/stats/volume/range';
+    const params: string[] = [];
+    
+    if (options.startTimestamp) params.push(`from=${options.startTimestamp}`);
+    if (options.endTimestamp) params.push(`to=${options.endTimestamp}`);
+    if (params.length) endpoint += `?${params.join('&')}`;
 
+    
+    const response = await fetchURL(endpoint);
     const dailyVolume = Number(response.volume);
 
     return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
