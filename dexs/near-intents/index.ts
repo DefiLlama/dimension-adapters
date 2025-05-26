@@ -7,7 +7,7 @@ interface ApiResponse {
   GROSS_AMOUNT_USD: number;
 }
 let data
-const api = "https://flipsidecrypto.xyz/api/v1/queries/72e88d8e-3fa6-43d9-9938-1b29e081eec1/data/latest"
+const api = "https://app.near-intents.org/api/stats/trading_volume"
 
 const adapter: SimpleAdapter = {
   adapter: {
