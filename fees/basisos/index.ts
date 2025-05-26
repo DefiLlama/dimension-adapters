@@ -7,6 +7,11 @@ import { CHAIN } from "../../helpers/chains";
 const DATA_PROVIDER_ADDRESS = '0xDD5C8aB2E9F113b397ff2b8528C649bAEf24dF97';
 
 /**
+ * Block number limit for historical VaultState search.
+ */
+const VAULT_STATE_BLOCK_LIMIT = 330229681;
+
+/**
  * Fetches daily fees and revenue for BasisOS vaults
  * @param options - SDK options containing API access and helper functions
  * @returns Object containing daily fees and revenue
@@ -81,11 +86,11 @@ const fetch = async (options: FetchOptions) => {
       let currentBlock = fromBlock;
       let latestState = null;
       
-      while (!latestState && currentBlock > 0) {
+      while (!latestState && currentBlock > VAULT_STATE_BLOCK_LIMIT) {
         const previousStates = await options.getLogs({
           target: vault,
           eventAbi: "event VaultState(uint256 indexed totalAssets, uint256 indexed totalSupply)",
-          fromBlock: Math.max(0, currentBlock - 50000),
+          fromBlock: Math.max(VAULT_STATE_BLOCK_LIMIT, currentBlock - 50000),
           toBlock: currentBlock
         }) || [];
         
