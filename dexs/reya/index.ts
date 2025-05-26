@@ -1,12 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 import ADDRESSES from '../../helpers/coreAssets.json';
-
-const event_topics = {
-    order: "0xe8137aa901976cc8eaf1cef5dec491873faadc99d9720ccaec95673294a9d7c5",
-};
 
 const eventAbis = {
   event_order:
@@ -14,72 +8,37 @@ const eventAbis = {
 };
 
 const CONFIG = {
-    priceDecimals: 18,
-    baseDecimals: 18,
-    quoteDecimals: 6
+  priceDecimals: 18,
+  baseDecimals: 18,
+  quoteDecimals: 6
 }
 
-const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
-  const [toBlock, fromBlock] = await Promise.all([
-    options.getToBlock(),
-    options.getFromBlock(),
-  ]);
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances()
 
-  const blockStep = 2000;
-  let i = 0;
-  let startBlock = fromBlock;
-  let ranges: any = [];
+  const logs = await options.getLogs({
+   target: '0x27e5cb712334e101b3c232eb0be198baaa595f5f',
+    eventAbi: eventAbis.event_order,
+  });
 
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock);
-    ranges.push([startBlock, endBlock]);
-    startBlock += blockStep;
-  }
+  logs.forEach((log: any) => {
+    const volume = Math.abs(Number(log.orderBase)) / (10 ** (CONFIG.baseDecimals - CONFIG.quoteDecimals)) * Number(log.executedOrderPrice) / (10 ** CONFIG.priceDecimals);
+    const revenue = Number(log.matchOrderFees.protocolFeeCredit);
+    const fee = Number(log.matchOrderFees.takerFeeDebit);
 
-  let errorFound = false;
-  await PromisePool.withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await options.getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_order,
-          topics: [event_topics.order],
-          entireLog: true,
-          skipCache: true,
-        });
-        const iface = new ethers.Interface([eventAbis.event_order]);
+    dailyVolume.addToken(ADDRESSES.reya.RUSD, volume);
+    dailyFees.addToken(ADDRESSES.reya.RUSD, fee);
+    dailyRevenue.addToken(ADDRESSES.reya.RUSD, revenue);
+  });
 
-        logs.forEach((log: any) => {
-          const parsedLog = iface.parseLog(log);
 
-          const volume = Math.abs(Number(parsedLog!.args.orderBase)) / (10 ** (CONFIG.baseDecimals - CONFIG.quoteDecimals)) * Number(parsedLog!.args.executedOrderPrice) / (10 ** CONFIG.priceDecimals);
-          const revenue = Number(parsedLog!.args.matchOrderFees.protocolFeeCredit);
-          const fee = Number(parsedLog!.args.matchOrderFees.takerFeeDebit);
-
-          dailyVolume.addToken(ADDRESSES.reya.RUSD, volume);
-          dailyFees.addToken(ADDRESSES.reya.RUSD, fee);
-          dailyRevenue.addToken(ADDRESSES.reya.RUSD, revenue);
-        });
-      } catch (e) {
-        errorFound = e as boolean;
-        throw e;
-      }
-    });
-
-  if (errorFound) throw errorFound;
-
-  return { dailyFees, dailyRevenue: dailyRevenue, dailyVolume: dailyVolume};
+  return { dailyFees, dailyRevenue: dailyRevenue, dailyVolume: dailyVolume };
 };
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.REYA]: {
       fetch,
