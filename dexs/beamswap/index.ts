@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MOONBEAM]:
@@ -69,14 +70,7 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     classic: {
       [CHAIN.MOONBEAM]: {
-        fetch: graphs(CHAIN.MOONBEAM),
-        start: getStartTimestamp({
-          endpoints,
-          chain: CHAIN.MOONBEAM,
-          dailyDataField: "uniswapDayDatas",
-          dateField: "date",
-          volumeField: "dailyVolumeUSD",
-        }),
+        fetch: getUniV2LogAdapter({ factory: '0x985BcA32293A7A496300a48081947321177a86FD', revenueRatio: 0.13/0.30, protocolRevenueRatio: 0.13/0.30, }),
         meta: {
           methodology: {
             ...methodology,

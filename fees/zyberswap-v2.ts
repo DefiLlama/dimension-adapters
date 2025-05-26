@@ -1,8 +1,3 @@
 
-import adapter from './zyberswap'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
-}
+import adapter from '../dexs/zyberswap-v2'
+export default adapter

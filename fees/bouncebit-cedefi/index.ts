@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
-const bbscanApiURL = "https://api.bbscan.io/api/fee/stats";
+const bbscanApiURL = "https://api-portal.bouncebit.io/api/fee/stats";
 
 interface DailyStats {
   date: string;

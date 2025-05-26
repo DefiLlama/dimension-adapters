@@ -110,6 +110,7 @@ const adapter: Adapter = {
     return acc;
   }, {}),
   version: 2,
+  allowNegativeValue: true, // due to bridge gas fees
 };
 
 export default adapter;

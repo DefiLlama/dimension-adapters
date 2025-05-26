@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: '2024-04-30',
+      start: '2022-11-21',
       meta:{
         methodology: {
           fees: 'fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',

@@ -6,8 +6,8 @@ import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
 const endpointsV3 = {
   [CHAIN.KAVA]:
     "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/v3-subgraph",
-  [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
+  // [CHAIN.BASE]:
+  //   "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
 
 const v3Graphs = getGraphDimensions2({

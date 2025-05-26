@@ -2,11 +2,10 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { FetchOptions } from "../adapters/types";
 
 const OCX = "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af";
 const bveOCX = "0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b";
@@ -34,7 +33,7 @@ export const fees_bribes = async ({
   createBalances,
   getToBlock,
 }: FetchOptions): Promise<sdk.Balances> => {
-  const voter = "0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5";
+  const voter = "0x426bD5345B024a7E70CdEc62886417Ec715e78B5";
   const dailyFees = createBalances();
   const logs_geuge_created = await getLogs({
     target: voter,

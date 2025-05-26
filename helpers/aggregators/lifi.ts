@@ -73,10 +73,10 @@ export const LifiDiamonds: IContract = {
     id: '0x864b314D4C5a0399368609581d3E8933a63b9232',
     startTime: '2025-02-12'
   },
-  [CHAIN.VELAS]: {
-    id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    startTime: '2022-10-20'
-  },
+  // [CHAIN.VELAS]: {
+  //   id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  //   startTime: '2022-10-20'
+  // },
   [CHAIN.APECHAIN]: {
     id: '0x2dea447e7dc6cd2f10b31bF10dCB30F87E838417',
     startTime: '2025-01-20'
@@ -360,17 +360,17 @@ export const LifiFeeCollectors: IContract = {
       id: '0x8295805320853d6B28778fC8f5199327e62e3d87',
       startTime: '2025-02-12'
   },
-  [CHAIN.VELAS]: {
-      id: '0xB0210dE78E28e2633Ca200609D9f528c13c26cD9',
-      startTime: '2022-10-20'
-  },
+  // [CHAIN.VELAS]: {
+  //     id: '0xB0210dE78E28e2633Ca200609D9f528c13c26cD9',
+  //     startTime: '2022-10-20'
+  // },
   [CHAIN.XDAI]: {
       id: '0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9',
       startTime: '2023-07-24'
   }
 }
 
-export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[]): Promise<number> => {
+export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[], exclude_integrators?: string[], swapType?: 'cross-chain' | 'same-chain'): Promise<number> => {
   let hasMore = true;
   let totalValue = 0;
   let nextCursor: string | undefined;
@@ -400,8 +400,9 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
     transfers.forEach((tx) => {
       if (
         tx.status === 'DONE' &&
-        tx.receiving.chainId !== Number(LifiDiamonds[chain].id) && // Ensure it's a cross-chain transfer
-        (integrators ? integrators.includes(tx.metadata.integrator) : true)
+        (swapType === 'cross-chain' ? tx.receiving.chainId !== Number(LifiDiamonds[chain].id) : tx.receiving.chainId === Number(LifiDiamonds[chain].id)) && 
+        (integrators && integrators.length > 0 ? integrators.includes(tx.metadata.integrator) : true) &&
+        (exclude_integrators && exclude_integrators.length > 0 ? !exclude_integrators.includes(tx.metadata.integrator) : true)
       ) {
         const value = parseFloat(tx.sending.amountUSD) || 0;
         totalValue += value;
