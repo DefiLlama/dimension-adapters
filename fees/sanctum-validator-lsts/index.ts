@@ -94,6 +94,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
           ON vsa.stake_account = rew.recipient
       WHERE rew.block_time >= from_unixtime(${options.startTimestamp})
         AND rew.block_time <= from_unixtime(${options.endTimestamp})
+        AND rew.block_time > '2025-03-14'
         AND rew.reward_type = 'Staking'
     )
     SELECT 
