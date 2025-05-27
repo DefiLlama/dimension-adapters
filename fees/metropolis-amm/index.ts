@@ -16,7 +16,7 @@ export const getLpFees = (volumeUSD: number) => {
     }
 }
 
-const getData = async (from: number, to) => {
+const getData = async (from: number, to: number) => {
     const Sonic_LP_V21_QUERY = `
         query pairDayDatas {
             pairDayDatas(
@@ -44,7 +44,7 @@ const getData = async (from: number, to) => {
 
 
     const responses = [
-        await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-dex', 
+        await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-dex-1',
             {query: Sonic_LP_V21_QUERY}
         ),
     ];
@@ -73,7 +73,7 @@ const getData = async (from: number, to) => {
             if (!dayDatas) return acc;
             return aggregateMetrics(dayDatas);
         }, { holderFees: 0, dailyFees: 0, volume: 0 });
-        
+
         return metrics;
     }
 
