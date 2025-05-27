@@ -6,43 +6,49 @@ import BigNumber from "bignumber.js";
 const chainMapper: Record<string, string> = {
     [CHAIN.ETHEREUM]: "ethereum",
     [CHAIN.BITCOIN]: "bitcoin",
-    [CHAIN.ARBITRUM]: "ethereum_arbitrum",
+    [CHAIN.ARBITRUM]: "arbitrum",
+    [CHAIN.BASE]: "base",
+    [CHAIN.UNICHAIN]: "unichain",
+    [CHAIN.BERACHAIN]: "bera",
+    [CHAIN.STARKNET]: "starknet",
+    [CHAIN.HYPERLIQUID]: "hyperliquid",
 };
 
-const baseUrl = "https://referral.garden.finance";
+const baseUrl = "https://api.garden.finance/orders";
 
 const feeUrl = (chain: string, timestamp: number, interval?: string) =>
-    `${baseUrl}/fee?chain=${chain}&end=${timestamp}${
+    `${baseUrl}/fees?chain=${chain}&end=${timestamp}${
         interval ? `&interval=${interval}` : ""
     }`;
 
 type ApiFeeResponse = {
-    data: {
-        fee: string;
-    };
+    status: string;
+    result: string;
 };
 
 const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
-    const dailyFeeResponse: ApiFeeResponse = (
-        await fetchURL(feeUrl(chainMapper[chain], endTimestamp, "day"))
+    const dailyFeeResponse: ApiFeeResponse = await fetchURL(
+        feeUrl(chainMapper[chain], endTimestamp, "day")
     );
 
-    const totalFeeResponse: ApiFeeResponse = (
-        await fetchURL(feeUrl(chainMapper[chain], endTimestamp))
+    const totalFeeResponse: ApiFeeResponse = await fetchURL(
+        feeUrl(chainMapper[chain], endTimestamp)
     );
 
-    const dailyUserFees = new BigNumber(dailyFeeResponse.data.fee);
-    const totalUserFees = new BigNumber(totalFeeResponse.data.fee);
+    const dailyUserFees = new BigNumber(dailyFeeResponse.result);
+    const totalUserFees = new BigNumber(totalFeeResponse.result);
 
-    // //response is in usd
+    // response is in USD
     const dailyFees = dailyUserFees;
     const totalFees = totalUserFees;
+    const dailyRevenue = dailyUserFees;
 
     return {
         dailyFees,
+        dailyUserFees,
+        dailyRevenue,
         totalFees,
-        dailyUserFees: dailyUserFees,
-        totalUserFees: totalUserFees,
+        totalUserFees,
     };
 };
 
@@ -53,10 +59,10 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch: fetch(chain as CHAIN),
-                start: '2023-11-01',
+                start: '2023-08-23',
                 meta: {
                     methodology: {
-                        Fees: "Users pay 0.3% flat fee for each swap",
+                        Fees: "Users pay a fee for each swap",
                     },
                 },
             },
