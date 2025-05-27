@@ -23,6 +23,7 @@ const prefetch = async (options: FetchOptions) => {
     AND t."from" = varbinary_substring(l.topic2, 13) AND t."to" = varbinary_substring(l.topic3, 13)
     AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
     AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+    `
   )
   return results
 }
