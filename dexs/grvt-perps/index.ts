@@ -22,7 +22,7 @@ export async function fetchGRVTDex(fetchOptions: FetchOptions) {
   const startOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.startTimestamp);
   const endOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.endTimestamp);
   const url = endpoint(startOfDayUTC,endOfDayUTC);
-  const resp = await getData(url);
+  const resp = await getDexsData(url);
   const dailyVolume = Number(resp.dailyVolume).toFixed(5);
 
   return {
@@ -31,7 +31,7 @@ export async function fetchGRVTDex(fetchOptions: FetchOptions) {
   };
 }
 
-async function getData(
+async function getDexsData(
   endpoint: string
 ): Promise<FetchResult> {
   return await fetchURL(endpoint);
