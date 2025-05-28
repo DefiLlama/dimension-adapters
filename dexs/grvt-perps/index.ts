@@ -1,12 +1,24 @@
-import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfNextDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
 // endTime is in seconds
 const endpoint = (startTime: number, endTime: number) => {
   return `https://openview.grvt.io/api/v1/defillama/stats?start_timestamp=${startTime}&end_timestamp=${endTime}`;
 };
+
+export async function fetchGRVTDex(options: FetchOptions) {
+  const url = endpoint(options.startTimestamp, options.endTimestamp);
+  const resp = await fetchURL(url);
+  const dailyVolume = Number(resp.dailyVolume).toFixed(5);
+  const dailyOpenInterest = Number(resp.dailyOpenInterest).toFixed(5);
+
+  return {
+    dailyVolume,
+    dailyOpenInterest
+  };
+}
+
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -17,26 +29,5 @@ const adapter: SimpleAdapter = {
     },
   },
 };
-
-export async function fetchGRVTDex(fetchOptions: FetchOptions) {
-  const startOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.startTimestamp);
-  const endOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.endTimestamp);
-  const url = endpoint(startOfDayUTC,endOfDayUTC);
-  const resp = await getDexsData(url);
-  const dailyVolume = Number(resp.dailyVolume).toFixed(5);
-  const dailyOpenInterest = Number(resp.dailyOpenInterest).toFixed(5);
-
-  return {
-    timestamp: startOfDayUTC,
-    dailyVolume,
-    dailyOpenInterest
-  };
-}
-
-async function getDexsData(
-  endpoint: string
-): Promise<FetchResult> {
-  return await fetchURL(endpoint);
-}
 
 export default adapter;
