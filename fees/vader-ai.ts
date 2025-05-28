@@ -39,10 +39,12 @@ const adapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-09-09',
-      methodology: {
-        Fees: "All fees paid by users.",
-        Revenue: "All fees paid by users.",
-        ProtocolRevenue: "All fees paid by users.",
+      meta: {
+        methodology: {
+          Fees: "All fees paid by users.",
+          Revenue: "All fees paid by users.",
+          ProtocolRevenue: "All fees paid by users.",
+        }
       }
     },
   },

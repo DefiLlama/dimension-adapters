@@ -7,7 +7,7 @@ const APE_STORE_FEE_VAULT = '0xd52b1994e745c0ee5bc7ad41414da7d9e0815b66';
 const fetchFees = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     await getETHReceived({ options, balances: dailyFees, targets: [APE_STORE_FEE_VAULT] })
-    return { dailyFees, dailyRevenue: dailyFees, }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: Adapter = {
@@ -16,6 +16,13 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: fetchFees,
+            meta: {
+                methodology: {
+                    Fees: 'Total fees paid by users for creating and trading tokens.',
+                    Revenue: 'Total fees paid by users for creating and trading tokens.',
+                    ProtocolRevenue: 'Total fees paid by users for creating and trading tokens.',
+                }
+            }
         },
     }
 }

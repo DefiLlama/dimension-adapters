@@ -32,6 +32,13 @@ export default {
     [CHAIN.BERACHAIN]: {
       fetch: fetch,
       start: '2025-01-27',
+      meta: {
+        methodology: {
+          Fees: 'All trading fees paid by users.',
+          Revenue: 'All trading fees paid by users.',
+          ProtocolRevenue: 'All trading fees paid by users.',
+        }
+      }
     },
   },
 }
