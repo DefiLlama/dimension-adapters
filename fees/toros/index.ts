@@ -50,19 +50,19 @@ const queryExitFeeMinteds = `
 } */
 const CONFIG = {
   [CHAIN.OPTIMISM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD",
     torosManagerAddress: "0x813123a13d01d3f07d434673fdc89cbba523f14d",
   },
   [CHAIN.POLYGON]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/AutWgquMFvUVEKVuqE55GWxAHDvRF7ZYfRMU1Bcqo5DW",
     torosManagerAddress: "0x090e7fbd87a673ee3d0b6ccacf0e1d94fb90da59",
   },
   [CHAIN.ARBITRUM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/C4LBuTkbXYoy2vSPRA5crGdWR4CAo3W64Rf1Won3fZio",
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
   [CHAIN.BASE]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF",
     torosManagerAddress: "0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879",
   },
 };
