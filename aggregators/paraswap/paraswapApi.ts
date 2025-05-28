@@ -71,6 +71,7 @@ const fetch = (chain: Chain) => {
         return {
             dailyFees : dailyFees || 0,
             dailyRevenue : dailyRevenue || 0,
+            dailyProtocolRevenue : dailyRevenue || 0,
             totalRevenue: totalRevenue,
             totalFees: totalFees,
             timestamp
@@ -92,6 +93,13 @@ const adapter: Adapter = {
     [chain]:{
         fetch: fetch(chain),
         start: '2022-03-22',
+        meta: {
+          methodology: {
+            Fees: "All trading fees paid by users.",
+            Revenue: "Trading fees are collected by Velora protocol.",
+            ProtocolRevenue: "Trading fees are collected by Velora protocol.",
+          }
+        }
     }
   }), {} as any)
 }

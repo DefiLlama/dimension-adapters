@@ -1,6 +1,6 @@
 import { buildStablecoinAdapter} from "./attestations-stablecoins";
 
-export default buildStablecoinAdapter('1', 30* 3,
+const adapter = buildStablecoinAdapter('1', 30* 3,
 // Based on https://tether.to/en/transparency/?tab=reports
 [
     {
@@ -119,3 +119,11 @@ export default buildStablecoinAdapter('1', 30* 3,
     },*/
 
 ]);
+
+adapter.adapter.ethereum.meta = {
+    methodology: {
+        Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
+    },
+}
+
+export default adapter

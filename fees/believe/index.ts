@@ -81,8 +81,8 @@ const adapter: SimpleAdapter = {
             start: '2025-04-27',
             meta: {
                 methodology: {
-                    fees: "Dynamic trading fees collected from users",
-                    revenue: "share of protocol fees collected from trading fees"
+                    Fees: "Dynamic trading fees paid by users.",
+                    Revenue: "Trading fees are collected by Believe protocol."
                 }
             }
         }

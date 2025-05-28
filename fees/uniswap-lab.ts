@@ -20,7 +20,16 @@ const fetch = async (options: FetchOptions) => {
 const adapters: SimpleAdapter = {
   adapter: Object.keys(config).reduce((all, chain)=>({
     ...all,
-    [chain]: { fetch, start: '2023-10-10' }
+    [chain]: { 
+      fetch,
+      start: '2023-10-10',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using Uniswap frontend.",
+          Revenue: "Trading fees are collected by Uniswap Labs."
+        }
+      }
+    }
   }), {}),
   version: 2
 }
