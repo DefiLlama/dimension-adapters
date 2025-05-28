@@ -26,6 +26,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
+      meta: {
+        methodology: {
+          Fees: 'Total ETH fees paid to block proposers by users.',
+        },
+      },
     },
   },
   isExpensiveAdapter: true,

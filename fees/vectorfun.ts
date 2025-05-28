@@ -13,7 +13,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
             AND tx_signer <> 's1gnrNn3b3zs1MCAGYzXsBn13v41HP9nq4JZZGpLESL'`)
     const dailyFees = options.createBalances()
     dailyFees.add("So11111111111111111111111111111111111111112", fees[0].fees_sol)
-    return { dailyFees, dailyRevenue: dailyFees, }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -21,6 +21,13 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetch,
+            meta: {
+                methodology: {
+                    Fees: "All trading and launching tokens fees paid by users.",
+                    Revenue: "All fees are collected by Vector.Fun protocol.",
+                    ProtocolRevenue: "Trading fees are collected by Vector.Fun protocol.",
+                }
+            }
         },
     }
 };

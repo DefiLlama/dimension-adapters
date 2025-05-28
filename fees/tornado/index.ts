@@ -147,7 +147,7 @@ const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
 }
 
 const methodology = {
-    dailyFees: "All fees that are paid by users"
+    Fees: "All fees that are paid by users",
 }
 
 const adapter: SimpleAdapter = {

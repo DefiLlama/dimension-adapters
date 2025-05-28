@@ -77,7 +77,9 @@ const fetch = (chain: string) => {
 };
 
 const meta: any = {
-  Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.'
+  methodology: {
+    Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.'
+  }
 }
 
 const adapter: SimpleAdapter = {

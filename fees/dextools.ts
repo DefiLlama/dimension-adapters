@@ -72,7 +72,15 @@ const fetchEvm = async (options: FetchOptions) => {
         await addTokensReceived({ options, tokens: tokens, targets: target_even[options.chain], balances: dailyFees })
     }
     await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
-    return { dailyFees, dailyRevenue: dailyFees, }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+}
+
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users for token profile listing.',
+    Revenue: 'All fees collected by DexTools.',
+    ProtocolRevenue: 'All fees collected by DexTools.',
+  }
 }
 
 const adapter: Adapter = {
@@ -82,10 +90,12 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: fetchEvm,
+            meta,
         }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
+            meta,
         }
     })
     // missing tron and ton

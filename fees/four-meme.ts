@@ -41,7 +41,15 @@ const fetch: any = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.BSC]: { fetch },
+    [CHAIN.BSC]: { 
+      fetch,
+      meta: {
+        methodology: {
+          Fees: 'All fees paid by users for launching, trading tokens.',
+          Revenue: 'Fees collected by four.meme protocol.',
+        }
+      },
+    },
   },
 };
 export default adapter;

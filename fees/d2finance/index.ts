@@ -240,6 +240,14 @@ const fetchOnBerachain: FetchV2 = async ({ startTimestamp }) => {
   };
 };
 
+const meta = {
+  methodology: {
+    Fees: 'All yields are generated from all staking assets.',
+    Revenue: 'Fees are collected by D2 Finance.',
+    ProtocolRevenue: 'Fees are collected by D2 Finance.',
+  }
+}
+
 export default {
   version: 2,
   adapter: {
@@ -247,6 +255,7 @@ export default {
       fetch: fetchOnArbitrum,
       start: "2024-01-20",
       runAtCurrTime: true,
+      meta,
     },
     // [CHAIN.BASE]: {
     //   fetch: fetchOnBase,
@@ -257,11 +266,13 @@ export default {
       fetch: fetchOnEthereum,
       start: "2025-01-09",
       runAtCurrTime: true,
+      meta,
     },
     [CHAIN.BERACHAIN]: {
       fetch: fetchOnBerachain,
       start: "2025-01-26",
       runAtCurrTime: true,
+      meta,
     },
   },
 };
