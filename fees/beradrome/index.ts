@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
-import { queryDuneSql } from "../../helpers/dune";
 import { Balances } from "@defillama/sdk";
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
