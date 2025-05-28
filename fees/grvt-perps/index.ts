@@ -22,7 +22,7 @@ export async function fetchGRVTFees(fetchOptions: FetchOptions) {
   const startOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.startTimestamp);
   const endOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.endTimestamp);
   const url = endpoint(startOfDayUTC,endOfDayUTC);
-  const resp = await getGrvtData(url);
+  const resp = await getData(url);
   const dailyFees = Number(resp.dailyFees).toFixed(5);
   const dailyRevenue = Number(resp.dailyRevenue).toFixed(5);
 
@@ -33,7 +33,7 @@ export async function fetchGRVTFees(fetchOptions: FetchOptions) {
   };
 }
 
-async function getGrvtData(
+async function getData(
   endpoint: string
 ): Promise<FetchResult> {
   return await fetchURL(endpoint);
