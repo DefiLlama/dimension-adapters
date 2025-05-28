@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
+import * as sdk from "@defillama/sdk";
 
 const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
@@ -40,16 +41,16 @@ const queryExitFeeMenteds = `
 } */
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
-    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD",
+    endpoint: sdk.graph.modifyEndpoint("A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD"),
   },
   [CHAIN.POLYGON]: {
-    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/AutWgquMFvUVEKVuqE55GWxAHDvRF7ZYfRMU1Bcqo5DW",
+    endpoint: sdk.graph.modifyEndpoint("AutWgquMFvUVEKVuqE55GWxAHDvRF7ZYfRMU1Bcqo5DW"),
   },
   [CHAIN.ARBITRUM]: {
-    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/C4LBuTkbXYoy2vSPRA5crGdWR4CAo3W64Rf1Won3fZio",
+    endpoint: sdk.graph.modifyEndpoint("C4LBuTkbXYoy2vSPRA5crGdWR4CAo3W64Rf1Won3fZio"),
   },
   [CHAIN.BASE]: {
-    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF",
+    endpoint: sdk.graph.modifyEndpoint("AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF"),
   },
 };
 
