@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
 
 export async function fetchGRVTFees(fetchOptions: FetchOptions) {
   const startOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.startTimestamp);
-  const endOfDayUTC = getTimestampAtStartOfNextDayUTC(fetchOptions.endTimestamp);
+  const endOfDayUTC = getTimestampAtStartOfDayUTC(fetchOptions.endTimestamp);
   const url = endpoint(startOfDayUTC,endOfDayUTC);
   const resp = await getGrvtData(url);
   const dailyFees = Number(resp.dailyFees).toFixed(5);
