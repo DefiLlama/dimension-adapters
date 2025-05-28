@@ -24,10 +24,12 @@ export async function fetchGRVTDex(fetchOptions: FetchOptions) {
   const url = endpoint(startOfDayUTC,endOfDayUTC);
   const resp = await getDexsData(url);
   const dailyVolume = Number(resp.dailyVolume).toFixed(5);
+  const dailyOpenInterest = Number(resp.dailyOpenInterest).toFixed(5);
 
   return {
     timestamp: startOfDayUTC,
     dailyVolume,
+    dailyOpenInterest
   };
 }
 
