@@ -96,7 +96,9 @@ const fetchSolanaVolume = async (timestamp: number) => {
   const apiURL = "https://api.woofi.com/stat?period=all&network=solana";
   const response = await httpGet(apiURL);
 
-  const result = response?.data?.find((item) => item.timestamp === timestamp.toString());
+  const startOfDayUTC = getTimestampAtStartOfDayUTC(timestamp);
+
+  const result = response?.data?.find((item) => item.timestamp === startOfDayUTC.toString());
 
   return {
     timestamp: timestamp,
