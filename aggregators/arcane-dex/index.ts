@@ -50,6 +50,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   }
 }
 const adapters: SimpleAdapter = {
+  deadFrom: '2025-02-11',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
