@@ -3,17 +3,40 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 
-const chainMapper: Record<string, string> = {
-    [CHAIN.ETHEREUM]: "ethereum",
-    [CHAIN.BITCOIN]: "bitcoin",
-    [CHAIN.ARBITRUM]: "arbitrum",
-    [CHAIN.BASE]: "base",
-    [CHAIN.UNICHAIN]: "unichain",
-    [CHAIN.BERACHAIN]: "bera",
-    [CHAIN.STARKNET]: "starknet",
-    [CHAIN.HYPERLIQUID]: "hyperliquid",
+const chainMapper: Record<string, { name: string, start: string }> = {
+    [CHAIN.ETHEREUM]: {
+        name: "ethereum",
+        start: "2023-08-23",
+    },
+    [CHAIN.BITCOIN]: {
+        name: "bitcoin",
+        start: "2023-08-23",
+    },
+    [CHAIN.ARBITRUM]: {
+        name: "arbitrum",
+        start: "2023-08-23",
+    },
+    [CHAIN.BASE]: {
+        name: "base",
+        start: "2024-12-11",
+    },
+    [CHAIN.UNICHAIN]: {
+        name: "unichain",
+        start: "2025-04-17",
+    },
+    [CHAIN.BERACHAIN]: {
+        name: "bera",
+        start: "2025-02-10",
+    },
+    [CHAIN.STARKNET]: {
+        name: "starknet",
+        start: "2023-08-23",
+    },
+    [CHAIN.HYPERLIQUID]: {
+        name: "hyperliquid",
+        start: "2025-04-17",
+    },
 };
-
 const baseUrl = "https://api.garden.finance/orders";
 
 const feeUrl = (chain: string, timestamp: number, interval?: string) =>
@@ -28,19 +51,13 @@ type ApiFeeResponse = {
 
 const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
     const dailyVolumeResponse: ApiFeeResponse = await fetchURL(
-        feeUrl(chainMapper[chain], endTimestamp, "day")
-    );
-
-    const totalVolumeResponse: ApiFeeResponse = await fetchURL(
-        feeUrl(chainMapper[chain], endTimestamp)
+        feeUrl(chainMapper[chain].name, endTimestamp, "day")
     );
 
     const dailyVolume = new BigNumber(dailyVolumeResponse.result);
-    const totalVolume = new BigNumber(totalVolumeResponse.result);
 
     return {
-        dailyVolume,
-        totalVolume,
+        dailyVolume
     };
 };
 
@@ -50,8 +67,8 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                fetch: fetch(chain as CHAIN),
-                start: '2023-08-23',
+                fetch: fetch(chain),
+                start: chainMapper[chain].start,
                 meta: {
                     methodology: {
                         Volume: "Cumulative USD value of trades executed on the Garden protocol",
