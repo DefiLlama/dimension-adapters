@@ -71,7 +71,7 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.STORY]: {
 			fetch,
-			start: '2025-05-19',
+			start: '2025-05-08',
 		},
 	},
 };
