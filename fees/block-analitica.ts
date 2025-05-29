@@ -1,11 +1,10 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
+// we config vault addresses, we don't use vault owner addresses like other curators
+// because BlockAnalitica co-curator with B Protocol on some vaults
+// these vault owners are B Protocol addresses, so we can't use the vault owner configs
 const curatorConfig: CuratorConfig = {
-  methodology: {
-    Fees: 'Total fees were generated from all vaults curated by Block Analitica.',
-    Revenue: 'Amount of fees were collected by Block Analitica from all curated vaults.',
-  },
   vaults: {
     ethereum: {
       morpho: [

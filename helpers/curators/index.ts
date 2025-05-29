@@ -1,22 +1,9 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IStartTimestamp } from "../adapters/types";
-
-const ABI = {
-  ERC4626: {
-    asset: 'address:asset',
-    converttoAssets: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
-    totalAssets: 'uint256:totalAssets',
-  },
-  morpho: {
-    fee: 'uint256:fee',
-  },
-  euler: {
-    interestFee: 'uint256:interestFee',
-  },
-}
+import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 
 export interface CuratorConfig {
-  methodology: any;
+  methodology?: any;
 
   vaults: {
     // chain => 
@@ -24,6 +11,12 @@ export interface CuratorConfig {
       start?: IStartTimestamp | number | string;
       morpho?: Array<string>;
       euler?: Array<string>;
+
+      // initial owner of morpho vaults
+      morphoVaultOwners?: Array<string>;
+
+      // creators of euler vaults
+      eulerVaultOwners?: Array<string>;
     }
   }
 }
@@ -39,6 +32,75 @@ interface VaultERC4626Info {
   balance: bigint;
   rateBefore: bigint;
   rateAfter: bigint;
+}
+
+function isOwner(owner: string, owners: Array<string>) {
+  for (const item of owners) {
+    if (String(item).toLowerCase() === String(owner).toLowerCase()) {
+      return true
+    }
+  }
+  return false
+}
+
+async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults = vaults ? vaults : []
+
+  if (owners && owners.length > 0) {
+    for (const factory of MorphoConfigs[options.chain].vaultFactories) {
+      const logs = await options.getLogs({
+        eventAbi: ABI.morpho.CreateMetaMorphoEvent,
+        target: factory.address,
+        skipCache: true,
+        fromBlock: factory.fromBlock,
+        toBlock: options.toApi.block ? Number(options.toApi.block) : undefined,
+      })
+      const vaultOfOwners =logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
+      morphoVaults = morphoVaults.concat(vaultOfOwners)
+    }
+  }
+
+  return morphoVaults
+}
+
+async function getEulerVaults(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
+  let eulerVaults = vaults ? vaults : []
+
+  if (owners && owners.length > 0) {
+    for (const factory of EulerConfigs[options.chain].vaultFactories) {
+      const getProxyListLength = await options.api.call({
+        abi: ABI.euler.getProxyListLength,
+        target: factory,
+        permitFailure: true,
+      });
+      if (getProxyListLength) {
+        const lists = []
+        for (let i = 0; i < Number(getProxyListLength); i++) {
+          lists.push(i);
+        }
+        const proxyAddresses = await options.api.multiCall({
+          abi: ABI.euler.proxyList,
+          calls: lists.map(index => {
+            return {
+              target: factory,
+              params: [index],
+            }
+          }),
+        })
+        const proxyCreators = await options.api.multiCall({
+          abi: ABI.euler.creator,
+          calls: proxyAddresses,
+        });
+        for (let i = 0; i < proxyAddresses.length; i++) {
+          if (isOwner(proxyCreators[i], owners)) {
+            eulerVaults.push(proxyAddresses[i])
+          }
+        }
+      }
+    }
+  }
+
+  return eulerVaults
 }
 
 async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>): Promise<Array<VaultERC4626Info>> {
@@ -154,22 +216,36 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
         let dailyFees = options.createBalances()
         let dailyRevenue = options.createBalances()
 
-        if (vaults.morpho) {
-          await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, vaults.morpho)
+        const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+        if (morphoVaults.length > 0) {
+          await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, morphoVaults)
         }
-        if (vaults.euler) {
-          await getEulerVaultFee(options, { dailyFees, dailyRevenue }, vaults.euler)
+        if (eulerVaults.length > 0) {
+          await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
         }
+
+        const dailySupplySideRevenue = dailyFees.clone()
+        dailySupplySideRevenue.subtract(dailyRevenue)
 
         return {
           dailyFees,
           dailyRevenue,
+          dailyProtocolRevenue: dailyRevenue,
+          dailySupplySideRevenue,
         }
       }),
       start: vaults.start,
       meta: curatorConfig.methodology ? {
         methodology: curatorConfig.methodology,
-      } : undefined,
+      } : {
+        methodology: {
+          Fees: 'Total yields from deposited assets in all curated vaults.',
+          Revenue: 'Yields are collected by curators.',
+          ProtocolRevenue: 'Yields are collected by curators.',
+          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
+        }
+      },
     }
   })
 

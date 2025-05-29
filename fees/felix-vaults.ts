@@ -3,10 +3,11 @@ import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 const curatorConfig: CuratorConfig = {
   vaults: {
-    ethereum: {
-      morphoVaultOwners: [
-        '0x16fa314141C76D4a0675f5e8e3CCBE4E0fA22C7c',
-      ],
+    hyperliquid: {
+      morpho: [
+        '0x835febf893c6dddee5cf762b0f8e31c5b06938ab',
+        '0xfc5126377f0efc0041c0969ef9ba903ce67d151e',
+      ]
     },
   }
 }

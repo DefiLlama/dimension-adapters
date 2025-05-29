@@ -2,14 +2,10 @@ import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 const curatorConfig: CuratorConfig = {
-  methodology: {
-    Fees: 'Total fees were generated from all vaults curated by Llama Risk.',
-    Revenue: 'Amount of fees were collected by Llama Risk from all curated vaults.',
-  },
   vaults: {
     ethereum: {
-      morpho: [
-        '0x67315dd969B8Cd3a3520C245837Bf71f54579C75',
+      morphoVaultOwners: [
+        '0x0FB44352bcfe4c5A53a64Dd0faD9a41184A1D609',
       ],
     },
   }
