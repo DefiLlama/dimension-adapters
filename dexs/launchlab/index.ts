@@ -21,6 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
                 AND call_block_time >= from_unixtime(${options.startTimestamp})
                 AND call_block_time <= from_unixtime(${options.endTimestamp})
+                AND call_tx_id != '33vyHa2JPE6njjUaQpQJ3HMf3Tnw8JjWMByUNGRMacErbVCGjBZYkf6Twgyg8SPs28iNZTTsn3keMH4YMPFfKHdu'
             UNION ALL
             SELECT
                 call_block_time,
@@ -32,6 +33,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
                 AND call_block_time >= from_unixtime(${options.startTimestamp})
                 AND call_block_time <= from_unixtime(${options.endTimestamp})
+                AND call_tx_id != '33vyHa2JPE6njjUaQpQJ3HMf3Tnw8JjWMByUNGRMacErbVCGjBZYkf6Twgyg8SPs28iNZTTsn3keMH4YMPFfKHdu'
             UNION ALL
             SELECT
                 call_block_time,
@@ -43,6 +45,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
                 AND call_block_time >= from_unixtime(${options.startTimestamp})
                 AND call_block_time <= from_unixtime(${options.endTimestamp})
+                AND call_tx_id != '33vyHa2JPE6njjUaQpQJ3HMf3Tnw8JjWMByUNGRMacErbVCGjBZYkf6Twgyg8SPs28iNZTTsn3keMH4YMPFfKHdu'
             UNION ALL
             SELECT
                 call_block_time,
@@ -54,6 +57,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
                 AND call_block_time >= from_unixtime(${options.startTimestamp})
                 AND call_block_time <= from_unixtime(${options.endTimestamp})
+                AND call_tx_id != '33vyHa2JPE6njjUaQpQJ3HMf3Tnw8JjWMByUNGRMacErbVCGjBZYkf6Twgyg8SPs28iNZTTsn3keMH4YMPFfKHdu'
         )
         SELECT
             SUM(amount / 1e9) AS daily_volume_sol
