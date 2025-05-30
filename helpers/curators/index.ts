@@ -209,7 +209,10 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
       const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
       
       // interest earned and distributed to vault deposited and vault curator before fees
-      const interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
+      let interestEarnedBeforeFee = interestEarned
+      if (vaultFeeRate < BigInt(1e4)) {
+        interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
+      }
 
       // interest earned by vault curator
       const interestFee = interestEarnedBeforeFee - interestEarned
