@@ -29,6 +29,7 @@ interface Balances {
 interface VaultERC4626Info {
   vault: string;
   asset: string;
+  assetDecimals: number;
   balance: bigint;
   rateBefore: bigint;
   rateAfter: bigint;
@@ -106,13 +107,20 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
 async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>): Promise<Array<VaultERC4626Info>> {
   const vaultInfo: Array<VaultERC4626Info> = []
 
-  const assets = await options.api.multiCall({
+  const assets = await options.fromApi.multiCall({
     abi: ABI.ERC4626.asset,
     calls: vaults,
+    permitFailure: true,
+  });
+  const decimals = await options.fromApi.multiCall({
+    abi: ABI.ERC4626.decimals,
+    calls: assets,
+    permitFailure: true,
   });
   const balances = await options.fromApi.multiCall({
     abi: ABI.ERC4626.totalAssets,
     calls: vaults,
+    permitFailure: true,
   });
   const ratesBefore = await options.fromApi.multiCall({
     abi: ABI.ERC4626.converttoAssets,
@@ -122,6 +130,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
         params: ['1000000000000000000'],
       }
     }),
+    permitFailure: true,
   });
   const ratesAfter = await options.toApi.multiCall({
     abi: ABI.ERC4626.converttoAssets,
@@ -131,6 +140,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
         params: ['1000000000000000000'],
       }
     }),
+    permitFailure: true,
   });
   for (let i = 0; i < vaults.length; i++) {
     const asset = assets[i]
@@ -138,6 +148,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
       vaultInfo.push({
         vault: vaults[i],
         asset,
+        assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i]),
         rateBefore: BigInt(ratesBefore[i]),
         rateAfter: BigInt(ratesAfter[i]),
@@ -165,7 +176,7 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // it mean that vault fees were added from vault token shares
 
       // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(1e18)
+      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**vaultInfo[i].assetDecimals)
       
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
