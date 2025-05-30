@@ -74,6 +74,7 @@ const fetch: Fetch = async (timestamp, _: any, options: FetchOptions) => {
 };
 
 const adapter = {
+    deadFrom: '2024-09-15',
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
