@@ -114,7 +114,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
   });
   const decimals = await options.fromApi.multiCall({
     abi: ABI.ERC4626.decimals,
-    calls: assets,
+    calls: assets.map(item => item ? item : ''),
     permitFailure: true,
   });
   const balances = await options.fromApi.multiCall({
