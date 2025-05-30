@@ -21,6 +21,7 @@ Object.keys(v3ChainMapping).forEach((chain: any) => {
 async function fetch({ createBalances, chain}: FetchOptions) {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
   const query = `query {
   pools: poolGetPools(
     orderBy: volume24h
@@ -48,8 +49,10 @@ async function fetch({ createBalances, chain}: FetchOptions) {
     dailyFees.addUSDValue(+pool.dynamicData.fees24h)
     dailyFees.addUSDValue(+pool.dynamicData.yieldCapture24h)
     dailyVolume.addUSDValue(+pool.dynamicData.volume24h)
+    dailyRevenue.addUSDValue(+(pool.dynamicData.fees24h*0.25)) // 25% of fees go to the protocol
+    dailyRevenue.addUSDValue(+(pool.dynamicData.yieldCapture24h *0.25)) // 25% of yield capture goes to the protocol
   })
-  return { dailyFees, dailyVolume }
+  return { dailyFees, dailyVolume, dailyRevenue }
 }
 
 
