@@ -149,9 +149,9 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
         vault: vaults[i],
         asset,
         assetDecimals: Number(decimals[i]),
-        balance: BigInt(balances[i]),
-        rateBefore: BigInt(ratesBefore[i]),
-        rateAfter: BigInt(ratesAfter[i]),
+        balance: BigInt(balances[i] ? balances[i] : 0),
+        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0),
+        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0),
       })
     }
   }
@@ -164,13 +164,14 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.morpho.fee,
     calls: vaultInfo.map(item => item.vault),
+    permitFailure: true,
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
     const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
 
     if (growthRate > 0) {
-      const vaultFeeRate = BigInt(vaultFeeRates[i])
+      const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
       // morpho vault include fee directly to vault shares
       // it mean that vault fees were added from vault token shares
@@ -192,13 +193,14 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.euler.interestFee,
     calls: vaultInfo.map(item => item.vault),
+    permitFailure: true,
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
     const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
 
     if (growthRate > 0) {
-      const vaultFeeRate = BigInt(vaultFeeRates[i])
+      const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
       // euler vault substract fee directly from interest when collecting
       // it mean that vault fees were remove from vault token shares
