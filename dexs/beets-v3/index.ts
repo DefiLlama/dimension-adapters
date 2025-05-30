@@ -13,7 +13,16 @@ const v3ChainMapping: any = {
 }
 
 Object.keys(v3ChainMapping).forEach((chain: any) => {
-  adapter.adapter[chain] = { fetch, runAtCurrTime: true, }
+  adapter.adapter[chain] = { fetch, 
+    runAtCurrTime: true, 
+    meta: { 
+      methodology: { 
+          Volume: 'Total volume is the sum of all trades in the last 24 hours.',
+          Fees: 'Total fees earned from all the trades and yield in the last 24 hours.',
+          Revenue: 'Total revenue earned by the protocol in the last 24 hours, which is 25% of the fees and yield capture.',
+      } 
+    } 
+  }
 })
 
 // chains = ["MAINNET", "ARBITRUM", "AVALANCHE", "BASE", "GNOSIS", "POLYGON", "ZKEVM", "OPTIMISM", "MODE", "FRAXTAL"]
