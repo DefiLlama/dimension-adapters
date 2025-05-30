@@ -50,11 +50,11 @@ const adapters: SimpleAdapter = {
         return v3Graphs(options.chain)(options)
       }
     },
-    [CHAIN.REDSTONE]: {
-      fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
-      }
-    },
+    // [CHAIN.REDSTONE]: {
+    //   fetch: (options: FetchOptions) =>  {
+    //     return v3Graphs(options.chain)(options)
+    //   }
+    // },
   }
 }
 
