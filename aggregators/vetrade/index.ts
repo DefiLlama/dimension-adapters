@@ -9,13 +9,14 @@ const startTimestamp = 1743465600; // 2025-04-01
 interface IAPIResponse {
   date: number;
   volume_vet: number;
+  volume_usd: number;
   trade_count: number;
   last_updated: string;
 }
 const fetch = async (_timestamp: number): Promise<FetchResult> => {
   const timestamp = getUniqStartOfTodayTimestamp(new Date(_timestamp * 1000));
   const dateString = new Date(timestamp * 1000).toISOString().split('T')[0];
-  const { volume_vet: dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${dateString}`));
+  const { volume_usd: dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${dateString}`));
   return {
     dailyVolume,
     timestamp
