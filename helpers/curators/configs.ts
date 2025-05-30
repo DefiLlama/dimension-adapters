@@ -3,6 +3,7 @@ import { CHAIN } from "../chains"
 export const ABI = {
   ERC4626: {
     asset: 'address:asset',
+    decimals: 'uint8:decimals',
     converttoAssets: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
     totalAssets: 'uint256:totalAssets',
   },
