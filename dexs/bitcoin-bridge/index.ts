@@ -25,6 +25,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2025-05-28',
+      meta: {
+        methodology: {
+          Volume: "This represents the total value of assets bridged over the period.",
+        }
+      }
     },
   },
 };
