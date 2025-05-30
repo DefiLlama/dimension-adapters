@@ -117,6 +117,7 @@ const adapter: Adapter = {
     },
   },
   prefetch: prefetch,
+  allowNegativeValue: true, // Gas Fee cost be higher than estimated
   isExpensiveAdapter: true,
 };
 

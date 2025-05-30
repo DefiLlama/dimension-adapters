@@ -14,6 +14,7 @@ const subgraph = getChainVolume({
 });
 
 const adapters: SimpleAdapter = {
+  deadFrom: '2025-05-25',
   version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
