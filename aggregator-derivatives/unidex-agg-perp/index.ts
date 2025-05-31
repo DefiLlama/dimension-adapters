@@ -104,6 +104,7 @@ const methodology = {
 
 
 const adapteraggderivative: any = {
+  deadFrom: '2025-05-30',
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
