@@ -83,7 +83,6 @@ const fetch = (chain: number) => async (options: FetchOptions) => {
   return {
     dailyVolume: data.bridge.last24Hours,
     totalVolume: data.bridge.allTime,
-    timestamp: options.startTimestamp,
   };
 };
 
@@ -99,7 +98,7 @@ const adapter: SimpleAdapter = {
           start: "2023-01-01",
           meta: {
             methodology: {
-              dailyVolume:
+              Volume:
                 "Volume data is retrieved from DZap's chain volume API endpoint.",
             },
           },
