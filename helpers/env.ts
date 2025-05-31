@@ -44,6 +44,7 @@ export const ENV_KEYS = new Set([
   'FLIPSIDE_RESTRICTED_MODE',
   'STARBASE_API_KEY',
   'ENSO_API_KEY',
+  'NUMIA_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
