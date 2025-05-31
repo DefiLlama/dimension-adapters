@@ -94,6 +94,7 @@ const adapter: SimpleAdapter = {
       return {
         ...acc,
         [key]: {
+          runAtCurrTime: true,
           fetch: fetch(value),
           start: "2023-01-01",
           meta: {
