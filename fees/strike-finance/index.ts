@@ -31,6 +31,7 @@ const adapter: Adapter = {
       runAtCurrTime: true,
     },
   },
+  allowNegativeValue: true,
 };
 
 export default adapter;
