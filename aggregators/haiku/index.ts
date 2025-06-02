@@ -53,7 +53,6 @@ LIMIT 1
   if (result.length > 0) {
     dailyVolume.addCGToken("tether", result[0].volume);
   }
-  console.log(result);
   return {
     dailyVolume,
   };
