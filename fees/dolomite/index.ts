@@ -78,7 +78,7 @@ const fetch = async ({ createBalances, api, chain, fromApi, toApi }: FetchOption
     }})
 
     marketsWithInfo.map((market, i) => {
-        if (!market) return
+        if (!market || !marketsWithInfoEnd[i]) return
         const interestEarned = (BigInt(marketsWithInfoEnd[i].borrowIndex) - BigInt(market.borrowIndex)) * BigInt(market.borrowPar) / BigInt(1e18)        
         const earningRate = 1 - (market.earningsRate / 1e18)
         dailyFees.add(market.token, interestEarned)
