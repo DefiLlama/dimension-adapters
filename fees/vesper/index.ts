@@ -7,12 +7,12 @@ const DISTRIBUTOR = "0xd31f42cf356e02689d1720b5ffaa6fc7229d255b";
 
 const fetch = async (options: FetchOptions) => {
 
-    const dailyFees = await addTokensReceived({ options, tokens: [VSP_TOKEN], targets: [DISTRIBUTOR], });
+    const dailyHoldersRevenue = await addTokensReceived({ options, tokens: [VSP_TOKEN], targets: [DISTRIBUTOR], });
 
   return {
-    dailyRevenue: dailyFees,
-    dailyFees,
-    dailyHoldersRevenue: dailyFees,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    dailyHoldersRevenue,
   };
 };
 
@@ -24,9 +24,9 @@ const adapter: SimpleAdapter = {
       start: 1691558400, // Aug 9, 2023
       meta: {
         methodology: {
-          Fees: "Tracks VSP deposited into the distributor contract.",
-          Revenue: "Tracks VSP deposited into the distributor contract for esVSP lockers.",
-          Holders: "Assumes all VSP sent to distributor is for holders.",
+          Fees: "Not currently tracked, coming soon.",
+          Revenue: "Not currently tracked, coming soon.",
+          Holders: "Tracks VSP deposited into the distributor contract that is distributed to lockers.",
         },
       },
     },
