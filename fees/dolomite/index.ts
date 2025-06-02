@@ -52,27 +52,33 @@ const fetch = async ({ createBalances, api, chain, fromApi, toApi }: FetchOption
 
     const markets = Array.from({ length: marketLength }, (_, i) => ({ target: dolomiteMarginAddresses[chain], params: i }));
 
-    const marketsWithInfo = (await fromApi.multiCall({ abi: dolomiteMarginABI.getMarketWithInfo, calls: markets }))
-    .map((market, i) => ({
-        token: market[0].token,
-        borrowIndex: market[0].index.borrow,
-        borrowPar: market[0].totalPar.borrow,
-        borrowWei: BigInt(market[0].totalPar.borrow) * BigInt(market[0].index.borrow) / BigInt(1e18),
-        earningsRate: market[0].earningsRateOverride.value != 0 ? market[0].earningsRateOverride.value : earningRate,
-        borrowInterestRateAPR: market[3] * 31536000
-    }))
+    const marketsWithInfo = (await fromApi.multiCall({ abi: dolomiteMarginABI.getMarketWithInfo, calls: markets, permitFailure: true }))
+    .map((market, i) => {   
+        if (!market) return
+        return{
+          token: market[0].token,
+          borrowIndex: market[0].index.borrow,
+          borrowPar: market[0].totalPar.borrow,
+          borrowWei: BigInt(market[0].totalPar.borrow) * BigInt(market[0].index.borrow) / BigInt(1e18),
+          earningsRate: market[0].earningsRateOverride.value != 0 ? market[0].earningsRateOverride.value : earningRate,
+          borrowInterestRateAPR: market[3] * 31536000
+        }
+    })
 
-    const marketsWithInfoEnd = (await toApi.multiCall({ abi: dolomiteMarginABI.getMarketWithInfo, calls: markets }))
-    .map((market, i) => ({
+    const marketsWithInfoEnd = (await toApi.multiCall({ abi: dolomiteMarginABI.getMarketWithInfo, calls: markets, permitFailure: true }))
+    .map((market, i) => {
+        if (!market) return
+        return{
         token: market[0].token,
         borrowIndex: market[0].index.borrow,
         borrowPar: market[0].totalPar.borrow,
         borrowWei: BigInt(market[0].totalPar.borrow) * BigInt(market[0].index.borrow) / BigInt(1e18),
         earningsRate: market[0].earningsRateOverride.value != 0 ? market[0].earningsRateOverride.value : earningRate,
         borrowInterestRateAPR: market[3] * 31536000
-    }))
+    }})
 
     marketsWithInfo.map((market, i) => {
+        if (!market) return
         const interestEarned = (BigInt(marketsWithInfoEnd[i].borrowIndex) - BigInt(market.borrowIndex)) * BigInt(market.borrowPar) / BigInt(1e18)        
         const earningRate = 1 - (market.earningsRate / 1e18)
         dailyFees.add(market.token, interestEarned)
