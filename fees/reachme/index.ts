@@ -17,6 +17,7 @@ const refund_iface = new ethers.Interface([RefundIssuedEvent])
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailyRefunds = options.createBalances();
 
   const payment_logs_v1: any[] = await options.getLogs({
     target: REACH_V1,
@@ -42,7 +43,6 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addGasToken(Number(parsed?.args.totalAmount) - Number(parsed?.args.instantAmount) - Number(parsed?.args.escrowAmount));
   });
 
-  const dailyRefunds = options.createBalances();
   const refund_logs_v1: any[] = await options.getLogs({
     target: REACH_V1,
     eventAbi: RefundIssuedEvent,
@@ -65,6 +65,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRefunds.addGasToken(parsed?.args.amount);
   });
 
+  // Subtract refunds from fees
   dailyFees.subtract(dailyRefunds);
 
   return {
@@ -74,24 +75,23 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: "All fees paid by users as fee for sending message to KOL via Reachme - Refunds are subtracted from the total fees",
-    Revenue: "Protocol revenue from the total fees",
-    ProtocolRevenue: "Protocol revenue from the total fees",
-  },
-};
 
 const adapter: SimpleAdapter = {
   version: 2,
-  allowNegativeValue: true, // as there can be more refunds than fees
   adapter: {
     [CHAIN.BSC]: {
       fetch,
       start: "2025-03-25",
-      meta
+      meta: {
+        methodology: {
+          Fees: "All fees paid by users for sending message to KOL via Reachme minus the Refunds",
+          Revenue: "Protocol revenue from the total fees",
+          ProtocolRevenue: "Protocol revenue from the total fees",
+        }
+      }
     },
   },
+  allowNegativeValue: true, // as there can be more refunds than fees
 };
 
 export default adapter;
