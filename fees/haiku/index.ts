@@ -41,7 +41,6 @@ const fetch = async (options: FetchOptions) => {
       });
     })
   );
-  console.log(dailyFees);
   return {
     dailyFees,
     dailyRevenue: dailyFees,
