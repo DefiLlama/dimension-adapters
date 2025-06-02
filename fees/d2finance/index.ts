@@ -203,7 +203,7 @@ const fetchOnBerachain: FetchV2 = async ({ startTimestamp }) => {
   const monthEndTimestamp = getTimestampAtStartOfNextMonth(startTimestamp);
 
   const graphQlUrl =
-    "https://api.goldsky.com/api/public/project_cm65f59cocamq01waduix0fu3/subgraphs/bera-d2/1.0.2/gn";
+    "https://api.goldsky.com/api/public/project_cm65f59cocamq01waduix0fu3/subgraphs/bera-d2/1.0.3/gn";
   const result = await fetchFeeData(graphQlUrl, startTimestamp);
   const tokenPrices = await fetchTokenPrices(startTimestamp);
 
