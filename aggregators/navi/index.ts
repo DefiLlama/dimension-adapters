@@ -4,6 +4,7 @@ import axios from "axios";
 
 const sentioApiKey = "s0T3OflD18sDuN6DeSy7XyVsPqHQTbD4z"; //Read Only
 
+// we need to resync the history data of this aggregator
 const fetchDailyVolume = async ({
   fromTimestamp,
   toTimestamp,
@@ -22,7 +23,7 @@ const fetchDailyVolume = async ({
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
               FROM 'swapEvent'
               WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`,
-      }
+      },
     }),
   }).then((response) => response.data);
 
