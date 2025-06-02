@@ -92,6 +92,12 @@ const adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: "2025-05-22",
+      meta: {
+        methodology: {
+          Fees: "Protocol fees are given by interests paid in credit Tokens by Borrowers to Lenders, cumulated with the amount of SDEX burned at Proposal creation.",
+          Revenue: "Protocol revenue is the total amount of SDEX burned at each new Proposal creation.",
+        },
+      },
     },
   },
   version: 1,
