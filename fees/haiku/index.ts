@@ -15,6 +15,8 @@ const meta = {
   },
 };
 
+const nativeToken = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const data: any[] = await options.getLogs({
@@ -31,10 +33,15 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: HaikuFeeCollectedEvent,
       });
       fee.forEach((feePerTx: any) => {
-        dailyFees.add(feePerTx[0], feePerTx[1]);
+        if (feePerTx[0].toLowerCase() !== nativeToken.toLowerCase()) {
+          dailyFees.add(feePerTx[0], feePerTx[1]);
+        } else {
+          dailyFees.addGasToken(feePerTx[1]);
+        }
       });
     })
   );
+  console.log(dailyFees);
   return {
     dailyFees,
     dailyRevenue: dailyFees,
