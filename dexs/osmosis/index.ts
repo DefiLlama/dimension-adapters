@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL"
 
@@ -22,12 +21,11 @@ const fetch = async (timestamp: number, _at: any, options: FetchOptions) => {
     .reduce((acc, { value }) => acc + value, 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.time === dateStr)?.value
+    .find(dayItem => dayItem.time.split('T')[0] === dateStr)?.value
 
-  return {
-    totalVolume: totalVolume,
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    return {
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
   };
 };
 
@@ -37,11 +35,12 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.OSMOSIS]: {
       fetch,
       // runAtCurrTime: true,
-      start: getStartTimestamp,
+      start: "2022-04-15",
     },
   },
 };
