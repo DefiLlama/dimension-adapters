@@ -25,7 +25,8 @@ const fetchBounceBitCedefiStats = async (timestamp: any) => {
   return {
     timestamp,
     dailyFees,
-    dailyRevenue: dailyFees * 0.3
+    dailyRevenue: dailyFees * 0.3,
+    dailyProtocolRevenue: dailyFees * 0.3,
   };
 };
 
@@ -35,6 +36,13 @@ const adapter: Adapter = {
     [CHAIN.BOUNCE_BIT]: {
       fetch: fetchBounceBitCedefiStats,
       start: "2024-11-11",
+      meta: {
+        methodology: {
+          Fees: 'All yields are generated via delta-neutral basis trading on centralized exchanges.',
+          Revenue: '30% yields are collected by BounceBit as revenue.',
+          ProtocolRevenue: '30% yields are collected by BounceBit as revenue.',
+        }
+      }
     },
   },
 };

@@ -12,7 +12,7 @@ const fetch: any = async (options: FetchOptions) => {
       "BS3CyJ9rRC4Tp8G7f86r6hGvuu3XdrVGNVpbNM9U5WRZ"
     ],
   });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -20,7 +20,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-          },
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using Mevx bot.",
+          Revenue: "Trading fees are collected by Mevx protocol.",
+          ProtocolRevenue: "Trading fees are collected by Mevx protocol.",
+        }
+      }
+    },
   },
   isExpensiveAdapter: true,
 };

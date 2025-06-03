@@ -12,7 +12,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-          },
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users.",
+          Revenue: "Trading fees are collected by Photon protocol."
+        }
+      }
+    },
   },
   isExpensiveAdapter: true
 };

@@ -39,6 +39,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: '2024-10-24', // https://x.com/vela_exchange/status/1849512562552971665
   version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {

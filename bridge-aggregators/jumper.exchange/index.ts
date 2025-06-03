@@ -1,14 +1,13 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 
 const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)"
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
-    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators);
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators, [], 'cross-chain');
     return {
       dailyBridgeVolume: dailyVolume
     };

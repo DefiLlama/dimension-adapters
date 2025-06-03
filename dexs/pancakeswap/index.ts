@@ -217,7 +217,7 @@ const stableSwapMethodology = {
   SupplySideRevenue: "LPs receive 50% of the fees.",
   HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
   Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 025% of each trade."
+  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
 }
 
 const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {

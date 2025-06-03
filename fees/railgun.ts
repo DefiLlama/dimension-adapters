@@ -42,7 +42,13 @@ const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
   }
 }
 
-const options: any = { fetch: fetchFees, start: '2022-05-01' }
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users using Railgun privacy services.',
+    Revenue: 'All fees collected by Railgun.',
+  }
+}
+const options: any = { fetch: fetchFees, start: '2022-05-01', meta }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: options,

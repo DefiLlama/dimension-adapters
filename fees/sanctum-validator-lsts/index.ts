@@ -21,85 +21,84 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
-    WITH
-    stake_pool_instructions AS (
-        select 
-            tx_id, 
-            block_time,
-            outer_instruction_index,
-            case 
-                when bytearray_substring (data, 1, 1) in (0x07,0x09,0x0e,0x17,0x19) then 'MintTo' 
-            else 'Transfer' end as spl_instruction_type,
-            bytearray_substring (data, 1, 1) as instruction
-    from solana.instruction_calls
-        where 
-            executing_account IN (
-                'SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY',
-                'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn'
-            )
-            and bytearray_substring (data, 1, 1) in (
-                0x0a, -- withdraw stake
-                0x10, -- withdraw sol
-                0x18, -- withdrawstakewithslippage
-                0x1A, -- withdrawsolwithslippage 
-                --0x07, -- updatestakepoolbalance
-                0x09, -- deposit stake
-                0x0e, -- deposit sol
-                0x17,-- deposit stake with slippage
-                0x19 -- deposit sol with slippage
-            )
-            and tx_success = true
-            AND block_time >= from_unixtime(${options.startTimestamp})
-            AND block_time <= from_unixtime(${options.endTimestamp})
-    ),
-    transfer_txns as (
-        SELECT 
-            tx_id, 
-            outer_instruction_index,
-            case when bytearray_substring (data, 1, 1) in (0x07) then 'MintTo' else 'Transfer' end as spl_instruction_type,
-            varbinary_to_uint256(varbinary_reverse(varbinary_substring(data, 2, 8))) as amount
-        from solana.instruction_calls
-        where 
-            executing_account IN (
-                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
-            )
-            and bytearray_substring (data, 1, 1) in (0x0c,0x03,0x07)
-            and (
-                bytearray_substring (data, 1, 1) in (0x0c,0x03) and element_at(account_arguments, 3) in (select fee_account from dune.sanctumso.result_sanctum_lsts_manager_fee_accounts)
-                OR bytearray_substring (data, 1, 1) in (0x07) and element_at(account_arguments, 2) in (select fee_account from dune.sanctumso.result_sanctum_lsts_manager_fee_accounts)
-            )
-            and tx_success = true
-            AND block_time >= from_unixtime(${options.startTimestamp})
-            AND block_time <= from_unixtime(${options.endTimestamp})
-    ),
-    stake_pool_transactions AS (
-        select 
-            block_time,
-            tx_id, 
-            amount
-        from stake_pool_instructions inner join transfer_txns using (tx_id, outer_instruction_index, spl_instruction_type)
-    ),
-    withdraw_and_deposit_daily_fees AS (
+    WITH stake_pool_instructions AS (
+      SELECT
+          tx_id,
+          block_time,
+          outer_instruction_index,
+          CASE
+            WHEN BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x07, 0x09, 0x0e, 0x17, 0x19)
+            THEN 'MintTo'
+            ELSE 'Transfer'
+          END AS spl_instruction_type,
+          BYTEARRAY_SUBSTRING(data, 1, 1) AS instruction
+        FROM solana.instruction_calls
+        WHERE
+          executing_account IN ('SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY', 'SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn')
+          AND BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x0a /* withdraw stake */, 0x10 /* withdraw sol */, 0x18 /* withdrawstakewithslippage */, 0x1A /* withdrawsolwithslippage */, 0x09 /* 0x07, -- updatestakepoolbalance */
+          /* deposit stake */, 0x0e /* deposit sol */, 0x17 /* deposit stake with slippage */, 0x19 /* deposit sol with slippage */)
+          AND tx_success = TRUE
+          AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+          AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+      ), transfer_txns AS (
         SELECT
-            sum(COALESCE(amount, 0) / 1e9) as withdraw_and_deposit_daily_fees
-        FROM
-            stake_pool_transactions spt
-    ),
-    epoch_fees as (
-        SELECT 
-          COALESCE(sum(rew.lamports/1e9), 0) as daily_fees
-      FROM solana.rewards rew
-      JOIN dune.sanctumso.result_sanctum_validator_stake_accounts vsa
-      
+          tx_id,
+          outer_instruction_index,
+          CASE
+            WHEN BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x07)
+            THEN 'MintTo'
+            ELSE 'Transfer'
+          END AS spl_instruction_type,
+          VARBINARY_TO_UINT256(VARBINARY_REVERSE(VARBINARY_SUBSTRING(data, 2, 8))) AS amount
+        FROM solana.instruction_calls
+        WHERE
+          executing_account IN ('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+          AND BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x0c, 0x03, 0x07)
+          AND (
+            BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x0c, 0x03)
+            AND ELEMENT_AT(account_arguments, 3) IN (
+              SELECT
+                fee_account
+              FROM dune.sanctumso.result_sanctum_lsts_manager_fee_accounts
+            )
+            OR BYTEARRAY_SUBSTRING(data, 1, 1) IN (0x07)
+            AND ELEMENT_AT(account_arguments, 2) IN (
+              SELECT
+                fee_account
+              FROM dune.sanctumso.result_sanctum_lsts_manager_fee_accounts
+            )
+          )
+          AND tx_success = TRUE
+          AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+          AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+      ), stake_pool_transactions AS (
+        SELECT
+          block_time,
+          tx_id,
+          amount
+        FROM stake_pool_instructions
+        INNER JOIN transfer_txns
+          USING (tx_id, outer_instruction_index, spl_instruction_type)
+      ), withdraw_and_deposit_daily_fees AS (
+        SELECT
+          SUM(COALESCE(amount, 0) / 1e9) AS withdraw_and_deposit_daily_fees
+        FROM stake_pool_transactions AS spt
+      ), epoch_fees AS (
+        SELECT
+          COALESCE(SUM(rew.lamports / 1e9), 0) AS daily_fees
+        FROM solana.rewards AS rew
+        JOIN dune.sanctumso.result_sanctum_validator_stake_accounts AS vsa
           ON vsa.stake_account = rew.recipient
-      WHERE rew.block_time >= from_unixtime(${options.startTimestamp})
-        AND rew.block_time <= from_unixtime(${options.endTimestamp})
-        AND rew.reward_type = 'Staking'
-    )
-    SELECT 
-        CAST(df.daily_fees AS DOUBLE) AS daily_fees, 
-        CAST(wddf.withdraw_and_deposit_daily_fees AS DOUBLE) AS withdraw_and_deposit_daily_fees
-    FROM epoch_fees df, withdraw_and_deposit_daily_fees wddf
+        WHERE
+          rew.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+          AND rew.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+          AND rew.block_time > CAST('2025-03-14' AS TIMESTAMP)
+          AND rew.reward_type = 'Staking'
+      )
+      SELECT
+        TRY_CAST(df.daily_fees AS DOUBLE) AS daily_fees,
+        TRY_CAST(wddf.withdraw_and_deposit_daily_fees AS DOUBLE) AS withdraw_and_deposit_daily_fees
+      FROM epoch_fees AS df, withdraw_and_deposit_daily_fees AS wddf
     `
   );
 

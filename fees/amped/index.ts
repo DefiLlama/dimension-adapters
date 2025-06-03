@@ -7,7 +7,7 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.LIGHTLINK_PHOENIX]:
     "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
   [CHAIN.SONIC]:
-    "https://api.studio.thegraph.com/query/91379/trades-sonic/version/latest",
+    "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.1/gn",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest"
@@ -75,14 +75,18 @@ const adapter: Adapter = {
       fetch: getFetch(endpoints[CHAIN.LIGHTLINK_PHOENIX]),
       start: 1717199544,
       meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        methodology: {
+          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        },
       },
     },
     [CHAIN.SONIC]: {
       fetch: getFetch(endpoints[CHAIN.SONIC]),
       start: 1735685544,
       meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        methodology: {
+          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        }
       },
     },
     // [CHAIN.BSC]: {
@@ -96,14 +100,18 @@ const adapter: Adapter = {
       fetch: getFetch(endpoints[CHAIN.BERACHAIN]),
       start: 1738882079,
       meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        methodology: {
+          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        }
       },
     },
     [CHAIN.BASE]: {
       fetch: getFetch(endpoints[CHAIN.BASE]),
       start: 1740056400,
       meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        methodology: {
+          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        }
       },
     },
   }

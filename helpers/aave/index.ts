@@ -21,7 +21,7 @@ const PercentageMathDecimals = 1e4;
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
 
-async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
+export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
   dailySupplySideRevenue: sdk.Balances,
   dailyProtocolRevenue: sdk.Balances,
