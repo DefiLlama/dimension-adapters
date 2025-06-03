@@ -4,14 +4,13 @@ import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const {
-    data: { dailyFees, dailyRevenue },
+    data: { dailyRevenue },
   } = await axios.get(
     `https://tidelabs.io:2121/defillama/strike-finance/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`,
   );
-  const dailyFeesUSD = options.createBalances();
   const dailyRevenueUSD = options.createBalances();
-  dailyFeesUSD.addCGToken('cardano', Number(dailyFees));
   dailyRevenueUSD.addCGToken('cardano', Number(dailyRevenue));
+  const dailyFeesUSD = dailyRevenueUSD.clone();
   return {
     timestamp: options.startOfDay,
     dailyFees: dailyFeesUSD,
@@ -27,7 +26,6 @@ const adapter: Adapter = {
       start: '2024-05-16',
     },
   },
-  allowNegativeValue: true,
 };
 
 export default adapter;
