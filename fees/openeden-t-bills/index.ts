@@ -70,6 +70,12 @@ const fetch = async (
   return { dailyFees };
 };
 
+const meta = {
+    methodology: {
+        Fees: 'All yeilds collected from invested assets.',
+    }
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
@@ -77,21 +83,25 @@ const adapter: Adapter = {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ETHEREUM], options),
       start: '2023-10-18',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
       start: '2024-02-13',
+      meta,
     },
     [CHAIN.RIPPLE]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.RIPPLE], options),
       runAtCurrTime: true,
+      meta,
     },
     [CHAIN.SOLANA]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.SOLANA], options),
       runAtCurrTime: true,
+      meta,
     },
   },
 };

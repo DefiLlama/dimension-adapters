@@ -60,7 +60,6 @@ const fetch = (chain: string) => {
 
 const adapter: SimpleAdapter = {
   adapter: {},
-  isExpensiveAdapter: true,
   version: 2,
 };
 

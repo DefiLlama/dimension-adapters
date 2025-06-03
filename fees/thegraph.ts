@@ -134,9 +134,9 @@ const adapter: Adapter = {
       start: '2022-11-30',
       meta: {
         methodology: {
-          fees: "Total query fees paid by users for accessing subgraph data",
-          revenue: "Combined revenue from protocol tax (burned fees)",
-          supplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
+          Fees: "Total query fees paid by users for accessing subgraph data",
+          Revenue: "Combined revenue from protocol tax (burned fees)",
+          SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },
     },
@@ -145,9 +145,9 @@ const adapter: Adapter = {
       start: '2020-12-17',
       meta: {
         methodology: {
-          fees: "Total query fees paid by users for accessing subgraph data",
-          revenue: "Combined revenue from protocol tax (burned fees)",
-          supplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
+          Fees: "Total query fees paid by users for accessing subgraph data",
+          Revenue: "Combined revenue from protocol tax (burned fees)",
+          SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },
     },

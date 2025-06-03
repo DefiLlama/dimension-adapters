@@ -2,6 +2,14 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
+const meta = {
+  methodology: {
+    Fees: 'All trading fees paid by users for using Banana Bot.',
+    Revenue: 'Fees collected by Banana Bot protocol.',
+    ProtocolRevenue: 'Fees collected by Banana Bot protocol.',
+  }
+}
+
 const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF' })
   return { dailyFees, dailyRevenue: dailyFees, }
@@ -32,6 +40,7 @@ const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 
@@ -41,30 +50,37 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
       start: '2023-06-01',
+      meta,
     },
     [CHAIN.BLAST]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
     [CHAIN.SONIC]: {
       fetch: fetchFees,
       start: '2024-12-16',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees,
       start: '2024-03-15',
+      meta,
     },
     [CHAIN.UNICHAIN]: {
       fetch: fetchFees,
       start: '2025-02-10',
+      meta,
     },
   },
   isExpensiveAdapter: true,

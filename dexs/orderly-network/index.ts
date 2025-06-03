@@ -36,6 +36,8 @@ const chainIdToChainInfo: {
   "80094": { chain: CHAIN.BERACHAIN, startDate: "2025-03-07" },
   "1514": { chain: CHAIN.STORY, startDate: "2025-03-07" },
   "34443": { chain: CHAIN.MODE, startDate: "2025-03-19" },
+  "98866": { chain: CHAIN.PLUME, startDate: "2025-05-14" },
+  "2741": { chain: CHAIN.ABSTRACT, startDate: "2025-05-29" },
 };
 
 const fetchVolume = async (chainId: string, startOfDay: number) => {

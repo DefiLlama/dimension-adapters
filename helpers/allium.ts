@@ -2,6 +2,11 @@ import retry from "async-retry";
 import { IJSON } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
+import plimit from "p-limit";
+import { elastic } from "@defillama/sdk";
+
+const _rateLimited = plimit(3)
+const rateLimited = (fn: any) => (...args: any) => _rateLimited(() => fn(...args))
 
 const token = {} as IJSON<string>
 
@@ -11,9 +16,9 @@ const HEADERS = {
 };
 
 export async function startAlliumQuery(sqlQuery: string) {
-  const query =  await httpPost(`https://api.allium.so/api/v1/explorer/queries/phBjLzIZ8uUIDlp0dD3N/run-async`, {
+  const query = await httpPost(`https://api.allium.so/api/v1/explorer/queries/phBjLzIZ8uUIDlp0dD3N/run-async`, {
     parameters: {
-        fullQuery: sqlQuery
+      fullQuery: sqlQuery
     }
   }, {
     headers: HEADERS
@@ -29,39 +34,67 @@ export async function retrieveAlliumResults(queryId: string) {
   return results.data
 }
 
-export async function queryAllium(sqlQuery: string) {
-    return await retry(
-      async (bail) => {
-        if (!token[sqlQuery]) {
-          try{
-            token[sqlQuery] = await startAlliumQuery(sqlQuery);
-          } catch(e){
-            console.log("query run-async", e);
-            throw e
-          }
-        }
-  
-        if (!token[sqlQuery]) {
-          throw new Error("Couldn't get a token from allium")
-        }
-  
-        const statusReq = await httpGet(`https://api.allium.so/api/v1/explorer/query-runs/${token[sqlQuery]}/status`, {
-          headers: HEADERS
-        })
-  
-        const status = statusReq
-        if (status === "success") {
-          return retrieveAlliumResults(token[sqlQuery])
-        } else if (status === "failed") {
-          console.log(`Query ${sqlQuery} failed`, statusReq.data)
-          bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(statusReq.data)}`))
-          return;
-        }
-        throw new Error("Still running")
-      },
-      {
-        retries: 20,
-        maxTimeout: 1000 * 60 * 5
-      }
-    );
+async function _queryAllium(sqlQuery: string) {
+  let startTime = +Date.now() / 1e3
+
+  const metadata: any = {
+    application: "allium",
+    query: sqlQuery,
+    table: sqlQuery.split(/from/i)[1].split(/\s/)[1],
   }
+
+
+  const _response = retry(
+    async (bail) => {
+      if (!token[sqlQuery]) {
+        try {
+          token[sqlQuery] = await startAlliumQuery(sqlQuery);
+        } catch (e) {
+          console.log("query run-async", e);
+          throw e
+        }
+      }
+
+      if (!token[sqlQuery]) {
+        throw new Error("Couldn't get a token from allium")
+      }
+
+      const statusReq = await httpGet(`https://api.allium.so/api/v1/explorer/query-runs/${token[sqlQuery]}/status`, {
+        headers: HEADERS
+      })
+
+      const status = statusReq
+      if (status === "success") {
+        return retrieveAlliumResults(token[sqlQuery])
+      } else if (status === "failed") {
+        console.log(`Query ${sqlQuery} failed`, statusReq.data)
+        bail(new Error(`Query ${sqlQuery} failed, error ${JSON.stringify(statusReq.data)}`))
+        return;
+      }
+      throw new Error("Still running")
+    },
+    {
+      retries: 42,
+      maxTimeout: 1000 * 60 * 21
+    }
+  );
+
+  let response;
+  let success = false
+  try {
+    response = await _response
+    success = true
+    metadata.rows = response?.length
+    let endTime = +Date.now() / 1e3
+    await elastic.addRuntimeLog({ runtime: endTime - startTime, success, metadata, })
+  } catch (e) {
+    let endTime = +Date.now()
+    await elastic.addRuntimeLog({ runtime: endTime - startTime, success, metadata, })
+    await elastic.addErrorLog({ error: (e?.toString()) as any, metadata, })
+    throw e
+  }
+  return response
+}
+
+
+export const queryAllium = rateLimited(_queryAllium);

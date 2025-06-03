@@ -21,7 +21,7 @@ type TEndpoint = {
   [s: string | Chain]: string;
 };
 
-const config = {
+const config: any = {
   [CHAIN.POLYGON]: { exchange: '0xac4F3817a726016fC8254119FC48bE838a21f17F' },
   [CHAIN.ARBITRUM]: { exchange: '0xac4F3817a726016fC8254119FC48bE838a21f17F' },
   [CHAIN.BASE]: { exchange: '0xac4F3817a726016fC8254119FC48bE838a21f17F' },
@@ -93,7 +93,7 @@ const abis = {
   SwappedV2: "event Swapped((string source, bytes32 transactionHash, uint256 settleAmount, uint256 receivedAmount, uint16 feeFactor, uint16 subsidyFactor), (address makerAddr, address takerAssetAddr, address makerAssetAddr, uint256 takerAssetAmount, uint256 makerAssetAmount, address userAddr, address receiverAddr, uint256 salt, uint256 deadline) order)",
 };
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions) => {
   const dailyVolume = createBalances();
 
   const pmmLogs = await getLogs({ target: "0x8D90113A1e286a5aB3e496fbD1853F265e5913c6", eventAbi: abis.FillOrder });
@@ -116,7 +116,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   return { timestamp, dailyVolume };
 };
 
-const fetchL2 = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetchL2 = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, }: FetchOptions) => {
   const dailyVolume = createBalances();
   const ammLogs = await getLogs({ target: config[chain].exchange, eventAbi: abis.Swap });
 

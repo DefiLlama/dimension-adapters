@@ -23,6 +23,8 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.ROOTSTOCK]: ["0x7D1820c87BD5e4C231310D45E5f24eb571813738"],
   [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
+  [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -66,6 +68,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-13" },
     [CHAIN.BSC]: { fetch, start: "2025-04-03" },
     [CHAIN.ARBITRUM]: { fetch, start: "2025-04-08" },
+    [CHAIN.HYPERLIQUID]: { fetch, start: "2025-05-18" },
+    [CHAIN.ABSTRACT]: { fetch, start: "2025-05-22" },
   },
 };
 

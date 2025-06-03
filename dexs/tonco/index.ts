@@ -50,6 +50,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (!WHITELIST_JETTONS.includes(fromJetton.address)) {
             continue;
         }
+
+        if (String(swap.amount) === String(swap.toRefund0) || String(swap.amount) === String(swap.toRefund1)) {
+            continue;
+        }
         
         const amount = Number(swap.amount) / ( 10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals) );
         const amountUsd = amount * fromJetton.derivedUsd;

@@ -117,7 +117,8 @@ async function bitcoinUsers(start: number, end: number) {
 
 function getAlliumUsersChain(chain: string) {
     return async (start: number, end: number) => {
-        const queryId = await startAlliumQuery(`select count(DISTINCT from_address) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        let fromField = chain === "starknet" ? "sender_address" : "from_address"
+        const queryId = await startAlliumQuery(`select count(DISTINCT ${fromField}) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
         return {
             queryId
         }
@@ -126,7 +127,8 @@ function getAlliumUsersChain(chain: string) {
 
 function getAlliumNewUsersChain(chain: string) {
     return async (start: number, end: number) => {
-        const queryId = await startAlliumQuery(`select count(DISTINCT from_address) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        let fromField = chain === "starknet" ? "sender_address" : "from_address"
+        const queryId = await startAlliumQuery(`select count(DISTINCT ${fromField}) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
         return {
             queryId
         }
@@ -189,5 +191,5 @@ export default [
         getUsers: solanaUsers
     }
 ]).concat([
-    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base", "scroll", "polygon_zkevm", "bsc", "starknet"
+    "arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base", "scroll", "polygon_zkevm", "bsc"
 ].map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) })))

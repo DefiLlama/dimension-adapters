@@ -10,7 +10,7 @@ const abis: any = {
   "marketIndex": "uint256:marketIndex"
 };
 
-const fetch: any = async (timestamp: number, _, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (timestamp: number, _: any, { api, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
   const vaults = (await api.fetchList({ lengthAbi: abis.marketIndex, itemAbi: abis.getVaults, target: vault_factory })).flat()
   const dailyVolume = createBalances()
   const logs_deposit = await getLogs({ targets: vaults, eventAbi: event_deposit, })

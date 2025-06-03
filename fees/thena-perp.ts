@@ -104,6 +104,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultFees> => {
 
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-09-01',
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,

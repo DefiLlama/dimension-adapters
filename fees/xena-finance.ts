@@ -51,6 +51,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 }
 
 const adapter: Adapter = {
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),

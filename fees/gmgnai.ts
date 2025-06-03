@@ -38,7 +38,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: '2024-03-20'
+      start: '2024-03-20',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using GMGN AI bot.",
+          Revenue: "Trading fees are collected by GMGN AI protocol."
+        }
+      }
     },
   },
   isExpensiveAdapter: true

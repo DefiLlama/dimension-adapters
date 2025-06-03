@@ -49,12 +49,23 @@ export default {
           totalFees,
           dailyRevenue: dailyFees.clone(60/100),
           totalRevenue: totalFees.clone(60/100),
+          dailyProtocolRevenue: dailyFees.clone(60/100),
+          totalProtocolRevenue: totalFees.clone(60/100),
           dailyHoldersRevenue: dailyFees.clone(20/100),
           totalHoldersRevenue: totalFees.clone(20/100),
         };
       }),
       start: 1732060800,
+      meta: {
+        methodology: {
+          Fees: "All fees collected from user bets.",
+          Revenue: "Fees collected from user bets.",
+          ProtocolRevenue: "Fees are distributed to JustBet.",
+          HoldersRevenue: "Fees are distributed to JustBet token holders.",
+        }
+      }
     },
   },
+  allowNegativeValue: true, // casino lose money on some days
   version: 2,
 } as Adapter;
