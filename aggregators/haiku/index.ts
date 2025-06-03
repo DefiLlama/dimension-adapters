@@ -56,14 +56,13 @@ const prefetch = async (options: FetchOptions) => {
 		FROM tx_volumes
 		GROUP BY chain
 	`;
-	console.log(sql_query);
+
 	return queryDuneSql(options, sql_query);
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	const results: IResponse[] = options.preFetchedResults || [];
 	const chainData = results.find(item => item.chain === options.chain.toLowerCase());
-	console.log(options.chain, chainData);
 
 	return {
 		dailyVolume: chainData?.volume || 0,
