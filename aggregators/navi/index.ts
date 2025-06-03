@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 import axios from "axios";
 
-const sentioApiKey = "s0T3OflD18sDuN6DeSy7XyVsPqHQTbD4z"; //Read Only
+const sentioApiKey = "de4yFUZ2ByupTjwXWXW5hkNclopjXaqWo"; //Read Only
 
 // we need to resync the history data of this aggregator
 const fetchDailyVolume = async ({
