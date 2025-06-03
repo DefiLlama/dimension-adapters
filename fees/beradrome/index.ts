@@ -126,6 +126,14 @@ const adapter: Adapter = {
     berachain: {
       fetch,
       start: "2025-02-06",
+      meta: {
+        methodology: {
+          Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
+          BribesRevenue: "Bribes from plugins distributed to holders.",
+          HoldersRevenue:
+            "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
+        },
+      },
     },
   },
   version: 2,
