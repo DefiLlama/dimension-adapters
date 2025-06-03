@@ -24,6 +24,12 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: '2024-05-16',
+      meta: {
+        methodology: {
+          Fees: "All trading fees associated with opening a perpetual position.",
+          Revenue: "All trading fees associated with opening a perpetual position.",
+        }
+      }
     },
   },
 };
