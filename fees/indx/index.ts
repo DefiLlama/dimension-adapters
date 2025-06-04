@@ -1,18 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getETHReceived } from '../../helpers/token';
+import { addGasTokensReceived } from '../../helpers/token';
 
 const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
 
 const fetch = async (options: FetchOptions) => {
-  const balances = options.createBalances();
-  await getETHReceived({
+  const dailyFees = await addGasTokensReceived({
     options,
-    balances,
-    target: feeAddress
+    multisigs: [feeAddress]
   });
   
-  return { dailyFees: balances, dailyRevenue: balances };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
