@@ -38,6 +38,12 @@ const adapter: Adapter = {
   adapter: {},
 };
 
-Object.keys(endpoints).forEach((chain) => { adapter.adapter[chain] = { fetch } });
+const meta = {
+  methodology: {
+    Fees: 'Swap and hook fees paid by users.',
+  }
+}
+
+Object.keys(endpoints).forEach((chain) => { adapter.adapter[chain] = { fetch, meta } });
 
 export default adapter;

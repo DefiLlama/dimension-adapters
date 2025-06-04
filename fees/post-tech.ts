@@ -9,7 +9,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFeesExport(contract_address, [event_trade]),
-      start: '2023-08-29'
+      start: '2023-08-29',
+      meta: {
+          methodology: {
+              Fees: "Fees paid by users while trading on social network.",
+          }
+      }
     }
   },
   version: 2,

@@ -43,6 +43,11 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: async (timestamp: number) => {return{timestamp}},
       start: '2023-09-08',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using trading bot.",
+        }
+      }
     },
   }
 }

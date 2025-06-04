@@ -33,9 +33,21 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
+      meta: {
+        methodology: {
+          Fees: "Services fees paid by blockchain using OP Stack and registered on Superchain.",
+          Revenue: "All fees are collected by OP Labs.",
+        }
+      },
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
+      meta: {
+        methodology: {
+          Fees: "Services fees paid by blockchain using OP Stack and registered on Superchain.",
+          Revenue: "All fees are collected by OP Labs.",
+        }
+      },
     },
   }
 }

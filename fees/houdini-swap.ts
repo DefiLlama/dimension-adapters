@@ -16,6 +16,11 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-01-16',
+      meta: {
+        methodology: {
+          Fees: 'Swap fees paid by users.',
+        }
+      }
     },
   }
 }

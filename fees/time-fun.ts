@@ -7,6 +7,11 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: getFeesExport('0x428aeF7fB31E4E86162D62d4530a4dd7232D953D'),
       start: '2024-06-13',
+      meta: {
+        methodology: {
+            Fees: "Fees paid by users while trading on social network.",
+        }
+      }
     },
   },
   version: 2,

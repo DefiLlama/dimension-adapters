@@ -10,6 +10,11 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: getFeesExport(friendRoomSharesAddress, [event_trade]),
       start: '2023-09-03',
+      meta: {
+        methodology: {
+          Fees: 'Buy and create rooms fees paid by users.',
+        }
+      }
     },
   },
   version: 2,

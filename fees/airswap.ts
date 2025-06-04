@@ -25,10 +25,17 @@ const graph = (chain: Chain) => {
     })).map((e: any) => {
       dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000)
     })
-    return { dailyFees, dailyRevenue: dailyFees, };
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'All fees are revenue.',
+    ProtocolRevenue: 'All revenue are collected by AirSwap.',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -36,22 +43,27 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-04-01',
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
       start: '2023-04-01',
+      meta,
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
       start: '2023-04-01',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: '2023-04-01',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
       start: '2023-07-20',
+      meta,
     },
   }
 };

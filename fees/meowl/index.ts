@@ -11,7 +11,13 @@ const adapter: Adapter = {
                     dailyRevenue: fees.toString(),
                 };
             },
-            start: '2023-05-29'
+            start: '2023-05-29',
+            meta: {
+                methodology: {
+                    Fees: "Fees paid by users while using Meowl Discord bot.",
+                    Revenue: "All fees are revenue.",
+                }
+            }
         },
     },
     version: 2

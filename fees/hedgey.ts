@@ -20,6 +20,11 @@ const adapter: SimpleAdapter = {
         ...all,
         [chain]: {
             fetch: fetch,
+            meta: {
+            methodology: {
+                Fees: "Fees paid by users using payment services."
+            }
+            }
         },
     }), {})
 };

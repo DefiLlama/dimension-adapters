@@ -47,7 +47,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees as any,
       start: '2025-04-16',
       meta: {
-        "methodology": "kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue"
+        "methodology": {
+          Fees: "Kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue.",
+          Revenue: "Revenue of fees after remove costs.",
+        }
       }
     },
   },
