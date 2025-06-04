@@ -1,15 +1,27 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
+const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0'.toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     
-    const balances = await options.api.getBalances([feeAddress]);
-    Object.entries(balances).forEach(([token, balance]) => {
-        dailyFees.add(token, balance);
+    const startBalance = await options.fromApi.call({
+        target: feeAddress,
+        abi: 'function balanceOf() view returns (uint256)',
+        params: [],
     });
+    
+    const endBalance = await options.toApi.call({
+        target: feeAddress,
+        abi: 'function balanceOf() view returns (uint256)',
+        params: [],
+    });
+    
+    const received = Number(endBalance) - Number(startBalance);
+    if (received > 0) {
+        dailyFees.addGasToken(received);
+    }
     
     return { dailyFees, dailyRevenue: dailyFees };
 };
