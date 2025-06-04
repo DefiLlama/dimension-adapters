@@ -117,9 +117,9 @@ const adapters = {
       start: '2023-11-24',
       meta: {
         methodology: {
-          fees: "staking rewards + yield distribution + mint fees + extra fees",
-          revenue: "Mint Fees and staking rewards portion to Reserve Fund",
-          userFees: "Mint Fees"
+          Fees: "Staking rewards + yield distribution + mint fees + extra fees",
+          Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
+          SserFees: "Mint Fees",
         }
       }
     },

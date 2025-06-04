@@ -43,6 +43,12 @@ const adapters: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
       start: '2023-08-10',
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users.",
+          Revenue: "All fees are revenue.",
+        }
+      }
     }
   }
 }

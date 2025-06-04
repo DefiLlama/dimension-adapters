@@ -44,7 +44,11 @@ Object.keys(contracts).forEach((chain: Chain) => {
     fetch,
     start: contracts[chain].deployedAt,
     meta: {
-      methodology: "Counts the 0.2% fee taken on swaps.",
+      methodology: {
+        Fees: "Counts the 0.2% fee taken on swaps.",
+        Revenue: "All fees are revenue.",
+        ProtocolRevenue: "All fees collected by Summer.fi.",
+      },
     },
   };
 });

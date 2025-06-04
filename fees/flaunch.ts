@@ -16,6 +16,7 @@ const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolrevenue: dailyRevenue,
     };
 };
 
@@ -24,6 +25,13 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: fetchFees,
+            meta: {
+                methodology: {
+                    Fees: "Tokens trading and launching fees paid by users.",
+                    Revenue: "All fees are revenue.",
+                    ProtocolRevenue: "All revenue collected by protocol.",
+                }
+            }
         },
     },
 };
