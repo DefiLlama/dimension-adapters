@@ -47,7 +47,7 @@ export default {
   adapter: {
     [CHAIN.ETHEREUM]: adapter,
     [CHAIN.SCROLL]: adapter,
-    [CHAIN.CANTO]: adapter,
+    // [CHAIN.CANTO]: adapter,
     [CHAIN.BLAST]: adapter,
     [CHAIN.PLUME]: adapter,
     [CHAIN.PLUME_LEGACY]: adapter,
