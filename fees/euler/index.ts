@@ -1,4 +1,3 @@
-import { getBlock } from "@defillama/sdk/build/util/blocks";
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
@@ -48,8 +47,8 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, f
     const accumulatedFeesStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
     const accumulatedFeesEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
 
-    const yesterdayBlock = await getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
-    const todayBlockminus1 = await getBlock(chain, fromTimestamp - 1, {})
+    const yesterdayBlock = await sdk.blocks.getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
+    const todayBlockminus1 = await sdk.blocks.getBlock(chain, fromTimestamp - 1, {})
 
     const lastEventsFromPrevDay = await getLogs({
         targets: vaults,

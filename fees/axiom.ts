@@ -33,7 +33,7 @@ const fetch: any = async (options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
