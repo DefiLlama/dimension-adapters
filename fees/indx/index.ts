@@ -6,20 +6,12 @@ const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   
-  const endBalance = await options.api.call({
-    target: feeAddress,
-    abi: 'eth:getBalance',
-    block: options.toBlock,
-  });
+  const endBalance = await options.api.getBalance(feeAddress);
   
-  const startBalance = await options.api.call({
-    target: feeAddress,
-    abi: 'eth:getBalance',
-    block: options.fromBlock,
-  });
+  const startBalance = await options.api.getBalance(feeAddress, options.fromBlock);
   
-  const received = Number(endBalance) - Number(startBalance);
-  if (received > 0) {
+  const received = BigInt(endBalance) - BigInt(startBalance);
+  if (received > 0n) {
     dailyFees.addGasToken(received);
   }
   
