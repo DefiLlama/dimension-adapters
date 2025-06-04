@@ -14,16 +14,21 @@ async function getTotalVolumeV3(block: number): Promise<number> {
     }
   `;
   let totalVolumeUSD = 0;
-  try {
+  // try {
+  //   const resp = await request(URL_V3, query, { block });
+  //   resp.factories.forEach((factory: any) => {
+  //     totalVolumeUSD += Math.round(parseFloat(factory.totalVolumeUSD));
+  //   });
+  //   return totalVolumeUSD;
+  // } catch (error) {
+  //   console.log(error)
+  //   return totalVolumeUSD;
+  // }
     const resp = await request(URL_V3, query, { block });
     resp.factories.forEach((factory: any) => {
       totalVolumeUSD += Math.round(parseFloat(factory.totalVolumeUSD));
     });
     return totalVolumeUSD;
-  } catch (error) {
-    console.log(error)
-    return totalVolumeUSD;
-  }
 }
 
 async function getTotalVolumeV2(block: number): Promise<number> {
