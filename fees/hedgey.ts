@@ -21,9 +21,10 @@ const adapter: SimpleAdapter = {
         [chain]: {
             fetch: fetch,
             meta: {
-            methodology: {
-                Fees: "Fees paid by users using payment services."
-            }
+                methodology: {
+                    Fees: "Fees paid by users using payment services.",
+                    Revenue: "Fees paid by users using payment services.",
+                }
             }
         },
     }), {})

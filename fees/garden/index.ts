@@ -79,6 +79,7 @@ const adapter: SimpleAdapter = {
                 meta: {
                     methodology: {
                         Fees: "Users pay a fee for each swap",
+                        Revenue: "Users pay a fee for each swap",
                     },
                 },
             },

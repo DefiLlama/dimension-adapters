@@ -62,6 +62,7 @@ const adapter: Adapter = {
                     Fees: "Staking rewards earned by all staked APT",
                     Revenue: "Staking rewards",
                     ProtocolRevenue: "Amnis Finance applies a 7% fee on staking rewards to the DAO Treasury",
+                    HoldersRevenue: "Noo fees for token holders",
                     SupplySideRevenue: "Staking rewards earned by stAPT holders",
                 }
             }

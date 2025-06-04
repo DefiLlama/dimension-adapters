@@ -19,6 +19,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: 'Swap fees paid by users.',
+          Revenue: 'Swap fees paid by users.',
         }
       }
     },

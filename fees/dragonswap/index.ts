@@ -6,7 +6,7 @@ const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
   ProtocolRevenue: "Treasury receives 0.06% of each swap.",
   SupplySideRevenue: "LPs receive 0.24% of the fees.",
-  HoldersRevenue: "",
+  HoldersRevenue: "There is no revenue for DragonSwap token holders.",
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user."
 }

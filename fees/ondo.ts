@@ -20,6 +20,8 @@ import { getObject } from '../helpers/sui'
 
 const methodology = {
   Fees: 'Total yields were collected by investment assets.',
+  Revenue: 'Total yields were distributed to investors and Ondo protocol.',
+  PerotocolRevenue: 'Total yields were collected by Ondo protocol.',
   SupplySideRevenue: 'Total yields were distributed to investors.',
 }
 
@@ -151,7 +153,8 @@ const fetch: any = async (options: FetchOptions) => {
   return { 
     dailyFees,
     dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
   }
 }
 

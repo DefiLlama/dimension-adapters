@@ -37,8 +37,8 @@ const adapter: SimpleAdapter = {
         meta: {
           methodology: {
             Fees: "Fees paid by users while using boost services.",
-            Revenue: "All fees are revenue.",
-            ProtocolRevenue: "All revenue collected by protocol.",
+            Revenue: "Fees paid by users while using boost services.",
+            ProtocolRevenue: "Fees paid by users while using boost services.",
           }
         }
       },

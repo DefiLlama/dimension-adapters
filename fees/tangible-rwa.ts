@@ -23,6 +23,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
       start: '2023-05-01',
+      meta: {
+        methodology: {
+          Fees: "Total yields from RWA backing assets.",
+          Revenue: "Total yields from RWA backing assets.",
+        },
+      },
     }
   }
 }

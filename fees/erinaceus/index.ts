@@ -80,6 +80,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
+          Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",
         }
       },
     }

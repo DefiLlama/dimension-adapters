@@ -13,6 +13,7 @@ const adapter: SimpleAdapter = {
       meta: {
           methodology: {
               Fees: "Fees paid by users while trading on social network.",
+              Revenue: "Fees paid by users while trading on social network.",
           }
       }
     }

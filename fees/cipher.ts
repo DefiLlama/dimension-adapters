@@ -8,9 +8,10 @@ const adapter: Adapter = {
       fetch: getFeesExport('0x2544a6412bc5aec279ea0f8d017fb4a9b6673dca'),
       start: '2023-09-25',
       meta: {
-          methodology: {
-              Fees: "Fees paid by users while trading on social network.",
-          }
+        methodology: {
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
+        }
       }
     },
   },

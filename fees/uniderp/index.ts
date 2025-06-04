@@ -138,7 +138,8 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 
 const methodology = {
 	UserFees: "User pays 1% fees on each swap.",
-	Fees: "All fees comes from the user.",
+	Fees: "All fees comes from the user. User pays 1% fees on each swap.",
+	Revenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)",
 	ProtocolRevenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)"
 }
 

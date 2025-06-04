@@ -28,8 +28,8 @@ const adapter: SimpleAdapter = {
             meta: {
                 methodology: {
                     Fees: "Tokens trading and launching fees paid by users.",
-                    Revenue: "All fees are revenue.",
-                    ProtocolRevenue: "All revenue collected by protocol.",
+                    Revenue: "Tokens trading and launching fees paid by users.",
+                    ProtocolRevenue: "Tokens trading and launching fees paid by users.",
                 }
             }
         },

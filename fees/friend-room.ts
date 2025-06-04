@@ -13,6 +13,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: 'Buy and create rooms fees paid by users.',
+          Revenue: 'Buy and create rooms fees paid by users.',
         }
       }
     },

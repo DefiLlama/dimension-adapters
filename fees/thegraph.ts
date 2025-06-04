@@ -136,6 +136,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "Total query fees paid by users for accessing subgraph data",
           Revenue: "Combined revenue from protocol tax (burned fees)",
+          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
           SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },
@@ -147,6 +148,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "Total query fees paid by users for accessing subgraph data",
           Revenue: "Combined revenue from protocol tax (burned fees)",
+          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
           SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },

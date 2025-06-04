@@ -42,8 +42,9 @@ const adapter: SimpleAdapter = {
       start: '2022-11-21',
       meta:{
         methodology: {
-          fees: 'fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
-          protocolRevenue: 'fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)'
+          Fees: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
+          Revenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
+          HoldersRevenue: 'Fee paid to token holders',
         }
       }
     }

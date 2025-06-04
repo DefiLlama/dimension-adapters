@@ -64,7 +64,7 @@ const adapter: Adapter = {
           methodology: {
             UserFees: "Lido takes 10% fee on users staking rewards",
             Fees: "Staking rewards earned by all staked ETH",
-            Revenue: "Staking rewards",
+            Revenue: "Staking rewards earned by all staked ETH",
             ProtocolRevenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
             SupplySideRevenue: "Staking rewards earned by stETH holders"
           }

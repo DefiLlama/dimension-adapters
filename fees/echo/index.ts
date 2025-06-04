@@ -70,7 +70,8 @@ const adapter: SimpleAdapter = {
       start: '2024-03-27',
       meta: {
         methodology: {
-          Fees: "Platform fees collected by Echo protocol from each deal"
+          Fees: "Platform fees collected by Echo protocol from each deal",
+          Revenue: "Platform fees collected by Echo protocol from each deal",
         }
       }
     }
