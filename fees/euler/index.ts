@@ -23,7 +23,7 @@ const eulerFactoryABI = {
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
     accumulatedFees: "function accumulatedFees() view returns (uint256)",
-    convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
+    convertToAssets: "function convertToAssets(string shares) view returns (uint256)",
     convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
     vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)",
     interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
@@ -126,7 +126,7 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, f
     const totalAssets = await toApi.multiCall({
         calls: accumulatedFees.map((fees, i) => ({
             target: vaults[i],
-            params: [Math.abs(Number(fees)).toString()]
+            params: [fees.toString()]
         })),
         abi: eulerVaultABI.convertToAssets,
         permitFailure: true

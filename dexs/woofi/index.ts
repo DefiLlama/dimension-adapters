@@ -5,6 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { httpGet } from "../../utils/fetchURL";
 
 
 const endpoints: Record<Chain, string> = {
@@ -40,6 +41,7 @@ const startTime: TStartTime = {
   [CHAIN.MANTLE]: 1706659200,
   [CHAIN.SONIC]: 1734480000,
   [CHAIN.BERACHAIN]: 1742256000,
+  [CHAIN.SOLANA]: 1740528000,
 };
 
 const TOTAL_VOLUME_FACTORY = "globalVariables";
@@ -90,6 +92,20 @@ const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
   }
 }
 
+const fetchSolanaVolume = async (timestamp: number) => {
+  const apiURL = "https://api.woofi.com/stat?period=all&network=solana";
+  const response = await httpGet(apiURL);
+
+  const startOfDayUTC = getTimestampAtStartOfDayUTC(timestamp);
+
+  const result = response?.data?.find((item) => item.timestamp === startOfDayUTC.toString());
+
+  return {
+    timestamp: timestamp,
+    dailyVolume: result ? Number(result.volume_usd) / 1e18 : 0,
+  }
+}
+
 const volume = Object.keys(endpoints).reduce(
   (acc, chain) => ({
     ...acc,
@@ -100,6 +116,11 @@ const volume = Object.keys(endpoints).reduce(
   }),
   {}
 );
+
+volume[CHAIN.SOLANA] = {
+  fetch: fetchSolanaVolume,
+  start: startTime[CHAIN.SOLANA],
+}
 
 const adapter: SimpleAdapter = {
   version: 1,

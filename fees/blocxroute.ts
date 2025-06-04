@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       meta: {
         methodology: {
-          fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+          Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
         }
       }
     },
@@ -96,7 +96,7 @@ const adapter: SimpleAdapter = {
       start: '2024-04-15',
       meta:{
         methodology: {
-          fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+          Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
         }
       }
     }

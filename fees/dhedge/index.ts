@@ -141,16 +141,25 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyDaoFees,
+    dailyProtocolRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };
 }
 
+const meta = {
+  methodology: {
+    Fees: 'All yields are generated from staking vaults.',
+    Revenue: 'All fees collected by dHedge DAO.',
+    ProtocolRevenue: 'All fees collected by dHedge DAO.',
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', },
-    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', },
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', },
-    [CHAIN.BASE]: { fetch, start: '2023-12-20', },
+    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', meta },
+    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', meta },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', meta },
+    [CHAIN.BASE]: { fetch, start: '2023-12-20', meta },
   },
   version: 2
 }

@@ -63,6 +63,12 @@ const fetch = async (
   return { timestamp, dailyFees };
 };
 
+const meta = {
+  methodology: {
+    Fees: 'Total yields are generated from investment assets, mostly US Treasuries.',
+  }
+}
+
 const adapter: Adapter = {
   timetravel: false,
   adapter: {
@@ -70,11 +76,13 @@ const adapter: Adapter = {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.POLYGON]),
       start: '2023-10-04',
+      meta,
     },
     [CHAIN.STELLAR]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.STELLAR]),
       start: '2023-10-04',
+      meta,
     },
   },
 };

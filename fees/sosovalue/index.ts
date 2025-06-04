@@ -62,9 +62,10 @@ export default {
             start: '2024-12-17',
             meta: {
                 methodology: {
-                    fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets',
-                    protocolRevenue: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets',
-                    holdersRevenue: 'No holder revenue, only emissions as staking rewards'
+                    Fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
+                    Revenue: 'All services fees paid by users.',
+                    ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
+                    HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
                 }
             }
         }

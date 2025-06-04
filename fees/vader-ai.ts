@@ -29,6 +29,7 @@ const fetchFees = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
@@ -38,6 +39,13 @@ const adapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-09-09',
+      meta: {
+        methodology: {
+          Fees: "All fees paid by users.",
+          Revenue: "All fees paid by users.",
+          ProtocolRevenue: "All fees paid by users.",
+        }
+      }
     },
   },
 }

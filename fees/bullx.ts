@@ -17,7 +17,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: '2024-05-14'
+      start: '2024-05-14',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using BullX bot.",
+          Revenue: "Trading fees are collected by BullX protocol."
+        }
+      }
     },
   },
   isExpensiveAdapter: true

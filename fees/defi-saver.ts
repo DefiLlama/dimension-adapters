@@ -16,7 +16,7 @@ const fetch = async (options: FetchOptions) => {
           AND block_time BETWEEN llama_replace_date_range;
           `, options);
   logsTranferERC20.map((p: any) => dailyFees.add(p.contract_address, p.value))
-  return { dailyFees, dailyRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -25,6 +25,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2022-01-01',
+      meta: {
+        methodology: {
+          Fees: 'Total fees paid by users for using DefiSaver services.',
+          Revenue: 'Total fees paid are distributed to DefiSaver.',
+          ProtocolRevenue: 'Total fees paid are distributed to DefiSaver.',
+        }
+      }
     }
   }
 }

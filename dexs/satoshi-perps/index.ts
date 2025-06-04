@@ -88,6 +88,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.CORE]: 1734914400,
 }
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-03-15',
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,

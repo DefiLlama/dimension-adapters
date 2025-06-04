@@ -125,16 +125,17 @@ const getFetchForChain = (chainShortName: string) => {
     const runePriceUSDNum = selectedEarningInterval.runePriceUSD ? Number(selectedEarningInterval.runePriceUSD) : 0;
     const protocolRevenueByChainInDollars = protocolRevenuePerChainBasedOnRuneDepth.div(1e8).times(runePriceUSDNum);
     const dailyHoldersRevenue = bondingRewardPerChainBasedOnRuneDepth.div(1e8).times(runePriceUSDNum);
+    if (dailyFees.isZero()) throw new Error("No fees found for this day");
 
-    return {
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`,
-      dailyProtocolRevenue: protocolRevenueByChainInDollars,
-      dailyHoldersRevenue: dailyHoldersRevenue,
-      dailySupplySideRevenue: dailySupplysideRevenue,
-      timestamp: startOfDay
-    };
+      return {
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`,
+        dailyProtocolRevenue: protocolRevenueByChainInDollars,
+        dailyHoldersRevenue: dailyHoldersRevenue,
+        dailySupplySideRevenue: dailySupplysideRevenue,
+        timestamp: startOfDay
+      };
   };
 };
 

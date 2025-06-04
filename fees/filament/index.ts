@@ -71,6 +71,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-04-19',
   version: 2,
   adapter: {
     [CHAIN.SEI]: {

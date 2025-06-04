@@ -34,6 +34,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  deadFrom: '2024-02-29',
   version: 1,
   adapter: {
     [CHAIN.AVAX]: {

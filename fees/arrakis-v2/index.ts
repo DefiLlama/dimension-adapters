@@ -101,6 +101,11 @@ const adapter: Adapter = {
       fetch: (options: FetchOptions) =>
         getVaultsFees(options, contracts[CHAIN.ETHEREUM]),
       start: '2023-08-26',
+      meta: {
+        methodology: {
+          Fees: 'All yields are collected from deposited assets by liquidity providers.',
+        }
+      }
     },
     // [CHAIN.POLYGON]: {
     //   fetch: (options: FetchOptions) =>

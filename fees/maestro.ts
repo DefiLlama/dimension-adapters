@@ -3,6 +3,13 @@ import { Adapter, FetchOptions, } from "../adapters/types";
 import { getSolanaReceived, getTokenDiff } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
+const meta = {
+  methodology: {
+    Fees: "All trading fees paid by users while using Maestro bot.",
+    Revenue: "Trading fees are collected by Maestro protocol.",
+  }
+}
+
 const dispatcher: any = {
   [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
   [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
@@ -33,7 +40,7 @@ async function fetch(timestamp: number, _1: any, options: FetchOptions) {
   return { timestamp, dailyFees, dailyRevenue: dailyFees, }
 }
 
-const chainAdapter = { fetch: fetch as any, start: '2022-07-01', }
+const chainAdapter = { fetch: fetch as any, start: '2022-07-01', meta, }
 
 const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: 'MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36' })
@@ -49,6 +56,7 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2022-07-01', // wrong?
+      meta,
     },
     [CHAIN.BASE]: chainAdapter,
     [CHAIN.TRON]: chainAdapter,

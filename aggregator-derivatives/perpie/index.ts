@@ -104,6 +104,7 @@ const fetchAll: (chain: string) => Fetch =
     return { ...volumeAndFees } as FetchResult;
   };
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-11-24',
   isExpensiveAdapter: true,
   adapter: {
       ...Object.values(chainsMap).reduce((acc, chain) => {
