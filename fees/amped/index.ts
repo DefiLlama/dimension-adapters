@@ -10,7 +10,8 @@ const endpoints: { [key: string]: string } = {
     "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.1/gn",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest"
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
+  [CHAIN.SSEED]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
 };
 
 const historicalDataQuery = gql`
@@ -108,6 +109,15 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: getFetch(endpoints[CHAIN.BASE]),
       start: 1740056400,
+      meta: {
+        methodology: {
+          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+        }
+      },
+    },
+    [CHAIN.SSEED]: {
+      fetch: getFetch(endpoints[CHAIN.SSEED]),
+      start: 1745330400,
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
