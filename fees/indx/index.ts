@@ -1,26 +1,30 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addGasTokensReceived } from '../../helpers/token';
+import { getETHReceived } from '../../helpers/token';
 
 const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
 
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addGasTokensReceived({
-    options,
-    multisigs: [feeAddress]
-  });
-  
-  return { dailyFees, dailyRevenue: dailyFees };
-};
+const fetchFees = async (options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+    await getETHReceived({ options, balances: dailyFees, targets: [feeAddress] })
+    return { dailyFees, dailyRevenue: dailyFees }
+}
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2025-05-17'
+const adapter: Adapter = {
+    version: 2,
+    isExpensiveAdapter: true,
+    adapter: {
+        [CHAIN.BASE]: {
+            fetch: fetchFees,
+            start: '2025-05-17',
+            meta: {
+                methodology: {
+                    Fees: 'ETH fees collected from INDX protocol operations.',
+                    Revenue: 'All fees collected are protocol revenue.',
+                }
+            }
+        },
     }
-  }
-};
+}
 
 export default adapter;
