@@ -11,6 +11,7 @@ const endpoints: { [key: string]: string } = {
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
+  [CHAIN.SUPERSEED]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
 };
 
 const historicalDataSwap = gql`
@@ -86,7 +87,7 @@ const startTimestamps: { [chain: string]: number } = {
   // [CHAIN.BSC]: 1727740344, 
   [CHAIN.BERACHAIN]: 1738882079,
   [CHAIN.BASE]: 1740056400,
-
+  [CHAIN.SUPERSEED]: 1745330400,
 
 };
 
