@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 type IContract = {

@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 const { request, gql } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getBlock } from "../../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {

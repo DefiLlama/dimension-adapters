@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from '../helpers/token';

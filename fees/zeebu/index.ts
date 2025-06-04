@@ -1,12 +1,6 @@
-import * as sdk from "@defillama/sdk";
-import { request, gql } from "graphql-request";
-import { Adapter, FetchV2, ChainEndpoints } from "../../adapters/types";
+import { request, } from "graphql-request";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-//import { getTokenPrice } from "../../helpers/prices"; // Fetch Zeebu price in USD
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import BigNumber from "bignumber.js";
-//import { ETHEREUM } from "../../helpers/chains";
-//import { Chain } from '@defillama/sdk/build/general';
 
 // Define target contracts and chains
 const CONTRACTS = {
@@ -25,12 +19,11 @@ const endpoints = {
   [CHAIN.BASE]: 'https://api.studio.thegraph.com/query/89152/fees_reward_base/version/latest',
 }
 
-const graphsDaily = (graphUrls: Record<string, string>) => {
-  return (chain: CHAIN) => {
-    return async (timestamp: number) => {
-      const dayID = (Math.floor(timestamp.startOfDay / 86400) ).toString(); // Ensure this aligns with your subgraph's dayID logic
+async function fetch(_: any, _1: any, { startOfDay, chain }: FetchOptions) {
 
-      const graphQuery = gql`
+  const dayID = (Math.floor(startOfDay / 86400)).toString(); // Ensure this aligns with your subgraph's dayID logic
+
+  const graphQuery = `
         query ($dayID: String!) {
           dayVolumeFeesAggregates(
             orderBy: dayID
@@ -45,66 +38,37 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
         }
       `;
 
-      const totalFeesQuery = gql`
-        query {
-          overallVolumeFeesAggregates{
-            totalFees
-            totalVolume
-            chain
-            contract
-          }
-        }
-      `;
+  // Fetch daily fees
+  const graphRes = await request(endpoints[chain], graphQuery, { dayID });
+  const aggregates = graphRes.dayVolumeFeesAggregates;
 
-      
-        // Fetch total fees
-        const totalFeesResponse = await request(graphUrls[chain], totalFeesQuery, { });
-        const totalFees = totalFeesResponse.overallVolumeFeesAggregates.reduce(
-          (sum, item) => sum + parseFloat(((item.totalFees * 1)/1e18) || 0),
-          0
-        );
+  // Aggregate daily fees and daily volume
+  const dailyFees = aggregates.reduce((sum: any, agg: any) => sum + ((agg as any).dailyFees / 1e18), 0);
+  const dailyUserFees = dailyFees;
+  const dailyRevenue = dailyFees;
+  const dailyHoldersRevenue = dailyFees * 0.6 / 100;
 
-        // Fetch daily fees
-        const graphRes = await request(graphUrls[chain], graphQuery, { dayID: dayID });
-        const aggregates = graphRes.dayVolumeFeesAggregates;
+  return { dailyFees, dailyUserFees, dailyRevenue, dailyHoldersRevenue, };
 
-        // Aggregate daily fees and daily volume
-        const dailyFees = aggregates.reduce((sum, agg) => sum + parseFloat(((agg.dailyFees * 1)/1e18) || 0), 0);
-        const dailyUserFees = dailyFees;
-        const totalUserFees = totalFees;
-
-        const dailyRevenue = dailyFees;
-        const totalRevenue = totalFees;
-
-        const dailyHoldersRevenue = dailyFees * 0.6 / 100;
-        const totalHoldersRevenue = totalFees * 0.6 / 100;
-
-        const dailySupplySideRevenue = dailyFees * 0.6 / 100;
-        const totalSupplySideRevenue = totalFees * 0.6 / 100;
-
-        return {dailyFees, totalFees, dailyUserFees, totalUserFees, dailyRevenue, totalRevenue, dailyHoldersRevenue, totalHoldersRevenue };
-      
-    };
-  };
 };
 
 export default {
   adapter: {
     // Define for each chain
     [CHAIN.BASE]: {
-      fetch : graphsDaily(endpoints)(CHAIN.BASE),
+      fetch,
       start: 1728518400,
       meta: {
         methodology: {
           Fees: "2% collectively paid by merchant and customer",
-          UserFees : "Daily fees",
+          UserFees: "Daily fees",
           Revenue: "Invoice fees",
           HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
         }
       }
     },
     [CHAIN.BSC]: {
-      fetch : graphsDaily(endpoints)(CHAIN.BSC),
+      fetch,
       start: 1688083200,
       meta: {
         methodology: {
@@ -114,7 +78,5 @@ export default {
         }
       }
     },
-
   },
-  version: 2,
 } as Adapter;

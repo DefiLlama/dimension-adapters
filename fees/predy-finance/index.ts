@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
 import { DISABLED_ADAPTER_KEY, FetchOptions, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";

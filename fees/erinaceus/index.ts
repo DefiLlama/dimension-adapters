@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import getTxReceipts from "../../helpers/getTxReceipts";
 const sdk = require('@defillama/sdk')
 

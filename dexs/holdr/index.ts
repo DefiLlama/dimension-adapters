@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: ChainEndpoints = {

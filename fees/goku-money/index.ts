@@ -2,7 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const BORROW_CONTRACT_ADDRESS = [
   "0x2f6E14273514bc53deC831028CB91cB1D7b78237", // USDC

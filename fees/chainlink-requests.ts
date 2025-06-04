@@ -1,7 +1,7 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 interface ILog {

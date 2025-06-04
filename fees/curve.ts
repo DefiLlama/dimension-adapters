@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions, FetchResultV2 } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const endpoints = {

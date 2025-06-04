@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { addGasTokensReceived, addTokensReceived, getSolanaReceived } from "../../helpers/token";

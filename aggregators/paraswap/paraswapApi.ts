@@ -1,7 +1,7 @@
 import { Adapter, FetchResultFees, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
 

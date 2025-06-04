@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 const ADDRESSES = require('../helpers/coreAssets.json')
 
 const event_paid_stream = 'event RewardPaidTo (address _market, address _to, address _rewardToken, uint256 _feeAmount)';

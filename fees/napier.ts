@@ -1,5 +1,5 @@
 import { ChainApi } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import axios from "axios";
 import BigNumber from "bignumber.js";
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
