@@ -1,5 +1,4 @@
 import { ChainApi } from "@defillama/sdk";
-import { normalizeAddress } from "@defillama/sdk/build/util";
 
 // helper for ERC4626-vaults
 // https://docs.openzeppelin.com/contracts/4.x/erc4626

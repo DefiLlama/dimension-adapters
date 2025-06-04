@@ -6,8 +6,7 @@ import {
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
-import type { Chain } from "@defillama/sdk/build/general";
+import type { BaseAdapter, BreakdownAdapter, ChainEndpoints, Chain } from "../../adapters/types";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints: ChainEndpoints = {

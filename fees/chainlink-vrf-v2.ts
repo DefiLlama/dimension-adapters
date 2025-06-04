@@ -1,7 +1,6 @@
-import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
-import { Chain, } from "@defillama/sdk/build/general";
 import getTxReceipts from "../helpers/getTxReceipts";
 
 

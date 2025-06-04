@@ -1,4 +1,3 @@
-import getLogs from "@defillama/sdk/build/util/logs";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { id, zeroPadValue } from "ethers";

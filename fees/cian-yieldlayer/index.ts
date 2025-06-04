@@ -1,7 +1,5 @@
-import { totalSupply } from "@defillama/sdk/build/erc20";
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import * as sdk from "@defillama/sdk";
 
 //cian yield layer doesn't have factory, so we hardcode the vaults
 const cianVaults = {
