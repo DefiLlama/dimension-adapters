@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Tracks VSP deposited into the distributor contract.",
           Revenue: "Tracks VSP deposited into the distributor contract for esVSP lockers.",
-          Holders: "Assumes all VSP sent to distributor is for holders.",
+          HoldersRevenue: "Assumes all VSP sent to distributor is for holders.",
         },
       },
     },

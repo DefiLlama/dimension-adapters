@@ -15,7 +15,14 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: '2021-01-01'
+      start: '2021-01-01',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Amount of AVAX transaction fees that were burned',
+          HoldersRevenue: 'Amount of AVAX transaction fees that were burned',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

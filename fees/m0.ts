@@ -9,7 +9,7 @@ import { request, gql } from "graphql-request";
 const methodology = {
   Fees: 'Total minter fees and penalty fees paid by borrowers.',
   SupplySideRevenue: 'Total yields are earning from off-chain deposited collaterals',
-  HolderRevenue: 'Total fees are distibuted to whitelised M staker',
+  HoldersRevenue: 'Total fees are distibuted to whitelised M staker',
   ProtocolRevenue: 'Total fees are earned by M0 protocol',
 }
 

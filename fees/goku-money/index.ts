@@ -76,6 +76,14 @@ const adapter: Adapter = {
         };
       },
       start: '2023-10-31', // 01 Nov 2023
+      meta: {
+        methodology: {
+          Fees: "Interest and redemption fees paid by borrowers",
+          Revenue: "Interest and redemption fees paid by borrowers",
+          ProtocolRevenue: "Interest and redemption fees paid by borrowers",
+          HoldersRevenue: "Interest and redemption fees paid by borrowers"
+        }
+      }
     },
   },
 };

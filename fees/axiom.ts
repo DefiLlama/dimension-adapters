@@ -44,8 +44,10 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: 'User pays 0.75%-1% fee on each trade',
-          Revenue: 'User Fees',
-          UserFees: 'User pays 0.75%-1% fee on each trade'
+          Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+          UserFees: 'User pays 0.75%-1% fee on each trade',
+          HoldersRevenue: 'Fees distributed to token holders',
+          ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
         }
       }
     },

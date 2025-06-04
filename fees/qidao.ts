@@ -50,6 +50,14 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: "Total reward and withdraw fees paid by users.",
+    Revenue: "50% of collected fees earned by QiDAO, 50% fees to asset suppliers.",
+    HoldersRevenue: "100% revenue distributed to token holders.",
+  }
+};
+
 const options: any = { fetch, start: '2023-08-05' }
 const adapter: SimpleAdapter = {
   adapter: {

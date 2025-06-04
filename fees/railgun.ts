@@ -46,6 +46,7 @@ const meta = {
   methodology: {
     Fees: 'All fees paid by users using Railgun privacy services.',
     Revenue: 'All fees collected by Railgun.',
+    HoldersRevenue: 'Fees distributed to token holders',
   }
 }
 const options: any = { fetch: fetchFees, start: '2022-05-01', meta }

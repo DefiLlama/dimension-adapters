@@ -111,7 +111,7 @@ const v3: any = Object.keys(endpointsV3).reduce(
           Fees: "Each pool charge between 0.01% to 1% fee",
           UserFees: "Users pay between 0.01% to 1% fee",
           Revenue: "0 to 1/4 of the fee goes to treasury",
-          HoldersRevenue: "None",
+          HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
           ProtocolRevenue: "Treasury receives a share of the fees",
           SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
         }

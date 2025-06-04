@@ -23,9 +23,10 @@ const adapter: Adapter = {
       fetch: getFeesExport(FriendV2Address, [event_trade_V2]),
       start: '2023-10-31',
       meta: {
-          methodology: {
-              Fees: "Fees paid by users while trading on social network.",
-          }
+        methodology: {
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
+        }
       }
     },
   },

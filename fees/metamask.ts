@@ -6,7 +6,7 @@ import { queryFlipside } from "../helpers/flipsidecrypto";
 const meta = {
   methodology: {
     Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
-    Revenue: 'Fees collected by Metamask.',
+    Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
   }
 }
 

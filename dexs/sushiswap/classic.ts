@@ -146,7 +146,7 @@ const classic = Object.keys(endpointsClassic).reduce(
           Fees: "SushiSwap charges a flat 0.3% fee",
           UserFees: "Users pay a 0.3% fee on each trade",
           Revenue: "A 0.05% of each trade goes to treasury",
-          HoldersRevenue: "None",
+          HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
           ProtocolRevenue: "Treasury receives a share of the fees",
           SupplySideRevenue: "Liquidity providers get 5/6 of all trades in their pools"
         }

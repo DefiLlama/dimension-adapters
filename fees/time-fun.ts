@@ -9,7 +9,8 @@ const adapter: Adapter = {
       start: '2024-06-13',
       meta: {
         methodology: {
-            Fees: "Fees paid by users while trading on social network.",
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
         }
       }
     },
