@@ -239,6 +239,7 @@ export enum CHAIN {
   INITIA = "initia",
   COTI = "coti",
   LENS = "lens",
+  SSEED = "sseed",
 }
 
 // Don´t use
