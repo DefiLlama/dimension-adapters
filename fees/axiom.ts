@@ -33,7 +33,7 @@ const fetch: any = async (options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -44,9 +44,8 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: 'User pays 0.75%-1% fee on each trade',
-          Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-          UserFees: 'User pays 0.75%-1% fee on each trade',
-          ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+          Revenue: 'User Fees',
+          UserFees: 'User pays 0.75%-1% fee on each trade'
         }
       }
     },
