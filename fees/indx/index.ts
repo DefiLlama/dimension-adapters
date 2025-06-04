@@ -1,19 +1,21 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const FeeCollectedEvent = "event FeesCollected(address indexed token, address indexed integrator, uint256 integratorFee, uint256 indxFee)"
-const indxFeeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
+const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const data: any[] = await options.getLogs({
-        target: indxFeeAddress,
-        eventAbi: FeeCollectedEvent,
-    });
     
-    data.forEach((log: any) => {
-        dailyFees.add(log.token, log.integratorFee);
-        dailyFees.add(log.token, log.indxFee);
+    // Track ETH transfers to the fee address - all ETH considered revenue
+    await options.getFromAddresses({
+        targets: [feeAddress],
+        options: {
+            includeGasToken: true
+        }
+    }).then((transfers) => {
+        transfers.forEach(transfer => {
+            dailyFees.add(transfer.token, transfer.amount);
+        });
     });
     
     return { dailyFees, dailyRevenue: dailyFees };
