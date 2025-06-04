@@ -6,22 +6,16 @@ const feeAddress = '0xD04086A2E18f4B1BB565A703EBeC56eaee2ACCA0';
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     
-    // Track ETH balance changes (captures internal transactions)
-    const startBalance = await options.fromApi.call({
-        target: feeAddress,
-        abi: 'uint256:getBalance',
-        block: options.fromBlock,
-    });
+    // Get ETH balance at start and end
+    const startBlock = await options.getFromBlock();
+    const endBlock = await options.getToBlock();
     
-    const endBalance = await options.toApi.call({
-        target: feeAddress,
-        abi: 'uint256:getBalance',
-        block: options.toBlock,
-    });
+    const startBalance = await options.api.provider.getBalance(feeAddress, startBlock);
+    const endBalance = await options.api.provider.getBalance(feeAddress, endBlock);
     
-    const ethReceived = Number(endBalance) - Number(startBalance);
-    if (ethReceived > 0) {
-        dailyFees.addGasToken(ethReceived);
+    const ethReceived = endBalance.sub(startBalance);
+    if (ethReceived.gt(0)) {
+        dailyFees.addGasToken(ethReceived.toString());
     }
     
     return { dailyFees, dailyRevenue: dailyFees };
