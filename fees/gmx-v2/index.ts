@@ -1,7 +1,7 @@
 // Based on dune query
 // https://dune.com/queries/4959575/9826428
+// https://dune.com/queries/5234847/8604606 - for refill
 
-import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -10,39 +10,33 @@ import request, { gql } from "graphql-request";
 
 
 interface IFee {
-  time: string;
-  v2_fees: number;
-  total_fees: number;
+    time: string;
+    v2_fees: number;
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
-  const targetDate = new Date(dayTimestamp * 1000).toISOString();
-  const query = gql`
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
+    const targetDate = new Date(dayTimestamp * 1000).toISOString();
+    const query = gql`
     {
        feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
-        totalFees
         tradeFees
       }
     }
   `
-  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
-  const res = await request(url , query)
-  const fees = res.feesRecordDailies
-    .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
-  const tfees = res.feesRecordDailies
-    .reduce((acc: number, record: { totalFees: string }) => acc + Number(record.totalFees), 0)
-  if (fees === 0) throw new Error('Not found daily data!.')
-  return {
-    timestamp: options.startOfDay,
-    dailyFees: fees / (10 ** 20),
-    totalFees: tfees / (10 ** 20)
-  }
+    const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
+    const res = await request(url, query)
+    const fees = res.feesRecordDailies
+        .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
+    if (fees === 0) throw new Error('Not found daily data!.')
+    return {
+        timestamp: options.startOfDay,
+        dailyFees: fees / (10 ** 20),
+    }
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
-    const chainName = chain === CHAIN.AVAX ? "avalanche" : chain
+const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
+    const chainName = options.chain === CHAIN.AVAX ? "avalanche" : options.chain
     const fees: IFee[] = await queryDuneSql(options, `
       WITH 
       all_tokens AS (
@@ -193,94 +187,70 @@ const fetch = (chain: Chain) => {
 
       gmx_v2_swaps AS (
           SELECT
-              blockchain, chain, block_time,
+              blockchain, chain, block_time, block_date,
               token_price * (fee_receiver_amount + fee_amount_for_pool) AS fees,
               token_price * (amount_after_fees + fee_receiver_amount + fee_amount_for_pool) AS volume
           FROM v2_swaps
           UNION ALL 
           SELECT 
-              blockchain, chain, block_time, fees, volume
+              blockchain, chain, block_time, block_date, fees, volume
           FROM v2_positive_price_impact
       ),
 
       v2_fees AS (
           SELECT 
-              block_time, volume, fees, liquidation_fee_usd, chain
+              block_time, block_date, volume, fees, liquidation_fee_usd, chain
           FROM gmx_v2_trades
           UNION ALL
           SELECT
-              block_time, volume, fees, 0 AS liquidation_fee_usd, chain
+              block_time, block_date, volume, fees, 0 AS liquidation_fee_usd, chain
           FROM gmx_v2_swaps
           UNION ALL
           SELECT 
-              block_time, size AS volume, fees, liquidation_fee_usd, chain
+              block_time, block_date, size AS volume, fees, liquidation_fee_usd, chain
           FROM gmx_v2_liquidations
-      ),
-
-      total_fees AS (
-          SELECT 
-              SUM(fees+liquidation_fee_usd) as total_fees
-          FROM v2_fees
-          WHERE (
-              CASE '${chainName}'
-                  WHEN 'ALL' THEN 1=1
-                  WHEN 'arbitrum' THEN chain = 'Arbitrum'
-                  WHEN 'avalanche' THEN chain = 'Avalanche'
-              END
-          )
       )
 
       SELECT 
-          t.total_fees as total_fees,
-          volume,
-          v2_fees
-      FROM (
-          SELECT 
-              SUM(volume) AS volume,
-              SUM(fees + liquidation_fee_usd) AS v2_fees
-          FROM v2_fees
-          WHERE (
-              CASE '${chainName}'
-                  WHEN 'ALL' THEN 1=1
-                  WHEN 'arbitrum' THEN chain = 'Arbitrum'
-                  WHEN 'avalanche' THEN chain = 'Avalanche'
-              END
-          )
-          AND TIME_RANGE
+          SUM(volume) AS volume,
+          SUM(fees + liquidation_fee_usd) AS v2_fees
+      FROM v2_fees
+      WHERE (
+          CASE '${chainName}'
+              WHEN 'ALL' THEN 1=1
+              WHEN 'arbitrum' THEN chain = 'Arbitrum'
+              WHEN 'avalanche' THEN chain = 'Avalanche'
+          END
       )
-      CROSS JOIN total_fees as t
+      AND TIME_RANGE
     `);
 
     let dailyFees = fees.reduce((acc: number, item: IFee) => acc + item.v2_fees, 0);
-    let totalFees = fees.reduce((acc: number, item: IFee) => acc + item.total_fees, 0);
 
     return {
-      dailyFees,
-      dailyRevenue: `${dailyFees * 0.37}`,
-      dailyProtocolRevenue: `${dailyFees * 0.1}`,
-      dailyHoldersRevenue: `${dailyFees * 0.27}`,
-      totalFees,
-      timestamp,
+        dailyFees,
+        dailyRevenue: `${dailyFees * 0.37}`,
+        dailyProtocolRevenue: `${dailyFees * 0.1}`,
+        dailyHoldersRevenue: `${dailyFees * 0.27}`,
     };
-  };
 };
 
 const adapter: Adapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: '2023-08-01',
+    version: 1,
+    adapter: {
+        [CHAIN.ARBITRUM]: {
+            fetch,
+            start: '2023-08-01',
+        },
+        [CHAIN.AVAX]: {
+            fetch,
+            start: '2023-08-24',
+        },
+        [CHAIN.SOLANA]: {
+            fetch: fetchSolana,
+            start: '2023-07-25',
+        },
     },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: '2023-08-24',
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2023-07-25',
-    },
-  },
-  isExpensiveAdapter: true,
+    isExpensiveAdapter: true,
 };
 export default adapter;
