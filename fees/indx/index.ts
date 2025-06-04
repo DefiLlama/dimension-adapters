@@ -8,13 +8,13 @@ const fetch = async (options: FetchOptions) => {
   
   const endBalance = await options.api.call({
     target: feeAddress,
-    abi: 'uint256:0x',
+    abi: 'eth:getBalance',
     block: options.toBlock,
   });
   
   const startBalance = await options.api.call({
     target: feeAddress,
-    abi: 'uint256:0x',
+    abi: 'eth:getBalance',
     block: options.fromBlock,
   });
   
