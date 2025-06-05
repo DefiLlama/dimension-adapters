@@ -48,7 +48,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailyProtocolRevenue: dailyRev.toString(),
         totalProtocolRevenue: totalRev.toString(),
         dailySupplySideRevenue: dailySSRev.toString(),
-        totalSupplySideRevenue: totalSSRev.toString()
+        totalSupplySideRevenue: totalSSRev.toString(),
+        dailyHoldersRevenue: 0,
+        totalHoldersRevenue: 0,
       };
     };
   };
@@ -65,6 +67,7 @@ const adapter: Adapter = {
             UserFees: "Lido takes 10% fee on users staking rewards",
             Fees: "Staking rewards earned by all staked ETH",
             Revenue: "Staking rewards earned by all staked ETH",
+            HoldersRevenue: "No revenue distributed to LDO holders",
             ProtocolRevenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
             SupplySideRevenue: "Staking rewards earned by stETH holders"
           }

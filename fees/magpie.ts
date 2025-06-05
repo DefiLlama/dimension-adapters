@@ -39,6 +39,12 @@ const graph = (chain: Chain) => {
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Staking rewards collected from assets staked on Wombat Exchange',
+    Revenue: 'Staking rewards collected from assets staked on Wombat Exchange',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -46,9 +52,11 @@ const adapter: SimpleAdapter = {
 
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
+      meta,
     },
   }
 };

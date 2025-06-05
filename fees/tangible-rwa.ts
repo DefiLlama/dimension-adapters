@@ -27,6 +27,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Total yields from RWA backing assets.",
           Revenue: "Total yields from RWA backing assets.",
+          HoldersRevenue: "No holders revenue",
         },
       },
     }
