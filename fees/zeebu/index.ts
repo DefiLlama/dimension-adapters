@@ -37,13 +37,13 @@ async function fetch(options: FetchOptions) {
   // exclude ZEBU token
   dailyFees.removeTokenBalance(ZEBU_TOKEN[options.chain])
 
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees };
 };
 
 const meta = {
   methodology: {
     Fees: "Track rewards distributed to stakers excluding ZEBU token.",
-    Revenue: "Track rewards distributed to stakers excluding ZEBU token.",
+    // Revenue: "Track rewards distributed to stakers excluding ZEBU token.",
   }
 }
 
