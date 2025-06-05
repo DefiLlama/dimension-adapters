@@ -82,6 +82,7 @@ const meta = {
   methodology: {
     Fees: "All fees paid by users for using Odos services.",
     Revenue: "Revenue is equal to the fees collected.",
+    HoldersRevenue: "No revenue distributed to ODOS holders.",
     ProtocolRevenue: "Revenue is equal to the fees collected.",
   },
 }

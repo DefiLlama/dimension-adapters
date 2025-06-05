@@ -55,19 +55,27 @@ const graph = (chain: Chain) => {
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Staking rewards collected from assets staked on Radiant',
+    Revenue: 'Staking rewards collected from assets staked on Radiant',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
+      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
+      meta,
     },
   }
 };
