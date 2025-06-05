@@ -248,7 +248,7 @@ const adapter: Adapter = {
         },
         [CHAIN.SOLANA]: {
             fetch: fetchSolana,
-            start: '2023-07-25',
+            start: '2025-02-12'
         },
     },
     isExpensiveAdapter: true,
