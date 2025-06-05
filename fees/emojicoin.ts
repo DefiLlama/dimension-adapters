@@ -81,6 +81,11 @@ export default {
         [CHAIN.APTOS]: {
             fetch,
             start: DEPLOYED_AT_DATE,
+            meta: {
+                methodology: {
+                    Fees: "Tokens trading and launching fees paid by users.",
+                }
+            }
         },
     }
 };

@@ -65,7 +65,7 @@ const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
     dailyFees.add(row.mint, row.total_amount );
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
 const adapters: SimpleAdapter = {
@@ -74,6 +74,13 @@ const adapters: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2022-09-14',
+      meta: {
+        methodology: {
+          Fees: "Tokens trading and launching fees paid by users.",
+          Revenue: "All fees are revenue.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        }
+      }
     }
   },
   isExpensiveAdapter: true,

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general"
+import { Chain } from "../../adapters/types"
 import { Adapter, DISABLED_ADAPTER_KEY } from "../types"
 
 export default (dexAdapter: Adapter, filter: boolean = true) => {

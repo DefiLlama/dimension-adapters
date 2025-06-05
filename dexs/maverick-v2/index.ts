@@ -8,7 +8,7 @@ import type {
   ChainEndpoints,
   FetchOptions,
 } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 interface GqlPoolDayStats {
   tokenBVolume: number;

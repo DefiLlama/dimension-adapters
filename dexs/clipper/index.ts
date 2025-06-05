@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -17,21 +17,24 @@ const endpoints: TEndpoint = {
 };
 
 interface IPool {
+  id: string
   volumeUSD: string
 }
 interface IDailyPoolStatus {
   volumeUSD: string
 }
 interface IResponse {
-  pools: IPool[]
-  dailyPoolStatuses: IDailyPoolStatus[]
+  today: IPool[]
+  yesterday: IPool[]
 }
 const feesQuery = gql`
-  query fees($fromTimestamp: Int!, $toTimestamp: Int!, $blockNumber: Int!) {
-    pools(first: 5, block: {number: $blockNumber}) {
+  query fees($fromBlock: Int!, $toBlock: Int!) {
+    today:pools(block: {number: $toBlock}) {
+      id
       volumeUSD
     }
-    dailyPoolStatuses(orderBy: volumeUSD, orderDirection: desc, where: {from_gte: $fromTimestamp, from_lte: $toTimestamp}) {
+    yesterday:pools(block: {number: $fromBlock}) {
+      id
       volumeUSD
     }
   }
@@ -41,20 +44,21 @@ const fetchFees = (chain: Chain) => {
   return async (_t: number, _b: any, options: FetchOptions) => {
     const endpoint = endpoints[chain];
     const toBlock = await options.getToBlock()
+    const fromBlock = await options.getFromBlock()
 
     const response: IResponse = (await request(endpoint, feesQuery, {
-      fromTimestamp: options.startTimestamp,
-      toTimestamp: options.endTimestamp,
-      blockNumber: toBlock
+      fromBlock: fromBlock,
+      toBlock: toBlock
     }));
 
-    const dailyVolume = response.dailyPoolStatuses.reduce((acc, pool) => {
+    const dailyVolume = response.today.reduce((acc, pool) => { 
+      const id = response.yesterday.find((p) => p.id === pool.id)
+      if (!id) return acc
+      return acc + Number(pool.volumeUSD) - Number(id.volumeUSD);
+    }, 0);
+    const totalVolume = response.today.reduce((acc, pool) => {  
       return acc + Number(pool.volumeUSD);
     }, 0);
-    const totalVolume = response.pools.reduce((acc, pool) => {
-      return acc + Number(pool.volumeUSD);
-    },0);
-
     return {
       dailyVolume,
       totalVolume,

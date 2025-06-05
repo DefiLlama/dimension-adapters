@@ -4,7 +4,7 @@ import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
 import { wrapGraphError } from "../../helpers/getUniSubgraph";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 type IEndpoint = {
   [chain: string]: string;

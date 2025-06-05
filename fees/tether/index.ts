@@ -123,6 +123,7 @@ const adapter = buildStablecoinAdapter('1', 30* 3,
 adapter.adapter.ethereum.meta = {
     methodology: {
         Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
+        Revenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
     },
 }
 

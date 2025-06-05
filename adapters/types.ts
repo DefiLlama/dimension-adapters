@@ -1,4 +1,5 @@
 import { Balances, ChainApi, util } from '@defillama/sdk';
+export type Chain = string
 
 const { blocks: { getChainBlocks } } = util
 

@@ -95,7 +95,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
-          Holders: "Tracks MET distributed to esMET lockers.",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
@@ -106,6 +106,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
@@ -116,6 +117,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },

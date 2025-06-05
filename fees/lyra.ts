@@ -1,7 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../adapters/types";
 

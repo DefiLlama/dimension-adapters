@@ -86,7 +86,14 @@ const adapter: SimpleAdapter = {
     adapter:{
       [CHAIN.BASE]: {
           fetch,
-          start: '2025-04-09'
+          start: '2025-04-09',
+          meta: {
+                methodology: {
+                    Fees: "Token trading and launching fees paid by users.",
+                    Revenue: "All fees are revenue.",
+                    ProtocolRevenue: "Revenue portion collected by FastJPEG.",
+                }
+            }
       }
     }
 };

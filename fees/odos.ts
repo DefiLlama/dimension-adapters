@@ -32,7 +32,7 @@ To do:
 
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
@@ -82,6 +82,7 @@ const meta = {
   methodology: {
     Fees: "All fees paid by users for using Odos services.",
     Revenue: "Revenue is equal to the fees collected.",
+    HoldersRevenue: "No revenue distributed to ODOS holders.",
     ProtocolRevenue: "Revenue is equal to the fees collected.",
   },
 }

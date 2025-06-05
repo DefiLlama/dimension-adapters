@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPrices } from "../utils/prices";
 import { getTxReceipts } from "../helpers/getTxReceipts";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 type TAddrress = {
   [l: string | Chain]: string;

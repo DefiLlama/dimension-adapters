@@ -1,6 +1,6 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
 const FeesAndRevenueURL =  "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"

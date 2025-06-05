@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultGeneric, Fetch, FetchV2, ChainBlocks } from "../adapters/types"
 import { getBlock } from "./getBlock"
 import { util } from '@defillama/sdk';
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 
 const { blocks: { chainsForBlocks } } = util

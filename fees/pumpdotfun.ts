@@ -63,6 +63,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
+      meta: {
+        methodology: {
+          Fees: "Trading and launching tokens fees paid by users",
+          Revenue: "Trading and launching tokens fees paid by users",
+          ProtocolRevenue: "pump.fun takes all fees paid by users",
+        }
+      }
     },
   },
   isExpensiveAdapter: true

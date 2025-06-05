@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";

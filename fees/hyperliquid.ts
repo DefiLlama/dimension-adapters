@@ -15,7 +15,7 @@ const fetchFees = async (options: FetchOptions) => {
     totalFees.addCGToken("usd-coin", endCumFees.total_fees/1e6)
 
     // https://hyperdash.info/statistics
-    // 93% of fees go to Assitant Fund for burning tokens, remaining 7% go to HLP Vault
+    // 93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault
 
     const dailyHoldersRevenue = dailyFees.clone();
     const totalHoldersRevenue = totalFees.clone();
@@ -42,7 +42,7 @@ const adapter: Adapter = {
             meta: {
                 methodology: {
                     Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
-                    HoldersRevenue: "93% of fees go to Assitant Fund for burning tokens, remaining 7% go to HLP Vault",
+                    HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault",
                 }
             }
         },

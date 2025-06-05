@@ -1,4 +1,3 @@
-import { abi } from "@defillama/sdk/build/api";
 import { Adapter, FetchV2, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 

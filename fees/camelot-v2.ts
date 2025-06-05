@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";

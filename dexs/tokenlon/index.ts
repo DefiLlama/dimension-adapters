@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 interface IGraph {
   makerAssetAddr: string;

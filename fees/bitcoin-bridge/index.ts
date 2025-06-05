@@ -40,6 +40,7 @@ const adapters: SimpleAdapter = {
         methodology: {
           Fees: "The total fee incurred during bridging, including all transaction fees on both the source and destination chains.",
           Revenue: "The protocol takes 0% cut of assets during bridging",
+          HoldersRevenue: "Token holders fees share",
         }
       }
     };

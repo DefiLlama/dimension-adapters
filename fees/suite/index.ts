@@ -40,8 +40,9 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: 'Total fees paid from bot trades',
+          Revenue: 'Total fees paid from bot trades',
           ProtocolReveneue: '50% of the total fees goes to the treasury',
-          HolderRevenue: '50% of the total fees goes to the token holders (doesn\'t include other revenue sources)'
+          HoldersRevenue: '50% of the total fees goes to the token holders (doesn\'t include other revenue sources)'
         }
       },
     },

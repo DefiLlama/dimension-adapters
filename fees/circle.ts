@@ -213,6 +213,7 @@ const adapter = buildStablecoinAdapter('2', 30,
 adapter.adapter.ethereum.meta = {
     methodology: {
         Fees: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills.',
+        Revenue: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
     },
 }
 

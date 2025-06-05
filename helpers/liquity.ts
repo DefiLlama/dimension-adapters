@@ -165,6 +165,15 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
+      meta: {
+        methodology: {
+          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+          Revenue: 'Total fees distributed to protocol and token holders',
+          HoldersRevenue: 'Total fees distributed to holders',
+          SupplySideRevenue: 'Total gas compensation to borrowers',
+          ProtocolRevenue: 'Total fees distributed to protocol',
+        }
+      }
     }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter

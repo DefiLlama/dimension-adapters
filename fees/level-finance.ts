@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import BigNumber from 'bignumber.js'
-import { Chain } from '@defillama/sdk/build/general'
+import { Chain } from  "../adapters/types"
 import { gql, GraphQLClient } from 'graphql-request'
 import { ChainEndpoints } from '../adapters/types'
 import { Adapter } from '../adapters/types'
