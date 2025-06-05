@@ -5,6 +5,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const methodology = {
     Fees: 'Staking rewards.',
+    Revenue: 'Percentage of user rewards paid to protocol.',
     ProtocolRevenue: 'Percentage of user rewards paid to protocol.',
 };
 
@@ -33,6 +34,7 @@ const adapter: SimpleAdapter = {
             meta: {
                 methodology,
             },
+            runAtCurrTime: true,
         }
     }
 };
