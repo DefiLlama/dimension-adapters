@@ -157,6 +157,13 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x33b7d355613110b4E842f5f7057Ccd36fb4cee28',
     },
   ],
+  [CHAIN.SONEIUM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xDd3d7A7d03D9fD9ef45f3E587287922eF65CA38B',
+      dataProvider: '0xa0208CE8356ad6C5EC6dFb8996c9A6B828212022',
+    },
+  ],
 }
 
 const adapter: BreakdownAdapter = {
@@ -223,6 +230,9 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.CELO]: {
         pools: AaveMarkets[CHAIN.CELO],
+      },
+      [CHAIN.SONEIUM]: {
+        pools: AaveMarkets[CHAIN.SONEIUM],
       },
     }),
   }
