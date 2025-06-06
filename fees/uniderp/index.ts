@@ -71,7 +71,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 	const dailyVolume = result[0]?.volume || 0;
 	const poolCount = result[0]?.pool_count || 0;
 	
-	const swapFeeAmount = dailyVolume * 0.01 * 1e18;
+	const swapFeeAmount = dailyVolume * 0.0101 * 1e18;
 	dailyFees.addGasToken(swapFeeAmount);
 
 	const launchFeeAmount = poolCount * LAUNCH_FEE * 1e18;
@@ -91,7 +91,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 	const dailyUserFees = dailyFees.clone();
 	const dr = dailyFees.clone().resizeBy(0.5);
 	dailyProtocolRevenue.addBalances(dr); // 50% of user fees (0.5% of volume)
-	const dailySupplySideRevenue = dr.clone().resizeBy(0.3); // 30% of user fees (0.3% of volume)
+	const dailySupplySideRevenue = dr.clone().resizeBy(0.01); // 1% of user fees (0.01% of volume)
 
 	return {
 		dailyFees,
@@ -103,10 +103,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 }
 
 const methodology = {
-	UserFees: "User pays 1% fees on each swap.",
-	Fees: "All fees comes from the user. User pays 1% fees on each swap.",
-	Revenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)",
-	ProtocolRevenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)"
+	UserFees: "User pays 1.01% fees on each swap.",
+	Fees: "All fees comes from the user. User pays 1.01% fees on each swap.",
+	Revenue: "Treasury receives 0.51% of each swap. (0.5% from swap + 0.01% from LPs) + Launch Fees (0.00069 ETH for each token created)",
+	ProtocolRevenue: "Treasury receives 0.51% of each swap. (0.5% from swap + 0.01% from LPs) + Launch Fees (0.00069 ETH for each token created)"
 }
 
 const adapter: SimpleAdapter = {
