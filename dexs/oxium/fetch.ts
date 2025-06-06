@@ -40,7 +40,7 @@ type MetricEntry = {
   token: Address;
 };
 
-export async function fetchMetrics(
+export async function fetchOxiumMetrics(
   chain: string,
   fromTimestamp: number,
   toTimestamp: number

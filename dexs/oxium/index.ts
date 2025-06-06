@@ -4,7 +4,7 @@ import type {
   FetchOptions,
   FetchResultV2,
 } from "../../adapters/types";
-import { fetchMetrics } from "./fetch";
+import { fetchOxiumMetrics } from "./fetch";
 import { oxiumConfig } from "./config";
 
 async function fetch({
@@ -15,7 +15,7 @@ async function fetch({
 }: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
-  const metrics = await fetchMetrics(chain, fromTimestamp, toTimestamp);
+  const metrics = await fetchOxiumMetrics(chain, fromTimestamp, toTimestamp);
   metrics.forEach((metric) => {
     dailyVolume.add(metric.token, metric.volume);
     dailyFees.add(metric.token, metric.fee);
