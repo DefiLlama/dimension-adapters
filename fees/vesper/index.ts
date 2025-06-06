@@ -64,7 +64,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Tracks vaTokens minted to Vesper's Fee Recipient address.",
           Revenue: "vaTokens minted are protocol revenue.",
-          Holders: "Tracks VSP distributed to esVSP lockers.",
+          HoldersRevenue: "Tracks VSP distributed to esVSP lockers.",
         },
       },
     },
