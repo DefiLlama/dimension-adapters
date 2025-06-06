@@ -49,6 +49,7 @@ const blacklistedLendingPools = {
     "0xBfBF0EBDC3D5E8692F9A27d47f250afe4867A647", //BIFI-MIMATIC
     "0xAC6542586c8A7b7aB522e77997414eafD9a83c11", //CRV-FTM
     "0x228BE1a38437312C649711f1BFf28d99e9E749B6", //SOLIDsex-FTM
+    "0x76481a638edf95019cfbc2f49cc2645dac7d70ed", //ECO
   ],
   base: [],
   scroll: [
