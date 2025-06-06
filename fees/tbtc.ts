@@ -16,6 +16,8 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.resizeBy(0.002)
     return {
         dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
 }
 
@@ -29,6 +31,8 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: "Charged 0.2% on unminted tbtc.",
+          Revenue: "Charged 0.2% on unminted tbtc.",
+          ProtocolRevenue: "Charged 0.2% on unminted tbtc.",
         },
       },
     }
