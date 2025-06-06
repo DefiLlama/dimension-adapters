@@ -18,7 +18,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                         select
                             id
                         from uniswap_v4_unichain.poolmanager_evt_initialize
-                        where hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444))
+                        where hooks = 0xcc2efb167503f2d7df0eae906600066aec9e8444))
             and block_time >= from_unixtime(${options.startTimestamp})
                         AND block_time < from_unixtime(${options.endTimestamp})
     `);
@@ -34,7 +34,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.UNICHAIN]: {
             fetch: fetch as any,
-            start: '2025-04-23'
+            start: '2025-05-29'
         },
     },
     isExpensiveAdapter: true

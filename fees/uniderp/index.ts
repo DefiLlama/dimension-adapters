@@ -6,10 +6,10 @@ const LAUNCH_FEE = 0.00069; // 0.00069 ETH for each token created
 const config = {
 	[CHAIN.UNICHAIN]: {
 		poolManager: "0x1f98400000000000000000000000000000000004",
-		uniderpLauncher: "0x239584404983804085c8Fd69C1e1651ea99680b0",
-		uniderpHook: "0xb4960cd4f9147f9e37a7aa9005df7156f61e4444",
-		start: "2025-04-23",
-		fromBlock: 14569072
+		uniderpLauncher: "0xb42B41140d921b621246016eC0ecb8dbE3216948",
+		uniderpHook: "0xcc2efb167503f2d7df0eae906600066aec9e8444",
+		start: "2025-05-29",
+		fromBlock: 17670688
 	},
 }
 
@@ -34,7 +34,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 					WHERE id IN (
 						SELECT id
 						FROM uniswap_v4_unichain.poolmanager_evt_initialize
-						WHERE hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444
+						WHERE hooks = 0xcc2efb167503f2d7df0eae906600066aec9e8444
 					)
 				)
 				AND block_time >= from_unixtime(${options.startTimestamp})
@@ -43,7 +43,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 		pool_count_data AS (
 			SELECT COUNT(*) as pool_count
 			FROM uniswap_v4_unichain.poolmanager_evt_initialize 
-			WHERE hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444
+			WHERE hooks = 0xcc2efb167503f2d7df0eae906600066aec9e8444
 			AND evt_block_time >= from_unixtime(${options.startTimestamp})
 			AND evt_block_time < from_unixtime(${options.endTimestamp})
 		),
