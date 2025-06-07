@@ -25,18 +25,18 @@ import fetchURL from "../../utils/fetchURL";
 
 const SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
     const data = await fetchURL("https://revenue.letsbonk.fun/api/revenue");
-    
-    const targetDate = new Date(getTimestampAtStartOfDay(options.startTimestamp) * 1000);
+    console.log(timestamp, options.startTimestamp)
+    const targetDate = new Date(getTimestampAtStartOfDay(timestamp) * 1000);
     const targetDateStr = targetDate.toISOString().split('T')[0];
-    const prevDate = new Date(getTimestampAtStartOfDay(options.startTimestamp - 86400) * 1000);
+    const prevDate = new Date(getTimestampAtStartOfDay(timestamp - 86400) * 1000);
     const prevDateStr = prevDate.toISOString().split('T')[0];
-
+    console.log(targetDateStr, prevDateStr)
     const currentEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === targetDateStr);
     const prevEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === prevDateStr);
     if (!currentEntry) {
