@@ -31,11 +31,14 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
           WHERE DATE(a.block_time) > DATE('2024-03-01')
               and balance_change > 0
               and a.token_mint_address is null
-              and a.address in (
-                'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM',
-                '62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV',
-                '7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX'
-              )
+              AND (a.address = 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'
+                  or a.address = 'FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz'
+                  or a.address = 'G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP'
+                  or a.address = '7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX'
+                  or a.address = '9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz'
+                  or a.address = '7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ'
+                  or a.address = 'AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY'
+                  or a.address = '62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV')
               and n.from_owner not in (
                 '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg',
                 '12xs3VnsaoEduxobnbaxQtCh6PQMDoFUrP4YB1F8pFPX'
