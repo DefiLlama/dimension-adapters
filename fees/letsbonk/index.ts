@@ -20,7 +20,7 @@ Protocol Revenue (56.8%):
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDay } from "../../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
 const SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
@@ -31,12 +31,11 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     const dailyHoldersRevenue = options.createBalances();
 
     const data = await fetchURL("https://revenue.letsbonk.fun/api/revenue");
-    console.log(timestamp, options.startTimestamp)
-    const targetDate = new Date(getTimestampAtStartOfDay(timestamp) * 1000);
+    const targetDate = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000);
     const targetDateStr = targetDate.toISOString().split('T')[0];
-    const prevDate = new Date(getTimestampAtStartOfDay(timestamp - 86400) * 1000);
+    const prevDate = new Date(getTimestampAtStartOfDayUTC(timestamp - 86400) * 1000);
     const prevDateStr = prevDate.toISOString().split('T')[0];
-    console.log(targetDateStr, prevDateStr)
+
     const currentEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === targetDateStr);
     const prevEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === prevDateStr);
     if (!currentEntry) {
