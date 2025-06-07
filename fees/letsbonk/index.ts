@@ -42,7 +42,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (!currentEntry) {
         throw new Error('No data found for the current date');
     }
-    if (!prevEntry && prevDateStr !== '2025-04-27') {
+    if (!prevEntry) {
         throw new Error('No data found for the previous date');
     }
 
