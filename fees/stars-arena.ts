@@ -27,15 +27,13 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
     eventAbi: abi.TradeFractionalShares,
   });
 
-  tradeLogs.map((log: any) => {
-    dailyFees.addGasToken(log.protocolAmount+log.subjectAmount+log.referralAmount);
-    dailyRevenue.addGasToken(log.protocolAmount)
-  });
+  function addLogData(log: any) {
+    dailyRevenue.addGasToken(log.protocolAmount);
+    dailyFees.addGasToken(log.protocolAmount + log.subjectAmount + log.referralAmount);
+  }
 
-  tradeFractionalShareLogs.map((log: any) => {
-    dailyFees.addGasToken(log.protocolAmount+log.subjectAmount+log.referralAmount);
-    dailyRevenue.addGasToken(log.protocolAmount)
-  });
+  tradeLogs.forEach(addLogData);
+  tradeFractionalShareLogs.forEach(addLogData);
 
   return {
     dailyFees,
