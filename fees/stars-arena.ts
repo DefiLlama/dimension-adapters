@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const abi = {
   "Trade": "event Trade (address trader, address subject, bool isBuy, uint256 shareAmount, uint256 amount, uint256 protocolAmount, uint256 subjectAmount, uint256 referralAmount, uint256 supply, uint256 buyPrice, uint256 myShares)",
+  "TradeFractionalShares": "event TradeFractionalShares (address trader, address subject, bool isBuy, uint256 shareAmount, uint256 amount, uint256 protocolAmount, uint256 subjectAmount, uint256 referralAmount, uint256 fractionalSupply, uint256 buyPrice, uint256 myFractionalShares)",
 }
 
 const fetch = async ({createBalances, getLogs}: FetchOptions) => {
