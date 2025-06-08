@@ -1,7 +1,7 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryFlipside } from "../helpers/flipsidecrypto";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 interface ILog {
@@ -51,11 +51,18 @@ const fetchRequests = (chain: Chain) => {
 
     dailyFees.addCGToken('chainlink', link_amount)
 
-    return { dailyFees }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
   }
 
 }
 
+const meta = {
+  methodology: {
+    Fees: "Sum of all fees from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
+    Revenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
+    ProtocolRevenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -63,27 +70,33 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchRequests(CHAIN.ETHEREUM),
       start: '2023-02-03',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchRequests(CHAIN.BSC),
       start: '2023-02-03',
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchRequests(CHAIN.POLYGON),
       start: '2023-02-03',
+      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchRequests(CHAIN.OPTIMISM),
       start: '2023-02-03',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchRequests(CHAIN.ARBITRUM),
       start: '2023-02-03',
+      meta,
     },
     [CHAIN.AVAX]: {
       fetch: fetchRequests(CHAIN.AVAX),
       start: '2023-02-03',
       runAtCurrTime: true,
+      meta,
     },
   },
   isExpensiveAdapter: true,

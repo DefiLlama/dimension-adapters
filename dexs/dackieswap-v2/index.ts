@@ -1,7 +1,6 @@
 import customBackfill from "../../helpers/customBackfill";
 import {CHAIN} from "../../helpers/chains";
-import type {ChainEndpoints, SimpleAdapter} from "../../adapters/types";
-import type {Chain} from "@defillama/sdk/build/general";
+import type {ChainEndpoints, SimpleAdapter, Chain} from "../../adapters/types";
 import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints

@@ -28,6 +28,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2021-09-18',
+      meta: {
+        methodology: {
+          Fees: 'All fees paid by users for launching, trading assets.',
+          Revenue: 'Fees collected by Metaplex protocol.',
+        }
+      },
     }
   }
 }

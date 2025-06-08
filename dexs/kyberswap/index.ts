@@ -11,7 +11,7 @@ import {
   univ2Adapter,
   getUniqStartOfTodayTimestamp,
 } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const normalizeChain = {
     "avax": "avalanche"

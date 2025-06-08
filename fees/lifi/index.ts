@@ -1,6 +1,14 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
 
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
+    Revenue: 'Fees are distributed to LI.FI and intergations.',
+    ProtocolRevenue: 'Fees are distributed to LI.FI and intergations.',
+  }
+}
+
 const FeeCollectedEvent = "event FeesCollected(address indexed _token, address indexed _integrator, uint256 _integratorFee, uint256 _lifiFee)"
 
 const fetch = async (options: FetchOptions) => {
@@ -14,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
     data.forEach((log: any) => {
         dailyFees.add(log._token, log._integratorFee);
     });
-    return { dailyFees, dailyRevenue: dailyFees } as any;
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees } as any;
 };
 
 const adapter: SimpleAdapter = {
@@ -23,6 +31,7 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
+                meta,
                 fetch,
                 start: LifiFeeCollectors[chain].startTime
             }

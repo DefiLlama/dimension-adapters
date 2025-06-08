@@ -31,6 +31,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "ETH paid to purchase fuel",
+          Revenue: "ETH paid to purchase fuel",
         }
       }
     },

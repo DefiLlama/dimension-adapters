@@ -32,6 +32,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-02-25',
   adapter: {
     [CHAIN.SUI]: {
       fetch,

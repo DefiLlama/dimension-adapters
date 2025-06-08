@@ -110,8 +110,17 @@ const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: F
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
+
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users using vfat.io services.',
+    Revenue: 'All fees collected by vfat.io.',
+    ProtocolRevenue: 'All fees collected by vfat.io.',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -119,50 +128,62 @@ const adapter: SimpleAdapter = {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.LINEA]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.MODE]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.FANTOM]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees,
       start: '2024-03-21',
+      meta,
     },
     [CHAIN.SONIC]: {
       fetch: fetchFees,
       start: '2024-12-24',
+      meta,
     },
     [CHAIN.FRAXTAL]: {
       fetch: fetchFees,
       start: '2024-12-03',
+      meta,
     },
     [CHAIN.AVAX]: {
       fetch: fetchFees,
       start: '2024-11-11',
+      meta,
     },
   }
 }

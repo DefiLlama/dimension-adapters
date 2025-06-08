@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js'
-import { Chain } from '@defillama/sdk/build/general'
+import { Chain } from  "../adapters/types"
 import { gql, GraphQLClient } from 'graphql-request'
 import { ChainEndpoints } from '../adapters/types'
 import { Adapter } from '../adapters/types'
@@ -51,6 +51,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 }
 
 const adapter: Adapter = {
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),

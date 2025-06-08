@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -106,7 +106,14 @@ function adapterByChain(contracts: string[], timestamp: number) {
 const timestamp = 1716892946;
 const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
-    acc[chain] = adapterByChain(contracts[chain], timestamp);
+    acc[chain] = {
+      ...adapterByChain(contracts[chain], timestamp),
+      meta: {
+        methodology: {
+          Fees: "All fees paid by users while using Stargate bridge.",
+        }
+      }
+    };
     return acc;
   }, {}),
   version: 2,

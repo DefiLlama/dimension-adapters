@@ -24,6 +24,13 @@ const adapter: Adapter = {
         return { dailyFees: dailyRevenue, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyRevenue };
       }) as any,
       start: '2021-08-10',
+      meta: {
+        methodology: {
+          Fees: 'All priority/boost ETH fees paid transactions by users.',
+          Revenue: 'All fees go to Arbitrum protocol treasury.',
+          ProtocolRevenue: 'All fees go to Arbitrum protocol treasury.',
+        }
+      }
     },
   },
   version: 2

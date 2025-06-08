@@ -1,7 +1,7 @@
 import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Bet, BetResult } from "./types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {

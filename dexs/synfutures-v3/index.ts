@@ -1,6 +1,6 @@
 import BigNumber from "bignumber.js";
 import request from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";

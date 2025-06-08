@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
@@ -44,7 +44,11 @@ Object.keys(contracts).forEach((chain: Chain) => {
     fetch,
     start: contracts[chain].deployedAt,
     meta: {
-      methodology: "Counts the 0.2% fee taken on swaps.",
+      methodology: {
+        Fees: "Counts the 0.2% fee taken on swaps.",
+        Revenue: "All fees are revenue.",
+        ProtocolRevenue: "All fees collected by Summer.fi.",
+      },
     },
   };
 });

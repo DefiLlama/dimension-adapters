@@ -15,7 +15,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
 
   dailyFees.add(WETH, fees);
-  return { dailyFees };
+  const dailyRevenue = dailyFees.clone(0.15)
+  return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {
@@ -24,8 +25,10 @@ const adapter: Adapter = {
       fetch,
       start: '2022-11-19',
       meta: {
-        methodology:
-          "The Liquid Collective protocol charges a service fee set at 15.0% of network rewards, split amongst Node Operators, Platforms, Wallet & Custody Providers, Service Providers, the protocol's Slashing Coverage Treasury, and the Liquid Collective DAO, which comprises a broad and dispersed community of protocol participants",
+        methodology: {
+          Fees: "Total ETH staking rewards from all validators.",
+          Revenue: "Liquid Collective charges 15% ETH staking rewards.",
+        },
       },
     },
   },

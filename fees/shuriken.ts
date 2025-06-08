@@ -38,6 +38,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2023-10-13',
+      meta: {
+          methodology: {
+              Fees: "Trading fees paid by users.",
+              Revenue: "All fees are revenue.",
+          }
+      }
     },
   },
 };

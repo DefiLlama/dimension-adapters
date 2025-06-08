@@ -1,19 +1,18 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const {startOfDay} = options;
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+  const { startOfDay } = options;
   const data = await fetchURL(`https://api.olab.xyz/api/v2/statistics/volume?startOfDay=${startOfDay}`);
-  const {result: {totalVolume, dailyVolume}} = data;
+  const {result: { dailyVolume }} = data;
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
       fetch,

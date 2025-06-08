@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const endpoints = {
   [CHAIN.ERA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-zksync',

@@ -97,7 +97,14 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-              },
+        meta: {
+          methodology: {
+            Fees: 'Total fees were paid to users by using Frax Finance',
+            Revenue: 'Total fees were paid to users by using Frax Finance',
+            HoldersRevenue: 'No holders revenue',
+          }
+        }
+      },
     };
   }, {}),
   version: 1,

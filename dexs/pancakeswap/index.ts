@@ -7,12 +7,14 @@ import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
+import { queryDune, queryDuneSql } from "../../helpers/dune";
 
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
   PANCAKE_EXPLORER = 'pacnake_explorer',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
+  DUNE = 'dune'
 }
 
 interface BaseChainConfig {
@@ -44,8 +46,12 @@ interface CustomChainConfig extends BaseChainConfig {
   totalVolume?: number;
 }
 
-type ChainConfig = GraphChainConfig | LogsChainConfig | CustomChainConfig | ExplorerChainConfig;
-const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
+interface DuneChainConfig extends BaseChainConfig {
+  dataSource: DataSource.DUNE;
+}
+
+type ChainConfig = GraphChainConfig | LogsChainConfig | CustomChainConfig | ExplorerChainConfig | DuneChainConfig;
+export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v1: {
     [CHAIN.BSC]: {
       start: '2023-04-01',
@@ -108,10 +114,11 @@ const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v3: {
     [CHAIN.BSC]: {
       start: 1680307200,
-      dataSource: DataSource.PANCAKE_EXPLORER,
+      // dataSource: DataSource.PANCAKE_EXPLORER,
       // endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
+      // explorerChainSlug: 'bsc',
       // factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
-      explorerChainSlug: 'bsc',
+      dataSource: DataSource.DUNE,
     },
     [CHAIN.ETHEREUM]: {
       start: 1680307200,
@@ -217,7 +224,7 @@ const stableSwapMethodology = {
   SupplySideRevenue: "LPs receive 50% of the fees.",
   HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
   Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 025% of each trade."
+  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
 }
 
 const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {
@@ -361,6 +368,43 @@ async function getDataFromPancakeExplorer(version: 2 | 3, chainConfig: ChainConf
   }
 }
 
+export const PANCAKESWAP_V3_DUNE_QUERY = `
+  SELECT 
+      -- Total volume including all tokens (for dailyVolume reporting)
+      sum(amount_usd) as inflated_volume,
+      
+      -- Volume excluding problematic tokens (for fee calculations)
+      sum(
+          CASE 
+              WHEN token_sold_address NOT IN (
+                  0xc71b5f631354be6853efe9c3ab6b9590f8302e81,  -- ZK
+                  0xe6df05ce8c8301223373cf5b969afcb1498c5528,  -- KOGE
+                  0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
+                  0xb4357054c3da8d46ed642383f03139ac7f090343,
+                  0x6bdcce4a559076e37755a78ce0c06214e59e4444,
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+              )
+              AND token_bought_address NOT IN (
+                  0xc71b5f631354be6853efe9c3ab6b9590f8302e81,  -- ZK
+                  0xe6df05ce8c8301223373cf5b969afcb1498c5528,  -- KOGE
+                  0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
+                  0xb4357054c3da8d46ed642383f03139ac7f090343,
+                  0x6bdcce4a559076e37755a78ce0c06214e59e4444,
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+              )
+              THEN amount_usd 
+              ELSE 0 
+          END
+      ) as total_volume
+  FROM dex.trades
+  WHERE blockchain = 'bnb'
+      AND TIME_RANGE
+      AND project = 'pancakeswap'
+      AND version = '3'
+`;
+
+
+
 const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: number): Promise<ISwapEventData[]> => {
   const limit = 100;
   const swap_events: any[] = [];
@@ -458,6 +502,20 @@ const fetchV3 = async (options: FetchOptions) => {
     return v3stats;
   } else if (chainConfig.dataSource === DataSource.PANCAKE_EXPLORER) {
     return await getDataFromPancakeExplorer(3, chainConfig)
+  } else if (chainConfig.dataSource === DataSource.DUNE) {
+    const results = await queryDuneSql(options, PANCAKESWAP_V3_DUNE_QUERY);
+    
+    const totalVolume = results[0]?.total_volume || 0;
+    const inflated_volume = results[0]?.inflated_volume || 0;
+    
+    // Use total volume for reporting, non-excluded volume for fee calculations
+    const dailyFees = inflated_volume * FEE_CONFIG.V2_V3.Fees;
+    
+    return {
+      dailyVolume: totalVolume.toString(),
+      dailyFees: dailyFees.toString(),
+      ...calculateFees(inflated_volume.toString(), FEE_CONFIG.V2_V3)
+    };
   }
   throw new Error('Invalid data source');
 }

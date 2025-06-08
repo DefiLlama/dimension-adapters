@@ -8,6 +8,8 @@ const getFees = async (options): Promise<FetchResultV2> => {
     await addTokensReceived({ options, tokens: ["0x4300000000000000000000000000000000000004"], target: "0x8ab15fe88a00b03724ac91ee4ee1f998064f2e31", balances: dailyFees })
     return {
         dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
 }
 
@@ -16,7 +18,14 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BLAST]: {
             fetch: getFees,
-            start: '2024-04-30'
+            start: '2024-04-30',
+            meta: {
+                methodology: {
+                Fees: "All card trading fees paid by users while using Fantasy.",
+                Revenue: "Trading fees are collected by Fantasy protocol.",
+                ProtocolRevenue: "Trading fees are collected by Fantasy protocol.",
+            }
+            }
         },
     },
 };

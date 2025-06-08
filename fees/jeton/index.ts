@@ -68,6 +68,12 @@ const adapter: Adapter = {
         [key]: {
           fetch: fetch(key),
           start: '2023-09-04',
+          meta: {
+            methodology: {
+              Fees: "Fees paid by users for trading and bridging.",
+              Revenue: "All fees are revenue.",
+            }
+          }
         },
       };
     }, {}),

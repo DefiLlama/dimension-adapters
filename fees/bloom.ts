@@ -2,6 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
+const meta = {
+  methodology: {
+    Fees: "All trading fees paid by users while using Bloom Trading bot.",
+    Revenue: "Trading fees are collected by Bloom protocol.",
+  }
+}
+
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: ['7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM']})
   return { dailyFees, dailyRevenue: dailyFees }
@@ -78,15 +85,18 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: '2024-10-01'
+      start: '2024-10-01',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchMVE,
-      start: '2024-12-12'
+      start: '2024-12-12',
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchMVE,
-      start: '2024-12-12'
+      start: '2024-12-12',
+      meta,
     }
   },
   isExpensiveAdapter: true,

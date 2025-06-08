@@ -6,7 +6,9 @@ import { getConfig } from "../helpers/cache";
 
 const methodology = {
   Fees: "Fees generated from staking assets in LRT vaults.",
-  SupplySideRevenue: "Fees are distributed to supply side depositors.",
+  Revenue: "Fees generated from staking assets in LRT vaults.",
+  ProtocolRevenue: "Amount of fees are collected by Mellow protocol (0% total yields).",
+  SupplySideRevenue: "Fees are distributed to supply side depositors (100% total yields).",
 };
 
 const MellowAbis: any = {
@@ -90,7 +92,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   return {
     dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
