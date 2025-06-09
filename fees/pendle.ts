@@ -29,6 +29,8 @@ const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const EETH_ETHEREUM = "ethereum:0x35fa164735182de50811e8e2e824cfb9b6118ac2";
 const WETH_ETHEREUM = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 
+const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
+
 const BRIDGED_ASSETS = [
   {
     sy: "0x80c12d5b6cc494632bf11b03f09436c8b61cc5df",
@@ -128,6 +130,7 @@ const fetch = (chain: Chain) => {
       })
     })
 
+
     const dailyRevenue = await addTokensReceived({
       options,
       target: chainConfig[chain].treasury,
@@ -199,6 +202,13 @@ const fetch = (chain: Chain) => {
 
     const dailyFees = dailyRevenue.clone();
     dailyFees.addBalances(dailySupplySideFees);
+
+    dailyRevenue.addBalances(
+      await addTokensReceived({
+        options,
+        target: AIRDROP_DISTRIBUTOR,
+      })
+    )
 
     return {
       dailyFees,
