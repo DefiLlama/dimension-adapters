@@ -80,6 +80,8 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Volume: "Sum of bets (GameCreated) and payouts (PayoutSent) in WLD across X3X contracts",
+          Fees: "No fees are implemented yet.",
+          Revenue: "No fees are implemented yet for revenue.",
         },
       },
     },
