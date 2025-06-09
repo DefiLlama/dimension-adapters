@@ -25,8 +25,6 @@ const fetch: FetchV2 = async ({
   getToBlock,
 }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const dailyRevenue = createBalances();
 
   const fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
@@ -69,9 +67,7 @@ const fetch: FetchV2 = async ({
   }
 
   return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
+    dailyVolume
   };
 };
 
@@ -83,7 +79,7 @@ const adapter: SimpleAdapter = {
       start: "2025-06-01",
       meta: {
         methodology: {
-          dailyVolume: "Sum of bets (GameCreated) and payouts (PayoutSent) in WLD across X3X contracts",
+          Volume: "Sum of bets (GameCreated) and payouts (PayoutSent) in WLD across X3X contracts",
         },
       },
     },
