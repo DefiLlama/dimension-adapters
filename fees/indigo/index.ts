@@ -11,29 +11,66 @@ const IETH_TOKEN = 'f66d78b4a3cb3d37afa0ec36461e51ecbde00f26c8f0a68f94b698806945
 const ISOL_TOKEN = 'f66d78b4a3cb3d37afa0ec36461e51ecbde00f26c8f0a68f94b6988069534f4c';
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  // Revenue is the total amount of payments to the DAO made by CDPs.
-  const revenueResponse = await axios.get(
-    ANALYTICS_API_ENDPOINT + `/api/revenue/cdp-interest-payments?totals&from=${options.startTimestamp}&to=${options.endTimestamp}`,
-  );
-  const dailyRevenueUSD = options.createBalances();
-  dailyRevenueUSD.addCGToken('cardano', Number(revenueResponse.data.totals['lovelace'] ?? 0) / 1_000_000);
+  // Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.
+  // Revenue is Fees minus Liquidations.
 
-  // Fees are all assets that have been collected by the protocol: ADA, INDY, iUSD, iBTC, iETH, and iSOL.
-  const flowsResponse = await axios.get(
-    ANALYTICS_API_ENDPOINT + `/api/revenue/flows?totals&from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  // Liquidations: the total amount of ADA sent to Stability Pool providers for a liquidation.
+  const liquidationsResponse = await axios.get(
+    ANALYTICS_API_ENDPOINT + `/api/revenue/liquidations?totals&from=${options.startTimestamp}&to=${options.endTimestamp}`,
   );
+  
+  const totalLovelaceLiquidations = Number(liquidationsResponse.data.totals['lovelace'] ?? 0);
+  
+  // Collector Flows are all fees that are sent to INDY stakers: 
+  // CDP Mint Fees, (partially) CDP Interest Payments, and Redemption Fees.
+  const collectorFlowResponse = await axios.get(
+    ANALYTICS_API_ENDPOINT + `/api/revenue/collector-flows?totals&inflows_only&from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  );
+  const totalLovelaceToIndyStakers = Number(collectorFlowResponse.data.totals['lovelace'] ?? 0);
+
+  // Treasury captures the following assets: ADA, INDY, iUSD, iBTC, iETH, and iSOL.
+  // This collects: CDP Interest Payments (to treasury), INDY returned from emissions, and buybacks.
+  const flowsResponse = await axios.get(
+    ANALYTICS_API_ENDPOINT + `/api/revenue/flows?totals&inflows_only&from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  );
+  const totalLovelaceTreasuryInflows = Number(flowsResponse.data.totals['lovelace'] ?? 0);
+
+  
   const dailyFeesUSD = options.createBalances();
-  dailyFeesUSD.addCGToken('cardano', Number(flowsResponse.data.totals['lovelace'] ?? 0) / 1_000_000);
+  dailyFeesUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows + totalLovelaceToIndyStakers + totalLovelaceLiquidations) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol', Number(flowsResponse.data.totals[INDY_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-iusd', Number(flowsResponse.data.totals[IUSD_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-ibtc', Number(flowsResponse.data.totals[IBTC_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-ieth', Number(flowsResponse.data.totals[IETH_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-isol', Number(flowsResponse.data.totals[ISOL_TOKEN] ?? 0) / 1_000_000);
 
+
+  const dailyRevenueUSD = options.createBalances();
+  dailyRevenueUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows + totalLovelaceToIndyStakers) / 1_000_000);
+  dailyRevenueUSD.addCGToken('indigo-protocol', Number(flowsResponse.data.totals[INDY_TOKEN] ?? 0) / 1_000_000);
+  dailyRevenueUSD.addCGToken('indigo-protocol-iusd', Number(flowsResponse.data.totals[IUSD_TOKEN] ?? 0) / 1_000_000);
+  dailyRevenueUSD.addCGToken('indigo-protocol-ibtc', Number(flowsResponse.data.totals[IBTC_TOKEN] ?? 0) / 1_000_000);
+  dailyRevenueUSD.addCGToken('indigo-protocol-ieth', Number(flowsResponse.data.totals[IETH_TOKEN] ?? 0) / 1_000_000);
+  dailyRevenueUSD.addCGToken('indigo-protocol-isol', Number(flowsResponse.data.totals[ISOL_TOKEN] ?? 0) / 1_000_000);
+
+  const dailyProtocolRevenueUSD = options.createBalances();
+  dailyProtocolRevenueUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows) / 1_000_000);
+  dailyProtocolRevenueUSD.addCGToken('indigo-protocol', Number(flowsResponse.data.totals[INDY_TOKEN] ?? 0) / 1_000_000);
+  dailyProtocolRevenueUSD.addCGToken('indigo-protocol-iusd', Number(flowsResponse.data.totals[IUSD_TOKEN] ?? 0) / 1_000_000);
+  dailyProtocolRevenueUSD.addCGToken('indigo-protocol-ibtc', Number(flowsResponse.data.totals[IBTC_TOKEN] ?? 0) / 1_000_000);
+  dailyProtocolRevenueUSD.addCGToken('indigo-protocol-ieth', Number(flowsResponse.data.totals[IETH_TOKEN] ?? 0) / 1_000_000);
+  dailyProtocolRevenueUSD.addCGToken('indigo-protocol-isol', Number(flowsResponse.data.totals[ISOL_TOKEN] ?? 0) / 1_000_000);
+
+
+  const dailyHoldersRevenueUSD = options.createBalances();
+  dailyHoldersRevenueUSD.addCGToken('cardano', (totalLovelaceToIndyStakers) / 1_000_000);
+  
   return {
     timestamp: options.startOfDay,
     dailyFees: dailyFeesUSD,
     dailyRevenue: dailyRevenueUSD,
+    dailyProtocolRevenue: dailyProtocolRevenueUSD,
+    dailyHoldersRevenue: dailyHoldersRevenueUSD,
   };
 };
 
@@ -43,11 +80,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: '2024-05-16',
+      start: '2022-11-22',
       meta: {
         methodology: {
-          Fees: "All deposits to Indigo Protocol DAO Treasury.",
-          Revenue: "All deposits from CDP Interest payments to Indigo.",
+          Fees: "Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.",
+          Revenue: "Revenue is: Payments to Treasury, and CDP Payments to INDY Stakers.",
         }
       }
     },
