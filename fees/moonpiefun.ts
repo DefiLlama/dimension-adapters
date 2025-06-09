@@ -6,6 +6,12 @@ import ADDRESSES from "../helpers/coreAssets.json";
 const TREASURY = "0x31995B7ea0D0ec85e9c72C903AF0F29acF3622F2".toLowerCase();
 const USDT = '0x26E490d30e73c36800788DC6d6315946C4BbEa24'; // or the USDT address for your chain
 
+
+const methodology = {
+  Fees: "Protocol collects fees from trading in USDT.",
+  Revenue: "All fees collected are considered revenue."
+}
+
 const adapter: Adapter = {
   version: 1,
   adapter: {
@@ -25,6 +31,9 @@ const adapter: Adapter = {
         };
       },
       start: 1747025482,
+      meta: {
+        methodology: methodology,
+      },
     },
   },
 };
