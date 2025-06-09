@@ -1,6 +1,7 @@
 import { BaseAdapter, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
+import { addOneToken } from "../helpers/prices";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 // Import the necessary components from the main pancakeswap adapter
@@ -44,13 +45,12 @@ const fetchV3Dune = async (_a:any, _b:any, options: FetchOptions) => {
   const results = await queryDuneSql(options, PANCAKESWAP_V3_DUNE_QUERY);
   
   const totalVolume = results[0]?.total_volume || 0;
-  const inflatedVolume = results[0]?.inflated_volume || 0;
 
-  const dailyFees = inflatedVolume * 0.0025;
-  const dailyProtocolRevenue = inflatedVolume * 0.000225; // 0.0225%
-  const dailySupplySideRevenue = inflatedVolume * 0.0017; // 0.17%
-  const dailyHoldersRevenue = inflatedVolume * 0.000575; // 0.0575%
-  const dailyUserFees = inflatedVolume * 0.0025; // 0.25%
+  const dailyFees = totalVolume * 0.0025;
+  const dailyProtocolRevenue = totalVolume * 0.000225; // 0.0225%
+  const dailySupplySideRevenue = totalVolume * 0.0017; // 0.17%
+  const dailyHoldersRevenue = totalVolume * 0.000575; // 0.0575%
+  const dailyUserFees = totalVolume * 0.0025; // 0.25%
 
   return {
     dailyVolume: totalVolume.toString(),
