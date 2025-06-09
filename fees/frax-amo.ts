@@ -24,6 +24,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
   const { amos, graph, FRAX } = config[options.chain];
   const client = getGQLClient(graph);
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   for (const amo of amos) {
     const positions = (await client.request(query(amo))).amos[0].positions;
@@ -35,14 +36,15 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
     })
     for (const event of events) {
       dailyFees.add(FRAX, event.interestEarned)
+      dailyRevenue.add(FRAX, event.feesAmount)
     }
   }
 
   return {
     timestamp,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -80,9 +82,8 @@ const adapter: SimpleAdapter = {
         meta: {
           methodology: {
             Fees: 'Total interest paid to users by borrowing FRAX',
-            Revenue: 'Total interest paid to users by borrowing FRAX',
-            ProtocolRevenue: 'All interest paid collected by Frax Finance.',
-            HoldersRevenue: 'No holders revenue',
+            Revenue: 'Amount of interest collected by Frax Finance',
+            ProtocolRevenue: 'Amount of interest collected by Frax Finance',
           }
         }
       },
