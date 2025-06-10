@@ -130,7 +130,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
     // Revenue to CVX Holders, including bribes (minus Votium fee)
     const dailyHoldersRevenue = snapshot.crvRevenueToCvxStakersAmount
-        .plus(snapshot.fxsRevenueToCvxStakersAmount).plus(dailyBribeRevenue)
+        .plus(snapshot.fxsRevenueToCvxStakersAmount)
 
     // cvxCRV & cvxFXS liquid lockers revenue
     const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount
