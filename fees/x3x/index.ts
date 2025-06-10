@@ -47,19 +47,19 @@ const fetch: FetchV2 = async ({
     }
 
     // 2) Sum all payout amounts from PayoutSent events
-    const payoutSentLogs = await getLogs({
-      target: contractAddr,
-      eventAbi: abi.PayoutSent,
-      fromBlock,
-      toBlock,
-    });
+    // const payoutSentLogs = await getLogs({
+    //   target: contractAddr,
+    //   eventAbi: abi.PayoutSent,
+    //   fromBlock,
+    //   toBlock,
+    // });
 
-    let payoutSum: bigint = 0n;
-    for (const log of payoutSentLogs) {
-      payoutSum += BigInt(log.amount);
-    }
+    // let payoutSum: bigint = 0n;
+    // for (const log of payoutSentLogs) {
+    //   payoutSum += BigInt(log.amount);
+    // }
 
-    aggregateVolume += betSum + payoutSum;
+    aggregateVolume += betSum; // + payoutSum;
   }
 
   if (aggregateVolume > 0n) {
@@ -79,7 +79,7 @@ const adapter: SimpleAdapter = {
       start: "2025-06-01",
       meta: {
         methodology: {
-          Volume: "Sum of bets (GameCreated) and payouts (PayoutSent) in WLD across X3X contracts",
+          Volume: "Sum of bets (GameCreated) in WLD across X3X contracts",
           Fees: "No fees are implemented yet.",
           Revenue: "No fees are implemented yet for revenue.",
         },
