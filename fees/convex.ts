@@ -101,24 +101,26 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         const stakerAddress = await options.api.call({
             target: registry,
             abi: abi.getAddress,
-            params: ["STAKER"]
+            params: ["STAKER"],
+            permitFailure: true,
         });
-
-        // Fetch RewardPaid events
-        const rewardPaidLogs = await options.getLogs({
-            target: stakerAddress,
-            eventAbi: abi.rewardPaid
-        });
-
-        // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
-        rewardPaidLogs.forEach(log => {
-            if (
-                log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
-                log.rewardToken.toLowerCase() === reUSD.toLowerCase()
-            ) {
-                reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
-            }
-        });
+        if (stakerAddress) {
+            // Fetch RewardPaid events
+            const rewardPaidLogs = await options.getLogs({
+                target: stakerAddress,
+                eventAbi: abi.rewardPaid
+            });
+    
+            // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
+            rewardPaidLogs.forEach(log => {
+                if (
+                    log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
+                    log.rewardToken.toLowerCase() === reUSD.toLowerCase()
+                ) {
+                    reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
+                }
+            });
+        }
     }
 
     // All revenue redirected to LPs
