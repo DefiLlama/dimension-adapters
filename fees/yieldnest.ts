@@ -14,6 +14,8 @@ const fetch = async (
   options: FetchOptions
 ): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const logs = await options.getLogs({
     target: contracts[options.chain],
     eventAbi:
@@ -21,13 +23,16 @@ const fetch = async (
   });
 
   logs.forEach((log) => {
-    dailyFees.addGasToken(log.fees);
-    dailyFees.addGasToken(log.netRewards);
+    dailyFees.addGasToken(log.fees + log.netRewards);
+    dailyRevenue.addGasToken(log.fees);
+    dailySupplySideRevenue.addGasToken(log.netRewards);
   });
 
   return {
     timestamp,
     dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
