@@ -79,6 +79,42 @@ const fetchFees = (chain: Chain) => {
   }
 }
 
+const fetchPolygon = async (
+  timestamp: number,
+  _1: any,
+  options: FetchOptions
+): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  // 10000
+  const logs = await options.getLogs({
+    target: "0x2370cB1278c948b606f789D2E5Ce0B41E90a756f", // 0.5%
+    eventAbi:
+      "event CoveSwapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes32 auxiliaryData)",
+  });
+
+  const logs_2 = await options.getLogs({
+    target: "0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8",
+    eventAbi:
+      "event Swapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes auxiliaryData)",
+  });
+
+  logs.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+    dailyFees.add(log.outAsset, log.outAmount * (5/10000))
+  });
+
+  logs_2.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+  });
+
+  return {
+    timestamp,
+    dailyVolume,
+    dailyFees,
+  };
+};
+
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -91,7 +127,7 @@ const adapters: SimpleAdapter = {
       start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
+      fetch: fetchPolygon,
       start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
