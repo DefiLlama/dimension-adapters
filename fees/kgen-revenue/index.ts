@@ -144,9 +144,9 @@ const adapter: SimpleAdapter = {
       start: "2025-06-02",
       meta: {
         methodology: {
-          dailyVolume:
+          Volume:
             "Volume is calculated by summing the token volume of all USDC token deposits on the protocol that day.",
-          dailyRevenue:
+          Revenue:
             "Revenue is calculated by summing the token volume of all USDC token deposits on the protocol that day.",
         },
       },
