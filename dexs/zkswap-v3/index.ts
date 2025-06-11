@@ -40,7 +40,7 @@ const adapters: SimpleAdapter = {
     },
     [CHAIN.SONIC]: {
       fetch: graph(CHAIN.SONIC),
-      start: '2025-4-9',
+      start: '2025-04-09',
       meta: {
         methodology: {
           Fees: "A trading fee, depending on the fee tier of the CL pool, is collected.",
