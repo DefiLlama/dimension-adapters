@@ -8,6 +8,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.ERA),
       start: '2023-05-23',
     },
+    [CHAIN.SONIC]: {
+      fetch: fetchVolume(CHAIN.SONIC),
+      start: '2025-04-09',
+    },
   },
 };
 

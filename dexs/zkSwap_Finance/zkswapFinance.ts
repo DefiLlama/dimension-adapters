@@ -1,18 +1,20 @@
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { ChainBlocks, FetchOptions } from "../../adapters/types";
-const { request, } = require("graphql-request");
+const { request } = require("graphql-request");
 
 const info: { [key: string]: any } = {
   [CHAIN.ERA]: {
-    subgraph_v1:
+    subgraph:
       "https://api.studio.thegraph.com/query/49271/zkswap_finance/0.0.5",
-    subgraph_v2: "https://api.studio.thegraph.com/query/49271/zkswap/0.0.9",
+  },
+  [CHAIN.SONIC]: {
+    subgraph: "https://api.studio.thegraph.com/query/110179/sonic-v2/v0.0.3",
   },
 };
 
-const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
-  const dailyVolume = createBalances()
+const getData = async ({ chain, startOfDay, createBalances }: FetchOptions) => {
+  const dailyVolume = createBalances();
 
   let dayMiliseconds = 24 * 60 * 60;
   let returnCount = 1000;
@@ -40,7 +42,7 @@ const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
         }
       }`;
 
-    const data = await request(info[chain].subgraph_v1, graphQL);
+    const data = await request(info[chain].subgraph, graphQL);
     returnCount = data.swaps.length;
 
     fromTimestamp = data?.swaps[returnCount - 1]?.timestamp;
@@ -59,51 +61,8 @@ const getData = async ({ chain, startOfDay, createBalances}: FetchOptions) => {
   };
 };
 
-const getToDateVolume = async (chain: string, timestamp: number) => {
-  const startDayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
-
-  let returnCount = 1000;
-  let dayMiliseconds = 24 * 60 * 60;
-  let volumSum = 0;
-
-  let startTimestampQuery = 0;
-  const endDateTimestamp = Number(startDayTimestamp) + dayMiliseconds;
-
-  while (returnCount == 1000) {
-    const graphQL = `{
-      pancakeDayDatas(
-        first: 1000
-        orderBy: date
-        orderDirection: asc
-        where: {date_gt: ${startTimestampQuery}, date_lte: ${endDateTimestamp}}
-      ) {
-        dailyVolumeUSD
-        date
-        id
-        totalTransactions
-        totalVolumeUSD
-      }
-    }`;
-
-    const data = await request(info[chain].subgraph_v2, graphQL);
-    returnCount = data.pancakeDayDatas.length;
-    startTimestampQuery = data?.pancakeDayDatas[returnCount - 1]?.date;
-
-    const chunkVolume = data.pancakeDayDatas.reduce((total: number, current: any) => {
-      return total + Number(current.dailyVolumeUSD);
-    }, 0);
-
-    volumSum += chunkVolume;
-  }
-
-  return volumSum;
-};
-
 export const fetchVolume = (_chain: string) => {
   return async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-    return getData({...options, startOfDay: _timestamp});
-    // const totalVolume = await getToDateVolume(options);
+    return getData({ ...options, startOfDay: _timestamp });
   };
 };
