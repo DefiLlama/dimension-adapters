@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     ...aaveExport({
-      [CHAIN.CORE]: {
+      [CHAIN.HYDRADX]: {
         start: '2024-11-26',
         pools: [
           {
