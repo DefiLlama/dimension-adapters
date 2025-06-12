@@ -33,8 +33,14 @@ interface IResponse {
 const fetchV1 = async (_t: any, _b: any, options: FetchOptions) => {
   const { chain, dateString } = options
   const response: IResponse[] = await httpGet(endpoints[chain])
-  const volume = response.find((item) => item.date.split('T')[0] === dateString)?.volumeUsd
+  let volume = response.find((item) => item.date.split('T')[0] === dateString)?.volumeUsd
   if (!volume) throw new Error(`No volume found for date: ${dateString}`)
+
+  // fix bad data from traderjoe api
+  // use data from subgraph: H2VGe2tYavUEosSjomHwxbvCKy3LaNaW8Kjw2KhhHs1K
+  if (options.startOfDay === 1749600000 && options.chain === 'avax') {
+    volume = 4438405;
+  }
 
   return {
     dailyVolume: volume,
