@@ -11,7 +11,8 @@ const skateChainIds = {
     [CHAIN.SOLANA]: 901,
     [CHAIN.ECLIPSE]: 902,
     [CHAIN.HYPERLIQUID]: 999,
-    [CHAIN.PLUME]: 98866
+    [CHAIN.PLUME]: 98866,
+    [CHAIN.MANTLE]: 5000
 }
 
 const skateDataApi = "https://data.skatechain.org/pools/stats";
@@ -118,6 +119,11 @@ const adapter: SimpleAdapter = {
         [CHAIN.PLUME]: {
             fetch,
             start: '2025-06-02',
+            meta: meta
+        },
+        [CHAIN.MANTLE]: {
+            fetch,
+            start: '2025-05-28',
             meta: meta
         }
     },
