@@ -44,21 +44,15 @@ async function DryRun(target: string, action: string) {
     return response.data;
 }
 
-function scaleBalance(amount: string, denomination: string): number {
-    if (amount === "0") return 0;
-    const denominationVal = parseInt(denomination);
-    const len = amount.length;
-
-    if (denominationVal >= len) {
-        return parseFloat("0." + "0".repeat(denominationVal - len) + amount.replace(/0+$/, ""));
-    }
-
-    const integerPart = amount.substr(0, len - denominationVal);
-    const fractionalPart = amount.substr(len - denominationVal).replace(/0+$/, "");
-
-    if (fractionalPart === "") return parseInt(integerPart);
-
-    return parseFloat(integerPart + "." + fractionalPart);
+function scaleBalance(amount: string, denomination: string): string {
+    if (amount === "0") return "0";
+    
+    // Keep the full precision by working with the raw amount
+    const scaledDivider = BigInt(10) ** BigInt(denomination);
+    const balance = BigInt(amount);
+    
+    // Return the scaled amount as string to preserve precision
+    return (balance / scaledDivider).toString();
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -81,25 +75,34 @@ const fetch = async (options: FetchOptions) => {
             );
 
             // Extract key data
-            const totalReserves = scaleBalance(infoTagsObject['Total-Reserves'], infoTagsObject['Denomination']);
+            const totalReservesStr = scaleBalance(infoTagsObject['Total-Reserves'], infoTagsObject['Denomination']);
+            const totalReserves = parseFloat(totalReservesStr);
             const reserveFactorPercent = Number(infoTagsObject['Reserve-Factor']); // e.g., 10 for 10%
             const reserveFactor = reserveFactorPercent / 100; // Convert to decimal (0.1 for 10%)
 
             // Skip if no reserves or invalid reserve factor
             if (totalReserves === 0 || reserveFactor === 0) continue;
 
-            // Calculate total fees from reserves and reserve factor (in token amounts)
-            const totalFees = totalReserves / reserveFactor;
-            const supplySideRevenue = totalFees - totalReserves;
+            // Calculate total fees from reserves and reserve factor (keep as integers)
+            const totalFeesNum = totalReserves / reserveFactor;
+            const supplySideRevenueNum = totalFeesNum - totalReserves;
+
+            // Convert to integers by multiplying back up, then convert to string
+            const denomination = parseInt(infoTagsObject['Denomination']);
+            const scaleFactor = Math.pow(10, denomination);
+            
+            const totalFeesScaled = Math.floor(totalFeesNum * scaleFactor).toString();
+            const totalReservesScaled = Math.floor(totalReserves * scaleFactor).toString();
+            const supplySideRevenueScaled = Math.floor(supplySideRevenueNum * scaleFactor).toString();
 
             // CoinGecko mapping
             const ticker = geckoTickerTransformations[poolObject.ticker] || poolObject.ticker;
             const tokenAddress = `coingecko:${ticker}`;
             
-            dailyFees.add(tokenAddress, totalFees.toString());
-            dailyRevenue.add(tokenAddress, totalReserves.toString());
-            dailyProtocolRevenue.add(tokenAddress, totalReserves.toString());
-            dailySupplySideRevenue.add(tokenAddress, supplySideRevenue.toString());
+            dailyFees.add(tokenAddress, totalFeesScaled);
+            dailyRevenue.add(tokenAddress, totalReservesScaled);
+            dailyProtocolRevenue.add(tokenAddress, totalReservesScaled);
+            dailySupplySideRevenue.add(tokenAddress, supplySideRevenueScaled);
         }
 
     } catch (error) {
@@ -115,11 +118,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     adapter: {
         'ao': {
             fetch,
-            start: '2025-06-12',
+            start: '2025-06-10',
             runAtCurrTime: true,
             meta: {
                 methodology
