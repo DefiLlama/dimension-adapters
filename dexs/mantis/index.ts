@@ -39,6 +39,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
 };
 
 export default {
+  deadFrom: '2025-03-05',
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

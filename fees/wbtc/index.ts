@@ -18,10 +18,17 @@ export default {
           const btcSend = btcTx.outputs.filter(v => v.addresses[0] === event.btcDepositAddress).reduce((sum, v) => sum + v.value, 0)
           dailyFees.add('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', Math.abs(amount - btcSend));
         }))
-        return { dailyFees, dailyRevenue: dailyFees }
+        return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 
       },
-      start: '2018-11-24'
+      start: '2018-11-24',
+      meta: {
+        methodology: {
+          Fees: "Minting and buring fees paid by users.",
+          Revenue: "All fees are revenue.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        }
+      }
     }
   },
 }

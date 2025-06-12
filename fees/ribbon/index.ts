@@ -84,10 +84,20 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) => fetch(ethereum_endpointId, options),
       start: '2021-04-01',
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users.",
+        },
+      }
     },
     [CHAIN.AVAX]: {
       fetch: (options: FetchOptions) => fetch(avax_endpointId, options),
       start: '2021-04-01',
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users.",
+        },
+      }
     },
   },
 };

@@ -1,5 +1,4 @@
 import * as sdk from '@defillama/sdk';
-import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import axios from 'axios';
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
@@ -142,7 +141,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   if (!tokens?.length) return balances
 
-  tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
+  tokens = sdk.util.getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
   const logs = await getLogs({
     targets: tokens,

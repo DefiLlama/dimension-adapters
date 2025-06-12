@@ -1,6 +1,6 @@
 import { buildStablecoinAdapter} from "./tether/attestations-stablecoins";
 
-export default buildStablecoinAdapter('2', 30,
+const adapter = buildStablecoinAdapter('2', 30,
 // Based on https://www.circle.com/en/transparency
 [
     {
@@ -209,3 +209,12 @@ export default buildStablecoinAdapter('2', 30,
     },*/
 
 ]);
+
+adapter.adapter.ethereum.meta = {
+    methodology: {
+        Fees: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills.',
+        Revenue: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
+    },
+}
+
+export default adapter

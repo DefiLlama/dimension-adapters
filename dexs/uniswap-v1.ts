@@ -21,11 +21,14 @@ export default {
 
         tokenLogs.forEach(log => {
           if (!pairs.has(log.source.toLowerCase())) return;
+          if (log.source.toLowerCase() === '0xa539baaa3aca455c986bb1e25301cef936ce1b65') return;  // bad data on 2020-1014
           dailyVolume.addGasToken(log.parsedLog.args.eth_sold)
         })
 
         ethLogs.forEach(log => {
           if (!pairs.has(log.source.toLowerCase())) return;
+          if (log.source.toLowerCase() === '0xa539baaa3aca455c986bb1e25301cef936ce1b65') return;  // bad data on 2020-1014
+
           dailyVolume.addGasToken(log.parsedLog.args.eth_bought)
         })
 

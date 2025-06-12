@@ -20,7 +20,8 @@ const revshareWallet = "0x2b6e6e4def77583229299cf386438a227e683b28" // not entir
 const fetch: any = async (options: FetchOptions) => {
   const dailyRevenue = await addTokensReceived({
     options, targets: feeReceiverMultisig, 
-    fromAdddesses: fromAddresses
+    fromAdddesses: fromAddresses,
+    skipIndexer: true
   })
 
   await addGasTokensReceived({ multisigs: feeReceiverMultisig, balances: dailyRevenue, options, fromAddresses })
@@ -32,7 +33,8 @@ const fetch: any = async (options: FetchOptions) => {
         revshareWallet
     ], 
     fromAdddesses: fromAddresses,
-    balances: dailyFees
+    balances: dailyFees,
+    skipIndexer: true
   })
 
   return { dailyFees, dailyRevenue }
@@ -41,7 +43,15 @@ const fetch: any = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.BSC]: { fetch },
+    [CHAIN.BSC]: { 
+      fetch,
+      meta: {
+        methodology: {
+          Fees: 'All fees paid by users for launching, trading tokens.',
+          Revenue: 'Fees collected by four.meme protocol.',
+        }
+      },
+    },
   },
 };
 export default adapter;

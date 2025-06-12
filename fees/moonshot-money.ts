@@ -12,7 +12,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-          },
+      meta: {
+        methodology: {
+          Fees: 'All buy/sell fees paid by users for using Moonshot App.',
+          Revenue: 'All fees are collected by Moonshot App.',
+          ProtocolRevenue: 'All fees are collected by Moonshot App.',
+        }
+      }
+    },
   },
   isExpensiveAdapter: true
 };

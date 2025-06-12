@@ -23,6 +23,7 @@ const fetchData: FetchV2 = async () => {
 const methodology = {
   Fees: "Protocol collects fees from ETH/USD/BTC Omnipool rewards, APS performance fees, and redemption fees for zunStable swaps.",
   Revenue: "100% of collected fees are distributed to pool token holders.",
+  HoldersRevenue: "100% of collected fees are distributed to pool token holders.",
 };
 
 const adapter: SimpleAdapter = {

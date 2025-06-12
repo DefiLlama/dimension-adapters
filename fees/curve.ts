@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions, FetchResultV2 } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
@@ -99,7 +99,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     dailyHoldersRevenue: `${fees/2}`,
   };
   if(chain === ETHEREUM){
-    const bribes:any[] = (await fetchURL(`https://raw.githubusercontent.com/pierremarsotlyon1/chainhub-backend/main/data/stats.json`)).claimsLast7Days.claims
+    const bribes:any[] = (await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)).claimsLast7Days.claims
     const yesterday = bribes.reduce((closest, item)=>{
       const timeDiff = (val:any) => Math.abs(val.timestamp - (Date.now()/1e3-24*3600))
       if(timeDiff(item) < timeDiff(closest)){

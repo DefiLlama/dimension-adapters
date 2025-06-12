@@ -1,6 +1,5 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain, } from "@defillama/sdk/build/general";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 

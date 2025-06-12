@@ -50,7 +50,15 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(SocketGatewayContracts).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: '2023-08-10', }
+      [chain]: { fetch, start: '2023-08-10', 
+        meta: {
+          methodology: {
+            Fees: 'Total fees paid by users for bridging tokens.',
+            Revenue: 'Total fees paid are distributed to SOCKET inetrgations.',
+            ProtocolRevenue: 'SOCKET takes 0 fees.',
+          }
+        }
+      }
     }
   }, {})
 };

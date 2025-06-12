@@ -1,7 +1,14 @@
-import { Chain } from "@defillama/sdk/build/general"
+import { Chain } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
+
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
+    Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+  }
+}
 
 interface IVolume {
   amount: number;
@@ -80,18 +87,22 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-01-01',
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
       start: '2023-01-01',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: '2023-01-01',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
       start: '2023-01-01',
+      meta,
       runAtCurrTime: true,
     }
   },

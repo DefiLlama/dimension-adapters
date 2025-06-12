@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, } from "graphql-request";
 import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 const endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7cG6NVPRm4CQmfVsh4d1bYGqaWNazRyVTn3xuvdDRNPi'),

@@ -24,6 +24,7 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
+  [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -49,25 +50,33 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
   };
 };
 
+const meta = {
+  methodology: {
+    Fees: "Token trading fees paid by users.",
+    Revenue: "All fees are revenue.",
+  }
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.BASE]: { fetch, start: "2024-11-23" },
-    [CHAIN.BERACHAIN]: { fetch, start: "2025-02-06" },
-    [CHAIN.BLAST]: { fetch, start: "2024-05-10" },
-    [CHAIN.CORE]: { fetch, start: "2024-10-01" },
-    [CHAIN.MODE]: { fetch, start: "2024-03-17" },
-    [CHAIN.LINEA]: { fetch, start: "2024-06-18" },
-    [CHAIN.MANTLE]: { fetch, start: "2024-05-24" },
-    [CHAIN.SCROLL]: { fetch, start: "2023-10-16" },
-    [CHAIN.TAIKO]: { fetch, start: "2024-10-01" },
-    [CHAIN.ZIRCUIT]: { fetch, start: "2024-12-06" },
-    [CHAIN.SONEIUM]: { fetch, start: "2024-12-15" },
-    [CHAIN.HEMI]: { fetch, start: "2025-03-07" },
-    [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-13" },
-    [CHAIN.BSC]: { fetch, start: "2025-04-03" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2025-04-08" },
-    [CHAIN.HYPERLIQUID]: { fetch, start: "2025-05-18" },
+    [CHAIN.BASE]: { fetch, start: "2024-11-23", meta },
+    [CHAIN.BERACHAIN]: { fetch, start: "2025-02-06", meta },
+    [CHAIN.BLAST]: { fetch, start: "2024-05-10", meta },
+    [CHAIN.CORE]: { fetch, start: "2024-10-01", meta },
+    [CHAIN.MODE]: { fetch, start: "2024-03-17", meta },
+    [CHAIN.LINEA]: { fetch, start: "2024-06-18", meta },
+    [CHAIN.MANTLE]: { fetch, start: "2024-05-24", meta },
+    [CHAIN.SCROLL]: { fetch, start: "2023-10-16", meta },
+    [CHAIN.TAIKO]: { fetch, start: "2024-10-01", meta },
+    [CHAIN.ZIRCUIT]: { fetch, start: "2024-12-06", meta },
+    [CHAIN.SONEIUM]: { fetch, start: "2024-12-15", meta },
+    [CHAIN.HEMI]: { fetch, start: "2025-03-07", meta },
+    [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-13", meta },
+    [CHAIN.BSC]: { fetch, start: "2025-04-03", meta },
+    [CHAIN.ARBITRUM]: { fetch, start: "2025-04-08", meta },
+    [CHAIN.HYPERLIQUID]: { fetch, start: "2025-05-18", meta },
+    [CHAIN.ABSTRACT]: { fetch, start: "2025-05-22", meta },
   },
 };
 

@@ -47,7 +47,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
     dailySupplySideRevenue: dailyFees,
+  }
+}
+
+const meta = {
+  methodology: {
+    Fees: "Total fees paid by users for bride tokens.",
+    Revenue: "Total fees paid by users for bride tokens.",
+    dailyProtocolRevenue: "Across takes 0% fees paid by users.",
+    SupplySideRevenue: "Total fees paid by users are distributed to liquidity providers.",
   }
 }
 
@@ -57,45 +68,56 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: "2023-04-30",
+      meta
     },
     [CHAIN.ARBITRUM]: {
       fetch,
       start: "2023-04-30",
+      meta
     },
     [CHAIN.OPTIMISM]: {
       fetch,
       start: "2023-04-30",
+      meta
     },
     [CHAIN.POLYGON]: {
       fetch,
       start: "2023-04-30",
+      meta
     },
     [CHAIN.BASE]: {
       fetch,
       start: "2023-08-22",
+      meta
     },
     [CHAIN.ZKSYNC]: {
       fetch,
       start: "2023-08-10",
+      meta
     },
     [CHAIN.LINEA]: {
       fetch,
       start: "2024-04-20",
+      meta
     },
     [CHAIN.UNICHAIN]: {
       fetch,
       start: "2025-02-06",
+      meta
     },
     [CHAIN.BLAST]: {
       fetch,
       start: "2024-07-10",
+      meta
     },
     [CHAIN.SCROLL]: {
       fetch,
       start: "2024-07-31",
+      meta
     },
   },
   prefetch: prefetch,
+  allowNegativeValue: true, // Gas Fee cost be higher than estimated
   isExpensiveAdapter: true,
 };
 

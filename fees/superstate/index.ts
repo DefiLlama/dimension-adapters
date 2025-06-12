@@ -63,6 +63,11 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: getFundsFees,
       start: '2024-03-01',
+      meta: {
+      methodology: {
+        Fees: "Yield from management and investment assets.",
+      },
+    },
     },
   },
 };

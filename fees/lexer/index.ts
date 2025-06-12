@@ -72,7 +72,9 @@ const adapter: SimpleAdapter = {
             start: '2024-01-09',
             fetch,
             meta:{
-                methodology: "api calls from grpahql"
+                methodology: {
+                    Fees: "Trading fees queried from api calls from grpahql",
+                }
             }
         }
     }

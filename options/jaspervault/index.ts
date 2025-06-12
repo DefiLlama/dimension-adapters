@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
 import { Balances, } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
 

@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { ethers } from "ethers";

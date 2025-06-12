@@ -1,4 +1,5 @@
 import type { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const assets = ["BTC", "ETH", "SOL", "SEI"];
@@ -36,8 +37,9 @@ const fetch = async () => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-04-19',
   adapter: {
-    sei: {
+    [CHAIN.SEI]: {
       fetch,
       runAtCurrTime: true,
     },

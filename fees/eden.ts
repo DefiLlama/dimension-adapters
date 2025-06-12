@@ -55,13 +55,14 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2025-05-28',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2022-09-15',
       meta: {
         methodology: {
-            fees: "Total MEV Tips for Eden Builders"
+            Fees: "Total MEV Tips for Eden Builders"
         }
       }
     },

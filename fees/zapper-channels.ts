@@ -10,6 +10,12 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: getFeesExport(FriendtechSharesAddress, [event_trade]),
       start: '2023-10-02',
+      meta: {
+        methodology: {
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
+        }
+      }
     },
   },
   version: 2,

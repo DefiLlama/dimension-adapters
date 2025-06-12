@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchResult } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
-import { getBlock } from "../helpers/getBlock";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 type TEndpoint = {
   [key in Chain]: string
@@ -22,53 +21,50 @@ interface IPool {
   revenueUSD: string
   feeUSD: string
 }
-interface IDailyPoolStatus {
-  revenueUSD: string
-  feeUSD: string
-  from: string
-  to: string
-}
 interface IResponse {
-  pools: IPool[]
-  dailyPoolStatuses: IDailyPoolStatus[]
+  today: IPool[]
+  yesterday: IPool[]
 }
 const feesQuery = gql`
-  query fees($fromTimestamp: Int!, $toTimestamp: Int!, $blockNumber: Int!) {
-    pools(first: 5, block: {number: $blockNumber}) {
+  query fees($toBlock: Int!, $fromBlock: Int!) {
+    today: pools(block: {number: $toBlock}) {
       id
       revenueUSD,
       feeUSD
     }
-    dailyPoolStatuses(orderBy: feeUSD, orderDirection: desc, where: {from_gte: $fromTimestamp, from_lte: $toTimestamp}) {
+    yesterday: pools(block: {number: $fromBlock}) {
+      id
       revenueUSD,
-      feeUSD,
-      from,
-      to
+      feeUSD
     }
   }
 `
 
 const fetchFees = (chain: Chain) => {
-  return async ({ fromTimestamp, toTimestamp, getToBlock }: FetchOptions) => {
+  return async ({  getToBlock, getFromBlock }: FetchOptions) => {
     const endpoint = endpoints[chain];
     const toBlock = await getToBlock();
+    const fromBlock = await getFromBlock();
 
     const response: IResponse = (await request(endpoint, feesQuery, {
-      fromTimestamp,
-      toTimestamp,
-      blockNumber: toBlock
+      toBlock,
+      fromBlock
     }));
 
-    const dailyFees = response.dailyPoolStatuses.reduce((acc, pool) => {
-      return acc + Number(pool.feeUSD);
-    }, 0);
-    const dailyRevenue = response.dailyPoolStatuses.reduce((acc, pool) => {
-      return acc + Number(pool.revenueUSD);
+    const dailyFees = response.today.reduce((acc, pool) => {
+      const id = response.yesterday.find((p) => p.id === pool.id)
+      if (!id) return acc
+      return acc + Number(pool.feeUSD) - Number(id.feeUSD);
+    }, 0);  
+    const dailyRevenue = response.today.reduce((acc, pool) => {
+      const id = response.yesterday.find((p) => p.id === pool.id)
+      if (!id) return acc
+      return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
     },0);
-    const totalFees = response.pools.reduce((acc, pool) => {
+    const totalFees = response.today.reduce((acc, pool) => {
       return acc + Number(pool.feeUSD);
     },0);
-    const totalRevenue = response.pools.reduce((acc, pool) => {
+    const totalRevenue = response.today.reduce((acc, pool) => {
       return acc + Number(pool.revenueUSD);
     },0);
 
@@ -83,6 +79,42 @@ const fetchFees = (chain: Chain) => {
   }
 }
 
+const fetchPolygon = async (
+  timestamp: number,
+  _1: any,
+  options: FetchOptions
+): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  // 10000
+  const logs = await options.getLogs({
+    target: "0x2370cB1278c948b606f789D2E5Ce0B41E90a756f", // 0.5%
+    eventAbi:
+      "event CoveSwapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes32 auxiliaryData)",
+  });
+
+  const logs_2 = await options.getLogs({
+    target: "0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8",
+    eventAbi:
+      "event Swapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes auxiliaryData)",
+  });
+
+  logs.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+    dailyFees.add(log.outAsset, log.outAmount * (5/10000))
+  });
+
+  logs_2.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+  });
+
+  return {
+    timestamp,
+    dailyVolume,
+    dailyFees,
+  };
+};
+
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -95,7 +127,7 @@ const adapters: SimpleAdapter = {
       start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
+      fetch: fetchPolygon,
       start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {

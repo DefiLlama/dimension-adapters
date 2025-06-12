@@ -11,19 +11,27 @@ const fetch: any = async (options: FetchOptions) => {
     ], fromAdddesses: routers
   })
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 };
+
+const meta = {
+  methodology: {
+    Fees: "All fess paid by users while use extension.",
+    Revenue: "All fess paid by users while use extension.",
+    ProtocolRevenue: "All fess paid by users while use extension.",
+  }
+}
 
 const start = 1712710800
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start },
-    [CHAIN.BASE]: { fetch, start },
-    [CHAIN.ARBITRUM]: { fetch, start },
-    [CHAIN.POLYGON]: { fetch, start },
-    [CHAIN.BSC]: { fetch, start },
-    [CHAIN.OPTIMISM]: { fetch, start },
+    [CHAIN.ETHEREUM]: { fetch, start, meta },
+    [CHAIN.BASE]: { fetch, start, meta },
+    [CHAIN.ARBITRUM]: { fetch, start, meta },
+    [CHAIN.POLYGON]: { fetch, start, meta },
+    [CHAIN.BSC]: { fetch, start, meta },
+    [CHAIN.OPTIMISM]: { fetch, start, meta },
   },
 };
 export default adapter;

@@ -27,6 +27,7 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
+  [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
 };
 
 const START_BLOCKS = {
@@ -48,6 +49,7 @@ const START_BLOCKS = {
   [CHAIN.BSC]: 1704067200,
   [CHAIN.ARBITRUM]: 1704067200,
   [CHAIN.HYPERLIQUID]: 1704067200,
+  [CHAIN.ABSTRACT]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
@@ -55,7 +57,16 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap });
 
-  logs.forEach((i) => dailyVolume.add(i.toAssetId, i.toAmount));
+  logs.forEach((i) => {
+    if (
+      i.toAssetId.toLowerCase() ==
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase()
+    ) {
+      dailyVolume.addGasToken(i.toAmount);
+    } else {
+      dailyVolume.add(i.toAssetId, i.toAmount);
+    }
+  });
 
   return { dailyVolume };
 }

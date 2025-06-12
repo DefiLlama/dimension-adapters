@@ -12,7 +12,13 @@ const adapters: SimpleAdapter = {
         
                 return { dailyFees, dailyRevenue: dailyFees }
             },
-            start: '2024-02-01'
+            start: '2024-02-01',
+            meta: {
+                methodology: {
+                    Fees: "Buy, registation fees paid by users.",
+                    Revenue: "Buy, registation fees paid by users.",
+                }
+            }
         },
     },
     version: 2

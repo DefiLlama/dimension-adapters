@@ -26,7 +26,7 @@ import { CHAIN } from "../helpers/chains";
 const methodology = {
   Fees: 'Total USD0 redemption fees and USD0++ early unstake fees.',
   ProtocolRevenue: 'Total fees are distributed to protocol treasury.',
-  HolderRevenue: 'Total fees are distributed to  token holders.',
+  HoldersRevenue: 'Total fees are distributed to token holders.',
 }
 
 const DaoCollateral = '0xde6e1F680C4816446C8D515989E2358636A38b04'

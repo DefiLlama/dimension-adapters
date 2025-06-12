@@ -19,7 +19,16 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
         timestamp: options.startOfDay,
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
+}
+
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users from launching adn trading tokens.',
+    Revenue: 'Fees are collected by Virtual Protocol.',
+    ProtocolRevenue: 'Fees are collected by Virtual Protocol.',
+  }
 }
 
 const adapter: SimpleAdapter = {
@@ -28,10 +37,12 @@ const adapter: SimpleAdapter = {
         [CHAIN.BASE]: {
             fetch: fetchFees,
             start: "2024-10-16",
+            meta,
         },
         [CHAIN.SOLANA]: {
             fetch: fetchFees,
             start: "2024-10-16",
+            meta,
         },
     },
     prefetch,

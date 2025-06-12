@@ -1,11 +1,22 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
+import asyncRetry from "async-retry";
+import { FetchOptions } from '../../adapters/types';
 
 const statsApiEndpoint = "https://stats-api.mainnet.orca.so/api/whirlpools";
 const eclipseStatsApiEndpoint = "https://stats-api-eclipse.mainnet.orca.so/api/whirlpools";
 const FEE_RATE_DENOMINATOR = 1_000_000;
 const FEE_RATE_THRESHOLD = 0; // 
 const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climat fund 
+
+const CONFIG = {
+    [CHAIN.SOLANA]: {
+        url: statsApiEndpoint,
+    },
+    [CHAIN.ECLIPSE]: {
+        url: eclipseStatsApiEndpoint,
+    }
+}
 
 interface WhirlpoolReward {
     mint: string;
@@ -89,7 +100,12 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
     return 0;
 }
 
-async function fetch(timestamp: number, url: string) {
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetch(timestamp: number, _b:any, options: FetchOptions) {
+    const url = CONFIG[options.chain].url;
     let allWhirlpools: Whirlpool[] = [];
     let nextCursor: string | null = null;
     let page = 0;
@@ -97,9 +113,25 @@ async function fetch(timestamp: number, url: string) {
     do {
         page++;
         const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
-        const response: StatsApiResponse = await httpGet(currentUrl);
+        const response: StatsApiResponse = await asyncRetry(
+            async () => {
+                return await httpGet(currentUrl);
+            },
+            {
+                retries: 3,
+                minTimeout: 1000,
+                maxTimeout: 5000,
+                factor: 2,
+            }
+        );
         allWhirlpools = allWhirlpools.concat(response.data);
         nextCursor = response.meta?.cursor?.next || null;
+
+        // Add delay between requests to prevent rate limiting
+        if (nextCursor) {
+            await delay(1000);
+        }
+        console.log(`page: ${page} and nextCursor: ${nextCursor}`);
     } while (nextCursor);
     const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
     const validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
@@ -132,25 +164,19 @@ async function fetch(timestamp: number, url: string) {
     }
 }
 
-async function fetchSolana(timestamp: number) {
-    return await fetch(timestamp, statsApiEndpoint);
-}
-
-async function fetchEclipse(timestamp: number) {
-    return await fetch(timestamp, eclipseStatsApiEndpoint);
-}
-
 export default {
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
-            fetch: fetchSolana,
+            fetch,
             runAtCurrTime: true,
             start: '2022-09-14',
         },
         [CHAIN.ECLIPSE]: {
-            fetch: fetchEclipse,
+            fetch,
             runAtCurrTime: true,
             start: '2022-09-14',
         }
-    }
+    },
+    isExpensiveAdapter: true,
 }

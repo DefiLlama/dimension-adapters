@@ -62,11 +62,11 @@ const adapter: Adapter = {
       start: '2024-12-11',
       meta: { methodology } 
     },
-    [CHAIN.MORPH]: { 
-      fetch, 
-      start: '2024-12-11',
-      meta: { methodology } 
-    },
+    // [CHAIN.MORPH]: { 
+    //   fetch, 
+    //   start: '2024-12-11',
+    //   meta: { methodology } 
+    // },
   }
 };
 

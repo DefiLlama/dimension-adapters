@@ -27,12 +27,18 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
 }
 
 const adapter: SimpleAdapter = {
-  deadFrom: '2024-12-14',
+  // deadFrom: '2024-12-14',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
+    // [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-07-30',
+      meta: {
+        methodology: {
+          Fees: 'NFT trading fees paid by users.',
+          Revenue: 'NFT trading fees paid by users.',
+        }
+      }
     },
   },
 };

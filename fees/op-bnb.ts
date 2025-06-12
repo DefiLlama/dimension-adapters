@@ -50,6 +50,12 @@ const adapter: Adapter = {
       fetch: fetch as any,
       start: '2023-08-14',
       runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on opBNB, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        }
+      }
     },
   },
   isExpensiveAdapter: true,

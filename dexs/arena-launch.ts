@@ -35,6 +35,12 @@ export default {
     [CHAIN.AVAX]: {
       start: '2025-05-04',
       fetch,
+      meta: {
+        methodology: {
+          Fees: 'All fees paid by users for trading tokens.',
+          Revenue: 'All fees paid by users for trading tokens.',
+        }
+      }
     },
   }
 }
