@@ -74,7 +74,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LIGHTLINK_PHOENIX]: {
       fetch: getFetch(endpoints[CHAIN.LIGHTLINK_PHOENIX]),
-      start: 1717199544,
+      start: '2024-06-01',
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
@@ -83,7 +83,7 @@ const adapter: Adapter = {
     },
     [CHAIN.SONIC]: {
       fetch: getFetch(endpoints[CHAIN.SONIC]),
-      start: 1735685544,
+      start: '2024-12-31',
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
@@ -92,14 +92,14 @@ const adapter: Adapter = {
     },
     // [CHAIN.BSC]: {
     //   fetch: getFetch(endpoints[CHAIN.BSC]),
-    //   start: 1727740344,
+    //   start: '2024-10-01',
     //   meta: {
     //     methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
     //   },
     // },
     [CHAIN.BERACHAIN]: {
       fetch: getFetch(endpoints[CHAIN.BERACHAIN]),
-      start: 1738882079,
+      start: '2025-02-06',
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
@@ -108,7 +108,7 @@ const adapter: Adapter = {
     },
     [CHAIN.BASE]: {
       fetch: getFetch(endpoints[CHAIN.BASE]),
-      start: 1740056400,
+      start: '2025-02-20',
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
@@ -117,7 +117,7 @@ const adapter: Adapter = {
     },
     [CHAIN.SSEED]: {
       fetch: getFetch(endpoints[CHAIN.SSEED]),
-      start: 1745330400,
+      start: '2025-04-22',
       meta: {
         methodology: {
           Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",

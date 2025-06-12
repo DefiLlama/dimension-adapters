@@ -73,7 +73,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ABSTRACT]: {
             fetch,
-            start: 1738196217,
+            start: '2025-01-30',
             meta: {
                 methodology: {
                   Volume: 'Volume is calculated as the sum of tolls collected from Coin events and payouts from Solve events',

@@ -61,7 +61,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v2: {
     [CHAIN.BSC]: {
-      start: 1619136000,
+      start: '2021-04-23',
       dataSource: DataSource.GRAPH,
       endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
       requestHeaders: {
@@ -69,39 +69,39 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       }
     },
     [CHAIN.ETHEREUM]: {
-      start: 1664236800,
+      start: '2022-09-27',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1687910400,
+      start: '2023-06-28',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
+      start: '2023-07-24',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
       factory: '0xd03D8D566183F0086d8D09A84E1e30b58Dd5619d'
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
+      start: '2023-08-08',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
+      start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
     },
     [CHAIN.BASE]: {
-      start: 1693440000,
+      start: '2023-08-31',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
     },
     [CHAIN.OP_BNB]: {
-      start: 1695081600,
+      start: '2023-09-19',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`,
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
@@ -113,7 +113,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v3: {
     [CHAIN.BSC]: {
-      start: 1680307200,
+      start: '2023-04-01',
       // dataSource: DataSource.PANCAKE_EXPLORER,
       // endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
       // explorerChainSlug: 'bsc',
@@ -121,38 +121,38 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       dataSource: DataSource.DUNE,
     },
     [CHAIN.ETHEREUM]: {
-      start: 1680307200,
+      start: '2023-04-01',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS')
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1686182400,
+      start: '2023-06-08',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
+      start: '2023-07-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
+      start: '2023-08-08',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve')
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
+      start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
     },
     [CHAIN.BASE]: {
-      start: 1692576000,
+      start: '2023-08-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp')
     },
     [CHAIN.OP_BNB]: {
-      start: 1693440000,
+      start: '2023-08-31',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`,
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
@@ -160,17 +160,17 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   stableswap: {
     [CHAIN.ETHEREUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj')
     },
     [CHAIN.BSC]: {
-      start: 1663718400,
+      start: '2022-09-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz')
     },
     [CHAIN.ARBITRUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
     }

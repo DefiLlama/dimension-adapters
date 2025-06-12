@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BERACHAIN]: {
       fetch,
-      start: 1746482400,
+      start: '2025-05-06',
     },
   },
   version: 2,

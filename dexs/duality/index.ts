@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEUTRON]: {
       fetch,
-      start: 1721606400,
+      start: '2024-07-22',
     },
   },
 };

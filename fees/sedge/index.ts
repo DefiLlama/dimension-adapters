@@ -108,7 +108,7 @@ const adapter: Adapter = {
           dailyHoldersRevenue: result.dailyHoldersRevenue,
         };
       },
-      start: 1739404800, // February 13, 2025
+      start: '2025-02-13', // February 13, 2025
     },
   },
   version: 2,

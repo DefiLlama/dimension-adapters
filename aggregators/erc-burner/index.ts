@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
     // For other chains, use the standard approach
     acc[chain] = {
       fetch: async (options: any) => fetchChainData(chain, options),
-      start: 1740330000, // Current date as specified
+      start: '2025-02-23', // Current date as specified
       meta: {
         methodology: {
           Volume: "Volume is calculated by tracking the total amount of native tokens (ETH, AVAX, etc.) processed through the Burner contracts' swapExactInputMultiple function"
