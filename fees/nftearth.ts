@@ -1,6 +1,6 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const fetch = (_chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {

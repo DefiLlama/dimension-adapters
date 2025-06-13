@@ -43,6 +43,14 @@ const MorphoBlues = {
     chainId: 8453,
     blue: "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
   },
+  [CHAIN.POLYGON]: {
+    chainId: 137,
+    blue: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
+  },
+  [CHAIN.UNICHAIN]: {
+    chainId: 130,
+    blue: "0x8f5ae9cddb9f68de460c77730b018ae7e04a140a",
+  },
 };
 
 const MorphoBlueAbis = {
@@ -54,7 +62,6 @@ const _fetchMarkets = async (
   chainId: number,
   url: string
 ): Promise<Array<MorphoMarket>> => {
-  const res = await request(url, query, { chainId });
   let allMarkets: Array<MorphoMarket> = [];
   let skip = 0;
   const first = 300;
@@ -123,7 +130,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     dailySupplySideRevenue: dailyFees,
 
     // Morpho gets no fees
-    dailyProtocolRevenue: 0,
+    dailyRevenue: 0,
   };
 };
 
@@ -139,6 +146,20 @@ const adapter: SimpleAdapter = {
     base: {
       fetch: fetch,
       start: "2024-05-03",
+      meta: {
+        methodology,
+      },
+    },
+    polygon: {
+      fetch: fetch,
+      start: "2025-01-20",
+      meta: {
+        methodology,
+      },
+    },
+    unichain: {
+      fetch: fetch,
+      start: "2025-02-18",
       meta: {
         methodology,
       },

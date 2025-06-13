@@ -90,32 +90,34 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
-          Holders: "Tracks MET distributed to esMET lockers.",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },

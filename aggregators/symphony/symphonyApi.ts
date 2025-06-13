@@ -1,6 +1,6 @@
 import { Adapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 const API_ENDPOINT = "http://stats.symphony.ag/api/v1/stats";
@@ -55,7 +55,7 @@ export function getSymphAdapter(type: "volume") {
     adapter: {
       [CHAIN.SEI]: {
         fetch: fetch(CHAIN.SEI),
-        start: 1724544000, // Aug 26, 2024 00:00:00 UTC
+        start: '2024-08-25', // Aug 26, 2024 00:00:00 UTC
         meta: {
           methodology: 'Tracks the total value of all trades executed through Symphony Aggregator on SEI chain. Volume is calculated by summing the USD value of all trades.'
         }

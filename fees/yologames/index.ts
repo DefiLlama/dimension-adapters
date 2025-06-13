@@ -1,4 +1,3 @@
-import { ETHER_ADDRESS } from "@defillama/sdk/build/general";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -14,7 +13,7 @@ const fetchDailyStats = async (
 const fetch: any = async ({ createBalances, fromTimestamp, toTimestamp }: FetchOptions) => {
   const dailyFees = createBalances();
   const statsApiResponse = await fetchDailyStats(fromTimestamp, toTimestamp);
-  dailyFees.add(ETHER_ADDRESS, statsApiResponse.feesETH * 1e18);
+  dailyFees.addGasToken(statsApiResponse.feesETH * 1e18);
   return { dailyFees };
 };
 

@@ -63,13 +63,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-27'
         }
     },
-    version: 1,
     isExpensiveAdapter: true
 }
 

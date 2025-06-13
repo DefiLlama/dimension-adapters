@@ -65,6 +65,13 @@ const adapter: Adapter = {
         };
       },
       start: '2021-01-17',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Transaction base fees paid by users',
+          HoldersRevenue: 'Transaction base fees paid by users were burned',
+        }
+      }
     },
   },
   isExpensiveAdapter: true,

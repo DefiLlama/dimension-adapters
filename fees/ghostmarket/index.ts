@@ -55,7 +55,7 @@ const adapter: Adapter = {
   deadFrom: "2024-12-14",
   version: 2,
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
+    // [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch: apis(endpoints)(CHAIN.NEO),
       start: '2021-08-24',

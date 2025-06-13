@@ -18,6 +18,12 @@ const adapter: any = {
     [CHAIN.HEDERA]: {
       fetch: fetchLogs,
       start: '2024-03-02',
+      meta: {
+        methodology: {
+          Volume: 'Total token swap volume',
+          Fees: 'Total swap fees paid by users',
+        }
+      }
     },
   },
 };

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general"
+import { Chain } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { queryFlipside } from "../helpers/flipsidecrypto";
@@ -6,7 +6,7 @@ import { queryFlipside } from "../helpers/flipsidecrypto";
 const meta = {
   methodology: {
     Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
-    Revenue: 'Fees collected by Metamask.',
+    Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
   }
 }
 

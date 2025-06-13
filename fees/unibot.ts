@@ -82,6 +82,7 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: 'All trading fees paid by users.',
           Revenue: 'All trading fees paid by users.',
+          HoldersRevenue: 'Fees distributed to token holders',
           ProtocolRevenue: 'All trading fees paid by users.',
         }
       }

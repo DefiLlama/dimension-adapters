@@ -65,6 +65,12 @@ const adapter: Adapter = {
         ...all,
         [chain]: {
             fetch: evm,
+            meta: {
+                methodology: {
+                Fees: 'Fees paid by users for creating and publishing NFT.',
+                Revenue: 'All fees collected by Manifold protocol.',
+                }
+            }
         }
     }), {}),
     allowNegativeValue: true, // allow as there is specific case, from fetch function comment

@@ -77,6 +77,9 @@ type LiquityV1Config = {
   protocolRevenuePercentage?: number
   redemptionEvent?: string
   borrowingEvent?: string
+
+  // if collateralCoin was not given, use gas token
+  collateralCoin?: string
 }
 
 
@@ -112,7 +115,11 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
 
     // get _ETHFee from event
     redemptionLogs.forEach((logs) => {
-      dailyFees.addGasToken(BigInt(logs['_ETHFee']))
+      if (config.collateralCoin) {
+        dailyFees.addToken(config.collateralCoin, BigInt(logs['_ETHFee']))
+      } else {
+        dailyFees.addGasToken(BigInt(logs['_ETHFee']))
+      }
     })
 
     // get _LUSDFee from event
@@ -124,7 +131,12 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     // get _LUSDGasCompensation from event
     liquidationLogs.forEach((logs) => {
       supplySideFees.add(config.stableCoin, BigInt(logs['_LUSDGasCompensation']))
-      supplySideFees.addGasToken(BigInt(logs['_collGasCompensation']))
+
+      if (config.collateralCoin) {
+        supplySideFees.addToken(config.collateralCoin, BigInt(logs['_collGasCompensation']))
+      } else {
+        supplySideFees.addGasToken(BigInt(logs['_collGasCompensation']))
+      }
     })
 
     const result: FetchResultFees = { dailyFees }
@@ -165,6 +177,15 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
+      meta: {
+        methodology: {
+          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+          Revenue: 'Total fees distributed to protocol and token holders',
+          HoldersRevenue: 'Total fees distributed to holders',
+          SupplySideRevenue: 'Total gas compensation to borrowers',
+          ProtocolRevenue: 'Total fees distributed to protocol',
+        }
+      }
     }
   })
   return { adapter: exportObject, version: 2 } as SimpleAdapter

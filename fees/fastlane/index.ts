@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
             start: '2022-12-08',
             meta: {
                 methodology: {
-                    fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
+                    Fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
                 }
             }
         },

@@ -45,10 +45,28 @@ const adapter: Adapter = {
     [CHAIN.OPTIMISM]: {
       fetch: fetchoptimism as any,
       start: '2022-10-01',
+      meta: {
+        methodology: {
+          Fees: "Total interest paid by borrowers",
+          Revenue: "Protocol's share of interest treasury",
+          ProtocolRevenue: "Protocol's share of interest into treasury",
+          HoldersRevenue: "Share of interest into protocol governance token holders.",
+          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+        }
+      }
     },
     [CHAIN.BASE]: {
       fetch: fetchbase as any,
       start: '2023-08-31',
+      meta: {
+        methodology: {
+          Fees: "Total interest paid by borrowers",
+          Revenue: "Protocol's share of interest treasury",
+          ProtocolRevenue: "Protocol's share of interest into treasury",
+          HoldersRevenue: "Share of interest into protocol governance token holders.",
+          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+        }
+      }
     },
   },
 };

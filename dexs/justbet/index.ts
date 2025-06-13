@@ -118,7 +118,7 @@ export default {
 
         return { totalVolume, dailyVolume };
       },
-      start: 1732060800,
+      start: '2024-11-20',
     },
   },
   version: 2,

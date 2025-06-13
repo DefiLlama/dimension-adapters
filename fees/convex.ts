@@ -2,10 +2,10 @@ import * as sdk from "@defillama/sdk";
 import {Adapter, FetchOptions, FetchResultFees} from "../adapters/types";
 import {ETHEREUM} from "../helpers/chains";
 import {request, gql} from "graphql-request";
-import type {ChainEndpoints} from "../adapters/types"
-import {Chain} from '@defillama/sdk/build/general';
+import type {Chain, ChainEndpoints} from "../adapters/types"
 import {getTimestampAtStartOfDayUTC} from "../utils/date";
 import BigNumber from "bignumber.js";
+import {httpGet} from "../utils/fetchURL";
 
 const endpoints = {
     [ETHEREUM]:
@@ -32,6 +32,23 @@ const methodology = {
     SupplySideRevenue: "All CRV, CVX and FXS rewards redistributed to liquidity providers staking on Convex.",
 }
 
+const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
+    const url = "https://api.llama.airforce/dashboard/bribes-overview-votium";
+    const response = await httpGet(url);
+    const data = typeof response === "string" ? JSON.parse(response) : response;
+    let total = 0;
+
+    if (data?.dashboard?.epochs) {
+        data.dashboard.epochs.forEach((epoch: any) => {
+            if (epoch.end === dayTimestamp) {
+                total += epoch.totalAmountDollars;
+            }
+        });
+    }
+    return total;
+};
+
+
 const graphFetch = async (timestamp: number, graphUrls: ChainEndpoints, chain: Chain): Promise<any> => {
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp));
 
@@ -52,7 +69,6 @@ const graphFetch = async (timestamp: number, graphUrls: ChainEndpoints, chain: C
                 crvRevenueToPlatformAmount
                 fxsRevenueToPlatformAmount
                 otherRevenue
-                bribeRevenue
             }
         }`;
 
@@ -67,6 +83,9 @@ const graphFetch = async (timestamp: number, graphUrls: ChainEndpoints, chain: C
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const timestamp = options.startTimestamp;
     const chain = options.chain;
+    const dayStart = Math.floor(timestamp / 86400) * 86400;
+    const dailyBribeRevenue = await fetchBribesUSDForDay(dayStart);
+
 
     // Get data from subgraph
     const snapshot = await graphFetch(timestamp, endpoints, chain);
@@ -82,24 +101,26 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         const stakerAddress = await options.api.call({
             target: registry,
             abi: abi.getAddress,
-            params: ["STAKER"]
+            params: ["STAKER"],
+            permitFailure: true,
         });
-
-        // Fetch RewardPaid events
-        const rewardPaidLogs = await options.getLogs({
-            target: stakerAddress,
-            eventAbi: abi.rewardPaid
-        });
-
-        // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
-        rewardPaidLogs.forEach(log => {
-            if (
-                log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
-                log.rewardToken.toLowerCase() === reUSD.toLowerCase()
-            ) {
-                reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
-            }
-        });
+        if (stakerAddress) {
+            // Fetch RewardPaid events
+            const rewardPaidLogs = await options.getLogs({
+                target: stakerAddress,
+                eventAbi: abi.rewardPaid
+            });
+    
+            // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
+            rewardPaidLogs.forEach(log => {
+                if (
+                    log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
+                    log.rewardToken.toLowerCase() === reUSD.toLowerCase()
+                ) {
+                    reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
+                }
+            });
+        }
     }
 
     // All revenue redirected to LPs
@@ -110,8 +131,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     // Revenue to CVX Holders, including bribes (minus Votium fee)
     const dailyHoldersRevenue = snapshot.crvRevenueToCvxStakersAmount
         .plus(snapshot.fxsRevenueToCvxStakersAmount)
-
-    const dailyBribeRevenue = snapshot.bribeRevenue;
 
     // cvxCRV & cvxFXS liquid lockers revenue
     const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount

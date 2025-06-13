@@ -17,6 +17,12 @@ export default {
   adapter: {
     ethereum: {
       fetch,
+      meta: {
+        methodology: {
+          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+          Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+        }
+      }
     }
   }
 }

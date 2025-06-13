@@ -37,8 +37,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dc.addCGToken('ethereum', Number(res[0].daily_cost) / 1e18);
     dailyRevenue.subtract(dc)
 
-    console.log(dailyFees, dailyRevenue);
-
     return {
         dailyFees,
         dailyRevenue
@@ -53,8 +51,8 @@ const adapter: Adapter = {
             start: '2020-05-30',
             meta: {
                 methodology: {
-                    fee: 'Total Gas Fees on Polygon',
-                    revenue: 'Total Revenue on Polygon, calculated by subtracting the L1 Batch Costs from the Total Gas Fees'
+                    Fees: 'Total transaction fees paid by users',
+                    Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
                 }
             }
         },

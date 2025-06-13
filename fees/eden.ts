@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
       start: '2022-09-15',
       meta: {
         methodology: {
-            fees: "Total MEV Tips for Eden Builders"
+            Fees: "Total MEV Tips for Eden Builders"
         }
       }
     },

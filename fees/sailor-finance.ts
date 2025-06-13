@@ -1,7 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
+import fetchURL from "../utils/fetchURL";
 
 const methodology = {
   Fees: "Sailor-Finance protocol swap fee (0.3% per swap).",
@@ -12,24 +12,13 @@ const methodology = {
 };
 
 const graphs = async (_t: any, _b: any, options: FetchOptions) => {
-  const dayID = Math.floor(options.startOfDay / 86400);
-  const query = gql`
-      {
-          uniswapDayData(id:${dayID}) {
-              id
-              volumeUSD
-              feesUSD
-          }
-
-      }`;
-  const url = "https://subgraph.sailor.finance/subgraphs/name/sailor";
-  const req = await request(url, query);
-  const dailyFee = Number(req.uniswapDayData.feesUSD);
+  const res = await fetchURL(`https://asia-southeast1-ktx-finance-2.cloudfunctions.net/sailor_poolapi/getVolumeAndTvl`);
+  const {fee24} = res.data;
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFee.toString(),
+    dailyFees: fee24.toString(),
     // dailyLPProvidersRevenue: (dailyFee * 0.84).toString(),
-    dailyRevenue: (dailyFee * 0.16).toString(),
+    dailyRevenue: (fee24 * 0.16).toString(),
   };
 };
 
@@ -37,6 +26,7 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.SEI]: {
+      runAtCurrTime: true,
       fetch: graphs,
       meta: {
         methodology,

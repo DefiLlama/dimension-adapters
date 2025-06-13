@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, BreakdownAdapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getStartTimestamp } from "../helpers/getStartTimestamp";
