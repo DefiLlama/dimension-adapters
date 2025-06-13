@@ -4,6 +4,15 @@ import axios from "axios";
 const endpoint = 'https://cu.ao-testnet.xyz';
 const controllerId = 'SmmMv0rJwfIDVM3RvY2-P729JFYwhdGSeGo2deynbfY';
 
+// CoinGecko ticker transformations
+const geckoTickerTransformations: {[key: string]: string} = {
+    'qAR': 'arweave',
+    'wAR': 'arweave',
+    'wUSDC': 'usd-coin',
+    'wUSDT': 'tether',
+    'wETH': 'ethereum',
+};
+
 const methodology = {
     Fees: "Total interest paid by borrowers across all lending pools",
     Revenue: "Protocol's share of interest revenue (reserve factor portion)",
@@ -86,8 +95,9 @@ const fetch = async (options: FetchOptions) => {
             const totalReservesScaled = Math.floor(totalReserves * scaleFactor).toString();
             const supplySideRevenueScaled = Math.floor(supplySideRevenueNum * scaleFactor).toString();
 
-            // Use the raw token ID
-            const tokenAddress = poolObject.id; // Raw token ID from AO
+            // CoinGecko mapping
+            const ticker = geckoTickerTransformations[poolObject.ticker] || poolObject.ticker;
+            const tokenAddress = `coingecko:${ticker}`;
             
             dailyFees.add(tokenAddress, totalFeesScaled);
             dailyRevenue.add(tokenAddress, totalReservesScaled);
