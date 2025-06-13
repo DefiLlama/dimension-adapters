@@ -130,7 +130,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     dailySupplySideRevenue: dailyFees,
 
     // Morpho gets no fees
-    dailyProtocolRevenue: 0,
+    dailyRevenue: 0,
   };
 };
 
