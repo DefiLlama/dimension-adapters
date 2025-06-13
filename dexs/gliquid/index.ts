@@ -41,7 +41,6 @@ const fetchDailyData = async (date: number) => {
 
   const totalFeesUSD = parseFloat(data.feesUSD) || 0;
 
-
   if (totalFeesUSD === 0) {
     return { volumeUSD: data.volumeUSD || "0", feesUSD: "0", revenueUSD: "0" };
   }
@@ -50,18 +49,12 @@ const fetchDailyData = async (date: number) => {
 
   pools.forEach(pool => {
     const poolFees = parseFloat(pool.feesUSD) || 0;
-    let communityFee = parseFloat(pool.communityFee) || 0;
+    const communityFee = pool.communityFee ? parseFloat(pool.communityFee) / 10000 : 0;
 
+    const poolRevenue = poolFees * communityFee;
 
-    // Correct the scaling of communityFee by dividing by 10000
-    communityFee /= 10000;
-
-
-
-    const poolRevenue = (poolFees / totalFeesUSD) * totalFeesUSD * communityFee;
     totalRevenue += poolRevenue;
   });
-
 
   return {
     volumeUSD: data.volumeUSD || "0",
@@ -82,11 +75,20 @@ const adapter: SimpleAdapter = {
           totalVolume: parseFloat(totalVolume),
           dailyVolume: parseFloat(volumeUSD),
           dailyFees: parseFloat(feesUSD),
-          dailyRevenue: parseFloat(revenueUSD), // Now correctly weighted
+          dailyRevenue: parseFloat(revenueUSD),
+          dailySupplySideRevenue: parseFloat(feesUSD) - parseFloat(revenueUSD),
           timestamp: dayTimestamp,
         };
       },
-      start: async () => 1738800000, // Timestamp for February 6, 2025
+      start: '2025-02-06',
+      meta: {
+        methodology: {
+          Volume: "Total users swap volume.",
+          Fees: "Swap fees paid by users.",
+          Revenue: "Protocol and community shared from fees.",
+          SupplySideRevenue: "Fees shared to liquidity providers."
+        }
+      }
     },
   },
 };
