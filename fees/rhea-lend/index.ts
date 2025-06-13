@@ -7,7 +7,7 @@ const api_revenue = "https://api.ref.finance/get-burrow-total-revenue"
 const adapter: SimpleAdapter = {
   adapter: {
     'near': {
-      start: 1747288898,
+      start: '2025-05-15',
       fetch: async () => {
         const fee_result = await httpGet(api_fee);
         const revenue_result = await httpGet(api_revenue);

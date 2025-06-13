@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
                 
                     [chain]: {
                         fetch: graph(chain),
-                        start: 1667232000
+                        start: '2022-10-31'
                     }
                 
             }

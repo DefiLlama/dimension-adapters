@@ -82,7 +82,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: 1727099513,
+          start: '2024-09-23',
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
@@ -91,7 +91,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: 1725563255,
+        start: '2024-09-05',
         meta: { methodology: v3Methodology },
       };
       return acc;

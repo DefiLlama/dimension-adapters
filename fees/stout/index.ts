@@ -60,7 +60,7 @@ const adapter: Adapter = {
     [CHAIN.SONIC]: {
       fetch,
       // Saturday, 1 March 2025 00:00:00
-      start: 1740787200,
+      start: '2025-03-01',
       meta: {
         methodology,
       },

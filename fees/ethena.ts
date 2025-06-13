@@ -119,7 +119,7 @@ const adapters = {
         methodology: {
           Fees: "Staking rewards + yield distribution + mint fees + extra fees",
           Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
-          SserFees: "Mint Fees",
+          UserFees: "Mint Fees",
         }
       }
     },

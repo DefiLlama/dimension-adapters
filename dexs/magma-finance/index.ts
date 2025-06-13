@@ -13,7 +13,7 @@ type IUrl = {
 const url: IUrl = {
   [CHAIN.SUI]: {
     histogramUrl:
-      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=99999",
+      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=40",
   },
 };
 

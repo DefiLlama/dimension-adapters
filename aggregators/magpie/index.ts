@@ -81,23 +81,23 @@ const fetch = async (_t: number, _: ChainBlocks, {chain, startOfDay}: FetchOptio
         },
         [CHAIN.SONIC]: {
           fetch: fetch,
-          start: 1735217146,
+          start: '2024-12-26',
         },
         [CHAIN.ERA]: {
           fetch: fetch,
-          start: 1662595200,
+          start: '2022-09-08',
         },
         [CHAIN.BERACHAIN]: {
           fetch: fetch,
-          start: 1739171605,
+          start: '2025-02-10',
         },
         [CHAIN.LINEA]: {
           fetch: fetch,
-          start: 1739292820,
+          start: '2025-02-11',
         },
         [CHAIN.INK]: {
           fetch: fetch,
-          start: 1739292820,
+          start: '2025-02-11',
         },
       },
     };
