@@ -19,6 +19,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyFees: dailyFeesUSD,
     dailyRevenue: dailyRevenueUSD,
     dailyHoldersRevenue: dailyHoldersRevenueUSD,
+
+    // no protocol revenue
+    dailyProtocolRevenue: 0,
   };
 };
 
@@ -30,8 +33,10 @@ const adapter: Adapter = {
       start: "2024-06-4",
       meta: {
         methodology: {
-          Fees: "All betting fees (4% of total protocol volume) go to Bodega token stakers.",
-          Revenue: "All fees are distributed to staking users.",
+          Fees: "All betting fees (4% of total protocol volume) paid by users.",
+          Revenue: "All betting fees (4% of total protocol volume) paid by users.",
+          HoldersRevenue: "All revenue distributed to BODEGA holders.",
+          ProtocolRevenue: "No revenue for Bodega protocol.",
         },
       },
     },
