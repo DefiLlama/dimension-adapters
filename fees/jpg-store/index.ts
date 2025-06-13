@@ -13,7 +13,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   return {
     dailyFees: dailyFeesUSD,
+    dailyUserFees: dailyFeesUSD,
     dailyRevenue: dailyRevenueUSD,
+    dailyProtocolRevenue: dailyRevenueUSD,
   };
 };
 
@@ -26,7 +28,9 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "All service fees collected from NFT sales",
-          Revenue: "All service fees collected from NFT sales",
+          UserFees: "All service fees collected from NFT sales",
+          Revenue: " service fees collected from NFT sales to protocol",
+          ProtocolRevenue: "service fees collected from NFT sales to protocol",
         },
       },
     },
