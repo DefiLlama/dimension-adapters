@@ -108,32 +108,29 @@ const calculate = (
   return { dailyFees, dailyRevenue };
 };
 
-const graphs = () => {
-  return (chain: CHAIN) => {
-    return async (timestamp: number, _t: any, options: FetchOptions) => {
-      const borrowables: IBorrowable[] = await getChainBorrowables(chain);
-      const dailyFees = options.createBalances();
-      const dailyRevenue = options.createBalances();
-      borrowables.forEach((b: IBorrowable) => {
-        const { dailyFees: df, dailyRevenue: dr } = calculate(b);
-        const decimals = Number(b.underlying.decimals);
-        dailyFees.add(b.underlying.id, df * (10 ** decimals));
-        dailyRevenue.add(b.underlying.id, dr * (10 ** decimals));
-      })
+async function fetch(_timestamp: number, _t: any, options: FetchOptions) {
+  const borrowables: IBorrowable[] = await getChainBorrowables(options.chain as any);
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  borrowables.forEach((b: IBorrowable) => {
+    const { dailyFees: df, dailyRevenue: dr } = calculate(b);
+    const decimals = Number(b.underlying.decimals);
+    dailyFees.add(b.underlying.id, df * (10 ** decimals));
+    dailyRevenue.add(b.underlying.id, dr * (10 ** decimals));
+  })
 
-      return {
-        timestamp,
-        dailyFees,
-        dailyRevenue,
-      };
-    };
+  return {
+    dailyFees,
+    dailyRevenue,
   };
 };
+
+
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: graphs()(CHAIN.ETHEREUM),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -141,7 +138,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.POLYGON]: {
-      fetch: graphs()(CHAIN.POLYGON),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -149,7 +146,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.ARBITRUM]: {
-      fetch: graphs()(CHAIN.ARBITRUM),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -157,7 +154,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.FANTOM]: {
-      fetch: graphs()(CHAIN.FANTOM),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -165,7 +162,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.BASE]: {
-      fetch: graphs()(CHAIN.BASE),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -173,7 +170,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.SCROLL]: {
-      fetch: graphs()(CHAIN.SCROLL),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -181,7 +178,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.OPTIMISM]: {
-      fetch: graphs()(CHAIN.OPTIMISM),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -189,7 +186,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.REAL]: {
-      fetch: graphs()(CHAIN.REAL),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -197,7 +194,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.AVAX]: {
-      fetch: graphs()(CHAIN.AVAX),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -205,7 +202,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.SONIC]: {
-      fetch: graphs()(CHAIN.SONIC),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -213,7 +210,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.BLAST]: {
-      fetch: graphs()(CHAIN.BLAST),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -221,7 +218,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.LINEA]: {
-      fetch: graphs()(CHAIN.LINEA),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {
@@ -229,7 +226,7 @@ const adapter: Adapter = {
       },
     },
     [CHAIN.ZKSYNC]: {
-      fetch: graphs()(CHAIN.ZKSYNC),
+      fetch,
       runAtCurrTime: true,
       start: '2023-10-23',
       meta: {

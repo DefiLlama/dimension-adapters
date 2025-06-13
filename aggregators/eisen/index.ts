@@ -57,7 +57,16 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap });
 
-  logs.forEach((i) => dailyVolume.add(i.toAssetId, i.toAmount));
+  logs.forEach((i) => {
+    if (
+      i.toAssetId.toLowerCase() ==
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase()
+    ) {
+      dailyVolume.addGasToken(i.toAmount);
+    } else {
+      dailyVolume.add(i.toAssetId, i.toAmount);
+    }
+  });
 
   return { dailyVolume };
 }

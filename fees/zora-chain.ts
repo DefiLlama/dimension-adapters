@@ -12,7 +12,13 @@ const adapter: Adapter = {
 	adapter: {
 		[CHAIN.ZORA]: {
 			fetch,
-			start: '2023-06-13'
+			start: '2023-06-13',
+			meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Zora, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        }
+      }
 		},
 	},
 	protocolType: ProtocolType.CHAIN,

@@ -1,8 +1,113 @@
+import { BaseAdapter, SimpleAdapter, FetchOptions } from "../adapters/types";
+import { queryDuneSql } from "../helpers/dune";
+import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
+import { addOneToken } from "../helpers/prices";
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
-import adapter from './pancakeswap'
-const { breakdown,  ...rest } = adapter
+// Import the necessary components from the main pancakeswap adapter
+import { PROTOCOL_CONFIG, PANCAKESWAP_V3_DUNE_QUERY } from './pancakeswap';
 
-export default {
-  ...rest,
-  adapter: breakdown['v3'],
-}
+// Get the V3_CONFIG from the main adapter
+const V3_CONFIG = PROTOCOL_CONFIG.v3;
+
+const ABIS = {
+  POOL_CREATE: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+  SWAP_EVENT: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
+};
+
+// Create endpoints map for graph chains
+const createEndpointMap = () => {
+  const result: Record<string, string> = {};
+  
+  Object.entries(V3_CONFIG).forEach(([chain, config]) => {
+    if (config.dataSource === 'graph' && 'endpoint' in config && config.endpoint) {
+      result[chain] = config.endpoint;
+    }
+  });
+  
+  return result;
+};
+
+const v3Endpoints = createEndpointMap();
+
+const v3Graph = getGraphDimensions2({
+  graphUrls: v3Endpoints,
+  totalVolume: {
+    factory: "factories",
+  },
+  totalFees: {
+    factory: "factories",
+  },
+});
+
+// Custom Dune SQL query for PancakeSwap V3
+const fetchV3Dune = async (_a:any, _b:any, options: FetchOptions) => {
+  const results = await queryDuneSql(options, PANCAKESWAP_V3_DUNE_QUERY);
+  
+  const totalVolume = results[0]?.total_volume || 0;
+
+  const dailyFees = totalVolume * 0.0025;
+  const dailyProtocolRevenue = totalVolume * 0.000225; // 0.0225%
+  const dailySupplySideRevenue = totalVolume * 0.0017; // 0.17%
+  const dailyHoldersRevenue = totalVolume * 0.000575; // 0.0575%
+  const dailyUserFees = totalVolume * 0.0025; // 0.25%
+
+  return {
+    dailyVolume: totalVolume.toString(),
+    dailyFees: dailyFees.toString(),
+    dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+    dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+    dailyHoldersRevenue: dailyHoldersRevenue.toString(),
+    dailyUserFees: dailyUserFees.toString(),
+  };
+};
+
+// Main fetchV3 function adapted for v1 format
+const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
+  const chainConfig = V3_CONFIG[options.chain];
+  
+  if (!chainConfig) {
+    throw new Error(`Chain ${options.chain} not supported for PancakeSwap V3`);
+  }
+  
+  if (chainConfig.dataSource === 'logs') {
+    const adapter = getUniV3LogAdapter({ 
+      factory: (chainConfig as any).factory, 
+      poolCreatedEvent: ABIS.POOL_CREATE, 
+      swapEvent: ABIS.SWAP_EVENT 
+    });
+    return await adapter(options);   
+  } else if (chainConfig.dataSource === 'graph') {
+    const v3stats = await v3Graph(options.chain)(options);
+    // Ethereum-specific adjustment
+    // if (options.chain === CHAIN.ETHEREUM) {
+    //   v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
+    // }
+    return v3stats;
+  } else if (chainConfig.dataSource === 'dune') {
+    return await fetchV3Dune(_a, _b, options);
+  }
+  throw new Error('Invalid data source');
+};
+
+const createV3Adapter = () => {
+  const chains = Object.keys(V3_CONFIG);
+  
+  return chains.reduce((acc, chain) => {
+    const config = V3_CONFIG[chain];
+    
+    acc[chain] = {
+      fetch: fetchV3,
+      start: config.start,
+    };
+    
+    return acc;
+  }, {} as BaseAdapter);
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: createV3Adapter()
+};
+
+export default adapter;

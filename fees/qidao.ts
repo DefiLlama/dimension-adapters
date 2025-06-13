@@ -58,7 +58,7 @@ const meta = {
   }
 };
 
-const options: any = { fetch, start: '2023-08-05' }
+const options: any = { fetch, start: '2023-08-05', meta }
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: options,

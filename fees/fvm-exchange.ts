@@ -14,10 +14,15 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyFees = createBalances()
   const lpTokens = await api.fetchList({ lengthAbi: ABIs.allPairsLength, itemAbi: ABIs.allPairs, target: FACTORY_ADDRESS });
 
-  (await getLogs({
+  const logs = await getLogs({
     targets: lpTokens,
     eventAbi: "event GaugeFees (address indexed token, uint256 amount, address externalBribe)",
-  })).map((e: any) => dailyFees.add(e.token, e.amount))
+    entireLog: true
+  })
+
+  logs.forEach((log: any) => {
+    dailyFees.add(log.args.token, log.args.amount)
+  })
 
   return {
     dailyFees,
