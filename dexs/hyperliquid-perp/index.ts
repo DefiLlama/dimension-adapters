@@ -1,4 +1,5 @@
 import type { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
@@ -7,6 +8,7 @@ const URL = "https://api.hyperliquid.xyz/info";
 interface Response {
   dayNtlVlm: string;
   openInterest: string;
+  markPx: string;
 }
 
 const fetch = async (timestamp: number) => {
@@ -16,7 +18,7 @@ const fetch = async (timestamp: number) => {
     return acc + Number(item.dayNtlVlm);
   },0);
   const openInterestAtEnd = response.reduce((acc, item) => {
-    return acc + Number(item.openInterest);
+    return acc +( Number(item.openInterest) * Number(item.markPx));
   },0);
 
   return {
@@ -29,8 +31,9 @@ const fetch = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    "hyperliquid": {
+    [CHAIN.HYPERLIQUID]: {
       fetch,
+      runAtCurrTime: true,
       start: '2023-02-25',
     },
   }
