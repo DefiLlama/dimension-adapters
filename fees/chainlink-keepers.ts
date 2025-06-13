@@ -1,16 +1,25 @@
-import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { ChainApi } from "@defillama/sdk";
+import pLimit from "p-limit";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getPrices } from "../utils/prices";
-import { getTxReceipts } from "../helpers/getTxReceipts";
-import { Chain } from "@defillama/sdk/build/general";
+import ADDRESSES from '../helpers/coreAssets.json';
 
-type TAddrress = {
-  [l: string | Chain]: string;
+const topics = {
+  upkeepPerformed: '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6',
+  success: '0x0000000000000000000000000000000000000000000000000000000000000001'
 }
 
-const topic0_keeper = '0xcaacad83e47cc45c280d487ec84184eee2fa3b54ebaa393bda7549f13da228f6';
-const success_topic = '0x0000000000000000000000000000000000000000000000000000000000000001';
-const address_keeper: TAddrress = {
+const eventAbis = {
+    upkeepPerformed: "event UpkeepPerformed(uint256 indexed id, bool indexed success, address indexed from, uint96 payment, bytes performData)",
+}
+
+type TAddrress = {
+  [l: string | CHAIN]: string;
+}
+
+const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
+
+const address: TAddrress = {
   [CHAIN.ETHEREUM]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
   [CHAIN.BSC]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
   [CHAIN.POLYGON]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',
@@ -19,88 +28,121 @@ const address_keeper: TAddrress = {
   [CHAIN.ARBITRUM]: '0x75c0530885F385721fddA23C539AF3701d6183D4',
   [CHAIN.OPTIMISM]: '0x75c0530885F385721fddA23C539AF3701d6183D4'
 }
-interface ITx {
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
 
-type IGasTokenId = {
-  [l: string | Chain]: string;
-}
-const gasTokenId: IGasTokenId = {
-  [CHAIN.ETHEREUM]: "coingecko:ethereum",
-  [CHAIN.BSC]: "coingecko:binancecoin",
-  [CHAIN.POLYGON]: "coingecko:matic-network",
-  [CHAIN.FANTOM]: "coingecko:fantom",
-  [CHAIN.AVAX]: "coingecko:avalanche-2",
-  [CHAIN.ARBITRUM]: "coingecko:ethereum",
-  [CHAIN.OPTIMISM]: "coingecko:ethereum"
-}
+const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi): Promise<{ transactions: any[]; totalPayment: number }> => {
+  const target = address[api.chain];
+  const TX_HASH_BATCH = 50;
+  const MAX_PARALLEL = 3;
 
-const fetchKeeper = (chain: Chain) => {
-  return async (_: any, _1: any, { toTimestamp, getLogs, }: FetchOptions) => {
-    const logs: ITx[] = (await getLogs({
-      target: address_keeper[chain],
-      topics: [topic0_keeper],
-    })).map((e: any) => { return { ...e, data: e.data.replace('0x', ''), transactionHash: e.transactionHash, } as ITx })
-      .filter((e: ITx) => e.topics.includes(success_topic));
-    const tx_hash: string[] = [...new Set([...logs].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = chain === CHAIN.OPTIMISM ? [] : (await getTxReceipts(chain, tx_hash, { cacheKey: 'chainlink-keepers' }))
-      .map((e: any) => {
-        const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
-        return amount
-      })
-    const payAmount: number[] = logs.map((tx: ITx) => {
-      const amount = Number('0x' + tx.data.slice(0, 64)) / 10 ** 18
-      return amount;
-    });
-    const linkAddress = "coingecko:chainlink";
-    const gasToken = gasTokenId[chain];
-    const prices = (await getPrices([linkAddress, gasToken], toTimestamp))
-    const linkPrice = prices[linkAddress].price
-    const gagPrice = prices[gasToken].price
-    const dailyFees = payAmount.reduce((a: number, b: number) => a + b, 0);
-    const feeUSD = dailyFees * linkPrice;
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
-    const dailyGasUsd = dailyGas * gagPrice;
-    const dailyRevenue = feeUSD - dailyGasUsd;
-    return {
-      dailyFees: feeUSD,
-      dailyRevenue: chain === CHAIN.OPTIMISM ? undefined : dailyRevenue,
+  const logs = await api.getLogs({
+    target,
+    fromBlock,
+    toBlock,
+    topics: [topics.upkeepPerformed, '', topics.success],
+    eventAbi: eventAbis.upkeepPerformed,
+    entireLog: true
+  });
+
+  let totalPayment = 0;
+  const seenHashes = new Set<string>();
+
+  for (const e of logs) {
+    const { transactionHash, args } = e
+    if (args.payment) totalPayment += Number(args.payment)
+    if (transactionHash) seenHashes.add(transactionHash);
+  }
+
+  const txHashBatches: string[][] = [];
+  let currentBatch: string[] = [];
+
+  for (const hash of seenHashes) {
+    currentBatch.push(hash);
+    if (currentBatch.length === TX_HASH_BATCH) {
+      txHashBatches.push(currentBatch);
+      currentBatch = [];
     }
   }
+  if (currentBatch.length) txHashBatches.push(currentBatch);
+
+  const allTransactions: any[] = [];
+  const limit = pLimit(MAX_PARALLEL);
+
+  const results = await Promise.all(
+    txHashBatches.map((hashChunk) =>
+      limit(() =>
+        api.getTransactions({
+          chain: api.chain,
+          addresses: [target],
+          from_block: fromBlock,
+          to_block: toBlock,
+          transaction_hashes: hashChunk,
+          transactionType: "to"
+        }).catch((err) => {
+          console.error(`Failed to fetch transactions on ${api.chain}:`, err);
+          return [];
+        })
+      )
+    )
+  );
+
+  results.forEach((txs) => {
+    if (Array.isArray(txs)) {
+      allTransactions.push(...txs);
+    }
+  });
+
+  return { transactions: allTransactions, totalPayment };
+};
+
+const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, api }: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  const dailyRevenue = createBalances()
+  const dailyGas = createBalances()
+  const dailyPayment = createBalances()
+  const { transactions, totalPayment } =  await getTransactions(fromBlock, toBlock, api)
+
+  const dailyGasUsed = transactions.reduce((acc, tx) => {
+    const gasUsed = Number(tx.gasUsed ?? 0);
+    const effectiveGasPrice = Number(tx.effectiveGasPrice ?? tx.gasPrice);
+    return acc + gasUsed * effectiveGasPrice;
+  }, 0);
+
+  dailyGas.add(ADDRESSES.null, dailyGasUsed)
+  dailyPayment.add(LINK, totalPayment, { skipChain: true })
+  dailyRevenue.addUSDValue(await dailyPayment.getUSDValue() - await dailyGas.getUSDValue())
+
+  return { dailyFees: dailyPayment, dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchKeeper(CHAIN.ETHEREUM),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.BSC]: {
-      fetch: fetchKeeper(CHAIN.BSC),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchKeeper(CHAIN.POLYGON),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.FANTOM]: {
-      fetch: fetchKeeper(CHAIN.FANTOM),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.AVAX]: {
-      fetch: fetchKeeper(CHAIN.AVAX),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchKeeper(CHAIN.ARBITRUM),
+      fetch,
       start: '2023-02-03',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchKeeper(CHAIN.OPTIMISM),
+      fetch,
       start: '2023-02-03'
     }
   }

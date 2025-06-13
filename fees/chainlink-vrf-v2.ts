@@ -1,11 +1,21 @@
 import { ChainApi } from "@defillama/sdk";
-import { Chain, } from "@defillama/sdk/build/general";
+import pLimit from 'p-limit';
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 
+const topics = {
+  topic0: '0x7dffc5ae5ee4e2e4df1651cf6ad329a73cebdb728f37ea0187b9b17e036756e4'
+}
+
+const eventAbis = {
+  randomWordsFulfilled: "event RandomWordsFulfilled(uint256 indexed requestId, uint256 outputSeed, uint96 payment, bool success)",
+}
+
+const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
+
 type TAddrress = {
-  [l: string | Chain]: string;
+  [l: string | CHAIN]: string;
 }
 
 const address: TAddrress = {
@@ -16,58 +26,67 @@ const address: TAddrress = {
   [CHAIN.AVAX]: '0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634',
 }
 
-const topic0 = '0x7dffc5ae5ee4e2e4df1651cf6ad329a73cebdb728f37ea0187b9b17e036756e4'
-const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
-
 const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi): Promise<{ transactions: any[]; totalPayment: number }> => {
+  const target = address[api.chain];
   const TX_HASH_BATCH = 50;
   const MAX_PARALLEL = 3;
 
   const logs = await api.getLogs({
-    target: address[api.chain],
+    target,
     fromBlock,
     toBlock,
-    topics: [topic0],
+    topics: [topics.topic0],
+    eventAbi: eventAbis.randomWordsFulfilled,
+    entireLog: true
   });
 
   let totalPayment = 0;
   const seenHashes = new Set<string>();
 
   for (const e of logs) {
-    const data = e.data?.slice(2);
-    if (data?.length >= 128) {
-      const paymentHex = data.slice(64, 128);
-      if (paymentHex.length === 64) {
-        const payment = Number(BigInt('0x' + paymentHex));
-        if (!isNaN(payment)) totalPayment += payment;
-      }
-    }
-    if (e.transactionHash) seenHashes.add(e.transactionHash);
+    const { transactionHash, args } = e
+    if (args.payment) totalPayment += Number(args.payment)
+    if (transactionHash) seenHashes.add(transactionHash);
   }
 
-  const txHashBatches = Array.from(seenHashes).reduce<string[][]>((batches, hash, i) => {
-    const batchIndex = Math.floor(i / TX_HASH_BATCH);
-    if (!batches[batchIndex]) batches[batchIndex] = [];
-    batches[batchIndex].push(hash);
-    return batches;
-  }, []);
+  const txHashBatches: string[][] = [];
+  let currentBatch: string[] = [];
+
+  for (const hash of seenHashes) {
+    currentBatch.push(hash);
+    if (currentBatch.length === TX_HASH_BATCH) {
+      txHashBatches.push(currentBatch);
+      currentBatch = [];
+    }
+  }
+  if (currentBatch.length) txHashBatches.push(currentBatch);
 
   const allTransactions: any[] = [];
+  const limit = pLimit(MAX_PARALLEL);
 
-  for (let i = 0; i < txHashBatches.length; i += MAX_PARALLEL) {
-    const chunks = txHashBatches.slice(i, i + MAX_PARALLEL);
-    const results = await Promise.all(
-      chunks.map((hashChunk) =>
+  const results = await Promise.all(
+    txHashBatches.map((hashChunk) =>
+      limit(() =>
         api.getTransactions({
           chain: api.chain,
+          addresses: [target],
           from_block: fromBlock,
           to_block: toBlock,
           transaction_hashes: hashChunk,
+          transactionType: "to"
+        }).catch((err) => {
+          console.error(`Failed to fetch transactions on ${api.chain}:`, err);
+          return [];
         })
       )
-    );
-    results.forEach((txs) => allTransactions.push(...txs));
-  }
+    )
+  );
+
+  results.forEach((txs) => {
+    if (Array.isArray(txs)) {
+      allTransactions.push(...txs);
+    }
+  });
 
   return { transactions: allTransactions, totalPayment };
 };
