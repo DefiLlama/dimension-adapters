@@ -91,10 +91,24 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch,
       start: "2025-04-07",
+      meta: {
+        methodology: {
+          Fees: "Fees are collected from the Rank Factory contracts and Rank Strategy contracts. They include creator fees, platform fees, performance fees, and payment for platform's services (like Forward Tests).",
+          Revenue:
+            "Revenue is calculated as the total fees collected from the Rank Factory and Rank Strategy contracts.",
+        },
+      },
     },
     [CHAIN.MODE]: {
       fetch,
       start: "2025-04-07",
+      meta: {
+        methodology: {
+          Fees: "Fees are collected from the Rank Factory contracts and Rank Strategy contracts. They include creator fees, platform fees, performance fees, and payment for platform's services (like Forward Tests).",
+          Revenue:
+            "Revenue is calculated as the total fees collected from the Rank Factory and Rank Strategy contracts.",
+        },
+      },
     },
   },
 };
