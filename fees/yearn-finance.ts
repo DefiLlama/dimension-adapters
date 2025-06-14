@@ -41,6 +41,10 @@ const YearnVaultsV1: Array<string> = [
   '0x96Ea6AF74Af09522fCB4c28C269C26F59a31ced6',
 ]
 
+const BlacklistVaults = [
+  String('0xb0154f71912866Bb69fE26fFc44779D99B9CAE85').toLowerCase(),
+];
+
 const ContractAbis = {
   token: 'address:token',
   totalSupply: 'uint256:totalSupply',
@@ -172,6 +176,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // sum fees
   for (const vault of vaults) {
+    if (BlacklistVaults.includes(vault.vault.toLowerCase())) {
+      continue;
+    }
+
     const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
     const totalFees = vault.totalAssets * priceShareGrowth / 1e18
 
@@ -187,6 +195,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   }
 }
