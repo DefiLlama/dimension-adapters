@@ -195,13 +195,13 @@ const adapter: Adapter = {
         methodology
       }
     },
-    [CHAIN.PLUME_LEGACY]: {
-      fetch,
-      start: '2024-06-24',
-      meta: {
-        methodology
-      }
-    },
+    // [CHAIN.PLUME_LEGACY]: {
+    //   fetch,
+    //   start: '2024-06-24',
+    //   meta: {
+    //     methodology
+    //   }
+    // },
     [CHAIN.BERACHAIN]: {
       fetch,
       start: '2024-05-30',
