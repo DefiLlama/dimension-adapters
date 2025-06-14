@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "factorySettings": "function factorySettings() view returns (address asset, address assetPriceFeed, address rankToken, address ranktokenPricePair, address backendAddress, address managedAddress, address rankStakingPool, uint256 rankStakingPoolId, uint256 premiumStakingValue, tuple(uint16 depositFeeBP, uint16 performanceFeeBP, uint16 ownerDepositFeeBP), uint256 MAX_DURATION, bool enabled)",
+    "rankStrategiesCount": "function rankStrategiesCount() view returns (uint256)",
+    "rankStrategies": "function rankStrategies(uint256) view returns (address)"
+  },
+  "events": {
+    "Pay": "event Pay(address indexed payer, address asset, uint256 amount, address destination, bytes32 paymentID)",
+    "RankStrategyCreated": "event RankStrategyCreated(address indexed creator, address rankStrategy, uint256 RANcost, uint256 initialDeposit, uint256 platformFee, uint256 RANprice)",
+    "InvestRequest": "event InvestRequest(address indexed user, address indexed creator, uint256 amount, uint256 creatorFee, uint256 platformFee, address indexed _referral)",
+    "UnlockConfirm": "event UnlockConfirm(address indexed user, uint256 shares, uint256 assetAmount, uint256 assetProfit, uint256 creatorPerformanceFee, uint256 platformPerformanceFee, uint256 assetLoss)"
+  }
+}
