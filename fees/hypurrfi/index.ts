@@ -129,7 +129,6 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       balances.dailySupplySideRevenue.add(reserveAddress, Number(interestAccrued) - revenueAccrued)
       balances.dailyProtocolRevenue.add(reserveAddress, revenueAccrued)
     } else {
-      console.log(interestAccruedUSDXL)
       balances.dailyFees.add(reserveAddress, interestAccruedUSDXL)
       balances.dailySupplySideRevenue.add(reserveAddress, 0)
       balances.dailyProtocolRevenue.add(reserveAddress, interestAccruedUSDXL)

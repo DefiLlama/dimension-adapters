@@ -1,0 +1,8 @@
+{
+  "collateralContract": "address:collateralContract",
+  "getAllPairAddresses": "address[]:getAllPairAddresses",
+  "totalCollateral": "uint256:totalCollateral",
+  "asset": "address:asset",
+  "LiquidationEvent": "event Liquidate(address indexed _borrower, uint256 _collateralForLiquidator, uint256 _sharesToLiquidate, uint256 _amountLiquidatorToRepay, uint256 _feesAmount, uint256 _sharesToAdjust, uint256 _amountToAdjust)",
+  "previewAddInterest": "function previewAddInterest() view returns (uint256 _interestEarned, uint256 _feesAmount, uint256 _feesShare, tuple(uint256 lastBlock, uint256 feeToProtocolRate, uint256 lastTimestamp, uint256 ratePerSec, uint256 fullUtilizationRate) _newCurrentRateInfo, tuple(uint128 amount, uint128 shares) _totalAsset, tuple(uint128 amount, uint128 shares) _totalBorrow)"
+}
