@@ -21,10 +21,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   // https://x.com/BodegaCardano/status/1933113161244389720
   if (options.startTimestamp < cutoffTimestamp) {
     // Before Jun 12, 2025
-    dhr.addCGToken("cardano", Number(dailyRevenue) * 0.25);
+    dhr.addCGToken("cardano", Number(dailyRevenue) * 0.75);
     dpr.addCGToken("cardano", Number(dailyRevenue) * 0.25);
   } else {
-    dhr.addCGToken("cardano", Number(dailyRevenue) * 0.5);
+    dhr.addCGToken("cardano", Number(dailyRevenue));
     dpr.addCGToken("cardano", 0);
   }
 
@@ -47,7 +47,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "All betting fees (4% of total protocol volume) paid by users.",
           Revenue: "All betting fees (4% of total protocol volume) paid by users.",
-          HoldersRevenue: "All revenue distributed to BODEGA holders(25%) before Jun 12, 2025 and 50% after Jun 12, 2025.",
+          HoldersRevenue: "All revenue distributed to BODEGA holders (75%) before Jun 12, 2025 and 100% after Jun 12, 2025.",
           ProtocolRevenue: "No revenue for Bodega protocol after Jun 12, 2025 and 25% before Jun 12, 2025.",
         },
       },
