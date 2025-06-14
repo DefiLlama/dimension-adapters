@@ -14,18 +14,18 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
   const preFetchedResults = options.preFetchedResults || [];
-
-  const data = preFetchedResults.find((result: any) => result.chain === options.chain);
+  // console.log(preFetchedResults);
+  const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain;
+  const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   if (data) {
-    // Daily fees = all fees (Limit + Market + UI Fee + Partner Fee Share + MEV Blocker Fee)
-    const totalFees = (data.limit || 0) + (data.market || 0) + (data.ui_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
-    const protocolRevenue = (data.limit || 0) + (data.market || 0) + (data.ui_fee || 0) + (data.mev_blocker_fee || 0);
-    dailyFees.addGasToken(totalFees * 1e18);
-    dailyProtocolRevenue.addGasToken(protocolRevenue * 1e18);
+    const totalFees = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
+    const protocolRevenue = (data.protocol_fee || 0) + (data.mev_blocker_fee || 0);
+    dailyFees.addCGToken('ethereum', totalFees);
+    dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
   } else { 
     throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
   }
@@ -40,10 +40,10 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
 
 
 const methodology = {
-  UserFees: "All trading fees including limit orders, market orders, UI fees, partner fees, and MEV blocker fees",
-  Fees: "All trading fees including limit orders, market orders, UI fees, partner fees, and MEV blocker fees",
-  Revenue: "Trading fees excluding partner fee share (limit orders + market orders + UI fees + MEV blocker fees)",
-  ProtocolRevenue: "Trading fees excluding partner fee share (limit orders + market orders + UI fees + MEV blocker fees)",
+  UserFees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
+  Fees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
+  Revenue: "Trading fees excluding partner fee share (protocol fees + MEV blocker fees)",
+  ProtocolRevenue: "Trading fees excluding partner fee share (protocol fees + MEV blocker fees)",
 }
 
 const adapter: Adapter = {
@@ -58,14 +58,14 @@ const adapter: Adapter = {
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2024-06-01',
+      start: '2024-05-20',
       meta: {
         methodology
       }
     },
     [CHAIN.BASE]: {
       fetch,
-      start: '2025-01-15',
+      start: '2024-12-02',
       meta: {
         methodology
       }
