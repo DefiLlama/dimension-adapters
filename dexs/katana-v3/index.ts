@@ -1,5 +1,7 @@
-const { CHAIN } = require("../../helpers/chains");
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
+import { FetchOptions } from "../../adapters/types";
 
 /*
 use axiedao.org proxy, because public endpoint
@@ -7,12 +9,36 @@ https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-v3
 blocks requests from the DefiLlama server
 */
 
-const adpters = univ2Adapter2({
-  [CHAIN.RONIN]: "https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-v3"
-}, {
-  factoriesName: "factories",
-  dayData: "PoolDayData",
-});
+interface IData {
+    volume: number;
+}
 
-adpters.adapter[CHAIN.RONIN].start = 1732603221;
-export default adpters;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const data: IData[] = await queryDuneSql(options, `
+      select 
+        sum(amount_usd) as volume
+      from dex.trades
+      where project = 'katana'
+        and block_time >= from_unixtime(${options.startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
+    `);
+
+    const dailyVolume = data[0].volume || 0;
+
+    return {
+        dailyVolume
+    };
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+      [CHAIN.RONIN]: {
+          fetch,
+          start: 1732603221
+      }
+  },
+  isExpensiveAdapter: true
+};
+
+export default adapter;
