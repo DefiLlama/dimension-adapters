@@ -13,33 +13,14 @@ with
         select
             t.block_time,
             'ethereum' as chain,
-            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "Total (including ext. Partner Fee)",
-            if(
-                t.block_number<19564399
-                or protocol_fee_kind='surplus',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Limit",
-            if(
-                protocol_fee_kind='priceimprovement',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Market",
-            if(
-                partner_fee_recipient in (0x0000000000000000000000000000000000000000),
-                partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "UI Fee",
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
             if(
                 partner_fee_recipient not in (0x0000000000000000000000000000000000000000),
-                -- some partners have custom fee shares
                 case partner_fee_recipient
                     when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
                     else 0.15
                 end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "Partner Fee Share",
-            d.app_code,
-            t.usd_value,
-            t.order_uid,
-            t.tx_hash,
-            r.solver
+            ) as "partner_fee"
         from
             "query_4364122(blockchain='ethereum')" as r
             inner join cow_protocol_ethereum.trades as t on r.order_uid=t.order_uid
@@ -58,20 +39,7 @@ with
         select
             t.block_time,
             'base' as chain,
-            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "Total (including ext. Partner Fee)",
-            if(
-                t.block_number<19564399
-                or protocol_fee_kind='surplus',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Limit",
-            if(
-                protocol_fee_kind='priceimprovement',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Market",
-            if(
-                partner_fee_recipient in (0x0000000000000000000000000000000000000000),
-                partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "UI Fee",
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
             if(
                 partner_fee_recipient not in (0x0000000000000000000000000000000000000000),
                 -- some partners have custom fee shares
@@ -79,12 +47,7 @@ with
                     when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
                     else 0.15
                 end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "Partner Fee Share",
-            d.app_code,
-            t.usd_value,
-            t.order_uid,
-            t.tx_hash,
-            r.solver
+            ) as "partner_fee"
         from
             "query_4364122(blockchain='base')" as r
             inner join cow_protocol_base.trades as t on r.order_uid=t.order_uid
@@ -103,33 +66,14 @@ with
         select
             t.block_time,
             'arbitrum' as chain,
-            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "Total (including ext. Partner Fee)",
-            if(
-                t.block_number<19564399
-                or protocol_fee_kind='surplus',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Limit",
-            if(
-                protocol_fee_kind='priceimprovement',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Market",
-            if(
-                partner_fee_recipient in (0x451100Ffc88884bde4ce87adC8bB6c7Df7fACccd),
-                partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "UI Fee",
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
             if(
                 partner_fee_recipient not in (0x451100Ffc88884bde4ce87adC8bB6c7Df7fACccd),
-                -- some partners have custom fee shares
                 case partner_fee_recipient
                     when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
                     else 0.15
                 end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "Partner Fee Share",
-            d.app_code,
-            t.usd_value,
-            t.order_uid,
-            t.tx_hash,
-            r.solver
+            ) as "partner_fee"
         from
             "query_4364122(blockchain='arbitrum')" as r
             inner join cow_protocol_arbitrum.trades as t on r.order_uid=t.order_uid
@@ -148,33 +92,14 @@ with
         select
             t.block_time,
             'gnosis' as chain,
-            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "Total (including ext. Partner Fee)",
-            if(
-                t.block_number<19564399
-                or protocol_fee_kind='surplus',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Limit",
-            if(
-                protocol_fee_kind='priceimprovement',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Market",
-            if(
-                partner_fee_recipient in (0x6b3214fD11dc91De14718DeE98Ef59bCbFcfB432),
-                partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "UI Fee",
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
             if(
                 partner_fee_recipient not in (0x6b3214fD11dc91De14718DeE98Ef59bCbFcfB432),
-                -- some partners have custom fee shares
                 case partner_fee_recipient
                     when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
                     else 0.15
                 end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "Partner Fee Share",
-            d.app_code,
-            t.usd_value,
-            t.order_uid,
-            t.tx_hash,
-            r.solver
+            ) as "partner_fee"
         from
             "query_4364122(blockchain='gnosis')" as r
             inner join cow_protocol_gnosis.trades as t on r.order_uid=t.order_uid
@@ -205,20 +130,12 @@ with
             date(p.block_time) as "day",
             p.chain as chain,
             case 
-                when p.chain = 'gnosis' then sum("Limit" / coalesce(eth.price, 1))
-                else sum("Limit")
-            end as "limit",
+                when p.chain = 'gnosis' then sum("protocol_fee" / coalesce(eth.price, 1))
+                else sum("protocol_fee")
+            end as "protocol_fee",
             case 
-                when p.chain = 'gnosis' then sum("Market" / coalesce(eth.price, 1))
-                else sum("Market")
-            end as "market",
-            case 
-                when p.chain = 'gnosis' then sum("UI Fee" / coalesce(eth.price, 1))
-                else sum("UI Fee")
-            end as "ui_fee",
-            case 
-                when p.chain = 'gnosis' then sum("Partner Fee Share" / coalesce(eth.price, 1))
-                else sum("Partner Fee Share")
+                when p.chain = 'gnosis' then sum("partner_fee" / coalesce(eth.price, 1))
+                else sum("partner_fee")
             end as "partner_fee"
         from
             protocol_fees_per_chain p
@@ -229,9 +146,7 @@ with
 select
     f.day,
     f.chain,
-    f.limit,
-    f.market, 
-    f.ui_fee,
+    f.protocol_fee,
     f.partner_fee,
     case 
         when f.chain = 'ethereum' then coalesce(m.mev_blocker_fee, 0)
