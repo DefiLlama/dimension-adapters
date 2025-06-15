@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
       },
     },
   },
-  version: 1,
+  version: 2,
 };
 
 export default adapter;
