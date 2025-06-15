@@ -28,11 +28,11 @@ const getGQLClient = () => {
 };
 
 const fetch = async ({ startOfDay }: FetchOptions) => {
-  const statsRes = await getGQLClient().request(getFees(), {
+  const feesRes = await getGQLClient().request(getFees(), {
     date: startOfDay,
   });
-  const dailyFees = statsRes.algebraDayDatas[0].feesUSD;
-  const totalFees = statsRes.factories[0].totalFeesUSD;
+  const dailyFees = feesRes.algebraDayDatas[0].feesUSD;
+  const totalFees = feesRes.factories[0].totalFeesUSD;
   return {
     dailyFees: dailyFees,
     totalFees: totalFees,
@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
       },
     },
   },
-  version: 2,
+  version: 1,
 };
 
 export default adapter;
