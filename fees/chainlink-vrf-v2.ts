@@ -29,7 +29,7 @@ const address: TAddrress = {
 const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi): Promise<{ transactions: any[]; totalPayment: number }> => {
   const target = address[api.chain];
   const TX_HASH_BATCH = 50;
-  const MAX_PARALLEL = 3;
+  const MAX_PARALLEL = 2;
 
   const logs = await api.getLogs({
     target,
