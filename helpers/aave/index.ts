@@ -8,6 +8,11 @@ export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
   lendingPoolProxy: string;
   dataProvider: string;
+
+  // GHO on aave
+  seflLoanAssets?: {
+    [key: string]: true,
+  }
 }
 
 export interface AaveAdapterExportConfig {
@@ -77,15 +82,29 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     }
 
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
-    const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
-    const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-    const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-    const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
-    const revenueAccrued = Number(interestAccrued) * reserveFactor
 
-    balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
-    balances.dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
-    balances.dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+    if (pool.seflLoanAssets && pool.seflLoanAssets[reservesList[reserveIndex].toLowerCase()]) {
+      // self-loan assets, no supply-side revenue
+      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
+      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      const interestAccrued = totalLiquidity * growthVariableBorrowIndex / LiquidityIndexDecimals
+
+      balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
+      balances.dailySupplySideRevenue.add(reservesList[reserveIndex], 0)
+      balances.dailyProtocolRevenue.add(reservesList[reserveIndex], interestAccrued)
+    } else {
+      // normal reserves
+      const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
+      const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+      const revenueAccrued = Number(interestAccrued) * reserveFactor
+
+      balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
+      balances.dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
+      balances.dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+    }
   }
 
   // get flashloan fees
