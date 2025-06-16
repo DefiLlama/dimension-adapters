@@ -48,7 +48,6 @@ const LiquidityIndexDecimals = BigInt(1e27);
 
 const USDXL_TOKEN = '0xca79db4b49f608ef54a5cb813fbed3a6387bc645'
 
-const USDXL_HYTOKEN = '0x7911c2c9c5f5a6f4Bef58d7dF35903abd3EE9DD6'
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
@@ -92,19 +91,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     calls: reservesList,
   })
 
-  const interestAccruedUSDXLBefore = await options.fromApi.multiCall({
-    target: USDXL_TOKEN,
-    abi: 'function balanceOf(address account) external view returns (uint256)',
-    calls: [USDXL_HYTOKEN],
-  })
 
-  const interestAccruedUSDXLAfter = await options.toApi.multiCall({
-    target: USDXL_TOKEN,
-    abi: 'function balanceOf(address account) external view returns (uint256)',
-    calls: [USDXL_HYTOKEN],
-  })
-
-  const interestAccruedUSDXL = BigInt(interestAccruedUSDXLAfter[0]) - BigInt(interestAccruedUSDXLBefore[0])
 
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
@@ -118,20 +105,32 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     }
 
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
-    const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
-    const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-    const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-    const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
     
+    let interestAccrued: bigint
+    if (!isUSDXL) {
+      // For regular reserves, use liquidity index growth
+      const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
+      const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+    
+    } else {
+      // For USDXL (like GHO), use variable borrow index growth since all interest is protocol revenue
+      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
+      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      interestAccrued = totalLiquidity * growthVariableBorrowIndex / LiquidityIndexDecimals
+    }
     const revenueAccrued = Number(interestAccrued) * reserveFactor
     if (!isUSDXL) {
       balances.dailyFees.add(reserveAddress, interestAccrued)
       balances.dailySupplySideRevenue.add(reserveAddress, Number(interestAccrued) - revenueAccrued)
       balances.dailyProtocolRevenue.add(reserveAddress, revenueAccrued)
     } else {
-      balances.dailyFees.add(reserveAddress, interestAccruedUSDXL)
+      // For USDXL, all interest is protocol revenue (like GHO)
+      balances.dailyFees.add(reserveAddress, interestAccrued)
       balances.dailySupplySideRevenue.add(reserveAddress, 0)
-      balances.dailyProtocolRevenue.add(reserveAddress, interestAccruedUSDXL)
+      balances.dailyProtocolRevenue.add(reserveAddress, interestAccrued)
     }
   }
 

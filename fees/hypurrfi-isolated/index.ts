@@ -43,6 +43,7 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
         })
 
+
         const feePairDataAfter = await options.toApi.multiCall({
           abi: abi['previewAddInterest'],
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
@@ -58,8 +59,8 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
         })
 
         for (let i = 0; i < pairs.length; i++) {
-          const asset = assetPairData[i]
-          const collateral = collateralPairData[i]
+          const asset = normalizeAddress(assetPairData[i])
+          const collateral = normalizeAddress(collateralPairData[i])
           const bucketAsset = feeBucket[asset] || {
             fees: 0,
             protocolRevenue: 0,
@@ -74,13 +75,23 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
           const feeAfter = feePairDataAfter[i]
           
           // Calculate fee differences and ensure they are non-negative
-          const interestEarned = Number(feeAfter._interestEarned) - Number(feeBefore._interestEarned)
-          const feesEarned = Number(feeAfter._feesAmount) - Number(feeBefore._feesAmount)
-
-          bucketAsset.fees += Number(interestEarned)
-          bucketAsset.protocolRevenue += Number(feesEarned)
-          bucketAsset.supplySideRevenue += Number(interestEarned)
+          // Handle cases where values might have been reset or are cumulative
+          const interestBefore = Number(feeBefore._interestEarned)
+          const interestAfter = Number(feeAfter._interestEarned)
+          const feesBefore = Number(feeBefore._feesAmount)
+          const feesAfter = Number(feeAfter._feesAmount)
           
+          const interestEarned = interestAfter - interestBefore
+
+          if (interestEarned > 0) {
+            bucketAsset.fees += interestEarned
+            bucketAsset.supplySideRevenue += interestEarned
+          }
+
+          const feesEarned = feesAfter - feesBefore
+          if (feesEarned > 0) {
+            bucketAsset.protocolRevenue += feesEarned
+          }
 
           const liquidationPairEvents = await options.getLogs({
             targets: [pairs[i]],
@@ -91,29 +102,17 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
   
           if (liquidationPairEvents.length > 0) {
             for (const event of liquidationPairEvents) {
-              /**
-               * The math calculation for liquidation fees
-               * 
-               * where:
-               * collateralForLiquidator - collateral amount given to liquidator
-               * feesAmount - protocol fees from liquidation
-               */
-        
               const collateralForLiquidator = Number(event[1])
               const feesAmount = Number(event[4])
       
-              // protocol fees from liquidation
-              const b = collateralForLiquidator
-              const b2 = feesAmount
-      
               // count liquidation bonus as fees
-              bucketCollateral.fees += b
+              bucketCollateral.fees += collateralForLiquidator
       
               // count liquidation bonus for liquidator as supply side fees
-              bucketCollateral.supplySideRevenue += b - b2
+              bucketCollateral.supplySideRevenue += collateralForLiquidator - feesAmount
       
               // count liquidation bonus protocol fee as revenue
-              bucketCollateral.protocolRevenue += Number(b2)
+              bucketCollateral.protocolRevenue += Number(feesAmount)
             }
           }
 
@@ -122,16 +121,23 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
         }
 
         for (const asset in feeBucket) {
-          dailyFees.add(asset, feeBucket[asset].fees)
-          dailyProtocolRevenue.add(asset, feeBucket[asset].protocolRevenue)
-          dailySupplySideRevenue.add(asset, feeBucket[asset].supplySideRevenue)
+          const bucket = feeBucket[asset]
+          // Ensure all values are non-negative
+          const fees = Math.max(0, bucket.fees)
+          const protocolRevenue = Math.max(0, bucket.protocolRevenue)
+          const supplySideRevenue = Math.max(0, bucket.supplySideRevenue)
+          
+          // Only add non-zero values to avoid unnecessary entries
+          if (fees > 0) {
+            dailyFees.add(asset, fees)
+          }
+          if (protocolRevenue > 0) {
+            dailyProtocolRevenue.add(asset, protocolRevenue)
+          }
+          if (supplySideRevenue > 0) {
+            dailySupplySideRevenue.add(asset, supplySideRevenue)
+          }
         }
-        for (const collateral in feeBucket) {
-          dailyFees.add(collateral, feeBucket[collateral].fees)
-          dailyProtocolRevenue.add(collateral, feeBucket[collateral].protocolRevenue)
-          dailySupplySideRevenue.add(collateral, feeBucket[collateral].supplySideRevenue)
-        }
-        console.log(feeBucket)
 
 
         return {
