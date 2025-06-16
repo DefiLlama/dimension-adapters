@@ -33,10 +33,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // fees distributed to mETH holders are deducted by 10% protocol fees
   // it was 90% of total rewards earned from ETH staking
-  const totalFees = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+  const df = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
 
   // add ETH fees
-  dailyFees.addGasToken(totalFees)
+  dailyFees.addGasToken(df)
 
   const dailyProtocolRevenue = dailyFees.clone(0.1)
   const dailySupplySideRevenue = dailyFees.clone(0.9)
@@ -52,11 +52,9 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-10-07',
-      meta: {
-        methodology,
-      },
+      meta: { methodology },
     },
   },
 };

@@ -181,14 +181,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
-    const totalFees = vault.totalAssets * priceShareGrowth / 1e18
+    const tf = vault.totalAssets * priceShareGrowth / 1e18
 
-    const performanceFees = totalFees * vault.performanceFeeRate
-    const managementFees = totalFees * vault.managementFeeRate
+    const performanceFees = tf * vault.performanceFeeRate
+    const managementFees = tf * vault.managementFeeRate
     const protocolFees = performanceFees + managementFees
 
-    dailyFees.add(vault.token, totalFees)
-    dailySupplySideRevenue.add(vault.token, totalFees - protocolFees)
+    dailyFees.add(vault.token, tf)
+    dailySupplySideRevenue.add(vault.token, tf - protocolFees)
     dailyProtocolRevenue.add(vault.token, protocolFees)
   }
 
@@ -204,35 +204,35 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2020-07-27',
       meta: {
         methodology,
       }
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
