@@ -29,19 +29,32 @@ const fetch = async (timestamp: number) => {
     }
   `;
 
-  const poolList: Array<{ dailyVolumeUSD: string }> = (await httpGet(`https://assets.hyperion.xyz/files/pool-list.json?t=${dayTimestamp}`)).data;
-  const dailyVolume = poolList.reduce((acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD), 0);
+  const poolList: Array<{ dailyVolumeUSD: string }> = (
+    await httpGet(
+      `https://assets.hyperion.xyz/files/pool-list.json?t=${dayTimestamp}`
+    )
+  ).data;
+  const dailyVolume = poolList.reduce(
+    (acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD),
+    0
+  );
 
   const variables = {
     timestamp: dayTimestamp,
   };
 
   const data = await request(BASE_URL, query, variables);
+  const dailyFees = data.api.getVolumeFeeStat.dailyFees;
+  const totalFees = data.api.getVolumeFeeStat.totalFees;
+  const dailyRevenue = Number(dailyFees) * 0.2;
+  const totalRevenue = Number(totalFees) * 0.2;
 
   const res = {
-    dailyFees: `${data.api.getVolumeFeeStat.dailyFees}`,
+    dailyFees: `${dailyFees}`,
     dailyVolume: `${dailyVolume}`,
-    totalFees: `${data.api.getVolumeFeeStat.totalFees}`,
+    totalFees: `${totalFees}`,
+    totalRevenue: `${totalRevenue}`,
+    dailyRevenue: `${dailyRevenue}`,
     timestamp: timestamp,
   };
 
