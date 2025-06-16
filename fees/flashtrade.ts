@@ -21,7 +21,7 @@ const calculateProtocolRevenue = (stats: Pool[]) => {
         .reduce((sum, item) => sum + 0.3 * parseFloat(item.accured), 0);
 }
 
-const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchFlashStats = async (_: number): Promise<FetchResultFees> => {
     const dailyStatsResponse = await fetchURL(urlDailyStats);
     const dailyStats: Pool[] = dailyStatsResponse;
     const dailyAccrued = dailyStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);

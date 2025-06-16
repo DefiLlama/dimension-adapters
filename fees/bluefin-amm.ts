@@ -3,7 +3,7 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async (_: number): Promise<FetchResultFees> => {
     const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
     const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
 

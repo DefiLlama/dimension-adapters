@@ -20,7 +20,7 @@ const getData = async () => {
   return cachedData;
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (_a: number, _b: any, options: FetchOptions) => {
 
   const data = await getData();
   const stats = data.chains.find((item: any) => item.chain === options.chain);

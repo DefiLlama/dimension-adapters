@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 const url_sui="https://dapi.api.sui-prod.bluefin.io/marketData/fees"
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async (_: number): Promise<FetchResultFees> => {
   const result= await fetchURL(url_sui);
   const dailyFees=result.last24HoursFees;
 
