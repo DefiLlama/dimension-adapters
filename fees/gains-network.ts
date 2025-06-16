@@ -41,23 +41,15 @@ const prefetch = async (options: FetchOptions) => {
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
-  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, totalFees] = chainStat
-    ? [
-        chainStat.all_fees,
-        chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers,
-        chainStat.gns_stakers,
-        chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers,
-        chainStat.cumul_fees,
-      ]
-    : [0, 0, 0, 0, 0];
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
+    ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
+    : [0, 0, 0, 0];
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    totalFees,
   };
 };
 
@@ -86,21 +78,21 @@ const fetchApechain = async (timestamp: number, _: ChainBlocks, { createBalances
   stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
 
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: "2022-06-03",
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: "2022-12-30",
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: "2024-09-26",
     },
     [CHAIN.APECHAIN]: {

@@ -31,11 +31,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // fees distributed to WBETH holders are deducted by 25% protocol fees
   // it was 75% of total rewards earned from ETH staking
-  const totalFees = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.75 / 1e18
+  const df = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.75 / 1e18
 
   let token = options.chain === CHAIN.BSC ? ETH_ON_BSC : ZeroAddress
 
-  dailyFees.add(token, totalFees)
+  dailyFees.add(token, df)
 
   const dailyProtocolRevenue = dailyFees.clone(0.25)
   const dailySupplySideRevenue = dailyFees.clone(0.75)
@@ -51,14 +51,14 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-04-20',
       meta: {
         methodology,
       },
     },
     [CHAIN.BSC]: {
-      fetch: fetch,
+      fetch,
       start: '2023-04-20',
       meta: {
         methodology,

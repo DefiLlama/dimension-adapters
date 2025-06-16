@@ -13,7 +13,6 @@ const methodology = {
     ProtocolReveneue: '30% of all the fees accrued excluding Community pool.'
 }
 
-const urlTotalStats = "https://api.prod.flash.trade/market-stat/revenue-all-time";
 const urlDailyStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
 
 const calculateProtocolRevenue = (stats: Pool[]) => {
@@ -23,26 +22,15 @@ const calculateProtocolRevenue = (stats: Pool[]) => {
 }
 
 const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
-    const totalStatsResponse = await fetchURL(urlTotalStats);
     const dailyStatsResponse = await fetchURL(urlDailyStats);
-
-    const totalStats: Pool[] = totalStatsResponse;
     const dailyStats: Pool[] = dailyStatsResponse;
-
     const dailyAccrued = dailyStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
-    const totalAccrued = totalStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
-
     const dailyProtocolRevenue = calculateProtocolRevenue(dailyStats);
-    const totalProtocolRevenue = calculateProtocolRevenue(totalStats);
 
     return {
-        timestamp,
         dailyFees: dailyAccrued.toString(),
-        totalFees: totalAccrued.toString(),
         dailyRevenue: dailyProtocolRevenue.toString(),
         dailyProtocolRevenue: dailyProtocolRevenue.toString(),
-        totalProtocolRevenue: totalProtocolRevenue.toString(),
-        totalRevenue: totalProtocolRevenue.toString(),
     };
 };
 
@@ -52,9 +40,7 @@ const adapter: Adapter = {
         [CHAIN.SOLANA]: {
             runAtCurrTime: true,
             fetch: fetchFlashStats,
-                        meta: {
-                methodology,
-            },
+            meta: { methodology },
         },
     },
 };
