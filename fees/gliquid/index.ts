@@ -1,3 +1,5 @@
+// Source: https://gliquids-organization.gitbook.io/gliquid/about-us/fee-structure
+
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -18,9 +20,16 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
   });
 
   const dailyFees = feesRes.algebraDayDatas[0].feesUSD;
+  const dailyProtocolRevenue = dailyFees * 0.05;
+  const dailySupplySideRevenue = dailyFees * 0.95;
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -34,6 +43,10 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: "Swap fees paid by users.",
+          UserFees: "Swap fees paid by users",
+          Revenue: "Total revenue from fees",
+          ProtocolRevenue: "5% of fee goes to the protocol",
+          SupplySideRevenue: "95% of fee goes to the supply side",
         },
       },
     },
