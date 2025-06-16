@@ -198,7 +198,8 @@ function aggregateFee(
 }
 
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay
     const borrowFees = await getBorrowFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
     const coreFees = await getCoreFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
     const veANGLEInterest = await getVEANGLERevenues(endpoints[options.chain] as string, timestamp);
