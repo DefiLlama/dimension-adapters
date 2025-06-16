@@ -2,7 +2,7 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const feesQueryURL = "https://app.thala.fi/api/defillama/protocol-fee-chart?timeframe=`;
+const feesQueryURL = "https://app.thala.fi/api/defillama/protocol-fee-chart?timeframe=";
 
 const feesEndpoint = (endTimestamp: number, timeframe: string) =>
   endTimestamp
