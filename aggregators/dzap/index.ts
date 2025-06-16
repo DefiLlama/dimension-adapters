@@ -77,13 +77,10 @@ async function sleep(time: number) {
 
 const fetch = (chain: number) => async (options: FetchOptions) => {
   await sleep(2);
-  const data: ApiResponse = await fetchURL(
-    `${CHAIN_VOLUME_API}?chainId=${chain}`,
-    3
-  );
+  const data: ApiResponse = await fetchURL(`${CHAIN_VOLUME_API}?chainId=${chain}`);
+
   return {
     dailyVolume: data.swap.last24Hours,
-    totalVolume: data.swap.allTime,
   };
 };
 
