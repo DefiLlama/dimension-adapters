@@ -40,52 +40,38 @@ const feesQuery = gql`
   }
 `
 
-const fetchFees = (chain: Chain) => {
-  return async ({  getToBlock, getFromBlock }: FetchOptions) => {
-    const endpoint = endpoints[chain];
-    const toBlock = await getToBlock();
-    const fromBlock = await getFromBlock();
+const fetch = async (options: FetchOptions) => {
+  const endpoint = endpoints[options.chain];
+  const toBlock = await options.getToBlock();
+  const fromBlock = await options.getFromBlock();
 
-    const response: IResponse = (await request(endpoint, feesQuery, {
-      toBlock,
-      fromBlock
-    }));
+  const response: IResponse = (await request(endpoint, feesQuery, {
+    toBlock,
+    fromBlock
+  }));
 
-    const dailyFees = response.today.reduce((acc, pool) => {
-      const id = response.yesterday.find((p) => p.id === pool.id)
-      if (!id) return acc
-      return acc + Number(pool.feeUSD) - Number(id.feeUSD);
-    }, 0);  
-    const dailyRevenue = response.today.reduce((acc, pool) => {
-      const id = response.yesterday.find((p) => p.id === pool.id)
-      if (!id) return acc
-      return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
-    },0);
-    const totalFees = response.today.reduce((acc, pool) => {
-      return acc + Number(pool.feeUSD);
-    },0);
-    const totalRevenue = response.today.reduce((acc, pool) => {
-      return acc + Number(pool.revenueUSD);
-    },0);
+  const dailyFees = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.feeUSD) - Number(id.feeUSD);
+  }, 0);  
+  const dailyRevenue = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
+  },0);
 
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      totalFees,
-      totalRevenue: totalRevenue,
-      totalProtocolRevenue: totalRevenue,
-    }
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 
-const fetchPolygon = async (
-  timestamp: number,
-  _1: any,
-  options: FetchOptions
-): Promise<FetchResult> => {
+const fetchPolygon = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+
   // 10000
   const logs = await options.getLogs({
     target: "0x2370cB1278c948b606f789D2E5Ce0B41E90a756f", // 0.5%
@@ -101,7 +87,7 @@ const fetchPolygon = async (
 
   logs.forEach((log) => {
     dailyVolume.add(log.outAsset, log.outAmount)
-    dailyFees.add(log.outAsset, log.outAmount * (5/10000))
+    dailyFees.add(log.outAsset, Number(log.outAmount) * (5/10000))
   });
 
   logs_2.forEach((log) => {
@@ -109,7 +95,6 @@ const fetchPolygon = async (
   });
 
   return {
-    timestamp,
     dailyVolume,
     dailyFees,
   };
@@ -119,11 +104,11 @@ const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
+      fetch,
       start: '2022-08-05',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
+      fetch,
       start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
@@ -131,11 +116,11 @@ const adapters: SimpleAdapter = {
       start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
-    //   fetch: fetchFees(CHAIN.MOONBEAM),
+    //   fetch,
     //   start: '2022-08-05',
     // },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
+      fetch,
       start: '2023-08-02',
     }
   }

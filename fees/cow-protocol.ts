@@ -22,9 +22,9 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   if (data) {
-    const totalFees = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
+    const df = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
     const protocolRevenue = (data.protocol_fee || 0) + (data.mev_blocker_fee || 0);
-    dailyFees.addCGToken('ethereum', totalFees);
+    dailyFees.addCGToken('ethereum', df);
     dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
   } else { 
     throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
