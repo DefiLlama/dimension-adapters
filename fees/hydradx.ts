@@ -1,21 +1,14 @@
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
-import { getPoolFees } from "../helpers/aave";
+import AaveAbis from '../helpers/aave/abi';
 
-const fetchHydraDXFees = async (options: FetchOptions) => {
+const PercentageMathDecimals = 1e4;
+const LiquidityIndexDecimals = BigInt(1e27);
+
+const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances()
   let dailyProtocolRevenue = options.createBalances()
   let dailySupplySideRevenue = options.createBalances()
-
-  const startTimestamp = new Date('2024-11-26').getTime() / 1000;
-  if (options.endTimestamp < startTimestamp) {
-    return {
-      dailyFees,
-      dailyRevenue: dailyProtocolRevenue,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
-    }
-  }
 
   const pool = {
     version: 3 as const,
@@ -23,138 +16,98 @@ const fetchHydraDXFees = async (options: FetchOptions) => {
     dataProvider: '0xdf18300261edfF47b28c6a6adBCBCf468B52e5a5',
   }
 
-  try {
-    const startBlock = await options.getStartBlock().catch(() => null);
-    const endBlock = await options.getEndBlock().catch(() => null);
-    
-    if (startBlock && endBlock) {
-      await getPoolFees(pool, options, {
-        dailyFees,
-        dailySupplySideRevenue,
-        dailyProtocolRevenue,
-      })
-      
-      return {
-        dailyFees,
-        dailyRevenue: dailyProtocolRevenue,
-        dailyProtocolRevenue,
-        dailySupplySideRevenue,
-      }
-    }
-  } catch (error: any) {
-    if (!error.message.includes('fromBlock or fromTimestamp')) {
-      console.warn(`HydraDX: Aave helper failed:`, error.message);
-    }
-  }
+  // get reserve (token) list which are supported by the lending pool
+  const reservesList: Array<string> = await options.fromApi.call({
+    target: pool.lendingPoolProxy,
+    abi: AaveAbis.getReservesList,
+    permitFailure: true,
+  })
 
-  try {
-    const reserves = await options.api.call({
-      target: pool.lendingPoolProxy,
-      abi: 'address[]:getReservesList',
-    }).catch(() => []);
-    
-    if (reserves.length === 0) return {
+  // in this case the market is not exists yet
+  if (!reservesList || reservesList.length == 0) {
+    return {
       dailyFees,
       dailyRevenue: dailyProtocolRevenue,
       dailyProtocolRevenue,
       dailySupplySideRevenue,
     };
+  }
 
-    const currentReserveData = await Promise.all(
-      reserves.map((reserve: string) =>
-        options.api.call({
-          target: pool.dataProvider,
-          abi: 'function getReserveData(address asset) view returns (uint256 unbacked, uint256 accruedToTreasuryScaled, uint256 totalAToken, uint256 totalStableDebt, uint256 totalVariableDebt, uint256 liquidityRate, uint256 variableBorrowRate, uint256 stableBorrowRate, uint256 averageStableBorrowRate, uint256 liquidityIndex, uint256 variableBorrowIndex, uint40 lastUpdateTimestamp)',
-          params: [reserve],
-        }).catch(() => null)
-      )
-    );
+  // get reserve configs
+  const reserveConfigs = await options.fromApi.multiCall({
+    abi: AaveAbis.getReserveConfiguration,
+    target: pool.dataProvider,
+    calls: reservesList,
+  })
+  
+  // get reserves factors
+  const reserveFactors: Array<number> = reserveConfigs.map((config: any) => Number(config.reserveFactor))
 
-    const previousReserveData = await Promise.all(
-      reserves.map((reserve: string) =>
-        options.fromApi.call({
-          target: pool.dataProvider,
-          abi: 'function getReserveData(address asset) view returns (uint256 unbacked, uint256 accruedToTreasuryScaled, uint256 totalAToken, uint256 totalStableDebt, uint256 totalVariableDebt, uint256 liquidityRate, uint256 variableBorrowRate, uint256 stableBorrowRate, uint256 averageStableBorrowRate, uint256 liquidityIndex, uint256 variableBorrowIndex, uint40 lastUpdateTimestamp)',
-          params: [reserve],
-        }).catch(() => null)
-      )
-    );
+  // count fees by growth liquidity index
+  const reserveDataBefore = await options.fromApi.multiCall({
+    abi: AaveAbis.getReserveDataV3,
+    target: pool.dataProvider,
+    calls: reservesList,
+  })
+  const reserveDataAfter = await options.toApi.multiCall({
+    abi: AaveAbis.getReserveDataV3,
+    target: pool.dataProvider,
+    calls: reservesList,
+  })
 
-    const LiquidityIndexDecimals = BigInt(1e27);
-    const PercentageMathDecimals = 1e4;
-    let hasAnyGrowth = false;
+  let hasAnyGrowth = false;
 
-    for (let i = 0; i < reserves.length; i++) {
-      const current = currentReserveData[i];
-      const previous = previousReserveData[i];
+  // all calculations use BigInt because aave math has 27 decimals
+  for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
+    let totalLiquidity = BigInt(0)
+    // for v3, use totalAToken directly
+    totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
+
+    const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
+    const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
+    const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
+    const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+    
+    if (growthLiquidityIndex > 0) {
+      const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+      const revenueAccrued = Number(interestAccrued) * reserveFactor
+
+      dailyFees.add(reservesList[reserveIndex], interestAccrued)
+      dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
+      dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+      hasAnyGrowth = true;
+    }
+  }
+
+  // Fallback calculation when no liquidity index growth is detected
+  if (!hasAnyGrowth) {
+    for (let i = 0; i < reservesList.length; i++) {
+      const current = reserveDataAfter[i];
       
-      if (current && previous && current.totalAToken > 0) {
-        try {
-          const reserveConfig = await options.api.call({
-            target: pool.dataProvider,
-            abi: 'function getReserveConfigurationData(address asset) view returns (uint256 decimals, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus, uint256 reserveFactor, bool usageAsCollateralEnabled, bool borrowingEnabled, bool stableBorrowRateEnabled, bool isActive, bool isFrozen)',
-            params: [reserves[i]],
-          }).catch(() => null);
+      if (current && current.totalAToken > 0) {
+        const reserveConfig = await options.fromApi.call({
+          target: pool.dataProvider,
+          abi: AaveAbis.getReserveConfiguration,
+          params: [reservesList[i]],
+        });
 
-          if (reserveConfig) {
-            const reserveFactor = Number(reserveConfig.reserveFactor) / PercentageMathDecimals;
-            const totalLiquidity = BigInt(current.totalAToken);
-            
-            const currentLiquidityIndex = BigInt(current.liquidityIndex);
-            const previousLiquidityIndex = BigInt(previous.liquidityIndex);
-            
-            if (currentLiquidityIndex > previousLiquidityIndex) {
-              const growthLiquidityIndex = currentLiquidityIndex - previousLiquidityIndex;
-              const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals;
-              const revenueAccrued = Number(interestAccrued) * reserveFactor;
+        if (reserveConfig) {
+          const reserveFactor = Number(reserveConfig.reserveFactor) / PercentageMathDecimals;
+          
+          const totalBorrows = BigInt(current.totalVariableDebt) + BigInt(current.totalStableDebt);
+          if (totalBorrows > 0 && current.variableBorrowRate > 0) {
+            const borrowDailyRate = BigInt(current.variableBorrowRate) / BigInt(365);
+            const totalDailyInterest = totalBorrows * borrowDailyRate / LiquidityIndexDecimals;
+            const protocolShare = Number(totalDailyInterest) * reserveFactor;
+            const supplierShare = Number(totalDailyInterest) - protocolShare;
 
-              dailyFees.add(reserves[i], interestAccrued);
-              dailySupplySideRevenue.add(reserves[i], Number(interestAccrued) - revenueAccrued);
-              dailyProtocolRevenue.add(reserves[i], revenueAccrued);
-              hasAnyGrowth = true;
-            }
-          }
-        } catch (e) {
-          // Skip individual reserve calculation errors
-        }
-      }
-    }
-
-    if (!hasAnyGrowth) {
-      for (let i = 0; i < reserves.length; i++) {
-        const current = currentReserveData[i];
-        
-        if (current && current.totalAToken > 0) {
-          try {
-            const reserveConfig = await options.api.call({
-              target: pool.dataProvider,
-              abi: 'function getReserveConfigurationData(address asset) view returns (uint256 decimals, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus, uint256 reserveFactor, bool usageAsCollateralEnabled, bool borrowingEnabled, bool stableBorrowRateEnabled, bool isActive, bool isFrozen)',
-              params: [reserves[i]],
-            }).catch(() => null);
-
-            if (reserveConfig) {
-              const reserveFactor = Number(reserveConfig.reserveFactor) / PercentageMathDecimals;
-              
-              const totalBorrows = BigInt(current.totalVariableDebt) + BigInt(current.totalStableDebt);
-              if (totalBorrows > 0 && current.variableBorrowRate > 0) {
-                const borrowDailyRate = BigInt(current.variableBorrowRate) / BigInt(365);
-                const totalDailyInterest = totalBorrows * borrowDailyRate / LiquidityIndexDecimals;
-                const protocolShare = Number(totalDailyInterest) * reserveFactor;
-                const supplierShare = Number(totalDailyInterest) - protocolShare;
-
-                dailyFees.add(reserves[i], totalDailyInterest);
-                dailyProtocolRevenue.add(reserves[i], protocolShare);
-                dailySupplySideRevenue.add(reserves[i], supplierShare);
-              }
-            }
-          } catch (e) {
-            // Skip individual reserve calculation errors
+            dailyFees.add(reservesList[i], totalDailyInterest);
+            dailyProtocolRevenue.add(reservesList[i], protocolShare);
+            dailySupplySideRevenue.add(reservesList[i], supplierShare);
           }
         }
       }
     }
-  } catch (error: any) {
-    // Silent fallback
   }
 
   return {
@@ -169,7 +122,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HYDRADX]: {
-      fetch: fetchHydraDXFees,
+      fetch,
       start: '2024-11-26',
     }
   }
