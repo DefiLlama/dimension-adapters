@@ -44,19 +44,19 @@ const adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: '2021-06-01',
+      start: '2023-08-09',
     },
     [CHAIN.MANTLE]: {
       fetch: fetch,
-      start: '2021-06-01',
+      start: '2023-07-17',
     },
     // [CHAIN.BLAST]: {
     //   fetch: fetch,
-    //   start: '2021-06-01',
+    //   start: '2024-02-29',
     // },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch,
-      start: '2021-06-01',
+      start: '2023-03-27',
     },
     /*[CHAIN.BITTORRENT]: {
       fetch: fetch,
@@ -84,7 +84,7 @@ const adapter = {
     // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2021-12-16',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch,
@@ -92,7 +92,7 @@ const adapter = {
     },
     [CHAIN.LINEA]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2023-07-11',
     },
     // [CHAIN.SCROLL]: {
     //   fetch: fetch,
@@ -100,19 +100,19 @@ const adapter = {
     // },
     [CHAIN.ERA]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2023-03-24',
     },
     [CHAIN.SONIC]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2024-12-18',
     },
     [CHAIN.BERACHAIN]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2025-02-06',
     },
     [CHAIN.UNICHAIN]: {
       fetch: fetch,
-      start: '2021-09-22',
+      start: '2025-02-11',
     },
   },
 };
