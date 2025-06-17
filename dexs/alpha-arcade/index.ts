@@ -20,7 +20,7 @@ const fetch = async (options: FetchOptions) => {
     let nextToken: string | undefined = undefined;
 
     do {
-      let url = `${baseURL}?min-round=1&max-round=999999999&start-time=${startRFC3339}&end-time=${endRFC3339}`;
+      let url = `${baseURL}?min-round=1&max-round=999999999&after-time=${startRFC3339}&before-time=${endRFC3339}`;
       if (nextToken) {
         url += `&next=${nextToken}`;
       }
@@ -38,20 +38,21 @@ const fetch = async (options: FetchOptions) => {
         );
       });
 
-      for (const txn of alphaArcadeTxns) {
-        const appArgs = txn['application-transaction']?.['application-args'];
+    //   console.log("alphaArcadeTxns:", JSON.stringify(alphaArcadeTxns, null, 2));
 
+      for (const txn of alphaArcadeTxns) {
         const innerTxn = txn['inner-txns']?.[0];
         const amount = innerTxn?.['asset-transfer-transaction']?.amount;
-
-        dailyVolume += amount;
+        if (typeof amount === 'number' && !isNaN(amount)) {
+          dailyVolume += amount;
+        }
       }
 
       nextToken = response['next-token'];
     } while (nextToken);
 
     return {
-      dailyVolume,
+      dailyVolume: dailyVolume / 1e6, // Convert from microUSDC
     };
 };
 
