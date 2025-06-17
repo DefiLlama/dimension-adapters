@@ -1,18 +1,16 @@
 import { CHAIN } from "../../helpers/chains";
 import type { SimpleAdapter } from "../../adapters/types";
 import { BaseAdapter, FetchOptions, IStartTimestamp } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
 import { normalizeAddress } from "@defillama/sdk/build/util";
 import { Address } from "@defillama/sdk/build/types";
 import abi from "./abi.json";
-import { decodeReserveConfig } from "../../helpers/aave/helper";
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     ...hyIsolatedExport({
       [CHAIN.HYPERLIQUID]: {
-        start: '2025-02-20',
+        start: '2025-04-08',
         registry: '0x5aB54F5Ca61ab60E81079c95280AF1Ee864EA3e7',
       },
     })
@@ -20,8 +18,6 @@ const adapter: SimpleAdapter = {
 }
 
 export default adapter
-
-
 
 export interface HyIsolatedAdapterExportConfig {
   start?: IStartTimestamp | number | string;
@@ -41,24 +37,31 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
         const feePairDataBefore = await options.fromApi.multiCall({
           abi: abi['previewAddInterest'],
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
+          permitFailure: true, // incase pair didn't exist yet
         })
-
-
+        
         const feePairDataAfter = await options.toApi.multiCall({
           abi: abi['previewAddInterest'],
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
+          permitFailure: true, // incase pair didn't exist yet
         })
 
         const assetPairData = await options.api.multiCall({
           abi: abi['asset'],
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
+          permitFailure: true,
         })
         const collateralPairData = await options.api.multiCall({
           abi: abi['collateralContract'],
           calls: pairs.map((pair: Address) => ({ target: pair, chain: options.chain })),
+          permitFailure: true,
         })
 
         for (let i = 0; i < pairs.length; i++) {
+          if (!assetPairData[i] || !collateralPairData[i]) {
+            continue;
+          }
+
           const asset = normalizeAddress(assetPairData[i])
           const collateral = normalizeAddress(collateralPairData[i])
           const bucketAsset = feeBucket[asset] || {
@@ -76,9 +79,9 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
           
           // Calculate fee differences and ensure they are non-negative
           // Handle cases where values might have been reset or are cumulative
-          const interestBefore = Number(feeBefore._interestEarned)
+          const interestBefore = Number(feeBefore ? feeBefore._interestEarned : 0)
           const interestAfter = Number(feeAfter._interestEarned)
-          const feesBefore = Number(feeBefore._feesAmount)
+          const feesBefore = Number(feeBefore ? feeBefore._feesAmount : 0)
           const feesAfter = Number(feeAfter._feesAmount)
           
           const interestEarned = interestAfter - interestBefore
