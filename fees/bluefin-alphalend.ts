@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 
 const fetch = async (_: number): Promise<FetchResultFees> => {
-    const data = await fetchURL("https://lend.api.sui-staging.bluefin.io/api/v1/fees/daily");
+    const data = await fetchURL("https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily");
     const dailyFees = Number(data.fees)
     const dailyRevenue = Number(data.fees)
 
