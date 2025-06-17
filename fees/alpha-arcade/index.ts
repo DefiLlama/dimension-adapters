@@ -32,7 +32,6 @@ const fetch = async (options: FetchOptions) => {
             innerTxn['tx-type'] === 'axfer' &&
             innerTxn['asset-transfer-transaction']?.['receiver'] === TARGET_RECEIVER
           ) {
-            console.log(JSON.stringify(txn, null, 2))
             dailyFees += Number(innerTxn['asset-transfer-transaction']['amount'] || 0);
           }
         }
