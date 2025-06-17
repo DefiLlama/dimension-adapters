@@ -1,123 +1,147 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
-import { addOneToken } from "../../helpers/prices";
-import { filterPools2 } from "../../helpers/uniswap";
+import * as sdk from '@defillama/sdk';
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from '../../helpers/prices';
+import { ethers } from "ethers";
+import PromisePool from "@supercharge/promise-pool";
 
-interface ILog {
-  address: string;
-  data: string;
-  transactionHash: string;
-  topics: string[];
-}
-const event_swap = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
-const event_notify_reward = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
-const event_gauge_created = 'event GaugeCreated(address indexed poolFactory,address indexed votingRewardsFactory,address indexed gaugeFactory,address pool,address bribeVotingReward,address feeVotingReward,address gauge,address creator)'
-
-
-const fetchBribes = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
-  const { getLogs, createBalances } = fetchOptions
-  const voter = '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5';
-  const dailyBribes = createBalances()
-  const logs_gauge_created = (await getLogs({
-    target: voter,
-    fromBlock: 3200601,
-    eventAbi: event_gauge_created,
-    cacheInCloud: true,
-  }))
-  const bribes_contract: string[] = logs_gauge_created.map((e: any) => e.bribeVotingReward.toLowerCase());
-
-  const logs = await getLogs({
-    targets: bribes_contract,
-    eventAbi: event_notify_reward,
-  })
-  logs.map((e: any) => {
-    dailyBribes.add(e.reward, e.amount)
-  })
-
-  return { dailyBribesRevenue: dailyBribes } as any
+const CONFIG = {
+  PoolFactory: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
+  voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
+  GaugeFactory: '0x35f35ca5b132cadf2916bab57639128eac5bbcb5'
 }
 
-const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
-  const { api, getLogs, createBalances, } = fetchOptions
-  const chain = api.chain
+const event_topics = {
+  swap: '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b'
+}
+
+const eventAbis = {
+  event_pool_created: 'event PoolCreated(address indexed token0,address indexed token1,bool indexed stable,address pool,uint256)',
+  event_swap: 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)',
+  event_gaugeCreated: 'event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)',
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)',
+  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)'
+}
+
+const abis = {
+  fees: 'function getFee(address pool, bool _stable) external view returns (uint256)'
+}
+
+const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
+  const { createBalances, } = fetchOptions
+  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
+
+  const dailyBribesRevenue = createBalances()
+  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  if (!logs_gauge_created?.length) return { dailyBribesRevenue };
+
+  const bribes_contract: string[] = logs_gauge_created
+    .filter((log) => log[2].toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
+    .map((log) => log[4].toLowerCase())
+  const bribeSet = new Set(bribes_contract)
+  // need to manually parse logs, auto parsing fails for some reason
+  const logs = await fetchOptions.getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
+  logs.forEach((log: any) => {
+    const contract = (log.address || log.source).toLowerCase()
+    if (!bribeSet.has(contract)) return;
+    const parsedLog = iface.parseLog(log)
+    dailyBribesRevenue.add(parsedLog!.args.reward, parsedLog!.args.amount)
+  })
+  return { dailyBribesRevenue }
+}
+
+const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions: FetchOptions) => {
+  const { createBalances, api, chain } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  let pairs = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da' })
-  let token0s = await api.multiCall({ abi: 'address:token0', calls: pairs })
-  let token1s = await api.multiCall({ abi: 'address:token1', calls: pairs })
 
-  const res = await filterPools2({ fetchOptions, pairs, token0s, token1s, minUSDValue: 10000, maxPairSize: 1200 })
-  pairs = res.pairs
-  token0s = res.token0s
-  token1s = res.token1s
+  const rawPools = await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 3200668, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true, })
 
-  let stables = await api.multiCall({ abi: 'bool:stable', calls: pairs })
-
-  const poolsCalls: any[] = [];
-  pairs.forEach((pair: any, i) => {
-    poolsCalls.push({
-      target: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
-      params: [pair, stables[i]]
-    })
-  });
-
-  const fees = await api.multiCall({ abi: 'function getFee(address pool, bool _stable) external view returns (uint256)', calls: poolsCalls })
-
-  let logs: ILog[][] = [];
-  const targetChunkSize = 5;
-  let currentTargetOffset = 0;
-  let unfinished = true;
-
-  while (unfinished) {
-    let endOffset = currentTargetOffset + targetChunkSize;
-    if (endOffset >= pairs.length) {
-      unfinished = false;
-      endOffset = pairs.length;
-    }
-
-    let currentLogs: ILog[][] = await getLogs({
-      targets: pairs.slice(currentTargetOffset, endOffset),
-      eventAbi: event_swap,
-      flatten: false,
-    })
-
-    logs.push(...currentLogs);
-    currentTargetOffset += targetChunkSize;
-  }
-
-  logs.forEach((logs: ILog[], idx: number) => {
-    const token0 = token0s[idx]
-    const token1 = token1s[idx]
-    const fee = fees[idx]/1e4
-
-    logs.forEach((log: any) => {
-      let amount0 = log.amount0In;
-      let amount1 = log.amount1Out;
-
-      if (Number(amount0) === 0) {
-        amount0 = log.amount0out;
-        amount1 = log.amount1In;
-      }
-
-      let fee0 = Number(amount0) * fee;
-      let fee1 = Number(amount1) * fee;
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
-    })
+  const fees = await api.multiCall({
+    abi: abis.fees, target: CONFIG.PoolFactory, calls: rawPools.map(i => ({ params: [i.pool, i.stable] }))
+  })
+  const poolInfoMap = {} as any
+  const aeroPoolSet = new Set()
+  rawPools.forEach(({ token0, token1, stable, pool }, index) => {
+    pool = pool.toLowerCase()
+    const fee = fees[index] / 1e4
+    poolInfoMap[pool] = { token0, token1, stable, fee }
+    aeroPoolSet.add(pool)
   })
 
-  const bribes = await fetchBribes(fetchOptions)
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, ...bribes } as any
+
+  const blockStep = 2000;
+  let i = 0;
+  let startBlock = fromBlock;
+  let ranges: any = []
+
+
+
+  while (startBlock < toBlock) {
+    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
+    ranges.push([startBlock, endBlock])
+    startBlock += blockStep
+  }
+
+  let errorFound = false
+
+  await PromisePool
+    .withConcurrency(5)
+    .for(ranges)
+    .process(async ([startBlock, endBlock]: any) => {
+      if (errorFound) return;
+      try {
+        const logs = await fetchOptions.getLogs({
+          noTarget: true,
+          fromBlock: startBlock,
+          toBlock: endBlock,
+          eventAbi: eventAbis.event_swap,
+          topics: [event_topics.swap],
+          entireLog: true,
+          skipCache: true,
+        })
+        sdk.log(`Aerodrome got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
+        const iface = new ethers.Interface([eventAbis.event_swap]);
+
+        logs.forEach((log: any) => {
+          const pool = (log.address || log.source).toLowerCase()
+          if (!aeroPoolSet.has(pool)) return;
+          const parsedLog = iface.parseLog(log)
+          const { token0, token1, fee } = poolInfoMap[pool]
+          const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
+          const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
+          const fee0 = amount0 * fee
+          const fee1 = amount1 * fee
+          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+        })
+      } catch (e) {
+        errorFound = e
+        throw e
+      }
+    })
+
+  if (errorFound) throw errorFound
+
+  return { dailyVolume, dailyFees }
+}
+
+const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
+  const { getToBlock, getFromBlock } = options
+  const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
+  const { dailyBribesRevenue } = await getBribes(options);
+  return { dailyFees, dailyVolume, dailyBribesRevenue }
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
-  isExpensiveAdapter: true,
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetch as any,
-      start: '2023-08-28',
+      fetch,
+      start: '2023-08-28'
     }
   }
 }
-export default adapters;
+
+export default adapters

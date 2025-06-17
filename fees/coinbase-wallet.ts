@@ -31,6 +31,12 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetchFees,
+        meta: {
+          methodology: {
+            Fees: 'All fees paid by users for trading, swapping, bridging in Coinbase Wallet',
+            Revenue: 'Fees collected by Coinbase paid by users for trading, swapping, bridging in Coinbase Wallet',
+          }
+        }
       },
     };
   }, {}),

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
@@ -44,6 +44,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2023-02-24",
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.KAVA]: {

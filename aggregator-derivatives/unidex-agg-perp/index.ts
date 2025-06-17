@@ -1,8 +1,7 @@
-import * as sdk from "@defillama/sdk";
 import { FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import customBackfill from "../../helpers/customBackfill";
 
@@ -104,6 +103,7 @@ const methodology = {
 
 
 const adapteraggderivative: any = {
+  deadFrom: '2025-05-30',
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),

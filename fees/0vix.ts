@@ -3,7 +3,7 @@ import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import disabledAdapter from "../helpers/disabledAdapter";
@@ -45,10 +45,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       );
 
       return {
-        timestamp,
-        totalFees: totalFee.toString(),
         dailyFees: dailyFee.toString(),
-        totalRevenue: totalRev.toString(),
         dailyRevenue: dailyRev.toString(),
       };
     };
@@ -56,6 +53,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2023-12-14",
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.POLYGON]: {

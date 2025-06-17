@@ -1,22 +1,29 @@
-import { SimpleAdapter } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchTransactionFees } from "../helpers/getChainFees";
-import { FetchOptions } from "../adapters/types";
-import { ProtocolType } from "../adapters/types";
+import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MANTLE]: {
-      fetch: async (options: FetchOptions) => {
-        return {
-            dailyFees: await fetchTransactionFees(options),
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+	return await fetchL2FeesWithDune(options);
+}
+
+const adapter: Adapter = {
+	version: 1,
+	adapter: {
+		[CHAIN.MANTLE]: {
+			fetch,
+			start: '2023-07-02',
+			meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Mantle, calculated by subtracting the L1 Batch Costs from the total gas fees',
         }
-      },
-    },
-  },
-  version: 2,
-  isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN,
-};
+      }
+		},
+	},
+	protocolType: ProtocolType.CHAIN,
+	isExpensiveAdapter: true,
+	allowNegativeValue: true, // L1 Costs
+}
 
 export default adapter;

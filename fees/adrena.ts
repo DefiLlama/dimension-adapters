@@ -24,10 +24,6 @@ async function fetch({ endTimestamp, }: FetchOptions) {
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue: stats.daily_fee_usd * 30 / 100,
     dailySupplySideRevenue: stats.daily_fee_usd * 70 / 100,
-    totalFees: stats.total_fee_usd,
-    totalRevenue: stats.total_fee_usd * 30 / 100,
-    totalProtocolRevenue: 0,
-    totalSupplySideRevenue: stats.total_fee_usd * 70 / 100,
   };
 };
 

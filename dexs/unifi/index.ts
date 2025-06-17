@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill, { IGraphs } from "../../helpers/customBackfill";
@@ -33,6 +33,7 @@ interface IVolumeall {
 const graphs = (chain: Chain) => {
   return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    if(dayTimestamp > 1687478400) return {}
     const historicalVolume: IVolumeall[] = (await fetchURL(poolsDataEndpoint(chains[chain]))).results;
 
     const totalVolume = historicalVolume
@@ -42,8 +43,8 @@ const graphs = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.datetime).getTime() / 1000) === dayTimestamp)?.volume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
@@ -55,6 +56,7 @@ const getStartTimestamp = async (chain: Chain) => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2023-06-23",
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,

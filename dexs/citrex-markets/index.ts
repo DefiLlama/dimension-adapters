@@ -40,16 +40,14 @@ const fetch = async (timestamp: number) => {
 
 const adapter = {
   version: 1,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SEI]: {
-        fetch,
-        runAtCurrTime: true,
-        start: "2025-02-18",
-        meta: {
-          methodology:
-            "The daily volume is calculated by querying the Citrex Markets API for the 24-hour volume of all USDC perpetual contracts.",
-        },
+  adapter: {
+    [CHAIN.SEI]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2025-02-18",
+      meta: {
+        methodology:
+          "The daily volume is calculated by querying the Citrex Markets API for the 24-hour volume of all USDC perpetual contracts.",
       },
     },
   },

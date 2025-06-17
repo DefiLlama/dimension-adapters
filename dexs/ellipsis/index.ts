@@ -1,38 +1,41 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { getConfig } from "../../helpers/cache";
 
-import fetchURL from "../../utils/fetchURL"
+async function fetch({ createBalances, getLogs }: FetchOptions) {
+  const { data: { allPools } } = await getConfig('ellipsis', 'https://api.ellipsis.finance/api/getPoolsCrypto')
+  const tokenIndexMap: any = {}
+  const pools: any = []
+  allPools.forEach((p: any) => {
+    const pool = p.address.toLowerCase()
+    pools.push(pool);
+    (p.underlying ?? p.tokens).forEach((t: any) => {
+      const token = t.address ?? t.erc20address
+      tokenIndexMap[pool + '-' + t.index] = token
+    })
+  })
+  const tLogs = await getLogs({ targets: pools, flatten: false, eventAbi: 'event TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)' })
+  const tLogs1 = await getLogs({ targets: pools, flatten: false, eventAbi: 'event TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)' })
+  const dailyVolume = createBalances()
 
-const endpoints: { [chain: string]: string } = {
-  bsc: "https://api.ellipsis.finance/api/getAll",
-};
-
-interface IAPIResponse {
-  success: boolean
-  getVolume: {
-    total: string,
-    day: string,
-    generatedTimeMs: number
+  function addLogs(logs, i) {
+    const pool = pools[i]
+    logs.forEach((log: any) => {
+      const token1 = tokenIndexMap[pool.toLowerCase() + '-' + log.bought_id]
+      dailyVolume.add(token1, log.tokens_bought)
+    })
   }
+  tLogs.forEach(addLogs)
+  tLogs1.forEach(addLogs)
+  return { dailyVolume }
+
 }
 
-const fetch = (chain: string) => async () => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain])).data;
-  return {
-    dailyVolume: `${response.getVolume.day}`,
-    totalVolume: `${response.getVolume.total}`,
-    timestamp: Math.trunc(response.getVolume.generatedTimeMs / 1000),
-  };
-};
-
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetch(chain),
-                runAtCurrTime: true
-      }
+  version: 2,
+  adapter: {
+    bsc: {
+      fetch,
     }
-  }, {})
+  }
 };
 export default adapter;

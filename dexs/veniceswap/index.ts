@@ -15,5 +15,6 @@ const adapter = univ2Adapter(endpoints, {
 adapter.adapter.findora.start = 1675036800;
 adapter.adapter.findora.fetch = async (timestamp: number) => {return{timestamp}}
 adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
+adapter.deadFrom = '2023-09-12';
 
 export default adapter

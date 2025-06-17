@@ -9,8 +9,8 @@ const fetchVolume = async (timestamp: number) => {
   const dailyFees = Number(fees_pool) + Number(fees_protocol)
   const dailyRevenue = fees_protocol
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     timestamp: timestamp,
   }
 }

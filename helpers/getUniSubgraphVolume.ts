@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { request, gql } from "graphql-request";
 import { BaseAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
@@ -153,7 +153,7 @@ function getChainVolume({
           }
         });
         const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
-        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
+        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory }`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
       }
       if (!hasDailyVolume) {
         const fromBlock = await getFromBlock()

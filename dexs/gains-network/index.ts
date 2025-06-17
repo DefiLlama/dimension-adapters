@@ -1,6 +1,6 @@
 import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 
 interface IStats {
   unix_ts: number;
@@ -9,22 +9,20 @@ interface IStats {
   daily_volume: number;
 }
 
-const requests: any = {};
-
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startTimestamp;
-  const end = options.endTimestamp;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4192496", {
-      start: start,
-      end: end,
-    });
-  return requests[key];
-}
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `select
+      *
+    from
+      dune.gains.result_g_trade_stats_defi_llama
+    where
+      day >= from_unixtime(${options.startTimestamp})
+      and day < from_unixtime(${options.endTimestamp})`
+  );
+};
 
 const fetch: any = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
-  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+  const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
 
   return { timestamp, dailyVolume: chainStat?.daily_volume || 0 };
@@ -67,6 +65,7 @@ const adapter: SimpleAdapter = {
       start: "2024-11-19",
     },
   },
+  prefetch: prefetch,
   isExpensiveAdapter: true,
 };
 

@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { queryDuneSql } from "../helpers/dune";
 
 interface IStats {
   unix_ts: number;
@@ -26,44 +26,34 @@ interface IStats {
   // GNS staking
   gns_stakers: number;
 }
-const requests: any = {};
 
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startTimestamp;
-  const end = options.endTimestamp;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4192496", {
-      start: start,
-      end: end,
-    });
-  return requests[key];
-}
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `select
+      *
+    from
+      dune.gains.result_g_trade_stats_defi_llama
+    where
+      day >= from_unixtime(${options.startTimestamp})
+      AND day < from_unixtime(${options.endTimestamp})`);
+};
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
-  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
-  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, totalFees] = chainStat
-    ? [
-        chainStat.all_fees,
-        chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers,
-        chainStat.gns_stakers,
-        chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers,
-        chainStat.cumul_fees,
-      ]
-    : [0, 0, 0, 0, 0];
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
+    ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
+    : [0, 0, 0, 0];
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    totalFees,
   };
 };
 
-const fetchApechain = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
   // Dune does not currently support Apechain. Using events until support is added.
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -88,21 +78,21 @@ const fetchApechain = async (timestamp: number, _: ChainBlocks, { createBalances
   stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
 
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: "2022-06-03",
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: "2022-12-30",
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: "2024-09-26",
     },
     [CHAIN.APECHAIN]: {
@@ -110,6 +100,7 @@ const adapter: Adapter = {
       start: "2024-11-19",
     },
   },
+  prefetch: prefetch,
   isExpensiveAdapter: true,
 };
 

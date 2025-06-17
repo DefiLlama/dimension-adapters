@@ -3,24 +3,20 @@ import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
-
-const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
-    const exchangeInfo= await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/info");
+const fetch = async (_: number): Promise<FetchResultFees> => {
     const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
-    let dailyFees = 0;
+    const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
+
+    let spotFees = 0;
     for (const pool of pools) {
-        dailyFees += Number(pool.day.fee);
+        spotFees += Number(pool.day.fee);
     }
-    const totalFees=exchangeInfo.totalFee;
-    const dailyRevenue = dailyFees * 0.2;
-    const totalRevenue = totalFees * 0.2;
+    const dailyRevenue = (spotFees * 0.2) + Number(rfqStats.feesUsd);
+    const dailyFees = spotFees + Number(rfqStats.feesUsd);
 
     return {
-        dailyFees: dailyFees ? `${dailyFees}` : undefined,
-        totalFees: totalFees ? `${totalFees}` : undefined,
-        dailyRevenue: dailyRevenue ? `${dailyRevenue}` : undefined,
-        totalRevenue: totalRevenue ? `${totalRevenue}` : undefined,
-        timestamp: timestamp,
+        dailyFees,
+        dailyRevenue,
     };
 };
 
@@ -28,7 +24,7 @@ const adapter: SimpleAdapter = {
     version: 1,
     adapter: {
         [CHAIN.SUI]: {
-            fetch: fetch_sui,
+            fetch,
             start: '2024-11-19',
             runAtCurrTime: true,
         },

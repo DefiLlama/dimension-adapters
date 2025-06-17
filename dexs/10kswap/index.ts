@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
@@ -23,8 +23,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };

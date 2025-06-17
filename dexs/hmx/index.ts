@@ -2,7 +2,7 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {

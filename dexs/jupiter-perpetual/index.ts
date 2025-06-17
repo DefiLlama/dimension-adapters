@@ -35,14 +35,12 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        runAtCurrTime: true,
-        start: '2024-01-23',
-      },
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2024-01-23',
     },
-  }
+  },
 };
 export default adapter;

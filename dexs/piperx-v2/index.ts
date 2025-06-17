@@ -2,7 +2,7 @@ import { GraphQLClient, gql } from 'graphql-request'
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
-const PIPERX_GRAPHQL_URL = 'https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.4/gn'
+const PIPERX_GRAPHQL_URL = 'https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/prod/gn'
 
 const graphQLClient = new GraphQLClient(PIPERX_GRAPHQL_URL)
 

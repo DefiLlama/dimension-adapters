@@ -2,18 +2,20 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, ProtocolType } from "../adapters/types";
 import { L2FeesFetcher } from "../helpers/ethereum-l2";
 
-const ethereumWallets = [
-  '0x4200000000000000000000000000000000000019',
-  '0x420000000000000000000000000000000000001A',
-  '0x4200000000000000000000000000000000000011'
-]
-
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SONEIUM]: {
-      fetch: L2FeesFetcher({ ethereumWallets }),
+      fetch: L2FeesFetcher({ ethereumWallets: [
+        '0x6776BE80dBAda6A02B5F2095cF13734ac303B8d1'
+      ] }),
       start: '2024-12-29',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Soneium, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

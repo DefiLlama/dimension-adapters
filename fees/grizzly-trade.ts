@@ -3,7 +3,7 @@ import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
 import { ARBITRUM, AVAX, BSC } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import disabledAdapter from "../helpers/disabledAdapter";
 
@@ -26,15 +26,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
             const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
             const searchTimestamp = todaysTimestamp + ":daily"
 
-            const graphQuery = gql
-                `{
-        feeStat(id: "${searchTimestamp}") {
-          mint
-          burn
-          marginAndLiquidation
-          swap
-        }
-      }`;
+            const graphQuery = gql`
+                {
+                    feeStat(id: "${searchTimestamp}") {
+                        mint
+                        burn
+                        marginAndLiquidation
+                        swap
+                    }
+                }`;
 
             const graphRes = await request(graphUrls[chain], graphQuery);
 
@@ -58,6 +58,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+    deadFrom: "2024-12-14",
     adapter: {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [BSC]: {

@@ -10,12 +10,19 @@ const adapter: Adapter = {
         const dailyFees = await getTokenDiff({ target: '0x0100000000000000000000000000000000000000', includeGasToken: true, options})
 
         return {
-          dailyFees: dailyFees,
+          dailyFees,
           dailyRevenue: dailyFees,
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: '2021-01-01'
+      start: '2021-01-01',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Amount of AVAX transaction fees that were burned',
+          HoldersRevenue: 'Amount of AVAX transaction fees that were burned',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

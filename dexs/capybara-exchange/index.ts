@@ -2,7 +2,7 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getBlock } from "../../helpers/getBlock";
 import BigNumber from 'bignumber.js';
 
@@ -58,10 +58,10 @@ const fetchVolume = (chain: Chain) => {
     const dailyFees = new BigNumber(dailyVolume ? dailyVolume : '0').multipliedBy(feesRatio).toString()
     const totalFees = new BigNumber(totalTradeVolumeUSD ? totalTradeVolumeUSD : '0').multipliedBy(feesRatio).toString()
     return {
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      totalVolume: totalTradeVolumeUSD ? `${totalTradeVolumeUSD}` : undefined,
-      dailyFees: dailyFees,
-      totalFees: totalFees,
+      dailyVolume: dailyVolume,
+      totalVolume: totalTradeVolumeUSD,
+      dailyFees,
+      totalFees,
       timestamp: dayTimestamp
     };
   };

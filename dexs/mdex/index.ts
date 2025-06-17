@@ -3,7 +3,7 @@ import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const historicalVolumeEndpoint = "https://info.mdex.one/pair/volume/statistics/max"
 
@@ -22,6 +22,7 @@ const mapChainId: ChainMapId = {
 };
 const fetch = (chain: Chain) => {
   return async (timestamp: number) => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const queryByChainId = `?chain_id=${mapChainId[chain]}`;
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
@@ -33,8 +34,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.created_time)) === dayTimestamp)?.max_swap_amount
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };

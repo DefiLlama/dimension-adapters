@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -35,8 +35,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => Math.floor(Number(dayItem.timestamp)/1000) === dayTimestamp)?.dailyVolume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }

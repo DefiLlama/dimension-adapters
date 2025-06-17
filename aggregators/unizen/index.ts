@@ -15,6 +15,9 @@ const CHAINS: TChain = {
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.BASE]: 8453,
+  [CHAIN.BERACHAIN]: 80094,
+  [CHAIN.SONIC]: 146,
+  [CHAIN.UNICHAIN]: 130,
   [CHAIN.BITCOIN]: 0,
   [CHAIN.BITCOIN_CASH]: 0,
   [CHAIN.LITECOIN]: 0,
@@ -54,9 +57,8 @@ const fetch = (chain: string) =>
       }}));
       if (!isVolumeReport(data)) throw new Error(`Invalid data structure for chain ${chainCode}: ${JSON.stringify(data)}`);
       const chainData = data.reportByChain[chainCode];
-      if (!chainData) throw new Error(`Volume 24h query failed for chain ${chainCode}: ${JSON.stringify(data)}`);
       return {
-        dailyVolume: chainData.volume,
+        dailyVolume: chainData?.volume || 0,
         timestamp: unixTimestamp,
       };
     };

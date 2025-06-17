@@ -29,10 +29,16 @@ const fetch: FetchV2 = async (options) => {
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: '2025-03-20',
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-07-17',
+      meta: {
+        methodology: {
+          Fees: "Tokens trading and launching fees paid by users.",
+        }
+      }
     },
   },
 };

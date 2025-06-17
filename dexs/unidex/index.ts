@@ -1,7 +1,7 @@
 import { FetchResultVolume, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { adapter_dexs_agg } from './unidex-dexs-agg/index';
 

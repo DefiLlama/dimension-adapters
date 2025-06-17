@@ -5,13 +5,11 @@ import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
   Fees: "Fees generated on each swap at a rate set by the pool.",
-  TotalUserFees: "Cumulative all-time Fees",
-  TotalFees: "Cumulative all-time Fees",
 };
 
 const v3Graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.SAPPHIRE]: "https://api.goldsky.com/api/public/project_clzi4lu67khgw01072ibvekvt/subgraphs/neby-dex-sapphire-mainnet/1.0.0/gn"
+    [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex"
   },
   totalVolume: {
     factory: "factories",

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -36,7 +36,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
 
   return {
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
     timestamp: dayTimestamp,
   }

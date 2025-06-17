@@ -1,73 +1,11 @@
-import { Adapter, ChainEndpoints, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
-const { request, gql } = require("graphql-request");
+import { liquityV1Exports } from "../helpers/liquity";
 
-const endpoints = {
-  [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/orby/orby",
-};
-
-const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({
-    chain,
-    createBalances,
-    endTimestamp,
-    getStartBlock,
-    getEndBlock,
-  }) => {
-    const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
-    const dailyFees = createBalances();
-
-    const graphQuery = gql`
-      query fees($startOfDayBlock: Int!, $endOfDayBlock: Int!) {
-        yesterday: global(id: "only", block: { number: $startOfDayBlock }) {
-          totalBorrowingFeesPaid
-          totalRedemptionFeesPaid
-        }
-        today: global(id: "only", block: { number: $endOfDayBlock }) {
-          totalBorrowingFeesPaid
-          totalRedemptionFeesPaid
-        }
-      }
-    `;
-    const [startBlock, endBlock] = await Promise.all([
-      getStartBlock(),
-      getEndBlock(),
-    ]);
-
-    const graphRes = await request(graphUrls[chain], graphQuery, {
-      startOfDayBlock: startBlock,
-      endOfDayBlock: endBlock - 2,
-    });
-
-    const borrowingFees =
-      Number(graphRes.today.totalBorrowingFeesPaid) -
-      Number(graphRes.yesterday.totalBorrowingFeesPaid);
-    const redemptionFeesETH =
-      Number(graphRes.today.totalRedemptionFeesPaid) -
-      Number(graphRes.yesterday.totalRedemptionFeesPaid);
-
-    dailyFees.addCGToken("tether", borrowingFees);
-    dailyFees.addGasToken(redemptionFeesETH * 10 ** 18);
-
-    return {
-      timestamp: dayTimestamp,
-      dailyFees: dailyFees,
-      dailyRevenue: dailyFees,
-      dailyHoldersRevenue: dailyFees,
-    };
-  };
-  return fetch;
-};
-
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.CRONOS]: {
-      fetch: graphs(endpoints),
-      start: '2024-02-02',
-    },
-  },
-};
-
-export default adapter;
+export default liquityV1Exports({
+  [CHAIN.CRONOS]: { 
+    troveManager: '0x7a47cf15a1fcbad09c66077d1d021430eed7ac65', 
+    redemptionEvent: 'event Redemption(uint256 _attemptedUSCAmount, uint256 _actualUSCAmount, uint256 _CollSent, uint256 _ETHFee)',
+    borrowingEvent: 'event USCBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)',
+    stableCoin: '0xD42E078ceA2bE8D03cd9dFEcC1f0d28915Edea78',
+  }
+})

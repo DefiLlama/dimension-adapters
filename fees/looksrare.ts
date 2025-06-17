@@ -29,7 +29,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   });
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
@@ -41,6 +41,13 @@ const adapter: Adapter = {
     [ETHEREUM]: {
       fetch,
       start: '2021-12-29',
+      meta: {
+        methodology: {
+          Fees: "NFT trading fees paid by users.",
+          Revenue: "100% fees are revenue to LOOKS token holders.",
+          HoldersRevenue: "100% revenue distributed to LOOKS token holders.",
+        }
+      }
     },
   }
 }

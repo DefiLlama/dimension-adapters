@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -44,8 +44,8 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { tvol }) => acc + Number(tvol), 0);
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   }
 }

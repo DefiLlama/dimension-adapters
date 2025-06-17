@@ -2,7 +2,7 @@ import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import disabledAdapter from "../../helpers/disabledAdapter";
 
@@ -46,6 +46,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: "2024-12-14",
   version: 2,
   adapter: {
     [DISABLED_ADAPTER_KEY]: disabledAdapter,

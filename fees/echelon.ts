@@ -1,9 +1,8 @@
 import fetchURL from "../utils/fetchURL";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const thalaDappURL = "https://app.echelon.market";
-const feesQueryURL = `${thalaDappURL}/api/defillama/fees?timeframe=`;
+const feesQueryURL = "https://app.echelon.market/api/defillama/fees?timeframe=";
 
 interface IVolumeall {
   value: number;
@@ -15,23 +14,25 @@ const feesEndpoint = (endTimestamp: number, timeframe: string) =>
     ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
     : feesQueryURL + timeframe;
 
-const fetch = async (timestamp: number) => {
-  const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
+const movementFeesEndpoint = (endTimestamp: number, timeframe: string) =>
+  endTimestamp
+    ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}` + "&network=movement_mainnet"
+    : feesQueryURL + timeframe + "&network=movement_mainnet";
+
+const config: Record<string, (endTimestamp: number, timeframe: string) => string> = {
+  [CHAIN.APTOS]: feesEndpoint,
+  [CHAIN.MOVE]: movementFeesEndpoint,
+}
+    
+const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
+  const dayFeesQuery = (await fetchURL(config[options.chain](timestamp, "1D")))?.data;
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
   );
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
-  const totalFees = totalFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
-
   return {
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    timestamp,
+    dailyFees: dailyFees,
   };
 };
 
@@ -39,7 +40,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: '2023-04-03',
+      start: '2024-04-25',
+    },
+    [CHAIN.MOVE]: {
+      fetch,
+      start: '2025-03-15',
     },
   },
 };

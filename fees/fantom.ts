@@ -1,4 +1,4 @@
 import { CHAIN } from "../helpers/chains";
-import { etherscanFeeAdapter } from "../helpers/etherscanFees";
+import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 
-export default etherscanFeeAdapter(CHAIN.FANTOM, "https://ftmscan.com/chart/transactionfee?output=csv")
+export default blockscoutFeeAdapter2(CHAIN.FANTOM)

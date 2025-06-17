@@ -3,7 +3,7 @@ import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const historicalVolumeEndpoint = "https://info-api.macaron.xyz/pair/"
 
@@ -28,8 +28,8 @@ const fetch = (chain: Chain) => {
     const dailyVolume = historicalVolume
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.statistics_date)) === dayTimestamp)?.volume
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };

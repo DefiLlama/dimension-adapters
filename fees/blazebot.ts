@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, DISABLED_ADAPTER_KEY, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { request, } from "graphql-request";
 import disabledAdapter from "../helpers/disabledAdapter";
 
@@ -37,11 +37,18 @@ const graphs = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  deadFrom: "2024-03-12",
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
+    // [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BASE]: {
       fetch: async (timestamp: number) => {return{timestamp}},
       start: '2023-09-08',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using trading bot.",
+          Revenue: 'All trading fees paid by users while using trading bot.',
+        }
+      }
     },
   }
 }

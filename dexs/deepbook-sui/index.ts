@@ -25,13 +25,14 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume }) => acc + Number(volume), 0)
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-02-25',
   adapter: {
     [CHAIN.SUI]: {
       fetch,

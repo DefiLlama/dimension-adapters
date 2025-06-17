@@ -1,4 +1,4 @@
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../../adapters/types";
 import { BreakdownAdapter, BaseAdapter, DISABLED_ADAPTER_KEY } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
@@ -31,7 +31,7 @@ const getV3CustomBlock = async (timestamp: number) => {
     ).blocks;
     return Number(blocks[0].number);
   } catch (e) {
-    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e as any).message}`)
   }
 };
 

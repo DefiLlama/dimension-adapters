@@ -16,6 +16,12 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users on Tribe.run.",
+          Revenue: "Portion of fees collected by Tribe.run.",
+        }
+      }
     }
   }
 }

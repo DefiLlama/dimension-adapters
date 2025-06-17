@@ -1,38 +1,36 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter, ProtocolType } from "../adapters/types";
 import { BSC } from "../helpers/chains";
-import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { FetchOptions } from "../adapters/types"
 import { fetchTransactionFees } from "../helpers/getChainFees";
 
-const endpoints = {
-  [BSC]: sdk.graph.modifyEndpoint('3a3f5kp31kutZzjmQoE2NKBSr6Ady5rgxRxD2nygYcQo')
+
+async function fetch(_:any, _1:any, options: FetchOptions) {
+  const dailyFees = await fetchTransactionFees(options)
+
+  // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
+  const dailyRevenue = options.toTimestamp < 1638234000 ? 0: dailyFees.clone(0.1)
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+  };
 }
 
 
-const graphs = (_t: ChainEndpoints) => {
-  return (_t: Chain) => {
-    return async (options: FetchOptions) => {
-
-
-      const dailyFees = await fetchTransactionFees(options)
-
-      return {
-        dailyFees,
-        // totalFees: finalTotalFee.toString(),
-        dailyRevenue: options.toTimestamp < 1638234000 ? 0: dailyFees.clone(0.1), // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
-      };
-    };
-  };
-};
-
-
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [BSC]: {
-      fetch: graphs(endpoints)(BSC),
+      fetch,
       start: '2020-08-29',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Amount of 10% BNB transaction fees that were burned',
+          HoldersRevenue: 'Amount of 10% BNB transaction fees that were burned',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
 import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
@@ -51,6 +51,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
     version: 1,
+    deadFrom: "2024-12-14",
     adapter: {
         [DISABLED_ADAPTER_KEY]: disabledAdapter,
         // [BSC]: {

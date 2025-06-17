@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchResult } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
-import { getBlock } from "../helpers/getBlock";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 type TEndpoint = {
   [key in Chain]: string
@@ -13,7 +12,7 @@ const endpoints: TEndpoint = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
-  // [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+  // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
 };
 
@@ -22,88 +21,106 @@ interface IPool {
   revenueUSD: string
   feeUSD: string
 }
-interface IDailyPoolStatus {
-  revenueUSD: string
-  feeUSD: string
-  from: string
-  to: string
-}
 interface IResponse {
-  pools: IPool[]
-  dailyPoolStatuses: IDailyPoolStatus[]
+  today: IPool[]
+  yesterday: IPool[]
 }
 const feesQuery = gql`
-  query fees($fromTimestamp: Int!, $toTimestamp: Int!, $blockNumber: Int!) {
-    pools(first: 5, block: {number: $blockNumber}) {
+  query fees($toBlock: Int!, $fromBlock: Int!) {
+    today: pools(block: {number: $toBlock}) {
       id
       revenueUSD,
       feeUSD
     }
-    dailyPoolStatuses(orderBy: feeUSD, orderDirection: desc, where: {from_gte: $fromTimestamp, from_lte: $toTimestamp}) {
+    yesterday: pools(block: {number: $fromBlock}) {
+      id
       revenueUSD,
-      feeUSD,
-      from,
-      to
+      feeUSD
     }
   }
 `
 
-const fetchFees = (chain: Chain) => {
-  return async ({ fromTimestamp, toTimestamp, getToBlock }: FetchOptions) => {
-    const endpoint = endpoints[chain];
-    const toBlock = await getToBlock();
+const fetch = async (options: FetchOptions) => {
+  const endpoint = endpoints[options.chain];
+  const toBlock = await options.getToBlock();
+  const fromBlock = await options.getFromBlock();
 
-    const response: IResponse = (await request(endpoint, feesQuery, {
-      fromTimestamp,
-      toTimestamp,
-      blockNumber: toBlock
-    }));
+  const response: IResponse = (await request(endpoint, feesQuery, {
+    toBlock,
+    fromBlock
+  }));
 
-    const dailyFees = response.dailyPoolStatuses.reduce((acc, pool) => {
-      return acc + Number(pool.feeUSD);
-    }, 0);
-    const dailyRevenue = response.dailyPoolStatuses.reduce((acc, pool) => {
-      return acc + Number(pool.revenueUSD);
-    },0);
-    const totalFees = response.pools.reduce((acc, pool) => {
-      return acc + Number(pool.feeUSD);
-    },0);
-    const totalRevenue = response.pools.reduce((acc, pool) => {
-      return acc + Number(pool.revenueUSD);
-    },0);
+  const dailyFees = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.feeUSD) - Number(id.feeUSD);
+  }, 0);  
+  const dailyRevenue = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
+  },0);
 
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      dailyProtocolRevenue: `${dailyRevenue}`,
-      totalFees: `${totalFees}`,
-      totalRevenue: `${totalRevenue}`,
-      totalProtocolRevenue: `${totalRevenue}`,
-    }
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
+
+const fetchPolygon = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  // 10000
+  const logs = await options.getLogs({
+    target: "0x2370cB1278c948b606f789D2E5Ce0B41E90a756f", // 0.5%
+    eventAbi:
+      "event CoveSwapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes32 auxiliaryData)",
+  });
+
+  const logs_2 = await options.getLogs({
+    target: "0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8",
+    eventAbi:
+      "event Swapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes auxiliaryData)",
+  });
+
+  logs.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+    dailyFees.add(log.outAsset, Number(log.outAmount) * (5/10000))
+  });
+
+  logs_2.forEach((log) => {
+    dailyVolume.add(log.outAsset, log.outAmount)
+  });
+
+  return {
+    dailyVolume,
+    dailyFees,
+  };
+};
 
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
+      fetch,
       start: '2022-08-05',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
+      fetch,
       start: '2022-06-29',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
+      fetch: fetchPolygon,
       start: '2022-04-20',
     },
     // [CHAIN.MOONBEAM]: {
-    //   fetch: fetchFees(CHAIN.MOONBEAN),
+    //   fetch,
     //   start: '2022-08-05',
     // },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
+      fetch,
       start: '2023-08-02',
     }
   }

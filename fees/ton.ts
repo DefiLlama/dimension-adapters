@@ -7,7 +7,7 @@ import { queryAllium } from "../helpers/allium";
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TON]: {
-      fetch: async (options: FetchOptions) => {
+      fetch: async (_:any, _1:any, options: FetchOptions) => {
         const query = `
             SELECT 
             SUM(total_fees) AS tx_fees
@@ -24,9 +24,16 @@ const adapter: SimpleAdapter = {
             dailyHoldersRevenue: dailyRevenue
         }
       },
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Amount of 50% TON transaction fees that were burned',
+          HoldersRevenue: 'Amount of 50% TON transaction fees that were burned',
+        }
+      }
     },
   },
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
 };
