@@ -14,6 +14,7 @@ const topics = {
 const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyVolume = createBalances();
 
   const tradeLogs = await getLogs({
     topic: topics.Trade,
@@ -28,6 +29,7 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   });
 
   function addLogData(log: any) {
+    dailyVolume.addGasToken(log.amount);
     dailyRevenue.addGasToken(log.protocolAmount);
     dailyFees.addGasToken(log.protocolAmount + log.subjectAmount + log.referralAmount);
   }
@@ -36,6 +38,7 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   tradeFractionalShareLogs.forEach(addLogData);
 
   return {
+    dailyVolume,
     dailyFees,
     dailyRevenue
   }
