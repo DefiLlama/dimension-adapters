@@ -26,9 +26,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const totalFees = options.createBalances();
-  const totalRevenue = options.createBalances();
-  const totalSupplySideRevenue = options.createBalances();
 
   const endBlock = await options.getEndBlock();
   const startBlock = await options.getStartBlock();
@@ -100,20 +97,11 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addUSDValue(dailyProtocolFees);
   dailyFees.addUSDValue(dailyLpFees + dailyProtocolFees);
 
-  // Add total metrics
-  totalSupplySideRevenue.addUSDValue(endFees.lpFees);
-  totalRevenue.addUSDValue(endFees.protocolFees);
-  totalFees.addUSDValue(endFees.lpFees + endFees.protocolFees);
-
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyUserFees: dailyFees,
-    totalFees,
-    totalRevenue,
-    totalSupplySideRevenue,
-    totalUserFees: totalFees,
+    dailyUserFees: dailyFees
   };
 };
 
@@ -128,11 +116,7 @@ const adapter: SimpleAdapter = {
           Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
           Revenue: "Protocol fees collected by Katana - 0.05% of each trade for most pools",
           SupplySideRevenue: "Fees distributed to LPs - 0.25% of each trade for most pools",
-          UserFees: "Same as Fees - total trading fees paid by users",
-          totalFees: "Cumulative sum of all trading fees since protocol inception",
-          totalRevenue: "Cumulative sum of protocol fees collected by Katana since inception",
-          totalSupplySideRevenue: "Cumulative sum of fees distributed to LPs since protocol inception",
-          totalUserFees: "Cumulative sum of all user-paid trading fees since protocol inception"
+          UserFees: "Same as Fees - total trading fees paid by users"
         }
       }
     }

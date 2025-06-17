@@ -18,7 +18,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       select 
         sum(amount_usd) as volume
       from dex.trades
-      where project = 'katana'
+      where project = 'katana' and version = '3'
         and block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
     `);
@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   adapter: {
       [CHAIN.RONIN]: {
           fetch,
-          start: 1732603221
+          start: '2024-11-26'
       }
   },
   isExpensiveAdapter: true
