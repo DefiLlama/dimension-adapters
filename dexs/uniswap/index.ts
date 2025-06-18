@@ -293,27 +293,27 @@ const mappingChain = (chain: string) => {
 //   }
 // }
 
-// adapter.breakdown.v3[CHAIN.AVAX] = {
-//   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-//     const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD" })
-//     const response = await adapter(options)
-//     return response;
-//   },
-//   meta: {
-//     methodology
-//   }
-// }
+adapter.breakdown.v3[CHAIN.AVAX] = {
+  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD" })
+    const response = await adapter(options)
+    return response;
+  },
+  meta: {
+    methodology
+  }
+}
 
-// adapter.breakdown.v3[CHAIN.WC] = {
-//   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-//     const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a" })
-//     const response = await adapter(options)
-//     return response;
-//   },
-//   meta: {
-//     methodology
-//   }
-// }
+adapter.breakdown.v3[CHAIN.WC] = {
+  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a" })
+    const response = await adapter(options)
+    return response;
+  },
+  meta: {
+    methodology
+  }
+}
 
 
 const okuChains = [
@@ -353,14 +353,14 @@ const okuChains = [
 
 
 
-// okuChains.forEach(chain => {
-//   adapter.breakdown.v3[chain] = {
-//     fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
-//     meta: {
-//       methodology
-//     }
-//   }
-// })
+okuChains.forEach(chain => {
+  adapter.breakdown.v3[chain] = {
+    fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
+    meta: {
+      methodology
+    }
+  }
+})
 
 
 export default adapter;
