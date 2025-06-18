@@ -131,7 +131,7 @@ const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResu
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
   const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
   const { dailyBribesRevenue } = await getBribes(options);
-  return { dailyFees, dailyVolume, dailyBribesRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyVolume, dailyBribesRevenue }
 }
 
 const adapters: SimpleAdapter = {
