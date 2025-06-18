@@ -1,4 +1,5 @@
 import axios from "axios";
+import { parseUnits } from "ethers";
 
 const shadowSubgraph =
   "https://shadow.kingdomsubgraph.com/subgraphs/name/core-full";
@@ -12,9 +13,11 @@ const query = (block: number, pool: string) => `
     totalSupply,
     token0 {
       id
+      decimals
 		}
     token1 {
       id
+      decimals
     }
   }
 }
@@ -52,6 +55,9 @@ export const getFees = async (
   const token0 = beforePool.token0.id;
   const token1 = beforePool.token1.id;
 
+  const decimals0 = beforePool.token0.decimals;
+  const decimals1 = beforePool.token1.decimals;
+
   const beforeTotalSupply = Number(beforePool.totalSupply);
   const afterTotalSupply = Number(afterPool.totalSupply);
 
@@ -77,8 +83,15 @@ export const getFees = async (
   const feeRatio = kValueGrowthPerLP / beforeKPerLP;
 
   // Calculate fees in terms of the pool's tokens
-  const token0Fees = Number(beforePool.totalValueLockedToken0) * feeRatio;
-  const token1Fees = Number(beforePool.totalValueLockedToken1) * feeRatio;
+  const token0Fees_wei = (
+    Number(beforePool.totalValueLockedToken0) * feeRatio
+  ).toFixed(6);
+  const token1Fees_wei = (
+    Number(beforePool.totalValueLockedToken1) * feeRatio
+  ).toFixed(6);
+
+  const token0Fees = parseUnits(token0Fees_wei.toString(), Number(decimals0));
+  const token1Fees = parseUnits(token1Fees_wei.toString(), Number(decimals1));
 
   return {
     token0: {
