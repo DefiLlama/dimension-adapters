@@ -128,7 +128,7 @@ export type FetchResultVolume = FetchResultBase & {
   totalVolume?: FetchResponseValue
   dailyShortOpenInterest?: FetchResponseValue
   dailyLongOpenInterest?: FetchResponseValue
-  dailyOpenInterest?: FetchResponseValue
+  openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
 };
@@ -170,7 +170,7 @@ export type FetchResultOptions = FetchResultBase & {
   dailyNotionalVolume?: FetchResponseValue
   dailyShortOpenInterest?: FetchResponseValue
   dailyLongOpenInterest?: FetchResponseValue
-  dailyOpenInterest?: FetchResponseValue
+  openInterestAtEnd?: FetchResponseValue
 };
 
 
@@ -192,7 +192,7 @@ export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggre
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
