@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.SUI]: {
 			fetch,
-			start: '2025-06-03',
+			start: '2024-06-28',
 			meta: {
 				hallmarks: [[1748908800, 'Introducing Bluefin7K']],
 			}
