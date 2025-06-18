@@ -10,7 +10,10 @@ import { getTransactions } from "../../helpers/getTxReceipts";
 const BridgeFillEvent =
   "event BridgeFill(bytes32 source, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
 
-const iface = new ethers.Interface([BridgeFillEvent]);
+const HYPERBLOOM_ADDRESSES = [
+  "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
+  "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
+];
 
 const fetch: any = async (
   options: FetchOptions
@@ -19,7 +22,6 @@ const fetch: any = async (
 
   const logs: any[] = await options.getLogs({
     noTarget: true,
-    topic: "0xe59e71a14fe90157eedc866c4f8c767d3943d6b6b2e8cd64dddcc92ab4c55af8",
     eventAbi: BridgeFillEvent,
     entireLog: true,
   });
@@ -29,10 +31,7 @@ const fetch: any = async (
     cacheKey: "hyperbloom-bridgefill",
   });
 
-  const HYPERBLOOM_ADDRESSES = [
-    "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
-    "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
-  ];
+  
 
   const validTxHashSet = new Set(
     txs
@@ -62,6 +61,7 @@ const fetch: any = async (
       firstBridgeFillPerTx[tx] = log;
   });
 
+  const iface = new ethers.Interface([BridgeFillEvent]);
   Object.values(firstBridgeFillPerTx).forEach((log) => {
     const parsed = iface.parseLog(log);
     if (!parsed) return;
@@ -79,7 +79,7 @@ const adapter: SimpleAdapter = {
       start: "2025-05-31",
       meta: {
         methodology: {
-          Volume: 'Get volume data from HyperBloom project api.'
+          Volume: 'Volume from every users trades.'
         }
       }
     },
