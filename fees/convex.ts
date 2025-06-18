@@ -8,8 +8,7 @@ import BigNumber from "bignumber.js";
 import {httpGet} from "../utils/fetchURL";
 
 const endpoints = {
-    [ETHEREUM]:
-        sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
+    [ETHEREUM]: sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
 };
 
 // Constants for on-chain data
@@ -146,16 +145,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         .plus(reUSDRevenue);
 
     // Platform fee on CRV rewards + Rewards to liquid lockers + Rewards to CVX holders
-    const dailyFees = dailyTreasuryRevenue.plus(liquidRevenue).plus(dailyHoldersRevenue);
-    // No fees levied on users
-    const dailyUserFees = 0;
+    const dailyFees = dailyTreasuryRevenue
+        .plus(dailySupplySideRev)
+        .plus(liquidRevenue)
+        .plus(dailyHoldersRevenue);
+    
     // Platform fee on CRV/FXS rewards + Gov token holder revenue
     const dailyRevenue = dailyTreasuryRevenue.plus(dailyHoldersRevenue);
 
     return {
         timestamp,
         dailyFees,
-        dailyUserFees: dailyUserFees,
+        dailyUserFees: 0, // No fees levied on users
         dailyHoldersRevenue: dailyHoldersRevenue,
         dailyProtocolRevenue: dailyTreasuryRevenue,
         dailySupplySideRevenue: dailySupplySideRev,
