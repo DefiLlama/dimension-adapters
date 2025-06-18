@@ -14,6 +14,7 @@ const HYPERBLOOM_ADDRESSES = [
   "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
   "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
 ];
+const iface = new ethers.Interface([BridgeFillEvent]);
 
 const fetch: any = async (
   options: FetchOptions
@@ -31,8 +32,6 @@ const fetch: any = async (
     cacheKey: "hyperbloom-bridgefill",
   });
 
-  
-
   const validTxHashSet = new Set(
     txs
       .filter(
@@ -46,28 +45,41 @@ const fetch: any = async (
   );
 
   // --- BridgeFill deduplication ---
-  // A single 0x (HyperBloom) transaction can emit multiple BridgeFill events when the bridge
-  // route is multi-hop.  The *first* BridgeFill (lowest logIndex) represents the token and
-  // amount that the user actually supplied to the bridge.  Subsequent hops only reflect
-  // internal swaps and would double-count volume if included.  Hence we keep exactly one
-  // BridgeFill per transaction – the one with the smallest logIndex.
-  const firstBridgeFillPerTx: Record<string, any> = {};
+  // BridgeFill first-hop detection
+  // A single HyperBloom transaction can emit multiple BridgeFill events (multi-hop route or
+  // volume split across different paths). The user's actual deposit is represented by those
+  // BridgeFill events whose inputToken has NOT already appeared as an outputToken earlier in
+  // the same transaction. We therefore iterate through the logs in ascending logIndex (i.e.
+  // execution order), keep track of every outputToken encountered, and add to the volume only
+  // the events that satisfy the "first-hop" condition. This removes internal swaps and prevents
+  // double counting while still capturing split routes correctly.
+
+  const logsByTx: Record<string, any[]> = {};
   logsToProcess.forEach((log) => {
     const tx = log.transactionHash.toLowerCase();
-    if (
-      !firstBridgeFillPerTx[tx] ||
-      log.logIndex < firstBridgeFillPerTx[tx].logIndex
-    )
-      firstBridgeFillPerTx[tx] = log;
+    if (!logsByTx[tx]) logsByTx[tx] = [];
+    logsByTx[tx].push(log);
   });
 
-  const iface = new ethers.Interface([BridgeFillEvent]);
-  Object.values(firstBridgeFillPerTx).forEach((log) => {
-    const parsed = iface.parseLog(log);
-    if (!parsed) return;
-    dailyVolume.add(parsed.args.inputToken, parsed.args.inputTokenAmount);
+  Object.values(logsByTx).forEach((txLogs) => {
+    txLogs.sort((a, b) => a.logIndex - b.logIndex);
+
+    const outputTokensSeen = new Set<string>();
+
+    txLogs.forEach((log) => {
+      const parsed = iface.parseLog(log);
+      if (!parsed) return;
+
+      const inputToken = parsed.args.inputToken.toLowerCase();
+
+      if (!outputTokensSeen.has(inputToken)) {
+        dailyVolume.add(parsed.args.inputToken, parsed.args.inputTokenAmount);
+      }
+
+      outputTokensSeen.add(parsed.args.outputToken.toLowerCase());
+    });
   });
-  
+
   return { dailyVolume } as any;
 };
 
@@ -79,9 +91,10 @@ const adapter: SimpleAdapter = {
       start: "2025-05-31",
       meta: {
         methodology: {
-          Volume: 'Volume from every users trades.'
-        }
-      }
+          Volume:
+            "Volume from Hyperbloom",
+        },
+      },
     },
   },
 };
