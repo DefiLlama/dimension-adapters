@@ -1,60 +1,43 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const chainsMap: Record<string, string> = { ethereum: "eth" };
-const chains = [
-  "ethereum",
-  "bsc",
-  "polygon",
-  "xdai",
-  "fantom",
-  "heco",
-  "arbitrum",
-  "optimism",
-  "moonriver",
-  "aurora",
-  "metis",
-  "kava",
-  "celo",
-  "zksync",
-  "polygon_zkevm",
-  "linea",
-  "base",
-];
+const contract_addresses: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.BSC]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.POLYGON]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.BASE]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.OPTIMISM]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.ARBITRUM]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+  [CHAIN.AVAX]: "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
+};
 
-const fetch =
-  (chain: string) =>
-    async (timestamp: number): Promise<FetchResult> => {
-      if (chain === 'heco') { return {} } // skip HECO for now
-      const today = new Date();
-      const timestampDate = new Date(timestamp * 1000);
-      const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);
-      const dayDiff = today.getTime() - timestampDate.getTime();
-      const daysPassed = (dayDiff / (1000 * 3600 * 24)).toFixed(0);
-      const data = await fetchURL(
-        `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${daysPassed || 1
-        }&total=true`
-      );
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const logs = await options.getLogs({
+    target: contract_addresses[options.chain],
+    eventAbi:
+      "event Swapped(address indexed sender,address indexed srcToken,address indexed dstToken,address dstReceiver,uint256 amount,uint256 spentAmount,uint256 returnAmount,uint256 minReturnAmount,uint256 guaranteedAmount,address referrer)",
+  });
 
-      return {
-        dailyVolume: data.data[chainsMap[chain] || chain]?.volume,
-        timestamp: unixTimestamp,
-      };
+  logs.forEach((log) => {
+    dailyVolume.add(log.dstToken, log.returnAmount);
+  });
+
+  return {
+    dailyVolume,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: Object.entries(contract_addresses).reduce((acc, [chain, _]) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: fetch,
+      },
     };
-
-const adapter: any = {
-  adapter: {
-    ...chains.reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: fetch(chain),
-          start: new Date(2023, 6, 1).getTime() / 1000,
-        },
-      };
-    }, {}),
-  },
+  }, {}),
 };
 
 export default adapter;
