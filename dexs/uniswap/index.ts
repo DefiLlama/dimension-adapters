@@ -66,7 +66,7 @@ const v3Endpoints = {
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
-  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
   // [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
 };
@@ -292,27 +292,28 @@ const mappingChain = (chain: string) => {
 //     methodology
 //   }
 // }
-adapter.breakdown.v3[CHAIN.AVAX] = {
-  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD" })
-    const response = await adapter(options)
-    return response;
-  },
-  meta: {
-    methodology
-  }
-}
 
-adapter.breakdown.v3[CHAIN.WC] = {
-  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a" })
-    const response = await adapter(options)
-    return response;
-  },
-  meta: {
-    methodology
-  }
-}
+// adapter.breakdown.v3[CHAIN.AVAX] = {
+//   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+//     const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD" })
+//     const response = await adapter(options)
+//     return response;
+//   },
+//   meta: {
+//     methodology
+//   }
+// }
+
+// adapter.breakdown.v3[CHAIN.WC] = {
+//   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+//     const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a" })
+//     const response = await adapter(options)
+//     return response;
+//   },
+//   meta: {
+//     methodology
+//   }
+// }
 
 
 const okuChains = [
@@ -352,14 +353,14 @@ const okuChains = [
 
 
 
-okuChains.forEach(chain => {
-  adapter.breakdown.v3[chain] = {
-    fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
-    meta: {
-      methodology
-    }
-  }
-})
+// okuChains.forEach(chain => {
+//   adapter.breakdown.v3[chain] = {
+//     fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
+//     meta: {
+//       methodology
+//     }
+//   }
+// })
 
 
 export default adapter;
