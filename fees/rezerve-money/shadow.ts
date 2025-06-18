@@ -1,5 +1,7 @@
 import axios from "axios";
 import { parseUnits } from "ethers";
+import { FetchOptions } from "../../adapters/types";
+import { Balances } from "@defillama/sdk";
 
 const shadowSubgraph =
   "https://shadow.kingdomsubgraph.com/subgraphs/name/core-full";
@@ -41,11 +43,7 @@ const subgraph = async (query: string) => {
  * @param pool - The pool address
  * @returns The fees for the pool
  */
-export const getFees = async (
-  startBlock: number,
-  endBlock: number,
-  pool: string
-) => {
+const getFees = async (startBlock: number, endBlock: number, pool: string) => {
   const beforeState = await subgraph(query(startBlock, pool));
   const afterState = await subgraph(query(endBlock, pool));
 
@@ -103,4 +101,24 @@ export const getFees = async (
       fees: token1Fees,
     },
   };
+};
+
+/**
+ * @param balances - The balances object to add the fees to
+ * @param options - The options object to get the from and to blocks
+ */
+export const fetchFeesFromShadow = async (
+  balances: Balances,
+  options: FetchOptions
+) => {
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+
+  const usdc_rzr_shadowlp = "0x08c5e3b7533ee819a4d1f66e839d0e8f04ae3d0c"; // Replace with your LP token address
+
+  const fees = await getFees(fromBlock, toBlock, usdc_rzr_shadowlp);
+  balances.add(fees.token0.token, fees.token0.fees);
+  balances.add(fees.token1.token, fees.token1.fees);
+
+  return balances;
 };
