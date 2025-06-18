@@ -3,13 +3,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (timestamp: number) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
+  const unixTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-  const data = await fetchURL(
-    `https://api.hyperbloom.xyz/stats?timestamp=${unixTimestamp}`
-  );
+  const data = await fetchURL(`https://api.hyperbloom.xyz/stats?timestamp=${timestamp}`);
 
   return {
     dailyVolume: data?.volume24h,
@@ -23,6 +19,11 @@ const adapter: any = {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetch,
       start: "2025-05-31",
+      meta: {
+        methodology: {
+          Volume: 'Get volume data from HyperBloom project api.'
+        }
+      }
     },
   },
 };
