@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultVolumeFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const eventRouted = `event Routed(
@@ -14,83 +14,76 @@ const eventRouted = `event Routed(
   uint256 finalOutputAmount
 )`;
 
-const ROUTERS = {
-  [CHAIN.ETHEREUM]:     "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.ARBITRUM]:     "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.BASE]:         "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.XDAI]:         "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.BSC]:          "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.POLYGON]:      "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.AVAX]:         "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.OPTIMISM]:     "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.BLAST]:        "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.LINEA]:        "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.MANTLE]:       "0x85fb41c470B8Dd2C9aD262F38e38E42a2f92C285",
-  [CHAIN.SCROLL]:       "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.TAIKO]:        "0x75e74A67Bd4A76BcE60bb0546f092571c3133523",
-  [CHAIN.BERACHAIN]:    "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.SONIC]:        "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.UNICHAIN]:     "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-  [CHAIN.HYPERLIQUID]:  "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7",
-};
+const DEFAULT_ROUTER = "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7";
+const gasTokens = new Set([
+  '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  '0x0000000000000000000000000000000000000000',
+  '0x2222222222222222222222222222222222222222',  // hyperliquid
+  '0x0000000000000000000000000000000000001010',  // polygon
+])
 
-const NATIVE_TOKENS: Record<string, string> = {
-  [CHAIN.ETHEREUM]:     "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
-  [CHAIN.ARBITRUM]:     "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.BASE]:         "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.XDAI]:         "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.BSC]:          "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
-  [CHAIN.POLYGON]:      "0x0000000000000000000000000000000000001010", 
-  [CHAIN.AVAX]:         "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
-  [CHAIN.OPTIMISM]:     "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.BLAST]:        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.LINEA]:        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.MANTLE]:       "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.SCROLL]:       "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.TAIKO]:        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.BERACHAIN]:    "0x0000000000000000000000000000000000000000 ",
-  [CHAIN.SONIC]:        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.UNICHAIN]:     "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  [CHAIN.HYPERLIQUID]:  "0x2222222222222222222222222222222222222222",
-};
+const config = {
+  [CHAIN.ETHEREUM]: {},
+  [CHAIN.ARBITRUM]: {},
+  [CHAIN.BASE]: {},
+  [CHAIN.XDAI]: {},
+  [CHAIN.BSC]: {},
+  [CHAIN.POLYGON]: {},
+  [CHAIN.AVAX]: {},
+  [CHAIN.OPTIMISM]: {},
+  [CHAIN.BLAST]: {},
+  [CHAIN.LINEA]: {},
+  [CHAIN.MANTLE]: { router: "0x85fb41c470B8Dd2C9aD262F38e38E42a2f92C285" },
+  [CHAIN.SCROLL]: {},
+  [CHAIN.TAIKO]: { router: "0x75e74A67Bd4A76BcE60bb0546f092571c3133523" },
+  [CHAIN.BERACHAIN]: {},
+  [CHAIN.SONIC]: {},
+  [CHAIN.UNICHAIN]: {},
+  [CHAIN.HYPERLIQUID]: {},
+}
 
-const START = 1741967399; // Mar-14-2025
+const START = '2025-03-14'; // Mar-14-2025
 
-async function fetch({ getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolumeFees> {
-  const router = ROUTERS[chain];
-  const nativeToken = NATIVE_TOKENS[chain]?.toLowerCase();
+async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
+  const { router = DEFAULT_ROUTER } = config[chain]
   const logs = await getLogs({ targets: [router], eventAbi: eventRouted });
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
 
   logs.forEach((log) => {
     const token = log.inputToken.toLowerCase();
     const inputAmount = log.inputAmount;
-    const routingFee = log.routingFee;
+    const revenue = log.routingFee;
+    const fee = Number(log.routingFee ?? 0) + Number(log.partnerFee ?? 0);
 
-    const isNative = token === nativeToken;
+    const isNative = gasTokens.has(token)
 
     if (isNative) {
       dailyVolume.addGasToken(inputAmount);
-      dailyFees.addGasToken(routingFee);
+      dailyFees.addGasToken(fee);
+      dailyRevenue.addGasToken(revenue);
     } else {
       dailyVolume.add(token, inputAmount);
-      dailyFees.add(token, routingFee);
+      dailyFees.add(token, fee);
+      dailyRevenue.add(token, revenue);
     }
   });
 
   return {
     dailyVolume,
     dailyFees,
+    dailyRevenue,
   };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.keys(ROUTERS).reduce((acc, chain) => {
-    acc[chain] = { fetch, start: START };
-    return acc;
-  }, {} as SimpleAdapter["adapter"]),
+  adapter: {},
 };
+
+Object.keys(config).forEach(chain => {
+  adapter.adapter[chain] = { fetch, start: START, }
+})
 
 export default adapter;

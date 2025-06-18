@@ -116,7 +116,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       const endTime = getUnixTimeNow()
 
       try {
-        await elastic.addErrorLog({ error, metadata, errorString: error?.toString(), } as any)
+        await elastic.addErrorLog({ error: error?.message ?? error, metadata, errorString: error.message ?? error?.toString(), } as any)
         await elastic.addRuntimeLog({ runtime: endTime - startTime, success: false, metadata, });
 
         (error as any).chain = chain
