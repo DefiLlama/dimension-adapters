@@ -22,7 +22,7 @@ const gasTokens = new Set([
   '0x0000000000000000000000000000000000001010',  // polygon
 ])
 
-const config = {
+const config: any = {
   [CHAIN.ETHEREUM]: {},
   [CHAIN.ARBITRUM]: {},
   [CHAIN.BASE]: {},
@@ -46,25 +46,25 @@ const START = '2025-03-14'; // Mar-14-2025
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const { router = DEFAULT_ROUTER } = config[chain]
-  const logs = await getLogs({ targets: [router], eventAbi: eventRouted });
+  const logs = await getLogs({ targets: [router], eventAbi: eventRouted, });
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
 
   logs.forEach((log) => {
-    const token = log.inputToken.toLowerCase();
-    const inputAmount = log.inputAmount;
+    const token = log.outputToken.toLowerCase();
+    const outputAmount = log.outputAmount;
     const revenue = log.routingFee;
-    const fee = Number(log.routingFee ?? 0) + Number(log.partnerFee ?? 0);
+    const fee = log.routingFee + log.partnerFee;
 
     const isNative = gasTokens.has(token)
 
     if (isNative) {
-      dailyVolume.addGasToken(inputAmount);
+      dailyVolume.addGasToken(outputAmount);
       dailyFees.addGasToken(fee);
       dailyRevenue.addGasToken(revenue);
     } else {
-      dailyVolume.add(token, inputAmount);
+      dailyVolume.add(token, outputAmount);
       dailyFees.add(token, fee);
       dailyRevenue.add(token, revenue);
     }
