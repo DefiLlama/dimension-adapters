@@ -83,12 +83,10 @@ const fetch = async (options: FetchOptions) => {
     const supplySideRevenue = totalDailyFees * 0.75;
 
     // Add fees to balances (in USD)
-    dailyFees.addCGToken("usd-coin", totalDailyFees);
-    dailyRevenue.addCGToken("usd-coin", protocolRevenue); // For DeFiLlama, dailyRevenue = protocol revenue
-    dailyProtocolRevenue.addCGToken("usd-coin", protocolRevenue);
-    dailySupplySideRevenue.addCGToken("usd-coin", supplySideRevenue);
-
-    console.log(`Hypercat - Daily Volume: $${totalDailyVolume.toFixed(2)}, Daily Fees: $${totalDailyFees.toFixed(2)}`);
+    dailyFees.addUSDValue(totalDailyFees);
+    dailyRevenue.addUSDValue(protocolRevenue); // For DeFiLlama, dailyRevenue = protocol revenue
+    dailyProtocolRevenue.addUSDValue(protocolRevenue);
+    dailySupplySideRevenue.addUSDValue(supplySideRevenue);
 
     return {
       dailyFees,
@@ -116,7 +114,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
-      start: async () => 1704067200, // January 1, 2024 - adjust based on Hypercat's actual launch date
+      runAtCurrTime: true,
       meta: {
         methodology: {
           Fees: "Trading fees collected by Hypercat exchange, sourced from official Hypercat API using calculated24h feesUSD",
@@ -126,10 +124,6 @@ const adapter: SimpleAdapter = {
           ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
           HoldersRevenue: "Revenue distributed to token holders (currently 0)",
         },
-        hallmarks: [
-          // Add significant events that affected Hypercat's data
-          // Example: [1704067200, "Hypercat launch on Hyperliquid"]
-        ],
       },
     },
   },
