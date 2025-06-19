@@ -14,7 +14,6 @@ interface IVolumeall {
 
 const graph = (chain: Chain) => {
     return async (timestamp: number): Promise<FetchResultVolume> => {
-        if (chain === CHAIN.HECO) { return {}} // skip HECO for now
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
         const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data.list;
 
@@ -40,20 +39,8 @@ const adapter: SimpleAdapter = {
             fetch: graph(CHAIN.ETHEREUM),
             start: '2022-10-31',
         },
-        // [CHAIN.POLYGON]: {
-        //     fetch: graph(CHAIN.POLYGON),
-        //     start: '2022-10-31',
-        // },
         [CHAIN.BSC]: {
             fetch: graph(CHAIN.BSC),
-            start: '2022-10-31',
-        },
-        [CHAIN.HECO]: {
-            fetch: graph(CHAIN.HECO),
-            start: '2022-10-31',
-        },
-        [CHAIN.FANTOM]: {
-            fetch: graph(CHAIN.FANTOM),
             start: '2022-10-31',
         },
         [CHAIN.ARBITRUM]: {
