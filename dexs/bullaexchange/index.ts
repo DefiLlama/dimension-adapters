@@ -1,94 +1,132 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
+import { httpGet } from "../../utils/fetchURL";
 
-const endpoint = "https://api.goldsky.com/api/public/project_clols2c0p7fby2nww199i4pdx/subgraphs/algebra-berachain-mainnet/0.0.3/gn";
+const BULLA_API_URL = "https://api.gamma.xyz/frontend/externalApis/bulla/pools";
 
-// GraphQL query to fetch total volume
-const totalVolumeQuery = gql`
-  query {
-    factories(first: 1) {
-      totalVolumeUSD
-    }
-  }
-`;
+interface BullaToken {
+  id: string;
+  symbol: string;
+  name: string;
+  decimals: string;
+  derivedMatic: string;
+  totalValueLocked: string;
+  totalValueLockedUSD: string;
+}
 
-// GraphQL query to fetch daily volume, total fees, and per-pool fees/community fees
-const dailyVolumeFeesQuery = gql`
-  query ($date: Int!) {
-    algebraDayDatas(where: { date: $date }) {
-      volumeUSD
-      feesUSD
-    }
-    pools {
-      feesUSD
-      communityFee
-    }
-  }
-`;
-
-// Function to fetch total volume
-const fetchTotalVolume = async () => {
-  const response = await request(endpoint, totalVolumeQuery);
-  return response.factories[0]?.totalVolumeUSD || "0";
-};
-
-// Function to fetch daily volume, fees, and correctly calculated revenue
-const fetchDailyData = async (date: number) => {
-  const response = await request(endpoint, dailyVolumeFeesQuery, { date });
-  const data = response.algebraDayDatas[0] || {};
-  const pools = response.pools || [];
-
-  const totalFeesUSD = parseFloat(data.feesUSD) || 0;
-
-
-  if (totalFeesUSD === 0) {
-    return { volumeUSD: data.volumeUSD || "0", feesUSD: "0", revenueUSD: "0" };
-  }
-
-  let totalRevenue = 0;
-
-  pools.forEach(pool => {
-    const poolFees = parseFloat(pool.feesUSD) || 0;
-    let communityFee = parseFloat(pool.communityFee) || 0;
-
-
-    // Correct the scaling of communityFee by dividing by 10000
-    communityFee /= 10000;
-
-
-
-    const poolRevenue = (poolFees / totalFeesUSD) * totalFeesUSD * communityFee;
-    totalRevenue += poolRevenue;
-  });
-
-
-  return {
-    volumeUSD: data.volumeUSD || "0",
-    feesUSD: data.feesUSD || "0",
-    revenueUSD: totalRevenue.toFixed(2),
+interface BullaPool {
+  id: string;
+  fee: string;
+  token0: BullaToken;
+  token1: BullaToken;
+  sqrtPrice: string;
+  liquidity: string;
+  tick: string;
+  tickSpacing: string;
+  totalValueLockedUSD: string;
+  totalValueLockedToken0: string;
+  totalValueLockedToken1: string;
+  volumeUSD: string;
+  feesUSD: string;
+  untrackedFeesUSD: string;
+  token0Price: string;
+  token1Price: string;
+  communityFee: string;
+  calculated24h: {
+    volumeUSD: number;
+    feesUSD: number;
+    averageTVL: number;
   };
+}
+
+interface BullaResponse {
+  data: {
+    pools: BullaPool[];
+  };
+}
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  
+  try {
+    // Fetch data from the official Bulla API
+    const response: BullaResponse = await httpGet(BULLA_API_URL);
+    
+    if (!response?.data?.pools) {
+      console.warn("No pools data received from Bulla API");
+      return {
+        dailyFees,
+        dailyRevenue,
+        dailyUserFees: dailyFees,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue,
+        dailyHoldersRevenue: options.createBalances(),
+      };
+    }
+
+    // Calculate total daily fees from all pools using calculated24h data
+    const totalDailyFees = response.data.pools.reduce((acc, pool) => {
+      return acc + (pool.calculated24h?.feesUSD || 0);
+    }, 0);
+
+    // Calculate total daily volume using calculated24h data
+    const totalDailyVolume = response.data.pools.reduce((acc, pool) => {
+      return acc + (pool.calculated24h?.volumeUSD || 0);
+    }, 0);
+
+    // Protocol revenue is 25% of total fees
+    const protocolRevenue = totalDailyFees * 0.25;
+    // Supply side revenue is 75% of total fees
+    const supplySideRevenue = totalDailyFees * 0.75;
+
+    // Add fees to balances (in USD)
+    dailyFees.addUSDValue(totalDailyFees);
+    dailyRevenue.addUSDValue(protocolRevenue); // For DeFiLlama, dailyRevenue = protocol revenue
+    dailyProtocolRevenue.addUSDValue(protocolRevenue);
+    dailySupplySideRevenue.addUSDValue(supplySideRevenue);
+
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyUserFees: dailyFees, // User fees are the same as total fees
+      dailyProtocolRevenue,
+      dailySupplySideRevenue,
+      dailyHoldersRevenue: options.createBalances(), // No holder revenue for now
+    };
+  } catch (error) {
+    console.error("Error fetching Bulla fees data:", error);
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyUserFees: dailyFees,
+      dailyProtocolRevenue,
+      dailySupplySideRevenue,
+      dailyHoldersRevenue: options.createBalances(),
+    };
+  }
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BERACHAIN]: {
-      fetch: async (timestamp: number) => {
-        const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-        const totalVolume = await fetchTotalVolume();
-        const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(dayTimestamp);
-
-        return {
-          totalVolume: parseFloat(totalVolume),
-          dailyVolume: parseFloat(volumeUSD),
-          dailyFees: parseFloat(feesUSD),
-          dailyRevenue: parseFloat(revenueUSD), // Now correctly weighted
-          timestamp: dayTimestamp,
-        };
+      fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Trading fees collected by Bulla exchange, sourced from official Bulla API using calculated24h feesUSD",
+          Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+          UserFees: "Trading fees paid by users (same as total fees)",
+          SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
+          ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
+          HoldersRevenue: "Revenue distributed to token holders (currently 0)",
+        },
       },
-      start: async () => 1738800000, // Timestamp for February 6, 2025
     },
   },
 };
 
-export default adapter;
+export default adapter; 
