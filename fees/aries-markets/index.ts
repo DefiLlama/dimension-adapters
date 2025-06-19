@@ -12,10 +12,9 @@ const STABLE_COIN_DECIMAL = 6;
 const DAY_IN_YEARS = 365;
 
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const reserves = await fetchURL(reserveURL)?.then(res => {
-    // console.log(res);
+  const reserves = await fetchURL(reserveURL)?.then((res) => {
     return res.result.data.stats;
-});
+  });
 
   let dailyFees = 0;
   for (const reserveKey of [USDTReserveKey, USDCReserveKey]) {
@@ -25,13 +24,14 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
       ).then(res => res.result.data)
     )[0];
 
-    console.log(dayFeesQuery);
     const matchingReserve = reserves.find(
       (reserve) => reserve.key === reserveKey
     );
-    // console.log(matchingReserve)
-    dailyFees += dayFeesQuery?.borrowApr * (matchingReserve?.value.total_borrowed / 10 ** STABLE_COIN_DECIMAL / DAY_IN_YEARS || 0);
-    console.log(dailyFees);
+    dailyFees +=
+      dayFeesQuery?.borrowApr *
+      (matchingReserve?.value.total_borrowed /
+        10 ** STABLE_COIN_DECIMAL /
+        DAY_IN_YEARS || 0);
   }
 
   return {
