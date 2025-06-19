@@ -54,7 +54,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   logs.forEach((log) => {
     const token = log.outputToken.toLowerCase();
     const outputAmount = log.outputAmount;
-    const revenue = log.routingFee;
+    const revenue = log.routingFee; // comment from the team:  We are currently setting it to 1 as default because the contract requires routingFee > 0. That was a design failure we overlook. Effectively routingFee should be 0 at the moment, i.e. Gluex is not charging a protocol fee
     const fee = log.routingFee + log.partnerFee;
 
     const isNative = gasTokens.has(token)
@@ -74,6 +74,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: '0',
   };
 }
 
