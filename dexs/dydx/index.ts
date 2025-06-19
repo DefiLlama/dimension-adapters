@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import { DISABLED_ADAPTER_KEY, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const historicalVolumeEndpoint = "https://api.dydx.exchange/v3/markets"
 const candles = (market: string, fromISO: string) => `https://api.dydx.exchange/v3/candles/${market}?resolution=1DAY&fromISO=${fromISO}`
@@ -40,7 +39,6 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 const adapter: SimpleAdapter = {
   deadFrom: '2025-02-02',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2021-02-25',

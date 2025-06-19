@@ -53,16 +53,9 @@ const adapter: SimpleAdapter = {
           }
         }`;
 
-        const totalVolumeQuery = `{
-          dailyVolumes {
-            volume
-          }
-        }`;
-
-        const [dailyExchanges, dailyExchangeUnderlyings, allVolumes] = await Promise.all([
+        const [dailyExchanges, dailyExchangeUnderlyings] = await Promise.all([
           request(endpoints[CHAIN.CORE], dailyExchangeQuery),
           request(endpoints[CHAIN.CORE], dailyExchangeUnderlyingQuery),
-          fetchAllPages(endpoints[CHAIN.CORE], totalVolumeQuery, "dailyVolumes")
         ]);
 
         let dailyVolumeBTC = 0;
@@ -74,15 +67,9 @@ const adapter: SimpleAdapter = {
           dailyVolumeBTC += parseFloat(exchange.tokensSold);
         });
 
-        const totalVolumeBTC = allVolumes.reduce(
-          (sum: number, entry: any) => sum + parseFloat(entry.volume),
-          0
-        );
-
         const btcPrice = (await getPrices(["coingecko:bitcoin"], options.endTimestamp))["coingecko:bitcoin"].price;
 
         const dailyVolumeUSD = dailyVolumeBTC * btcPrice;
-        const totalVolumeUSD = totalVolumeBTC * btcPrice;
 
         const dailyFees = dailyVolumeUSD * FEE_PERCENT;
         const protocolRevenue = dailyFees * PROTOCOL_SHARE;
@@ -101,7 +88,6 @@ const adapter: SimpleAdapter = {
 
         return {
           dailyVolume: dailyVolumeUSD,
-          totalVolume: totalVolumeUSD,
           dailyFees,
           dailyRevenue: protocolRevenue,
           dailyProtocolRevenue: protocolRevenue,

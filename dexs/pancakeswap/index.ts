@@ -1,13 +1,12 @@
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
-import { filterPools, getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
-import { queryDune, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -618,10 +617,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      ...createAdapter('v1')
-    },
+    v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')

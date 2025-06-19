@@ -26,7 +26,7 @@ interface IOpenInterest {
     lastPrice: string;
 }
 
-const getVolume = async (timestamp: number) => {
+const fetch = async (timestamp: number) => {
     const symbol = (await getSumbols());
 
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
@@ -44,11 +44,8 @@ const getVolume = async (timestamp: number) => {
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
 
     return {
-        totalVolume: totalVolume,
         dailyOpenInterest: dailyOpenInterest,
         dailyVolume: dailyVolume,
     };
@@ -57,7 +54,7 @@ const getVolume = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: getVolume,
+            fetch,
             start: '2024-06-14',
         }
     },

@@ -21,7 +21,6 @@ const adapter: SimpleAdapter = {
 
         return {
           dailyVolume: data.daily_volume,
-          totalVolume: data.total_volume,
         }
       }
     }

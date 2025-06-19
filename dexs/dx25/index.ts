@@ -25,9 +25,7 @@ const adapter: SimpleAdapter = {
           timestamp: ts,
         })
         return {
-          timestamp: ts,
           dailyVolume: data.daily_volume,
-          totalVolume: data.total_volume,
         }
       }
     }

@@ -35,30 +35,19 @@ export const getDimensionsSum = async (
  
   let dailyVolume = 0;
   let dailyFees = 0;
-  let totalVolume = 0;
-  let totalFees = 0;
   
   allData.forEach(item => {
     const timestamp = Number(item.timestamp);
-    
-    if (timestamp <= endTimestamp) {
-      totalVolume += item.volumeUsd;
-      totalFees += item.feesUsd;
-      
-      if (timestamp >= startTimestamp && timestamp < endTimestamp) {
-        dailyVolume += item.volumeUsd;
-        dailyFees += item.feesUsd;
-      }
+    if (timestamp >= startTimestamp && timestamp < endTimestamp) {
+      dailyVolume += item.volumeUsd;
+      dailyFees += item.feesUsd;
     }
   });
   
   return {
     dailyVolume,
-    totalVolume,
     dailyFees,
-    totalFees,
     dailyRevenue: dailyFees,
-    totalRevenue: totalFees,
   };
 };
 
@@ -67,8 +56,5 @@ export const getEmptyData = (options: FetchOptions) => {
     dailyVolume: 0,
     dailyFees: 0,
     dailyRevenue: 0,
-    totalVolume: 0,
-    totalFees: 0,
-    totalRevenue: 0,
   };
 };
