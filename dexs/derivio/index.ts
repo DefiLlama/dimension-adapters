@@ -75,11 +75,9 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
   }
 
   return {
-    timestamp,
     dailyVolume: dailyData.volume.toString(),
     dailyNotionalVolume: dailyNotionalVolume ? dailyNotionalVolume.toString() : undefined,
     totalNotionalVolume: totalNotionalVolume ? totalNotionalVolume.toString() : undefined,
-    totalVolume: totalData.volume.toString(),
   }
 }
 

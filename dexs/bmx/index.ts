@@ -82,10 +82,6 @@ const getFetch =
       id: String(dayTimestamp) + ":daily",
       period: "daily",
     });
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "total",
-      period: "total",
-    });
     let dailyOpenInterest = 0;
     let dailyLongOpenInterest = 0;
     let dailyShortOpenInterest = 0;
@@ -111,7 +107,6 @@ const getFetch =
     }
 
     return {
-      timestamp: dayTimestamp,
       dailyLongOpenInterest: dailyLongOpenInterest
         ? String(dailyLongOpenInterest * 10 ** -30)
         : undefined,
@@ -131,18 +126,7 @@ const getFetch =
               ) *
                 10 ** -30
             )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-                10 ** -30
-            )
-          : undefined,
+          : undefined
     };
   };
 

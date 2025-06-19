@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const photonBridgeEndpoint = "https://bridge.superproof.ai/bridge"
@@ -15,15 +15,12 @@ const CHAINS = ['BTC', 'ETH']
 const getFetchForChain = (chainShortName: string) => {
   return async (_a: any, _b: any, options: FetchOptions) => {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
-    const volumeForDay = await httpGet(photonBridgeEndpoint.concat(`/dashboard/vol/chain/day?chain=${chainShortName}&timestamp=${startOfDay}`))
+    const volumeForDay = await fetchURL(photonBridgeEndpoint.concat(`/dashboard/vol/chain/day?chain=${chainShortName}&timestamp=${startOfDay}`))
 
-    const totalVolume = volumeForDay.total_volume
     const dailyVolume = volumeForDay.day_vol
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
-      timestamp: startOfDay,
     };
   };
 };
