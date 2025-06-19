@@ -387,8 +387,9 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
                   0x595e21b20e78674f8a64c1566a20b2b316bc3511,
                   0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
-                  0xc71b5f631354be6853efe9c3ab6b9590f8302e81,
-                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               AND token_bought_address NOT IN (
                   0xc71b5f631354be6853efe9c3ab6b9590f8302e81,  -- ZK
@@ -401,8 +402,9 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
                   0x595e21b20e78674f8a64c1566a20b2b316bc3511,
                   0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
-                  0xc71b5f631354be6853efe9c3ab6b9590f8302e81,
-                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               THEN amount_usd 
               ELSE 0 
