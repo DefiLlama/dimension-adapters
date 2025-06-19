@@ -8,7 +8,7 @@ type TEndpoint = {
 }
 const endpoints: TEndpoint = {
   [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/a4998f968b8ad324eb3e47ed20c00220/subgraphs/id/3Htp5TKs6BHCcwAYRCoBD6R4X62ThLRv2JiBBikyYze`,
-  [CHAIN.BASE]: `https://api.studio.thegraph.com/query/46015/extrafionbase/version/latest`
+  [CHAIN.BASE]: `https://gateway.thegraph.com/api/a4998f968b8ad324eb3e47ed20c00220/deployments/id/QmT6s8gNmKrshbuHz3636UgCLp9RkBKQmRh2zt4wzpnDpL`
 }
 
 interface IFeePaid {
@@ -89,8 +89,13 @@ const graphs = (chain: CHAIN) => {
     const dailyRevenue = dailyFees.clone()
     dailyRevenue.resizeBy(0.5)
 
+    const dailyHoldersRevenue = dailyFees.clone()
+    dailyHoldersRevenue.resizeBy(0.5)
+
     return {
-      dailyFees, dailyRevenue,
+      dailyFees, 
+      dailyRevenue,
+      dailyHoldersRevenue
     };
   };
 }
