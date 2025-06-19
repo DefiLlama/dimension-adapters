@@ -9,7 +9,10 @@ const skateChainIds = {
     [CHAIN.BASE]: 8453,
     [CHAIN.ARBITRUM]: 42161,
     [CHAIN.SOLANA]: 901,
-    [CHAIN.ECLIPSE]: 902
+    [CHAIN.ECLIPSE]: 902,
+    [CHAIN.HYPERLIQUID]: 999,
+    [CHAIN.PLUME]: 98866,
+    [CHAIN.MANTLE]: 5000
 }
 
 const skateDataApi = "https://data.skatechain.org/pools/stats";
@@ -106,6 +109,21 @@ const adapter: SimpleAdapter = {
         [CHAIN.ECLIPSE]: {
             fetch,
             start: '2025-04-02',
+            meta: meta
+        },
+        [CHAIN.HYPERLIQUID]: {
+            fetch,
+            start: '2025-05-28',
+            meta: meta
+        },
+        [CHAIN.PLUME]: {
+            fetch,
+            start: '2025-06-02',
+            meta: meta
+        },
+        [CHAIN.MANTLE]: {
+            fetch,
+            start: '2025-05-28',
             meta: meta
         }
     },

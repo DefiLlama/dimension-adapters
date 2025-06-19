@@ -90,7 +90,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
@@ -101,7 +101,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
@@ -112,7 +112,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",

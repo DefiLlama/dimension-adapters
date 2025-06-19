@@ -39,7 +39,7 @@ const fetchPolygon = async (
 
   logs.forEach((log) => {
     dailyVolume.add(log.outAsset, log.outAmount)
-    dailyFees.add(log.outAsset, log.outAmount * (5/10000))
+    dailyFees.add(log.outAsset, Number(log.outAmount) * (5/10000))
   });
 
   logs_2.forEach((log) => {

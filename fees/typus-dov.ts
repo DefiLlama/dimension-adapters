@@ -159,8 +159,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   ]);
 
   const fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Fee").matrix?.samples?.[0]?.values;
-  const totalFees = fee_usd.at(-1).value;
-  const dailyFees = totalFees - fee_usd.at(0).value;
+  const tf = fee_usd.at(-1).value;
+  const dailyFees = tf - fee_usd.at(0).value;
 
   const revenue_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Total Revenue").matrix
     ?.samples?.[0]?.values;
@@ -168,7 +168,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   return {
     dailyFees,
-    totalFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };

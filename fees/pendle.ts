@@ -258,7 +258,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1731368987,
+      start: '2024-11-12',
       meta,
     },
     [CHAIN.SONIC]: {

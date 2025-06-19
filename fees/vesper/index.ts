@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1691558400,
+      start: '2023-08-09',
       meta: {
         methodology: {
           Fees: "Tracks vaTokens minted to Vesper's Fee Recipient address.",
@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1691558400,
+      start: '2023-08-09',
       meta: {
         methodology: {
           Fees: "Tracks vaTokens minted to Vesper's Fee Recipient address.",
@@ -80,7 +80,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691558400,
+      start: '2023-08-09',
       meta: {
         methodology: {
           Fees: "Tracks vaTokens minted to Vesper's Fee Recipient address.",

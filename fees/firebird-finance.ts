@@ -8,7 +8,6 @@ const endpoint = "https://api-be.firebird.finance/v1/hyper/fees/info";
 interface FeeInfoResponse {
   data: {
     dailyFees: number;
-    totalFees: number;
   };
 }
 
@@ -17,13 +16,10 @@ const fetch = (chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const response: FeeInfoResponse = await httpGet(      `${endpoint}?chain_id=${chainId}&day=${dayTimestamp}`    );
     const dailyFees = response.data.dailyFees.toString();
-    const totalFees = response.data.totalFees.toString();
+
     return {
-      timestamp: dayTimestamp,
       dailyFees,
-      totalFees,
       dailyRevenue: dailyFees,
-      totalRevenue: totalFees,
     } as FetchResultFees;
   };
 };
