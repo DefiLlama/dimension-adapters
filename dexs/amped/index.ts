@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -52,10 +52,6 @@ const getFetch =
           id: String(dayTimestamp) + ":daily" ,
           period: "daily",
         });
-        const totalData: IGraphResponse = await request(endpoints[chain], query, {
-          id: "total",
-          period: "total",
-        });
 
         const dailyVolume = dailyData.volumeStats.length == 1
           ? Number(
@@ -65,18 +61,8 @@ const getFetch =
           ) * 10 ** -30
           : undefined;
 
-        const totalVolume = totalData.volumeStats.length == 1
-          ? Number(
-            Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-              String(Number(sum) + Number(element))
-            )
-          ) * 10 ** -30
-          : undefined;
-
         return {
-          timestamp: dayTimestamp,
           dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
-          totalVolume: totalVolume !== undefined ? String(totalVolume) : undefined,
         };
       };
 

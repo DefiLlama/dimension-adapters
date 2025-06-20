@@ -30,7 +30,7 @@ const adapter: Adapter = {
           timestamp: options.startOfDay,
         };
       },
-      start: 1747025482,
+      start: '2025-05-12',
       meta: {
         methodology: methodology,
       },

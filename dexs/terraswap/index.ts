@@ -1,6 +1,5 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const { request, gql } = require("graphql-request");
 
@@ -63,7 +62,6 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true,
       start: getStartTimestamp,
     },
-    [DISABLED_ADAPTER_KEY]: disabledAdapter
   },
 };
 

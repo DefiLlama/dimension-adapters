@@ -4,14 +4,6 @@ import { gql, request } from "graphql-request";
 
 const endpoint = "https://api.goldsky.com/api/public/project_clols2c0p7fby2nww199i4pdx/subgraphs/algebra-berachain-mainnet/0.0.3/gn";
 
-// GraphQL query to fetch total volume
-const totalVolumeQuery = gql`
-  query {
-    factories(first: 1) {
-      totalVolumeUSD
-    }
-  }
-`;
 
 // GraphQL query to fetch daily volume, total fees, and per-pool fees/community fees
 const dailyVolumeFeesQuery = gql`
@@ -26,12 +18,6 @@ const dailyVolumeFeesQuery = gql`
     }
   }
 `;
-
-// Function to fetch total volume
-const fetchTotalVolume = async () => {
-  const response = await request(endpoint, totalVolumeQuery);
-  return response.factories[0]?.totalVolumeUSD || "0";
-};
 
 // Function to fetch daily volume, fees, and correctly calculated revenue
 const fetchDailyData = async (date: number) => {
@@ -75,15 +61,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: {
       fetch: async (timestamp: number) => {
         const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-        const totalVolume = await fetchTotalVolume();
         const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(dayTimestamp);
 
         return {
-          totalVolume: parseFloat(totalVolume),
           dailyVolume: parseFloat(volumeUSD),
           dailyFees: parseFloat(feesUSD),
           dailyRevenue: parseFloat(revenueUSD), // Now correctly weighted
-          timestamp: dayTimestamp,
         };
       },
       start: async () => 1738800000, // Timestamp for February 6, 2025

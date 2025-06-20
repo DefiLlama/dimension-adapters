@@ -7,31 +7,20 @@ import { Balances } from "@defillama/sdk";
 
 const adapterObj = volumeAdapter.adapter;
 
-const fetch = (chain: string, totalFees: number, revenueFee: number) => {
+const fetch = (chain: string, tf: number, rf: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
-    const FEE_COLLECTED_START_TIME = 1696118400
-
     const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
-    const fetchedResultStartTime = await (adapterObj[chain].fetch as Fetch)(FEE_COLLECTED_START_TIME, chainBlocks, options);
-
     const chainDailyVolume = (await (fetchedResult.dailyVolume as Balances).getUSDValue()).toString();
-    const chainTotalVolumeFromFeeCollectedDate = (Number(fetchedResult.totalVolume) - Number(fetchedResultStartTime.totalVolume))
-    const chainTotalVolume = chainTotalVolumeFromFeeCollectedDate  || '0';
 
-    const ssrFee = totalFees - revenueFee
-    const protocolFee =  revenueFee
+    const ssrFee = tf - rf
+    const protocolFee =  rf
 
     return {
       timestamp,
-      totalUserFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,
-      dailyUserFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      totalFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,
-      dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      totalRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(revenueFee).toString() : undefined,
-      dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(revenueFee).toString() : undefined,
-      totalProtocolRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(protocolFee).toString() : undefined,
+      dailyUserFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(tf).toString() : undefined,
+      dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(tf).toString() : undefined,
+      dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(rf).toString() : undefined,
       dailyProtocolRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFee).toString() : undefined,
-      totalSupplySideRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(ssrFee).toString() : undefined,
       dailySupplySideRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(ssrFee).toString() : undefined,
     };
   }
@@ -55,6 +44,15 @@ const baseAdapter: BaseAdapter = {
       methodology
     }
   },
+  [CHAIN.SONIC]: {
+    ...adapterObj[CHAIN.SONIC],
+    fetch: fetch(CHAIN.SONIC, 0.002, 0.00067),
+    customBackfill: fetch(CHAIN.SONIC, 0.002, 0.00067),
+    start: '2025-04-09',
+    meta: {
+      methodology
+    }
+  }
 }
 
 const adapter: Adapter = {

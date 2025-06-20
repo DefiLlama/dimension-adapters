@@ -20,13 +20,10 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const historical: IResponse= await fetchURL(historicalVolumeEndpoint(timestampISO))
 
   const dailyVol = historical.data.reduce((a: number, b: IVolumeall) => a+Number(b.tradingVolume), 0)
-  const totalVol = historical.data.reduce((a: number, b: IVolumeall) => a+Number(b.totalTradingVolume), 0)
 
-    return { 
-        timestamp, 
-        dailyVolume: dailyVol, 
-        totalVolume: totalVol
-    };
+  return { 
+      dailyVolume: dailyVol, 
+  };
 };
 
 const adapter: SimpleAdapter = {

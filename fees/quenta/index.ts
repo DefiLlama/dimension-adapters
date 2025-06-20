@@ -39,7 +39,6 @@ async function fetch({ getFromBlock, getToBlock, chain, }: FetchOptions) {
   totalVolume = totalVolume / 1e6
   totalVolumePast = totalVolumePast / 1e6
   return {
-    totalFees: totalVolume,
     dailyFees: totalVolume - totalVolumePast,
   };
 }

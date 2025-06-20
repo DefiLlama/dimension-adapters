@@ -65,9 +65,7 @@ const computeVolume = async (timestamp: number, productIds: number[]) => {
   );
   const dailyVolume = totalVolume - totalVolumeOneDayAgo;
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
-    timestamp: timestamp,
   };
 };
 

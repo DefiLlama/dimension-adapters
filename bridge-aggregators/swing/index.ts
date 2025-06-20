@@ -40,7 +40,7 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (_t: any, _b: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );
@@ -84,7 +84,7 @@ const adapter: SimpleAdapter = {
             return {
                 ...acc,
                 [key]: {
-                    fetch: fetchVolume,
+                    fetch,
                     start: '2022-11-01', // 2022-11-01
                 },
             };
