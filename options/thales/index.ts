@@ -134,13 +134,13 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     })
   );
   
-  const dailyRevenue = await addTokensReceived({ ...OVERTIME_CHAIN_CONFIG[options.chain], options });
+  const dailyFees = await addTokensReceived({ ...OVERTIME_CHAIN_CONFIG[options.chain], options });
   
   return {
-    timestamp: options.startOfDay,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    dailyRevenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 }
 
@@ -149,15 +149,15 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2025-04-01',
+      start: '2024-08-01',
     },
     [CHAIN.OPTIMISM]: {
       fetch,
-      start: '2025-04-01',
+      start: '2024-08-01',
     },
     [CHAIN.BASE]: {
       fetch,
-      start: '2025-04-01',
+      start: '2024-08-01',
     },
     [CHAIN.POLYGON]: {
       fetch,
