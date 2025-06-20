@@ -1,77 +1,69 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
+import fetchURL from "../../utils/fetchURL";
 
-const endpoint = "https://api.goldsky.com/api/public/project_clols2c0p7fby2nww199i4pdx/subgraphs/algebra-berachain-mainnet/0.0.3/gn";
+const BULLA_API_URL = "https://api.gamma.xyz/frontend/externalApis/bulla/pools";
 
+interface BullaPool {
+  calculated24h: {
+    volumeUSD: number;
+    feesUSD: number;
+  };
+}
 
-// GraphQL query to fetch daily volume, total fees, and per-pool fees/community fees
-const dailyVolumeFeesQuery = gql`
-  query ($date: Int!) {
-    algebraDayDatas(where: { date: $date }) {
-      volumeUSD
-      feesUSD
-    }
-    pools {
-      feesUSD
-      communityFee
-    }
-  }
-`;
+interface BullaResponse {
+  data: {
+    pools: BullaPool[];
+  };
+}
 
-// Function to fetch daily volume, fees, and correctly calculated revenue
-const fetchDailyData = async (date: number) => {
-  const response = await request(endpoint, dailyVolumeFeesQuery, { date });
-  const data = response.algebraDayDatas[0] || {};
-  const pools = response.pools || [];
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances(); // No holder revenue for now
 
-  const totalFeesUSD = parseFloat(data.feesUSD) || 0;
+  const response: BullaResponse = await fetchURL(BULLA_API_URL);
 
+  const totalDailyFees = response.data.pools.reduce((acc, pool) => {
+    return acc + (pool.calculated24h?.feesUSD || 0);
+  }, 0);
 
-  if (totalFeesUSD === 0) {
-    return { volumeUSD: data.volumeUSD || "0", feesUSD: "0", revenueUSD: "0" };
-  }
+  const protocolRevenue = totalDailyFees * 0.25;
+  const supplySideRevenue = totalDailyFees * 0.75;
 
-  let totalRevenue = 0;
-
-  pools.forEach(pool => {
-    const poolFees = parseFloat(pool.feesUSD) || 0;
-    let communityFee = parseFloat(pool.communityFee) || 0;
-
-
-    // Correct the scaling of communityFee by dividing by 10000
-    communityFee /= 10000;
-
-
-
-    const poolRevenue = (poolFees / totalFeesUSD) * totalFeesUSD * communityFee;
-    totalRevenue += poolRevenue;
-  });
-
+  // Add fees to balances (in USD)
+  dailyFees.addUSDValue(totalDailyFees);
+  dailyProtocolRevenue.addUSDValue(protocolRevenue);
+  dailySupplySideRevenue.addUSDValue(supplySideRevenue);
 
   return {
-    volumeUSD: data.volumeUSD || "0",
-    feesUSD: data.feesUSD || "0",
-    revenueUSD: totalRevenue.toFixed(2),
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyUserFees: dailyFees, // User fees are the same as total fees
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BERACHAIN]: {
-      fetch: async (timestamp: number) => {
-        const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-        const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(dayTimestamp);
-
-        return {
-          dailyVolume: parseFloat(volumeUSD),
-          dailyFees: parseFloat(feesUSD),
-          dailyRevenue: parseFloat(revenueUSD), // Now correctly weighted
-        };
+      fetch,
+      runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Trading fees collected by Bulla exchange",
+          UserFees: "Trading fees paid by users",
+          Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+          ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
+          SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
+        },
       },
-      start: async () => 1738800000, // Timestamp for February 6, 2025
     },
   },
 };
 
-export default adapter;
+export default adapter; 
