@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { BreakdownAdapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 class SubgraphVolumeResponse {
@@ -65,9 +65,8 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
   return subgraphVolume.wells.reduce((result: FetchResultV2, next: SubgraphWell) => {
     return {
       dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyTradeVolumeUSD),
-      totalVolume: result.totalVolume as number + parseFloat(next.cumulativeTradeVolumeUSD)
     };
-  }, { dailyVolume: 0, totalVolume: 0 });
+  }, { dailyVolume: 0 });
 }
 
 function volumeForCategory(chain: CHAIN, type: WellType) {

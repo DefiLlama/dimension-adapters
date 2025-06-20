@@ -3,7 +3,6 @@ import { FetchOptions, FetchResultV2, Adapter } from "../../adapters/types";
 
 interface VolumeInfo {
 	dailyVolume: string;
-	totalVolume: string;
 	timeStamp: number;
 }
 
@@ -19,9 +18,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
 					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
 				};
 			},
 			start: '2024-04-04',
@@ -35,9 +32,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
 					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
 				};
 			},
 			start: '2024-04-04',

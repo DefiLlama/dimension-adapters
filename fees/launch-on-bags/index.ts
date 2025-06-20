@@ -20,23 +20,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                     solana.instruction_calls
                 WHERE
                     executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                    AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
+                    AND tx_signer = 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv'
                     AND account_arguments[4] <> 'So11111111111111111111111111111111111111112'
                     AND tx_success = TRUE
-                    AND NOT is_inner
-
-                UNION
-
-                SELECT DISTINCT
-                    account_arguments[6] AS token
-                FROM
-                    solana.instruction_calls
-                WHERE
-                    executing_account = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf'
-                    AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                    AND tx_success = TRUE
-                    AND VARBINARY_STARTS_WITH (data, 0xc208a15799a419ab)
-                    AND account_arguments[6] <> 'So11111111111111111111111111111111111111112'
                     AND NOT is_inner
             ),
             dbc_swap_events AS (
@@ -96,9 +82,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                     ELSE 0
                 END
             ) / 1e9 AS total_referral_fees
-        FROM swap_event_logs
+            FROM swap_event_logs
     `
     const data: IData[] = await queryDuneSql(options, query)
+
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     dailyFees.addCGToken('solana', data[0].total_trading_fees + data[0].total_protocol_fees + data[0].total_referral_fees);
@@ -118,12 +105,12 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: '2025-04-27',
+            start: '2025-05-11',
             meta: {
                 methodology: {
                     Fees: "Trading fees paid by users.",
-                    Revenue: "Fees collected by Believe protocol.",
-                    ProtocolRevenue: "Fees collected by Believe protocol."
+                    Revenue: "Fees collected by Bags App protocol.",
+                    ProtocolRevenue: "Fees collected by Bags App protocol."
                 }
             }
         }

@@ -11,7 +11,6 @@ const v2Endpoints = "https://api.bulbaswap.io/v1/subgraph-apis/v2";
 const v3Endpoints = "https://api.bulbaswap.io/v1/subgraph-apis/v3";
 
 
-
 // V2 fetch function
 const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
   const dayID = Math.floor(options.startOfDay / 86400);
@@ -31,15 +30,11 @@ const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
     query: factoryQuery,
   });
 
-  const totalVolume = response.data.uniswapFactory.totalVolumeUSD || "0";
   const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD || "0";
 
   const result = {
-    totalVolume,
     dailyVolume,
     dailyFees: (Number(dailyVolume) * v2Fees).toString(),
-    totalFees: (Number(totalVolume) * v2Fees).toString(),
-    timestamp: options.startOfDay,
   };
 
   return result;
@@ -63,15 +58,11 @@ const fetchV3Data = async (_: any, _tt: any, options: FetchOptions) => {
     query: v3FactoryQuery,
   });
 
-  const factory = response.data.factory || {};
   const dayData = response.data.uniswapDayData || {};
 
   return {
     dailyVolume: dayData.volumeUSD || "0",
-    totalVolume: factory.totalVolumeUSD || "0",
     dailyFees: dayData.feesUSD || "0",
-    totalFees: factory.totalFeesUSD || "0",
-    timestamp: options.startOfDay,
   };
 };
 

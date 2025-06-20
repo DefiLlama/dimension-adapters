@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 
 const endpoints: { [key: string]: string } = {
@@ -26,20 +26,16 @@ interface ITotalResponse {
   };
 }
 
-const getFetch =
-  () =>
-  (chain: string): FetchV2 =>
-  async ({ getStartBlock, getEndBlock, startTimestamp }) => {
-    if (startTimestamp > 1743940800) return {}
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     const [startBlock, endBlock] = await Promise.all([
-      getStartBlock(),
-      getEndBlock(),
+      options.getStartBlock(),
+      options.getEndBlock(),
     ]);
     const [prevData, totalData]: ITotalResponse[] = await Promise.all([
-      request(endpoints[chain], queryTotalVolume, {
+      request(endpoints[options.chain], queryTotalVolume, {
         block: startBlock,
       }),
-      request(endpoints[chain], queryTotalVolume, {
+      request(endpoints[options.chain], queryTotalVolume, {
         block: endBlock,
       }),
     ]);
@@ -50,7 +46,6 @@ const getFetch =
 
     return {
       dailyVolume,
-      totalVolume: totalData.protocolState.totalVolumeUSD,
     };
   };
 
@@ -59,7 +54,7 @@ const adapter: SimpleAdapter = {
   deadFrom: "2025-04-06",
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: getFetch()(CHAIN.ARBITRUM),
+      fetch,
       start: '2023-10-20',
       meta: {
         methodology: methodology,
