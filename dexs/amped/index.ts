@@ -4,10 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.LIGHTLINK_PHOENIX]:
-    "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
-  [CHAIN.SONIC]:
-    "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.1/gn",
+  [CHAIN.LIGHTLINK_PHOENIX]: "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
+  [CHAIN.SONIC]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.6/gn",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
@@ -68,12 +66,20 @@ const getFetch =
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.LIGHTLINK_PHOENIX]: 1717199544,
-
   [CHAIN.SONIC]: 1735685544,   
   // [CHAIN.BSC]: 1727740344, 
   [CHAIN.BERACHAIN]: 1738882079,
   [CHAIN.BASE]: 1740056400,
   [CHAIN.SSEED]: 1745330400,
+};
+
+const methodology = {
+  Fees: "Trading fees vary based on liquidity and market conditions",
+  UserFees: "Users pay variable trading fees",
+  Revenue: "No revenue is taken by the protocol",
+  HoldersRevenue: "No revenue is distributed to token holders",
+  ProtocolRevenue: "Protocol does not take any revenue",
+  SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
 };
 
 const adapter: BreakdownAdapter = {
@@ -85,14 +91,7 @@ const adapter: BreakdownAdapter = {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
           meta: {
-            methodology: {
-              Fees: "Trading fees vary based on liquidity and market conditions",
-              UserFees: "Users pay variable trading fees",
-              Revenue: "No revenue is taken by the protocol",
-              HoldersRevenue: "No revenue is distributed to token holders",
-              ProtocolRevenue: "Protocol does not take any revenue",
-              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
-            },
+            methodology,
           },
         },
       };
@@ -104,14 +103,7 @@ const adapter: BreakdownAdapter = {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
           meta: {
-            methodology: {
-              Fees: "Trading fees vary based on liquidity and market conditions",
-              UserFees: "Users pay variable trading fees",
-              Revenue: "No revenue is taken by the protocol",
-              HoldersRevenue: "No revenue is distributed to token holders",
-              ProtocolRevenue: "Protocol does not take any revenue",
-              SupplySideRevenue: "100% of trading fees are distributed to liquidity providers",
-            },
+            methodology,
           },
         },
       };
