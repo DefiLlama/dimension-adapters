@@ -12,6 +12,7 @@ const BondManagers = [
 const getBondToQuoteToken = () => {
   return {
     0: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
+    1: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
   };
 };
 
@@ -30,6 +31,7 @@ export const fetchBond = async (
 
     data.forEach((log: any) => {
       const quoteToken = bondToQuoteToken[log.id];
+      if (!quoteToken) return;
       balances.add(quoteToken, log.amount);
       revenue.add(quoteToken, log.amount / 10n); // 10% of all bond sales go to treasury
     });
