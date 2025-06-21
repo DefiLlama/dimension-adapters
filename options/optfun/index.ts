@@ -10,14 +10,31 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
     eventAbi: LIMIT_ORDER_FILLED_ABI,
   });
   
-  const dailyContracts = logs.reduce((x, l) => x + Number(l.size), 0);
+  let dailyNotional = 0;
+  let dailyPremium = 0;
   
-  // Divide by 100. Optfun BTC Market contracts are 0.01 BTC
+  for (const log of logs) {
+    const size = Number(log.size);
+    const btcPrice = Number(log.btcPrice);
+    const side = Number(log.side);
+    const cashTaker = Number(log.cashTaker);
+    const cashMaker = Number(log.cashMaker);
+    
+    if (side === 0 || side === 2){
+      dailyNotional += size * btcPrice / 100;
+      dailyPremium += Math.abs(Math.min(cashTaker, cashMaker));
+    }
+  }
+  
   const dailyNotionalVolume = options.createBalances();
-  dailyNotionalVolume.addCGToken('bitcoin', dailyContracts / 100);
-  
+  const dailyPremiumVolume = options.createBalances();
+
+  dailyNotionalVolume.addCGToken('usd-coin', dailyNotional / 1e6);  
+  dailyPremiumVolume.addCGToken('usd-coin', dailyPremium / 1e4); // need to verify if valid denominator
+
   return {
     dailyNotionalVolume,
+    dailyPremiumVolume,
   };
 }
 
@@ -28,7 +45,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2025-06-17',
       meta: {
-        methodology: "`size` param in LimitOrderFilled event is the number of contracts exchanged. Each contract is worth 0.01 BTC.",
+        methodology: {
+          NotionalVolume: "Notional volume: size * btcPrice / 100 in USDC.",
+          PremiumVolume: "Premium volume: amounts paid by option buyers on CALL_BUY/PUT_BUY sides using min(cashTaker, cashMaker) values.",
+        }
       }
     },
   },
