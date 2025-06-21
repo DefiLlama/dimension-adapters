@@ -4,7 +4,10 @@ import { FetchOptions } from "../../adapters/types";
 const BondCreatedEvent =
   "event BondCreated(uint256 indexed id, uint256 amount, uint256 price)";
 
-const BondManager = "0x44b497aa4b742dc48Ce0bd26F66da9aecA19Bd75";
+const BondManagers = [
+  "0x44b497aa4b742dc48Ce0bd26F66da9aecA19Bd75",
+  "0xCA36616FFC16eAE1F33783a8CD082F46d9f2D993",
+];
 
 const getBondToQuoteToken = () => {
   return {
@@ -19,14 +22,18 @@ export const fetchBond = async (
 ) => {
   const bondToQuoteToken = getBondToQuoteToken();
 
-  const data: any[] = await options.getLogs({
-    target: BondManager,
-    eventAbi: BondCreatedEvent,
+  const promises = BondManagers.map(async (bondManager) => {
+    const data: any[] = await options.getLogs({
+      target: bondManager,
+      eventAbi: BondCreatedEvent,
+    });
+
+    data.forEach((log: any) => {
+      const quoteToken = bondToQuoteToken[log.id];
+      balances.add(quoteToken, log.amount);
+      revenue.add(quoteToken, log.amount / 10n); // 10% of all bond sales go to treasury
+    });
   });
 
-  data.forEach((log: any) => {
-    const quoteToken = bondToQuoteToken[log.id];
-    balances.add(quoteToken, log.amount);
-    revenue.add(quoteToken, log.amount / 10n); // 10% of all bond sales go to treasury
-  });
+  await Promise.all(promises);
 };
