@@ -12,7 +12,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
   
   const dailyContracts = logs.reduce((x, l) => x + Number(l.size), 0);
   
-  // Divide by 100, as optfun contracts are 0.01 BTC
+  // Divide by 100. Optfun BTC Marketcontracts are 0.01 BTC
   const dailyNotionalVolume = options.createBalances();
   dailyNotionalVolume.addCGToken('bitcoin', dailyContracts / 100);
   
@@ -27,8 +27,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYPERLIQUID]: {
       fetch,
       start: '2025-06-17',
+      meta: {
+        methodology: "'size' param in LimitOrderFilled event is the number of contracts exchanged. Each contract is worth 0.01 BTC.",
+      }
     },
-  }
+  },
 }
 
 export default adapter;
