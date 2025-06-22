@@ -26,6 +26,7 @@ import { CHAIN } from "../helpers/chains";
 
 const methodology = {
   Fees: 'Total ETH staking rewards from Rocketpool active validators',
+  Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
   SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
 }
 
@@ -142,6 +143,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
