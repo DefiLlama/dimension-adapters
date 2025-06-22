@@ -143,7 +143,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   return {
     dailyFees,
-    dailyrevenue: 0,
+    dailyRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
