@@ -25,6 +25,7 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
   [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
   [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
+  [CHAIN.PLUME]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -54,8 +55,8 @@ const meta = {
   methodology: {
     Fees: "Token trading fees paid by users.",
     Revenue: "All fees are revenue.",
-  }
-}
+  },
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -77,6 +78,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { fetch, start: "2025-04-08", meta },
     [CHAIN.HYPERLIQUID]: { fetch, start: "2025-05-18", meta },
     [CHAIN.ABSTRACT]: { fetch, start: "2025-05-22", meta },
+    [CHAIN.PLUME]: { fetch, start: "2025-06-10", meta },
   },
 };
 
