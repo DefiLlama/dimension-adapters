@@ -70,6 +70,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     let totalLiquidity = BigInt(0)
+    let totalVariableDebt = BigInt(0)
     if (pool.version === 1) {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalLiquidity)
     } else if (pool.version === 2) {
@@ -79,6 +80,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     }
 
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
@@ -88,7 +90,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
-      const interestAccrued = totalLiquidity * growthVariableBorrowIndex / LiquidityIndexDecimals
+      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
 
       balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
       balances.dailySupplySideRevenue.add(reservesList[reserveIndex], 0)
