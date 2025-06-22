@@ -115,7 +115,7 @@ const adapter: Adapter = {
     [CHAIN.INK]: { fetch, meta, start: '2024-05-30', },
     [CHAIN.ABSTRACT]: { fetch, meta, start: '2025-01-27', },
     [CHAIN.PLUME]: { fetch, meta, start: '2025-01-27', },
-    // [CHAIN.PLUME_LEGACY]: {fetch,start: '2024-06-24',meta, },
+    [CHAIN.PLUME_LEGACY]: {fetch, meta, start: '2025-01-20', },
     [CHAIN.BERACHAIN]: { fetch, meta, start: '2024-05-30', },
     [CHAIN.UNICHAIN]: { fetch, meta, start: '2024-06-24', },
     [CHAIN.HEMI]: { fetch, meta, start: '2024-06-24', }
