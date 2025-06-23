@@ -16,22 +16,16 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
   for (const log of logs) {
     const size = Number(log.size);
     const btcPrice = Number(log.btcPrice);
-    const side = Number(log.side);
-    const cashMaker = Number(log.cashMaker);
+    const limitPrice = Number(log.limitPrice);
     
     dailyNotional += size * btcPrice / 100;
-
-    if (side === 0 || side === 2) { // Maker is buyer of option, so pays premium, cashMaker is negative. Abs value will be slightly less
-      dailyPremium += Math.abs(cashMaker) / 0.98;
-    } else { // Maker is seller, receives premium, cashMaker is positive. Abs value will be slightly more
-      dailyPremium += cashMaker / 1.02;
-    }
+    dailyPremium += limitPrice * size;
   }
   
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
 
-  dailyNotionalVolume.addCGToken('tether', dailyNotional / 1e6);  
+  dailyNotionalVolume.addCGToken('tether', dailyNotional / 1e6);
   dailyPremiumVolume.addCGToken('tether', dailyPremium / 1e6);
 
   return {
