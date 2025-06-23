@@ -19,8 +19,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         WHERE project = 'pumpswap'
             AND block_time >= from_unixtime(${options.startTimestamp})
             AND block_time <= from_unixtime(${options.endTimestamp})
-            AND token_bought_symbol IN ('SOL', 'USDC', 'USDT', 'WUSDC', 'WUSDT')
-            AND token_sold_symbol IN ('SOL', 'USDC', 'USDT', 'WUSDC', 'WUSDT')
     `)
     const dailyVolume = options.createBalances()
     const dailyFees = options.createBalances()
