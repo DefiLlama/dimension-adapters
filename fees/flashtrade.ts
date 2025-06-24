@@ -8,11 +8,6 @@ interface Pool {
     paid: string;
 }
 
-const methodology = {
-    Fees: 'Sum of all fees accrued from LP pools.',
-    ProtocolReveneue: '30% of all the fees accrued excluding Community pool.'
-}
-
 const urlDailyStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
 
 const calculateProtocolRevenue = (stats: Pool[]) => {
@@ -26,13 +21,22 @@ const fetchFlashStats = async (_: number): Promise<FetchResultFees> => {
     const dailyStats: Pool[] = dailyStatsResponse;
     const dailyAccrued = dailyStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
     const dailyProtocolRevenue = calculateProtocolRevenue(dailyStats);
+    const dailyRevenue = dailyProtocolRevenue * 2;
 
     return {
-        dailyFees: dailyAccrued.toString(),
-        dailyRevenue: dailyProtocolRevenue.toString(),
-        dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+        dailyFees: dailyAccrued,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue: dailyProtocolRevenue,
     };
 };
+
+const methodology = {
+    Fees: 'Sum of all fees accrued from LP pools.',
+    Revenue: 'Sum of protocol revenue and holder revenue.',
+    ProtocolRevenue: '30% of all the fees accrued excluding Community pool.',
+    HolderRevenue: '50% of revenue goes to token stakers.',
+}
 
 const adapter: Adapter = {
     version: 2,
