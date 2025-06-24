@@ -1,12 +1,14 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/volta-perps-mainnet-stat",
+const config = {
+  [CHAIN.CORE]: {
+    start: '2025-06-01',
+    endpoint: 'https://thegraph.coredao.org/subgraphs/name/volta-perps-mainnet-stat',
+  }
 }
-
 
 const historicalDataDerivatives = gql`
   query get_volume($period: String!, $id: String!) {
@@ -16,6 +18,7 @@ const historicalDataDerivatives = gql`
       }
   }
 `
+
 const historicalOI = gql`
   query get_trade_stats($period: String!, $id: String!) {
     tradingStats(where: {period: $period, id: $id}) {
@@ -42,59 +45,44 @@ interface IGraphResponseOI {
   }>
 }
 
-const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+const fetch: Fetch = async (timestamp:number, _b:any, options: FetchOptions) => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+  const dailyData: IGraphResponse = await request(config[options.chain].endpoint, historicalDataDerivatives, {
     id: String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
-  let dailyOpenInterest = 0;
-  let dailyLongOpenInterest = 0;
-  let dailyShortOpenInterest = 0;
+  const dailyVolume = dailyData.volumeStats.length == 1
+  ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
+  : 0
 
-  if (query === historicalDataDerivatives) {
-    const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
-      id: String(dayTimestamp),
-      period: 'daily',
-    });
-    dailyOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-    dailyLongOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
-    dailyShortOpenInterest = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-  }
+  // let dailyOpenInterest = 0;
+  // let dailyLongOpenInterest = 0;
+  // let dailyShortOpenInterest = 0;
+
+  // const tradingStats: IGraphResponseOI = await request(config[chain].endpoint, historicalOI, {
+  //   id: String(dayTimestamp),
+  //   period: 'daily',
+  // });
+  // dailyOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
+  // dailyLongOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
+  // dailyShortOpenInterest = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
+  // dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
+  // dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+  // dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
 
   return {
-    timestamp: dayTimestamp,
-    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
-    dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
+    dailyVolume
   }
 }
 
-
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.CORE]: 1748794000,
-}
 const adapter: SimpleAdapter = {
-  deadFrom: '2025-06-01',
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
+  version: 1,
+  adapter: Object.keys(config).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(historicalDataDerivatives)(chain),
-        start: startTimestamps[chain]
+        fetch,
+        start: config[chain].start
       }
     }
   }, {})
