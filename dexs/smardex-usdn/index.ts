@@ -42,7 +42,7 @@ const eventConfigs = [
   },
 ];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   for (const config of eventConfigs) {
@@ -66,7 +66,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
