@@ -43,6 +43,9 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2',
       dataProvider: '0x7b4eb56e7cd4b454ba8ff71e4518426369a138a3',
+      seflLoanAssets: {
+        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': true, // GHO
+      },
     },
 
     // lido market
@@ -157,6 +160,13 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x33b7d355613110b4E842f5f7057Ccd36fb4cee28',
     },
   ],
+  [CHAIN.SONEIUM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xDd3d7A7d03D9fD9ef45f3E587287922eF65CA38B',
+      dataProvider: '0xa0208CE8356ad6C5EC6dFb8996c9A6B828212022',
+    },
+  ],
 }
 
 const adapter: BreakdownAdapter = {
@@ -223,6 +233,9 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.CELO]: {
         pools: AaveMarkets[CHAIN.CELO],
+      },
+      [CHAIN.SONEIUM]: {
+        pools: AaveMarkets[CHAIN.SONEIUM],
       },
     }),
   }

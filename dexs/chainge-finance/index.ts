@@ -7,7 +7,6 @@ const URL = "https://api2.chainge.finance/thirdparty/dao/getDashboardInfo"
 
 interface IAPIResponse {
   dayVolume: number;
-  totalVolume: number;
 };
 
 const fetch = async (timestamp: number) => {
@@ -15,7 +14,6 @@ const fetch = async (timestamp: number) => {
   const response: IAPIResponse = (await fetchURL(URL)).data;
   return {
     dailyVolume: `${response?.dayVolume}` || undefined,
-    totalVolume: `${response?.totalVolume}` || undefined,
     timestamp: dayTimestamp,
   };
 };

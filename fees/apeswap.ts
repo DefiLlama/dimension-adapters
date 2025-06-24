@@ -10,23 +10,16 @@ const fetch = (chain: string, totalFees: number, revenueFee: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
     const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
     const chainDailyVolume = fetchedResult.dailyVolume as number || '0';
-    const chainTotalVolume = fetchedResult.totalVolume as number || '0';
     const ssrFee = totalFees - revenueFee
     const protocolFee = chain === CHAIN.TELOS ? 0.000375 : revenueFee / 2
     const buybackFee = revenueFee / 2
     return {
       timestamp,
-      totalUserFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,
       dailyUserFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      totalFees: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString() : undefined,
       dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      totalRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(revenueFee).toString() : undefined,
       dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(revenueFee).toString() : undefined,
-      totalProtocolRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(protocolFee).toString() : undefined,
       dailyProtocolRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFee).toString() : undefined,
-      totalHoldersRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(buybackFee).toString() : undefined,
       dailyHoldersRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(buybackFee).toString() : undefined,
-      totalSupplySideRevenue: chainTotalVolume ? new BigNumber(chainTotalVolume).multipliedBy(ssrFee).toString() : undefined,
       dailySupplySideRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(ssrFee).toString() : undefined,
     };
   }

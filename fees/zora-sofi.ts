@@ -69,10 +69,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (feesRes.length > 0) {
     const result = feesRes[0];
-    const totalFees = result.total_fees_usd || 0;
+    const tf = result.total_fees_usd || 0;
     const protocolRevenue = result.protocol_revenue_usd || 0;
 
-    dailyFees.addCGToken('usd', totalFees);
+    dailyFees.addCGToken('usd', tf);
     dailyRevenue.addCGToken('usd', protocolRevenue);
   }
 

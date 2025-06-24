@@ -76,14 +76,14 @@ export default {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch,
-      start: 1737456148,
+      start: '2025-01-21',
       meta: {
         methodology,
       },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1736511443,
+      start: '2025-01-10',
       meta: {
         methodology,
       },

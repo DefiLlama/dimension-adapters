@@ -7,9 +7,8 @@ const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'
 
 export interface Airdrops {
   dailySupplySideRevenue: Balances;
-  totalSupplySideRevenue: Balances;
+  
 }
-
 interface IGraphAirdropsResponse {
   rewarders: {
     rewardToken: string
@@ -87,7 +86,6 @@ export async function masterChef(
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailySupplySideRevenue = createBalances()
-  let totalSupplySideRevenue = createBalances()
 
   try {
     const ceTokenRes: ICeTokensResponse = await request(earlyStageSubgraphEndpoint, ceTokensQuery);
@@ -108,14 +106,7 @@ export async function masterChef(
           rewarder.name.includes(' ceToken')
         )
       }
-      addTokenBalance(
-        totalSupplySideRevenue,
-        priceMap,
-        rewarder.rewardToken,
-        rewarder.decimals,
-        rewarder.schedule,
-        rewarder.name.includes(' ceToken')
-      )
+
     }
 
   } catch (e) {
@@ -124,6 +115,5 @@ export async function masterChef(
 
   return {
     dailySupplySideRevenue,
-    totalSupplySideRevenue
   }
 }

@@ -13,5 +13,5 @@ const adpters = univ2Adapter2({
   dayData: "katanaDayData",
 });
 
-adpters.adapter[CHAIN.RONIN].start = 1635724800;
+adpters.adapter[CHAIN.RONIN].start = '2021-11-01';
 export default adpters;

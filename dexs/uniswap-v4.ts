@@ -35,7 +35,15 @@ async function fetch(_: any, _1: any, { api, startOfDay, }: FetchOptions) {
 
     if (!datapoint) throw new Error('No datapoint found for given timestamp: ' + startOfDay)
 
-    return { dailyVolume: datapoint.value }
+    let volumeUSD = datapoint.value
+
+    // remove bad data from farming/spaming trading
+    if (api.chain === 'bsc' && startOfDay === 1749340800) {
+      // 11B volume from KOGE - 0xe6DF05CE8C8301223373CF5B969AFCb1498c5528
+      volumeUSD -= 11_000_000_000
+    }
+
+    return { dailyVolume: volumeUSD }
 
   } catch (e) {
     api.log(`Uniswap v4: Failed to fetch data for ${api.chain}`)

@@ -35,17 +35,11 @@ const fetch = async (timestamp: number) => {
     } as IVolume
   });
 
-  const totalVolume = historicalVolume
-  .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
-  .reduce((acc, { volume }) => acc + Number(volume), 0)
-
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.volume
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 

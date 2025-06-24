@@ -6,14 +6,14 @@ const LAUNCH_FEE = 0.00069; // 0.00069 ETH for each token created
 const config = {
 	[CHAIN.UNICHAIN]: {
 		poolManager: "0x1f98400000000000000000000000000000000004",
-		uniderpLauncher: "0x239584404983804085c8Fd69C1e1651ea99680b0",
-		uniderpHook: "0xb4960cd4f9147f9e37a7aa9005df7156f61e4444",
-		start: "2025-04-23",
-		fromBlock: 14569072
+		uniderpLauncher: "0xb42B41140d921b621246016eC0ecb8dbE3216948",
+		uniderpHook: "0xcc2efb167503f2d7df0eae906600066aec9e8444",
+		start: "2025-05-29",
+		fromBlock: 17670688
 	},
 }
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
 	const { createBalances } = options;
 
 	const dailyFees = createBalances();
@@ -34,7 +34,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 					WHERE id IN (
 						SELECT id
 						FROM uniswap_v4_unichain.poolmanager_evt_initialize
-						WHERE hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444
+						WHERE hooks = 0xcc2efb167503f2d7df0eae906600066aec9e8444
 					)
 				)
 				AND block_time >= from_unixtime(${options.startTimestamp})
@@ -43,7 +43,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 		pool_count_data AS (
 			SELECT COUNT(*) as pool_count
 			FROM uniswap_v4_unichain.poolmanager_evt_initialize 
-			WHERE hooks = 0xb4960cd4f9147f9e37a7aa9005df7156f61e4444
+			WHERE hooks = 0xcc2efb167503f2d7df0eae906600066aec9e8444
 			AND evt_block_time >= from_unixtime(${options.startTimestamp})
 			AND evt_block_time < from_unixtime(${options.endTimestamp})
 		),
@@ -71,7 +71,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 	const dailyVolume = result[0]?.volume || 0;
 	const poolCount = result[0]?.pool_count || 0;
 	
-	const swapFeeAmount = dailyVolume * 0.01 * 1e18;
+	const swapFeeAmount = dailyVolume * 0.0101 * 1e18;
 	dailyFees.addGasToken(swapFeeAmount);
 
 	const launchFeeAmount = poolCount * LAUNCH_FEE * 1e18;
@@ -91,7 +91,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 	const dailyUserFees = dailyFees.clone();
 	const dr = dailyFees.clone().resizeBy(0.5);
 	dailyProtocolRevenue.addBalances(dr); // 50% of user fees (0.5% of volume)
-	const dailySupplySideRevenue = dr.clone().resizeBy(0.3); // 30% of user fees (0.3% of volume)
+	const dailySupplySideRevenue = dr.clone().resizeBy(0.01); // 1% of user fees (0.01% of volume)
 
 	return {
 		dailyFees,
@@ -103,10 +103,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions): Promise<Fetch
 }
 
 const methodology = {
-	UserFees: "User pays 1% fees on each swap.",
-	Fees: "All fees comes from the user. User pays 1% fees on each swap.",
-	Revenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)",
-	ProtocolRevenue: "Treasury receives 0.5% of each swap. (0.2% from swap + 0.3% from LPs) + Launch Fees (0.00069 ETH for each token created)"
+	UserFees: "User pays 1.01% fees on each swap.",
+	Fees: "All fees comes from the user. User pays 1.01% fees on each swap.",
+	Revenue: "Treasury receives 0.51% of each swap. (0.5% from swap + 0.01% from LPs) + Launch Fees (0.00069 ETH for each token created)",
+	ProtocolRevenue: "Treasury receives 0.51% of each swap. (0.5% from swap + 0.01% from LPs) + Launch Fees (0.00069 ETH for each token created)"
 }
 
 const adapter: SimpleAdapter = {
@@ -114,7 +114,7 @@ const adapter: SimpleAdapter = {
 	adapter: Object.keys(config).reduce((acc, chain) => {
 		const { start } = config[chain];
 		acc[chain] = {
-			fetch: fetchFees,
+			fetch,
 			start: start,
 			meta: {
 				methodology

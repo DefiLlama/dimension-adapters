@@ -6,9 +6,7 @@ type PoolHighLevelStats = {
   start_date: string,
   end_date: string;
   daily_volume_usd: number;
-  total_volume_usd: number;
   daily_fee_usd: number;
-  total_fee_usd: number;
 }
 
 async function fetch({ endTimestamp, }: FetchOptions) {
@@ -17,7 +15,6 @@ async function fetch({ endTimestamp, }: FetchOptions) {
 
   return {
     dailyVolume: stats.daily_volume_usd,
-    totalVolume: stats.total_volume_usd,
   }
 }
 

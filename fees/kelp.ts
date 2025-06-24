@@ -113,56 +113,56 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-12-11',
       meta: {
         methodology,
       },
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-02-07',
       meta: {
         methodology,
       },
     },
     [CHAIN.BLAST]: {
-      fetch: fetch,
+      fetch,
       start: '2024-03-20',
       meta: {
         methodology,
       },
     },
     [CHAIN.SCROLL]: {
-      fetch: fetch,
+      fetch,
       start: '2024-03-26',
       meta: {
         methodology,
       },
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-06',
       meta: {
         methodology,
       },
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-06',
       meta: {
         methodology,
       },
     },
     [CHAIN.LINEA]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-16',
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
-      fetch: fetch,
+      fetch,
       start: '2024-05-16',
       meta: {
         methodology,
