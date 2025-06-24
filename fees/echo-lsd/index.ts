@@ -1,4 +1,4 @@
-import { Adapter, FetchResultV2, FetchV2 } from '../../adapters/types';
+import { Adapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
 
@@ -11,19 +11,12 @@ interface EchoStakingStats {
   }
 }
 
-const methodology = {
-  Fees: 'Staking rewards earned by all staked APT',
-  ProtocolRevenue: 'Staking rewards',
-};
-
-const fetchEchoStakingStats: FetchV2 = async ({
-  startTimestamp,
-  endTimestamp,
-}): Promise<FetchResultV2> => {
-  const url = `${echoStakingApiURL}?type=lsd&startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
+const fetch = async (options: FetchOptions) => {
+  const url = `${echoStakingApiURL}?type=lsd&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const { data }: EchoStakingStats = await fetchURL(url);
   const dailyFees = data.fee;
   const dailyRevenue = data.revenue;
+
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyRevenue,
@@ -31,11 +24,17 @@ const fetchEchoStakingStats: FetchV2 = async ({
   };
 };
 
+const methodology = {
+  Fees: 'Staking rewards earned by all staked APT',
+  Revenue: 'Staking rewards to protocol',
+  ProtocolRevenue: 'Staking rewards to protocol',
+};
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetchEchoStakingStats,
+      fetch,
       start: '2025-04-06',
       meta: {
         methodology,

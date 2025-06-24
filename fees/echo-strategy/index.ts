@@ -1,4 +1,4 @@
-import { Adapter, FetchResultV2, FetchV2 } from '../../adapters/types';
+import { Adapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
 
@@ -11,31 +11,30 @@ interface EchoStrategyStats {
   }
 }
 
-const methodology = {
-  Fees: 'Strategy rewards earned by all staked APT',
-  ProtocolRevenue: 'Strategy rewards',
-};
-
-const fetchEchoStrategyStats: FetchV2 = async ({
-  startTimestamp,
-  endTimestamp,
-}): Promise<FetchResultV2> => {
-  const url = `${echoStrategyApiURL}?type=strategy&startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
+const fetch = async (options: FetchOptions) => {
+  const url = `${echoStrategyApiURL}?type=strategy&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const { data }: EchoStrategyStats = await fetchURL(url);
   const dailyFees = data.fee;
   const dailyRevenue = data.revenue;
+
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
+};
+
+const methodology = {
+  Fees: 'Strategy rewards earned by all staked APT',
+  Revenue: 'Strategy rewards to protocol',
+  ProtocolRevenue: 'Strategy rewards to protocol',
 };
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetchEchoStrategyStats,
+      fetch,
       start: '2025-04-06',
       meta: {
         methodology,
@@ -45,4 +44,3 @@ const adapter: Adapter = {
 };
 
 export default adapter;
-
