@@ -20,9 +20,23 @@ const secondsToTheGraphTimestamp = (seconds: number) => {
 };
 
 // Helper function to reduce fee stats to total
-const reduceToTotal = (stats: Array<{ totalFeeAmountWei?: string; totalFeeAmount?: string }>): bigint => {
+const reduceToTotal = (
+  stats: Array<{
+    totalFeeAmountWei?: string;
+    totalFeeAmount?: string;
+    totalAmountWei?: string;
+    totalDepositAmount?: string;
+    totalDistributionEarned?: string
+  }>
+): bigint => {
   return stats.reduce((sum: bigint, stat: any) => {
-    const amount = stat.totalFeeAmountWei || stat.totalFeeAmount || "0";
+    const amount =
+      stat.totalFeeAmountWei ||
+      stat.totalFeeAmount ||
+      stat.totalAmountWei ||
+      stat.totalDepositAmount ||
+      stat.totalDistributionEarned ||
+      "0";
     return sum + BigInt(amount);
   }, 0n);
 };
@@ -33,13 +47,33 @@ const aggregateVaultERC20Fees = (stats: Array<{
   totalFeeAmount: string
 }>): [string, bigint][] => {
   const tokenFeesMap = new Map<string, bigint>();
-  
+
   for (const stat of stats) {
     const tokenId = stat.feeToken.id;
     const currentAmount = tokenFeesMap.get(tokenId) || 0n;
     tokenFeesMap.set(tokenId, currentAmount + BigInt(stat.totalFeeAmount));
   }
-  
+
+  return Array.from(tokenFeesMap.entries());
+};
+
+const aggregateVaultERC20Earnings = (stats: Array<{
+  vault?: {
+    underlyingToken: { id: string }
+  },
+  token?: {
+    id: string
+  },
+  totalDepositAmount: string
+}>): [string, bigint][] => {
+  const tokenFeesMap = new Map<string, bigint>();
+
+  for (const stat of stats) {
+    const tokenId = stat?.vault?.underlyingToken?.id || stat?.token?.id;
+    const currentAmount = tokenFeesMap.get(tokenId!) || 0n;
+    tokenFeesMap.set(tokenId!, currentAmount + BigInt(stat.totalDepositAmount));
+  }
+
   return Array.from(tokenFeesMap.entries());
 };
 
@@ -49,13 +83,13 @@ const aggregateInstantWithdrawalERC20Fees = (stats: Array<{
   totalFeeAmount: string
 }>): [string, bigint][] => {
   const tokenFeesMap = new Map<string, bigint>();
-  
+
   for (const stat of stats) {
     const tokenId = stat.withdrawnToken.id;
     const currentAmount = tokenFeesMap.get(tokenId) || 0n;
     tokenFeesMap.set(tokenId, currentAmount + BigInt(stat.totalFeeAmount));
   }
-  
+
   return Array.from(tokenFeesMap.entries());
 };
 
@@ -98,6 +132,45 @@ const ethFeesQuery = gql`
       }
     ) {
       totalFeeAmount
+    }
+  }
+`;
+
+const ethEarningsQuery = gql`
+  query RenzoETHEarningsQuery($start: Timestamp!, $end: Timestamp!) {
+    stakingConsensusEarningStats (
+      interval: day
+      where: { timestamp_gte: $start, timestamp_lte: $end }
+    ) {
+      totalAmountWei
+    }
+
+    stakingExecutionEarningStats (
+      interval: day 
+      where: { timestamp_gte: $start, timestamp_lte: $end }
+    ) {
+      totalAmountWei
+    }
+
+    rewardDepositEarningStats (
+      interval: day
+      where: { timestamp_gte: $start, timestamp_lte: $end }
+    ) {
+      totalAmountWei
+    }
+
+    rewardForwardEarningStats (
+      interval: day
+      where: { timestamp_gte: $start, timestamp_lte: $end }
+    ) {
+      totalAmountWei
+    }
+
+    lidoDistributionEarningStats (
+      interval: day
+      where: { timestamp_gte: $start, timestamp_lte: $end }
+    ) {
+      totalDistributionEarned
     }
   }
 `;
@@ -162,6 +235,44 @@ const erc20FeesQuery = gql`
   }
 `;
 
+const erc20EarningsQuery = gql`
+  query RenzoERC20EarningsQuery($start: Timestamp!, $end: Timestamp!, $vaults: [ID!]!) {
+    vaultRewardDepositStats(
+      interval: day
+      where: {
+        timestamp_gte: $start,
+        timestamp_lte: $end,
+        vault_: {
+          id_in: $vaults
+        }
+      }
+    ) {
+      vault {
+        underlyingToken {
+          id
+        }
+      }
+      totalDepositAmount
+    }
+
+    vaultRewardForwardStats(
+      interval: day
+      where: {
+        timestamp_gte: $start,
+        timestamp_lte: $end,
+        vault_: {
+          id_in: $vaults
+        }
+      }
+    ) {
+      token {
+        id
+      }
+      totalDepositAmount
+    }
+  }
+`;
+
 export interface ETHFeesResult {
   stakingConsensusFeesWei: bigint;
   stakingExecutionFeesWei: bigint;
@@ -170,10 +281,23 @@ export interface ETHFeesResult {
   instantWithdrawalFeesWei: bigint;
 }
 
+export interface ETHEarningsResult {
+  stakingConsensusEarningsWei: bigint;
+  stakingExecutionEarningsWei: bigint;
+  rewardsDepositedEarningsWei: bigint;
+  rewardsForwardedEarningsWei: bigint;
+  lidoDistributionEarningsWei: bigint;
+}
+
 export interface ERC20FeesResult {
   vaultRewardERC20Fees: [string, bigint][];
   vaultProtocolERC20Fees: [string, bigint][];
   instantWithdrawalERC20Fees: [string, bigint][];
+}
+
+export interface ERC20EarningsResult {
+  vaultDepositedERC20Earnings: [string, bigint][];
+  vaultForwardedERC20Earnings: [string, bigint][];
 }
 
 export async function getETHFeesWei(
@@ -194,6 +318,24 @@ export async function getETHFeesWei(
   };
 }
 
+export async function getETHEarningsWei(
+  startSeconds: number,
+  endSeconds: number
+): Promise<ETHEarningsResult> {
+  const resp = await client.request(ethEarningsQuery, {
+    start: secondsToTheGraphTimestamp(startSeconds),
+    end: secondsToTheGraphTimestamp(endSeconds),
+  });
+
+  return {
+    stakingConsensusEarningsWei: reduceToTotal(resp.stakingConsensusEarningStats),
+    stakingExecutionEarningsWei: reduceToTotal(resp.stakingExecutionEarningStats),
+    rewardsDepositedEarningsWei: reduceToTotal(resp.rewardDepositEarningStats),
+    rewardsForwardedEarningsWei: reduceToTotal(resp.rewardForwardEarningStats),
+    lidoDistributionEarningsWei: reduceToTotal(resp.lidoDistributionEarningStats),
+  }
+}
+
 export async function getERC20FeesData(
   startSeconds: number,
   endSeconds: number
@@ -209,4 +351,20 @@ export async function getERC20FeesData(
     vaultProtocolERC20Fees: aggregateVaultERC20Fees(resp.vaultProtocolFeeStats),
     instantWithdrawalERC20Fees: aggregateInstantWithdrawalERC20Fees(resp.instantWithdrawStatsErc20),
   };
-} 
+}
+
+export async function getERC20EarningsData(
+  startSeconds: number,
+  endSeconds: number
+): Promise<ERC20EarningsResult> {
+  const resp = await client.request(erc20EarningsQuery, {
+    start: secondsToTheGraphTimestamp(startSeconds),
+    end: secondsToTheGraphTimestamp(endSeconds),
+    vaults: RENZO_OWNED_VAULTS,
+  });
+
+  return {
+    vaultDepositedERC20Earnings: aggregateVaultERC20Earnings(resp.vaultRewardDepositStats),
+    vaultForwardedERC20Earnings: aggregateVaultERC20Earnings(resp.vaultRewardForwardStats),
+  };
+}
