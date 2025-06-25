@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
-import { ZeroAddress } from "ethers";
 import { postURL } from "../../utils/fetchURL";
 
 const solanaFetch: any = async (options: FetchOptions) => {
@@ -117,7 +116,7 @@ const evmFetch: any = async (options: FetchOptions) => {
     eventAbi: ServicePaidEvent,
   });
   data.forEach((log: any) => {
-    dailyFees.add(ZeroAddress, log.amount);
+    dailyFees.addGasToken(log.amount);
   });
   return {
     dailyFees,
