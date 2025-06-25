@@ -16,51 +16,65 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const ethEarnings = await getETHEarningsWei(startTimestamp, endTimestamp);
   const erc20Earnings = await getERC20EarningsData(startTimestamp, endTimestamp);
 
-  // Init empty balances for fees & earnings
-  const dailyFees = createBalances();
-  const dailyEarnings = createBalances();
+  // Init empty balances for payments either retained or re-distributed by the protocol
+  const retainedBalances = createBalances();
+  const distributedBalances = createBalances();
 
   // Add ETH fees
-  dailyFees.addGasToken(ethFees.stakingConsensusFeesWei);
-  dailyFees.addGasToken(ethFees.stakingExecutionFeesWei);
-  dailyFees.addGasToken(ethFees.rewardsDepositedFeesWei);
-  dailyFees.addGasToken(ethFees.rewardsForwardedFeesWei);
-  dailyFees.addGasToken(ethFees.instantWithdrawalFeesWei);
+  retainedBalances.addGasToken(ethFees.stakingConsensusFeesWei);
+  retainedBalances.addGasToken(ethFees.stakingExecutionFeesWei);
+  retainedBalances.addGasToken(ethFees.rewardsDepositedFeesWei);
+  retainedBalances.addGasToken(ethFees.rewardsForwardedFeesWei);
+  retainedBalances.addGasToken(ethFees.instantWithdrawalFeesWei);
 
   // Add ERC20 fees
   for (const [tokenId, tokenFees] of erc20Fees.instantWithdrawalERC20Fees) {
-    dailyFees.add(tokenId, tokenFees);
+    retainedBalances.add(tokenId, tokenFees);
   }
   for (const [tokenId, tokenFees] of erc20Fees.vaultRewardERC20Fees) {
-    dailyFees.add(tokenId, tokenFees);
+    retainedBalances.add(tokenId, tokenFees);
   }
   for (const [tokenId, tokenFees] of erc20Fees.vaultProtocolERC20Fees) {
-    dailyFees.add(tokenId, tokenFees);
+    retainedBalances.add(tokenId, tokenFees);
   }
 
   // Add ETH earnings
-  dailyEarnings.addGasToken(ethEarnings.stakingConsensusEarningsWei);
-  dailyEarnings.addGasToken(ethEarnings.stakingExecutionEarningsWei);
-  dailyEarnings.addGasToken(ethEarnings.rewardsDepositedEarningsWei);
-  dailyEarnings.addGasToken(ethEarnings.rewardsForwardedEarningsWei);
-  dailyEarnings.addGasToken(ethEarnings.lidoDistributionEarningsWei);
+  distributedBalances.addGasToken(ethEarnings.stakingConsensusEarningsWei);
+  distributedBalances.addGasToken(ethEarnings.stakingExecutionEarningsWei);
+  distributedBalances.addGasToken(ethEarnings.rewardsDepositedEarningsWei);
+  distributedBalances.addGasToken(ethEarnings.rewardsForwardedEarningsWei);
+  distributedBalances.addGasToken(ethEarnings.lidoDistributionEarningsWei);
 
   // Add ERC20 earnings
   for (const [tokenId, tokenEarnings] of erc20Earnings.vaultDepositedERC20Earnings) {
-    dailyEarnings.add(tokenId, tokenEarnings);
+    distributedBalances.add(tokenId, tokenEarnings);
   }
   for (const [tokenId, tokenEarnings] of erc20Earnings.vaultForwardedERC20Earnings) {
-    dailyEarnings.add(tokenId, tokenEarnings);
+    distributedBalances.add(tokenId, tokenEarnings);
   }
 
-  // Calculate revenue balances by combining fees & earnings
+  // Calculate DL specific balances
+  // Docs: https://docs.llama.fi/list-your-project/other-dashboards#core-dimensions
+
+  // Daily fees:
+  // All fees and value collected from all sources.
+  // This represents the total value flow into the protocol's ecosystem due to its operation.
+  const dailyFees = createBalances();
+  dailyFees.addBalances(retainedBalances.getBalances());
+  dailyFees.addBalances(distributedBalances.getBalances());
+
+  // Daily revenue:
+  // The portion of dailyFees kept by the protocol entity itself,
+  // distributed either to the treasury (dailyProtocolRevenue)
+  // or governance token holders (dailyHoldersRevenue).
   const dailyRevenue = createBalances();
-  dailyRevenue.addBalances(dailyFees.getBalances());
-  dailyRevenue.addBalances(dailyEarnings.getBalances());
+  dailyRevenue.addBalances(retainedBalances.getBalances());
 
   return {
     dailyFees,
-    dailyRevenue
+    dailyRevenue,
+    // dailyHoldersRevenue,
+    // dailyProtocolRevenue,
   };
 }
 
@@ -71,8 +85,8 @@ const adapter: SimpleAdapter = {
       fetch,
       meta: {
         methodology: {
-          Fees: "Fees collected from staking, restaking, vaults, and instant withdrawals.",
-          Revenue: "Combined fees & earnings from staking, restaking, vaults, instant withdrawals, and Lido distributions."
+          Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
+          Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
         },
       },
       start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
