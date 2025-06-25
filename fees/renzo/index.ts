@@ -71,7 +71,7 @@ const adapter: SimpleAdapter = {
       fetch,
       meta: {
         methodology: {
-          Fees: "Fees collected from staking, restaking, vaults, and instant withdrawals",
+          Fees: "Fees collected from staking, restaking, vaults, and instant withdrawals.",
           Revenue: "Combined fees & earnings from staking, restaking, vaults, instant withdrawals, and Lido distributions."
         },
       },
