@@ -17,7 +17,9 @@ interface DepositFungible {
 
 const KGEN_APTOS_ON_CHAIN_REVENUE_CONTRACT =
   "0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4";
-
+const ItemSoldEvent =
+  "event ItemSoldV1(uint256  tokenId, uint256 quantity, uint256 totalPrice)";
+const LIFIFeeCollector = "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51";
 const toUnixTime = (timestamp: string): number =>
   Math.floor(Number(timestamp) / 1e6);
 
@@ -130,11 +132,43 @@ const getEventData = async (
   }
 };
 
+
+const fetchPolygonRevenue = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  const data: any[] = await options.getLogs({
+    target: LIFIFeeCollector,
+    eventAbi: ItemSoldEvent,
+  });
+
+  for (const log of data) {
+    const amount = Number(log.totalPrice);
+    if (!isNaN(amount)) {
+      dailyFees.addUSDValue(amount / 1e6); 
+    }
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+  };
+};
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: "2025-06-02",
+      meta: {
+        methodology: {
+          Fees: "Fees paid by dapps/projects launching quests on KGeN.",
+          Revenue: "Fees paid by dapps/projects launching quests on KGeN.",
+        },
+      },
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetchPolygonRevenue,
+      start: "2025-06-23",
       meta: {
         methodology: {
           Fees: "Fees paid by dapps/projects launching quests on KGeN.",
