@@ -33,7 +33,9 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
 
-    const vaults = await fromApi.call({ target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
+    const vaults_uppercase = await fromApi.call({ target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
+    const vaults = vaults_uppercase.map((vault) => vault.toLowerCase())
+
     const underlyings = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset })
     underlyings.forEach((underlying, index) => {
         if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
@@ -99,8 +101,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         dailyFees.add(underlyings[vaultIndex], totalInterest)
     })
 
-    const vaults_lowercase = vaults.map((vault) => vault.toLowerCase())
-    const logs = (await getLogs({ targets: vaults_lowercase, eventAbi: eulerVaultABI.convertFees, flatten: false })).map((vaultLogs) => {
+    const logs = (await getLogs({ targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false })).map((vaultLogs) => {
         if (!vaultLogs.length) return 0n;
         let totalShares = 0n;
         for (const log of vaultLogs) {
@@ -186,6 +187,7 @@ const adapters: Adapter = {
             meta: { methodology }
         },
     },
+    allowNegativeValue: true // AS protocol revenue is tracked when collected, and interest can be lower for a day when collected
 }
 
 export default adapters;
