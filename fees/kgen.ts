@@ -19,7 +19,7 @@ const KGEN_APTOS_ON_CHAIN_REVENUE_CONTRACT =
   "0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4";
 const ItemSoldEvent =
   "event ItemSoldV1(uint256  tokenId, uint256 quantity, uint256 totalPrice)";
-const LIFIFeeCollector = "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51";
+const KGEN_POLYGON_ON_CHAIN_REVENUE_CONTRACT= "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51";
 const toUnixTime = (timestamp: string): number =>
   Math.floor(Number(timestamp) / 1e6);
 
@@ -137,7 +137,7 @@ const fetchPolygonRevenue = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const data: any[] = await options.getLogs({
-    target: LIFIFeeCollector,
+    target: KGEN_POLYGON_ON_CHAIN_REVENUE_CONTRACT,
     eventAbi: ItemSoldEvent,
   });
 
