@@ -154,46 +154,34 @@ const adapters: Adapter = {
     version: 2,
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: fetch,
+            fetch,
             start: '2024-08-18',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
         [CHAIN.SONIC]: {
-            fetch: fetch,
+            fetch,
             start: '2025-01-31',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
         [CHAIN.BASE]: {
-            fetch: fetch,
+            fetch,
             start: '2024-11-27',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
         [CHAIN.SWELLCHAIN]: {
-            fetch: fetch,
+            fetch,
             start: '2025-01-20',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
         [CHAIN.BOB]: {
-            fetch: fetch,
+            fetch,
             start: '2025-01-21',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
         [CHAIN.BERACHAIN]: {
-            fetch: fetch,
+            fetch,
             start: '2025-02-06',
-            meta: {
-                methodology
-            }
+            meta: { methodology }
         },
     },
 }
