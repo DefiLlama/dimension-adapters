@@ -3,6 +3,42 @@ import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { postURL } from "../../utils/fetchURL";
 
+const config: Record<string, { contract: string, start: string }> = {
+  [CHAIN.ETHEREUM]: {
+    contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
+    start: "2024-07-26",
+  },
+  [CHAIN.BASE]:{
+    contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
+    start: "2024-07-26",
+  },
+  [CHAIN.POLYGON]: {
+    contract: "0x1272CA4D562b6eeFD7bfEfA64EFD9b93AC8d34D5",
+    start: "2024-09-13",
+  },
+  [CHAIN.ARBITRUM]: {
+    contract: "0x6120fA4b79AB3672322EE5bA8eD59d4303D0ff06",
+    start: "2024-09-13",
+  },
+  [CHAIN.AVAX]: {
+    contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
+    start: "2024-09-13",
+  },
+  [CHAIN.BSC]: {
+    contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
+    start: "2024-09-13",
+  },
+  [CHAIN.BLAST]: {
+    contract: "0x6120fA4b79AB3672322EE5bA8eD59d4303D0ff06",
+    start: "2024-10-14",
+  },
+};
+
+const ServicePaidEvent = "event ServicePaid (bytes32 projectId, address contractAddress, bytes32 serviceId, address user, uint256 amount, uint256 timestamp)";
+
+const SUI_RPC_URL = "https://fullnode.mainnet.sui.io:443";
+const SUI_ADDRESS = "0x3a20341455dbb7ed10e414b4a054096c22b0e6c41da1571093e9d7fd36ee0a24";
+
 const solanaFetch: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     options,
@@ -14,10 +50,6 @@ const solanaFetch: any = async (options: FetchOptions) => {
     dailyProtocolRevenue: dailyFees,
   };
 };
-
-const SUI_RPC_URL = "https://fullnode.mainnet.sui.io:443";
-const SUI_ADDRESS =
-  "0x3a20341455dbb7ed10e414b4a054096c22b0e6c41da1571093e9d7fd36ee0a24";
 
 const suiFetch = async (options: FetchOptions) => {
   const fromTimestamp = options.fromTimestamp;
@@ -86,33 +118,10 @@ const suiFetch = async (options: FetchOptions) => {
   };
 };
 
-export const PaymentContracts: { [key: string]: string } = {
-  [CHAIN.ETHEREUM]: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
-  [CHAIN.BASE]: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
-  [CHAIN.POLYGON]: "0x1272CA4D562b6eeFD7bfEfA64EFD9b93AC8d34D5",
-  [CHAIN.ARBITRUM]: "0x6120fA4b79AB3672322EE5bA8eD59d4303D0ff06",
-  [CHAIN.AVAX]: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
-  [CHAIN.BSC]: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
-  [CHAIN.BLAST]: "0x6120fA4b79AB3672322EE5bA8eD59d4303D0ff06",
-};
-
-export const PaymentContractsStartDates: { [key: string]: string } = {
-  [CHAIN.ETHEREUM]: "2024-07-26",
-  [CHAIN.BASE]: "2024-07-26",
-  [CHAIN.POLYGON]: "2024-09-13",
-  [CHAIN.ARBITRUM]: "2024-09-13",
-  [CHAIN.AVAX]: "2024-09-13",
-  [CHAIN.BSC]: "2024-09-13",
-  [CHAIN.BLAST]: "2024-10-14",
-};
-
-const ServicePaidEvent =
-  "event ServicePaid (bytes32 projectId, address contractAddress, bytes32 serviceId, address user, uint256 amount, uint256 timestamp)";
-
 const evmFetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const data: Array<any> = await options.getLogs({
-    target: PaymentContracts[options.chain],
+    target: config[options.chain].contract,
     eventAbi: ServicePaidEvent,
   });
   data.forEach((log: any) => {
@@ -125,46 +134,33 @@ const evmFetch: any = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "All fees paid by users to use a particular Smithii tool.",
+  Revenue: "All fees are collected by smithii.io protocol.",
+  ProtocolRevenue: "Trading fees are collected by smithii.io protocol.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    ...Object.keys(PaymentContracts).reduce((acc, chain) => {
+    ...Object.keys(config).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
           fetch: evmFetch,
-          start: PaymentContractsStartDates[chain],
-          meta: {
-            methodology: {
-              Fees: "All fees paid by users to use a particular Smithii tool.",
-              Revenue: "All fees are collected by smithii.io protocol.",
-              ProtocolRevenue:
-                "Trading fees are collected by smithii.io protocol.",
-            },
-          },
+          start: config[chain].start,
+          meta: { methodology },
         },
       };
     }, {}),
     [CHAIN.SOLANA]: {
       fetch: solanaFetch,
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users to use a particular Smithii tool.",
-          Revenue: "All fees are collected by smithii.io protocol.",
-          ProtocolRevenue: "Trading fees are collected by smithii.io protocol.",
-        },
-      },
+      meta: { methodology },
     },
     [CHAIN.SUI]: {
       fetch: suiFetch,
       start: "2025-03-19",
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users to use a particular Smithii tool.",
-          Revenue: "All fees are collected by smithii.io protocol.",
-          ProtocolRevenue: "Trading fees are collected by smithii.io protocol.",
-        },
-      },
+      meta: { methodology },
     },
   },
   isExpensiveAdapter: true,
