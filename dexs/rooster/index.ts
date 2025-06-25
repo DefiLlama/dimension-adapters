@@ -8,11 +8,11 @@ export const factories: { [key: string]: any } = {
     startBlock: 12119,
     start: '2025-03-13',
   },
-  // [CHAIN.PLUME_LEGACY]: {
-  //   factory: "0x056A588AfdC0cdaa4Cab50d8a4D2940C5D04172E",
-  //   startBlock: 91952,
-  //   start: '2024-12-20',
-  // },
+  [CHAIN.PLUME_LEGACY]: {
+    factory: "0x056A588AfdC0cdaa4Cab50d8a4D2940C5D04172E",
+    startBlock: 91952,
+    start: '2024-12-20',
+  },
 };
 
 const mavV2PoolCreated = `event PoolCreated(address poolAddress,uint8 protocolFeeRatio,uint256 feeAIn,uint256 feeBIn,uint256 tickSpacing,uint256 lookback,int32 activeTick,address tokenA,address tokenB,uint8 kinds,address accessor)`;
@@ -80,10 +80,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: factories[CHAIN.PLUME].start,
     },
-    // [CHAIN.PLUME_LEGACY]: {
-    //   fetch: getData,
-    //   start: factories[CHAIN.PLUME].startTimestamp,
-    // },
+    [CHAIN.PLUME_LEGACY]: {
+      fetch: async () => ({}),
+      start: factories[CHAIN.PLUME_LEGACY].start,
+    },
   },
 };
 
