@@ -74,8 +74,10 @@ async function _queryAllium(sqlQuery: string) {
       throw new Error("Still running")
     },
     {
-      retries: 42,
-      maxTimeout: 1000 * 60 * 21
+      retries: 15,
+      maxTimeout: 1000 * 60 * 2, // 2 minutes
+      minTimeout: 1000 * 10, // 10 seconds
+      randomize: true,
     }
   );
 
