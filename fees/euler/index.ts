@@ -12,7 +12,7 @@ const eVaultFactories = {
     [CHAIN.BOB]: "0x046a9837A61d6b6263f54F4E27EE072bA4bdC7e4",
     [CHAIN.BERACHAIN]: "0x5C13fb43ae9BAe8470f646ea647784534E9543AF",
 };
-  
+
 
 const eulerFactoryABI = {
     vaultLength: "function getProxyListLength() view returns (uint256)",
@@ -22,30 +22,25 @@ const eulerFactoryABI = {
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
     accumulatedFees: "function accumulatedFees() view returns (uint256)",
-    convertToAssets: "function convertToAssets(string shares) view returns (uint256)",
+    convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
     convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
     vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)",
     interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
 }
 
-const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, fromTimestamp}: FetchOptions, {
-    dailyFees,
-    dailyRevenue,
-}: {
-    dailyFees?: sdk.Balances,
-    dailyRevenue?: sdk.Balances,
-}) => {
+const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, fromTimestamp }: FetchOptions) => {
 
-    if (!dailyFees) dailyFees = createBalances()
-    if (!dailyRevenue) dailyRevenue = createBalances()
-    const vaults = await fromApi.call({target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX]})
-    const underlyings = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.asset})
+    const dailyFees = createBalances()
+    const dailyRevenue = createBalances()
+    const dailySupplySideRevenue = createBalances()
+    const vaults = await fromApi.call({ target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
+    const underlyings = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset })
     underlyings.forEach((underlying, index) => {
         if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
-    })    
+    })
 
-    const accumulatedFeesStart = await fromApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
-    const accumulatedFeesEnd = await toApi.multiCall({calls: vaults, abi: eulerVaultABI.accumulatedFees})
+    const accumulatedFeesStart = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
+    const accumulatedFeesEnd = await toApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
 
     const yesterdayBlock = await sdk.blocks.getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
     const todayBlockminus1 = await sdk.blocks.getBlock(chain, fromTimestamp - 1, {})
@@ -56,56 +51,56 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, f
         toBlock: todayBlockminus1.number,
         eventAbi: eulerVaultABI.vaultStatus,
         flatten: false
-    }).then(logs => 
-        logs.map(vaultLogs => 
+    }).then(logs =>
+        logs.map(vaultLogs =>
             vaultLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0]
         )
     )
-    
 
     const vaultStatusLogs = (await getLogs({
-        targets: vaults, 
+        targets: vaults,
         eventAbi: eulerVaultABI.vaultStatus,
         flatten: false
-      }))
-    
-      vaultStatusLogs.forEach((logs, vaultIndex) => {
+    }))
+
+    vaultStatusLogs.forEach((logs, vaultIndex) => {
         const prevDayLog = lastEventsFromPrevDay[vaultIndex]
-        
+
         if (!prevDayLog) {
             return
         }
-    
+
         if (logs.length === 0) {
             return
         }
-    
+
         logs.sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
         let totalInterest = 0n
-        
+
         const firstLog = logs[0]
         const prevBorrows = BigInt(prevDayLog.totalBorrows.toString())
-        const firstRatio = (BigInt(firstLog.interestAccumulator.toString()) * BigInt(1e18)) / 
-                        BigInt(prevDayLog.interestAccumulator.toString())
-        
+        const firstRatio = (BigInt(firstLog.interestAccumulator.toString()) * BigInt(1e18)) /
+            BigInt(prevDayLog.interestAccumulator.toString())
+
         totalInterest += (prevBorrows * (firstRatio - BigInt(1e18))) / BigInt(1e18)
-        
+
         for (let i = 1; i < logs.length; i++) {
-            const prev = logs[i-1]
+            const prev = logs[i - 1]
             const current = logs[i]
-            
+
             const currentBorrows = BigInt(prev.totalBorrows.toString())
-            const ratio = (BigInt(current.interestAccumulator.toString()) * BigInt(1e18)) / 
-                         BigInt(prev.interestAccumulator.toString())
-            
+            const ratio = (BigInt(current.interestAccumulator.toString()) * BigInt(1e18)) /
+                BigInt(prev.interestAccumulator.toString())
+
             const interest = (currentBorrows * (ratio - BigInt(1e18))) / BigInt(1e18)
             totalInterest += interest
         }
-        
+
         dailyFees.add(underlyings[vaultIndex], totalInterest)
     })
 
-    const logs = (await getLogs({targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false})).map((vaultLogs) => {
+    const vaults_lowercase = vaults.map((vault) => vault.toLowerCase())
+    const logs = (await getLogs({ targets: vaults_lowercase, eventAbi: eulerVaultABI.convertFees, flatten: false })).map((vaultLogs) => {
         if (!vaultLogs.length) return 0n;
         let totalShares = 0n;
         for (const log of vaultLogs) {
@@ -113,44 +108,50 @@ const getVaults = async ({createBalances, api, fromApi, toApi, getLogs, chain, f
         }
         return totalShares;
     });
- 
-    //calculate (accumulatedFeesEnd - accumulatedFeesStart) + totalShares from convertFees
+
+    // calculate (accumulatedFeesEnd - accumulatedFeesStart) + totalShares from convertFees
     const accumulatedFees = accumulatedFeesEnd.map((fees, i) => {
         const feesEnd = BigInt(fees.toString());
         const feesStart = BigInt(accumulatedFeesStart[i].toString());
         return feesEnd - feesStart + logs[i];
     });
 
-    //we then convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
+    // we then convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
     const totalAssets = await toApi.multiCall({
         calls: accumulatedFees.map((fees, i) => ({
             target: vaults[i],
             params: [fees.toString()]
         })),
         abi: eulerVaultABI.convertToAssets,
-        permitFailure: true
     });
 
     totalAssets.forEach((assets, i) => {
         if (!assets) return
         dailyRevenue.add(underlyings[i], assets)
     })
-    const dailySupplySideRevenue = dailyFees.clone()
     dailySupplySideRevenue.subtract(dailyRevenue)
 
-    return {dailyFees,dailyRevenue, dailySupplySideRevenue}
+    return {
+        dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+    }
 }
 
 const fetch = async (options: FetchOptions) => {
-    return await getVaults(options, {})
+    return await getVaults(options)
 }
 
 const methodology = {
-    dailyFees: "Interest that is paid by the borrowers to the vaults",
-    dailyRevenue: "Protocol & Governor fees share"
+    Fees: "Interest that is paid by the borrowers to the vaults",
+    Revenue: "Protocol fees share",
+    ProtocolRevenue: "Protocol fees share",
+    SupplySideRevenue: "Interest paid to the lenders"
 }
 
 const adapters: Adapter = {
+    version: 2,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
@@ -195,8 +196,6 @@ const adapters: Adapter = {
             }
         },
     },
-    
-    version: 2
 }
 
 export default adapters;
