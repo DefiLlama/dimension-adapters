@@ -5,9 +5,7 @@ import BigNumber from "bignumber.js";
 
 export interface ValidatorProgramFees {
   dailyProtocolRevenue: Balances;
-  totalProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }
 
 interface IGraphEarlyStageFeesResponse {
@@ -43,9 +41,7 @@ export async function validatorProgramFees(
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyProtocolRevenue = createBalances()
-  let totalProtocolRevenue = createBalances()
   let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
 
   try {
     const res: IGraphEarlyStageFeesResponse = await request(stakingV3SubgraphEndpoint, queryValidatorProgramFees, {
@@ -58,19 +54,12 @@ export async function validatorProgramFees(
       dailyHoldersRevenue.add(wavaxToken, res.rewards[0].amount)
     }
 
-    if (res.rewardPerTokenPerCategories[0] !== undefined) {
-      totalProtocolRevenue.add(wavaxToken, new BigNumber(res.rewardPerTokenPerCategories[0].amountTotal).div(0.7).multipliedBy(0.3).toFixed(0))
-      totalHoldersRevenue.add(wavaxToken, res.rewardPerTokenPerCategories[0].amountTotal)
-    }
-
   } catch (e) {
     console.error(e);
   }
 
   return {
     dailyProtocolRevenue,
-    totalProtocolRevenue,
     dailyHoldersRevenue,
-    totalHoldersRevenue
   }
 }

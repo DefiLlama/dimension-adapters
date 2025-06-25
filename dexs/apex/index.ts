@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter, Fetch } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -36,7 +36,7 @@ interface IOpenInterest {
     lastPrice: string;
 }
 
-const getVolume = async (timestamp: number) => {
+const fetch = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: any[] = (await Promise.all(symbol.map((coins: string) => fetchURL(historicalVolumeEndpoint(coins, dayTimestamp + 60 * 60 * 24)))))
         .map((e: any) => Object.values(e.data)).flat().flat()
@@ -52,13 +52,9 @@ const getVolume = async (timestamp: number) => {
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
     return {
-        totalVolume: totalVolume,
         dailyOpenInterest: dailyOpenInterest,
         dailyVolume: dailyVolume,
-        timestamp: dayTimestamp,
     };
 };
 
@@ -66,7 +62,7 @@ const getVolume = async (timestamp: number) => {
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: getVolume,
+            fetch,
             start: '2022-10-05',
         }
     },

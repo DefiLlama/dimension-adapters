@@ -11,8 +11,6 @@ const fetchVolume = async (_t: any, _b: any ,options: FetchOptions) => {
 
   return {
     dailyVolume: record.total_volume_usd ? record.total_volume_usd.toFixed(2) : 0,
-    totalVolume: res.total_volume_usd ? res.total_volume_usd.toFixed(2) : 0,
-    timestamp: timestamp,
   };
 };
 

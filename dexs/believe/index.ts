@@ -9,47 +9,52 @@ interface IData {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
-        WITH tokens as (
-            SELECT
-                block_time as ts,
-                account_arguments[4] as token
-            FROM solana.instruction_calls
-            WHERE block_time >= timestamp '2025-04-27'
-                AND executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                AND account_arguments[4] <> 'So11111111111111111111111111111111111111112'
-                AND tx_success
-                AND not is_inner
-
-            UNION ALL
-
-            SELECT
-                block_time as ts,
-                account_arguments[6] as token
-            FROM solana.instruction_calls
-            WHERE block_time >= timestamp '2025-04-27'
-                AND executing_account = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf'
-                AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                AND VARBINARY_STARTS_WITH (data, 0xc208a15799a419ab)
-                AND account_arguments[6] <> 'So11111111111111111111111111111111111111112'
-                AND tx_success
-                AND not is_inner
-            
-        ), volumes as (
-            SELECT token_bought_mint_address, token_bought_amount_raw, amount_usd, tx_id
-            FROM dex_solana.trades
-            WHERE TIME_RANGE
-                AND (
-                    token_bought_mint_address in (SELECT token FROM tokens)
-                    or
-                    token_sold_mint_address in (SELECT token FROM tokens)
-                )
-        )
-
-        SELECT sum(amount_usd) as total_volume from volumes
+        WITH
+            launch_coin_tokens AS (
+                SELECT DISTINCT
+                    account_arguments[4] AS token
+                FROM
+                    solana.instruction_calls
+                WHERE
+                    executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
+                    AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
+                    AND account_arguments[4] <> 'So11111111111111111111111111111111111111112'
+                    AND tx_success = TRUE
+                    AND NOT is_inner
+            ),
+            launch_coin_swap_txs_for_event_join AS (
+                SELECT
+                    tx_id
+                FROM
+                    solana.instruction_calls
+                WHERE
+                    tx_success = TRUE
+                    AND executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
+                    AND VARBINARY_STARTS_WITH (data, 0xf8c69e91e17587c8)
+                    AND account_arguments[8] IN (SELECT token FROM launch_coin_tokens)
+                    AND TIME_RANGE
+            ),
+            swap_events AS (
+                SELECT
+                    LEAST(
+                        TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 9+90, 8))) AS DECIMAL(38,0)),
+                        TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 9+98, 8))) AS DECIMAL(38,0))
+                    ) AS event_sol_amount
+                FROM
+                    solana.instruction_calls
+                WHERE
+                    tx_id IN (SELECT tx_id FROM launch_coin_swap_txs_for_event_join)
+                    AND tx_success = TRUE
+                    AND executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
+                    AND VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d)
+                    AND TIME_RANGE
+            )
+        SELECT
+            SUM(COALESCE(event_sol_amount, 0)) / 1e9 AS total_volume
+        FROM swap_events
     `)
     const dailyVolume = options.createBalances();
-    dailyVolume.addUSDValue(data[0].total_volume);
+    dailyVolume.addCGToken('solana', data[0].total_volume);
 
     return {
         dailyVolume
@@ -58,13 +63,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-27'
         }
     },
-    version: 1,
     isExpensiveAdapter: true
 }
 

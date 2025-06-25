@@ -37,7 +37,7 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.ZETA]: {
         fetch: v3Graphs(CHAIN.ZETA),
-        start: 1729171577,
+        start: '2024-10-17',
         meta: {
           methodology,
         },

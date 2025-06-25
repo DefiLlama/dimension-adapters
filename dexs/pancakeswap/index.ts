@@ -1,13 +1,12 @@
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
-import { filterPools, getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
-import { queryDune, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -61,7 +60,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v2: {
     [CHAIN.BSC]: {
-      start: 1619136000,
+      start: '2021-04-23',
       dataSource: DataSource.GRAPH,
       endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
       requestHeaders: {
@@ -69,39 +68,39 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       }
     },
     [CHAIN.ETHEREUM]: {
-      start: 1664236800,
+      start: '2022-09-27',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1687910400,
+      start: '2023-06-28',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
+      start: '2023-07-24',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
       factory: '0xd03D8D566183F0086d8D09A84E1e30b58Dd5619d'
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
+      start: '2023-08-08',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
+      start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
     },
     [CHAIN.BASE]: {
-      start: 1693440000,
+      start: '2023-08-31',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
     },
     [CHAIN.OP_BNB]: {
-      start: 1695081600,
+      start: '2023-09-19',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`,
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
@@ -113,7 +112,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v3: {
     [CHAIN.BSC]: {
-      start: 1680307200,
+      start: '2023-04-01',
       // dataSource: DataSource.PANCAKE_EXPLORER,
       // endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
       // explorerChainSlug: 'bsc',
@@ -121,38 +120,38 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       dataSource: DataSource.DUNE,
     },
     [CHAIN.ETHEREUM]: {
-      start: 1680307200,
+      start: '2023-04-01',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS')
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1686182400,
+      start: '2023-06-08',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
+      start: '2023-07-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
+      start: '2023-08-08',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve')
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
+      start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
     },
     [CHAIN.BASE]: {
-      start: 1692576000,
+      start: '2023-08-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp')
     },
     [CHAIN.OP_BNB]: {
-      start: 1693440000,
+      start: '2023-08-31',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`,
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
@@ -160,17 +159,17 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   stableswap: {
     [CHAIN.ETHEREUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj')
     },
     [CHAIN.BSC]: {
-      start: 1663718400,
+      start: '2022-09-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz')
     },
     [CHAIN.ARBITRUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
     }
@@ -382,7 +381,14 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
                   0xb4357054c3da8d46ed642383f03139ac7f090343,
                   0x6bdcce4a559076e37755a78ce0c06214e59e4444,
-                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6,
+                  0x30c60b20c25b2810ca524810467a0c342294fc61,
+                  0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
+                  0x595e21b20e78674f8a64c1566a20b2b316bc3511,
+                  0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               AND token_bought_address NOT IN (
                   0xc71b5f631354be6853efe9c3ab6b9590f8302e81,  -- ZK
@@ -390,7 +396,14 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
                   0xb4357054c3da8d46ed642383f03139ac7f090343,
                   0x6bdcce4a559076e37755a78ce0c06214e59e4444,
-                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6,
+                  0x30c60b20c25b2810ca524810467a0c342294fc61,
+                  0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
+                  0x595e21b20e78674f8a64c1566a20b2b316bc3511,
+                  0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               THEN amount_usd 
               ELSE 0 
@@ -604,10 +617,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      ...createAdapter('v1')
-    },
+    v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')

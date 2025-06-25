@@ -1,6 +1,6 @@
 import { Adapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 const url = "https://api.echooo.xyz/tenant/defillama/data/v2";
 
@@ -44,15 +44,13 @@ type Responce = {
 const fetch =
   (chain: string) =>
   async (timestamp: number): Promise<FetchResultVolume> => {
-    const resp: Responce = await httpGet(`${url}?timestamp=${timestamp}`);
+    const resp: Responce = await fetchURL(`${url}?timestamp=${timestamp}`);
     const data = resp.chains[chain];
     if (!data || !data.daily || !data.total) {
       return {} as FetchResultVolume;
     }
     return {
       dailyVolume: data.daily.volume,
-      totalVolume: data.total.volume,
-      timestamp
     };
   };
 
