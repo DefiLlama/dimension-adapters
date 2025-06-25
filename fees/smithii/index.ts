@@ -2,12 +2,84 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { ZeroAddress } from "ethers";
+import { postURL } from "../../utils/fetchURL";
 
 const solanaFetch: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     options,
     target: "5KgfWjGePnbFgDAuCqxB5oymuFxQskvCtrw6eYfDa7fj",
   });
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+};
+
+const SUI_RPC_URL = "https://fullnode.mainnet.sui.io:443";
+const SUI_ADDRESS =
+  "0x3a20341455dbb7ed10e414b4a054096c22b0e6c41da1571093e9d7fd36ee0a24";
+
+const suiFetch = async (options: FetchOptions) => {
+  const fromTimestamp = options.fromTimestamp;
+  const toTimestamp = options.toTimestamp;
+  let cursor = null;
+  let hasNextPage = true;
+  let stopFetching = false;
+  const dailyFees = options.createBalances();
+  let total = 0;
+
+  while (hasNextPage && !stopFetching) {
+    const body = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "suix_queryTransactionBlocks",
+      params: [
+        {
+          filter: { ToAddress: SUI_ADDRESS },
+          options: {
+            showInput: true,
+            showEffects: true,
+            showEvents: true,
+            showBalanceChanges: true,
+          },
+        },
+        cursor,
+        100,
+        true,
+      ],
+    };
+
+    const data = await postURL(SUI_RPC_URL, body);
+
+    if (data.result && data.result.data) {
+      for (const tx of data.result.data) {
+        const ts = Number(tx.timestampMs) / 1000;
+        if (ts < fromTimestamp) {
+          stopFetching = true;
+          break;
+        }
+        if (ts > toTimestamp) continue;
+
+        if (tx.balanceChanges) {
+          for (const change of tx.balanceChanges) {
+            if (
+              change.owner?.AddressOwner === SUI_ADDRESS &&
+              change.coinType === "0x2::sui::SUI" &&
+              Number(change.amount) > 0
+            ) {
+              total += Number(change.amount);
+              dailyFees.add("0x2::sui::SUI", Number(change.amount));
+            }
+          }
+        }
+      }
+      hasNextPage = data.result.hasNextPage;
+      cursor = data.result.nextCursor;
+    } else {
+      hasNextPage = false;
+    }
+  }
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -76,6 +148,17 @@ const adapter: SimpleAdapter = {
     }, {}),
     [CHAIN.SOLANA]: {
       fetch: solanaFetch,
+      meta: {
+        methodology: {
+          Fees: "All fees paid by users to use a particular Smithii tool.",
+          Revenue: "All fees are collected by smithii.io protocol.",
+          ProtocolRevenue: "Trading fees are collected by smithii.io protocol.",
+        },
+      },
+    },
+    [CHAIN.SUI]: {
+      fetch: suiFetch,
+      start: "2025-03-19",
       meta: {
         methodology: {
           Fees: "All fees paid by users to use a particular Smithii tool.",
