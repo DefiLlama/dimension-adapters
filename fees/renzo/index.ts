@@ -53,13 +53,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     distributedBalances.add(tokenId, tokenEarnings);
   }
 
-  // Calculate DL specific balances
-  // Docs: https://docs.llama.fi/list-your-project/other-dashboards#core-dimensions
-
   // Daily fees:
   // All fees and value collected from all sources.
   // This represents the total value flow into the protocol's ecosystem due to its operation.
-  const dailyFees = createBalances();
+  const dailyFees = options.createBalances();
   dailyFees.addBalances(retainedBalances.getBalances());
   dailyFees.addBalances(distributedBalances.getBalances());
 
@@ -67,14 +64,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // The portion of dailyFees kept by the protocol entity itself,
   // distributed either to the treasury (dailyProtocolRevenue)
   // or governance token holders (dailyHoldersRevenue).
-  const dailyRevenue = createBalances();
+  const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(retainedBalances.getBalances());
 
   return {
     dailyFees,
     dailyRevenue,
-    // dailyHoldersRevenue,
-    // dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 }
 
@@ -86,7 +82,8 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
-          Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
+          Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+          ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
         },
       },
       start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
