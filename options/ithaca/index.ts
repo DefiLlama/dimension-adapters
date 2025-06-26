@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
 export async function fetchIthacaVolumeData(
   timestamp: number
 ) {
-  const { response: ithacaStats } = await httpGet(`https://app.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
+  const { response: ithacaStats } = await httpGet(`https://arb.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
 
   const dailyNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
   dailyNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.daily_volume_numeraire.toFixed(6), 6))

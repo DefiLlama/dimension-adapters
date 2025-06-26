@@ -35,6 +35,7 @@ const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  doublecounted: true,
   adapter: {},
 };
 

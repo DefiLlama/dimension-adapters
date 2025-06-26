@@ -33,7 +33,7 @@ const ContractAbis = {
 
 // we can not query supply side fees on-chain
 // we must query it from M0 subgraph
-const subgraph = () => 'https://api.m0.org/api/dashboard/graphql'
+const subgraph = () => 'https://protocol-api.m0.org/graphql'
 const query = () => `
   query GetCollateralData($date: String!) {
     CollateralCurrent(date: $date) {
