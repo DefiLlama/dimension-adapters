@@ -1,8 +1,8 @@
-import {SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {postURL} from "../../utils/fetchURL";
-import {randomInt} from "node:crypto";
-import {getTimestampAtStartOfDayUTC} from "../../utils/date";
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { postURL } from "../../utils/fetchURL";
+import { randomInt } from "node:crypto";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const URL = 'https://api.tapp.exchange/api/v1'
 
@@ -24,35 +24,41 @@ const getDefillamaDimension = async (start: number, end: number) => {
         }
     }
     const dimension: { result: TappDefillamaDimension } = await postURL(URL, body)
-
-
     return dimension.result;
 }
-
 
 const fetch = async (timestamp: number) => {
     const startOfDay = getTimestampAtStartOfDayUTC(timestamp) * 1000;
     const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1000;
 
-    const {dailyFee, dailyVolume, dailyRevenue} = await getDefillamaDimension(startOfDay, endOfDay);
+    const {
+        dailyFee,
+        dailyVolume,
+        dailyRevenue
+    } = await getDefillamaDimension(startOfDay, endOfDay);
+    const dailySupplySideRevenue = Number(dailyFee || 0) - Number(dailyRevenue || 0);
 
     return {
+        dailyVolume,
         dailyFees: dailyFee,
-        dailyRevenue: dailyRevenue,
-        dailyVolume: dailyVolume,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue
     };
 }
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         [CHAIN.APTOS]: {
-            fetch: fetch,
+            fetch,
             start: "2025-06-12",
             meta: {
                 methodology: {
                     Fees: "Total fees from swaps, based on the fee tier of each pool.",
                     Revenue: "Calculated as 33% of the total fees.",
-                    Volume: "The total volume from all trades, calculated as the sum of input amounts for every swap transaction.",
+                    ProtocolRevenue: "33% of the total fees going to the protocol.",
+                    SupplySideRevenue: "67% of the total fees going to the liquidity providers."
                 }
             }
         },
