@@ -3,29 +3,12 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const ENDPOINT = "https://api.studio.thegraph.com/query/88140/ssv-fee-tracker/version/latest";
+const config: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "https://api.studio.thegraph.com/query/88140/ssv-fee-tracker/version/latest",
+};
 
 const SSV_COINGECKO_ID = "ssv-network";
 
-interface DailyProtocolStats {
-  id: string;
-  date: string;
-  dailyTotalFeesIncrease: string;
-  dailyOperatorEarningsIncrease: string;
-  dailyNetworkEarningsIncrease: string;
-  activeOperators: number;
-  lastUpdated: string;
-}
-
-interface GraphQLResponse {
-  dailyProtocolStats: DailyProtocolStats | null;
-}
-
-/**
- * Converts wei amount to SSV tokens
- * @param amount - Amount in wei (string)
- * @returns BigNumber representing amount in SSV tokens
- */
 const weiToSSV = (amount: string): Number => {
   return Number(amount || "0") / 1e18;
 };
@@ -55,7 +38,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const result = await request(ENDPOINT, query);
+  const result = await request(config[CHAIN.ETHEREUM], query);
 
   const data = result.dailyProtocolStats;
   
