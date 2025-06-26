@@ -36,9 +36,14 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addUSDValue(totalDailyFees);
   dailyProtocolRevenue.addUSDValue(protocolRevenue);
   dailySupplySideRevenue.addUSDValue(supplySideRevenue);
-
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(
+    response.data.pools.reduce((acc, pool) => {
+      return acc + (pool.calculated24h?.volumeUSD || 0);
+    }, 0)
+  );
   return {
-    dailyFees,
+    dailyVolume,
     dailyRevenue: dailyProtocolRevenue,
     dailyUserFees: dailyFees, // User fees are the same as total fees
     dailyProtocolRevenue,
@@ -57,13 +62,16 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "Trading fees collected by Bulla exchange",
           UserFees: "Trading fees paid by users",
-          Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
-          ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
-          SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
+          Revenue:
+            "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+          ProtocolRevenue:
+            "Revenue retained by the protocol (25% of fees, per fee switch)",
+          SupplySideRevenue:
+            "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
         },
       },
     },
   },
 };
 
-export default adapter; 
+export default adapter;
