@@ -47,7 +47,14 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.APTOS]: {
             fetch: fetch,
-            start: "2025-06-12"
+            start: "2025-06-12",
+            meta: {
+                methodology: {
+                    Fees: "Total fees from swaps, based on the fee tier of each pool.",
+                    Revenue: "Calculated as 33% of the total fees.",
+                    Volume: "The total volume from all trades, calculated as the sum of input amounts for every swap transaction.",
+                }
+            }
         },
     },
 };
