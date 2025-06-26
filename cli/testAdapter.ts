@@ -81,7 +81,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   if ("adapter" in module) {
     const adapter = module.adapter
     // Get adapter
-    const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
+    const volumes: any = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
       _module: module,
     })
@@ -99,7 +99,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     allVolumes.forEach(({ version, res }) => {
       console.info("Version ->", version.toUpperCase())
       console.info("---------")
-      printVolumes(res, breakdownAdapter[version])
+      printVolumes(res as any, breakdownAdapter[version])
     })
   } else throw new Error("No compatible adapter found")
   process.exit(0)
