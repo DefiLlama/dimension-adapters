@@ -23,8 +23,8 @@ const config: Record<string, (endTimestamp: number, timeframe: string) => string
   [CHAIN.APTOS]: feesEndpoint,
   [CHAIN.MOVE]: movementFeesEndpoint,
 }
-    
-const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
+
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayFeesQuery = (await fetchURL(config[options.chain](timestamp, "1D")))?.data;
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
@@ -33,6 +33,7 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
 
   return {
     dailyFees: dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
