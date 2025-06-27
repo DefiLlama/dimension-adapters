@@ -83,7 +83,7 @@ const fetch = (chain: number) => async (options: FetchOptions) => {
 
   // bad data, wash trade
   if (options.startOfDay === 1750982400 && options.chain === CHAIN.ARBITRUM) {
-    dailyVolume -= 10728319;
+    dailyVolume = 0;
   }
 
   return {
