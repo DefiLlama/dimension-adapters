@@ -28,10 +28,10 @@ const fetch: any = async (
         const parsed = iface.parseLog(log);
         if (!parsed) return;
 
-        // Add input token volume
+        // Add output token volume
         dailyVolume.add(
-            parsed.args.input_token_address,
-            parsed.args.input_token_amount
+            parsed.args.output_token_address,
+            parsed.args.output_token_amount
         );
     });
 
