@@ -51,7 +51,7 @@ const blacklistTokens = {
 }
 
 const endpointsClassic = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6NUtT5mGjZ1tSshKLf5Q3uEEJtjBZJo1TpL5MXsUBqrT'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('GyZ9MgVQkTWuXGMSd3LXESvpevE8S8aD3uktJh7kbVmc'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('GPRigpbNuPkxkwpSbDuYXbikodNJfurc1LCENLzboWer'),
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
@@ -99,11 +99,14 @@ const graphsClassicBoba = getGraphDimensions2({
   feesPercent
 });
 
-const startTimeQueryClassic = {
-  endpoints: endpointsClassic,
-  dailyDataField: "dayDatas",
-  volumeField: VOLUME_FIELD,
-};
+const graphsClassicETH = getGraphDimensions2({
+  graphUrls: endpointsClassic,
+  totalVolume: {
+    factory: "uniswapFactories",
+    field: 'totalVolumeUSD',
+  },
+  feesPercent
+});
 
 const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
@@ -111,7 +114,7 @@ const classic = Object.keys(endpointsClassic).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         try {
-          const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
+          const call = chain === CHAIN.BOBA ? graphsClassicBoba : chain === CHAIN.ETHEREUM ? graphsClassicETH : graphsClassic;
           const values = (await call(chain)(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
