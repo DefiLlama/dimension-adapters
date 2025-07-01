@@ -66,6 +66,7 @@ const endpointsClassic = {
   // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'), // index error
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
+  [CHAIN.KATANA]: sdk.graph.modifyEndpoint('FYBTPY5uYPZ3oXpEriw9Pzn8RH9S1m7tpNwBwaNMuTNq')
 };
 
 const VOLUME_FIELD = "volumeUSD";
@@ -114,8 +115,8 @@ const classic = Object.keys(endpointsClassic).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         try {
-          const call = chain === CHAIN.BOBA ? graphsClassicBoba : chain === CHAIN.ETHEREUM ? graphsClassicETH : graphsClassic;
-          const values = (await call(chain)(options));
+          const call = chain === CHAIN.BOBA ? graphsClassicBoba : [CHAIN.ETHEREUM, CHAIN.KATANA].includes(chain) ? graphsClassicETH : graphsClassic;
+          const values = (await call(chain as Chain)(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
