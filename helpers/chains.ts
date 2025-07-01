@@ -242,6 +242,7 @@ export enum CHAIN {
   SSEED = "sseed",
   AO = 'ao',
   XRPL_EVM = 'xrplevm',
+  KATANA = 'katana'
 }
 
 // Don´t use
