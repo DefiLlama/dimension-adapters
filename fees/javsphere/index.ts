@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -7,11 +8,11 @@ const methodology = {
 
 const tokens = [
   // weth
-  "0x4200000000000000000000000000000000000006",
+  ADDRESSES.optimism.WETH_1,
   // cbbtc
-  "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+  ADDRESSES.ethereum.cbBTC,
   // usdc
-  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  ADDRESSES.base.USDC,
   // jav
   "0xEdC68c4c54228D273ed50Fc450E253F685a2c6b9"
 ]

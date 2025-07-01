@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
@@ -17,7 +18,7 @@ interface IGraphEarlyStageFeesResponse {
   }[]
 }
 
-const wavaxToken = '0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7'
+const wavaxToken = ADDRESSES.avax.WAVAX
 
 const queryValidatorProgramFees = gql
   `query ValidatorProgramFees($timestampFrom: BigInt!, $timestampTo: BigInt!) {

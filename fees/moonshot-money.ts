@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/adam_tehc/moonshotmoney
 // https://dune.com/queries/3939570/6625988
 
@@ -21,14 +22,14 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         block_time >= TIMESTAMP '2024-07-08'
         AND TIME_RANGE
         AND to_owner = '5wkyL2FLEcyUUgc3UeGntHTAfWfzDrVuxMnaMm7792Gk'
-        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+        AND token_mint_address = '${ADDRESSES.solana.USDC}'
 
       UNION ALL
       
       SELECT DISTINCT
         tx_id,
         balance_change AS fee_token_amount,
-        'So11111111111111111111111111111111111111112' AS token_mint_address
+        '${ADDRESSES.solana.SOL}' AS token_mint_address
       FROM
         solana.account_activity
       WHERE

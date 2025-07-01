@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import postURL from "../../utils/fetchURL";
 import fetchURL from "../../utils/fetchURL";
@@ -34,7 +35,7 @@ const fetchFees = async (options: FetchOptions) => {
   }
   // explicitly set price for pTON based on TON price
   asset_prices["EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez"] =
-    asset_prices["EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"];
+    asset_prices[ADDRESSES.ton.TON_3];
 
   const startTime = new Date(options.startTimestamp * 1000).toISOString().split(".")[0];
   const endTime = new Date(options.endTimestamp * 1000).toISOString().split(".")[0];

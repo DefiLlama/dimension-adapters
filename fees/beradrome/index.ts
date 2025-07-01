@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
@@ -6,7 +7,7 @@ const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
 const DEPLOYMENT_BLOCK = 784968;
 
-const HONEY = "0xFCBD14DC51f0A4d49d5E53C2E0950e0bC26d0Dce";
+const HONEY = ADDRESSES.berachain.HONEY;
 
 const SWAP_FEE = 30n;
 const BORROW_FEE = 250n;

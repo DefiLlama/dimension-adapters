@@ -1,10 +1,11 @@
+import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "./prices";
 import { ethers } from "ethers";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
@@ -113,7 +114,7 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
 
     const response: any = { dailyVolume, dailyFees }
 
-    if (revenueRatio) {
+    if (revenueRatio || revenueRatio === 0) {
       response.dailyRevenue = dailyFees.clone(revenueRatio)
       response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
     }
@@ -181,9 +182,9 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     }
     const response: any = { dailyVolume, dailyFees }
 
-    if (revenueRatio) response.dailyRevenue = dailyFees.clone(revenueRatio)
-    if (protocolRevenueRatio) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    if (holdersRevenueRatio) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+    if (revenueRatio || revenueRatio === 0) response.dailyRevenue = dailyFees.clone(revenueRatio)
+    if (protocolRevenueRatio || protocolRevenueRatio === 0) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
+    if (holdersRevenueRatio || holdersRevenueRatio === 0) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
 
     return response
   }

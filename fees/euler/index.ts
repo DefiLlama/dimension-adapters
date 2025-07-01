@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import * as sdk from "@defillama/sdk";
@@ -38,7 +39,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
 
     const underlyings = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset })
     underlyings.forEach((underlying, index) => {
-        if (!underlying) underlyings[index] = '0x0000000000000000000000000000000000000000'
+        if (!underlying) underlyings[index] = ADDRESSES.null
     })
 
     const accumulatedFeesStart = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })

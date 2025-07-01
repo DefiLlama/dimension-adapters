@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 
@@ -11,8 +12,8 @@ const BondManagers = [
 
 const getBondToQuoteToken = () => {
   return {
-    0: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
-    1: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
+    0: ADDRESSES.sonic.USDC_e,
+    1: ADDRESSES.sonic.USDC_e,
   };
 };
 

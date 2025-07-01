@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 const sdk = require('@defillama/sdk')
@@ -5,7 +6,7 @@ const sdk = require('@defillama/sdk')
 const fetch = async (timestamp: number, _1: any, { api, createBalances, }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
-  const LRON = '0xcad9e7aa2c3ef07bad0a7b69f97d059d8f36edd2'
+  const LRON = ADDRESSES.ronin.LRON
   const period = Math.floor(timestamp / 86400)
 
 
