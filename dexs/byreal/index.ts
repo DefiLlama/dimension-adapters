@@ -13,10 +13,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyVolume: data.volumeUsd24h,
     dailyFees: data.feeUsd24h,
     dailyUserFees: data.feeUsd24h,
-    // dailyRevenue: data.feeUsd24h,          // ProtocolRevenue + HoldersRevenue
-    // dailyProtocolRevenue: data.feeUsd24h, // Treasury
-    // dailyHoldersRevenue: data.feeUsd24h,   // Buybacks
-    // dailySupplySideRevenue: data.feeUsd24h, // LPs
+    dailyRevenue: data.feeUsd24h * 0.12, // 12%
+    dailyProtocolRevenue: data.feeUsd24h * 0.12, // 12% Treasury
+    dailySupplySideRevenue: data.feeUsd24h * 0.88, // 88%
 
     totalVolume: data.volumeAll,
     totalFees: data.feeAll,
@@ -35,6 +34,9 @@ const adapter: SimpleAdapter = {
           Volume: 'Total token swap volumes retrieved from Byreal API.',
           Fees: 'All fees from token swaps.',
           UserFees: 'User pay fees on very token swaps.',
+          Revenue: 'Amount of 12% swap fees to Byreal treasury.',
+          ProtocolRevenue: 'Amount of 12% swap fees to Byreal treasury.',
+          SupplySideRevenue: 'Amount of 88% swap fees distributed to LPs.',
         }
       }
     },
