@@ -3,67 +3,116 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
-    let dailyVolume = 0;
-    const { startTimestamp, endTimestamp } = options;
-    const TARGET_APP_CALL_NAMES = [
-      'uh3u9Q==', // MATCH
-      'gyGzvQ==', // SPLIT
-      'jF2wVg==', // MERGE
-      'MgBiOw=='  // CLAIM
-    ];
+  let dailyVolume = 0;
+  const { startTimestamp, endTimestamp } = options;
+  const TARGET_APP_CALL_NAMES = [
+    'uh3u9Q==', // MATCH
+    'gyGzvQ==', // SPLIT
+    'jF2wVg==', // MERGE
+    'MgBiOw=='  // CLAIM
+  ];
 
-    // Convert UNIX timestamps to RFC 3339 format
-    const toRFC3339 = (timestamp: number) => new Date(timestamp * 1000).toISOString();
-    const startRFC3339 = toRFC3339(startTimestamp);
-    const endRFC3339 = toRFC3339(endTimestamp);
-    const baseURL = `https://mainnet-idx.4160.nodely.dev/v2/transactions`;
-    let nextToken: string | undefined = undefined;
+  // Convert UNIX timestamps to RFC 3339 format
+  const toRFC3339 = (timestamp: number) => new Date(timestamp * 1000).toISOString();
+  const startRFC3339 = toRFC3339(startTimestamp);
+  const endRFC3339 = toRFC3339(endTimestamp);
+  const baseURL = `https://mainnet-idx.4160.nodely.dev/v2/transactions`;
+  let nextToken: string | undefined = undefined;
+  console.log(`Fetching transactions from ${startRFC3339} to ${endRFC3339}`);
 
-    do {
-      let url = `${baseURL}?min-round=1&max-round=999999999&after-time=${startRFC3339}&before-time=${endRFC3339}`;
-      if (nextToken) {
-        url += `&next=${nextToken}`;
-      }
+  do {
+    let url = `${baseURL}?min-round=1&max-round=999999999&after-time=${startRFC3339}&before-time=${endRFC3339}`;
+    if (nextToken) {
+      url += `&next=${nextToken}`;
+    }
 
-      const response = await fetchURL(url);
-      const txns = response.transactions || [];
+    const response = await fetchURL(url);
+    const txns = response.transactions || [];
+    const alphaArcadeTxns = txns.filter((txn) => hasAnyTargetAppArg(txn, TARGET_APP_CALL_NAMES));
 
-      const alphaArcadeTxns = txns.filter((txn) => {
-        const appCall = txn['application-transaction'];
-        const appArgs = appCall?.['application-args'];
-        if (!Array.isArray(appArgs)) return false;
-
-        return (
-          TARGET_APP_CALL_NAMES.includes(appArgs[0])
-        );
-      });
-
-    //   console.log("alphaArcadeTxns:", JSON.stringify(alphaArcadeTxns, null, 2));
-
-      for (const txn of alphaArcadeTxns) {
-        const innerTxn = txn['inner-txns']?.[0];
-        const amount = innerTxn?.['asset-transfer-transaction']?.amount;
-        if (typeof amount === 'number' && !isNaN(amount)) {
-          dailyVolume += amount;
+    for (const txn of alphaArcadeTxns) {
+      if (hasAnyTargetAppArg(txn, ["uh3u9Q=="])) {
+        const amount = getInnerTxnAmountForAppCall(txn, 'uh3u9Q==');
+        dailyVolume += amount;
+      } else if (
+        txn['application-transaction']?.['application-args']?.[0] === 'jF2wVg==' || // MERGE
+        txn['application-transaction']?.['application-args']?.[0] === 'gyGzvQ==' || // SPLIT
+        txn['application-transaction']?.['application-args']?.[0] === 'MgBiOw=='    // CLAIM
+      ) {
+        try {
+          const innerTxn = txn['inner-txns']?.[0];
+          const assetTransfer = innerTxn?.['asset-transfer-transaction'];
+          if (assetTransfer && assetTransfer.amount) {
+            dailyVolume += assetTransfer.amount;
+            console.log("Amount: ", assetTransfer.amount, "   Transaction Id: \n", txn.id);
+          }
+        } catch (error) {
+          console.error("Error processing inner transaction:", error, "in txn:", txn);
+          continue;
         }
       }
+    }
+    nextToken = response['next-token'];
+  } while (nextToken);
 
-      nextToken = response['next-token'];
-    } while (nextToken);
-
-    return {
-      dailyVolume: dailyVolume / 1e6, // Convert from microUSDC
-    };
+  return {
+    dailyVolume: dailyVolume / 1e6, // Convert from microUSDC
+  };
 };
 
-const adapter: SimpleAdapter = {
-    version: 2,
-    adapter:{
-      [CHAIN.ALGORAND]: {
-          fetch: fetch,
-          start: '2025-03-30',
+function hasAnyTargetAppArg(txn: any, targetArgs: string[]): boolean {
+  const appArgs = txn['application-transaction']?.['application-args'];
+  if (Array.isArray(appArgs) && targetArgs.some(arg => appArgs.includes(arg))) {
+    return true;
+  }
+  if (Array.isArray(txn['inner-txns'])) {
+    return txn['inner-txns'].some((inner) => hasAnyTargetAppArg(inner, targetArgs));
+  }
+  return false;
+};
+
+function getInnerTxnAmountForAppCall(txn: any, targetArgBase64: string): number {
+  let totalAmount = 0;
+
+    if (txn["tx-type"] !== "appl" || !Array.isArray(txn["inner-txns"])) {
+      return totalAmount;
+    }
+
+    for (const innerTxn of txn["inner-txns"]) {
+      const appTxn = innerTxn["application-transaction"];
+      if (
+        appTxn &&
+        Array.isArray(appTxn["application-args"]) &&
+        appTxn["application-args"][0] === targetArgBase64
+      ) {
+        if (!Array.isArray(innerTxn["inner-txns"])) {
+          continue;
+        }
+
+          if (
+            innerTxn["inner-txns"][0]["tx-type"] === "axfer" &&
+            innerTxn["inner-txns"][0]["asset-transfer-transaction"]?.amount
+          ) {
+            console.log("\nInner Asset Transfer for MATCH:", innerTxn["inner-txns"][0]["asset-transfer-transaction"]);
+            console.log("Amount: ", innerTxn["inner-txns"][0]["asset-transfer-transaction"].amount, "   Transaction id: \n", txn.id);
+            totalAmount += innerTxn["inner-txns"][0]["asset-transfer-transaction"].amount;
+          }
+        
       }
     }
+
+  return totalAmount;
+}
+
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.ALGORAND]: {
+      fetch: fetch,
+      start: '2025-03-30',
+    }
+  }
 };
 
 export default adapter;
