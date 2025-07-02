@@ -12,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
     'MgBiOw=='  // CLAIM
   ];
 
-  // Convert UNIX timestamps to RFC 3339 format
   const toRFC3339 = (timestamp: number) => new Date(timestamp * 1000).toISOString();
   const startRFC3339 = toRFC3339(startTimestamp);
   const endRFC3339 = toRFC3339(endTimestamp);
@@ -31,24 +30,27 @@ const fetch = async (options: FetchOptions) => {
     const alphaArcadeTxns = txns.filter((txn) => hasAnyTargetAppArg(txn, TARGET_APP_CALL_NAMES));
 
     for (const txn of alphaArcadeTxns) {
-      if (hasAnyTargetAppArg(txn, ["uh3u9Q=="])) {
+      if (hasAnyTargetAppArg(txn, ["uh3u9Q=="])) {  // MATCH
         const amount = getInnerTxnAmountForAppCall(txn, 'uh3u9Q==');
         dailyVolume += amount;
       } else if (
-        txn['application-transaction']?.['application-args']?.[0] === 'jF2wVg==' || // MERGE
-        txn['application-transaction']?.['application-args']?.[0] === 'gyGzvQ==' || // SPLIT
-        txn['application-transaction']?.['application-args']?.[0] === 'MgBiOw=='    // CLAIM
+        txn['application-transaction']?.['application-args']?.[0] === 'MgBiOw==' // CLAIM
       ) {
-        try {
           const innerTxn = txn['inner-txns']?.[0];
           const assetTransfer = innerTxn?.['asset-transfer-transaction'];
           if (assetTransfer && assetTransfer.amount) {
+            // console.log("Amount: ", assetTransfer.amount, "   Transaction Id: ", txn.id);
             dailyVolume += assetTransfer.amount;
-            console.log("Amount: ", assetTransfer.amount, "   Transaction Id: \n", txn.id);
           }
-        } catch (error) {
-          console.error("Error processing inner transaction:", error, "in txn:", txn);
-          continue;
+      } else if (
+        txn['application-transaction']?.['application-args']?.[0] === 'gyGzvQ==' || // SPLIT
+        txn['application-transaction']?.['application-args']?.[0] === 'jF2wVg=='   // MERGE
+      ) {
+        for (const innerTxn of txn['inner-txns'] || []) {
+          const assetTransfer = innerTxn['asset-transfer-transaction'];
+          const amount = assetTransfer?.amount || 0;
+          // console.log("Amount: ", amount, "   Transaction Id: ", txn.id);
+          dailyVolume += amount;
         }
       }
     }
@@ -88,22 +90,19 @@ function getInnerTxnAmountForAppCall(txn: any, targetArgBase64: string): number 
         if (!Array.isArray(innerTxn["inner-txns"])) {
           continue;
         }
-
+        for (const nestedTxn of innerTxn["inner-txns"]) {
           if (
-            innerTxn["inner-txns"][0]["tx-type"] === "axfer" &&
-            innerTxn["inner-txns"][0]["asset-transfer-transaction"]?.amount
+            nestedTxn["tx-type"] === "axfer" &&
+            nestedTxn["asset-transfer-transaction"]?.amount
           ) {
-            console.log("\nInner Asset Transfer for MATCH:", innerTxn["inner-txns"][0]["asset-transfer-transaction"]);
-            console.log("Amount: ", innerTxn["inner-txns"][0]["asset-transfer-transaction"].amount, "   Transaction id: \n", txn.id);
-            totalAmount += innerTxn["inner-txns"][0]["asset-transfer-transaction"].amount;
+            // console.log("Amount: ", nestedTxn["asset-transfer-transaction"].amount, "   Transaction id: ", txn.id);
+            totalAmount += nestedTxn["asset-transfer-transaction"].amount;
           }
-        
       }
     }
-
+  }
   return totalAmount;
 }
-
 
 const adapter: SimpleAdapter = {
   version: 2,
