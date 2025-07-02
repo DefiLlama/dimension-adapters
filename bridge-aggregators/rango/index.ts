@@ -53,7 +53,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   }
 
   return {
-    dailyVolume: dailyVolume,
+    dailyBridgeVolume: dailyVolume,
   }
 }
 
