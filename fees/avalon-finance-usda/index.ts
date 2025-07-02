@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types'
 import { Balances } from '@defillama/sdk'
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const config = {
 	ethereum: {
@@ -50,7 +51,7 @@ async function addProtocolProfitAccumulate(options: FetchOptions, totalProtocolR
 		abi,
 		calls: [{ target: poolAddress }],
 	})
-	totalProtocolRevenue.add(usdaAddress, protocolProfitAccumulate)
+	totalProtocolRevenue.add(ADDRESSES[options.chain].USDa, protocolProfitAccumulate)
 }
 
 /**
