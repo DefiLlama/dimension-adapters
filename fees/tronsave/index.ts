@@ -78,7 +78,8 @@ async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptio
     
     return {
         dailyFees: dailyRevenue,
-        dailyRevenue
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     };
 }
 
@@ -88,6 +89,13 @@ export default {
         [CHAIN.TRON]: {
             fetch,
             start: CONFIG.START_TIMESTAMP,
+            meta: {
+                methodology: {
+                    Fees: "All fees paid by users for buying energy.",
+                    Revenue: "All fees are collected by TronSave protocol.",
+                    ProtocolRevenue: "All fees are collected by TronSave protocol.",
+                }
+            }
         },
     },
 };

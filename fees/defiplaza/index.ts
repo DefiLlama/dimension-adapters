@@ -41,10 +41,7 @@ const adapter: SimpleAdapter = {
 				const dailyUserFees = dailyFees;
 
 				return {
-					totalVolume: graphData.factories[0].totalTradeVolumeUSD,
 					dailyVolume: graphData.dailies[0].tradeVolumeUSD,
-
-					totalFees: graphData.factories[0].totalFeesEarnedUSD,
 					dailyUserFees,
 					dailyFees,
 					dailySupplySideRevenue,

@@ -6,7 +6,7 @@ import {
   FetchResultVolume,
   FetchResultGeneric,
 } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";

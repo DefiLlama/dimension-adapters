@@ -17,7 +17,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
@@ -49,7 +49,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,

@@ -22,6 +22,7 @@ async function fetch() {
 }
 
 export default {
+    deadFrom: '2025-03-25',
     version: 1,
     adapter: {
         [CHAIN.SOLANA]: {

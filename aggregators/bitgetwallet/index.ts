@@ -1,9 +1,7 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
-
 
 const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st/getOrderDayList"
 
@@ -13,23 +11,17 @@ interface IVolumeall {
 }
 
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
-const graph = (chain: Chain) => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
-        if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {}} // skip HECO for now
-        const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-        const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+    const chain = options.chain;
+    if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {}} // skip HECO for now
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
-        const totalVolume = historicalVolume?.filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-            .reduce((acc, { volume }) => acc + Number(volume), 0)
+    const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
-        const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
-
-        return {
-            totalVolume: chain !== CHAIN.SOLANA ? totalVolume : undefined,
-            dailyVolume: dailyVolume,
-            timestamp: dayTimestamp,
-        };
-    }
+    return {
+        dailyVolume: dailyVolume
+    };
 }
 
 const CHAINS: Array<CHAIN> = [
@@ -65,15 +57,14 @@ const CHAINS: Array<CHAIN> = [
 
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         ...CHAINS.map(chain => {
             return {
-                
-                    [chain]: {
-                        fetch: graph(chain),
-                        start: 1667232000
-                    }
-                
+                [chain]: {
+                    fetch,
+                    start: '2022-10-31'
+                }
             }
         }).reduce((acc, item) => {
             return {

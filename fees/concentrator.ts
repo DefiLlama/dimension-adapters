@@ -7,7 +7,7 @@ import type {
   ChainEndpoints,
   FetchOptions,
 } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const priceUrl = "https://api.aladdin.club/api/coingecko/price";

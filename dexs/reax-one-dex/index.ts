@@ -2,7 +2,7 @@ import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/subgraphs/name/reax/swaps-1",

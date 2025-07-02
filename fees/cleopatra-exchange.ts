@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
           timestamp: options.startOfDay
         }
       },
-      start: 1704326400,
+      start: '2024-01-04',
       meta: {
         methodology: {
           ...methodology,

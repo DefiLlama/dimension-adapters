@@ -1,50 +1,56 @@
-import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
-import fetchURL from "../utils/fetchURL";
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../helpers/disabledAdapter";
+import type { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { getPoolFees, AaveLendingPoolConfig } from "../helpers/aave";
 
-const yieldPool = "https://api.valasfinance.com/api/dailyFees";
+const DISABLED_ASSETS = [ADDRESSES.bsc.BUSD, ADDRESSES.bsc.BTUSD]
 
-interface IFees {
-  timestamp: number;
-  added: number;
-};
+const fetch = async (options: FetchOptions) => {
+  let dailyFees = options.createBalances()
+  let dailyProtocolRevenue = options.createBalances()
+  let dailySupplySideRevenue = options.createBalances()
 
-const graphs = () => {
-  return (_: CHAIN) => {
-    return async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-      const historicalVolume: IFees[] = (await fetchURL(yieldPool))?.data.dailyFees;
-      const totalFees = historicalVolume
-      .filter((volItem: IFees) => volItem.timestamp <= dayTimestamp)
-      .reduce((acc, { added }) => acc + Number(added), 0)
-
-      const dailyFees = historicalVolume
-        .find((dayItem:IFees) => dayItem.timestamp === dayTimestamp)?.added ?? 0
-
-      const totalRevenue = totalFees * .5;
-      const dailyRevenue = dailyFees * .5;
-      return {
-        timestamp,
-        totalFees,
-        dailyFees,
-        totalRevenue: totalRevenue,
-        dailyRevenue,
-      };
-    };
+  const config = {
+    pools: [
+      {
+        version: 2,
+        lendingPoolProxy: '0xE29A55A6AEFf5C8B1beedE5bCF2F0Cb3AF8F91f5',
+        dataProvider: '0xc9704604E18982007fdEA348e8DDc7CC652E34cA',
+      },
+    ],
   }
-};
+  for (const pool of config.pools) {
+    await getPoolFees(pool as AaveLendingPoolConfig, options, {
+      dailyFees,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue,
+    })
+  }
+  dailyFees.removeTokenBalance(DISABLED_ASSETS[0])
+  dailyFees.removeTokenBalance(DISABLED_ASSETS[1])
 
+  dailyProtocolRevenue.removeTokenBalance(DISABLED_ASSETS[0])
+  dailyProtocolRevenue.removeTokenBalance(DISABLED_ASSETS[1])
 
-const adapter: Adapter = {
-  adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.BSC]: {
-        fetch: graphs()(CHAIN.BSC),
-        start: '2022-03-20',
-    },
-  },
+  dailySupplySideRevenue.removeTokenBalance(DISABLED_ASSETS[0])
+  dailySupplySideRevenue.removeTokenBalance(DISABLED_ASSETS[1])
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
 }
 
-export default adapter;
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BSC]: {
+      fetch,
+      start: '2022-03-20',
+    },
+  }
+}
+
+export default adapter

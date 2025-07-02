@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import BigNumber from "bignumber.js";
 import {
   FetchGetLogsOptions,
@@ -60,7 +61,7 @@ const fetchVolume = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
   const volume = await fetchLeveragedTokenVolume(getLogs, api, allTokens)
   const dailyVolume = options.createBalances()
-  dailyVolume.add("0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9", volume);
+  dailyVolume.add(ADDRESSES.optimism.sUSD, volume);
   return { dailyVolume };
 };
 const adapter: SimpleAdapter = {

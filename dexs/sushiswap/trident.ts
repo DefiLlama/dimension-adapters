@@ -75,6 +75,12 @@ const trident = Object.keys(endpointsTrident).reduce(
 
       },
       start: '2024-04-01',
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users",
+          UserFees: "Trading fees paid by users",
+        }
+      }
     },
   }),
   {}

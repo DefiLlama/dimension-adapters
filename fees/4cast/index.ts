@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
@@ -11,7 +12,7 @@ const endpoint = "https://app.memecast.ai/api/api/platformFees";
 function createSolBalances(options: FetchOptions, value: string) {
   const balances = options.createBalances();
 
-  balances.add('So11111111111111111111111111111111111111112', Number(value) * 1e9);
+  balances.add(ADDRESSES.solana.SOL, Number(value) * 1e9);
 
   return balances;
 }
@@ -34,6 +35,11 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-07-17',
+      meta: {
+        methodology: {
+          Fees: "Tokens trading and launching fees paid by users.",
+        }
+      }
     },
   },
 };

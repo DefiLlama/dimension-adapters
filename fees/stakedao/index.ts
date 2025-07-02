@@ -48,6 +48,15 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2021-01-01',
+      meta: {
+        methodology: {
+          Fees: "Staking rewards earned by all deposited assets",
+          Revenue: "Staking rewards earned by StakeDAO and veSDT holders",
+          ProtocolRevenue: "Staking rewards earned by StakeDAO ",
+          HoldersRevenue: "Staking rewards earned by veSDT holders",
+          SupplySideRevenue: "Staking rewards earned by depositors",
+        }
+      }
     }
   }
 };

@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 const ADDRESSES = require('../helpers/coreAssets.json')
 
 const event_paid_stream = 'event RewardPaidTo (address _market, address _to, address _rewardToken, uint256 _feeAmount)';
@@ -72,19 +72,28 @@ const graph = (chain: Chain) => {
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Staking rewards collected from assets staked on Pendle',
+    Revenue: 'Staking rewards collected from assets staked on Pendle',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
+      meta,
     },
     [CHAIN.ETHEREUM]: {
-        fetch: graph(CHAIN.ETHEREUM),
-      },
+      fetch: graph(CHAIN.ETHEREUM),
+      meta,
+    },
   }
 };
 

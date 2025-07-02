@@ -4,7 +4,6 @@ import { CHAIN } from "../../helpers/chains";
 
 interface VolumeData {
   volume: string;
-  totalVolume: string;
   date: string;
 }
 

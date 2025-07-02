@@ -82,6 +82,14 @@ const adapter: Adapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: '2025-01-21',
+      meta: {
+        methodology: {
+          Fees: "Yield collected from deposited assets.",
+          Revenue: "Yield collected from deposited assets.",
+          HoldersRevenue: 'Fees distributed to token holders',
+          BridesRevenue: "Rewards are distributed to quest participants",
+        }
+      }
     },
   },
 };

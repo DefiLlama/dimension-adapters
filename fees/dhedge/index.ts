@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
+import * as sdk from "@defillama/sdk";
 
 const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
@@ -40,16 +41,16 @@ const queryExitFeeMenteds = `
 } */
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD"),
   },
   [CHAIN.POLYGON]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("AutWgquMFvUVEKVuqE55GWxAHDvRF7ZYfRMU1Bcqo5DW"),
   },
   [CHAIN.ARBITRUM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("C4LBuTkbXYoy2vSPRA5crGdWR4CAo3W64Rf1Won3fZio"),
   },
   [CHAIN.BASE]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF"),
   },
 };
 
@@ -141,16 +142,24 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyDaoFees,
+    dailyProtocolRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };
 }
 
+const meta = {
+  methodology: {
+    Fees: 'All fees generated from dHedge vaults.',
+    Revenue: 'All revenue collected by the dHedge protocol from fees generated.',
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', },
-    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', },
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', },
-    [CHAIN.BASE]: { fetch, start: '2023-12-20', },
+    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', meta },
+    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', meta },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', meta },
+    [CHAIN.BASE]: { fetch, start: '2023-12-20', meta },
   },
   version: 2
 }

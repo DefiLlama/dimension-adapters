@@ -14,6 +14,12 @@ const adapter: Adapter = {
     [CHAIN.MINT]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
       start: '2024-05-17',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Mint, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

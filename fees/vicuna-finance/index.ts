@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { addTokensReceived } from '../../helpers/token';
@@ -15,7 +16,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.SONIC]: {
             fetch: async (options: FetchOptions) => {
-                const tokens = ['0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38']; //wS
+                const tokens = [ADDRESSES.sonic.wS]; //wS
                 const targets = ['0xad1bB693975C16eC2cEEF65edD540BC735F8608B'];
     
                 const dailyRevenue = await addTokensReceived({ options, targets, tokens });
