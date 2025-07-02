@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types'
 import { Balances } from '@defillama/sdk'
 
-const v2Config = {
+const config = {
 	ethereum: {
 		poolAddress: '0x3f390dD6EF69f68f9877aACC086856a200808693',
 		usdaAddress: '0x0b4D6DA52dF60D44Ce7140F1044F2aD5fabd6316',
@@ -22,9 +22,6 @@ const v2Config = {
 		usdaAddress: '0xff12470a969dd362eb6595ffb44c82c959fe9acc',
 		start: '2025-01-20',
 	},
-}
-
-const v3Config = {
 	berachain: {
 		poolAddress: '0x02feDCff97942fe28e8936Cdc3D7A480fdD248f0',
 		usdaAddress: '0xff12470a969dd362eb6595ffb44c82c959fe9acc',
@@ -37,54 +34,48 @@ const v3Config = {
 	},
 }
 
-const abi = 'function protocolProfitAccumulate() returns (uint256)' // total accumulated protocol profit
-
+// ABI for protocol profit accumulate
+const abi = 'function protocolProfitAccumulate() returns (uint256)'
 const decimals = 18
 
-//@note call poolManager.protocolProfitAccumulate() to get the total accumulated protocol profit. Profit token is USDa. USDa decimals is 18.
+//@dev USDa is not verified on all chains, so we need to add it manually.
+/**
+ * Fetches the total accumulated protocol profit for a given chain.
+ * @param options FetchOptions provided by the adapter framework
+ * @param totalProtocolRevenue Balances object to accumulate results
+ */
 async function addProtocolProfitAccumulate(options: FetchOptions, totalProtocolRevenue: Balances) {
-	const { poolAddress, usdaAddress } = v2Config[options.chain]
-	const protocolProfitAccumulate = await options.api.multiCall({
+	const { poolAddress, usdaAddress } = config[options.chain]
+	const [protocolProfitAccumulate] = await options.api.multiCall({
 		abi,
 		calls: [{ target: poolAddress }],
 	})
-
 	totalProtocolRevenue.add(usdaAddress, protocolProfitAccumulate)
 }
 
+/**
+ * Main fetch function for the adapter. Returns protocol revenue for the chain.
+ */
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	const totalProtocolRevenue = options.createBalances()
-
 	await addProtocolProfitAccumulate(options, totalProtocolRevenue)
-
 	return { totalProtocolRevenue }
 }
 
 const methodology = `Total protocol revenue from protocol profit accumulate. Profit comes from the borrow interest.`
 
+// Build the adapter object dynamically for all chains in config
 const adapter: Adapter = {
-	adapter: {
-		...Object.keys(v2Config).reduce((acc, chain) => {
-			acc[chain] = {
+	adapter: Object.fromEntries(
+		Object.entries(config).map(([chain, { start }]) => [
+			chain,
+			{
 				fetch,
-				start: v2Config[chain].start,
-				meta: {
-					methodology,
-				},
-			}
-			return acc
-		}, {}),
-		...Object.keys(v3Config).reduce((acc, chain) => {
-			acc[chain] = {
-				fetch,
-				start: v3Config[chain].start,
-				meta: {
-					methodology,
-				},
-			}
-			return acc
-		}, {}),
-	},
+				start,
+				meta: { methodology },
+			},
+		])
+	),
 	version: 2,
 }
 
