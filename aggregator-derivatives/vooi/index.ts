@@ -34,8 +34,19 @@ const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions):
         hyperliquidItem = {dailyVolume: 0, totalVolume: 0}
     }
 
-    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume) + Number(hyperliquidItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume) + Number(hyperliquidItem.totalVolume)
+    let gmxItem = fetchData.find(((item) => item.protocol == "gmx"))
+    if (!gmxItem) {
+        gmxItem = {dailyVolume: 0, totalVolume: 0}
+    }
+
+    let dailyVolume = Number(orderlyItem.dailyVolume) 
+      + Number(ostiumItem.dailyVolume) 
+      + Number(hyperliquidItem.dailyVolume)
+      + Number(gmxItem.dailyVolume)
+    let totalVolume = Number(orderlyItem.totalVolume) 
+      + Number(ostiumItem.totalVolume) 
+      + Number(hyperliquidItem.totalVolume)
+      + Number(gmxItem.totalVolume)
 
     for (let i in synfuturesItem){
         dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
