@@ -1,0 +1,284 @@
+// PriveX Volume Adapter for DefiLlama
+// File: dexs/privex/index.ts
+
+import { FetchV2, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gqlFetch } from "../../utils/gqlFetch";
+
+// GraphQL endpoints for each chain
+const endpoints = {
+  [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn",
+  [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics/graphql"
+};
+
+// GraphQL query for Coti - using totalHistories
+const getCotiVolumeQuery = `
+  query getCotiVolume($startTime: Int!, $endTime: Int!) {
+    totalHistories(
+      where: { 
+        timestamp_gte: $startTime, 
+        timestamp_lt: $endTime 
+      }
+      orderBy: timestamp
+      orderDirection: desc
+      first: 1000
+    ) {
+      id
+      timestamp
+      updateTimestamp
+      tradeVolume
+      quotesCount
+      accounts
+      users
+      openTradeVolume
+      closeTradeVolume
+      deposit
+      withdraw
+      fundingReceived
+    }
+  }
+`;
+
+// GraphQL query for Base - using DailyHistory (best for daily volume aggregates)
+const getBaseDailyVolumeQuery = `
+  query getBaseDailyVolume($startDay: Int!, $endDay: Int!) {
+    dailyHistories(
+      where: { 
+        day_gte: $startDay, 
+        day_lt: $endDay 
+      }
+      orderBy: day
+      orderDirection: desc
+      first: 1000
+    ) {
+      id
+      day
+      tradeVolume
+      openTradeVolume
+      closeTradeVolume
+      liquidateTradeVolume
+      quotesCount
+      activeUsers
+      newUsers
+      platformFee
+      accountSource
+      timestamp
+    }
+  }
+`;
+
+// Alternative Base query using individual trade records if daily aggregates don't work
+const getBaseTradeHistoryQuery = `
+  query getBaseTradeHistory($startTime: Int!, $endTime: Int!) {
+    tradeHistories(
+      where: { 
+        timestamp_gte: $startTime, 
+        timestamp_lt: $endTime 
+      }
+      orderBy: timestamp
+      orderDirection: desc
+      first: 1000
+    ) {
+      id
+      timestamp
+      volume
+      account
+      quoteStatus
+      blockNumber
+    }
+  }
+`;
+
+// Third option: Base TotalHistory for cumulative data
+const getBaseTotalHistoryQuery = `
+  query getBaseTotalHistory($startTime: Int!, $endTime: Int!) {
+    totalHistories(
+      where: { 
+        timestamp_gte: $startTime, 
+        timestamp_lt: $endTime 
+      }
+      orderBy: timestamp
+      orderDirection: desc
+      first: 1000
+    ) {
+      id
+      timestamp
+      tradeVolume
+      openTradeVolume
+      closeTradeVolume
+      liquidateTradeVolume
+      quotesCount
+      users
+      accounts
+      platformFee
+      accountSource
+    }
+  }
+`;
+
+// Fetch function for volume data
+const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalances }) => {
+  const dailyVolume = createBalances();
+  const endpoint = endpoints[chain];
+  
+  if (!endpoint) {
+    throw new Error(`No endpoint configured for chain: ${chain}`);
+  }
+
+  try {
+    let data;
+
+    if (chain === CHAIN.COTI) {
+      // Handle Coti using totalHistories query
+      data = await gqlFetch(endpoint)({
+        query: getCotiVolumeQuery,
+        variables: {
+          startTime: startTimestamp,
+          endTime: endTimestamp,
+        },
+      });
+      
+      if (data?.totalHistories?.length > 0) {
+        // Sum up tradeVolume from all records in the time range
+        const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
+          const tradeVolume = parseFloat(history.tradeVolume || "0");
+          const openVolume = parseFloat(history.openTradeVolume || "0");
+          const closeVolume = parseFloat(history.closeTradeVolume || "0");
+          
+          // Use tradeVolume if available, otherwise sum open and close volumes
+          return sum + (tradeVolume > 0 ? tradeVolume : openVolume + closeVolume);
+        }, 0);
+        
+        if (totalVolumeUSD > 0) {
+          dailyVolume.addUSDValue(totalVolumeUSD);
+        }
+        
+        return { dailyVolume };
+      }
+    } else if (chain === CHAIN.BASE) {
+      // Handle Base - try multiple query formats based on the actual schema
+      
+      // Convert timestamps to day numbers for dailyHistories (they use 'day' field)
+      const startDay = Math.floor(startTimestamp / 86400); // Convert to days since epoch
+      const endDay = Math.floor(endTimestamp / 86400);
+      
+      // First try: dailyHistories (preferred - daily aggregated data)
+      try {
+        data = await gqlFetch(endpoint)({
+          query: getBaseDailyVolumeQuery,
+          variables: {
+            startDay: startDay,
+            endDay: endDay,
+          },
+        });
+        
+        if (data?.dailyHistories?.length > 0) {
+          const totalVolumeUSD = data.dailyHistories.reduce((sum, daily) => {
+            const tradeVolume = parseFloat(daily.tradeVolume || "0");
+            const openVolume = parseFloat(daily.openTradeVolume || "0");
+            const closeVolume = parseFloat(daily.closeTradeVolume || "0");
+            const liquidateVolume = parseFloat(daily.liquidateTradeVolume || "0");
+            
+            // Sum all volume types
+            return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
+          }, 0);
+          
+          if (totalVolumeUSD > 0) {
+            dailyVolume.addUSDValue(totalVolumeUSD);
+          }
+          
+          return { dailyVolume };
+        }
+      } catch (e) {
+        console.log("Base dailyHistories query failed, trying totalHistories...");
+      }
+
+      // Second try: totalHistories (similar to Coti)
+      try {
+        data = await gqlFetch(endpoint)({
+          query: getBaseTotalHistoryQuery,
+          variables: {
+            startTime: startTimestamp,
+            endTime: endTimestamp,
+          },
+        });
+        
+        if (data?.totalHistories?.length > 0) {
+          const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
+            const tradeVolume = parseFloat(history.tradeVolume || "0");
+            const openVolume = parseFloat(history.openTradeVolume || "0");
+            const closeVolume = parseFloat(history.closeTradeVolume || "0");
+            const liquidateVolume = parseFloat(history.liquidateTradeVolume || "0");
+            
+            return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
+          }, 0);
+          
+          if (totalVolumeUSD > 0) {
+            dailyVolume.addUSDValue(totalVolumeUSD);
+          }
+          
+          return { dailyVolume };
+        }
+      } catch (e) {
+        console.log("Base totalHistories query failed, trying individual trades...");
+      }
+
+      // Third try: individual tradeHistories
+      try {
+        data = await gqlFetch(endpoint)({
+          query: getBaseTradeHistoryQuery,
+          variables: {
+            startTime: startTimestamp,
+            endTime: endTimestamp,
+          },
+        });
+        
+        if (data?.tradeHistories?.length > 0) {
+          const totalVolumeUSD = data.tradeHistories.reduce((sum, trade) => {
+            const volume = parseFloat(trade.volume || "0");
+            return sum + volume;
+          }, 0);
+          
+          if (totalVolumeUSD > 0) {
+            dailyVolume.addUSDValue(totalVolumeUSD);
+          }
+          
+          return { dailyVolume };
+        }
+      } catch (e) {
+        console.log("All Base queries failed");
+      }
+    }
+
+    // If no data found, return empty volume
+    console.log(`No volume data found for ${chain} between ${startTimestamp} and ${endTimestamp}`);
+    return { dailyVolume };
+
+  } catch (error) {
+    console.error(`Error fetching volume for ${chain}:`, error);
+    return { dailyVolume };
+  }
+};
+
+// Adapter configuration
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch,
+      start: 1728345600, // October 8, 2024
+    },
+    [CHAIN.COTI]: {
+      fetch,
+      start: 1735689600, // January 1, 2025
+    },
+  },
+  meta: {
+    methodology: {
+      Volume: "PriveX trading volume is calculated by summing all trade transactions on the DEX across Base and Coti networks using subgraph data.",
+      DailyVolume: "Daily volume represents the total USD value of all trades executed on PriveX within a 24-hour period, including open trades, close trades, and liquidations.",
+    },
+  },
+};
+
+export default adapter;
