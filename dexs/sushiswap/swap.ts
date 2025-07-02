@@ -265,6 +265,7 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.APECHAIN]: ADDRESSES.apechain.WAPE,
   [CHAIN.SONIC]: ADDRESSES.sonic.wS,
   [CHAIN.HEMI]: ADDRESSES.optimism.WETH_1,
+  [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
 }
 
 const useSushiAPIPrice = (chain: any) => [
