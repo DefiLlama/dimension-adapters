@@ -174,23 +174,20 @@ async function fetch(timestamp: number, _b:any, options: FetchOptions) {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees, // All fees paid by users
-        dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
+        dailyRevenue, // Total protocol revenue before distribution
         dailyProtocolRevenue: dailyProtocolRevenue, // Revenue going to protocol treasury (80% of protocol fees)
         dailyHoldersRevenue: dailyHoldersRevenue, // Revenue going to xORCA holders (20% of protocol fees)
-        dailyRevenue, // Total protocol revenue before distribution
-        timestamp: timestamp
+        dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
     }
 }
 
 const methodology = {
-    methodology: {
-        Fees: "All fees paid by users",
-        Revenue: "Revenue going to protocol treasury",
-        ProtocolRevenue: "Revenue going to protocol treasury", 
-        UserFees: "All fees paid by users",
-        SupplySideRevenue: "Revenue earned by LPs (87% of total fees)",
-        HoldersRevenue: "20% of protocol fees allocated for xORCA holder buybacks and burns."
-    }
+    Fees: "All fees paid by users",
+    Revenue: "Revenue going to protocol treasury",
+    ProtocolRevenue: "Revenue going to protocol treasury", 
+    UserFees: "All fees paid by users",
+    SupplySideRevenue: "Revenue earned by LPs (87% of total fees)",
+    HoldersRevenue: "20% of protocol fees allocated for xORCA holder buybacks and burns."
 }
 
 export default {
