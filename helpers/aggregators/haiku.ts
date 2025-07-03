@@ -33,8 +33,8 @@ export const HaikuAddreses: IContract = {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
     startTime: "2025-05-19",
   },
-  [CHAIN.HYPERLIQUID]: {
-    id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-06-24",
-  },
+  // [CHAIN.HYPERLIQUID]: {
+  //   id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+  //   startTime: "2025-06-24",
+  // },
 };
