@@ -12,6 +12,11 @@ const eVaultFactories = {
     [CHAIN.SWELLCHAIN]: "0x238bF86bb451ec3CA69BB855f91BDA001aB118b9",
     [CHAIN.BOB]: "0x046a9837A61d6b6263f54F4E27EE072bA4bdC7e4",
     [CHAIN.BERACHAIN]: "0x5C13fb43ae9BAe8470f646ea647784534E9543AF",
+    [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
+    [CHAIN.UNICHAIN]: "0xbAd8b5BDFB2bcbcd78Cc9f1573D3Aad6E865e752",
+    [CHAIN.BSC]: "0x7F53E2755eB3c43824E162F7F6F087832B9C9Df6",
+    [CHAIN.ARBITRUM]: "0x78Df1CF5bf06a7f27f2ACc580B934238C1b80D50",
+
 };
 
 
@@ -185,6 +190,26 @@ const adapters: Adapter = {
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
+            meta: { methodology }
+        }, 
+        [CHAIN.AVAX]: {
+            fetch,
+            start: '2025-02-04',
+            meta: { methodology }
+        },
+        [CHAIN.UNICHAIN]: {
+            fetch,
+            start: '2025-02-11',
+            meta: { methodology }
+        },
+        [CHAIN.BSC]: {
+            fetch,
+            start: '2025-02-04',
+            meta: { methodology }
+        },
+        [CHAIN.ARBITRUM]: {
+            fetch,
+            start: '2025-01-30',
             meta: { methodology }
         },
     },
