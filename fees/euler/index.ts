@@ -57,6 +57,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         fromBlock: yesterdayBlock.number,
         toBlock: todayBlockminus1.number,
         eventAbi: eulerVaultABI.vaultStatus,
+        skipIndexer: false,
         flatten: false
     }).then(logs =>
         logs.map(vaultLogs =>
@@ -67,6 +68,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
     const vaultStatusLogs = (await getLogs({
         targets: vaults,
         eventAbi: eulerVaultABI.vaultStatus,
+        skipIndexer: false,
         flatten: false
     }))
 
@@ -116,6 +118,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
     const convertFeesLogs = await getLogs({ 
         targets: vaults, 
         eventAbi: eulerVaultABI.convertFees, 
+        skipIndexer: false,
         flatten: false 
     })
 
@@ -123,7 +126,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         if (!vaultLogs.length) return 0n
         let totalShares = 0n
         for (const log of vaultLogs) {
-            totalShares += log.protocolShares
+            totalShares += log.protocolShares + log.governorShares
         }
         return totalShares
     })
