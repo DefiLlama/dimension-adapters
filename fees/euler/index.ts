@@ -12,6 +12,10 @@ const eVaultFactories = {
     [CHAIN.SWELLCHAIN]: "0x238bF86bb451ec3CA69BB855f91BDA001aB118b9",
     [CHAIN.BOB]: "0x046a9837A61d6b6263f54F4E27EE072bA4bdC7e4",
     [CHAIN.BERACHAIN]: "0x5C13fb43ae9BAe8470f646ea647784534E9543AF",
+    [CHAIN.BSC]: "0x7F53E2755eB3c43824E162F7F6F087832B9C9Df6",
+    [CHAIN.UNICHAIN]: "0xbAd8b5BDFB2bcbcd78Cc9f1573D3Aad6E865e752",
+    [CHAIN.ARBITRUM]: "0x78Df1CF5bf06a7f27f2ACc580B934238C1b80D50",
+    [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
 };
 
 
@@ -53,6 +57,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         fromBlock: yesterdayBlock.number,
         toBlock: todayBlockminus1.number,
         eventAbi: eulerVaultABI.vaultStatus,
+        skipIndexer: false,
         flatten: false
     }).then(logs =>
         logs.map(vaultLogs =>
@@ -63,6 +68,7 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
     const vaultStatusLogs = (await getLogs({
         targets: vaults,
         eventAbi: eulerVaultABI.vaultStatus,
+        skipIndexer: false,
         flatten: false
     }))
 
@@ -102,32 +108,46 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         dailyFees.add(underlyings[vaultIndex], totalInterest)
     })
 
-    const logs = (await getLogs({ targets: vaults, eventAbi: eulerVaultABI.convertFees, flatten: false })).map((vaultLogs) => {
-        if (!vaultLogs.length) return 0n;
-        let totalShares = 0n;
+    // Calculate protocol fees from accumulated fees difference (similar to Dune query approach)
+    const accumulatedFeesChange = accumulatedFeesEnd.map((feesEnd, i) => {
+        const feesStart = accumulatedFeesStart[i]
+        return BigInt(feesEnd.toString()) - BigInt(feesStart.toString())
+    })
+
+    // Get fees that were converted/distributed during the period
+    const convertFeesLogs = await getLogs({ 
+        targets: vaults, 
+        eventAbi: eulerVaultABI.convertFees, 
+        skipIndexer: false,
+        flatten: false 
+    })
+
+    const convertedFeesShares = convertFeesLogs.map((vaultLogs) => {
+        if (!vaultLogs.length) return 0n
+        let totalShares = 0n
         for (const log of vaultLogs) {
-            totalShares += (log.protocolShares + log.governorShares);
+            totalShares += log.protocolShares + log.governorShares
         }
-        return totalShares;
-    });
+        return totalShares
+    })
 
-    // calculate (accumulatedFeesEnd - accumulatedFeesStart) + totalShares from convertFees
-    const accumulatedFees = accumulatedFeesEnd.map((fees, i) => {
-        const feesEnd = BigInt(fees.toString());
-        const feesStart = BigInt(accumulatedFeesStart[i].toString());
-        return feesEnd - feesStart + logs[i];
-    });
+    // Total protocol fees = accumulated fees change + converted fees
+    // This represents all fees generated during the period
+    const totalProtocolFeeShares = accumulatedFeesChange.map((accumulated, i) => {
+        return accumulated + convertedFeesShares[i]
+    })
 
-    // we then convert the accumulatedFees to asset by calling convertToAssets at the end therefore we won't have any problem with conversion rate changing
-    const totalAssets = await toApi.multiCall({
-        calls: accumulatedFees.map((fees, i) => ({
+    // Convert fee shares to asset amounts
+    const protocolFeeAssets = await toApi.multiCall({
+        calls: totalProtocolFeeShares.map((feeShares, i) => ({
             target: vaults[i],
-            params: [fees.toString()]
+            params: [feeShares.toString()]
         })),
         abi: eulerVaultABI.convertToAssets,
-    });
+        permitFailure: true
+    })
 
-    totalAssets.forEach((assets, i) => {
+    protocolFeeAssets.forEach((assets, i) => {
         if (!assets) return
         dailyRevenue.add(underlyings[i], assets)
     })
@@ -185,6 +205,26 @@ const adapters: Adapter = {
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
+            meta: { methodology }
+        },
+        [CHAIN.BSC]: {
+            fetch,
+            start: '2025-02-04',
+            meta: { methodology }
+        },
+        [CHAIN.UNICHAIN]: {
+            fetch,
+            start: '2025-02-11',
+            meta: { methodology }
+        },
+        [CHAIN.ARBITRUM]: {
+            fetch,
+            start: '2025-01-30',
+            meta: { methodology }
+        },
+        [CHAIN.AVAX]: {
+            fetch,
+            start: '2025-02-04',
             meta: { methodology }
         },
     },
