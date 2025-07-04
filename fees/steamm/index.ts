@@ -25,14 +25,15 @@ async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
   const poolConfigs = await fetchURL(suilendPoolsURL())
   for (const poolConfig of poolConfigs) {
     const historicalItems = await fetchURL(suilendPoolHistoricalURL(poolConfig.pool.id, dayTimestamp, dayTimestamp + 24 * 60 * 60))
-    const dayItem = historicalItems.find(item => Number(item.start) === dayTimestamp)
-    if (dayItem) {
-      poolInfos.push({
-        id: poolConfig.pool.id,
-        feesUsdValue: Number(dayItem.usdValue),
-        protocolFeeRate: Number(poolConfig.pool.protocolFees.config.feeNumerator) / Number(poolConfig.pool.protocolFees.config.feeDenominator)
-      })
-    }
+    const dailyFees = historicalItems.reduce(
+      (accumulator: number, currentValue: any) => accumulator + currentValue.usdValue,
+      0,
+    );
+    poolInfos.push({
+      id: poolConfig.pool.id,
+      feesUsdValue: Number(dailyFees),
+      protocolFeeRate: Number(poolConfig.pool.protocolFees.config.feeNumerator) / Number(poolConfig.pool.protocolFees.config.feeDenominator)
+    });
   }
 
   return poolInfos;
