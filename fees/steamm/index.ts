@@ -36,7 +36,7 @@ async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
     );
     const dailyFees = historicalItems.reduce(
       (accumulator: number, currentValue: any) =>
-        accumulator + currentValue.usdValue,
+        accumulator + new Number(currentValue.usdValue).valueOf(),
       0
     );
     poolInfos.push({
