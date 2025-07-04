@@ -132,7 +132,7 @@ const fetch = async (options: FetchOptions) => {
     });
   }
   //console.log("dailyFees:", dailyFees);
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 async function getAutomators(options: FetchOptions, factory: string) {
@@ -257,11 +257,11 @@ const adapter: SimpleAdapter = {
       start: startTimestamp[CHAIN.POLYGON],
       meta: methodology
     },
-    [CHAIN.SEI]: {
-      fetch,
-      start: startTimestamp[CHAIN.SEI],
-      meta: methodology
-    },
+    // [CHAIN.SEI]: {
+    //   fetch,
+    //   start: startTimestamp[CHAIN.SEI],
+    //   meta: methodology
+    // },
   }
 }
 
