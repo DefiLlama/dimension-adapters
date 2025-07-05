@@ -1,7 +1,7 @@
 import type { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-//API
+
 const config_rule = {
     headers: {
         'user-agent': 'axios/1.6.7'
@@ -18,29 +18,37 @@ interface IFeeData {
 const fetch = async (timestamp: number) => {
     const dayEndpoint = `${api_url}?timestamp=${timestamp}`;
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
-    const dailyUserFees = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0); 
+
+    const dailyRevenue = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0);
+
+    const dailyFees = dailyRevenue * 10; // total staking rewards
+    const dailySupplySideRevenue = dailyRevenue * 9; // total staking rewards to stakers
 
     return {
-        dailyUserFees: dailyUserFees,
-        dailyRevenue: dailyUserFees,
-        dailyProtocolRevenue: dailyUserFees,
-      };
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
+    };
+}
+
+const methodology = {
+    Fees: "Total staking rewards",
+    Revenue: "10% of total staking rewards",
+    ProtocolRevenue: "10% of total staking rewards goes to the DAO Treasury",
+    SupplySideRevenue: "90% of total staking rewards goes to stakers",
 }
 
 const adapter: Adapter = {
+    version: 1,
     adapter: {
         [CHAIN.APTOS]: {
             fetch,
             start: '2025-05-05',
-            meta: {
-                methodology: {
-                    UserFees: "Kofi Finance takes 10% fee on users staking rewards",
-                    Revenue: "Staking rewards",
-                    ProtocolRevenue: "Kofi Finance applies a 10% fee on staking rewards to the DAO Treasury",
-                }
-            }
+            meta: { methodology}
         },
     }
-  }
-  
-  export default adapter;
+}
+
+export default adapter;
