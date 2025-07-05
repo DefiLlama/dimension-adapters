@@ -21,8 +21,8 @@ const fetch = async (timestamp: number) => {
 
     const dailyRevenue = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0);
 
-    const dailyFees = dailyRevenue * 10; // total staking rewards
-    const dailySupplySideRevenue = dailyRevenue * 9; // total staking rewards to stakers
+    const dailyFees = dailyRevenue * 10; // total staking rewards (as API returns revenue which is 10% of total staking rewards)
+    const dailySupplySideRevenue = dailyRevenue * 9; // total staking rewards to stakers (as API returns revenue which is 10% of total staking rewards)
 
     return {
         dailyFees,
