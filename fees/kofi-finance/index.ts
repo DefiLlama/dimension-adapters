@@ -18,7 +18,7 @@ interface IFeeData {
 const fetch = async (timestamp: number) => {
     const dayEndpoint = `${api_url}?timestamp=${timestamp}`;
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
-    const dailyUserFees = dayFeesData.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0); 
+    const dailyUserFees = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0); 
 
     return {
         dailyUserFees: dailyUserFees,
@@ -31,7 +31,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.APTOS]: {
             fetch,
-            start: '2023-10-18',
+            start: '2025-05-05',
             meta: {
                 methodology: {
                     UserFees: "Kofi Finance takes 7% fee on users staking rewards",
