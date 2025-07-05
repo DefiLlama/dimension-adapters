@@ -34,9 +34,9 @@ const adapter: Adapter = {
             start: '2025-05-05',
             meta: {
                 methodology: {
-                    UserFees: "Kofi Finance takes 7% fee on users staking rewards",
+                    UserFees: "Kofi Finance takes 10% fee on users staking rewards",
                     Revenue: "Staking rewards",
-                    ProtocolRevenue: "Kofi Finance applies a 7% fee on staking rewards to the DAO Treasury",
+                    ProtocolRevenue: "Kofi Finance applies a 10% fee on staking rewards to the DAO Treasury",
                 }
             }
         },
