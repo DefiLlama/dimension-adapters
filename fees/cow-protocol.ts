@@ -76,6 +76,20 @@ const adapter: Adapter = {
       meta: {
         methodology
       }
+    },
+    [CHAIN.AVAX]: {
+      fetch,
+      start: '2025-06-30',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.POLYGON]: {
+      fetch,
+      start: '2025-06-30',
+      meta: {
+        methodology
+      }
     }
   },
   prefetch,
