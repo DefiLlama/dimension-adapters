@@ -35,6 +35,7 @@ const configs: any = {
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	const dailyFees = options.createBalances()
+	const totalFees = options.createBalances()
 	const { poolAddress, usdaAddress } = configs[options.chain]
 	const protocolProfitAccumulateBefore = await options.fromApi.call({
 		abi: 'function protocolProfitAccumulate() returns (uint256)',
@@ -45,14 +46,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 		target: poolAddress,
 	})
 
-	console.log(options.chain, poolAddress, protocolProfitAccumulateBefore, protocolProfitAccumulateAfter)
-
 	dailyFees.add(usdaAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore))
+	totalFees.add(usdaAddress, Number(protocolProfitAccumulateAfter))
 
 	return {
 		dailyFees,
+		totalFees,
 		dailyRevenue: dailyFees,
+		totalRevenue: totalFees,
 		dailyProtocolRevenue: dailyFees,
+		totalProtocolRevenue: totalFees,
 	}
 }
 
