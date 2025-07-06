@@ -1,24 +1,115 @@
+import { ethers } from "ethers";
 import {
     FetchOptions,
-    FetchResultVolume,
+    FetchResult,
     SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const SwapExecutedEvent =
-    "event SwapExecuted(address indexed sender, address input_token_address, uint256 input_token_amount, address output_token_address, uint256 output_token_amount, uint256 timestamp)"
+    "event SwapExecuted(address indexed sender, address input_token_address, uint256 input_token_amount, address output_token_address, uint256 output_token_amount, uint256 timestamp)";
 
-const LIQUIDSWAP_ADDRESS = "0x744489ee3d540777a66f2cf297479745e0852f7a"
+const PositiveSlippageCapturedEvent =
+    "event PositiveSlippageCaptured(address indexed sender, address protocolRecipient, address feeRecipient, address token, uint256 expectedAmount, uint256 actualAmount, uint256 totalCapturedAmount, uint256 capturedToProtocol, uint256 capturedToFeeRecipient, uint256 timestamp)";
 
-const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
-    const dailyVolume = options.createBalances()
+const FeeCapturedEvent =
+    "event FeeCaptured(address indexed sender, address feeRecipient, address protocolFeeRecipient, address token, uint256 totalFee, uint256 feeToRecipient, uint256 feeToProtocolRecipient, uint256 timestamp)";
 
-    const logs = await options.getLogs({ target: LIQUIDSWAP_ADDRESS, eventAbi: SwapExecutedEvent })
-    logs.forEach((log) => {
-        dailyVolume.add(log.input_token_address, log.input_token_amount)
-    })
+const LIQUIDSWAP_ADDRESS = "0x744489ee3d540777a66f2cf297479745e0852f7a";
 
-    return { dailyVolume }
+const iface = new ethers.Interface([
+    SwapExecutedEvent,
+    PositiveSlippageCapturedEvent,
+    FeeCapturedEvent,
+]);
+
+const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    // Get SwapExecuted events for volume
+    const swapLogs = await options.getLogs({ 
+        target: LIQUIDSWAP_ADDRESS, 
+        eventAbi: SwapExecutedEvent,
+        entireLog: true 
+    });
+    
+    swapLogs.forEach((log) => {
+        const parsed = iface.parseLog(log);
+        if (!parsed) return;
+        
+        // Add input token volume
+        dailyVolume.add(parsed.args.input_token_address, parsed.args.input_token_amount);
+    });
+
+    // Get PositiveSlippageCaptured events for positive slippage revenue
+    const slippageLogs = await options.getLogs({
+        target: LIQUIDSWAP_ADDRESS,
+        eventAbi: PositiveSlippageCapturedEvent,
+        entireLog: true,
+    });
+
+    slippageLogs.forEach((log) => {
+        const parsed = iface.parseLog(log);
+        if (!parsed) return;
+
+        // Add protocol revenue from positive slippage
+        dailyRevenue.add(
+            parsed.args.token,
+            parsed.args.capturedToProtocol
+        );
+
+        // Add integrator revenue from positive slippage
+        dailySupplySideRevenue.add(
+            parsed.args.token,
+            parsed.args.capturedToFeeRecipient
+        );
+
+        // Add total captured amount as fees (protocol + integrator)
+        dailyFees.add(
+            parsed.args.token,
+            parsed.args.totalCapturedAmount
+        );
+    });
+
+    // Get FeeCaptured events for fees
+    const feeLogs = await options.getLogs({
+        target: LIQUIDSWAP_ADDRESS,
+        eventAbi: FeeCapturedEvent,
+        entireLog: true,
+    });
+
+    feeLogs.forEach((log) => {
+        const parsed = iface.parseLog(log);
+        if (!parsed) return;
+
+        // Add protocol revenue from fees
+        dailyRevenue.add(
+            parsed.args.token,
+            parsed.args.feeToProtocolRecipient
+        );
+
+        // Add integrator revenue from fees
+        dailySupplySideRevenue.add(
+            parsed.args.token,
+            parsed.args.feeToRecipient
+        );
+
+        // Add total fees (protocol + integrator)
+        dailyFees.add(
+            parsed.args.token,
+            parsed.args.totalFee
+        );
+    });
+
+    return { 
+        dailyVolume,
+        dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue
+    };
 };
 
 const adapter: SimpleAdapter = {
@@ -30,10 +121,13 @@ const adapter: SimpleAdapter = {
             meta: {
                 methodology: {
                     Volume: "Volume is calculated from SwapExecuted events emitted by the LiquidSwap aggregator contract.",
+                    Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
+                    Revenue: "Revenue represents the protocol's share of captured positive slippage and fees.",
+                    "Supply Side Revenue": "Supply side revenue represents amounts shared with integrators from fees and positive slippage.",
                 },
             },
         },
     },
-}
+};
 
-export default adapter
+export default adapter;
