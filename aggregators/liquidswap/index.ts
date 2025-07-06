@@ -28,7 +28,6 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
 
     // Get SwapExecuted events for volume
     const swapLogs = await options.getLogs({ 
@@ -68,12 +67,6 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
                 parsed.args.token,
                 parsed.args.capturedToFeeRecipient
             );
-        } else {
-            // Add integrator revenue from positive slippage
-            dailySupplySideRevenue.add(
-                parsed.args.token,
-                parsed.args.capturedToFeeRecipient
-            );
         }
 
         // Add total captured amount as fees (protocol + integrator)
@@ -106,12 +99,6 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
                 parsed.args.token,
                 parsed.args.feeToRecipient
             );
-        } else {
-            // Add integrator revenue from fees
-            dailySupplySideRevenue.add(
-                parsed.args.token,
-                parsed.args.feeToRecipient
-            );
         }
 
         // Add total fees (protocol + integrator)
@@ -124,8 +111,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
     return { 
         dailyVolume,
         dailyFees,
-        dailyRevenue,
-        dailySupplySideRevenue
+        dailyRevenue
     };
 };
 
@@ -140,7 +126,6 @@ const adapter: SimpleAdapter = {
                     Volume: "Volume is calculated from SwapExecuted events emitted by the LiquidSwap aggregator contract.",
                     Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
                     Revenue: "Revenue represents the protocol's share of captured positive slippage and fees.",
-                    "Supply Side Revenue": "Supply side revenue represents amounts shared with integrators from fees and positive slippage.",
                 },
             },
         },
