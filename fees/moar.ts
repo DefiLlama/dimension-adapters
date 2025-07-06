@@ -31,6 +31,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
     };
 };
@@ -44,6 +45,7 @@ const adapter: SimpleAdapter = {
                 methodology: {
                     Fees: "Sum of all fees, interest accrued and all liquidation penalty",
                     Revenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
+                    ProtocolRevenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
                     SupplySideRevenue: "LP's share of all interest accrued",
                 }
             }
