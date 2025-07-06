@@ -115,19 +115,19 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     eventAbi: AaveAbis.FlashloanEvent,
   })
   if (flashloanEvents.length > 0) {
-    const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
-      target: pool.lendingPoolProxy,
-      abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
-    })
+    // const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
+    //   target: pool.lendingPoolProxy,
+    //   abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
+    // })
     const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
       target: pool.lendingPoolProxy,
       abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
     })
-    const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
+    // const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
     const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
 
     for (const event of flashloanEvents) {
-      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate / flashloanFeeRate
+      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
 
       balances.dailyFees.add(event.asset, flashloanPremiumForProtocol)
       balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol)
