@@ -37,7 +37,8 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees: dailyFees / 1e6, // Convert from microUSDC
-    dailyRevenue: dailyFees / 1e6  // Convert from microUSDC
+    dailyRevenue: dailyFees / 1e6 , // Convert from microUSDC
+    dailyProtocolRevenue: dailyFees / 1e6,  // Convert from microUSDC
   };
 };
 
@@ -69,6 +70,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.ALGORAND]: {
       fetch: fetch,
       start: '2025-03-30',
+      meta: {
+        methodology: {
+          Fees: 'Trading fees paid by users.',
+          Revenue: 'All trading fees are revenue.',
+          ProtocolRevenue: 'All trading fees are collected by Alpha Arcade.',
+        }
+      }
     }
   }
 };
