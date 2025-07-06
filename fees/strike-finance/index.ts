@@ -26,6 +26,12 @@ const adapter: Adapter = {
       fetch,
       start: "2024-05-16",
       runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "All trading fees associated with opening a perpetual position.",
+          Revenue: "All open fees plus liquidation and trading revenue",
+        }
+      }
     },
   },
   allowNegativeValue: true,
