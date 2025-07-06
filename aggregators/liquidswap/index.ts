@@ -16,6 +16,7 @@ const FeeCapturedEvent =
     "event FeeCaptured(address indexed sender, address feeRecipient, address protocolFeeRecipient, address token, uint256 totalFee, uint256 feeToRecipient, uint256 feeToProtocolRecipient, uint256 timestamp)";
 
 const LIQUIDSWAP_ADDRESS = "0x744489ee3d540777a66f2cf297479745e0852f7a";
+const PROTOCOL_FEE_ADDRESS = "0xaC7d51dB236fae22Ceb6453443da248F3A53f94d";
 
 const iface = new ethers.Interface([
     SwapExecutedEvent,
@@ -61,11 +62,19 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
             parsed.args.capturedToProtocol
         );
 
-        // Add integrator revenue from positive slippage
-        dailySupplySideRevenue.add(
-            parsed.args.token,
-            parsed.args.capturedToFeeRecipient
-        );
+        // Check if feeRecipient is protocol address, if so add to protocol revenue
+        if (parsed.args.feeRecipient.toLowerCase() === PROTOCOL_FEE_ADDRESS.toLowerCase()) {
+            dailyRevenue.add(
+                parsed.args.token,
+                parsed.args.capturedToFeeRecipient
+            );
+        } else {
+            // Add integrator revenue from positive slippage
+            dailySupplySideRevenue.add(
+                parsed.args.token,
+                parsed.args.capturedToFeeRecipient
+            );
+        }
 
         // Add total captured amount as fees (protocol + integrator)
         dailyFees.add(
@@ -91,11 +100,19 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
             parsed.args.feeToProtocolRecipient
         );
 
-        // Add integrator revenue from fees
-        dailySupplySideRevenue.add(
-            parsed.args.token,
-            parsed.args.feeToRecipient
-        );
+        // Check if feeRecipient is protocol address, if so add to protocol revenue
+        if (parsed.args.feeRecipient.toLowerCase() === PROTOCOL_FEE_ADDRESS.toLowerCase()) {
+            dailyRevenue.add(
+                parsed.args.token,
+                parsed.args.feeToRecipient
+            );
+        } else {
+            // Add integrator revenue from fees
+            dailySupplySideRevenue.add(
+                parsed.args.token,
+                parsed.args.feeToRecipient
+            );
+        }
 
         // Add total fees (protocol + integrator)
         dailyFees.add(
