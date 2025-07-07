@@ -26,131 +26,56 @@ const eulerFactoryABI = {
 
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
-    accumulatedFees: "function accumulatedFees() view returns (uint256)",
+    decimals: "function decimals() view returns (uint8)",
+    totalAssets: "function totalAssets() view returns (uint256)",
     convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
-    convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
-    vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)",
-    interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
 }
 
-const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, fromTimestamp }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    // return await getVaults(options)
 
-    const dailyFees = createBalances()
-    const dailyRevenue = createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
 
-    const vaults_uppercase = await fromApi.call({ target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
-    const vaults = vaults_uppercase.map((vault) => vault.toLowerCase())
+    // get vaults list from factories
+    const vaults = await options.fromApi.call({ target: eVaultFactories[options.chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
 
-    const underlyings = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset })
-    underlyings.forEach((underlying, index) => {
-        if (!underlying) underlyings[index] = ADDRESSES.null
+    // get vaults info
+    const vaultAssets = (await options.fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset }))
+        .map(asset => asset ? asset : ADDRESSES.null)
+    const vaultBalances = await options.fromApi.multiCall({
+        abi: eulerVaultABI.totalAssets,
+        calls: vaults
     })
 
-    const accumulatedFeesStart = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
-    const accumulatedFeesEnd = await toApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
-
-    const yesterdayBlock = await sdk.blocks.getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
-    const todayBlockminus1 = await sdk.blocks.getBlock(chain, fromTimestamp - 1, {})
-
-    const lastEventsFromPrevDay = await getLogs({
-        targets: vaults,
-        fromBlock: yesterdayBlock.number,
-        toBlock: todayBlockminus1.number,
-        eventAbi: eulerVaultABI.vaultStatus,
-        skipIndexer: false,
-        flatten: false
-    }).then(logs =>
-        logs.map(vaultLogs =>
-            vaultLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0]
-        )
-    )
-
-    const vaultStatusLogs = (await getLogs({
-        targets: vaults,
-        eventAbi: eulerVaultABI.vaultStatus,
-        skipIndexer: false,
-        flatten: false
-    }))
-
-    vaultStatusLogs.forEach((logs, vaultIndex) => {
-        const prevDayLog = lastEventsFromPrevDay[vaultIndex]
-
-        if (!prevDayLog) {
-            return
-        }
-
-        if (logs.length === 0) {
-            return
-        }
-
-        logs.sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
-        let totalInterest = 0n
-
-        const firstLog = logs[0]
-        const prevBorrows = BigInt(prevDayLog.totalBorrows.toString())
-        const firstRatio = (BigInt(firstLog.interestAccumulator.toString()) * BigInt(1e18)) /
-            BigInt(prevDayLog.interestAccumulator.toString())
-
-        totalInterest += (prevBorrows * (firstRatio - BigInt(1e18))) / BigInt(1e18)
-
-        for (let i = 1; i < logs.length; i++) {
-            const prev = logs[i - 1]
-            const current = logs[i]
-
-            const currentBorrows = BigInt(prev.totalBorrows.toString())
-            const ratio = (BigInt(current.interestAccumulator.toString()) * BigInt(1e18)) /
-                BigInt(prev.interestAccumulator.toString())
-
-            const interest = (currentBorrows * (ratio - BigInt(1e18))) / BigInt(1e18)
-            totalInterest += interest
-        }
-
-        dailyFees.add(underlyings[vaultIndex], totalInterest)
-    })
-
-    // Calculate protocol fees from accumulated fees difference (similar to Dune query approach)
-    const accumulatedFeesChange = accumulatedFeesEnd.map((feesEnd, i) => {
-        const feesStart = accumulatedFeesStart[i]
-        return BigInt(feesEnd.toString()) - BigInt(feesStart.toString())
-    })
-
-    // Get fees that were converted/distributed during the period
-    const convertFeesLogs = await getLogs({ 
-        targets: vaults, 
-        eventAbi: eulerVaultABI.convertFees, 
-        skipIndexer: false,
-        flatten: false 
-    })
-
-    const convertedFeesShares = convertFeesLogs.map((vaultLogs) => {
-        if (!vaultLogs.length) return 0n
-        let totalShares = 0n
-        for (const log of vaultLogs) {
-            totalShares += log.protocolShares + log.governorShares
-        }
-        return totalShares
-    })
-
-    // Total protocol fees = accumulated fees change + converted fees
-    // This represents all fees generated during the period
-    const totalProtocolFeeShares = accumulatedFeesChange.map((accumulated, i) => {
-        return accumulated + convertedFeesShares[i]
-    })
-
-    // Convert fee shares to asset amounts
-    const protocolFeeAssets = await toApi.multiCall({
-        calls: totalProtocolFeeShares.map((feeShares, i) => ({
-            target: vaults[i],
-            params: [feeShares.toString()]
-        })),
+    const convertToAssetsBefore = await options.fromApi.multiCall({
         abi: eulerVaultABI.convertToAssets,
-        permitFailure: true
+        calls: vaults.map((vaultAddress: string, index: number) => {
+            return {
+                target: vaultAddress,
+                params: [String(1e18)],
+            }
+        })
+    })
+    const convertToAssetsAfter = await options.toApi.multiCall({
+        abi: eulerVaultABI.convertToAssets,
+        calls: vaults.map((vaultAddress: string, index: number) => {
+            return {
+                target: vaultAddress,
+                params: [String(1e18)],
+            }
+        })
     })
 
-    protocolFeeAssets.forEach((assets, i) => {
-        if (!assets) return
-        dailyRevenue.add(underlyings[i], assets)
-    })
+    for (let i = 0; i < vaults.length; i++) {
+        const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i]);
+        const balance = vaultBalances[i] ? vaultBalances[i] : 0;
+
+        const interest = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
+
+        dailyFees.add(vaultAssets[i], interest);
+    }
 
     const dailySupplySideRevenue = dailyFees.clone()
     dailySupplySideRevenue.subtract(dailyRevenue)
@@ -159,12 +84,8 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         dailyFees,
         dailyRevenue,
         dailySupplySideRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue,
     }
-}
-
-const fetch = async (options: FetchOptions) => {
-    return await getVaults(options)
 }
 
 const methodology = {
@@ -182,51 +103,51 @@ const adapters: Adapter = {
             start: '2024-08-18',
             meta: { methodology }
         },
-        [CHAIN.SONIC]: {
-            fetch,
-            start: '2025-01-31',
-            meta: { methodology }
-        },
-        [CHAIN.BASE]: {
-            fetch,
-            start: '2024-11-27',
-            meta: { methodology }
-        },
-        [CHAIN.SWELLCHAIN]: {
-            fetch,
-            start: '2025-01-20',
-            meta: { methodology }
-        },
-        [CHAIN.BOB]: {
-            fetch,
-            start: '2025-01-21',
-            meta: { methodology }
-        },
-        [CHAIN.BERACHAIN]: {
-            fetch,
-            start: '2025-02-06',
-            meta: { methodology }
-        },
-        [CHAIN.BSC]: {
-            fetch,
-            start: '2025-02-04',
-            meta: { methodology }
-        },
-        [CHAIN.UNICHAIN]: {
-            fetch,
-            start: '2025-02-11',
-            meta: { methodology }
-        },
-        [CHAIN.ARBITRUM]: {
-            fetch,
-            start: '2025-01-30',
-            meta: { methodology }
-        },
-        [CHAIN.AVAX]: {
-            fetch,
-            start: '2025-02-04',
-            meta: { methodology }
-        },
+        // [CHAIN.SONIC]: {
+        //     fetch,
+        //     start: '2025-01-31',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.BASE]: {
+        //     fetch,
+        //     start: '2024-11-27',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.SWELLCHAIN]: {
+        //     fetch,
+        //     start: '2025-01-20',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.BOB]: {
+        //     fetch,
+        //     start: '2025-01-21',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.BERACHAIN]: {
+        //     fetch,
+        //     start: '2025-02-06',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.BSC]: {
+        //     fetch,
+        //     start: '2025-02-04',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.UNICHAIN]: {
+        //     fetch,
+        //     start: '2025-02-11',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.ARBITRUM]: {
+        //     fetch,
+        //     start: '2025-01-30',
+        //     meta: { methodology }
+        // },
+        // [CHAIN.AVAX]: {
+        //     fetch,
+        //     start: '2025-02-04',
+        //     meta: { methodology }
+        // },
     },
     allowNegativeValue: true // AS protocol revenue is tracked when collected, and interest can be lower for a day when collected
 }
