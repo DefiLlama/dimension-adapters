@@ -42,6 +42,9 @@ const methodology = {
 const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const address = addresses[options.chain];
   const dailyFees = options.createBalances();
+  if (options.chain === CHAIN.PLUME_LEGACY){
+    return { dailyFees, dailyRevenue: dailyFees };
+  }
 
   const mintedLogs = await options.getLogs({
     target: address,
