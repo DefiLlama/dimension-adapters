@@ -109,10 +109,10 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-    Fees: "Interest that is paid by the borrowers to the vaults",
-    Revenue: "Protocol fees share",
-    ProtocolRevenue: "Protocol fees share",
-    SupplySideRevenue: "Interest paid to the lenders"
+    Fees: "Interest that is paid by the borrowers to the vaults.",
+    Revenue: "Fees collected by vaults owners, curators, and Euler.",
+    ProtocolRevenue: "Fees share collected by Euler protocol.",
+    SupplySideRevenue: "Fees distributed to vaults lenders."
 }
 
 const adapters: Adapter = {
