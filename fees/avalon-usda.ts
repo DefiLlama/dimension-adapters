@@ -70,12 +70,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	if (options.chain === 'ethereum') {
 		const { poolAddress: v1PoolAddress, feeTokenAddress: v1FeeTokenAddress } = v1Configs[options.chain]
 		const protocolProfitAccumulateBefore = await options.fromApi.call({
-			abi: 'function protocolProfitAccumulate() returns (uint256)',
+			abi: 'function getProtocolProfitAccumulate() returns (uint256)',
 			target: v1PoolAddress,
 		})
 
 		const protocolProfitAccumulateAfter = await options.toApi.call({
-			abi: 'function protocolProfitAccumulate() returns (uint256)',
+			abi: 'function getProtocolProfitAccumulate() returns (uint256)',
 			target: v1PoolAddress,
 		})
 
