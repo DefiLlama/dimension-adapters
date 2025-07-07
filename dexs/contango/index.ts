@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import request from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { wrapGraphError } from "../../helpers/getUniSubgraph";
 
 type IEndpoint = {
   [chain: string]: string;
@@ -63,16 +62,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
       }
     }
     `;
-  let response: IResponse;
-  try {
-    response = await request(endpoint[options.chain], query);
-  } catch (error) {
-    console.error(
-      "Error fetching contango data",
-      wrapGraphError(error as Error).message
-    );
-    return { timestamp };
-  }
+  const response: IResponse = await request(endpoint[options.chain], query);
 
   const dailyOpenInterest = createBalances();
   const dailyFees = createBalances();
