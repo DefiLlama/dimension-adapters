@@ -8,13 +8,12 @@ type IEndpoint = {
   [chain: string]: string;
 };
 
-const alchemyGraphUrl = (chain) =>
-  `https://subgraph.satsuma-prod.com/773bd6dfe1c6/egills-team/v2-${chain}/api`;
+const alchemyGraphUrl = (chain) => `https://subgraph.satsuma-prod.com/773bd6dfe1c6/egills-team/v2-${chain}/api`;
 
 const endpoint: IEndpoint = {
   [CHAIN.ARBITRUM]: alchemyGraphUrl("arbitrum"),
   [CHAIN.OPTIMISM]: alchemyGraphUrl("optimism"),
-  [CHAIN.ETHEREUM]: alchemyGraphUrl("ethereum"),
+  [CHAIN.ETHEREUM]: alchemyGraphUrl("mainnet"),
   [CHAIN.POLYGON]: alchemyGraphUrl("polygon"),
   [CHAIN.BASE]: alchemyGraphUrl("base"),
   [CHAIN.XDAI]: alchemyGraphUrl("gnosis"),
@@ -31,16 +30,19 @@ interface IAssetTotals {
   openInterest: string;
   totalFees: string;
 }
+
 interface IResponse {
   today: IAssetTotals[];
   yesterday: IAssetTotals[];
 }
+
 interface IAsset {
   id: string;
   volume: number;
   openInterest: number;
   fees: number;
 }
+
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const { getFromBlock, getToBlock, createBalances, api } = options;
   const query = `
@@ -92,6 +94,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
       Number(asset.totalFees) - Number(yesterday?.totalFees || 0);
     const openInterest = Math.abs(Number(asset.openInterest));
     const multipliedBy = 10 ** Number(decimals[index]);
+
     return {
       id: asset.id,
       openInterest: openInterest * multipliedBy,
@@ -99,6 +102,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
       volume: totalVolume * multipliedBy,
     } as IAsset;
   });
+
   data.map(({ volume, id, openInterest, fees }) => {
     dailyVolume.add(id, +volume);
     dailyOpenInterest.add(id, +openInterest);
