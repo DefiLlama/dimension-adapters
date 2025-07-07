@@ -17,43 +17,43 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.SCROLL]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.XDAI]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.AVAX]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.LINEA]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
     [CHAIN.BSC]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-05",
     },
   },
