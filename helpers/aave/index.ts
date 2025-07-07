@@ -17,6 +17,7 @@ export interface AaveLendingPoolConfig {
 
 export interface AaveAdapterExportConfig {
   start?: IStartTimestamp | number | string;
+  meta?: any;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -234,6 +235,7 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         }
       }),
       start: config.start,
+      meta: config.meta,
     }
   })
   return exportObject
