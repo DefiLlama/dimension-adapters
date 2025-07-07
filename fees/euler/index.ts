@@ -1,7 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import * as sdk from "@defillama/sdk";
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -29,6 +28,8 @@ const eulerVaultABI = {
     decimals: "function decimals() view returns (uint8)",
     totalAssets: "function totalAssets() view returns (uint256)",
     convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
+    interestFee: 'uint256:interestFee',
+    protocolFeeShare: 'uint256:protocolFeeShare',
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -46,6 +47,14 @@ const fetch = async (options: FetchOptions) => {
         .map(asset => asset ? asset : ADDRESSES.null)
     const vaultBalances = await options.fromApi.multiCall({
         abi: eulerVaultABI.totalAssets,
+        calls: vaults
+    })
+    const vaultInterestFees = await options.fromApi.multiCall({
+        abi: eulerVaultABI.interestFee,
+        calls: vaults
+    })
+    const vaultProtocolFeeShares = await options.fromApi.multiCall({
+        abi: eulerVaultABI.protocolFeeShare,
         calls: vaults
     })
 
@@ -69,12 +78,23 @@ const fetch = async (options: FetchOptions) => {
     })
 
     for (let i = 0; i < vaults.length; i++) {
-        const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i]);
-        const balance = vaultBalances[i] ? vaultBalances[i] : 0;
+        const balance = vaultBalances[i] ? vaultBalances[i] : 0
+        const interestFee = vaultInterestFees[i] ? vaultInterestFees[i] : 0
+        const protocolFeeShare = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
 
-        const interest = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
+        const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i])
+        const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
 
-        dailyFees.add(vaultAssets[i], interest);
+        let interestEarnedBeforeFee = interestEarned
+        if (interestFee < BigInt(1e4)) {
+            interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - BigInt(interestFee))
+        }
+
+        const protocolRevenueShare = (interestEarnedBeforeFee - interestEarned) * BigInt(protocolFeeShare) / BigInt(1e4)
+
+        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee);
+        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned)
+        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare)
     }
 
     const dailySupplySideRevenue = dailyFees.clone()
@@ -103,53 +123,52 @@ const adapters: Adapter = {
             start: '2024-08-18',
             meta: { methodology }
         },
-        // [CHAIN.SONIC]: {
-        //     fetch,
-        //     start: '2025-01-31',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.BASE]: {
-        //     fetch,
-        //     start: '2024-11-27',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.SWELLCHAIN]: {
-        //     fetch,
-        //     start: '2025-01-20',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.BOB]: {
-        //     fetch,
-        //     start: '2025-01-21',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.BERACHAIN]: {
-        //     fetch,
-        //     start: '2025-02-06',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.BSC]: {
-        //     fetch,
-        //     start: '2025-02-04',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.UNICHAIN]: {
-        //     fetch,
-        //     start: '2025-02-11',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.ARBITRUM]: {
-        //     fetch,
-        //     start: '2025-01-30',
-        //     meta: { methodology }
-        // },
-        // [CHAIN.AVAX]: {
-        //     fetch,
-        //     start: '2025-02-04',
-        //     meta: { methodology }
-        // },
+        [CHAIN.SONIC]: {
+            fetch,
+            start: '2025-01-31',
+            meta: { methodology }
+        },
+        [CHAIN.BASE]: {
+            fetch,
+            start: '2024-11-27',
+            meta: { methodology }
+        },
+        [CHAIN.SWELLCHAIN]: {
+            fetch,
+            start: '2025-01-20',
+            meta: { methodology }
+        },
+        [CHAIN.BOB]: {
+            fetch,
+            start: '2025-01-21',
+            meta: { methodology }
+        },
+        [CHAIN.BERACHAIN]: {
+            fetch,
+            start: '2025-02-06',
+            meta: { methodology }
+        },
+        [CHAIN.BSC]: {
+            fetch,
+            start: '2025-02-04',
+            meta: { methodology }
+        },
+        [CHAIN.UNICHAIN]: {
+            fetch,
+            start: '2025-02-11',
+            meta: { methodology }
+        },
+        [CHAIN.ARBITRUM]: {
+            fetch,
+            start: '2025-01-30',
+            meta: { methodology }
+        },
+        [CHAIN.AVAX]: {
+            fetch,
+            start: '2025-02-04',
+            meta: { methodology }
+        },
     },
-    allowNegativeValue: true // AS protocol revenue is tracked when collected, and interest can be lower for a day when collected
 }
 
 export default adapters;
