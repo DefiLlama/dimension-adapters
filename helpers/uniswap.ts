@@ -40,7 +40,8 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
-export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV2Config): FetchV2 => {
+export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -118,8 +119,8 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
       response.dailyRevenue = dailyFees.clone(revenueRatio)
       response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
     }
-    if (protocolRevenueRatio) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    if (holdersRevenueRatio) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+    if (v2Config.hasOwnProperty('protocolRevenueRatio')) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
+    if (v2Config.hasOwnProperty('holdersRevenueRatio')) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
 
     return response
   }
