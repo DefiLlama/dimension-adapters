@@ -8,6 +8,8 @@ const endpoints: any = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5NFnHtgpdzB3JhVyiKQgnV9dZsewqJtX5HZfAT9Kg66r'),
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96tZMr51QupqWYamom12Yki5AqCJEiHWbVUpzUpvu9oB'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('3oawHiCt7L9wJTEY9DynwAEmoThy8bvRhuMZdaaAooqW'),
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('J22JEPtqL847G44v7E5gTsxmNosoLtKQUDAvnhRhzj25'),
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FfnRstqDWGGevsbf9rRg1vNctrb38Hd791zzaaKc7AGz'),
 };
 
 const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
@@ -27,8 +29,13 @@ const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
 
   const { protocolDaySnapshots } = await request(endpoint, graphQuery);
   const snapshot = protocolDaySnapshots.find((snapshot: any) => +snapshot.periodStart <= timestamp && +snapshot.periodEnd >= timestamp);
+
+  if (!snapshot) return {
+    dailyVolume: 0,
+    dailyFees: 0,
+  }
+
   return {
-    timestamp,
     dailyVolume: snapshot.volumeUSD,
     dailyFees: +snapshot.swapFeesUSD + +snapshot.hookFeesUSD,
   }
