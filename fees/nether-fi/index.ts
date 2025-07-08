@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
+import { Adapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const subgraphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
 const startTimestamp = 1693526400;
@@ -17,7 +16,7 @@ const methodology = {
   ProtocolRevenue: "Treasury has no revenue",
 };
 
-const getFetch = (): Fetch => async (timestamp: number) => {
+const fetch = async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
@@ -40,23 +39,21 @@ const getFetch = (): Fetch => async (timestamp: number) => {
   const finalUserFee = userFee / 1e30;
 
   return {
-    timestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.3).toString(),
     dailyProtocolRevenue: "0",
-    totalProtocolRevenue: "0",
     dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
   };
-};
+}
 
 const adapter: Adapter = {
   version: 1,
   deadFrom: '2025-01-28',
   adapter: {
     [CHAIN.BASE]: {
-      fetch: getFetch(),
+      fetch,
       start: startTimestamp,
       meta: {
         methodology,

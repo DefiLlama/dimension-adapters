@@ -212,7 +212,8 @@ export enum CHAIN {
   SHAPE = "shape",
   ABSTRACT = "abstract",
   REDSTONE = "redstone",
-  PLUME = "plume",
+  PLUME = "plume_mainnet",
+  PLUME_LEGACY = "plume",
   PENUMBRA = "penumbra",
   BERACHAIN = "berachain",
   UNICHAIN = "unichain",
@@ -236,6 +237,13 @@ export enum CHAIN {
   ELYS = "elys",
   BITKUB = "bitkub",
   INITIA = "initia",
+  COTI = "coti",
+  LENS = "lens",
+  SSEED = "sseed",
+  AO = 'ao',
+  XRPL_EVM = 'xrplevm',
+  KATANA = 'katana',
+  BOTANIX = 'btnx',
 }
 
 // Don´t use

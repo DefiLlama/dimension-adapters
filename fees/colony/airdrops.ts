@@ -5,7 +5,6 @@ import fetchURL from "../../utils/fetchURL";
 
 export interface Airdrops {
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }
 
 interface IGraphAirdropsResponse {
@@ -36,7 +35,6 @@ export async function airdrops(
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
 
   try {
     const res: IGraphAirdropsResponse = await request(stakingV3SubgraphEndpoint, queryAirdrops, {
@@ -53,19 +51,7 @@ export async function airdrops(
     console.error(e);
   }
 
-  try {
-    const dataServiceResponse = await fetchURL('https://data-service.colonylab.io/airdrops')
-
-    for (const airdrop of [...dataServiceResponse.airdrops[3] ?? [], ...dataServiceResponse.airdrops[4] ?? []]) {
-      totalHoldersRevenue.add(airdrop.address, airdrop.airdroppedAmount)
-    }
-  }
-  catch (e) {
-    console.error(e);
-  }
-
   return {
     dailyHoldersRevenue,
-    totalHoldersRevenue
   }
 }

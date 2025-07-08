@@ -1,6 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -8,35 +7,35 @@ type IUrl = {
     [s: string]: string;
 }
 
+// https://api.kriya.finance/defillama/clmm
+
 const url: IUrl = {
-    [CHAIN.SUI]: `https://api.kriya.finance/defillama/clmm`
+    [CHAIN.SUI]: 'https://api-service-81678480858.asia-northeast1.run.app/pools/v3'
 }
 
 interface IVolume {
-    totalVolume: number,
-    dailyVolume: number
+    volume24h: string
 }
 
-const fetch = (chain: Chain) => {
-    return async ({ endTimestamp }): Promise<FetchResultV2> => {
-        const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000));
-        const volumeUrl = `${url[chain]}?timestamp=${dayTimestamp}`;
-        const volume: IVolume = (await fetchURL(volumeUrl))?.data;
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+    const data: IVolume[] = (await fetchURL(url[options.chain]))?.data;
+    let totalVolume = 0;
+    data.map((item) => {
+        totalVolume += Number(item.volume24h);
+    })
 
-        return {
-            totalVolume: `${volume?.totalVolume || undefined}`,
-            dailyVolume: `${volume?.dailyVolume || undefined}`,
-            timestamp: dayTimestamp,
-        };
+    return {
+        dailyVolume: `${totalVolume || 0}`
     };
-}
+};
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SUI]: {
-            fetch: fetch(CHAIN.SUI),
+            fetch,
             start: '2023-05-09',
+            runAtCurrTime: true,
         }
     },
 };

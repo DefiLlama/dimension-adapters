@@ -2,9 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import * as sdk from '@defillama/sdk'
 import * as solana from '../helpers/solana'
-import { getBlockNumber } from "@defillama/sdk/build/util/blocks"
 import axios from "axios"
-import { APTOS_PRC, getCoinSupply } from "../helpers/aptops"
+import { getCoinSupply } from "../helpers/aptops"
 import { getObject } from '../helpers/sui'
 
 /**
@@ -20,6 +19,8 @@ import { getObject } from '../helpers/sui'
 
 const methodology = {
   Fees: 'Total yields were collected by investment assets.',
+  Revenue: 'Total yields were distributed to investors and Ondo protocol.',
+  PerotocolRevenue: 'Total yields were collected by Ondo protocol.',
   SupplySideRevenue: 'Total yields were distributed to investors.',
 }
 
@@ -66,7 +67,7 @@ async function getPrices(timestamp: number): Promise<{
   OUSG: number;
   USDY: number;
 }> {
-  const blockNumber = await getBlockNumber(CHAIN.ETHEREUM, timestamp)
+  const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp)
 
   const [ousgPriceData, usdyPriceData] = await sdk.api2.abi.multiCall({
     chain: CHAIN.ETHEREUM,
@@ -151,7 +152,8 @@ const fetch: any = async (options: FetchOptions) => {
   return { 
     dailyFees,
     dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
   }
 }
 

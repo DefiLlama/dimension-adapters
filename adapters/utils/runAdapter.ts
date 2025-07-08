@@ -18,11 +18,13 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   adapterVersion = 1,
   isTest = false,
   _module = {},
+  withMetadata = false,
 }: any = {}) {
   const { prefetch, allowNegativeValue = false } = _module
+  if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
-  if (chains.some(c => !c) || chains.includes('undefined') ) {
+  if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
   const validStart = {} as {
@@ -43,11 +45,21 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
   }
 
+  let breakdownData: any = {}
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
     return validStart[chain]?.canRun
   }).map(getChainResult))
+
+
+  Object.entries(breakdownData).forEach(([chain, data]: any) => {
+    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownData[chain]
+  })
+
+  if (Object.keys(breakdownData).length === 0) breakdownData = undefined
+
+  if (withMetadata) return { response, breakdownData, }
   return response
 
   async function getChainResult(chain: string) {
@@ -89,7 +101,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
           continue;
         }
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
-        if (value instanceof Balances) result[key] = await value.getUSDString()
+        if (value instanceof Balances) {
+          result[key] = await value.getUSDString()
+          breakdownData[chain] = breakdownData[chain] || {}
+          breakdownData[chain][key] = await value.getUSDJSONs()
+        }
         result[key] = +Number(result[key]).toFixed(0)
         let errorPartialString = `| ${chain}-${key}: ${value}`
 
@@ -139,11 +155,11 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, ...rest }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
+      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached

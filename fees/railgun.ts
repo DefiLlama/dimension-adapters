@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -42,7 +42,14 @@ const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
   }
 }
 
-const options: any = { fetch: fetchFees, start: '2022-05-01' }
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users using Railgun privacy services.',
+    Revenue: 'All fees collected by Railgun.',
+    HoldersRevenue: 'Fees distributed to token holders',
+  }
+}
+const options: any = { fetch: fetchFees, start: '2022-05-01', meta }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: options,

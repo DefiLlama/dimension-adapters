@@ -1,12 +1,13 @@
+import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "./prices";
 import { ethers } from "ethers";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
-export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 1000 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
+export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
   const balances: Balances = createBalances()
@@ -39,7 +40,8 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
-export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses }: UniV2Config): FetchV2 => {
+export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -111,7 +113,16 @@ export const getUniV2LogAdapter: any = ({ factory, fees = 0.003, swapEvent = def
       return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyBribesRevenue }
     }
 
-    return { dailyVolume, dailyFees, }
+    const response: any = { dailyVolume, dailyFees }
+
+    if (revenueRatio || revenueRatio === 0) {
+      response.dailyRevenue = dailyFees.clone(revenueRatio)
+      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
+    }
+    if (v2Config.hasOwnProperty('protocolRevenueRatio')) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
+    if (v2Config.hasOwnProperty('holdersRevenueRatio')) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+
+    return response
   }
   return fetch
 }
@@ -120,7 +131,7 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     if (isAlgebraV3) {
@@ -170,7 +181,13 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     if (customLogic) {
       return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
     }
-    return { dailyVolume, dailyFees }
+    const response: any = { dailyVolume, dailyFees }
+
+    if (revenueRatio || revenueRatio === 0) response.dailyRevenue = dailyFees.clone(revenueRatio)
+    if (protocolRevenueRatio || protocolRevenueRatio === 0) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
+    if (holdersRevenueRatio || holdersRevenueRatio === 0) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+
+    return response
   }
   return fetch
 }
@@ -185,6 +202,9 @@ type UniV2Config = {
   customLogic?: any,
   start?: number | string,
   blacklistedAddresses?: string[],
+  revenueRatio?: number,
+  protocolRevenueRatio?: number,
+  holdersRevenueRatio?: number,
 }
 
 type UniV3Config = {
@@ -193,6 +213,10 @@ type UniV3Config = {
   swapEvent?: string,
   customLogic?: any,
   isAlgebraV3?: boolean,
+  revenueRatio?: number,
+  protocolRevenueRatio?: number,
+  holdersRevenueRatio?: number,
+  start?: number | string,
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {}) {
@@ -226,7 +250,8 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false } = {
     const fetch: any = getUniV3LogAdapter(chainConfig)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options)
+      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      start: chainConfig.start,
     }
   })
 

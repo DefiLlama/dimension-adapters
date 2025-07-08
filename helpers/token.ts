@@ -1,5 +1,4 @@
 import * as sdk from '@defillama/sdk';
-import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import axios from 'axios';
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
@@ -142,7 +141,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   if (!tokens?.length) return balances
 
-  tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
+  tokens = sdk.util.getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
   const logs = await getLogs({
     targets: tokens,
@@ -395,7 +394,7 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
 
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
-      SELECT mint as token, SUM(raw_amount) as amount
+      SELECT '${ADDRESSES.solana.USDC}' as token, SUM(usd_amount * 1000000) as amount
       FROM solana.assets.transfers
       WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})

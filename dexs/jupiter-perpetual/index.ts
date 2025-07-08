@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const list_of_mints: string[] = [
-  "So11111111111111111111111111111111111111112",
+  ADDRESSES.solana.SOL,
   "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh",
   "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
 ]
@@ -35,14 +36,12 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 const adapter = {
   version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        runAtCurrTime: true,
-        start: '2024-01-23',
-      },
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2024-01-23',
     },
-  }
+  },
 };
 export default adapter;

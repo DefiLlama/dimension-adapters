@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import fetchURL from "../../utils/fetchURL"
 import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
@@ -18,7 +19,7 @@ interface MarinadeAmounts {
 const fetch = async ({ createBalances }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).liquid
-  const coin = 'So11111111111111111111111111111111111111112'
+  const coin = ADDRESSES.solana.SOL
   const dailyFees = createBalances();
   const totalFees = createBalances();
   const dailyUserFees = createBalances();
@@ -67,9 +68,9 @@ const adapter: SimpleAdapter = {
           // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
           UserFees: 'Marinade management fee 6% on staking rewards',
           Fees: 'Staking rewards',
-          Revenue: ' = ProtocolRevenue',
-          ProtocolRevenue: ' = UserFees',
-          SupplySideRevenue: 'Stakers revenue = Fees - UserFees'
+          Revenue: 'Amount of 6% staking rewards',
+          ProtocolRevenue: 'Amount of 6% staking rewards collected by Marinade',
+          SupplySideRevenue: 'Amount of 94% staking rewards are distributed to stakers'
         },
         hallmarks:[
           [1667865600, 'FTX collapse'],

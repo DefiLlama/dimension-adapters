@@ -2,6 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
+    Revenue: 'Fees collected by Phantom.',
+  }
+}
+
 // Solana fee wallet addresses
 const solana_fee_wallet_addresses = [
   '25mYnjJ2MXHZH6NvTTdA63JvjgRVcuiaj6MRiEQNs1Dq',
@@ -44,15 +51,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
+      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchETH,
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchETH,
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchETH,
+      meta,
     }
   },
   isExpensiveAdapter: true

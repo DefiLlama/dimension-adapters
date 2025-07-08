@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
@@ -51,7 +51,7 @@ const blacklistTokens = {
 }
 
 const endpointsClassic = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6NUtT5mGjZ1tSshKLf5Q3uEEJtjBZJo1TpL5MXsUBqrT'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('GyZ9MgVQkTWuXGMSd3LXESvpevE8S8aD3uktJh7kbVmc'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('GPRigpbNuPkxkwpSbDuYXbikodNJfurc1LCENLzboWer'),
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8NiXkxLRT3R22vpwLB4DXttpEf3X1LrKhe4T1tQ3jjbP'),
   //[CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK'),
@@ -66,6 +66,7 @@ const endpointsClassic = {
   // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('DcaAUrnx2mWKVQNsVJiuz7zhjoLkvtDUcoq73NdBvbTo'), // index error
   [CHAIN.CORE]: 'https://thegraph.coredao.org/subgraphs/name/sushi-v2/sushiswap-core',
   [CHAIN.BLAST]: 'https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/sushiswap-blast/gn',
+  [CHAIN.KATANA]: sdk.graph.modifyEndpoint('FYBTPY5uYPZ3oXpEriw9Pzn8RH9S1m7tpNwBwaNMuTNq')
 };
 
 const VOLUME_FIELD = "volumeUSD";
@@ -99,11 +100,14 @@ const graphsClassicBoba = getGraphDimensions2({
   feesPercent
 });
 
-const startTimeQueryClassic = {
-  endpoints: endpointsClassic,
-  dailyDataField: "dayDatas",
-  volumeField: VOLUME_FIELD,
-};
+const graphsClassicETH = getGraphDimensions2({
+  graphUrls: endpointsClassic,
+  totalVolume: {
+    factory: "uniswapFactories",
+    field: 'totalVolumeUSD',
+  },
+  feesPercent
+});
 
 const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
@@ -111,8 +115,8 @@ const classic = Object.keys(endpointsClassic).reduce(
     [chain]: {
       fetch: async (options: FetchOptions) => {
         try {
-          const call = chain === CHAIN.BOBA ? graphsClassicBoba : graphsClassic;
-          const values = (await call(chain)(options));
+          const call = chain === CHAIN.BOBA ? graphsClassicBoba : [CHAIN.ETHEREUM, CHAIN.KATANA].includes(chain as CHAIN) ? graphsClassicETH : graphsClassic;
+          const values = (await call(chain as Chain)(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
@@ -146,7 +150,7 @@ const classic = Object.keys(endpointsClassic).reduce(
           Fees: "SushiSwap charges a flat 0.3% fee",
           UserFees: "Users pay a 0.3% fee on each trade",
           Revenue: "A 0.05% of each trade goes to treasury",
-          HoldersRevenue: "None",
+          HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
           ProtocolRevenue: "Treasury receives a share of the fees",
           SupplySideRevenue: "Liquidity providers get 5/6 of all trades in their pools"
         }

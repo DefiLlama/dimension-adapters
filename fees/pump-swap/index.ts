@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -9,6 +10,7 @@ interface IData {
     quoteAmountOutorIn: number;
     lpFee: number;
     protocolFee: number;
+    coinCreatorFee: number;
     quoteMint: string;
 }
 
@@ -37,6 +39,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 BYTEARRAY_TO_UINT256 (
                     BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 105, 8))
                 ) AS protocolFee,
+                COALESCE(CASE WHEN BYTEARRAY_LENGTH(data) >= 368 THEN BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 361, 8))) ELSE 0 END, 0) AS coinCreatorFee,
                 to_base58 (bytearray_substring (data, 129, 32)) AS pool
             FROM
                 solana.instruction_calls
@@ -56,57 +59,48 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 s.quoteAmountOutorIn,
                 p.quoteMint,
                 s.protocolFee,
-                s.lpFee
+                s.lpFee,
+                s.coinCreatorFee
             FROM
                 decoded_swap s
                 JOIN decoded_pool p ON s.pool = p.pool
             WHERE
                 s.block_time >= TIMESTAMP '2025-03-15'
                 AND p.quoteMint IN (
-                    'So11111111111111111111111111111111111111112',
+                    '${ADDRESSES.solana.SOL}',
                     'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-                    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+                    '${ADDRESSES.solana.USDC}',
+                    '${ADDRESSES.solana.USDT}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
                 AND TIME_RANGE
-        ),
-        daily_volume AS (
-            SELECT
-                dt AS date,
-                quoteMint,
-                SUM(quoteAmountOutorIn) AS quoteAmountOutorIn,
-                SUM(protocolFee) as protocolFee,
-                SUM(lpFee) as lpFee
-            FROM
-                pumpswap_trades
-            WHERE
-                quoteAmountOutorIn IS NOT NULL
-            GROUP BY
-                dt,
-                quoteMint
         )
-    SELECT
-        date,
-        quoteAmountOutorIn,
-        protocolFee,
-        lpFee,
-        quoteMint
-    FROM
-        daily_volume
-    ORDER BY
-        date DESC
+        SELECT
+            quoteMint,
+            SUM(quoteAmountOutorIn) AS quoteAmountOutorIn,
+            SUM(protocolFee) as protocolFee,
+            SUM(lpFee) as lpFee,
+            SUM(coinCreatorFee) as coinCreatorFee
+        FROM
+            pumpswap_trades
+        WHERE
+            quoteAmountOutorIn IS NOT NULL
+        GROUP BY
+            quoteMint
     `)
     const dailySupplySideRevenue = options.createBalances()
     const dailyProtocolRevenue = options.createBalances()
     const dailyFees = options.createBalances()
+    const dailyCoinCreatorRevenue = options.createBalances();
 
     for (const item of data) {
         dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
         dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
+        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0)
     }
     dailyFees.addBalances(dailyProtocolRevenue);
     dailyFees.addBalances(dailySupplySideRevenue);
+    dailyFees.addBalances(dailyCoinCreatorRevenue);
 
     return {
         dailyFees,
@@ -124,7 +118,7 @@ const adapter: SimpleAdapter = {
             start: '2025-03-15',
             meta: {
                 methodology: {
-                    Fees: "Total fees collected from all sources, including both LP fees (0.20%) and protocol fees (0.05%) from each trade",
+                    Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
                     Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
                     SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
                     Volume: "Tracks the trading volume across all pairs on PumpFun AMM",

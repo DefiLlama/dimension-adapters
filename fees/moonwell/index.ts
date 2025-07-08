@@ -100,19 +100,28 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     return { dailyFees, dailyRevenue }
 }
 
+const meta = {
+    methodology: {
+        Fees: "Total interest paid by borrowers",
+        Revenue: "Protocol's share of interest treasury",
+        ProtocolRevenue: "Protocol's share of interest into treasury",
+        HoldersRevenue: "No revenue for WELL holders.",
+        SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+    }
+}
+
 function moonwellExport(config: IJSON<string>) {
     const exportObject: BaseAdapter = {}
     Object.entries(config).map(([chain, market]) => {
         exportObject[chain] = {
             fetch: (async (options: FetchOptions) => {
                 const { dailyFees, dailyRevenue } = await getFees(market, options, {})
-                const dailyHoldersRevenue = dailyRevenue
                 const dailySupplySideRevenue = options.createBalances()
                 dailySupplySideRevenue.addBalances(dailyFees)
                 Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
                     dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
                 })
-                return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+                return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
             }),
                     }
     })

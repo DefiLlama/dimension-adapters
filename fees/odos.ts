@@ -32,7 +32,7 @@ To do:
 
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
@@ -70,6 +70,7 @@ const graph = (chain: Chain): any => {
     return {
       dailyFees,
       dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees,
       dailyHoldersRevenue: 0,
       dailySupplySideRevenue: 0,
       timestamp,
@@ -77,25 +78,32 @@ const graph = (chain: Chain): any => {
   }
 }
 
-
+const meta = {
+  methodology: {
+    Fees: "All fees paid by users for using Odos services.",
+    Revenue: "Revenue is equal to the fees collected.",
+    HoldersRevenue: "No revenue distributed to ODOS holders.",
+    ProtocolRevenue: "Revenue is equal to the fees collected.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: graph(CHAIN.ETHEREUM), start: '2023-07-14' },
-    [CHAIN.ARBITRUM]: { fetch: graph(CHAIN.ARBITRUM), start: '2023-07-14' },
-    [CHAIN.OPTIMISM]: { fetch: graph(CHAIN.OPTIMISM), start: '2023-07-14' },
-    [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: '2023-07-14' },
-    [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: '2023-07-14' },
-    [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: '2023-07-14' },
-    [CHAIN.BSC]: { fetch: graph(CHAIN.BSC), start: '2023-07-14' },
-    [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: '2023-07-14' },
-    [CHAIN.ERA]: { fetch: graph(CHAIN.ERA), start: '2023-07-14' },
-    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: '2023-07-14' },
-    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: '2023-07-14' },
-    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: '2023-07-14' },
-    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: '2023-07-14' },
-    [CHAIN.FRAXTAL]: { fetch: graph(CHAIN.FRAXTAL), start: '2023-07-14' },
-    [CHAIN.SONIC]: { fetch: graph(CHAIN.SONIC), start: '2023-07-14' },
+    [CHAIN.ETHEREUM]: { fetch: graph(CHAIN.ETHEREUM), start: '2023-07-14', meta },
+    [CHAIN.ARBITRUM]: { fetch: graph(CHAIN.ARBITRUM), start: '2023-07-14', meta },
+    [CHAIN.OPTIMISM]: { fetch: graph(CHAIN.OPTIMISM), start: '2023-07-14', meta },
+    [CHAIN.BASE]: { fetch: graph(CHAIN.BASE), start: '2023-07-14', meta },
+    [CHAIN.POLYGON]: { fetch: graph(CHAIN.POLYGON), start: '2023-07-14', meta },
+    [CHAIN.AVAX]: { fetch: graph(CHAIN.AVAX), start: '2023-07-14', meta },
+    [CHAIN.BSC]: { fetch: graph(CHAIN.BSC), start: '2023-07-14', meta },
+    [CHAIN.FANTOM]: { fetch: graph(CHAIN.FANTOM), start: '2023-07-14', meta },
+    [CHAIN.ERA]: { fetch: graph(CHAIN.ERA), start: '2023-07-14', meta },
+    [CHAIN.MODE]: { fetch: graph(CHAIN.MODE), start: '2023-07-14', meta },
+    [CHAIN.LINEA]: { fetch: graph(CHAIN.LINEA), start: '2023-07-14', meta },
+    [CHAIN.MANTLE]: { fetch: graph(CHAIN.MANTLE), start: '2023-07-14', meta },
+    [CHAIN.SCROLL]: { fetch: graph(CHAIN.SCROLL), start: '2023-07-14', meta },
+    [CHAIN.FRAXTAL]: { fetch: graph(CHAIN.FRAXTAL), start: '2023-07-14', meta },
+    [CHAIN.SONIC]: { fetch: graph(CHAIN.SONIC), start: '2023-07-14', meta },
   }
 };
 

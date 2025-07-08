@@ -2,9 +2,9 @@ import { Adapter, FetchV2 } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 
 interface FeeResponse {
-  staking_rewards: number;
-  fees: number;
-  supply_side_revenue: number;
+  generated_staking_rewards: number;
+  fees_collected: number;
+  users_gained_staking_rewards: number;
 }
 
 
@@ -14,15 +14,14 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances }) 
   const params = {
     from: startDate.toISOString(),
     to: endDate.toISOString(),
-    currency: 'tia'
   }
-  const response: FeeResponse = await httpGet('https://apis.milkyway.zone/milktia/fees/range', { params });
+  const response: FeeResponse = await httpGet('https://apis.milkyway.zone/v2/protocols/osmosis.milkTIA/rewards', { params });
   const dailyUserFees = createBalances()
   const dailyStakingRewards = createBalances()
   const dailySupplySideRevenue = createBalances()
-  dailyUserFees.addCGToken('celestia', response.fees);
-  dailyStakingRewards.addCGToken('celestia', response.staking_rewards);
-  dailySupplySideRevenue.addCGToken('celestia', response.supply_side_revenue);
+  dailyUserFees.addCGToken('celestia', response.fees_collected);
+  dailyStakingRewards.addCGToken('celestia', response.generated_staking_rewards);
+  dailySupplySideRevenue.addCGToken('celestia', response.users_gained_staking_rewards);
   return {
     dailyUserFees,
     dailyFees: dailyStakingRewards,
@@ -52,4 +51,4 @@ const adapter: Adapter = {
   version: 2
 };
 
-export default adapter; // yarn test fees milktia
+export default adapter; // yarn test fees milkyway

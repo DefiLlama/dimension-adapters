@@ -297,25 +297,63 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     ...aaveExport({
-      [CHAIN.ETHEREUM]: AvalonMarkets[CHAIN.ETHEREUM],
-      [CHAIN.BASE]: AvalonMarkets[CHAIN.BASE],
-      [CHAIN.ARBITRUM]: AvalonMarkets[CHAIN.ARBITRUM],
-      [CHAIN.BSC]: AvalonMarkets[CHAIN.BSC],
-      // [CHAIN.MERLIN]: AvalonMarkets[CHAIN.MERLIN],
-      [CHAIN.BITLAYER]: AvalonMarkets[CHAIN.BITLAYER],
-      [CHAIN.BSQUARED]: AvalonMarkets[CHAIN.BSQUARED],
-      [CHAIN.MODE]: AvalonMarkets[CHAIN.MODE],
-      [CHAIN.TAIKO]: AvalonMarkets[CHAIN.TAIKO],
-      [CHAIN.SONIC]: AvalonMarkets[CHAIN.SONIC],
-      [CHAIN.BOB]: AvalonMarkets[CHAIN.BOB],
-      [CHAIN.CORE]: AvalonMarkets[CHAIN.CORE],
-      [CHAIN.SCROLL]: AvalonMarkets[CHAIN.SCROLL],
-      [CHAIN.IOTEX]: AvalonMarkets[CHAIN.IOTEX],
-      [CHAIN.KLAYTN]: AvalonMarkets[CHAIN.KLAYTN],
-      [CHAIN.ZETA]: AvalonMarkets[CHAIN.ZETA],
-      [CHAIN.CORN]: AvalonMarkets[CHAIN.CORN],
-      [CHAIN.DUCKCHAIN]: AvalonMarkets[CHAIN.DUCKCHAIN],
-      // [CHAIN.SEI]: AvalonMarkets[CHAIN.SEI],
+      [CHAIN.ETHEREUM]: {
+        pools: AvalonMarkets[CHAIN.ETHEREUM],
+      },
+      [CHAIN.BASE]: {
+        pools: AvalonMarkets[CHAIN.BASE],
+      },
+      [CHAIN.ARBITRUM]: {
+        pools: AvalonMarkets[CHAIN.ARBITRUM],
+      },
+      [CHAIN.BSC]: {
+        pools: AvalonMarkets[CHAIN.BSC],
+      },
+      [CHAIN.MERLIN]: {
+        pools: AvalonMarkets[CHAIN.MERLIN],
+      },
+      [CHAIN.BITLAYER]: {
+        pools: AvalonMarkets[CHAIN.BITLAYER],
+      },
+      [CHAIN.BSQUARED]: {
+        pools: AvalonMarkets[CHAIN.BSQUARED],
+      },
+      [CHAIN.MODE]: {
+        pools: AvalonMarkets[CHAIN.MODE],
+      },
+      [CHAIN.TAIKO]: {
+        pools: AvalonMarkets[CHAIN.TAIKO],
+      },
+      [CHAIN.SONIC]: {
+        pools: AvalonMarkets[CHAIN.SONIC],
+      },
+      [CHAIN.BOB]: {
+        pools: AvalonMarkets[CHAIN.BOB],
+      },
+      [CHAIN.CORE]: {
+        pools: AvalonMarkets[CHAIN.CORE],
+      },
+      [CHAIN.SCROLL]: {
+        pools: AvalonMarkets[CHAIN.SCROLL],
+      },
+      [CHAIN.IOTEX]: {
+        pools: AvalonMarkets[CHAIN.IOTEX],
+      },
+      [CHAIN.KLAYTN]: {
+        pools: AvalonMarkets[CHAIN.KLAYTN],
+      },
+      [CHAIN.ZETA]: {
+        pools: AvalonMarkets[CHAIN.ZETA],
+      },
+      [CHAIN.CORN]: {
+        pools: AvalonMarkets[CHAIN.CORN],
+      },
+      [CHAIN.DUCKCHAIN]: {
+        pools: AvalonMarkets[CHAIN.DUCKCHAIN],
+      },
+      [CHAIN.SEI]: {
+        pools: AvalonMarkets[CHAIN.SEI],
+      },
     })
   }
 }

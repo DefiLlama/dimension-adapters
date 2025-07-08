@@ -1,7 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
@@ -18,6 +16,5 @@ adapters.adapter.bsc.start = 1687305600;
 adapters.adapter.pulse.start = 1686096000;
 adapters.adapter.bsc.fetch = async (timestamp: number) => {return{timestamp, dailyVolume: 0}}
 adapters.adapter.pulse.fetch = async (timestamp: number) => {return{timestamp, dailyVolume: 0}}
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
 adapters.deadFrom = '2024-09-12';
 export default adapters;

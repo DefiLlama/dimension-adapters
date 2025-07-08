@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
+import { ChainEndpoints, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints: ChainEndpoints = {
@@ -28,7 +28,7 @@ async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
   const { today, yesterday } = await request(endpoints[chain], query);
   if (!today || !yesterday)
     throw new Error("No data found");
-  
+
   return {
     dailyVolume: today.totalSwapVolume - yesterday.totalSwapVolume,
     dailyFees: today.totalSwapFee - yesterday.totalSwapFee,
@@ -39,15 +39,13 @@ async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
   }
 }
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    v2: {
-      [CHAIN.SEI]: {
-        fetch,
-        start: '2024-06-01',
-      }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.SEI]: {
+      fetch,
+      start: '2024-06-01',
     }
   }
-};
+}
 
 export default adapter;

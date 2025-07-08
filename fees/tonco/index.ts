@@ -17,6 +17,7 @@ const SWAPS_QUERY = (from: number, to: number) => `
             amount
             isZeroToOne
             pool {
+                version
                 fee
                 jetton0 {
                     address
@@ -48,6 +49,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
         const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
         
+        if (swap.pool.version === 'v1.5') {
+            continue;
+        }
+
         if (!WHITELIST_JETTONS.includes(fromJetton.address)) {
             continue;
         }

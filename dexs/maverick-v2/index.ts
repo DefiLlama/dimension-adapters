@@ -8,7 +8,7 @@ import type {
   ChainEndpoints,
   FetchOptions,
 } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 interface GqlPoolDayStats {
   tokenBVolume: number;
@@ -158,27 +158,27 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
-      start: 1717372801,
+      start: '2024-06-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(endpoints)(CHAIN.ARBITRUM),
-      start: 1717372801,
+      start: '2024-06-03',
     },
     [CHAIN.ERA]: {
       fetch: graph(endpoints)(CHAIN.ERA),
-      start: 1717372801,
+      start: '2024-06-03',
     },
     [CHAIN.BSC]: {
       fetch: graph(endpoints)(CHAIN.BSC),
-      start: 1717372801,
+      start: '2024-06-03',
     },
     [CHAIN.BASE]: {
       fetch: graph(endpoints)(CHAIN.BASE),
-      start: 1717372801,
+      start: '2024-06-03',
     },
     [CHAIN.SCROLL]: {
       fetch: graph(endpoints)(CHAIN.SCROLL),
-      start: 1720621814,
+      start: '2024-07-10',
     },
   },
 };

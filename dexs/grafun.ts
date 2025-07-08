@@ -24,11 +24,10 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
 
   const dayItem = graphRes.dailyStatistics_collection[0]
   const dailyVolume = restOpts.createBalances();
-  dailyVolume.addGasToken(dayItem.cumulativeTradingVolumeBNB);
+  dailyVolume.addGasToken(dayItem?.cumulativeTradingVolumeBNB || 0);
 
   return {
-    timestamp: startTimestamp,
-    dailyVolume,
+    dailyVolume
   }
 }
 

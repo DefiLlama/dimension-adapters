@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // Fee Source : https://docs.boop.fun/token-deployment-101
 
 import { SimpleAdapter } from "../../adapters/types";
@@ -18,7 +19,7 @@ const BUYBACK_FEE_ADDRESS = '43YvSqTTRhHV2EL9BSSRCPwcrNNYF3dtra46Gbni73jf';
 const PROTOCOL_FEE_ADDRESS = '8QwU16Xe4BPyUD9MktHtgVjQQ5fAwywb9Zd5Hg1YTauF';
 const BOOP_ADDRESS = 'boopkpWqe68MSxLqBGogs8ZbUDN4GXaLhFwNP7mpP1i';
 const BOOP_CG_ID = 'boop-4';
-const NATIVE_SOL_MINT_ADDRESS = 'So11111111111111111111111111111111111111112';
+const NATIVE_SOL_MINT_ADDRESS = ADDRESSES.solana.SOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const query = `
@@ -127,9 +128,10 @@ const adapter: SimpleAdapter = {
             start: '2025-05-01',
             meta: {
                 methodology: {
-                    fees: `Total fees paid by users, comprising all SOL and BOOP tokens collected by the protocol, staker, and buyback wallets`,
-                    protocolRevenue: `Includes boopfun frontend fees(0.1%), graduation fees(0.1%), and Raydium Initial liquidity fees(0.1%)`,
-                    holdersRevenue: `Includes frontend fees(0.9%), instant unstaking fees 5% (BOOP to buyback), Raydium trading fees(0.1%), and Staking rewards 5% supply at graduation(approx 20 SOL)`
+                    Fees: 'Total fees paid by users, comprising all SOL and BOOP tokens collected by the protocol, staker, and buyback wallets.',
+                    Revenue: 'Total fees paid by users.',
+                    ProtocolRevenue: 'Includes boopfun frontend fees(0.1%), graduation fees(0.1%), and Raydium Initial liquidity fees(0.1%)',
+                    HoldersRevenue: 'Includes frontend fees(0.9%), instant unstaking fees 5% (BOOP to buyback), Raydium trading fees(0.1%), and Staking rewards 5% supply at graduation(approx 20 SOL).',
                 }
             }
         }

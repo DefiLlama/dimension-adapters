@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import customBackfill from "../../helpers/customBackfill";
@@ -20,25 +20,18 @@ const chains: TChains =  {
   [CHAIN.AURORA]: 1313161554,
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])))?.data;
-    const historicalVolume = historical.filter(e => e.chainId === chains[chain]);
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
-      .reduce((acc, { volDay }) => acc + Number(volDay), 0)
+const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[options.chain])))?.data;
+  const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
+  const dailyVolume = historicalVolume
+    .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
 
-    return {
-      totalVolume: totalVolume,
-      dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
-    };
-  }
-};
+  return {
+    dailyVolume: dailyVolume,
+  };
+}
 
 const getStartTimestamp = async (chain_id: number) => {
   const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chain_id)))?.data;
@@ -49,7 +42,7 @@ const getStartTimestamp = async (chain_id: number) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AURORA]: {
-      fetch: fetch(CHAIN.AURORA),
+      fetch,
       start: () => getStartTimestamp(chains[CHAIN.AURORA]),
       customBackfill: customBackfill(CHAIN.AURORA as Chain, fetch)
     },

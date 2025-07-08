@@ -125,29 +125,39 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyFees };
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Fees paid by users for bridging tokens via Hop.',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFeesL2,
-      start: '2023-01-01'
+      start: '2023-01-01',
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchFeesL2,
-      start: '2023-01-01'
+      start: '2023-01-01',
+      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFeesL2,
-      start: '2023-01-01'
+      start: '2023-01-01',
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFeesL2,
-      start: '2023-01-01'
+      start: '2023-01-01',
+      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchFeesL1,
-      start: '2023-01-01'
+      start: '2023-01-01',
+      meta,
     }
   }
 }

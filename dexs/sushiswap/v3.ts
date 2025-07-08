@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { FetchOptions } from "../../adapters/types";
@@ -20,7 +20,7 @@ const endpointsV3 = {
   // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CqLnQY1d6DLcBYu7aZvGmt17LoNdTe4fDYnGbE2EgotR'), // index error
   // [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'), // index error
   // [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore', // index error
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('AhUgoykbiFji6KHdyCmjpA9cN1xji45GXAuW3BAVWXGT'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
   [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
   [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
   [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
@@ -35,6 +35,7 @@ const endpointsV3 = {
   // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
   [CHAIN.HEMI]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-hemi/gn",
+  [CHAIN.KATANA]: sdk.graph.modifyEndpoint('2YG7eSFHx1Wm9SHKdcrM8HR23JQpVe8fNNdmDHMXyVYR')
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -84,7 +85,7 @@ const startTimeV3: { [key: string]: number } = {
   [CHAIN.SONIC]: 1711982400,
 }
 
-const v3 = Object.keys(endpointsV3).reduce(
+const v3: any = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
@@ -111,7 +112,7 @@ const v3 = Object.keys(endpointsV3).reduce(
           Fees: "Each pool charge between 0.01% to 1% fee",
           UserFees: "Users pay between 0.01% to 1% fee",
           Revenue: "0 to 1/4 of the fee goes to treasury",
-          HoldersRevenue: "None",
+          HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
           ProtocolRevenue: "Treasury receives a share of the fees",
           SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
         }
@@ -130,4 +131,5 @@ v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba66
 v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa' }) }
 v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F' }) }
 v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715' }) }
+
 export default v3
