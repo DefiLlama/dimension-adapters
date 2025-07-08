@@ -257,11 +257,11 @@ const adapter: SimpleAdapter = {
       start: startTimestamp[CHAIN.POLYGON],
       meta: methodology
     },
-    // [CHAIN.SEI]: {
-    //   fetch,
-    //   start: startTimestamp[CHAIN.SEI],
-    //   meta: methodology
-    // },
+    [CHAIN.SEI]: {
+      fetch,
+      start: startTimestamp[CHAIN.SEI],
+      meta: methodology
+    },
   }
 }
 
