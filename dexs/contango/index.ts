@@ -39,7 +39,6 @@ interface IAsset {
   id: string;
   volume: number;
   openInterest: number;
-  fees: number;
 }
 
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
@@ -51,21 +50,18 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
         symbol
         totalVolume
         openInterest
-        totalFees
       },
       yesterday:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getFromBlock()}}) {
         id
         symbol
         totalVolume
         openInterest
-        totalFees
       }
     }
     `;
   const response: IResponse = await request(endpoint[options.chain], query);
 
   const dailyOpenInterest = createBalances();
-  const dailyFees = createBalances();
   const dailyVolume = createBalances();
 
   const tokens = response.today.map((asset) => asset.id);
@@ -80,28 +76,23 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     );
     const totalVolume =
       Number(asset.totalVolume) - Number(yesterday?.totalVolume || 0);
-    const totalFees =
-      Number(asset.totalFees) - Number(yesterday?.totalFees || 0);
     const openInterest = Math.abs(Number(asset.openInterest));
     const multipliedBy = 10 ** Number(decimals[index]);
 
     return {
       id: asset.id,
       openInterest: openInterest * multipliedBy,
-      fees: totalFees * multipliedBy,
       volume: totalVolume * multipliedBy,
     } as IAsset;
   });
 
-  data.map(({ volume, id, openInterest, fees }) => {
+  data.map(({ volume, id, openInterest }) => {
     dailyVolume.add(id, +volume);
     dailyOpenInterest.add(id, +openInterest);
-    dailyFees.add(id, +fees);
   });
 
   return {
     dailyOpenInterest,
-    dailyFees,
     dailyVolume,
   };
 };
