@@ -14,10 +14,12 @@ const tokens = [
   // usdc
   ADDRESSES.base.USDC,
   // jav
-  "0xEdC68c4c54228D273ed50Fc450E253F685a2c6b9"
+  "0xEdC68c4c54228D273ed50Fc450E253F685a2c6b9",
+  // javlis
+  "0x440D06b2aC83Ff743d9e149Be582A4b2b2c6adEc",
 ]
 
-const fetchBase = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
@@ -48,7 +50,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchBase,
+      fetch,
       start: "2024-12-18",
       meta: {
         methodology

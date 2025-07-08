@@ -1,11 +1,7 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const methodology = {
-  Volume: "LeverageX Traders create Volume by placing Trades.",
-}
-
-const fetchBase: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   const DIAMOND = "0xBF35e4273db5692777EA475728fDbBa092FFa1B3";
   const [limitLogs, marketLogs] = await Promise.all(
     [
@@ -28,15 +24,17 @@ const fetchBase: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVol
   return { dailyVolume: volumeLimitsAndMarkets, };
 };
 
+const methodology = {
+  Volume: "LeverageX Traders create Volume by placing Trades.",
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchBase,
+      fetch,
       start: "2024-12-18",
-      meta: {
-        methodology
-      },
+      meta: { methodology },
     },
   },
 };
