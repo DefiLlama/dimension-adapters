@@ -1,18 +1,16 @@
-import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
 export async function fetch(options: FetchOptions) {
-  const {
-    data: { totalVolume },
-  } = await axios.get(
+  const dailyVolume = options.createBalances();
+  const { totalVolume } = await fetchURL(
     `https://beta.strikefinance.org/api/analytics/volume?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
-  const dailyVolumeUSD = options.createBalances();
-  dailyVolumeUSD.addCGToken("cardano", Number(totalVolume));
+  dailyVolume.addCGToken("cardano", Number(totalVolume));
 
   return {
-    totalVolume,
+    dailyVolume,
   };
 }
 
