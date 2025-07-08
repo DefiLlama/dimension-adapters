@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
     adapter: {
       [CHAIN.HYPERLIQUID]: {
         fetch: fetch,
-        start: "2025-07-01",
+        start: "2025-07-05",
         meta: {
           methodology: {
             Volume:
