@@ -50,18 +50,27 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
+
+const methodology = {
+  Fees: "Total fees comprise borrowing origination fees, accumulated interest (from both protocol and lenders), and liquidation fees",
+  Revenue: "Revenue includes protocol fees, protocol share of interest fees, and protocol share of liquidation fees",
+  ProtocolRevenue: "Revenue includes protocol fees, protocol share of interest fees, and protocol share of liquidation fees",
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
+      meta: { methodology },
       start: '2024-04-25',
     },
     [CHAIN.MOVE]: {
       fetch,
+      meta: { methodology },
       start: '2025-03-15',
     },
   },
