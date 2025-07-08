@@ -29,12 +29,13 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "All trading fees associated with opening a perpetual position.",
-          Revenue: "All open fees plus liquidation and trading revenue",
-          ProtocolRevenue: "All open fees plus liquidation and trading revenue",
+          Revenue: "All open fees plus liquidation and trading revenue.",
+          ProtocolRevenue: "All open fees plus liquidation and trading revenue.",
         }
       }
     },
   },
+  allowNegativeValue: true, // bad liquidation
 };
 
 export default adapter;
