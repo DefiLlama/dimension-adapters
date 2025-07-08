@@ -36,16 +36,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: "0",
-    dailyHoldersRevenue: dailyFees,
-    dailySupplySideRevenue: "0",
   };
 };
 
 const methodology = {
-  Fees: "Fees are calculated as the platform fee from the Carbon protocol.",
-  Revenue: "Revenue is calculated as the platform fee from the Carbon protocol.",
-  HoldersRevenue: "Holders Revenue is calculated as the platform fee from the Carbon protocol.",
+  Fees: "Trading fee paid by the user.",
+  Revenue: "Trading fees collected from the users.",
 }
 
 const adapter: SimpleAdapter = {
