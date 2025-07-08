@@ -16,7 +16,7 @@ const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
   const endpoint = endpoints[chain]
 
   const graphQuery = `{
-  protocolDaySnapshots (first:1000) {
+  protocolDaySnapshots (first:1000, orderBy: periodEnd, orderDirection: desc) {
     id
     volumeUSD
     periodStart
