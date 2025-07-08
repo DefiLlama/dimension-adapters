@@ -25,8 +25,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: "2024-05-16",
-      runAtCurrTime: true,
+      start: "2025-05-16",
       meta: {
         methodology: {
           Fees: "All trading fees associated with opening a perpetual position.",
