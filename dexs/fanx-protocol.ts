@@ -7,6 +7,6 @@ export default uniV2Exports({
     start: '2024-04-01',
     revenueRatio: 0.5,
     protocolRevenueRatio: 0.5,
-    holdersRevenueRatio: 0,
+    holdersRevenueRatio: 0.5,
   },
 });
