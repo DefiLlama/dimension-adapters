@@ -19,10 +19,10 @@ const fetch = async (timestamp: number) => {
     const dayEndpoint = `${api_url}?timestamp=${timestamp}`;
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
 
-    const dailyRevenue = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0);
+    const dailyFees = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0);
 
-    const dailyFees = dailyRevenue * 10; // total staking rewards (as API returns revenue which is 10% of total staking rewards)
-    const dailySupplySideRevenue = dailyRevenue * 9; // total staking rewards to stakers (as API returns revenue which is 10% of total staking rewards)
+    const dailyRevenue = dailyFees * 0.01; // 1% of daily fees 
+    const dailySupplySideRevenue = dailyFees * 0.99; // 99% of daily fees 
 
     return {
         dailyFees,
@@ -35,9 +35,9 @@ const fetch = async (timestamp: number) => {
 
 const methodology = {
     Fees: "Total staking rewards",
-    Revenue: "10% of total staking rewards",
-    ProtocolRevenue: "10% of total staking rewards goes to the DAO Treasury",
-    SupplySideRevenue: "90% of total staking rewards goes to stakers",
+    Revenue: "1% of total staking rewards",
+    ProtocolRevenue: "1% of total staking rewards goes to the DAO Treasury",
+    SupplySideRevenue: "99% of total staking rewards goes to stakers",
 }
 
 const adapter: Adapter = {
@@ -45,7 +45,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.APTOS]: {
             fetch,
-            start: '2025-05-05',
+            start: '2025-05-14',
             meta: { methodology}
         },
     }
