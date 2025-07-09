@@ -39,7 +39,7 @@ async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
 }
 
 const fetch = async (options: FetchOptions) => {
-    const dailyRevenue = options.createBalances();
+    const dailyFees = options.createBalances();
     let JMES_TO_PNL = "[0][1].pnlHistory";
     const DELAY = 200; // ms
     // const delay = 10000 // ms
@@ -81,10 +81,11 @@ const fetch = async (options: FetchOptions) => {
             totalPnl += Number(pnlStr);
         }
     }
-    dailyRevenue.addCGToken("usd-coin", totalPnl);
+    dailyFees.addCGToken("usd-coin", totalPnl);
 
     return {
-        dailyRevenue: dailyRevenue,
+        dailyFees: dailyFees,
+        dailySupplySideRevenue: dailyFees,
     };
 };
 
@@ -96,11 +97,13 @@ const adapter: Adapter = {
             start: 1749245760, // Fri Jun 06 2025 21:36:00 GMT+0000
             meta: {
                 methodology: {
-                    Revenue: "Yield generated from HLP vault",
+                    Fees: "Yield generated from HLP vault",
+                    SupplySideRevenue: "100% of yield paid to hwHLP holders"
                 },
             },
         },
     },
+    allowNegativeValue: true, // PnL can be negative
 };
 
 export default adapter;
