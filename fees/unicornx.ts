@@ -9,8 +9,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
-    WITH
-    allFeePayments AS (
+    WITH allFeePayments AS (
       SELECT
         tx_id,
         balance_change AS fee_token_amount
@@ -21,22 +20,37 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         AND address = '9mAZ2HFYfUW9r1rYpM1cAsQTWS7SUp49AW1VzoLaPNgr' 
         AND tx_success
         AND balance_change > 0 
-  )
-  SELECT
-    SUM(fee_token_amount) AS fee
-  FROM
-    dex_solana.trades AS trades
-    JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-  WHERE
-    trades.trader_id != '9mAZ2HFYfUW9r1rYpM1cAsQTWS7SUp49AW1VzoLaPNgr'
-    AND TIME_RANGE
-  `;
+    )
+    SELECT
+      SUM(fee_token_amount) AS fee
+    FROM
+      dex_solana.trades AS trades
+      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+    WHERE
+      trades.trader_id != '9mAZ2HFYfUW9r1rYpM1cAsQTWS7SUp49AW1VzoLaPNgr'
+      AND TIME_RANGE
+    `;
 
   const fees = await queryDuneSql(options, query);
   dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
 
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
+
+const fetchEVM: any = async (_: any, _1: any, options: FetchOptions) => {
+  const { dailyFees } = await evmReceivedGasAndTokens("0xCb077A7f06D54c582eD82f5C5ef9FeFB9B8Be449",[])(options);
+
+  const USD1 = "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d";
+  const { dailyFees: usd1Fees, dailyRevenue: usd1Revenue } =
+    await evmReceivedGasAndTokens(
+      "0x7e618674021EF084cA2154069798Fe16727849cC",
+      [USD1]
+    )(options);
+
+  dailyFees.addBalances(usd1Fees);
+
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue:dailyFees };
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -48,31 +62,12 @@ const adapter: SimpleAdapter = {
         methodology: {
           Fees: "All trading fees paid by users while using UnicornX app and website.",
           Revenue: "Trading fees are collected by UnicornX.",
+          ProtocolRevenue: "Trading fees are collected by UnicornX.",
         },
       },
     },
     [CHAIN.BSC]: {
-      fetch: async (_: any, _1: any, options: FetchOptions) => {
-        const dailyFees = options.createBalances();
-        const dailyRevenue = options.createBalances();
-        const USD1 = "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d";
-        const { dailyFees: bnbFees, dailyRevenue: bnbRevenue } =
-          await evmReceivedGasAndTokens(
-            "0xCb077A7f06D54c582eD82f5C5ef9FeFB9B8Be449",
-            []
-          )(options);
-        dailyFees.addBalances(bnbFees);
-        dailyRevenue.addBalances(bnbRevenue);
-
-        const { dailyFees: usd1Fees, dailyRevenue: usd1Revenue } =
-          await evmReceivedGasAndTokens(
-            "0x7e618674021EF084cA2154069798Fe16727849cC",
-            [USD1]
-          )(options);
-        dailyFees.addBalances(usd1Fees);
-        dailyRevenue.addBalances(usd1Revenue);
-        return { dailyFees, dailyRevenue };
-      },
+      fetch: fetchEVM,
       start: "2025-03-30",
       meta: {
         methodology: {
