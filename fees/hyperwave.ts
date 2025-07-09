@@ -45,11 +45,21 @@ async function fetchHyperliquidInfo<T>(
 const fetch = async (options: FetchOptions) => {
     
     const dailyRevenue = options.createBalances();
-    const JMES_TO_PNL = "[0][1].pnlHistory"
+    let JMES_TO_PNL = "[0][1].pnlHistory"
     const DELAY = 200 // ms
     // const delay = 10000 // ms
     const START_TIMESTAMP = options.startTimestamp * 1e3
     const END_TIMESTAMP = options.endTimestamp * 1e3
+
+    // Determine if START_TIMESTAMP is today or yesterday
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterday = today - 24 * 60 * 60 * 1000;
+
+    if (START_TIMESTAMP !== today && START_TIMESTAMP !== yesterday) {
+        // if backfill, use `allTime`
+        JMES_TO_PNL = "[3][1].pnlHistory";
+    }
 
     // Fetch pnlHistory for all MS addresses and concatenate them with DELAY delay between calls
     const allPnlHistories: HistoryEntry[][] = [];
@@ -60,6 +70,7 @@ const fetch = async (options: FetchOptions) => {
     }
     // Flatten all histories into a single array
     const dailyPnlHistory = allPnlHistories.flat();
+    console.log(dailyPnlHistory[0])
 
     // Aggregate total PnL between START_TIMESTAMP and END_TIMESTAMP (inclusive)
     let totalPnl = 0;
@@ -81,9 +92,10 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
+            start: 1749245760, // Fri Jun 06 2025 21:36:00 GMT+0000
             meta: {
                 methodology: {
-                    Fees: "Yield generated from HLP vault",
+                    Revenue: "Yield generated from HLP vault",
                 }
             }
         },
