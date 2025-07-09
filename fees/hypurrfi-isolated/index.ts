@@ -105,17 +105,13 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
   
           if (liquidationPairEvents.length > 0) {
             for (const event of liquidationPairEvents) {
-              const collateralForLiquidator = Number(event[1])
               const feesAmount = Number(event[4])
       
-              // count liquidation bonus as fees
-              bucketCollateral.fees += collateralForLiquidator
-      
-              // count liquidation bonus for liquidator as supply side fees
-              bucketCollateral.supplySideRevenue += collateralForLiquidator - feesAmount
+              // count liquidation fees
+              bucketCollateral.fees += feesAmount
       
               // count liquidation bonus protocol fee as revenue
-              bucketCollateral.protocolRevenue += Number(feesAmount)
+              bucketCollateral.protocolRevenue += feesAmount
             }
           }
 
@@ -141,7 +137,6 @@ export function hyIsolatedExport(exportConfig: {[key: string]: HyIsolatedAdapter
             dailySupplySideRevenue.add(asset, supplySideRevenue)
           }
         }
-
 
         return {
           dailyFees,
