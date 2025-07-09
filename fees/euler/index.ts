@@ -1,7 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import * as sdk from "@defillama/sdk";
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -26,131 +25,77 @@ const eulerFactoryABI = {
 
 const eulerVaultABI = {
     asset: "function asset() view returns (address)",
-    accumulatedFees: "function accumulatedFees() view returns (uint256)",
+    decimals: "function decimals() view returns (uint8)",
+    totalAssets: "function totalAssets() view returns (uint256)",
     convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
-    convertFees: "event ConvertFees(address indexed account, address indexed protocolReceiver, address indexed governorReceiver, uint256 protocolShares, uint256 governorShares)",
-    vaultStatus: "event VaultStatus(uint256 totalShares, uint256 totalBorrows, uint256 accumulatedFees, uint256 cash, uint256 interestAccumulator, uint256 interestRate, uint256 timestamp)",
-    interestAccumulated: "event InterestAccrued(address indexed account, uint256 borrowIndex)"
+    interestFee: 'uint256:interestFee',
+    protocolFeeShare: 'uint256:protocolFeeShare',
 }
 
-const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, fromTimestamp }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    // return await getVaults(options)
 
-    const dailyFees = createBalances()
-    const dailyRevenue = createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
 
-    const vaults_uppercase = await fromApi.call({ target: eVaultFactories[chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
-    const vaults = vaults_uppercase.map((vault) => vault.toLowerCase())
+    // get vaults list from factories
+    const vaults = await options.fromApi.call({ target: eVaultFactories[options.chain], abi: eulerFactoryABI.getProxyListSlice, params: [0, UINT256_MAX] })
 
-    const underlyings = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset })
-    underlyings.forEach((underlying, index) => {
-        if (!underlying) underlyings[index] = ADDRESSES.null
+    // get vaults info
+    const vaultAssets = (await options.fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset }))
+        .map(asset => asset ? asset : ADDRESSES.null)
+    const vaultBalances = await options.fromApi.multiCall({
+        abi: eulerVaultABI.totalAssets,
+        calls: vaults
+    })
+    const vaultInterestFees = await options.fromApi.multiCall({
+        abi: eulerVaultABI.interestFee,
+        calls: vaults
+    })
+    const vaultProtocolFeeShares = await options.fromApi.multiCall({
+        abi: eulerVaultABI.protocolFeeShare,
+        calls: vaults
     })
 
-    const accumulatedFeesStart = await fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
-    const accumulatedFeesEnd = await toApi.multiCall({ calls: vaults, abi: eulerVaultABI.accumulatedFees })
-
-    const yesterdayBlock = await sdk.blocks.getBlock(chain, fromTimestamp - 24 * 60 * 60, {})
-    const todayBlockminus1 = await sdk.blocks.getBlock(chain, fromTimestamp - 1, {})
-
-    const lastEventsFromPrevDay = await getLogs({
-        targets: vaults,
-        fromBlock: yesterdayBlock.number,
-        toBlock: todayBlockminus1.number,
-        eventAbi: eulerVaultABI.vaultStatus,
-        skipIndexer: false,
-        flatten: false
-    }).then(logs =>
-        logs.map(vaultLogs =>
-            vaultLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0]
-        )
-    )
-
-    const vaultStatusLogs = (await getLogs({
-        targets: vaults,
-        eventAbi: eulerVaultABI.vaultStatus,
-        skipIndexer: false,
-        flatten: false
-    }))
-
-    vaultStatusLogs.forEach((logs, vaultIndex) => {
-        const prevDayLog = lastEventsFromPrevDay[vaultIndex]
-
-        if (!prevDayLog) {
-            return
-        }
-
-        if (logs.length === 0) {
-            return
-        }
-
-        logs.sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
-        let totalInterest = 0n
-
-        const firstLog = logs[0]
-        const prevBorrows = BigInt(prevDayLog.totalBorrows.toString())
-        const firstRatio = (BigInt(firstLog.interestAccumulator.toString()) * BigInt(1e18)) /
-            BigInt(prevDayLog.interestAccumulator.toString())
-
-        totalInterest += (prevBorrows * (firstRatio - BigInt(1e18))) / BigInt(1e18)
-
-        for (let i = 1; i < logs.length; i++) {
-            const prev = logs[i - 1]
-            const current = logs[i]
-
-            const currentBorrows = BigInt(prev.totalBorrows.toString())
-            const ratio = (BigInt(current.interestAccumulator.toString()) * BigInt(1e18)) /
-                BigInt(prev.interestAccumulator.toString())
-
-            const interest = (currentBorrows * (ratio - BigInt(1e18))) / BigInt(1e18)
-            totalInterest += interest
-        }
-
-        dailyFees.add(underlyings[vaultIndex], totalInterest)
-    })
-
-    // Calculate protocol fees from accumulated fees difference (similar to Dune query approach)
-    const accumulatedFeesChange = accumulatedFeesEnd.map((feesEnd, i) => {
-        const feesStart = accumulatedFeesStart[i]
-        return BigInt(feesEnd.toString()) - BigInt(feesStart.toString())
-    })
-
-    // Get fees that were converted/distributed during the period
-    const convertFeesLogs = await getLogs({ 
-        targets: vaults, 
-        eventAbi: eulerVaultABI.convertFees, 
-        skipIndexer: false,
-        flatten: false 
-    })
-
-    const convertedFeesShares = convertFeesLogs.map((vaultLogs) => {
-        if (!vaultLogs.length) return 0n
-        let totalShares = 0n
-        for (const log of vaultLogs) {
-            totalShares += log.protocolShares + log.governorShares
-        }
-        return totalShares
-    })
-
-    // Total protocol fees = accumulated fees change + converted fees
-    // This represents all fees generated during the period
-    const totalProtocolFeeShares = accumulatedFeesChange.map((accumulated, i) => {
-        return accumulated + convertedFeesShares[i]
-    })
-
-    // Convert fee shares to asset amounts
-    const protocolFeeAssets = await toApi.multiCall({
-        calls: totalProtocolFeeShares.map((feeShares, i) => ({
-            target: vaults[i],
-            params: [feeShares.toString()]
-        })),
+    const convertToAssetsBefore = await options.fromApi.multiCall({
         abi: eulerVaultABI.convertToAssets,
-        permitFailure: true
+        calls: vaults.map((vaultAddress: string, index: number) => {
+            return {
+                target: vaultAddress,
+                params: [String(1e18)],
+            }
+        })
+    })
+    const convertToAssetsAfter = await options.toApi.multiCall({
+        abi: eulerVaultABI.convertToAssets,
+        calls: vaults.map((vaultAddress: string, index: number) => {
+            return {
+                target: vaultAddress,
+                params: [String(1e18)],
+            }
+        })
     })
 
-    protocolFeeAssets.forEach((assets, i) => {
-        if (!assets) return
-        dailyRevenue.add(underlyings[i], assets)
-    })
+    for (let i = 0; i < vaults.length; i++) {
+        const balance = vaultBalances[i] ? vaultBalances[i] : 0
+        const interestFee = vaultInterestFees[i] ? vaultInterestFees[i] : 0
+        const protocolFeeShare = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
+
+        const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i])
+        const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
+
+        let interestEarnedBeforeFee = interestEarned
+        if (interestFee < BigInt(1e4)) {
+            interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - BigInt(interestFee))
+        }
+
+        const protocolRevenueShare = (interestEarnedBeforeFee - interestEarned) * BigInt(protocolFeeShare) / BigInt(1e4)
+
+        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee);
+        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned)
+        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare)
+    }
 
     const dailySupplySideRevenue = dailyFees.clone()
     dailySupplySideRevenue.subtract(dailyRevenue)
@@ -159,19 +104,15 @@ const getVaults = async ({ createBalances, api, fromApi, toApi, getLogs, chain, 
         dailyFees,
         dailyRevenue,
         dailySupplySideRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue,
     }
 }
 
-const fetch = async (options: FetchOptions) => {
-    return await getVaults(options)
-}
-
 const methodology = {
-    Fees: "Interest that is paid by the borrowers to the vaults",
-    Revenue: "Protocol fees share",
-    ProtocolRevenue: "Protocol fees share",
-    SupplySideRevenue: "Interest paid to the lenders"
+    Fees: "Interest that is paid by the borrowers to the vaults.",
+    Revenue: "Fees collected by vaults owners, curators, and Euler.",
+    ProtocolRevenue: "Fees share collected by Euler protocol.",
+    SupplySideRevenue: "Fees distributed to vaults lenders."
 }
 
 const adapters: Adapter = {
@@ -228,7 +169,6 @@ const adapters: Adapter = {
             meta: { methodology }
         },
     },
-    allowNegativeValue: true // AS protocol revenue is tracked when collected, and interest can be lower for a day when collected
 }
 
 export default adapters;
