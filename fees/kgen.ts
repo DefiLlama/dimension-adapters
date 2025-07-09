@@ -153,6 +153,9 @@ const fetchPolygonRevenue = async (options: FetchOptions) => {
     dailyRevenue: dailyFees,
   };
 };
+const meta = {
+
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -161,8 +164,8 @@ const adapter: SimpleAdapter = {
       start: "2025-06-02",
       meta: {
         methodology: {
-          Fees: "Fees paid by dapps/projects launching quests on KGeN.",
-          Revenue: "Fees paid by dapps/projects launching quests on KGeN.",
+          Fees: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
+          Revenue: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
         },
       },
     },
@@ -171,8 +174,8 @@ const adapter: SimpleAdapter = {
       start: "2025-06-23",
       meta: {
         methodology: {
-          Fees: "Fees paid by dapps/projects launching quests on KGeN.",
-          Revenue: "Fees paid by dapps/projects launching quests on KGeN.",
+          Fees: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
+          Revenue: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
         },
       },
     },
