@@ -48,6 +48,8 @@ const fetch = async (options: FetchOptions) => {
     const JMES_TO_PNL = "[0][1].pnlHistory"
     const DELAY = 200 // ms
     // const delay = 10000 // ms
+    const START_TIMESTAMP = options.startTimestamp * 1e3
+    const END_TIMESTAMP = options.endTimestamp * 1e3
 
     // Fetch pnlHistory for all MS addresses and concatenate them with DELAY delay between calls
     const allPnlHistories: HistoryEntry[][] = [];
@@ -59,22 +61,15 @@ const fetch = async (options: FetchOptions) => {
     // Flatten all histories into a single array
     const dailyPnlHistory = allPnlHistories.flat();
 
-    // Aggregate PnL by day (UTC)
-    const dailyPnlMap = new Map<number, number>();
+    // Aggregate total PnL between START_TIMESTAMP and END_TIMESTAMP (inclusive)
+    let totalPnl = 0;
     for (const [timestamp, pnlStr] of dailyPnlHistory) {
-        const date = new Date(Number(timestamp));
-        // Get UTC date string (YYYY-MM-DD)
-        const day = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-        const pnl = Number(pnlStr);
-        dailyPnlMap.set(day, (dailyPnlMap.get(day) ?? 0) + pnl);
+        const ts = Number(timestamp);
+        if (ts >= START_TIMESTAMP && ts <= END_TIMESTAMP) {
+            totalPnl += Number(pnlStr);
+        }
     }
-    // Get the latest day and its fees
-    const sortedDays = Array.from(dailyPnlMap.keys()).sort((a, b) => a - b);
-    const todayDay = sortedDays[sortedDays.length - 1];
-    const todayFees = dailyPnlMap.get(todayDay) ?? 0;
-    dailyRevenue.addCGToken("usd-coin", todayFees)
-
-    // console.log(dailyPnlMap)
+    dailyRevenue.addCGToken("usd-coin", totalPnl);
 
     return {
         dailyRevenue: dailyRevenue
