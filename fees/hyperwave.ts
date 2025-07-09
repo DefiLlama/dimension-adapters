@@ -72,7 +72,6 @@ const fetch = async (options: FetchOptions) => {
     }
     // Flatten all histories into a single array
     const dailyPnlHistory = allPnlHistories.flat();
-    console.log(dailyPnlHistory[0]);
 
     // Aggregate total PnL between START_TIMESTAMP and END_TIMESTAMP (inclusive)
     let totalPnl = 0;
