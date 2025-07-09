@@ -13,13 +13,20 @@ const graphs: Fetch = async (_timestamp: number, _t: any, options: FetchOptions)
       const adapter = getUniV2LogAdapter({ 
         factory: factory[options.chain as string], 
         eventAbi: SWAP_EVENT, 
-        pairCreatedAbi: POOL_CREATE 
+        pairCreatedAbi: POOL_CREATE,
+        revenueRatio: 0.5, 
+        protocolRevenueRatio: 0.5,
+        holdersRevenueRatio: 0.5,
       });
       const v2stats = await adapter(options);
 
   return {
     timestamp: options.startOfDay,
     dailyVolume: v2stats?.dailyVolume,
+    dailyFees: v2stats?.dailyFees,
+    dailyRevenue: v2stats?.dailyRevenue,
+    dailyProtocolRevenue: v2stats?.dailyProtocolRevenue,
+    dailySupplySideRevenue: v2stats?.dailySupplySideRevenue,
   };
 };
 
