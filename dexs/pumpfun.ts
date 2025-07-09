@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // Decoded Schema: https://github.com/duneanalytics/spellbook/blob/main/dbt_subprojects/solana/models/_sector/dex/pumpdotfun/solana/pumpdotfun_solana_base_trades.sql
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -9,9 +10,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT 
       SUM(
         CASE 
-          WHEN token_sold_mint_address = 'So11111111111111111111111111111111111111112' 
+          WHEN token_sold_mint_address = '${ADDRESSES.solana.SOL}' 
           THEN token_sold_amount_raw
-          WHEN token_bought_mint_address = 'So11111111111111111111111111111111111111112'
+          WHEN token_bought_mint_address = '${ADDRESSES.solana.SOL}'
           THEN token_bought_amount_raw
           ELSE 0
         END
@@ -23,7 +24,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `);
 
   const dailyVolume = options.createBalances()
-  dailyVolume.add('So11111111111111111111111111111111111111112', vol[0].total_sol_volume*1e9);
+  dailyVolume.add(ADDRESSES.solana.SOL, vol[0].total_sol_volume*1e9);
   return { dailyVolume }
 }
 

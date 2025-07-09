@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
-const usdc = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
-const usdce = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8";
+const usdc = ADDRESSES.arbitrum.USDC_CIRCLE;
+const usdce = ADDRESSES.arbitrum.USDC;
 
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({

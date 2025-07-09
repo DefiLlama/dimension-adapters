@@ -1,20 +1,22 @@
-import axios from "axios";
 import { Adapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const {
-    data: { dailyRevenue },
-  } = await axios.get(
-    `https://tidelabs.io:2121/defillama/strike-finance/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const { totalFees, totalRevenue } = await fetchURL(
+    `https://beta.strikefinance.org/api/analytics/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
-  const dailyRevenueUSD = options.createBalances();
-  dailyRevenueUSD.addCGToken('cardano', Number(dailyRevenue));
-  const dailyFeesUSD = dailyRevenueUSD.clone();
+
+  dailyFees.addCGToken("cardano", Number(totalFees));
+  dailyRevenue.addCGToken("cardano", Number(totalRevenue));
+
   return {
-    timestamp: options.startOfDay,
-    dailyFees: dailyFeesUSD,
-    dailyRevenue: dailyRevenueUSD,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -23,15 +25,17 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: '2024-05-16',
+      start: "2025-05-16",
       meta: {
         methodology: {
           Fees: "All trading fees associated with opening a perpetual position.",
-          Revenue: "All trading fees associated with opening a perpetual position.",
+          Revenue: "All open fees plus liquidation and trading revenue.",
+          ProtocolRevenue: "All open fees plus liquidation and trading revenue.",
         }
       }
     },
   },
+  allowNegativeValue: true, // bad liquidation
 };
 
 export default adapter;

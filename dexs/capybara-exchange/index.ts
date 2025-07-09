@@ -32,38 +32,30 @@ const endpoints: TEndpoint = {
 
 const feesRatio = 0.0004;
 
-const fetchVolume = (chain: Chain) => {
-  return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const {startTimestamp} = options;
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(startTimestamp * 1000)
-    );
-    const todaysBlock = await getBlock(dayTimestamp, chain, {});
-    const dayID = dayTimestamp / 86400;
-    const query = gql`
-      {
-          protocolDayData(id: "${dayID}") {
-              dayID
-              dailyTradeVolumeUSD
-          },
-          protocols(block: { number: ${todaysBlock} }) {
-            totalTradeVolumeUSD
-          }
-      }`;
-    const response: IData = await request(endpoints[chain], query);
-    const dailyVolume =
-      Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
-    const totalTradeVolumeUSD =
-      Number(response.protocols[0].totalTradeVolumeUSD) / 2;
-    const dailyFees = new BigNumber(dailyVolume ? dailyVolume : '0').multipliedBy(feesRatio).toString()
-    const totalFees = new BigNumber(totalTradeVolumeUSD ? totalTradeVolumeUSD : '0').multipliedBy(feesRatio).toString()
-    return {
-      dailyVolume: dailyVolume,
-      totalVolume: totalTradeVolumeUSD,
-      dailyFees,
-      totalFees,
-      timestamp: dayTimestamp
-    };
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { startTimestamp } = options;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(
+    new Date(startTimestamp * 1000)
+  );
+  const todaysBlock = await getBlock(dayTimestamp, options.chain, {});
+  const dayID = dayTimestamp / 86400;
+  const query = gql`
+    {
+        protocolDayData(id: "${dayID}") {
+            dayID
+            dailyTradeVolumeUSD
+        },
+        protocols(block: { number: ${todaysBlock} }) {
+          totalTradeVolumeUSD
+        }
+    }`;
+  const response: IData = await request(endpoints[options.chain], query);
+  const dailyVolume = Number(response.protocolDayData.dailyTradeVolumeUSD) / 2;
+  const dailyFees = new BigNumber(dailyVolume ? dailyVolume : '0').multipliedBy(feesRatio).toString()
+
+  return {
+    dailyVolume: dailyVolume,
+    dailyFees,
   };
 };
 
@@ -71,7 +63,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.KLAYTN]: {
-      fetch: fetchVolume(CHAIN.KLAYTN),
+      fetch,
       start: '2024-05-15'
     }
   }

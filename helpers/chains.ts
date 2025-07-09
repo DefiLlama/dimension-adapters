@@ -240,6 +240,10 @@ export enum CHAIN {
   COTI = "coti",
   LENS = "lens",
   SSEED = "sseed",
+  AO = 'ao',
+  XRPL_EVM = 'xrplevm',
+  KATANA = 'katana',
+  BOTANIX = 'btnx',
 }
 
 // Don´t use

@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
     }        
     let tokenVolume = await httpGet(skateDataApi, tokenVolume_options);
     
-    tokenVolume = tokenVolume.map((pool) => {
+    tokenVolume = tokenVolume.data.map((pool) => {
         return {
             kernel_pool_address: pool.kernel_pool_address,
             description: pool.description,

@@ -13,7 +13,6 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dimensionsData.dailyVolume,
-    totalVolume: dimensionsData.totalVolume,
   };
 };
 

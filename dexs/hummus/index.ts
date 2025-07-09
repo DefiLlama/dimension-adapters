@@ -1,4 +1,4 @@
-import { DISABLED_ADAPTER_KEY, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const abi_event = {

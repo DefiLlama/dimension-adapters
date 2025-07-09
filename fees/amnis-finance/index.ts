@@ -22,31 +22,17 @@ const fetch = async (timestamp: number) => {
 
     const dayEndpoint = `${api_url}?timestamp=${timestamp}&type=FEE_DAILY`;
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
-    const dailyFees = dayFeesData.filter((a: IFeeData) => a.timestamp >= amnisFeeStartDate).reduce((partialSum: number, a: IFeeData) => partialSum + a.value, 0);
-
-    const totalEndpoint = `${api_url}?timestamp=${timestamp}&type=FEE_ALL`;
-    const totalFeesData = await httpGet(totalEndpoint, config_rule)
-
-    const totalFees = totalFeesData.filter((a: IFeeData) => a.timestamp >= amnisFeeStartDate).reduce((partialSum: number, a: IFeeData) => partialSum + a.value, 0);
-   
+    const dailyFees = dayFeesData.filter((a: IFeeData) => a.timestamp >= amnisFeeStartDate).reduce((partialSum: number, a: IFeeData) => partialSum + a.value, 0); 
+  
     const dailyUserFees = timestamp >= amnisFeeStartDate ? dailyFees * 0.07 : 0;
-    const totalUserFees = timestamp >= amnisFeeStartDate ? totalFees * 0.07 : 0;
-
     const dailySupplySideRevenue = dailyFees - dailyUserFees;
-    const totalSupplySideRevenue = totalFees - totalUserFees;
 
     return {
-        timestamp,
         dailyUserFees: dailyUserFees,
-        totalUserFees: totalUserFees,
-        totalFees: totalFees,
         dailyFees: dailyFees,
-        totalRevenue: totalUserFees,
         dailyRevenue: dailyUserFees,
         dailyProtocolRevenue: dailyUserFees,
-        totalProtocolRevenue: totalUserFees,
         dailySupplySideRevenue: dailySupplySideRevenue,
-        totalSupplySideRevenue: totalSupplySideRevenue,
         dailyHoldersRevenue: 0,
       };
 }

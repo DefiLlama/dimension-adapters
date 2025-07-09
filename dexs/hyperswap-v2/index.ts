@@ -12,6 +12,25 @@ interface HyperswapResponse {
     pageCount: number;
 }
 
+const encodeToken = (input: string) => {
+    const keystreamHexAscii = 
+      "cdc49b16573644bbe4cb47c809a6d387" +
+      "873331e665d622b1337a4e19593c5a18" +
+      "cdc49b16573";
+    const encoder = new TextEncoder();
+    const pt = encoder.encode(input);
+    const ks = encoder.encode(keystreamHexAscii);
+    const ct = new Uint8Array(pt.length);
+    for (let i = 0; i < pt.length; i++) {
+      ct[i] = pt[i] ^ ks[i];
+    }
+    let bin = "";
+    for (let b of ct) {
+      bin += String.fromCharCode(b);
+    }
+    return btoa(bin);
+}
+
 const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
     const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?page=${page}&maxPerPage=50`
@@ -31,7 +50,7 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
                 "Sec-Fetch-Dest": "empty",
                 "Sec-Fetch-Mode": "cors",
                 "Sec-Fetch-Site": "same-origin",
-                "x-client-token": `${clientToken}`,
+                "x-client-token": `${encodeToken(clientToken)}`,
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                 "Origin": "https://hyperswap.exchange",
                 "Referer": "https://hyperswap.exchange/"

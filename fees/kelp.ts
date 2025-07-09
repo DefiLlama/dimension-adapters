@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
@@ -12,16 +13,16 @@ const methodology = {
 const LRTOracle = '0x349A73444b1a310BAe67ef67973022020d70020d'
 const LRTConfig = '0x947Cb49334e6571ccBFEF1f1f1178d8469D65ec7'
 const EigenRewardDistributor = '0x9bb6d4b928645eda8f9c019495695ba98969eff1'
-const EigenToken = '0xec53bf9167f50cdeb3ae105f56099aaab9061f83'
+const EigenToken = ADDRESSES.ethereum.EIGEN
 
 const rsETHMaps: any = {
   [CHAIN.ETHEREUM]: '0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7',
-  [CHAIN.ARBITRUM]: '0x4186BFC76E2E237523CBC30FD220FE055156b41F',
-  [CHAIN.BLAST]: '0x4186bfc76e2e237523cbc30fd220fe055156b41f',
+  [CHAIN.ARBITRUM]: ADDRESSES.berachain.rsETH,
+  [CHAIN.BLAST]: ADDRESSES.berachain.rsETH,
   [CHAIN.SCROLL]: '0x65421ba909200b81640d98b979d07487c9781b66',
-  [CHAIN.OPTIMISM]: '0x4186bfc76e2e237523cbc30fd220fe055156b41f',
+  [CHAIN.OPTIMISM]: ADDRESSES.berachain.rsETH,
   [CHAIN.BASE]: '0x1Bc71130A0e39942a7658878169764Bbd8A45993',
-  [CHAIN.LINEA]: '0x4186bfc76e2e237523cbc30fd220fe055156b41f',
+  [CHAIN.LINEA]: ADDRESSES.berachain.rsETH,
   [CHAIN.ERA]: '0x6be2425c381eb034045b527780d2bf4e21ab7236',
 }
 
@@ -113,56 +114,56 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-12-11',
       meta: {
         methodology,
       },
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-02-07',
       meta: {
         methodology,
       },
     },
     [CHAIN.BLAST]: {
-      fetch: fetch,
+      fetch,
       start: '2024-03-20',
       meta: {
         methodology,
       },
     },
     [CHAIN.SCROLL]: {
-      fetch: fetch,
+      fetch,
       start: '2024-03-26',
       meta: {
         methodology,
       },
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-06',
       meta: {
         methodology,
       },
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-06',
       meta: {
         methodology,
       },
     },
     [CHAIN.LINEA]: {
-      fetch: fetch,
+      fetch,
       start: '2024-04-16',
       meta: {
         methodology,
       },
     },
     [CHAIN.ERA]: {
-      fetch: fetch,
+      fetch,
       start: '2024-05-16',
       meta: {
         methodology,

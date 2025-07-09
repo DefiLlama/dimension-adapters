@@ -6,7 +6,7 @@ import { getConfig } from "../helpers/cache";
 
 const methodology = {
   Fees: "Fees generated from staking assets in LRT vaults.",
-  Revenue: "Fees generated from staking assets in LRT vaults.",
+  Revenue: "Amount of fees are collected by Mellow protocol (0% total yields).",
   ProtocolRevenue: "Amount of fees are collected by Mellow protocol (0% total yields).",
   SupplySideRevenue: "Fees are distributed to supply side depositors (100% total yields).",
 };
@@ -92,9 +92,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0, // no revenue cut from Mellow
+    dailyProtocolRevenue: 0, // no revenue cut from Mellow
+    dailySupplySideRevenue: dailyFees, // all fees to stakers
   }
 }
 

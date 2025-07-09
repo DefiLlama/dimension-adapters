@@ -13,6 +13,9 @@ const adapter: SimpleAdapter = {
             version: 3,
             lendingPoolProxy: '0xcecce0eb9dd2ef7996e01e25dd70e461f918a14b',
             dataProvider: '0x895c799a5bbdcb63b80bee5bd94e7b9138d977d6',
+            seflLoanAssets: {
+              '0xca79db4b49f608ef54a5cb813fbed3a6387bc645': true, // USDXL
+            }
           },
         ],
       },
@@ -21,4 +24,3 @@ const adapter: SimpleAdapter = {
 }
 
 export default adapter
-

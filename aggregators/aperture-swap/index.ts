@@ -1,4 +1,4 @@
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -27,92 +27,57 @@ interface VolumeInfo {
 }
 
 interface VolumeResponse {
-    dailyVolume: VolumeInfo[];
-    totalVolume: VolumeInfo[];
+    dailyVolume: VolumeInfo;
 }
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
     const chainId = chainToId[options.chain]
-    if (!chainId) {
-        return {
-            dailyVolume: 0,
-            totalVolume: 0,
-            timestamp: timestamp,
-        }
-    }
-    const fetchUrl = `${url}?chainid=${chainId}&timestamp=${timestamp}`
-    const data: VolumeResponse = (await httpGet(fetchUrl, { timeout: 100000 }));
 
-    if (data) {
-        let dailyVolume :number = 0
-        let totalVolume :number = 0
-        if (data.dailyVolume) {
-            data.dailyVolume.forEach(r => {
-                if (r.chainId == chainId) {
-                    dailyVolume = r.tve
-                }
-            })
-        }
+    const data: VolumeResponse = await fetchURL(`${url}?chainid=${chainId}&timestamp=${timestamp}`);
 
-        if (data.totalVolume) {
-            data.totalVolume.forEach(r => {
-                if (r.chainId == chainId) {
-                    totalVolume = r.tve
-                }
-            })
-        }
+    const dailyVolume: number = data.dailyVolume.chainId == chainId ? data.dailyVolume.tve : 0
 
-        return {
-            dailyVolume: dailyVolume,
-            totalVolume: totalVolume,
-            timestamp: timestamp
-        }
-    } else {
-        //console.log("no data")
-        return {
-            dailyVolume: 0,
-            totalVolume: 0,
-            timestamp: timestamp,
-        }
+    return {
+        dailyVolume: dailyVolume,
     }
 }
 
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: fetch,
+            fetch,
             start: '2023-07-18',
         },
         [CHAIN.ARBITRUM]: {
-            fetch: fetch,
+            fetch,
             start: '2023-07-10',
         },
         [CHAIN.AVAX]: {
-            fetch: fetch,
+            fetch,
             start: '2023-10-07',
         },
         [CHAIN.BASE]: {
-            fetch: fetch,
+            fetch,
             start: '2023-10-13',
         },
         [CHAIN.BSC]: {
-            fetch: fetch,
+            fetch,
             start: '2023-10-10',
         },
         [CHAIN.OPTIMISM]: {
-            fetch: fetch,
+            fetch,
             start: '2023-10-09',
         },
         [CHAIN.POLYGON]: {
-            fetch: fetch,
+            fetch,
             start: '2023-10-09',
         },
         [CHAIN.MANTA]: {
-            fetch: fetch,
+            fetch,
             start: '2023-09-19',
         },
         [CHAIN.SCROLL]: {
-            fetch: fetch,
+            fetch,
             start: '2023-12-16',
         }
     }
