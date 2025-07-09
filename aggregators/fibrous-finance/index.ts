@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = "https://stats.fibrous.finance/volume";
+const URL = "https://graph.fibrous.finance/starknet/volume";
 
 interface IAPIResponse {
   status: number;

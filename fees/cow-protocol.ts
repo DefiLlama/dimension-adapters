@@ -22,8 +22,13 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   if (data) {
-    const df = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
-    const protocolRevenue = (data.protocol_fee || 0) + (data.mev_blocker_fee || 0);
+    let df = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
+    let protocolRevenue = (data.protocol_fee || 0) + (data.mev_blocker_fee || 0);
+    if(options.chain === CHAIN.XDAI && df > 5) {
+      throw new Error(`PaF ${df}, PrF ${protocolRevenue}, P ${data.partner_fee}, Pr ${data.protocol_fee}, M ${data.mev_blocker_fee} very high for gnosis`);
+      // df = 0;
+      // protocolRevenue = 0;
+    }
     dailyFees.addCGToken('ethereum', df);
     dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
   } else { 

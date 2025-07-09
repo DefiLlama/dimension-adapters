@@ -7,7 +7,9 @@ const statsApiEndpoint = "https://stats-api.mainnet.orca.so/api/whirlpools";
 const eclipseStatsApiEndpoint = "https://stats-api-eclipse.mainnet.orca.so/api/whirlpools";
 const FEE_RATE_DENOMINATOR = 1_000_000;
 const FEE_RATE_THRESHOLD = 0; // 
-const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climat fund 
+const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climate fund 
+const HOLDERS_REVENUE_RATE = 0.20; // 20% of protocol fees goes to xORCA holders via buybacks and burns
+// Based on governance proposal: https://forums.orca.so/t/tokenholder-proposal-for-xorca-initial-development-team-grant-buybacks-and-burn/882
 
 const CONFIG = {
     [CHAIN.SOLANA]: {
@@ -100,6 +102,11 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
     return 0;
 }
 
+function calculateHoldersRevenue(pool: WhirlpoolWithNumberMetrics): number {
+    const protocolFees = calculateProtocolFees(pool);
+    return protocolFees * HOLDERS_REVENUE_RATE; // 20% of protocol fees for xORCA buybacks and burns
+}
+
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -153,15 +160,34 @@ async function fetch(timestamp: number, _b:any, options: FetchOptions) {
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
+    let dailyHoldersRevenue = 0;
+
+    if(options.chain == CHAIN.SOLANA){
+        dailyHoldersRevenue = allPools.reduce(
+            (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
+        );
+    }
+
+    const dailyProtocolRevenue = dailyRevenue - dailyHoldersRevenue; // Protocol treasury gets 80% of protocol fees
+
     return {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees, // All fees paid by users
+        dailyRevenue, // Total protocol revenue before distribution
+        dailyProtocolRevenue: dailyProtocolRevenue, // Revenue going to protocol treasury (80% of protocol fees)
+        dailyHoldersRevenue: dailyHoldersRevenue, // Revenue going to xORCA holders (20% of protocol fees)
         dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
-        dailyProtocolRevenue: dailyRevenue, // Revenue going to protocol treasury
-        dailyRevenue, // Total protocol revenue (same as protocol revenue in this case)
-        timestamp: timestamp
     }
+}
+
+const methodology = {
+    Fees: "All fees paid by users",
+    Revenue: "Revenue going to protocol treasury",
+    ProtocolRevenue: "Revenue going to protocol treasury", 
+    UserFees: "All fees paid by users",
+    SupplySideRevenue: "Revenue earned by LPs (87% of total fees)",
+    HoldersRevenue: "20% of protocol fees allocated for xORCA holder buybacks and burns."
 }
 
 export default {
@@ -171,11 +197,13 @@ export default {
             fetch,
             runAtCurrTime: true,
             start: '2022-09-14',
+            meta: { methodology }
         },
         [CHAIN.ECLIPSE]: {
             fetch,
             runAtCurrTime: true,
             start: '2022-09-14',
+            meta: { methodology }
         }
     },
     isExpensiveAdapter: true,
