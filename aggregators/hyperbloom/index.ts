@@ -1,36 +1,20 @@
 import { ethers } from "ethers";
-import {
-  FetchOptions,
-  FetchResultVolume,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTransactions, getTxReceipts } from "../../helpers/getTxReceipts";
+import { getTransactions } from "../../helpers/getTxReceipts";
 
-const BridgeFillEvent =
-  "event BridgeFill(bytes32 source, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
+const BridgeFillEvent = "event BridgeFill(bytes32 source, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
 
 const HYPERBLOOM_ADDRESSES = [
   "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
   "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
 ];
-
-const HYPERBLOOM_FEE_WALLET = "0x052cdffeacfc503af98a9d87d5406e902c649537";
-
 const iface = new ethers.Interface([BridgeFillEvent]);
-const transferTopic = ethers.id("Transfer(address,address,uint256)");
 
-const fetch: any = async (
-  options: FetchOptions
-): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
-  const logs: any[] = await options.getLogs({
-    noTarget: true,
-    eventAbi: BridgeFillEvent,
-    entireLog: true,
-  });
+  const logs: any[] = await options.getLogs({noTarget: true, eventAbi: BridgeFillEvent, entireLog: true});
 
   const txHashes = [...new Set(logs.map((l) => l.transactionHash))];
   const txs: any[] = await getTransactions(options.chain, txHashes, {
@@ -85,39 +69,18 @@ const fetch: any = async (
     });
   });
 
-  const receipts = await getTxReceipts(
-    options.chain,
-    Array.from(validTxHashSet),
-    { cacheKey: "hyperbloom-aggregator-receipts" }
-  );
-
-  receipts.forEach((receipt) => {
-    if (!receipt) return;
-    receipt.logs.forEach((l: any) => {
-      if (l.topics[0] !== transferTopic) return;
-      if (l.topics.length < 3) return;
-      const to = "0x" + l.topics[2].slice(26).toLowerCase();
-      if (to !== HYPERBLOOM_FEE_WALLET.toLowerCase()) return;
-
-      const amount = BigInt(l.data);
-      const tokenAddr = l.address;
-      dailyFees.add(tokenAddr, amount);
-    });
-  });
-
-  return { dailyVolume, dailyFees } as any;
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch: fetch,
+      fetch,
       start: "2025-05-31",
       meta: {
         methodology: {
-          Volume: "Volume from HyperBloom",
-          Fees: "Fees from HyperBloom included positive slippage fee",
+          Volume: "Volume from Hyperbloom",
         },
       },
     },
@@ -125,4 +88,3 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
-
