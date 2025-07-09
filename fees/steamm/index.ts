@@ -14,7 +14,7 @@ const suilendPoolHistoricalURL = (
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=21600&poolId=${poolId}`;
+  `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
 
 interface PoolInfo {
   id: string;
@@ -31,21 +31,19 @@ async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
       suilendPoolHistoricalURL(
         poolConfig.pool.id,
         dayTimestamp,
-        dayTimestamp + 24 * 60 * 60
+        dayTimestamp + 24 * 60 * 60 - 1
       )
     );
-    const dailyFees = historicalItems.reduce(
-      (accumulator: number, currentValue: any) =>
-        accumulator + new Number(currentValue.usdValue).valueOf(),
-      0
-    );
-    poolInfos.push({
-      id: poolConfig.pool.id,
-      feesUsdValue: Number(dailyFees),
-      protocolFeeRate:
-        Number(poolConfig.pool.protocolFees.config.feeNumerator) /
-        Number(poolConfig.pool.protocolFees.config.feeDenominator),
-    });
+    const dayItem = historicalItems.find(item => Number(item.start) === dayTimestamp)
+    if (dayItem) {
+      poolInfos.push({
+        id: poolConfig.pool.id,
+        feesUsdValue: Number(dayItem.usdValue),
+        protocolFeeRate:
+          Number(poolConfig.pool.protocolFees.config.feeNumerator) /
+          Number(poolConfig.pool.protocolFees.config.feeDenominator),
+      });
+    }
   }
 
   return poolInfos;
