@@ -11,17 +11,13 @@ const endpoints = {
   [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
-// GraphQL query for Coti - using totalHistories
+// GraphQL query for Coti - using totalHistories  
 const getCotiVolumeQuery = gql`
   query getCotiVolume($startTime: Int!, $endTime: Int!) {
     totalHistories(
-      where: { 
-        timestamp_gte: $startTime, 
-        timestamp_lt: $endTime 
-      }
       orderBy: timestamp
       orderDirection: desc
-      first: 1000
+      first: 10
     ) {
       id
       timestamp
@@ -48,7 +44,7 @@ const getBaseDailyVolumeQuery = gql`
       }
       orderBy: day
       orderDirection: desc
-      first: 1
+      first: 5
     ) {
       id
       day
@@ -128,47 +124,55 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
     let data;
 
     if (chain === CHAIN.COTI) {
-      // Handle Coti using totalHistories query
-      console.log(`Querying Coti between ${startTimestamp} and ${endTimestamp}`);
+      // Handle Coti using totalHistories query - first let's see what data exists
+      console.log(`Querying Coti for any recent data`);
       
-      data = await request(endpoint, getCotiVolumeQuery, {
-        startTime: startTimestamp,
-        endTime: endTimestamp,
-      });
+      data = await request(endpoint, getCotiVolumeQuery, {});
 
       console.log(`Coti response:`, data);
 
       if (data?.totalHistories?.length > 0) {
-        // Sum up tradeVolume from all records in the time range
-        const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
-          const tradeVolume = parseFloat(history.tradeVolume || "0");
-          const openVolume = parseFloat(history.openTradeVolume || "0");
-          const closeVolume = parseFloat(history.closeTradeVolume || "0");
+        console.log(`Found ${data.totalHistories.length} Coti records. Latest timestamps:`, 
+          data.totalHistories.slice(0, 3).map(h => ({timestamp: h.timestamp, tradeVolume: h.tradeVolume})));
+        
+        // Filter records within our time range
+        const relevantRecords = data.totalHistories.filter(history => 
+          history.timestamp >= startTimestamp && history.timestamp <= endTimestamp
+        );
+        
+        console.log(`Records in time range ${startTimestamp} to ${endTimestamp}:`, relevantRecords.length);
+        
+        if (relevantRecords.length > 0) {
+          const totalVolumeUSD = relevantRecords.reduce((sum, history) => {
+            const tradeVolume = parseFloat(history.tradeVolume || "0");
+            const openVolume = parseFloat(history.openTradeVolume || "0");
+            const closeVolume = parseFloat(history.closeTradeVolume || "0");
 
-          // Use tradeVolume if available, otherwise sum open and close volumes
-          const volume = tradeVolume > 0 ? tradeVolume : openVolume + closeVolume;
-          console.log(`Coti record: tradeVolume=${tradeVolume}, openVolume=${openVolume}, closeVolume=${closeVolume}, using=${volume}`);
-          return sum + volume;
-        }, 0);
+            const volume = tradeVolume > 0 ? tradeVolume : openVolume + closeVolume;
+            console.log(`Coti record: tradeVolume=${tradeVolume}, openVolume=${openVolume}, closeVolume=${closeVolume}, using=${volume}`);
+            return sum + volume;
+          }, 0);
 
-        if (totalVolumeUSD > 0) {
-          // Check if values seem to be in wei and convert if needed
-          const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
-          dailyVolume.addUSDValue(adjustedVolume);
-          console.log(`Coti final volume: ${adjustedVolume} USD from ${data.totalHistories.length} records`);
+          if (totalVolumeUSD > 0) {
+            const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
+            dailyVolume.addUSDValue(adjustedVolume);
+            console.log(`Coti final volume: ${adjustedVolume} USD from ${relevantRecords.length} records`);
+          }
         }
 
         return { dailyVolume };
       } else {
-        console.log("No Coti totalHistories data found");
+        console.log("No Coti totalHistories data found at all");
       }
     } else if (chain === CHAIN.BASE) {
       // Handle Base - try multiple query formats based on the actual schema
 
       // Convert timestamps to day numbers for dailyHistories (they use 'day' field)
-      const currentDay = Math.floor(endTimestamp / 86400); // Get the current day only
-      const startDay = currentDay; // Only get today's data
-      const endDay = currentDay;
+      // Try a broader range to catch any daily data
+      const endDay = Math.floor(endTimestamp / 86400);
+      const startDay = endDay - 2; // Look at last few days to find data
+      
+      console.log(`Base: Looking for days ${startDay} to ${endDay} (timestamps: ${startTimestamp} to ${endTimestamp})`);
 
       // First try: dailyHistories (preferred - daily aggregated data)
       try {
@@ -178,18 +182,17 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
         });
 
         if (data?.dailyHistories?.length > 0) {
-          const totalVolumeUSD = data.dailyHistories.reduce((sum, daily) => {
-            // Only use tradeVolume to avoid double counting
-            const tradeVolume = parseFloat(daily.tradeVolume || "0");
-            
-            return sum + tradeVolume;
-          }, 0);
-
-          if (totalVolumeUSD > 0) {
+          console.log(`Base: Found ${data.dailyHistories.length} daily records:`, data.dailyHistories.map(d => ({day: d.day, tradeVolume: d.tradeVolume})));
+          
+          // Take only the most recent day's data
+          const latestDay = data.dailyHistories[0]; // Already ordered by day desc
+          const tradeVolume = parseFloat(latestDay.tradeVolume || "0");
+          
+          if (tradeVolume > 0) {
             // Check if values seem to be in wei (too high) and convert
-            const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
+            const adjustedVolume = tradeVolume > 1e15 ? tradeVolume / 1e18 : tradeVolume;
             dailyVolume.addUSDValue(adjustedVolume);
-            console.log(`Base daily volume: ${adjustedVolume} USD from ${data.dailyHistories.length} records`);
+            console.log(`Base daily volume: ${adjustedVolume} USD from day ${latestDay.day}`);
           }
 
           return { dailyVolume };
