@@ -120,7 +120,7 @@ const getBaseTotalHistoryQuery = `
 const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalances }) => {
   const dailyVolume = createBalances();
   const endpoint = endpoints[chain];
-  
+
   if (!endpoint) {
     throw new Error(`No endpoint configured for chain: ${chain}`);
   }
@@ -137,31 +137,31 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
           endTime: endTimestamp,
         },
       });
-      
+
       if (data?.totalHistories?.length > 0) {
         // Sum up tradeVolume from all records in the time range
         const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
           const tradeVolume = parseFloat(history.tradeVolume || "0");
           const openVolume = parseFloat(history.openTradeVolume || "0");
           const closeVolume = parseFloat(history.closeTradeVolume || "0");
-          
+
           // Use tradeVolume if available, otherwise sum open and close volumes
           return sum + (tradeVolume > 0 ? tradeVolume : openVolume + closeVolume);
         }, 0);
-        
+
         if (totalVolumeUSD > 0) {
           dailyVolume.addUSDValue(totalVolumeUSD);
         }
-        
+
         return { dailyVolume };
       }
     } else if (chain === CHAIN.BASE) {
       // Handle Base - try multiple query formats based on the actual schema
-      
+
       // Convert timestamps to day numbers for dailyHistories (they use 'day' field)
       const startDay = Math.floor(startTimestamp / 86400); // Convert to days since epoch
       const endDay = Math.floor(endTimestamp / 86400);
-      
+
       // First try: dailyHistories (preferred - daily aggregated data)
       try {
         data = await gqlFetch(endpoint)({
@@ -171,22 +171,22 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             endDay: endDay,
           },
         });
-        
+
         if (data?.dailyHistories?.length > 0) {
           const totalVolumeUSD = data.dailyHistories.reduce((sum, daily) => {
             const tradeVolume = parseFloat(daily.tradeVolume || "0");
             const openVolume = parseFloat(daily.openTradeVolume || "0");
             const closeVolume = parseFloat(daily.closeTradeVolume || "0");
             const liquidateVolume = parseFloat(daily.liquidateTradeVolume || "0");
-            
+
             // Sum all volume types
             return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
           }, 0);
-          
+
           if (totalVolumeUSD > 0) {
             dailyVolume.addUSDValue(totalVolumeUSD);
           }
-          
+
           return { dailyVolume };
         }
       } catch (e) {
@@ -202,21 +202,21 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             endTime: endTimestamp,
           },
         });
-        
+
         if (data?.totalHistories?.length > 0) {
           const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
             const tradeVolume = parseFloat(history.tradeVolume || "0");
             const openVolume = parseFloat(history.openTradeVolume || "0");
             const closeVolume = parseFloat(history.closeTradeVolume || "0");
             const liquidateVolume = parseFloat(history.liquidateTradeVolume || "0");
-            
+
             return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
           }, 0);
-          
+
           if (totalVolumeUSD > 0) {
             dailyVolume.addUSDValue(totalVolumeUSD);
           }
-          
+
           return { dailyVolume };
         }
       } catch (e) {
@@ -232,17 +232,17 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             endTime: endTimestamp,
           },
         });
-        
+
         if (data?.tradeHistories?.length > 0) {
           const totalVolumeUSD = data.tradeHistories.reduce((sum, trade) => {
             const volume = parseFloat(trade.volume || "0");
             return sum + volume;
           }, 0);
-          
+
           if (totalVolumeUSD > 0) {
             dailyVolume.addUSDValue(totalVolumeUSD);
           }
-          
+
           return { dailyVolume };
         }
       } catch (e) {
@@ -275,7 +275,7 @@ const adapter: SimpleAdapter = {
   },
   meta: {
     methodology: {
-      Volume: "PriveX trading volume is calculated by summing all trade transactions on the DEX across Base and Coti networks using subgraph data.",
+      Volume: "PriveX trading volume is calculated by summing all trade transactions across Base and Coti networks using subgraph data.",
       DailyVolume: "Daily volume represents the total USD value of all trades executed on PriveX within a 24-hour period, including open trades, close trades, and liquidations.",
     },
   },
