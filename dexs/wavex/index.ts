@@ -60,10 +60,6 @@ const getFetch =
       id: dayTimestamp.toString(),
     });
 
-    const totalData = await request(endpoints[chain], query, {
-      id: "total",
-    });
-
     let dailyOpenInterest = 0;
     let dailyLongOpenInterest = 0;
     let dailyShortOpenInterest = 0;
@@ -94,7 +90,7 @@ const getFetch =
       dailyShortOpenInterest: dailyShortOpenInterest
         ? String(dailyShortOpenInterest * 10 ** -DECIMALS)
         : undefined,
-      dailyOpenInterest: dailyOpenInterest
+      openInterestAtEnd: dailyOpenInterest
         ? String(dailyOpenInterest * 10 ** -DECIMALS)
         : undefined,
       dailyVolume: dailyData.volumeStat
@@ -107,16 +103,7 @@ const getFetch =
               10 ** -DECIMALS
           )
         : undefined,
-      totalVolume: totalData.volumeStat
-        ? String(
-            Number(
-              Object.values(totalData.volumeStat).reduce((sum, element) =>
-                String(Number(sum) + Number(element))
-              )
-            ) *
-              10 ** -DECIMALS
-          )
-        : undefined,
+
     };
   };
 

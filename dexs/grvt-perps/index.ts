@@ -15,7 +15,7 @@ export async function fetchGRVTDex(options: FetchOptions) {
 
   return {
     dailyVolume,
-    dailyOpenInterest
+    openInterestAtEnd: dailyOpenInterest
   };
 }
 

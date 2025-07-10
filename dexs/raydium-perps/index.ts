@@ -21,8 +21,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
     dailyVolume: info.volume["24h"],
     dailyShortOpenInterest: info.openInterest.short,
     dailyLongOpenInterest: info.openInterest.long,
-    dailyOpenInterest: info.openInterest.all,
-    timestamp,
+    openInterestAtEnd: info.openInterest.all,
   };
 };
 

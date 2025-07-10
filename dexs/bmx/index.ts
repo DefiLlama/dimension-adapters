@@ -113,7 +113,7 @@ const getFetch =
       dailyShortOpenInterest: dailyShortOpenInterest
         ? String(dailyShortOpenInterest * 10 ** -30)
         : undefined,
-      dailyOpenInterest: dailyOpenInterest
+      openInterestAtEnd: dailyOpenInterest
         ? String(dailyOpenInterest * 10 ** -30)
         : undefined,
       dailyVolume:

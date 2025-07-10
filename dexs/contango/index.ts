@@ -92,7 +92,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   });
 
   return {
-    dailyOpenInterest,
+    openInterestAtEnd: dailyOpenInterest,
     dailyVolume,
   };
 };

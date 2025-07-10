@@ -1,4 +1,4 @@
-import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL"
 
@@ -20,15 +20,14 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: Fetc
 }
 
 const URL_Derivative = "https://external.api.injective.network/api/aggregator/v1/derivative/contracts";
-const fetchDerivative = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchDerivative = async (_a: any): Promise<FetchResultVolume> => {
   const volume: IVolume[] = (await fetchURL(URL_Derivative));
   const dailyVolume = volume.reduce((e: number, a: IVolume) => a.target_volume + e, 0);
   const dailyOpenInterest = volume.reduce((e: number, a: IVolume) => a.open_interest + e, 0);
 
   return {
-    dailyVolume: dailyVolume.toString(),
-    dailyOpenInterest: dailyOpenInterest.toString(),
-    timestamp
+    dailyVolume,
+    openInterestAtEnd: dailyOpenInterest,
   }
 }
 
@@ -36,7 +35,7 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     "helix": {
       [CHAIN.INJECTIVE]: {
-        fetch: fetch,
+        fetch,
         start: '2023-02-16',
       }
     },
