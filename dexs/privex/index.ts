@@ -3,7 +3,7 @@
 
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gqlFetch } from "../../utils/gqlFetch";
+import { request, gql } from "graphql-request";
 
 // GraphQL endpoints for each chain
 const endpoints = {
@@ -12,7 +12,7 @@ const endpoints = {
 };
 
 // GraphQL query for Coti - using totalHistories
-const getCotiVolumeQuery = `
+const getCotiVolumeQuery = gql`
   query getCotiVolume($startTime: Int!, $endTime: Int!) {
     totalHistories(
       where: { 
@@ -40,7 +40,7 @@ const getCotiVolumeQuery = `
 `;
 
 // GraphQL query for Base - using DailyHistory (best for daily volume aggregates)
-const getBaseDailyVolumeQuery = `
+const getBaseDailyVolumeQuery = gql`
   query getBaseDailyVolume($startDay: Int!, $endDay: Int!) {
     dailyHistories(
       where: { 
@@ -68,7 +68,7 @@ const getBaseDailyVolumeQuery = `
 `;
 
 // Alternative Base query using individual trade records if daily aggregates don't work
-const getBaseTradeHistoryQuery = `
+const getBaseTradeHistoryQuery = gql`
   query getBaseTradeHistory($startTime: Int!, $endTime: Int!) {
     tradeHistories(
       where: { 
@@ -90,7 +90,7 @@ const getBaseTradeHistoryQuery = `
 `;
 
 // Third option: Base TotalHistory for cumulative data
-const getBaseTotalHistoryQuery = `
+const getBaseTotalHistoryQuery = gql`
   query getBaseTotalHistory($startTime: Int!, $endTime: Int!) {
     totalHistories(
       where: { 
@@ -130,12 +130,9 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
     if (chain === CHAIN.COTI) {
       // Handle Coti using totalHistories query
-      data = await gqlFetch(endpoint)({
-        query: getCotiVolumeQuery,
-        variables: {
-          startTime: startTimestamp,
-          endTime: endTimestamp,
-        },
+      data = await request(endpoint, getCotiVolumeQuery, {
+        startTime: startTimestamp,
+        endTime: endTimestamp,
       });
 
       if (data?.totalHistories?.length > 0) {
@@ -164,12 +161,9 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
       // First try: dailyHistories (preferred - daily aggregated data)
       try {
-        data = await gqlFetch(endpoint)({
-          query: getBaseDailyVolumeQuery,
-          variables: {
-            startDay: startDay,
-            endDay: endDay,
-          },
+        data = await request(endpoint, getBaseDailyVolumeQuery, {
+          startDay: startDay,
+          endDay: endDay,
         });
 
         if (data?.dailyHistories?.length > 0) {
@@ -195,12 +189,9 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
       // Second try: totalHistories (similar to Coti)
       try {
-        data = await gqlFetch(endpoint)({
-          query: getBaseTotalHistoryQuery,
-          variables: {
-            startTime: startTimestamp,
-            endTime: endTimestamp,
-          },
+        data = await request(endpoint, getBaseTotalHistoryQuery, {
+          startTime: startTimestamp,
+          endTime: endTimestamp,
         });
 
         if (data?.totalHistories?.length > 0) {
@@ -225,12 +216,9 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
       // Third try: individual tradeHistories
       try {
-        data = await gqlFetch(endpoint)({
-          query: getBaseTradeHistoryQuery,
-          variables: {
-            startTime: startTimestamp,
-            endTime: endTimestamp,
-          },
+        data = await request(endpoint, getBaseTradeHistoryQuery, {
+          startTime: startTimestamp,
+          endTime: endTimestamp,
         });
 
         if (data?.tradeHistories?.length > 0) {
