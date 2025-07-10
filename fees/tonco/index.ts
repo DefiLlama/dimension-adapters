@@ -66,7 +66,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
         const fee = swap.pool.fee / 10_000;
         const lpFee = amountUsd * fee;
-        const protocolFee = lpFee * 0.1;
+        const protocolFee = lpFee * 0.2;
 
         totalLpFees += lpFee
         totalProtocolFees += protocolFee
